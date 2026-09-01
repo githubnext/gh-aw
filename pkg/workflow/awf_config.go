@@ -92,6 +92,9 @@ type AWFConfigFile struct {
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
+	// CloudHypervisor contains Cloud Hypervisor microVM execution configuration.
+	CloudHypervisor *AWFCloudHypervisorConfig `json:"cloudHypervisor,omitempty"`
+
 	// Logging contains logging and diagnostics configuration.
 	Logging *AWFLoggingConfig `json:"logging,omitempty"`
 
@@ -278,6 +281,33 @@ type AWFContainerConfig struct {
 	// instead of falling back to the official registry, and it cannot be combined
 	// with legacy image selectors such as imageTag or agentImage.
 	Images map[string]string `json:"images,omitempty"`
+}
+
+// AWFCloudHypervisorConfig is the "cloudHypervisor" section of the AWF config file.
+type AWFCloudHypervisorConfig struct {
+	PreviewEnabled                      bool                            `json:"previewEnabled,omitempty"`
+	MountPolicy                         string                          `json:"mountPolicy,omitempty"`
+	CloudHypervisorBinary               string                          `json:"cloudHypervisorBinary,omitempty"`
+	KernelPath                          string                          `json:"kernelPath,omitempty"`
+	RootfsPath                          string                          `json:"rootfsPath,omitempty"`
+	SupervisorPath                      string                          `json:"supervisorPath,omitempty"`
+	ArtifactManifestPath                string                          `json:"artifactManifestPath,omitempty"`
+	ArtifactManifestBundlePath          string                          `json:"artifactManifestBundlePath,omitempty"`
+	ArtifactReleaseTag                  string                          `json:"artifactReleaseTag,omitempty"`
+	DevelopmentAllowUnattestedArtifacts bool                            `json:"developmentAllowUnattestedArtifacts,omitempty"`
+	VCPUCount                           int                             `json:"vcpuCount,omitempty"`
+	MemoryMiB                           int                             `json:"memoryMib,omitempty"`
+	APITimeoutMs                        int                             `json:"apiTimeoutMs,omitempty"`
+	SHA256                              *AWFCloudHypervisorSHA256Config `json:"sha256,omitempty"`
+}
+
+// AWFCloudHypervisorSHA256Config contains development-only legacy artifact hashes.
+type AWFCloudHypervisorSHA256Config struct {
+	CloudHypervisor string `json:"cloudHypervisor,omitempty"`
+	Virtiofsd       string `json:"virtiofsd,omitempty"`
+	Kernel          string `json:"kernel,omitempty"`
+	Rootfs          string `json:"rootfs,omitempty"`
+	Supervisor      string `json:"supervisor,omitempty"`
 }
 
 // AWFLoggingConfig is the "logging" section of the AWF config file.
