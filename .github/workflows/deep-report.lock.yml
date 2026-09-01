@@ -27,15 +27,15 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../skills/jqschema/SKILL.md
-#     - shared/default-ai-credits-pricing.md
-#     - shared/discussions-data-fetch.md
-#     - shared/github-mcp-pagination-wrappers.md
-#     - shared/mcp/agentdb.md
 #     - shared/meta-analysis-base.md
-#     - shared/otlp.md
-#     - shared/reporting.md
+#     - ../skills/jqschema/SKILL.md
+#     - shared/discussions-data-fetch.md
+#     - shared/mcp/agentdb.md
 #     - shared/weekly-issues-data-fetch.md
+#     - shared/reporting.md
+#     - shared/github-mcp-pagination-wrappers.md
+#     - shared/otlp.md
+#     - shared/default-ai-credits-pricing.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

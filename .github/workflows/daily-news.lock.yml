@@ -27,14 +27,14 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../skills/jqschema/SKILL.md
-#     - shared/daily-audit-discussion.md
-#     - shared/mcp/tavily.md
-#     - shared/otlp.md
-#     - shared/python-dataviz.md
 #     - shared/repo-memory-standard.md
+#     - shared/mcp/tavily.md
+#     - ../skills/jqschema/SKILL.md
+#     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
+#     - shared/python-dataviz.md
 #     - shared/trends.md
 #
 # Secrets used:

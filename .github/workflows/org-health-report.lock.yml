@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - ../skills/jqschema/SKILL.md
-#     - shared/github-guard-policy.md
 #     - shared/mcp-pagination.md
-#     - shared/otlp.md
+#     - shared/github-guard-policy.md
 #     - shared/python-dataviz.md
+#     - ../skills/jqschema/SKILL.md
 #     - shared/reporting.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

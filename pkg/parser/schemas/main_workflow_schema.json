@@ -4789,6 +4789,16 @@
                       "description": "Not allowed at runtime: mode must be the literal 'cli' value, not a GitHub Actions expression."
                     }
                   ]
+                },
+                "browsers": {
+                  "type": "array",
+                  "description": "Browsers to provision before the agent starts. Defaults to Chromium. Chrome is accepted as an alias for Chromium.",
+                  "items": {
+                    "type": "string",
+                    "enum": ["chrome", "chromium", "firefox", "webkit"]
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
                 }
               },
               "additionalProperties": false

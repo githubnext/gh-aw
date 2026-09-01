@@ -27,8 +27,8 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/ai-coding-dictionary.md
 #     - shared/github-guard-policy.md
+#     - shared/ai-coding-dictionary.md
 #     - shared/otlp.md
 #
 # Secrets used:

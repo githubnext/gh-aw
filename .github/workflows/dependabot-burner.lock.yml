@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/activation-app.md
 #     - shared/mcp-pagination.md
 #     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/activation-app.md
 #     - shared/daily-pr-base.md
 #
 # Secrets used:
