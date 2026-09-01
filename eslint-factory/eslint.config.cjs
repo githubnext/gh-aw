@@ -34,6 +34,7 @@ module.exports = [
       "gh-aw-custom/require-mkdtempsync-try-catch": "warn",
       "gh-aw-custom/require-realpathsync-try-catch": "warn",
       "gh-aw-custom/require-rmsync-try-catch": "warn",
+      "gh-aw-custom/require-unlinksync-rmdirsync-try-catch": "warn",
       "gh-aw-custom/require-parseInt-radix": "warn",
       "gh-aw-custom/require-return-after-core-setfailed": "warn",
       "gh-aw-custom/require-spawnsync-error-check": "warn",

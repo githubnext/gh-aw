@@ -64,6 +64,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
 | [`prefer-get-error-message-over-string`](#prefer-get-error-message-over-string) | Prefer `getErrorMessage(err)` over `String(err)` when interpolating a caught error |
 | [`require-rmsync-try-catch`](#require-rmsync-try-catch) | Require try/catch around `fs.rmSync` calls |
+| [`require-unlinksync-rmdirsync-try-catch`](#require-unlinksync-rmdirsync-try-catch) | Require try/catch around `fs.unlinkSync` / `fs.rmdirSync` calls |
 | [`no-core-error-then-process-exit`](#no-core-error-then-process-exit) | Disallow `core.error()` immediately followed by `process.exit(nonzero)` |
 | [`no-core-error-then-process-exitcode`](#no-core-error-then-process-exitcode) | Disallow `core.error()` immediately followed by `process.exitCode = nonzero` |
 | [`no-exec-interpolated-command`](#no-exec-interpolated-command) | Disallow interpolated command strings passed to `@actions/exec` |
@@ -790,6 +791,14 @@ The rule provides an autofix suggestion that replaces `String(err)` with `getErr
 Require `fs.rmSync` calls in `actions/setup/js` scripts to be wrapped in `try/catch`.
 
 `rmSync` throws synchronously on permission errors, invalid paths, or unexpected filesystem state; an unhandled throw crashes the action without surfacing a useful diagnostic.
+
+**Not flagged:** Calls already inside an enclosing `try { ... } catch { ... }` block.
+
+### `require-unlinksync-rmdirsync-try-catch`
+
+Require `fs.unlinkSync` and `fs.rmdirSync` calls in `actions/setup/js` scripts to be wrapped in `try/catch`.
+
+Both throw synchronously when the target path does not exist, is the wrong type (file vs. directory), or is denied by permissions; an unhandled throw crashes the action without surfacing a useful diagnostic.
 
 **Not flagged:** Calls already inside an enclosing `try { ... } catch { ... }` block.
 

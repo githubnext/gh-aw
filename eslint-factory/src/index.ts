@@ -21,6 +21,7 @@ import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catc
 import { requireMkdtempSyncTryCatchRule } from "./rules/require-mkdtempsync-try-catch";
 import { requireRealpathSyncTryCatchRule } from "./rules/require-realpathsync-try-catch";
 import { requireRmSyncTryCatchRule } from "./rules/require-rmsync-try-catch";
+import { requireUnlinkSyncRmdirSyncTryCatchRule } from "./rules/require-unlinksync-rmdirsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
 import { requireSpawnErrorListenerRule } from "./rules/require-spawn-error-listener";
@@ -87,6 +88,7 @@ const plugin = {
     "require-mkdtempsync-try-catch": requireMkdtempSyncTryCatchRule,
     "require-realpathsync-try-catch": requireRealpathSyncTryCatchRule,
     "require-rmsync-try-catch": requireRmSyncTryCatchRule,
+    "require-unlinksync-rmdirsync-try-catch": requireUnlinkSyncRmdirSyncTryCatchRule,
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
