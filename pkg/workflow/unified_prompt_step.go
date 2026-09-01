@@ -91,6 +91,18 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			Content: playwrightPromptFile,
 			IsFile:  true,
 		})
+
+		// 3b. AWF-aware Playwright policy (CLI mode + firewall/AWF sandbox enabled).
+		// This reinforces the secure loopback/proxy topology and takes precedence
+		// over generic Playwright CLI skill guidance such as runtime npm installs
+		// or navigation to arbitrary example domains.
+		if isPlaywrightCLIMode(data.Tools) && isFirewallEnabled(data) {
+			unifiedPromptLog.Print("Adding playwright AWF policy section")
+			sections = append(sections, PromptSection{
+				Content: playwrightAWFPromptFile,
+				IsFile:  true,
+			})
+		}
 	}
 
 	// 4. Trial mode note (if in trial mode)

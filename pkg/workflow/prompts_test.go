@@ -778,6 +778,100 @@ This is a test workflow to verify playwright instructions come after temp folder
 	t.Logf("Successfully verified playwright instructions come after temp folder instructions in generated workflow")
 }
 
+func TestPlaywrightAWFPolicyPromptIncludedForCLIModeWithFirewall(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-awf-prompt-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  playwright:
+    mode: cli
+sandbox:
+  agent:
+    id: awf
+---
+
+# Test Workflow with Playwright CLI and firewall
+
+This is a test workflow with playwright CLI mode and the firewall enabled.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if !strings.Contains(lockStr, `\"file\":\"playwright_awf_prompt.md\"`) {
+		t.Error("Expected playwright AWF policy prompt file in renderer configuration when CLI mode and firewall are both enabled")
+	}
+}
+
+func TestPlaywrightAWFPolicyPromptNotIncludedWithoutFirewall(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-awf-no-firewall-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  playwright:
+    mode: cli
+features:
+  dangerously-disable-sandbox-agent: "unit test verifying prompt gating logic"
+sandbox:
+  agent: false
+strict: false
+---
+
+# Test Workflow with Playwright CLI, firewall disabled
+
+This is a test workflow with playwright CLI mode but the firewall disabled.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if strings.Contains(lockStr, "playwright_awf_prompt.md") {
+		t.Error("Did not expect playwright AWF policy prompt file when firewall is disabled")
+	}
+}
+
 // ============================================================================
 // PR Context Prompt Tests
 // ============================================================================
