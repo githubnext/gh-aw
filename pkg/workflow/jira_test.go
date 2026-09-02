@@ -42,6 +42,7 @@ func TestExpandJiraToolConfigAPIToken(t *testing.T) {
 				"email": "${{ secrets.ATLASSIAN_EMAIL }}",
 				"token": "${{ secrets.ATLASSIAN_API_TOKEN }}",
 			},
+			"allowed": []any{"getVisibleJiraProjects"},
 		},
 	}
 
@@ -120,6 +121,37 @@ func TestExpandJiraToolConfigRejectsInvalidAuth(t *testing.T) {
 			},
 			message: "tools.jira.allowed must contain only",
 		},
+		{
+			name: "missing allowlist",
+			config: map[string]any{
+				"auth": map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: "tools.jira.allowed is required",
+		},
+		{
+			name: "all tools wildcard",
+			config: map[string]any{
+				"allowed": []any{"*"},
+				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: `tool "*" is not an approved read-only Jira tool`,
+		},
+		{
+			name: "write tool",
+			config: map[string]any{
+				"allowed": []any{"createJiraIssue"},
+				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: `tool "createJiraIssue" is not an approved read-only Jira tool`,
+		},
+		{
+			name: "duplicate tool",
+			config: map[string]any{
+				"allowed": []any{"getJiraIssue", "getJiraIssue"},
+				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: `contains duplicate tool "getJiraIssue"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,6 +162,21 @@ func TestExpandJiraToolConfigRejectsInvalidAuth(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.message)
 		})
 	}
+}
+
+func TestValidateJiraAllowedToolsAcceptsApprovedReadOnlyTools(t *testing.T) {
+	allowed := []string{
+		"getIssueLinkTypes",
+		"getJiraIssue",
+		"getJiraIssueRemoteIssueLinks",
+		"getJiraIssueTypeMetaWithFields",
+		"getJiraProjectIssueTypesMetadata",
+		"getTransitionsForJiraIssue",
+		"getVisibleJiraProjects",
+		"lookupJiraAccountId",
+		"searchJiraIssuesUsingJql",
+	}
+	require.NoError(t, validateJiraAllowedTools(allowed))
 }
 
 func TestExpandJiraToolConfigDisablesInheritedConfiguration(t *testing.T) {
@@ -249,8 +296,26 @@ func TestImportedJiraConfigurationIsValidatedAfterMerge(t *testing.T) {
 		message string
 	}{
 		{
-			name: "literal credential",
+			name: "missing allowlist",
 			jira: `    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_TOKEN }}`,
+			message: "tools.jira.allowed is required",
+		},
+		{
+			name: "all tools wildcard",
+			jira: `    allowed:
+      - "*"
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_TOKEN }}`,
+			message: `tool "*" is not an approved read-only Jira tool`,
+		},
+		{
+			name: "literal credential",
+			jira: `    allowed:
+      - getJiraIssue
+    auth:
       type: service-account
       token: literal-token`,
 			message: "must be a direct GitHub Actions secret expression",
@@ -258,6 +323,8 @@ func TestImportedJiraConfigurationIsValidatedAfterMerge(t *testing.T) {
 		{
 			name: "insecure endpoint",
 			jira: `    url: http://mcp.atlassian.example/mcp
+    allowed:
+      - getJiraIssue
     auth:
       type: service-account
       token: ${{ secrets.ATLASSIAN_TOKEN }}`,
@@ -266,6 +333,8 @@ func TestImportedJiraConfigurationIsValidatedAfterMerge(t *testing.T) {
 		{
 			name: "unknown field",
 			jira: `    browser-oauth: true
+    allowed:
+      - getJiraIssue
     auth:
       type: service-account
       token: ${{ secrets.ATLASSIAN_TOKEN }}`,

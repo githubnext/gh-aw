@@ -1882,7 +1882,18 @@
             },
             "allowed": {
               "type": "array",
-              "desc": "Jira MCP tool names the agent may call.",
+              "desc": "Approved read-only Jira MCP tools the agent may call. Required; all-tools access and write-capable tools are not supported.",
+              "enum": [
+                "getIssueLinkTypes",
+                "getJiraIssue",
+                "getJiraIssueRemoteIssueLinks",
+                "getJiraIssueTypeMetaWithFields",
+                "getJiraProjectIssueTypesMetadata",
+                "getTransitionsForJiraIssue",
+                "getVisibleJiraProjects",
+                "lookupJiraAccountId",
+                "searchJiraIssuesUsingJql"
+              ],
               "array": true
             },
             "auth": {

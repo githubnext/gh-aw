@@ -4051,8 +4051,8 @@ tools:
     # (optional)
     url: "example-value"
 
-    # Jira MCP tool names the agent may call.
-    # (optional)
+    # Approved read-only Jira MCP tools the agent may call. Required; all-tools access
+    # and write-capable tools are not supported.
     allowed: []
       # Array of strings
 

@@ -4670,7 +4670,7 @@
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["auth"],
+              "required": ["auth", "allowed"],
               "properties": {
                 "url": {
                   "type": "string",
@@ -4682,11 +4682,22 @@
                 "allowed": {
                   "type": "array",
                   "minItems": 1,
+                  "uniqueItems": true,
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "enum": [
+                      "getIssueLinkTypes",
+                      "getJiraIssue",
+                      "getJiraIssueRemoteIssueLinks",
+                      "getJiraIssueTypeMetaWithFields",
+                      "getJiraProjectIssueTypesMetadata",
+                      "getTransitionsForJiraIssue",
+                      "getVisibleJiraProjects",
+                      "lookupJiraAccountId",
+                      "searchJiraIssuesUsingJql"
+                    ]
                   },
-                  "description": "Jira MCP tool names the agent may call."
+                  "description": "Approved read-only Jira MCP tools the agent may call. Required; all-tools access and write-capable tools are not supported."
                 },
                 "auth": {
                   "description": "Non-interactive authentication for GitHub Actions.",

@@ -30,7 +30,40 @@ func TestJiraToolSchema(t *testing.T) {
 					"email": "${{ secrets.ATLASSIAN_EMAIL }}",
 					"token": "${{ secrets.ATLASSIAN_API_TOKEN }}",
 				},
+				"allowed": []any{"getVisibleJiraProjects"},
 			},
+		},
+		{
+			name: "missing allowlist is rejected",
+			jira: map[string]any{
+				"auth": map[string]any{
+					"type":  "service-account",
+					"token": "${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "all tools wildcard is rejected",
+			jira: map[string]any{
+				"auth": map[string]any{
+					"type":  "service-account",
+					"token": "${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}",
+				},
+				"allowed": []any{"*"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "write tool is rejected",
+			jira: map[string]any{
+				"auth": map[string]any{
+					"type":  "service-account",
+					"token": "${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}",
+				},
+				"allowed": []any{"createJiraIssue"},
+			},
+			wantErr: true,
 		},
 		{
 			name: "OAuth is rejected",

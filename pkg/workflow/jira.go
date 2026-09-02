@@ -19,6 +19,18 @@ const (
 
 var jiraSecretExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
 
+var jiraApprovedReadOnlyTools = map[string]struct{}{
+	"getIssueLinkTypes":                {},
+	"getJiraIssue":                     {},
+	"getJiraIssueRemoteIssueLinks":     {},
+	"getJiraIssueTypeMetaWithFields":   {},
+	"getJiraProjectIssueTypesMetadata": {},
+	"getTransitionsForJiraIssue":       {},
+	"getVisibleJiraProjects":           {},
+	"lookupJiraAccountId":              {},
+	"searchJiraIssuesUsingJql":         {},
+}
+
 // expandJiraToolConfig converts the first-class Jira configuration into the
 // generic HTTP MCP shape consumed by the existing gateway pipeline.
 func expandJiraToolConfig(tools map[string]any) error {
@@ -97,17 +109,19 @@ func validateJiraToolConfig(config map[string]any) error {
 		}
 	}
 
-	if allowed, exists := config["allowed"]; exists {
-		if err := validateJiraAllowedTools(allowed); err != nil {
-			return err
-		}
-	}
-
 	auth, ok := config["auth"].(map[string]any)
 	if !ok {
 		return errors.New("tools.jira.auth is required")
 	}
-	return validateJiraAuthConfig(auth)
+	if err := validateJiraAuthConfig(auth); err != nil {
+		return err
+	}
+
+	allowed, exists := config["allowed"]
+	if !exists {
+		return errors.New("tools.jira.allowed is required and must contain approved read-only tools")
+	}
+	return validateJiraAllowedTools(allowed)
 }
 
 func validateJiraAllowedTools(value any) error {
@@ -130,10 +144,18 @@ func validateJiraAllowedTools(value any) error {
 	if len(allowed) == 0 {
 		return errors.New("tools.jira.allowed must be a non-empty array of tool names")
 	}
+	seen := make(map[string]struct{}, len(allowed))
 	for _, tool := range allowed {
 		if strings.TrimSpace(tool) == "" {
 			return errors.New("tools.jira.allowed must contain only non-empty tool names")
 		}
+		if _, approved := jiraApprovedReadOnlyTools[tool]; !approved {
+			return fmt.Errorf("tools.jira.allowed tool %q is not an approved read-only Jira tool", tool)
+		}
+		if _, duplicate := seen[tool]; duplicate {
+			return fmt.Errorf("tools.jira.allowed contains duplicate tool %q", tool)
+		}
+		seen[tool] = struct{}{}
 	}
 	return nil
 }
