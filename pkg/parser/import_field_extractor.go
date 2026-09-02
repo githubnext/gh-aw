@@ -87,12 +87,13 @@ type importAccumulator struct {
 	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxTurns           string
-	mergedMaxToolDenials     string
-	mergedMaxRuns            string
-	mergedMaxTurnCacheMisses string
-	mergedMaxAICredits       string
-	mergedMaxDailyAICredits  string
+	mergedMaxTurns                    string
+	mergedMaxToolDenials              string
+	mergedMaxRuns                     string
+	mergedMaxTurnCacheMisses          string
+	mergedMaxAICredits                string
+	mergedMaxDailyAICredits           string
+	mergedConcurrencyJobDiscriminator string
 	// Union of excluded-env lists from all imported files (deduplicated).
 	excludedEnv    []string
 	excludedEnvSet map[string]bool
@@ -405,6 +406,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turn-cache-misses", &acc.mergedMaxTurnCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
+	acc.extractConcurrencyJobDiscriminator(fm, fullPath)
 	if acc.metadataDocs == "" {
 		if metadata, ok := fm["metadata"].(map[string]any); ok {
 			if docs, ok := metadata["docs"].(string); ok {
@@ -425,6 +427,22 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.mergeSandboxAgentRuntimeInstall(fm)
 	acc.appendJSONBuilderField(fm, "permissions", "{}", &acc.permissionsBuilder)
 	acc.appendJSONBuilderField(fm, "secret-masking", "{}", &acc.secretMaskingBuilder)
+}
+
+func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]any, fullPath string) {
+	if acc.mergedConcurrencyJobDiscriminator != "" {
+		return
+	}
+	concurrency, ok := fm["concurrency"].(map[string]any)
+	if !ok {
+		return
+	}
+	discriminator, ok := concurrency["job-discriminator"].(string)
+	if !ok || discriminator == "" {
+		return
+	}
+	acc.mergedConcurrencyJobDiscriminator = discriminator
+	parserLog.Printf("Extracted concurrency.job-discriminator from import: %s", fullPath)
 }
 
 func (acc *importAccumulator) mergeSandboxAgentMounts(fm map[string]any) {
@@ -1056,6 +1074,7 @@ func (acc *importAccumulator) populateImportsResultScalars(result *ImportsResult
 	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
 	result.MergedMaxAICredits = acc.mergedMaxAICredits
 	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
+	result.MergedConcurrencyJobDiscriminator = acc.mergedConcurrencyJobDiscriminator
 	result.MergedExcludedEnv = acc.excludedEnv
 }
 

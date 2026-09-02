@@ -251,6 +251,9 @@ func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
 }
 
 func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext) error {
+	if ctx.workflowData.ConcurrencyJobDiscriminator == "" {
+		ctx.workflowData.ConcurrencyJobDiscriminator = ctx.engineSetup.importsResult.MergedConcurrencyJobDiscriminator
+	}
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
 	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return err
