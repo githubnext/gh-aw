@@ -9,12 +9,11 @@ Playwright enables headless browser control for accessibility testing, visual re
 
 ## Configuration
 
-The built-in Playwright tool uses CLI mode. It is token-efficient because it does not load MCP tool schemas into the agent context, avoids Docker overhead, and reaches local development servers through `localhost`.
+The built-in Playwright tool is CLI-only by default. It is token-efficient because it does not load MCP tool schemas into the agent context, avoids Docker overhead, and reaches local development servers through `localhost`. If an older workflow still sets `mode: cli`, it continues to work for compatibility, but omitting `mode` is preferred.
 
 ```yaml wrap
 tools:
   playwright:
-    mode: cli
 ```
 
 The compiler installs `@playwright/cli` as a global npm package, its skills, and
@@ -52,7 +51,6 @@ The `version` field pins the `@playwright/cli` npm package. Omit it to use the c
 ```yaml wrap
 tools:
   playwright:
-    mode: cli
     version: "0.1.18"
 ```
 
@@ -120,7 +118,8 @@ Capture `/tmp/home.png`, then call `upload_artifact` with
 
 ## Migrate from Playwright MCP
 
-Remove `mode: mcp` or replace it with `mode: cli`. The compiler now reports `mode: mcp` as an error.
+Remove `mode: mcp`. The built-in integration is CLI-only, so no replacement
+`mode` field is needed. The compiler now reports `mode: mcp` as an error.
 
 Replace MCP tool calls in prompts with equivalent `playwright-cli` commands run through bash:
 
@@ -173,7 +172,6 @@ on:
 
 tools:
   playwright:
-    mode: cli
 
 network:
   allowed:
@@ -238,7 +236,6 @@ steps:
 
 tools:
   playwright:
-    mode: cli
     version: "0.1.18"  # pins `@playwright/cli` npm package; see Configuration > Version
   bash:
     - "npm *"
@@ -289,7 +286,6 @@ on:
 
 tools:
   playwright:
-    mode: cli
   bash: [":*"]
 
 network:
