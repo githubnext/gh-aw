@@ -107,9 +107,7 @@ func TestLogsStorageLimitConcurrentDownloadsRunInParallel(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := range numDownloads {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", i))
 			err := limit.runDownload(context.Background(), runDir, func() error {
 				current := inFlight.Add(1)
@@ -126,7 +124,7 @@ func TestLogsStorageLimitConcurrentDownloadsRunInParallel(t *testing.T) {
 				return os.MkdirAll(runDir, 0o755)
 			})
 			assert.NoError(t, err)
-		}()
+		})
 	}
 
 	require.Eventually(t, func() bool { return inFlight.Load() == numDownloads }, 2*time.Second, time.Millisecond,
