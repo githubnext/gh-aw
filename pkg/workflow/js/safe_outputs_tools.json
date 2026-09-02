@@ -1,7 +1,7 @@
 [
   {
     "name": "linear_create_issue",
-    "description": "Create an issue in the Linear team fixed by safe-outputs.linear-create-issue.team-id. The Linear credential and team ID are trusted workflow configuration and are not agent inputs.",
+    "description": "Use this to create an issue in the Linear team fixed by safe-outputs.linear-create-issue.team-id. The Linear credential and team ID are trusted workflow configuration and are not agent inputs.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
@@ -44,7 +44,7 @@
   },
   {
     "name": "linear_update_issue",
-    "description": "Update explicitly enabled fields on the Linear issue fixed by safe-outputs.linear-update-issue.target. The target and Linear credential are trusted workflow configuration and are not agent inputs.",
+    "description": "Use this to update explicitly enabled fields on the Linear issue fixed by safe-outputs.linear-update-issue.target. The target and Linear credential are trusted workflow configuration and are not agent inputs. Provide at least one of title or body.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -62,7 +62,6 @@
           "x-safe-output-sanitization": "content"
         }
       },
-      "anyOf": [{ "required": ["title"] }, { "required": ["body"] }],
       "additionalProperties": false
     }
   },
