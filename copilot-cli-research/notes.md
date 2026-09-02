@@ -101,3 +101,22 @@ Follow-up for next cycle:
 1. Confirm engine.version pinning keeps growing (38 this cycle) — if it continues, this is a good-news trend to eventually retire from "opportunity" framing and reclassify as an adopted best practice.
 2. Decide (with a maintainer) whether plugins and copilot-sdk adoption tracking should continue being repeated indefinitely, since both are now fully flat/0 for 5+ cycles.
 3. If shared/copilot-defaults.md is still absent next cycle, stop repeating it here and instead open a dedicated tracking issue referencing this research history.
+
+## Run: 2026-09-02 (workflow-run-id: 33588246419)
+Tenth analysis. Compared to all prior cycles (08-23 through 09-01).
+
+Changes since last run:
+- copilot_workflows steady at 107 (combined grep standard holds).
+- engine.agent re-verified via strict AWK scan (engine: block only, excludes sandbox.agent) = 7, confirming the same 7 named workflows for 6+ consecutive cycles - genuinely stalled with no organic growth.
+- copilot-sdk: true flat at 61 for an 8th consecutive cycle - fully settled/plateaued; recommend maintainers explicitly stop tracking this unless a re-investigation is requested.
+- plugins: 0 adoption for a 10th consecutive cycle - escalating as a required maintainer go/no-go decision rather than a repeated observation.
+- shared/copilot-defaults.md: STILL not created after 8 cycles since origin (run2, 08-24). Recommending this be moved OUT of the recurring research report into a standalone dedicated tracking issue, since repetition here has not produced action across 8 cycles.
+- --share confirmed used in exactly 1 workflow: this research workflow itself (copilot-cli-deep-research.md). All other workflows: 0 adoption, now 5+ cycles confirmed.
+- engine.version pinning measured strictly this cycle at 14 - notably lower than run7's looser-pattern 38. Flagged as a methodology discrepancy (grep needs to scan full engine: block, not just adjacent lines) rather than a regression - needs reconciliation next cycle.
+- network.allowed at 183 (61% of all workflows) vs --block-domains at 0 (5+ cycles flat) - recommend docs deprioritize block-domains promotion.
+
+Follow-up for next cycle:
+1. Check whether shared/copilot-defaults.md was finally created after being escalated to a standalone issue this cycle.
+2. Reconcile engine.version pinning count (14 vs 38) using a standardized full-engine-block grep pattern; record the exact pattern used in repo-memory for future consistency.
+3. Confirm with a maintainer whether plugins and copilot-sdk tracking should continue every cycle or move to a quarterly check, given both are now fully flat for 8-10 cycles.
+4. If shared-defaults still absent, consider this research format itself needs a "escalated items" section that persists rather than being re-derived each cycle.
