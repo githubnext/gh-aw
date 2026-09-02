@@ -54,6 +54,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 
+			config.CreateWorkItems = c.parseCreateWorkItemConfig(outputMap)
+			config.UpdateWorkItems = c.parseUpdateWorkItemConfig(outputMap)
+			config.CommentOnWorkItems = c.parseCommentOnWorkItemConfig(outputMap)
+			config.AssignWorkItems = c.parseAssignWorkItemConfig(outputMap)
+			config.LinkWorkItems = c.parseLinkWorkItemsConfig(outputMap)
+			config.UploadWorkItemAttachments = c.parseUploadWorkItemAttachmentConfig(outputMap)
 			config.LinearCreateIssue = c.parseLinearCreateIssueConfig(outputMap)
 			config.LinearAddComment = c.parseLinearAddCommentConfig(outputMap)
 			config.LinearUpdateIssue = c.parseLinearUpdateIssueConfig(outputMap)

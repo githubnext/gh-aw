@@ -91,6 +91,12 @@ const HANDLER_MAP = {
   report_incomplete: "./report_incomplete_handler.cjs",
   create_report_incomplete_issue: "./create_report_incomplete_issue.cjs",
   create_project: "./create_project.cjs",
+  ado_create_work_item: "./create_work_item.cjs",
+  ado_update_work_item: "./update_work_item.cjs",
+  ado_comment_on_work_item: "./comment_on_work_item.cjs",
+  ado_assign_work_item: "./assign_work_item.cjs",
+  ado_link_work_items: "./link_work_items.cjs",
+  ado_upload_workitem_attachment: "./upload_workitem_attachment.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
   upload_artifact: "./upload_artifact.cjs",
@@ -158,6 +164,8 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "missing_data",
   "create_report_incomplete_issue",
   "report_incomplete",
+  "ado_create_work_item",
+  "ado_comment_on_work_item",
 ]);
 
 /**
@@ -208,6 +216,10 @@ const THREAT_WARNING_ABORT_TYPES = new Set([
   "call_workflow",
   "autofix_code_scanning_alert",
   "create_agent_session",
+  "ado_update_work_item",
+  "ado_assign_work_item",
+  "ado_link_work_items",
+  "ado_upload_workitem_attachment",
 ]);
 
 /**
@@ -1110,6 +1122,11 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         });
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
       }
+      if (result && result.temporaryId && result.temporaryIdEntry) {
+        const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+        temporaryIdMap.set(normalizedTempId, result.temporaryIdEntry);
+        core.info(`Registered Azure DevOps temporary ID: ${result.temporaryId}`);
+      }
 
       // If this was a successful upload_artifact, register the artifact URL so that
       // subsequent messages can have '#aw_ID' references replaced with the real URL.
@@ -1149,7 +1166,21 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Check if this output was created with unresolved temporary IDs
       // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
 
-      // Handle add_comment which returns an array of comments
+      // Handle the current add_comment result shape.
+      if (messageType === "add_comment" && result?.commentId && result?.repo) {
+        const contentToCheck = getContentToCheck(messageType, message, result);
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
+          core.info(`Comment ${result.commentId} on ${result.repo}#${result.itemNumber} was created with unresolved temporary IDs - tracking for update`);
+          outputsWithUnresolvedIds.push({
+            type: messageType,
+            message,
+            result,
+            originalTempIdMapSize: tempIdMapSizeBefore,
+          });
+        }
+      }
+
+      // Handle the legacy add_comment result shape.
       if (messageType === "add_comment" && Array.isArray(result)) {
         const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
@@ -1160,12 +1191,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
               outputsWithUnresolvedIds.push({
                 type: messageType,
                 message: message,
-                result: {
-                  commentId: comment._tracking.commentId,
-                  itemNumber: comment._tracking.itemNumber,
-                  repo: comment._tracking.repo,
-                  isDiscussion: comment._tracking.isDiscussion,
-                },
+                result: { ...comment._tracking, ...(comment.body ? { body: comment.body } : {}) },
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
             }
@@ -1300,6 +1326,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
             }
+            if (result && result.temporaryId && result.temporaryIdEntry) {
+              const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+              temporaryIdMap.set(normalizedTempId, result.temporaryIdEntry);
+            }
           }
 
           // Update the result to success
@@ -1363,7 +1393,7 @@ function getContentToCheck(messageType, message, result) {
     case "create_discussion":
       return message.body || "";
     case "add_comment":
-      return message.body || "";
+      return result?.body || message.body || "";
     case "comment_memory":
       return result?.managedBody || message.body || "";
     case "create_pull_request":
@@ -2005,4 +2035,5 @@ module.exports = {
   partitionFailureResults,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,
+  processSyntheticUpdates,
 };

@@ -304,15 +304,20 @@ async function main() {
   }
 
   // Build set of source tool names (predefined/static tools only)
-  const sourceToolNames = new Set(allTools.map(t => t.name));
+  const normalizeToolName = name => String(name).replace(/-/g, "_").toLowerCase();
+  const sourceToolNames = new Set(allTools.map(t => normalizeToolName(t.name)));
 
   // Determine enabled tools: config keys that match source tool names
   // This filters out non-tool config entries like dispatch_workflow, call_workflow,
   // mentions, max_bot_mentions, etc.
-  const enabledToolNames = new Set(Object.keys(config).filter(k => sourceToolNames.has(k)));
+  const enabledToolNames = new Set(
+    Object.keys(config)
+      .map(normalizeToolName)
+      .filter(name => sourceToolNames.has(name))
+  );
   // Filter predefined tools to those enabled in config and apply enhancements
   const filteredTools = allTools
-    .filter(tool => enabledToolNames.has(tool.name))
+    .filter(tool => enabledToolNames.has(normalizeToolName(tool.name)))
     .map(tool => {
       // Deep copy to avoid modifying the original. `tool` here is parsed straight from the
       // JSON tools-source file (see toolsSourcePath above), so it can never carry a function-valued

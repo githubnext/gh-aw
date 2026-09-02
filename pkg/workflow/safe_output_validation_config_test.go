@@ -482,17 +482,18 @@ func TestStripOnErrorOnlyOnOptionalFields(t *testing.T) {
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
-		"requiresOneOf:status,title,body,labels,assignees,milestone": true,
-		"requiresOneOf:summary,description":                          true,
-		"requiresOneOf:title,body":                                   true,
-		"requiresOneOf:title,body,update_branch":                     true,
-		"requiresOneOf:title,body,labels":                            true,
-		"requiresOneOf:issue_number,pull_number":                     true,
-		"requiresOneOf:milestone_number,milestone_title":             true,
-		"requiresOneOf:field_name,field_node_id":                     true,
-		"requiresOneOf:reviewers,team_reviewers":                     true,
-		"startLineLessOrEqualLine":                                   true,
-		"parentAndSubDifferent":                                      true,
+		"requiresOneOf:status,title,body,labels,assignees,milestone":            true,
+		"requiresOneOf:summary,description":                                     true,
+		"requiresOneOf:title,body":                                              true,
+		"requiresOneOf:title,body,update_branch":                                true,
+		"requiresOneOf:title,body,labels":                                       true,
+		"requiresOneOf:issue_number,pull_number":                                true,
+		"requiresOneOf:milestone_number,milestone_title":                        true,
+		"requiresOneOf:field_name,field_node_id":                                true,
+		"requiresOneOf:reviewers,team_reviewers":                                true,
+		"requiresOneOf:title,body,state,area_path,iteration_path,assignee,tags": true,
+		"startLineLessOrEqualLine":                                              true,
+		"parentAndSubDifferent":                                                 true,
 	}
 
 	for typeName, config := range ValidationConfig {
@@ -527,7 +528,8 @@ func TestValidationConfigCoversToolInputSchemas(t *testing.T) {
 
 	metadataFields := map[string]bool{"secrecy": true, "integrity": true}
 	for _, tool := range tools {
-		config, ok := ValidationConfig[tool.Name]
+		typeName := strings.ReplaceAll(tool.Name, "-", "_")
+		config, ok := ValidationConfig[typeName]
 		if !ok {
 			t.Errorf("%s tool is missing from ValidationConfig", tool.Name)
 			continue

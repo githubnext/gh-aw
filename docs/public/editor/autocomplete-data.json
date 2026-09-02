@@ -1899,6 +1899,47 @@
             }
           }
         },
+        "jira": {
+          "type": "boolean|object",
+          "desc": "Jira tools provided by Atlassian's remote Rovo MCP service.",
+          "enum": [false],
+          "children": {
+            "url": {
+              "type": "string",
+              "desc": "Atlassian Rovo MCP endpoint.",
+              "leaf": true
+            },
+            "allowed": {
+              "type": "array",
+              "desc": "Approved read-only Jira MCP tools the agent may call. Required; write-capable tools are not supported. \"*\" expands to all approved read-only tools; the full, unrestricted MCP tool set can never be enabled.",
+              "enum": [
+                "*",
+                "getIssueLinkTypes",
+                "getJiraIssue",
+                "getJiraIssueRemoteIssueLinks",
+                "getJiraIssueTypeMetaWithFields",
+                "getJiraProjectIssueTypesMetadata",
+                "getTransitionsForJiraIssue",
+                "getVisibleJiraProjects",
+                "lookupJiraAccountId",
+                "searchJiraIssuesUsingJql"
+              ],
+              "array": true
+            },
+            "auth": {
+              "type": "object",
+              "desc": "Non-interactive authentication for GitHub Actions.",
+              "children": {
+                "type": {},
+                "token": {
+                  "type": "string",
+                  "desc": "Atlassian service account API key, sent with the HTTP bearer scheme.",
+                  "leaf": true
+                }
+              }
+            }
+          }
+        },
         "bash": {
           "type": "null|boolean|array",
           "desc": "Bash shell command execution tool.",

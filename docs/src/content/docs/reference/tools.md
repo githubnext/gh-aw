@@ -68,6 +68,52 @@ tools:
 Supported toolsets are `all`, `attachments`, `comments`, `customers`, `cycles`, `diffs`, `documentation`, `documents`, `initiatives`, `issues`, `milestones`, `projects`, `status_updates`, `teams`, and `users`. The compiler expands toolsets into the gateway's allowed-tool list. If `allowed` is also set, each name or wildcard must match a tool in the selected toolsets.
 
 The Linear credential is passed to the gateway as an environment variable and sent as an `Authorization: Bearer` header. It is not embedded in MCP configuration. Linear works with `tools.cli-proxy: true` like other remote MCP servers.
+### Jira Tools (`jira:`)
+
+Connect to Atlassian's official remote Rovo MCP endpoint from non-interactive GitHub Actions workloads. Browser OAuth, device login, and user-consent flows are not supported.
+
+Use an Atlassian service account API key:
+
+```yaml wrap
+tools:
+  jira:
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}
+    allowed:
+      - getJiraIssue
+      - searchJiraIssuesUsingJql
+```
+
+Or use an Atlassian account email and API token:
+
+```yaml wrap
+tools:
+  jira:
+    auth:
+      type: api-token
+      email: ${{ secrets.ATLASSIAN_EMAIL }}
+      token: ${{ secrets.ATLASSIAN_API_TOKEN }}
+    allowed:
+      - getJiraIssue
+      - searchJiraIssuesUsingJql
+```
+
+The `allowed` list is required and accepts only these read-only Jira tools:
+
+- `getIssueLinkTypes`
+- `getJiraIssue`
+- `getJiraIssueRemoteIssueLinks`
+- `getJiraIssueTypeMetaWithFields`
+- `getJiraProjectIssueTypesMetadata`
+- `getTransitionsForJiraIssue`
+- `getVisibleJiraProjects`
+- `lookupJiraAccountId`
+- `searchJiraIssuesUsingJql`
+
+`allowed: ["*"]` is also accepted as shorthand for enabling all nine tools above; it is expanded to that fixed list at compile time and never grants access to the full, unrestricted MCP tool set. Omitting `allowed` or naming a write-capable tool is rejected.
+
+The endpoint defaults to `https://mcp.atlassian.com/v1/mcp`. Set `url` only when your organization uses another HTTPS Atlassian MCP endpoint. Credentials must be direct GitHub Actions secret expressions; service account keys use the HTTP bearer scheme while API tokens use HTTP Basic authentication generated at runtime.
 
 ### Bash Tool (`bash:`)
 
