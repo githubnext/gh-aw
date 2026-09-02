@@ -9,7 +9,7 @@ Playwright enables headless browser control for accessibility testing, visual re
 
 ## Configuration
 
-The built-in Playwright tool uses CLI mode. It is token-efficient because it does not load MCP tool schemas into the agent context, avoids Docker overhead, and reaches local development servers through `localhost`.
+The built-in Playwright tool is CLI-only by default. It is token-efficient because it does not load MCP tool schemas into the agent context, avoids Docker overhead, and reaches local development servers through `localhost`. If an older workflow still sets `mode: cli`, it continues to work for compatibility, but omitting `mode` is preferred.
 
 ```yaml wrap
 tools:
