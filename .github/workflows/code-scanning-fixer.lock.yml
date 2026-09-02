@@ -30,10 +30,10 @@
 #     - shared/mcp-pagination.md
 #     - shared/skip-if-issue-open.md
 #     - shared/security-analysis-base.md
+#     - shared/otlp.md
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-pr-base.md
-#     - shared/otlp.md
 #     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md

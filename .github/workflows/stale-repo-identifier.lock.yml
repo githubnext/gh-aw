@@ -29,11 +29,11 @@
 #   Imports:
 #     - shared/mcp-pagination.md
 #     - shared/github-guard-policy.md
-#     - shared/trending-charts-simple.md
-#     - shared/daily-audit-discussion.md
 #     - ../skills/jqschema/SKILL.md
 #     - shared/otlp.md
 #     - shared/reporting.md
+#     - shared/trending-charts-simple.md
+#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
 #     - shared/daily-audit-charts.md
 #

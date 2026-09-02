@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/otlp.md
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-issue-base.md
-#     - shared/otlp.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN
