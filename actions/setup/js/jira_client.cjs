@@ -17,7 +17,8 @@ function normalizeJiraBaseUrl(value) {
     throw new Error("JIRA_BASE_URL must be a valid URL");
   }
 
-  const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   if (url.protocol !== "https:" && !(isLocal && url.protocol === "http:")) {
     throw new Error("JIRA_BASE_URL must use HTTPS");
   }

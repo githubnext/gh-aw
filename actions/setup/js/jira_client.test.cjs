@@ -19,6 +19,12 @@ describe("jira client", () => {
     expect(() => normalizeJiraBaseUrl("https://example.atlassian.net?token=value")).toThrow("query string");
   });
 
+  it("allows HTTP only for loopback URLs used by tests", () => {
+    expect(normalizeJiraBaseUrl("http://localhost:3000")).toBe("http://localhost:3000");
+    expect(normalizeJiraBaseUrl("http://127.0.0.1:3000")).toBe("http://127.0.0.1:3000");
+    expect(normalizeJiraBaseUrl("http://[::1]:3000")).toBe("http://[::1]:3000");
+  });
+
   it("converts plain text and newlines to ADF version 1", () => {
     expect(textToADF("first\n\nsecond")).toEqual({
       type: "doc",
