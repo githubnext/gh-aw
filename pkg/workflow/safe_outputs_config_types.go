@@ -40,6 +40,12 @@ type BaseSafeOutputConfig struct {
 type SafeOutputsConfig struct {
 	Steer                                  bool                                   `yaml:"steer,omitempty"` // Experimental. Create an issue and steer the agent from issue comments.
 	CreateIssues                           *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	CreateWorkItems                        *CreateWorkItemConfig                  `yaml:"ado-create-work-item,omitempty"`
+	UpdateWorkItems                        *UpdateWorkItemConfig                  `yaml:"ado-update-work-item,omitempty"`
+	CommentOnWorkItems                     *CommentOnWorkItemConfig               `yaml:"ado-comment-on-work-item,omitempty"`
+	AssignWorkItems                        *AssignWorkItemConfig                  `yaml:"ado-assign-work-item,omitempty"`
+	LinkWorkItems                          *LinkWorkItemsConfig                   `yaml:"ado-link-work-items,omitempty"`
+	UploadWorkItemAttachments              *UploadWorkItemAttachmentConfig        `yaml:"ado-upload-workitem-attachment,omitempty"`
 	LinearCreateIssue                      *LinearCreateIssueConfig               `yaml:"linear-create-issue,omitempty"`
 	LinearAddComment                       *LinearTargetConfig                    `yaml:"linear-add-comment,omitempty"`
 	LinearUpdateIssue                      *LinearUpdateIssueConfig               `yaml:"linear-update-issue,omitempty"`
@@ -60,6 +66,10 @@ type SafeOutputsConfig struct {
 	CreateCodeScanningAlerts               *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
 	AutofixCodeScanningAlert               *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
 	CreateCheckRun                         *CreateCheckRunConfig                  `yaml:"create-check-run,omitempty"` // Create GitHub Check Runs to report agent analysis results
+	JiraCreateIssue                        *JiraSafeOutputConfig                  `yaml:"jira-create-issue,omitempty"`
+	JiraUpdateIssue                        *JiraSafeOutputConfig                  `yaml:"jira-update-issue,omitempty"`
+	JiraAddComment                         *JiraSafeOutputConfig                  `yaml:"jira-add-comment,omitempty"`
+	JiraAddLabel                           *JiraSafeOutputConfig                  `yaml:"jira-add-label,omitempty"`
 	AddLabels                              *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	RemoveLabels                           *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
 	ReplaceLabel                           *ReplaceLabelConfig                    `yaml:"replace-label,omitempty"` // Replace one label with another in a single atomic operation

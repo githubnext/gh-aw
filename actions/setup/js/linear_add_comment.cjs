@@ -16,6 +16,7 @@ const LINEAR_COMMENT_CREATE = `mutation LinearAddComment($input: CommentCreateIn
     }
   }
 }`;
+
 async function main(config = {}) {
   const target = config.target;
   if (typeof target !== "string" || target.length > 100 || !LINEAR_ISSUE_PATTERN.test(target)) {

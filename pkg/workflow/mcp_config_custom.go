@@ -350,7 +350,8 @@ func renderMCPMapProperty(yaml *strings.Builder, property string, isLast bool, m
 func renderCustomMCPHeadersTOML(headers map[string]string, headerSecrets map[string]string) map[string]string {
 	renderedHeaders := make(map[string]string, len(headers))
 	for headerKey, headerValue := range headers {
-		renderedHeaders[headerKey] = ReplaceSecretsWithShellEnvVars(headerValue, headerSecrets)
+		headerValue = ReplaceSecretsWithShellEnvVars(headerValue, headerSecrets)
+		renderedHeaders[headerKey] = replaceEnvExpressionsWithPrefixedEnvVars(headerValue, "${")
 	}
 	return renderedHeaders
 }
@@ -372,10 +373,7 @@ func renderMCPEnvMap(yaml *strings.Builder, isLast bool, mcpConfig *parser.Regis
 func renderMCPHeadersMap(yaml *strings.Builder, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
 	renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
 	for headerKey, headerValue := range mcpConfig.Headers {
-		if len(headerSecrets) > 0 {
-			headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
-		}
-		renderedHeaders[headerKey] = headerValue
+		renderedHeaders[headerKey] = ReplaceTemplateExpressionsWithEnvVars(headerValue)
 	}
 	writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
 }
@@ -575,6 +573,14 @@ func postProcessMCPConfig(result *parser.RegistryMCPServerConfig) {
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryMCPServerConfig, error) {
 	mcpCustomLog.Printf("Extracting MCP config for tool: %s", toolName)
+
+	// Jira's first-class auth block is compiler input rather than MCP Gateway
+	// configuration. Remove it after expandJiraToolConfig has generated the
+	// appropriate Authorization header.
+	if toolName == "jira" {
+		toolConfig = maps.Clone(toolConfig)
+		delete(toolConfig, "auth")
+	}
 
 	config := MapToolConfig(toolConfig)
 	result := &parser.RegistryMCPServerConfig{
