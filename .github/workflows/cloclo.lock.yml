@@ -27,10 +27,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - ../skills/jqschema/SKILL.md
-#     - shared/reporting.md
-#     - shared/otlp.md
 #     - shared/mcp/serena.md
 #     - shared/mcp/serena-go.md
+#     - shared/reporting.md
+#     - shared/otlp.md
 #     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md

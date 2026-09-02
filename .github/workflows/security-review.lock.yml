@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/security-analysis-base.md
-#     - shared/otlp.md
 #     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
+#     - shared/security-analysis-base.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

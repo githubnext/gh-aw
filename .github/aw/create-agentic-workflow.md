@@ -54,14 +54,17 @@ When the request already states a goal, infer its intent and ask only for inform
 5. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
 6. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
 7. **Context & network** — ask about external APIs, MCP servers, and required secrets; map to `network.allowed` and `env:`.
-8. **Engine** (skip if obvious) — if ambiguous, suggest Copilot as the default.
+8. **Engine** — preserve explicit engine hints. With no engine preference or
+   engine-specific requirement, omit `engine:` and let the configured default
+   apply. If an explicit model requirement forces engine selection, try Copilot
+   first.
 9. **Confirmation** — present a structured summary before generating:
 
    ```text
    Proposed workflow:
    - Name: <workflow-id>
    - Trigger: <event + key options>
-   - Engine: <engine or default>
+   - Engine: <explicit engine or default (omitted)>
    - Tools: <tool summary>
    - Safe outputs: <list or none>
    - Network: <allowed summary>

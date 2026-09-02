@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/reporting.md
-#     - shared/otlp.md
-#     - shared/pr-diff-data-fetch.md
 #     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
+#     - shared/reporting.md
+#     - shared/otlp.md
+#     - shared/pr-diff-data-fetch.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

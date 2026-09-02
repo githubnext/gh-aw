@@ -28,12 +28,12 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-guard-policy.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
-#     - shared/daily-audit-base.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
+#     - shared/otlp.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

@@ -101,12 +101,16 @@ Map to:
 
 ### Phase 7: Engine (optional)
 
-Ask only if ambiguous: **"Any AI engine preference?"**
+Ask **"Any AI engine preference?"** only when the request contains ambiguous
+engine-specific hints.
 
-If no preference, suggest default:
-- "I'd suggest Copilot since you haven't mentioned a preference. Sound good?"
+If there is no engine preference or engine-specific requirement, do not suggest
+or specify an engine; omit `engine:` and let the configured default apply. If an
+explicit model requirement forces engine selection, try Copilot first and select
+another engine only when Copilot cannot satisfy that requirement.
 
-Map to `engine:` only when not default.
+Map to `engine:` only for an explicit preference or a requirement that the
+configured default cannot satisfy.
 
 ### Phase 7b: Skills, Plugins, LSP & Evals (optional)
 
@@ -153,7 +157,7 @@ Use this exact structure:
 📋 Proposed workflow:
 - Name: <workflow-id>
 - Trigger: <event + key options>
-- Engine: <engine or default>
+- Engine: <explicit engine or default (omitted)>
 - Tools: <tool summary>
 - Safe outputs: <list or none>
 - Network: <allowed summary>
