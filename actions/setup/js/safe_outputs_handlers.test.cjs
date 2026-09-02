@@ -73,8 +73,8 @@ describe("safe_outputs_handlers", () => {
   it("collects Azure DevOps proposals using namespaced message types", () => {
     handlers.createWorkItemHandler({ temporary_id: "item", title: "Create item" });
     handlers.updateWorkItemHandler({ id: "#item", title: "Update item" });
-    handlers.commentOnWorkItemHandler({ id: "#item", body: "Comment" });
-    handlers.assignWorkItemHandler({ id: "#item", assignee: "user@example.com" });
+    handlers.commentOnWorkItemHandler({ work_item_id: "#item", body: "Comment" });
+    handlers.assignWorkItemHandler({ work_item_id: "#item", assignee: "user@example.com" });
     handlers.linkWorkItemsHandler({ source_id: "#item", target_id: 42, type: "related" });
 
     expect(mockAppendSafeOutput.mock.calls.map(call => call[0].type)).toEqual(["ado_create_work_item", "ado_update_work_item", "ado_comment_on_work_item", "ado_assign_work_item", "ado_link_work_items"]);
