@@ -4049,7 +4049,7 @@ tools:
     # Optional Linear API key or OAuth access token secret reference. Defaults to ${{
     # secrets.LINEAR_API_KEY }}.
     # (optional)
-    token: "example-value"
+    token: "${{ secrets.LINEAR_API_KEY }}"
 
     # Linear MCP toolset name(s) to enable. Toolsets are expanded to gateway-enforced
     # allowed tools.
@@ -4068,7 +4068,7 @@ tools:
     # List of allowed Linear MCP tool names or wildcard patterns. When toolsets are
     # set, every pattern must match a tool in those toolsets.
     # (optional)
-    allowed: []
+    allowed: ["*"]
       # Array of strings
 
     # Whether failure to connect to Linear should fail MCP gateway startup. Defaults

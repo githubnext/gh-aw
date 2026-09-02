@@ -298,12 +298,16 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 	if !ok {
 		return nil, errors.New("tools.linear must be an object")
 	}
+	if _, expanded := toolConfig["type"]; expanded {
+		return buildExpandedLinearBuiltinConfig(toolConfig)
+	}
 	for field := range toolConfig {
 		switch field {
 		case "token", "toolsets", "allowed", "required":
 		default:
 			return nil, fmt.Errorf("unknown tools.linear property %q", field)
 		}
+
 	}
 
 	token := constants.LinearMCPDefaultTokenExpr
@@ -327,6 +331,50 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 			},
 		},
 		Name: "linear",
+	}
+	allowed, err := buildLinearAllowedTools(toolConfig)
+	if err != nil {
+		return nil, err
+	}
+	config.Allowed = allowed
+	if requiredValue, exists := toolConfig["required"]; exists {
+		required, ok := requiredValue.(bool)
+		if !ok {
+			return nil, errors.New("tools.linear.required must be a boolean")
+		}
+		config.Required = &required
+	}
+	return config, nil
+}
+
+func buildExpandedLinearBuiltinConfig(toolConfig map[string]any) (*RegistryMCPServerConfig, error) {
+	for field := range toolConfig {
+		switch field {
+		case "type", "url", "headers", "allowed", "required":
+		default:
+			return nil, fmt.Errorf("unknown expanded tools.linear property %q", field)
+		}
+	}
+	typeName, ok := toolConfig["type"].(string)
+	if !ok || typeName != "http" {
+		return nil, errors.New("expanded tools.linear type must be http")
+	}
+	url, ok := toolConfig["url"].(string)
+	if !ok || url == "" {
+		return nil, errors.New("expanded tools.linear url must be a non-empty string")
+	}
+	config := &RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{Type: typeName, URL: url, Headers: map[string]string{}},
+		Name:                "linear",
+	}
+	if headers, ok := toolConfig["headers"].(map[string]any); ok {
+		for key, value := range headers {
+			header, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("expanded tools.linear header %q must be a string", key)
+			}
+			config.Headers[key] = header
+		}
 	}
 	allowed, err := buildLinearAllowedTools(toolConfig)
 	if err != nil {
