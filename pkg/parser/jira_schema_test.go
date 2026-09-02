@@ -44,7 +44,7 @@ func TestJiraToolSchema(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all tools wildcard is rejected",
+			name: "all tools wildcard is accepted",
 			jira: map[string]any{
 				"auth": map[string]any{
 					"type":  "service-account",
@@ -52,7 +52,6 @@ func TestJiraToolSchema(t *testing.T) {
 				},
 				"allowed": []any{"*"},
 			},
-			wantErr: true,
 		},
 		{
 			name: "write tool is rejected",

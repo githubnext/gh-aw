@@ -9,27 +9,39 @@ import (
 )
 
 const (
-	defaultJiraMCPURL      = "https://mcp.atlassian.com/v1/mcp"
-	jiraBasicAuthEnvVar    = "GH_AW_JIRA_BASIC_AUTH"
-	jiraEmailEnvVar        = "GH_AW_JIRA_EMAIL"
-	jiraTokenEnvVar        = "GH_AW_JIRA_TOKEN"
-	jiraServiceAccountAuth = "service-account"
-	jiraAPITokenAuth       = "api-token"
+	defaultJiraMCPURL        = "https://mcp.atlassian.com/v1/mcp"
+	jiraBasicAuthEnvVar      = "GH_AW_JIRA_BASIC_AUTH"
+	jiraEmailEnvVar          = "GH_AW_JIRA_EMAIL"
+	jiraTokenEnvVar          = "GH_AW_JIRA_TOKEN"
+	jiraServiceAccountAuth   = "service-account"
+	jiraAPITokenAuth         = "api-token"
+	jiraAllowedToolsWildcard = "*"
 )
 
 var jiraSecretExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
 
-var jiraApprovedReadOnlyTools = map[string]struct{}{
-	"getIssueLinkTypes":                {},
-	"getJiraIssue":                     {},
-	"getJiraIssueRemoteIssueLinks":     {},
-	"getJiraIssueTypeMetaWithFields":   {},
-	"getJiraProjectIssueTypesMetadata": {},
-	"getTransitionsForJiraIssue":       {},
-	"getVisibleJiraProjects":           {},
-	"lookupJiraAccountId":              {},
-	"searchJiraIssuesUsingJql":         {},
+// jiraApprovedReadOnlyToolsList is the fixed, ordered set of Jira MCP tools
+// that may ever be enabled. "*" in tools.jira.allowed is expanded to exactly
+// this list; the full, unrestricted MCP tool set is never exposed.
+var jiraApprovedReadOnlyToolsList = []string{
+	"getIssueLinkTypes",
+	"getJiraIssue",
+	"getJiraIssueRemoteIssueLinks",
+	"getJiraIssueTypeMetaWithFields",
+	"getJiraProjectIssueTypesMetadata",
+	"getTransitionsForJiraIssue",
+	"getVisibleJiraProjects",
+	"lookupJiraAccountId",
+	"searchJiraIssuesUsingJql",
 }
+
+var jiraApprovedReadOnlyTools = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(jiraApprovedReadOnlyToolsList))
+	for _, tool := range jiraApprovedReadOnlyToolsList {
+		set[tool] = struct{}{}
+	}
+	return set
+}()
 
 // expandJiraToolConfig converts the first-class Jira configuration into the
 // generic HTTP MCP shape consumed by the existing gateway pipeline.
@@ -83,7 +95,7 @@ func expandJiraToolConfig(tools map[string]any) error {
 		"auth":    auth,
 	}
 	if allowed, exists := config["allowed"]; exists {
-		expanded["allowed"] = allowed
+		expanded["allowed"] = expandJiraAllowedTools(allowed)
 	}
 	tools["jira"] = expanded
 	return nil
@@ -125,6 +137,36 @@ func validateJiraToolConfig(config map[string]any) error {
 }
 
 func validateJiraAllowedTools(value any) error {
+	allowed, err := parseJiraAllowedTools(value)
+	if err != nil {
+		return err
+	}
+	if len(allowed) > 1 {
+		for _, tool := range allowed {
+			if tool == jiraAllowedToolsWildcard {
+				return fmt.Errorf("tools.jira.allowed must contain only %q when the wildcard is used", jiraAllowedToolsWildcard)
+			}
+		}
+	}
+	seen := make(map[string]struct{}, len(allowed))
+	for _, tool := range allowed {
+		if strings.TrimSpace(tool) == "" {
+			return errors.New("tools.jira.allowed must contain only non-empty tool names")
+		}
+		if tool != jiraAllowedToolsWildcard {
+			if _, approved := jiraApprovedReadOnlyTools[tool]; !approved {
+				return fmt.Errorf("tools.jira.allowed tool %q is not an approved read-only Jira tool", tool)
+			}
+		}
+		if _, duplicate := seen[tool]; duplicate {
+			return fmt.Errorf("tools.jira.allowed contains duplicate tool %q", tool)
+		}
+		seen[tool] = struct{}{}
+	}
+	return nil
+}
+
+func parseJiraAllowedTools(value any) ([]string, error) {
 	var allowed []string
 	switch values := value.(type) {
 	case []string:
@@ -134,30 +176,37 @@ func validateJiraAllowedTools(value any) error {
 		for _, item := range values {
 			tool, ok := item.(string)
 			if !ok {
-				return errors.New("tools.jira.allowed must contain only non-empty tool names")
+				return nil, errors.New("tools.jira.allowed must contain only non-empty tool names")
 			}
 			allowed = append(allowed, tool)
 		}
 	default:
-		return errors.New("tools.jira.allowed must be a non-empty array of tool names")
+		return nil, errors.New("tools.jira.allowed must be a non-empty array of tool names")
 	}
 	if len(allowed) == 0 {
-		return errors.New("tools.jira.allowed must be a non-empty array of tool names")
+		return nil, errors.New("tools.jira.allowed must be a non-empty array of tool names")
 	}
-	seen := make(map[string]struct{}, len(allowed))
+	return allowed, nil
+}
+
+// expandJiraAllowedTools resolves tools.jira.allowed into the concrete list of
+// Jira MCP tools that will be exposed to the agent. The wildcard "*" is never
+// forwarded to the MCP configuration verbatim: it always expands to the fixed
+// approved read-only tool list so the full, unrestricted MCP tool set can
+// never be enabled, regardless of what value is configured.
+func expandJiraAllowedTools(value any) any {
+	allowed, err := parseJiraAllowedTools(value)
+	if err != nil {
+		return value
+	}
 	for _, tool := range allowed {
-		if strings.TrimSpace(tool) == "" {
-			return errors.New("tools.jira.allowed must contain only non-empty tool names")
+		if tool == jiraAllowedToolsWildcard {
+			expanded := make([]string, len(jiraApprovedReadOnlyToolsList))
+			copy(expanded, jiraApprovedReadOnlyToolsList)
+			return expanded
 		}
-		if _, approved := jiraApprovedReadOnlyTools[tool]; !approved {
-			return fmt.Errorf("tools.jira.allowed tool %q is not an approved read-only Jira tool", tool)
-		}
-		if _, duplicate := seen[tool]; duplicate {
-			return fmt.Errorf("tools.jira.allowed contains duplicate tool %q", tool)
-		}
-		seen[tool] = struct{}{}
 	}
-	return nil
+	return value
 }
 
 func validateJiraAuthConfig(auth map[string]any) error {

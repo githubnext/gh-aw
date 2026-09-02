@@ -1882,8 +1882,9 @@
             },
             "allowed": {
               "type": "array",
-              "desc": "Approved read-only Jira MCP tools the agent may call. Required; all-tools access and write-capable tools are not supported.",
+              "desc": "Approved read-only Jira MCP tools the agent may call. Required; write-capable tools are not supported. \"*\" expands to all approved read-only tools; the full, unrestricted MCP tool set can never be enabled.",
               "enum": [
+                "*",
                 "getIssueLinkTypes",
                 "getJiraIssue",
                 "getJiraIssueRemoteIssueLinks",

@@ -81,7 +81,7 @@ The `allowed` list is required and accepts only these read-only Jira tools:
 - `lookupJiraAccountId`
 - `searchJiraIssuesUsingJql`
 
-Omitting `allowed`, using `*`, or naming a write-capable tool is rejected, so this integration can never enable every tool exposed by the MCP endpoint.
+`allowed: ["*"]` is also accepted as shorthand for enabling all nine tools above; it is expanded to that fixed list at compile time and never grants access to the full, unrestricted MCP tool set. Omitting `allowed` or naming a write-capable tool is rejected.
 
 The endpoint defaults to `https://mcp.atlassian.com/v1/mcp`. Set `url` only when your organization uses another HTTPS Atlassian MCP endpoint. Credentials must be direct GitHub Actions secret expressions; service account keys use the HTTP bearer scheme while API tokens use HTTP Basic authentication generated at runtime.
 

@@ -4686,6 +4686,7 @@
                   "items": {
                     "type": "string",
                     "enum": [
+                      "*",
                       "getIssueLinkTypes",
                       "getJiraIssue",
                       "getJiraIssueRemoteIssueLinks",
@@ -4697,7 +4698,7 @@
                       "searchJiraIssuesUsingJql"
                     ]
                   },
-                  "description": "Approved read-only Jira MCP tools the agent may call. Required; all-tools access and write-capable tools are not supported."
+                  "description": "Approved read-only Jira MCP tools the agent may call. Required; write-capable tools are not supported. \"*\" expands to all approved read-only tools; the full, unrestricted MCP tool set can never be enabled."
                 },
                 "auth": {
                   "description": "Non-interactive authentication for GitHub Actions.",

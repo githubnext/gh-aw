@@ -129,14 +129,6 @@ func TestExpandJiraToolConfigRejectsInvalidAuth(t *testing.T) {
 			message: "tools.jira.allowed is required",
 		},
 		{
-			name: "all tools wildcard",
-			config: map[string]any{
-				"allowed": []any{"*"},
-				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
-			},
-			message: `tool "*" is not an approved read-only Jira tool`,
-		},
-		{
 			name: "write tool",
 			config: map[string]any{
 				"allowed": []any{"createJiraIssue"},
@@ -151,6 +143,14 @@ func TestExpandJiraToolConfigRejectsInvalidAuth(t *testing.T) {
 				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
 			},
 			message: `contains duplicate tool "getJiraIssue"`,
+		},
+		{
+			name: "wildcard combined with named tool",
+			config: map[string]any{
+				"allowed": []any{"*", "getJiraIssue"},
+				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: `tools.jira.allowed must contain only "*" when the wildcard is used`,
 		},
 	}
 
@@ -177,6 +177,23 @@ func TestValidateJiraAllowedToolsAcceptsApprovedReadOnlyTools(t *testing.T) {
 		"searchJiraIssuesUsingJql",
 	}
 	require.NoError(t, validateJiraAllowedTools(allowed))
+}
+
+func TestExpandJiraToolConfigWildcardExpandsToApprovedReadOnlyTools(t *testing.T) {
+	tools := map[string]any{
+		"jira": map[string]any{
+			"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.ATLASSIAN_TOKEN }}"},
+			"allowed": []any{"*"},
+		},
+	}
+
+	require.NoError(t, expandJiraToolConfig(tools))
+	config := tools["jira"].(map[string]any)
+
+	mcpConfig, err := getMCPConfig(config, "jira")
+	require.NoError(t, err)
+	assert.Equal(t, jiraApprovedReadOnlyToolsList, mcpConfig.Allowed)
+	assert.NotContains(t, mcpConfig.Allowed, "*")
 }
 
 func TestExpandJiraToolConfigDisablesInheritedConfiguration(t *testing.T) {
@@ -301,15 +318,6 @@ func TestImportedJiraConfigurationIsValidatedAfterMerge(t *testing.T) {
       type: service-account
       token: ${{ secrets.ATLASSIAN_TOKEN }}`,
 			message: "tools.jira.allowed is required",
-		},
-		{
-			name: "all tools wildcard",
-			jira: `    allowed:
-      - "*"
-    auth:
-      type: service-account
-      token: ${{ secrets.ATLASSIAN_TOKEN }}`,
-			message: `tool "*" is not an approved read-only Jira tool`,
 		},
 		{
 			name: "literal credential",
