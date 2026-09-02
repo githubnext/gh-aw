@@ -114,11 +114,11 @@ func findBotsBlock(lines []string, start, end, indent int, nested bool) (int, in
 		if (!nested && lineIndent != indent) || (nested && lineIndent <= indent) || !strings.HasPrefix(strings.TrimSpace(line), "bots:") {
 			continue
 		}
-		end := i
-		for j := i + 1; j < len(lines) && isNestedUnder(lines[j], getIndentation(line)); j++ {
-			end = j
+		blockEnd := i
+		for j := i + 1; j < end && isNestedUnder(lines[j], getIndentation(line)); j++ {
+			blockEnd = j
 		}
-		return i, end
+		return i, blockEnd
 	}
 	return -1, -1
 }
