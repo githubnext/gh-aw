@@ -430,6 +430,7 @@ func (e *PiEngine) buildPiExecutionEnv(workflowData *WorkflowData, profile unive
 		"PI_OFFLINE":            "1",
 		"RUNNER_TEMP":           "${{ runner.temp }}",
 	}
+	applyPlaywrightBrowserEnv(env, workflowData)
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	if modelConfigured {
 		env["GH_AW_PI_MODEL"] = workflowData.Model

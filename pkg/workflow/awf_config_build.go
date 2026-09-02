@@ -338,6 +338,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 	}
 
+	if isCloudHypervisorRuntime(config.WorkflowData) {
+		awfConfig.CloudHypervisor = buildAWFCloudHypervisorConfig()
+	}
+
 	// ── Logging section ──────────────────────────────────────────────────────
 	// Logging paths are set in config. For ARC/DinD, the config file is written at runtime,
 	// so ${RUNNER_TEMP} can be preserved for shell expansion before AWF reads the JSON.
@@ -345,6 +349,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		ProxyLogsDir: string(constants.AWFProxyLogsDir),
 		AuditDir:     string(constants.AWFAuditDir),
 	}
+
 	if isArcDindTopology(config.WorkflowData) {
 		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
 		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
@@ -365,6 +370,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	return jsonStr, nil
+}
+
+func buildAWFCloudHypervisorConfig() *AWFCloudHypervisorConfig {
+	return &AWFCloudHypervisorConfig{
+		PreviewEnabled: true,
+		MountPolicy:    "workspace-and-tool-cache",
+		VCPUCount:      constants.DefaultCloudHypervisorVCPUs,
+		MemoryMiB:      constants.DefaultCloudHypervisorMemoryMiB,
+	}
 }
 
 func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {

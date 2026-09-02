@@ -31,6 +31,10 @@ Quick-reference mapping tables for `.github/aw/designer.md`. Load this file duri
 | "post a comment" | `add-comment` |
 | "create an issue" | `create-issue` |
 | "update issue title/body" | `update-issue` |
+| "create a Jira issue" | `jira-create-issue` |
+| "update Jira issue ENG-123" | `jira-update-issue` |
+| "comment on Jira issue ENG-123" | `jira-add-comment` |
+| "add a Jira label" | `jira-add-label` |
 | "close the issue" | `close-issue` |
 | "assign someone", "remove assignment" | `assign-to-user`, `unassign-from-user` |
 | "set issue type/field/milestone" | `set-issue-type`, `set-issue-field`, `assign-milestone` |

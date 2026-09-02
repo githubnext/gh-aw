@@ -38,6 +38,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
+  - shared/playwright-title-test.md
   - shared/reporting.md
 network:
   allowed:

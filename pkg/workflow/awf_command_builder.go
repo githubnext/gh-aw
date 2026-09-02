@@ -94,7 +94,7 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:ro" --mount "%s:/host%s:ro"`, ghAwDir, ghAwDir, ghAwDir, ghAwDir)
 	}
 	expandableArgs, arcDindDockerHostProbe = appendArcDindMountSettings(expandableArgs, arcDindDockerHostProbe, isArcDind)
-	if !isCloudHypervisor && config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
+	if !isCloudHypervisor && config.WorkflowData != nil && usesSafeOutputsArtifactStaging(config.WorkflowData.SafeOutputs) {
 		stagingDir := SafeOutputsUploadArtifactsDir
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
@@ -114,11 +114,9 @@ func appendExpandableServiceAndHypervisorArgs(config AWFCommandConfig, isCloudHy
 			` --cloud-hypervisor-kernel "${GH_AW_CLOUD_HYPERVISOR_KERNEL}"` +
 			` --cloud-hypervisor-rootfs "${GH_AW_CLOUD_HYPERVISOR_ROOTFS}"` +
 			` --cloud-hypervisor-supervisor "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR}"` +
-			` --cloud-hypervisor-binary-sha256 "${GH_AW_CLOUD_HYPERVISOR_BINARY_SHA256}"` +
-			` --cloud-hypervisor-kernel-sha256 "${GH_AW_CLOUD_HYPERVISOR_KERNEL_SHA256}"` +
-			` --cloud-hypervisor-rootfs-sha256 "${GH_AW_CLOUD_HYPERVISOR_ROOTFS_SHA256}"` +
-			` --cloud-hypervisor-supervisor-sha256 "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}"` +
-			` --cloud-hypervisor-virtiofsd-sha256 "${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}"`
+			` --cloud-hypervisor-artifact-manifest "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST}"` +
+			` --cloud-hypervisor-artifact-manifest-bundle "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_MANIFEST_BUNDLE}"` +
+			` --cloud-hypervisor-artifact-release-tag "${GH_AW_CLOUD_HYPERVISOR_ARTIFACT_RELEASE_TAG}"`
 	}
 	return expandableArgs
 }
