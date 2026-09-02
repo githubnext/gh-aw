@@ -518,11 +518,25 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData, repoConfig *RepoC
 // are never affected by this function, because an explicit configuration
 // always makes scanWorkflowsForExpires report hasExpires=true.
 func disableDefaultActionFailureExpiryMarkers(workflowDataList []*WorkflowData, workflowDir string) {
+	var lockFiles []string
 	for _, workflowData := range workflowDataList {
 		if workflowData == nil || workflowData.WorkflowID == "" {
 			continue
 		}
-		lockFile := filepath.Join(workflowDir, workflowData.WorkflowID+".lock.yml")
+		lockFiles = append(lockFiles, filepath.Join(workflowDir, workflowData.WorkflowID+".lock.yml"))
+	}
+	patchActionFailureExpiryMarkersInFiles(lockFiles)
+}
+
+// patchActionFailureExpiryMarkersInFiles disables the implicit action-failure
+// expiry marker (see actionFailureIssueExpiryLineRegex) in each of the given
+// lock files, in place. Missing files (e.g. from --no-emit compiles) are
+// skipped without error.
+func patchActionFailureExpiryMarkersInFiles(lockFiles []string) {
+	for _, lockFile := range lockFiles {
+		if lockFile == "" {
+			continue
+		}
 		content, err := os.ReadFile(lockFile)
 		if err != nil {
 			// Lock file may not exist (e.g. --no-emit compiles); nothing to patch.
