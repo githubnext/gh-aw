@@ -440,7 +440,12 @@ func (acc *importAccumulator) extractConcurrencyInImport(fm map[string]any, full
 		return
 	}
 	if group, ok := concurrencyValue.(string); ok && strings.TrimSpace(group) != "" {
-		acc.mergedConcurrency = string(mustMarshalJSON(group))
+		groupJSON := mustMarshalJSON(group)
+		if len(groupJSON) == 0 {
+			parserLog.Printf("Skipping invalid concurrency.group from import: %s", fullPath)
+			return
+		}
+		acc.mergedConcurrency = string(groupJSON)
 		parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
 		return
 	}
@@ -452,7 +457,12 @@ func (acc *importAccumulator) extractConcurrencyInImport(fm map[string]any, full
 	if !ok || strings.TrimSpace(groupValue) == "" {
 		return
 	}
-	acc.mergedConcurrency = string(mustMarshalJSON(map[string]any{"group": groupValue}))
+	groupJSON := mustMarshalJSON(map[string]any{"group": groupValue})
+	if len(groupJSON) == 0 {
+		parserLog.Printf("Skipping invalid concurrency.group from import: %s", fullPath)
+		return
+	}
+	acc.mergedConcurrency = string(groupJSON)
 	parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
 }
 
@@ -1109,6 +1119,7 @@ func (acc *importAccumulator) populateImportsResultScalars(result *ImportsResult
 	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
 	result.MergedMaxAICredits = acc.mergedMaxAICredits
 	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
+	result.MergedConcurrency = acc.mergedConcurrency
 	result.MergedJobDiscriminator = acc.mergedJobDiscriminator
 	result.MergedExcludedEnv = acc.excludedEnv
 }

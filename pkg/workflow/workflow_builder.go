@@ -102,6 +102,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		var importedConcurrency any
 		if err := json.Unmarshal([]byte(importsResult.MergedConcurrency), &importedConcurrency); err == nil {
 			workflowData.Concurrency = c.extractTopLevelYAMLSection(map[string]any{"concurrency": importedConcurrency}, "concurrency")
+		} else {
+			workflowBuilderLog.Printf("Skipping imported concurrency merge: invalid JSON: %v", err)
 		}
 	}
 

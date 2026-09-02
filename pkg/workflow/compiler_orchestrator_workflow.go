@@ -276,6 +276,8 @@ func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext)
 		var importedConcurrency any
 		if err := json.Unmarshal([]byte(ctx.engineSetup.importsResult.MergedConcurrency), &importedConcurrency); err == nil {
 			ctx.workflowData.Concurrency = c.extractTopLevelYAMLSection(map[string]any{"concurrency": importedConcurrency}, "concurrency")
+		} else {
+			orchestratorWorkflowLog.Printf("Skipping imported concurrency merge: invalid JSON: %v", err)
 		}
 	}
 	if ctx.workflowData.ConcurrencyJobDiscriminator == "" {
