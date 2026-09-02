@@ -127,6 +127,38 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"jira_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"project_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"issue_type":  {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"summary":     {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"description": {Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_update_issue": {
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:summary,description",
+		Fields: map[string]FieldValidation{
+			"issue_key":   {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"summary":     {Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"description": {Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"body":      {Required: true, Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_add_label": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"label":     {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: "^[A-Za-z0-9_.-]+$", PatternError: "must contain only letters, numbers, periods, hyphens, and underscores"},
+		},
+	},
 	"comment_memory": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -590,7 +622,7 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
 //
-//nolint:largefunc // Validation schema assembly remains centralized for deterministic caching.
+//nolint:largefunc // Existing validation serialization flow remains linear and explicit.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 

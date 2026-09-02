@@ -2813,6 +2813,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     return defaultHandler("update_issue")(args || {});
   };
 
+  const jiraCreateIssueHandler = defaultHandler("jira_create_issue");
+  const jiraAddCommentHandler = defaultHandler("jira_add_comment");
+  const jiraAddLabelHandler = defaultHandler("jira_add_label");
+  const jiraUpdateIssueHandler = args => {
+    const summary = typeof args?.summary === "string" ? args.summary.trim() : "";
+    const description = typeof args?.description === "string" ? args.description.trim() : "";
+    if (!summary && !description) {
+      return buildIntentErrorResponse("jira_update_issue requires at least one non-empty field: summary or description");
+    }
+    return defaultHandler("jira_update_issue")(args || {});
+  };
+
   /**
    * Handler for update_pull_request tool
    * Spec cross-reference: Safe Output Outcome Evaluation §update_pull_request.
@@ -3117,6 +3129,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,
     createIssueHandler,
+    jiraCreateIssueHandler,
+    jiraUpdateIssueHandler,
+    jiraAddCommentHandler,
+    jiraAddLabelHandler,
     createProjectHandler,
     addCommentHandler,
     createPullRequestReviewCommentHandler,
