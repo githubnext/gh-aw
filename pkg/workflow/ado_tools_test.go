@@ -90,6 +90,21 @@ func TestADOToolTypedParsing(t *testing.T) {
 	assert.Empty(t, tools.Custom)
 }
 
+func TestADOToolNetworkAndCLIProxyIntegration(t *testing.T) {
+	tools := map[string]any{
+		"ado": map[string]any{
+			"organization": "contoso",
+			"token":        "${{ secrets.ADO_MCP_AUTH_TOKEN }}",
+		},
+		"cli-proxy": true,
+	}
+	require.NoError(t, expandADOToolConfig(tools))
+
+	assert.Contains(t, extractHTTPMCPDomains(tools), "mcp.dev.azure.com")
+	data := &WorkflowData{Tools: tools, ParsedTools: NewTools(tools)}
+	assert.Equal(t, []string{"ado"}, getMCPCLIServerNames(data))
+}
+
 func TestADOCompilationAcrossEngines(t *testing.T) {
 	for _, engine := range []string{"copilot", "claude", "codex", "gemini", "pi"} {
 		t.Run(engine, func(t *testing.T) {
