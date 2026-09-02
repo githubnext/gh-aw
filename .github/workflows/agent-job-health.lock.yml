@@ -27,12 +27,12 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/aw-logs-24h-fetch.md
-#     - ../skills/jqschema/SKILL.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
 #     - shared/otlp.md
 #     - shared/daily-audit-base.md
+#     - shared/aw-logs-24h-fetch.md
+#     - ../skills/jqschema/SKILL.md
 #     - shared/graders/state-revisit-probability-rep.md
 #     - shared/graders/recurrence-determinism.md
 #     - shared/graders/recurrence-laminarity.md

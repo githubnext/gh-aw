@@ -28,9 +28,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp-pagination.md
+#     - shared/daily-audit-discussion.md
 #     - shared/otlp.md
 #     - shared/reporting.md
-#     - shared/daily-audit-discussion.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
