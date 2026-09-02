@@ -95,11 +95,9 @@ func TestADOToolIsParsedAsFirstClassTool(t *testing.T) {
 
 func TestADORequiredDomainsAreAdded(t *testing.T) {
 	tools := map[string]any{
-		"ado": map[string]any{
-			"type": "http",
-			"url":  "https://mcp.dev.azure.com/contoso",
-		},
+		"ado": map[string]any{"organization": "contoso"},
 	}
+	require.NoError(t, expandADOToolConfig(tools))
 
 	domains := GetAllowedDomainsForEngine(constants.CopilotEngine, &NetworkPermissions{}, tools, nil)
 	for _, domain := range adoRequiredDomains {
