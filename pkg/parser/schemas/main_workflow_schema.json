@@ -4701,7 +4701,7 @@
                         },
                         "token": {
                           "$ref": "#/$defs/ci_secret_expression",
-                          "description": "Atlassian service account API key, sent as a ******"
+                          "description": "Atlassian service account API key, sent with the HTTP bearer scheme."
                         }
                       }
                     },

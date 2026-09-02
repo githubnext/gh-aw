@@ -69,7 +69,7 @@ tools:
       - searchJiraIssuesUsingJql
 ```
 
-The endpoint defaults to `https://mcp.atlassian.com/v1/mcp`. Set `url` only when your organization uses another HTTPS Atlassian MCP endpoint. Credentials must be direct GitHub Actions secret expressions; service account keys use ****** while API tokens use HTTP Basic authentication generated at runtime.
+The endpoint defaults to `https://mcp.atlassian.com/v1/mcp`. Set `url` only when your organization uses another HTTPS Atlassian MCP endpoint. Credentials must be direct GitHub Actions secret expressions; service account keys use the HTTP bearer scheme while API tokens use HTTP Basic authentication generated at runtime.
 
 ### Bash Tool (`bash:`)
 
