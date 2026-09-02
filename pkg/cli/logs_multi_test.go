@@ -19,7 +19,7 @@ import (
 func TestLogsTargetOutputDir(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t,
-		filepath.Join("logs", "owner-repo", "daily-report"),
+		filepath.Join("logs", "repo-owner-repo", "workflow-daily-report"),
 		logsTargetOutputDir("logs", logsWorkflowTarget{
 			repoOverride: "owner/repo",
 			workflowName: "daily-report",
@@ -94,8 +94,8 @@ func TestDownloadWorkflowLogsForTargetsConcurrentAndResilient(t *testing.T) {
 	require.NoError(t, <-done, "a failed target should not discard successful reports")
 
 	mu.Lock()
-	assert.Equal(t, filepath.Join(tempDir, "logs", "org-repo-a", "available"), outputDirs["available"])
-	assert.Equal(t, filepath.Join(tempDir, "logs", "org-repo-b", "missing"), outputDirs["missing"])
+	assert.Equal(t, filepath.Join(tempDir, "logs", "repo-org-repo-a", "workflow-available"), outputDirs["available"])
+	assert.Equal(t, filepath.Join(tempDir, "logs", "repo-org-repo-b", "workflow-missing"), outputDirs["missing"])
 	assert.Equal(t, 5, concurrencyLimits["available"], "total download concurrency should be shared across targets")
 	assert.Equal(t, 5, concurrencyLimits["missing"], "total download concurrency should be shared across targets")
 	mu.Unlock()

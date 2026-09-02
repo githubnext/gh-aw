@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -26,14 +25,18 @@ import (
 
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
 var fetchRateLimitFunc = fetchRateLimit
-var logsRateLimitMu sync.Mutex
+var logsRateLimitGate = make(chan struct{}, 1)
 
 // checkAndWaitForRateLimitShared serializes quota checks and their cooldowns so
 // concurrent workflow downloads are staggered rather than consuming the API
 // budget in synchronized bursts.
 func checkAndWaitForRateLimitShared(ctx context.Context, verbose bool) error {
-	logsRateLimitMu.Lock()
-	defer logsRateLimitMu.Unlock()
+	select {
+	case logsRateLimitGate <- struct{}{}:
+		defer func() { <-logsRateLimitGate }()
+	case <-ctx.Done():
+		return contextCause(ctx)
+	}
 	return checkAndWaitForRateLimit(ctx, verbose)
 }
 

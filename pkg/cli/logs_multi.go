@@ -47,6 +47,9 @@ func DownloadWorkflowLogsForTargets(
 	for _, err := range allErrors {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping workflow target: "+err.Error()))
 	}
+	if ctx.Err() != nil {
+		return context.Cause(ctx)
+	}
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
@@ -80,8 +83,8 @@ func DownloadWorkflowLogsForTargets(
 	})
 }
 
-func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets []logsWorkflowTarget) <-chan logsTargetResult {
-	results := make(chan logsTargetResult, len(targets))
+func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets []logsWorkflowTarget) []logsTargetResult {
+	resultChannel := make(chan logsTargetResult, len(targets))
 	var wg sync.WaitGroup
 	workerCount := min(len(targets), getMaxConcurrentWorkflowDownloads())
 	sem := make(chan struct{}, workerCount)
@@ -90,14 +93,14 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 		wg.Go(func() {
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					results <- logsTargetResult{target: target, err: fmt.Errorf("workflow collector panicked: %v", recovered)}
+					resultChannel <- logsTargetResult{target: target, err: fmt.Errorf("workflow collector panicked: %v", recovered)}
 				}
 			}()
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-ctx.Done():
-				results <- logsTargetResult{target: target, err: ctx.Err()}
+				resultChannel <- logsTargetResult{target: target, err: ctx.Err()}
 				return
 			}
 
@@ -112,23 +115,27 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 			targetOpts.rateLimitFirstRequest = true
 			targetOpts.maxConcurrentDownloads = perTargetDownloads
 			result, err := collectWorkflowLogsForTarget(ctx, targetOpts)
-			results <- logsTargetResult{target: target, result: result, err: err}
+			resultChannel <- logsTargetResult{target: target, result: result, err: err}
 		})
 	}
 	wg.Wait()
-	close(results)
+	close(resultChannel)
+	results := make([]logsTargetResult, 0, len(targets))
+	for result := range resultChannel {
+		results = append(results, result)
+	}
 	return results
 }
 
 func mergeLogsTargetResults(
-	results <-chan logsTargetResult,
+	results []logsTargetResult,
 	initialErrors []error,
 ) ([]ProcessedRun, []WorkflowContinuation, bool, []error) {
 	allErrors := append([]error(nil), initialErrors...)
 	var processedRuns []ProcessedRun
 	timeoutReached := false
 	var continuations []WorkflowContinuation
-	for targetResult := range results {
+	for _, targetResult := range results {
 		if targetResult.err != nil {
 			allErrors = append(allErrors, fmt.Errorf("%s: %w", targetResult.target.displayName(), targetResult.err))
 			continue
@@ -156,11 +163,12 @@ func (t logsWorkflowTarget) displayName() string {
 }
 
 func logsTargetOutputDir(root string, target logsWorkflowTarget) string {
-	workflowDir := stringutil.SanitizeForFilename(target.workflowName)
+	workflowDir := "workflow-" + stringutil.SanitizeForFilename(target.workflowName)
 	if target.repoOverride == "" {
 		return filepath.Join(root, workflowDir)
 	}
-	return filepath.Join(root, stringutil.SanitizeForFilename(target.repoOverride), workflowDir)
+	repoDir := "repo-" + stringutil.SanitizeForFilename(target.repoOverride)
+	return filepath.Join(root, repoDir, workflowDir)
 }
 
 func getMaxConcurrentWorkflowDownloads() int {
