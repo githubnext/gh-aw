@@ -43,7 +43,7 @@ type LogsData struct {
 	StaleWarning      string                     `json:"stale_warning,omitempty" console:"-"`
 }
 
-// ContinuationData provides parameters to continue querying when timeout is reached
+// ContinuationData provides parameters to continue an incomplete logs query.
 type ContinuationData struct {
 	Message               string `json:"message"`
 	WorkflowName          string `json:"workflow_name,omitempty"`

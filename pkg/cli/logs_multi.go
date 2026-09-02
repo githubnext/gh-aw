@@ -54,7 +54,7 @@ func DownloadWorkflowLogsForTargets(
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
 		}
-		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached)
+		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations)
 		return err
 	}
 

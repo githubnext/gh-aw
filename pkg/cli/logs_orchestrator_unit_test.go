@@ -290,6 +290,18 @@ func TestBuildContinuationIfNeeded(t *testing.T) {
 		})
 		assert.Nil(t, c, "expected nil when no runs were processed")
 	})
+
+	t.Run("empty processedRuns returns current cursor when storage blocks progress", func(t *testing.T) {
+		c := buildContinuationIfNeeded(nil, false, false, true, continuationOptions{
+			workflowName: "my-workflow",
+			count:        100,
+			maxStorageMB: 2048,
+		})
+		require.NotNil(t, c)
+		assert.Zero(t, c.BeforeRunID)
+		assert.Equal(t, 2048, c.MaxStorageMB)
+		assert.Contains(t, c.Message, "Storage limit reached")
+	})
 }
 
 func TestComputeLogsBatchSize(t *testing.T) {
@@ -414,6 +426,43 @@ func TestCollectProcessedWorkflowRunsAccumulatesBatches(t *testing.T) {
 	assert.Equal(t, int64(3), runs[2].Run.DatabaseID)
 }
 
+// TestFetchAndProcessLogsBatchKeepsCursorWhenStorageLimitReached verifies that
+// continuation does not skip unprocessed runs from the interrupted batch.
+func TestFetchAndProcessLogsBatchKeepsCursorWhenStorageLimitReached(t *testing.T) {
+	originalFetch := logsFetchWorkflowRunBatch
+	originalProcess := logsProcessWorkflowRunBatch
+	t.Cleanup(func() {
+		logsFetchWorkflowRunBatch = originalFetch
+		logsProcessWorkflowRunBatch = originalProcess
+	})
+
+	storageLimit := newLogsStorageLimit(t.TempDir(), 1)
+	logsFetchWorkflowRunBatch = func(_ context.Context, _ LogsDownloadOptions, _ string, _ int, _ bool) (workflowRunBatch, error) {
+		return workflowRunBatch{
+			runs:                   []WorkflowRun{{DatabaseID: 10}, {DatabaseID: 9}},
+			totalFetched:           2,
+			batchSize:              2,
+			oldestFetchedCreatedAt: time.Now().Add(-time.Hour),
+		}, nil
+	}
+	logsProcessWorkflowRunBatch = func(_ context.Context, _ workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+		storageLimit.reached.Store(true)
+		return append(processedRuns, ProcessedRun{Run: WorkflowRun{DatabaseID: 10}}), 1, true, false
+	}
+
+	state := logsCollectionState{beforeDate: "previous-cursor"}
+	stop, err := fetchAndProcessLogsBatch(
+		&state,
+		logsDownloadRuntime{activeCtx: context.Background(), storageLimit: storageLimit},
+		LogsDownloadOptions{Count: 10},
+	)
+
+	require.NoError(t, err)
+	assert.True(t, stop)
+	assert.True(t, state.storageLimitReached)
+	assert.Equal(t, "previous-cursor", state.beforeDate)
+}
+
 // TestStaleLogsWarning verifies that a warning is only emitted when no explicit
 // start_date/end_date was requested and the newest run in the result set is older
 // than the staleness threshold. This guards against the "logs" tool silently
@@ -464,7 +513,7 @@ func TestStaleLogsWarning(t *testing.T) {
 // results for a complete scan of the range (see github/gh-aw#53995).
 func TestCollectProcessedWorkflowRunsIterationLimitSurfacesContinuation(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
-	fetchRateLimitFunc = func() (rateLimitResource, error) {
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
 		return rateLimitResource{Limit: 5000, Remaining: 5000, Reset: time.Now().Add(time.Hour).Unix()}, nil
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })

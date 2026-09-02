@@ -225,6 +225,11 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		return nil
 	}
 
+	message := ""
+	if storageLimit.isReached() {
+		message = "Storage limit reached. Results are partial because some input runs were not downloaded."
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
+	}
 	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
 		outputDir:      opts.OutputDir,
 		summaryFile:    opts.SummaryFile,
@@ -233,6 +238,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		jsonOutput:     opts.JSONOutput,
 		toolGraph:      opts.ToolGraph,
 		train:          opts.Train,
+		message:        message,
 		verbose:        opts.Verbose,
 		artifactFilter: artifactFilter,
 	})

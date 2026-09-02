@@ -290,13 +290,15 @@ func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRu
 	state.timeoutReached = state.timeoutReached || batchTimedOut
 	state.storageLimitReached = runtime.storageLimit.isReached()
 	logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, state.iteration, batchProcessed, len(state.processedRuns), opts.Verbose)
+	if state.storageLimitReached {
+		// Keep the prior pagination boundary. The continuation's before_run_id
+		// resumes within this batch after the oldest successfully processed run.
+		return true, nil
+	}
 	if allRunsConsumed {
 		if cursor, ok := selectPaginationCursorDate(batch.runs, batch.oldestFetchedCreatedAt); ok {
 			state.beforeDate = cursor
 		}
-	}
-	if state.storageLimitReached {
-		return true, nil
 	}
 	return shouldStopAfterWorkflowRunBatch(batch, opts.Verbose), nil
 }
@@ -584,12 +586,19 @@ func logLogsStorageLimitResult(storageLimitReached bool, processedCount int) {
 	}
 }
 
-func handleEmptyProcessedRuns(processedRuns []ProcessedRun, opts LogsDownloadOptions, timeoutReached, storageLimitReached bool) (bool, error) {
+func handleEmptyProcessedRuns(
+	processedRuns []ProcessedRun,
+	opts LogsDownloadOptions,
+	timeoutReached, storageLimitReached bool,
+	continuation *ContinuationData,
+	continuations []WorkflowContinuation,
+) (bool, error) {
 	if len(processedRuns) > 0 {
 		return false, nil
 	}
 	if opts.JSONOutput {
-		logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+		logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, continuation)
+		logsData.Continuations = continuations
 		logsData.Message = noRunsMessage(opts.StartDate, timeoutReached, storageLimitReached)
 		if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 			return true, fmt.Errorf("failed to render JSON output: %w", err)

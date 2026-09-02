@@ -242,11 +242,18 @@ func buildContinuationIfNeeded(
 	timeoutReached, countLimitReached, storageLimitReached bool,
 	opts continuationOptions,
 ) *ContinuationData {
-	if len(processedRuns) == 0 || (!timeoutReached && !countLimitReached && !storageLimitReached) {
+	if !timeoutReached && !countLimitReached && !storageLimitReached {
+		return nil
+	}
+	if len(processedRuns) == 0 && !storageLimitReached {
 		return nil
 	}
 	// Use the oldest processed run as the before_run_id cursor for the next page.
-	oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+	// A zero cursor restarts the current batch when storage prevented any progress.
+	var oldestRunID int64
+	if len(processedRuns) > 0 {
+		oldestRunID = processedRuns[len(processedRuns)-1].Run.DatabaseID
+	}
 	// Prefer the actual pagination date cursor over the fixed request end_date: when
 	// many non-matching runs are interspersed across the window (the scenario this
 	// guards against), the oldest *matching* run can be far newer than the point the
@@ -290,7 +297,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	if err != nil {
 		return err
 	}
-	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached, result.storageLimitReached); handled || err != nil {
+	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached, result.storageLimitReached, result.continuation, nil); handled || err != nil {
 		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", result.timeoutReached, err)
 		return err
 	}

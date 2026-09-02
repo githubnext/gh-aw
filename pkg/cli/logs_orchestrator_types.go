@@ -126,6 +126,7 @@ type renderLogsOutputOptions struct {
 	toolGraph      bool
 	train          bool
 	continuation   *ContinuationData
+	message        string
 	verbose        bool
 	artifactFilter []string
 	startDate      string

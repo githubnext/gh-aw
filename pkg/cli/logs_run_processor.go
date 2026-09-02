@@ -138,6 +138,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, opt
 	if opts.maxConcurrentDownloads > 0 {
 		maxConcurrent = opts.maxConcurrentDownloads
 	}
+	if opts.storageLimit != nil {
+		// Preserve API order so a storage-limit continuation resumes at the first
+		// run that was not downloaded.
+		maxConcurrent = 1
+	}
 	params := buildConcurrentDownloadParams(opts.outputDir, opts.verbose, opts.repoOverride, opts.artifactFilter, opts.evalsOnly, opts.artifactSets)
 	params.storageLimit = opts.storageLimit
 	params.maxGitHubAPIRateLimit = opts.maxGitHubAPIRateLimit
@@ -228,25 +233,27 @@ func processSingleRunDownload(
 	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
 	if !ok {
 		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
+		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
 		err := params.storageLimit.runDownload(ctx, runOutputDir, func() error {
 			if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit); err != nil {
 				return err
 			}
-			return downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter})
-		})
-
-		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
-		if err != nil {
-			handleArtifactDownloadError(result, err, params.verbose)
-		} else {
+			if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter}); err != nil {
+				return err
+			}
 			// When evals are requested but not found in the usage artifact (older runs
 			// that predate the conclusion-job copy), fall back to the dedicated evals
-			// artifact so those runs are not silently skipped.  This applies both when
+			// artifact so those runs are not silently skipped. This applies both when
 			// --evals is set and when --artifacts evals was explicitly listed.
 			if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
 				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, perRunParams)
 			}
 			analyzeRunArtifacts(ctx, result, runOutputDir, params.verbose, params.artifactFilter)
+			return nil
+		})
+
+		if err != nil {
+			handleArtifactDownloadError(result, err, params.verbose)
 		}
 	} else {
 		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
@@ -267,12 +274,10 @@ func processSingleRunDownload(
 func tryDownloadEvalsArtifactFallback(ctx context.Context, runID int64, runOutputDir string, params concurrentRunDownloadParams) {
 	logsOrchestratorLog.Printf("evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", runID)
 	evalsFilter := []string{constants.EvalsArtifactName.String()}
-	err := params.storageLimit.runDownload(ctx, runOutputDir, func() error {
-		if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit); err != nil {
-			return err
-		}
-		return downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter})
-	})
+	err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit)
+	if err == nil {
+		err = downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter})
+	}
 	if err != nil {
 		logsOrchestratorLog.Printf("Fallback evals artifact download failed for run %d: %v", runID, err)
 		if params.verbose {
