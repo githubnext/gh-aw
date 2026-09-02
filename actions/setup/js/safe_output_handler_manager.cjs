@@ -37,6 +37,10 @@ const GITHUB_TOKEN_CONFIG_KEY = "github-token";
  */
 const HANDLER_MAP = {
   create_issue: "./create_issue.cjs",
+  jira_create_issue: "./jira_create_issue.cjs",
+  jira_update_issue: "./jira_update_issue.cjs",
+  jira_add_comment: "./jira_add_comment.cjs",
+  jira_add_label: "./jira_add_label.cjs",
   add_comment: "./add_comment.cjs",
   comment_memory: "./comment_memory.cjs",
   create_discussion: "./create_discussion.cjs",
@@ -125,6 +129,10 @@ const WTD3_REQUIREMENT_ID = "WTD3";
  */
 const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "create_issue",
+  "jira_create_issue",
+  "jira_update_issue",
+  "jira_add_comment",
+  "jira_add_label",
   "add_comment",
   "create_pull_request",
   "comment_memory",

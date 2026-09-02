@@ -42,6 +42,8 @@ package workflow
 //
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
+//
+//nolint:largefunc // Existing centralized safe-output extraction remains intentionally sequential.
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
@@ -58,6 +60,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				safeOutputsConfigLog.Print("Configured create-issue output handler")
 				config.CreateIssues = issuesConfig
 			}
+
+			c.extractJiraSafeOutputConfigs(outputMap, config)
 
 			// Handle create-agent-session
 			agentSessionConfig := c.parseAgentSessionConfig(outputMap)

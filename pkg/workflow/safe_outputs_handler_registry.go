@@ -62,6 +62,7 @@ var handlerRegistry = mergeHandlerMaps(
 	projectHandlerRegistry,
 	assignmentHandlerRegistry,
 	commentHandlerRegistry,
+	jiraHandlerRegistry,
 	releaseHandlerRegistry,
 	diagnosticHandlerRegistry,
 )
