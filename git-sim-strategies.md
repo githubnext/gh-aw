@@ -851,3 +851,14 @@ next_index unchanged at 216. **13 consecutive identical halts
 paused/disabled by a human maintainer or redesigned to target a disposable
 sandbox repo, not re-evaluated daily by an autonomous agent reaching the
 same conclusion each time.**
+
+## HALTED 2026-09-02 (14th consecutive run)
+
+Independently reconfirmed the same policy conflict as every run since 2026-08-16:
+this workflow's real-PR/push probing against github/gh-aw with synthetic content is
+forbidden by the outer safe-outputs policy ("no probing / placeholder-content / let-me-
+see-if-this-works experiments"), a fixed constraint the inner prompt can't override.
+config-simulator sub-agent still unregistered. No steering issue number given this run.
+No cells advanced (next_index=216). Called noop only. Recommend a human decide whether
+to retire/redesign this workflow rather than let it keep re-litigating the same halt
+daily — 14 runs is a strong signal, not a coincidence.
