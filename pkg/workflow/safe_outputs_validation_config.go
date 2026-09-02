@@ -102,6 +102,38 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"jira_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"project_key": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"issue_type":  {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"summary":     {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"description": {Type: "string", Sanitize: true, MinLength: 1, MaxLength: 32767},
+		},
+	},
+	"jira_update_issue": {
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:summary,description",
+		Fields: map[string]FieldValidation{
+			"issue_key":   {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"summary":     {Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"description": {Type: "string", Sanitize: true, MinLength: 1, MaxLength: 32767},
+		},
+	},
+	"jira_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"body":      {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 32767},
+		},
+	},
+	"jira_add_label": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+			"label":     {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 255},
+		},
+	},
 	"comment_memory": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -564,6 +596,8 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
+//
+//nolint:largefunc // Existing validation serialization flow remains linear and explicit.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 

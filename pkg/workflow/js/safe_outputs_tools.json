@@ -90,7 +90,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 255,
-          "description": "Jira project key, for example ENG."
+          "description": "Jira project key that owns the new issue, for example ENG."
         },
         "issue_type": {
           "type": "string",
@@ -102,7 +102,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 255,
-          "description": "Summary for the new Jira issue."
+          "description": "Short Jira issue summary, for example Investigate parser failure."
         },
         "description": {
           "type": "string",
@@ -183,7 +183,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 255,
-          "description": "One Jira label to add. Existing labels are preserved."
+          "description": "One Jira label to add, for example needs-investigation. Existing labels are preserved."
         }
       },
       "additionalProperties": false
