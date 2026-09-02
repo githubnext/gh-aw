@@ -6,26 +6,33 @@ package cli
 
 // LogsDownloadOptions holds parameters for DownloadWorkflowLogs.
 type LogsDownloadOptions struct {
-	WorkflowName      string
-	Count             int
-	StartDate         string
-	EndDate           string
-	OutputDir         string
-	Engine            string
-	Runtime           string
-	Ref               string
-	BeforeRunID       int64
-	AfterRunID        int64
-	RepoOverride      string
-	Verbose           bool
-	ToolGraph         bool
-	NoStaged          bool
-	FirewallOnly      bool
-	NoFirewall        bool
-	Parse             bool
-	JSONOutput        bool
-	TimeoutMinutes    int
-	TimeoutSeconds    int
+	WorkflowName   string
+	Count          int
+	StartDate      string
+	EndDate        string
+	OutputDir      string
+	Engine         string
+	Runtime        string
+	Ref            string
+	BeforeRunID    int64
+	AfterRunID     int64
+	RepoOverride   string
+	Verbose        bool
+	ToolGraph      bool
+	NoStaged       bool
+	FirewallOnly   bool
+	NoFirewall     bool
+	Parse          bool
+	JSONOutput     bool
+	TimeoutMinutes int
+	TimeoutSeconds int
+	// MaxGitHubAPIRateLimit is the maximum number of core API requests that may
+	// be used in the current window before downloads wait for the reset. Negative
+	// values reserve that many requests from the API-reported limit.
+	MaxGitHubAPIRateLimit int
+	// MaxStorageMB stops new artifact downloads once OutputDir reaches this
+	// size. Zero disables the storage limit.
+	MaxStorageMB      int
 	SummaryFile       string
 	SafeOutputType    string
 	FilteredIntegrity bool
@@ -46,14 +53,16 @@ type LogsDownloadOptions struct {
 	skipEnsureGitignore    bool
 	rateLimitFirstRequest  bool
 	maxConcurrentDownloads int
+	storageLimit           *logsStorageLimit
 }
 
 type workflowLogsResult struct {
-	processedRuns     []ProcessedRun
-	artifactFilter    []string
-	continuation      *ContinuationData
-	countLimitReached bool
-	timeoutReached    bool
+	processedRuns       []ProcessedRun
+	artifactFilter      []string
+	continuation        *ContinuationData
+	countLimitReached   bool
+	timeoutReached      bool
+	storageLimitReached bool
 }
 
 // StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
@@ -71,6 +80,7 @@ type StdinLogsOptions struct {
 	Parse             bool
 	JSONOutput        bool
 	Timeout           int
+	MaxStorageMB      int
 	SummaryFile       string
 	SafeOutputType    string
 	FilteredIntegrity bool
@@ -87,14 +97,16 @@ type StdinLogsOptions struct {
 // continuationOptions carries the parameters needed by buildContinuationIfNeeded
 // to produce a ContinuationData cursor for paginated log fetches.
 type continuationOptions struct {
-	workflowName   string
-	startDate      string
-	endDate        string
-	engine         string
-	branch         string
-	afterRunID     int64
-	count          int
-	timeoutMinutes int
+	workflowName          string
+	startDate             string
+	endDate               string
+	engine                string
+	branch                string
+	afterRunID            int64
+	count                 int
+	timeoutMinutes        int
+	maxGitHubAPIRateLimit int
+	maxStorageMB          int
 	// lastFetchedBeforeDate is the pagination date cursor collectProcessedWorkflowRuns
 	// had advanced to when it stopped (from the oldest run actually fetched from the
 	// API, including batches that yielded zero matching runs). When set, it is used
@@ -102,6 +114,11 @@ type continuationOptions struct {
 	// this one left off instead of re-scanning the whole original window from the
 	// newest run again.
 	lastFetchedBeforeDate string
+	// previousBeforeRunID is the before_run_id the caller passed into this request
+	// (LogsDownloadOptions.BeforeRunID). It is used as the continuation cursor when
+	// no runs were processed in this batch, so a storage-limited request with zero
+	// progress does not reset the cursor to zero and re-scan from the newest run.
+	previousBeforeRunID int64
 }
 
 // renderLogsOutputOptions holds configuration for renderLogsOutput.
@@ -114,6 +131,7 @@ type renderLogsOutputOptions struct {
 	toolGraph      bool
 	train          bool
 	continuation   *ContinuationData
+	message        string
 	verbose        bool
 	artifactFilter []string
 	startDate      string

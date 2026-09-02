@@ -174,9 +174,12 @@ func dateRangeCoverageWarning(processedRuns []ProcessedRun, startDate, endDate s
 //  2. Future start date – GitHub cannot have runs in the future.
 //  3. Start date older than GitHubActionsRetentionDays – beyond GitHub's default retention window.
 //  4. Generic fallback for any other combination of filters.
-func noRunsMessage(startDate string, timeoutReached bool) string {
+func noRunsMessage(startDate string, timeoutReached, storageLimitReached bool) string {
 	if timeoutReached {
 		return "No runs found. Timeout reached before any runs could be downloaded."
+	}
+	if storageLimitReached {
+		return "No runs found. Storage limit reached before any new runs could be downloaded."
 	}
 	if startDate != "" {
 		if t, err := parseFilterDate(startDate); err == nil {
@@ -236,14 +239,24 @@ func selectPaginationCursorDate(filteredRuns []WorkflowRun, oldestFetchedCreated
 //     returned in this batch.
 func buildContinuationIfNeeded(
 	processedRuns []ProcessedRun,
-	timeoutReached, countLimitReached bool,
+	timeoutReached, countLimitReached, storageLimitReached bool,
 	opts continuationOptions,
 ) *ContinuationData {
-	if len(processedRuns) == 0 || (!timeoutReached && !countLimitReached) {
+	if !timeoutReached && !countLimitReached && !storageLimitReached {
+		return nil
+	}
+	if len(processedRuns) == 0 && !storageLimitReached {
 		return nil
 	}
 	// Use the oldest processed run as the before_run_id cursor for the next page.
-	oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+	// When storage prevented any progress in this batch, fall back to the incoming
+	// before_run_id instead of resetting it to zero: a zero cursor re-scans from the
+	// newest run again, which re-triggers the same storage limit with zero progress
+	// and never advances (see github/gh-aw#58022).
+	oldestRunID := opts.previousBeforeRunID
+	if len(processedRuns) > 0 {
+		oldestRunID = processedRuns[len(processedRuns)-1].Run.DatabaseID
+	}
 	// Prefer the actual pagination date cursor over the fixed request end_date: when
 	// many non-matching runs are interspersed across the window (the scenario this
 	// guards against), the oldest *matching* run can be far newer than the point the
@@ -261,18 +274,22 @@ func buildContinuationIfNeeded(
 	if countLimitReached {
 		// In fetchAllInRange mode the date window may contain more runs than count.
 		message = "Count limit reached. Use these parameters to continue fetching more logs from the same date range."
+	} else if storageLimitReached {
+		message = "Storage limit reached. Use these parameters to continue fetching more logs after freeing space or changing max_storage."
 	}
 	return &ContinuationData{
-		Message:      message,
-		WorkflowName: opts.workflowName,
-		Count:        opts.count,
-		StartDate:    opts.startDate,
-		EndDate:      endDate,
-		Engine:       opts.engine,
-		Branch:       opts.branch,
-		AfterRunID:   opts.afterRunID,
-		BeforeRunID:  oldestRunID,
-		Timeout:      opts.timeoutMinutes,
+		Message:               message,
+		WorkflowName:          opts.workflowName,
+		Count:                 opts.count,
+		StartDate:             opts.startDate,
+		EndDate:               endDate,
+		Engine:                opts.engine,
+		Branch:                opts.branch,
+		AfterRunID:            opts.afterRunID,
+		BeforeRunID:           oldestRunID,
+		Timeout:               opts.timeoutMinutes,
+		MaxGitHubAPIRateLimit: opts.maxGitHubAPIRateLimit,
+		MaxStorageMB:          opts.maxStorageMB,
 	}
 }
 
@@ -283,7 +300,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	if err != nil {
 		return err
 	}
-	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached); handled || err != nil {
+	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached, result.storageLimitReached, result.continuation, nil); handled || err != nil {
 		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", result.timeoutReached, err)
 		return err
 	}
@@ -314,13 +331,13 @@ func collectWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (workflo
 	}
 	defer cancelLogsDownload(runtime.timeoutCancel)
 
-	processedRuns, timeoutReached, countLimitReached, lastFetchedBeforeDate, err := collectProcessedWorkflowRuns(runtime, opts)
+	processedRuns, timeoutReached, countLimitReached, storageLimitReached, lastFetchedBeforeDate, err := collectProcessedWorkflowRuns(runtime, opts)
 	if err != nil {
 		return workflowLogsResult{}, err
 	}
 	processedRuns = limitProcessedRuns(processedRuns, opts.Count, opts.Verbose)
 	logsOrchestratorLog.Printf("Collected %d processed runs (timeoutReached=%v, countLimitReached=%v)", len(processedRuns), timeoutReached, countLimitReached)
-	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, continuationOptions{
+	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, storageLimitReached, continuationOptions{
 		workflowName:          opts.WorkflowName,
 		startDate:             opts.StartDate,
 		endDate:               opts.EndDate,
@@ -329,13 +346,17 @@ func collectWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (workflo
 		afterRunID:            opts.AfterRunID,
 		count:                 opts.Count,
 		timeoutMinutes:        opts.TimeoutMinutes,
+		maxGitHubAPIRateLimit: opts.MaxGitHubAPIRateLimit,
+		maxStorageMB:          opts.MaxStorageMB,
 		lastFetchedBeforeDate: lastFetchedBeforeDate,
+		previousBeforeRunID:   opts.BeforeRunID,
 	})
 	return workflowLogsResult{
-		processedRuns:     processedRuns,
-		artifactFilter:    runtime.artifactFilter,
-		continuation:      continuation,
-		countLimitReached: countLimitReached,
-		timeoutReached:    timeoutReached,
+		processedRuns:       processedRuns,
+		artifactFilter:      runtime.artifactFilter,
+		continuation:        continuation,
+		countLimitReached:   countLimitReached,
+		timeoutReached:      timeoutReached,
+		storageLimitReached: storageLimitReached,
 	}, nil
 }
