@@ -48,13 +48,12 @@ tools:
     token: ${{ secrets.LINEAR_API_KEY }}
 ```
 
-The integration uses Streamable HTTP through the MCP gateway and defaults to Linear's server-enforced read-only endpoint. Set `read-only: false` to use the read-write endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
+The integration uses Streamable HTTP through the MCP gateway and always uses Linear's server-enforced read-only endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
 
 ```yaml wrap
 tools:
   linear:
     token: ${{ secrets.LINEAR_API_KEY }}
-    read-only: true
     allowed: ["*"]
     required: true
 ```

@@ -1879,12 +1879,6 @@
               "desc": "Linear API key or OAuth access token provided through a GitHub Actions secret",
               "leaf": true
             },
-            "read-only": {
-              "type": "boolean",
-              "desc": "Use Linear's server-enforced read-only MCP endpoint. Defaults to true.",
-              "enum": [true, false],
-              "leaf": true
-            },
             "allowed": {
               "type": "array",
               "desc": "List of allowed Linear MCP tool names or wildcard patterns",

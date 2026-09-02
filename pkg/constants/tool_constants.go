@@ -1,7 +1,6 @@
 package constants
 
 const (
-	LinearMCPURL         = "https://mcp.linear.app/mcp"
 	LinearMCPReadOnlyURL = "https://mcp.linear.app/mcp/readonly"
 )
 

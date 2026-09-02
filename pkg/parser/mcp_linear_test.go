@@ -13,10 +13,9 @@ func TestExtractLinearBuiltinMCPTool(t *testing.T) {
 	frontmatter := map[string]any{
 		"tools": map[string]any{
 			"linear": map[string]any{
-				"token":     "${{ secrets.LINEAR_API_KEY }}",
-				"read-only": false,
-				"allowed":   []any{"get_issue", "list_issues"},
-				"required":  required,
+				"token":    "${{ secrets.LINEAR_API_KEY }}",
+				"allowed":  []any{"get_issue", "list_issues"},
+				"required": required,
 			},
 		},
 	}
@@ -27,7 +26,7 @@ func TestExtractLinearBuiltinMCPTool(t *testing.T) {
 	config := configs[0]
 	assert.Equal(t, "linear", config.Name)
 	assert.Equal(t, "http", config.Type)
-	assert.Equal(t, constants.LinearMCPURL, config.URL)
+	assert.Equal(t, constants.LinearMCPReadOnlyURL, config.URL)
 	assert.Equal(t, "Bearer "+"${{ secrets.LINEAR_API_KEY }}", config.Headers["Authorization"])
 	assert.Equal(t, []string{"get_issue", "list_issues"}, config.Allowed)
 	require.NotNil(t, config.Required)
@@ -56,10 +55,9 @@ func TestLinearToolSchema(t *testing.T) {
 		"engine": "copilot",
 		"tools": map[string]any{
 			"linear": map[string]any{
-				"token":     "${{ secrets.LINEAR_API_KEY }}",
-				"read-only": true,
-				"allowed":   []any{"*"},
-				"required":  true,
+				"token":    "${{ secrets.LINEAR_API_KEY }}",
+				"allowed":  []any{"*"},
+				"required": true,
 			},
 		},
 	}
@@ -68,7 +66,7 @@ func TestLinearToolSchema(t *testing.T) {
 	tests := []map[string]any{
 		{},
 		{"token": "literal-token"},
-		{"token": "${{ secrets.LINEAR_API_KEY }}", "read-only": "yes"},
+		{"token": "${{ secrets.LINEAR_API_KEY }}", "read-only": false},
 		{"token": "${{ secrets.LINEAR_API_KEY }}", "allowed": []any{}},
 		{"token": "${{ secrets.LINEAR_API_KEY }}", "unknown": true},
 	}

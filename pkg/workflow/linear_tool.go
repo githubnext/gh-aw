@@ -25,7 +25,7 @@ func expandLinearTool(tools map[string]any) error {
 		)
 	}
 
-	token, readOnly, err := validateLinearToolConfig(config)
+	token, err := validateLinearToolConfig(config)
 	if err != nil {
 		return err
 	}
@@ -35,9 +35,6 @@ func expandLinearTool(tools map[string]any) error {
 		"headers": map[string]any{
 			"Authorization": "Bearer " + token,
 		},
-	}
-	if !readOnly {
-		linearMCP["url"] = constants.LinearMCPURL
 	}
 	if allowed, exists := config["allowed"]; exists {
 		linearMCP["allowed"] = allowed
@@ -49,24 +46,24 @@ func expandLinearTool(tools map[string]any) error {
 	return nil
 }
 
-func validateLinearToolConfig(config map[string]any) (string, bool, error) {
+func validateLinearToolConfig(config map[string]any) (string, error) {
 	knownFields := map[string]struct{}{
-		"token": {}, "read-only": {}, "allowed": {}, "required": {},
+		"token": {}, "allowed": {}, "required": {},
 	}
 	for field := range config {
 		if _, known := knownFields[field]; !known {
-			return "", false, NewValidationError(
+			return "", NewValidationError(
 				"tools.linear."+field,
 				fmt.Sprintf("%v", config[field]),
 				fmt.Sprintf("unknown Linear tool property %q", field),
-				"Valid properties are: token, read-only, allowed, required.",
+				"Valid properties are: token, allowed, required.",
 			)
 		}
 	}
 
 	token, ok := config["token"].(string)
 	if !ok || strings.TrimSpace(token) == "" {
-		return "", false, NewValidationError(
+		return "", NewValidationError(
 			"tools.linear.token",
 			fmt.Sprintf("%v", config["token"]),
 			"'token' is required and must be a GitHub Actions secret reference",
@@ -74,7 +71,7 @@ func validateLinearToolConfig(config map[string]any) (string, bool, error) {
 		)
 	}
 	if match := SecretExpressionPattern.FindString(token); match != token {
-		return "", false, NewValidationError(
+		return "", NewValidationError(
 			"tools.linear.token",
 			"[redacted]",
 			"'token' must be a GitHub Actions secret reference so the Linear credential is not embedded in the compiled workflow",
@@ -82,23 +79,15 @@ func validateLinearToolConfig(config map[string]any) (string, bool, error) {
 		)
 	}
 
-	readOnly := true
-	if value, exists := config["read-only"]; exists {
-		var valid bool
-		readOnly, valid = value.(bool)
-		if !valid {
-			return "", false, errors.New("tools.linear.read-only must be a boolean")
-		}
-	}
 	if value, exists := config["required"]; exists {
 		if _, valid := value.(bool); !valid {
-			return "", false, errors.New("tools.linear.required must be a boolean")
+			return "", errors.New("tools.linear.required must be a boolean")
 		}
 	}
 	if err := validateLinearAllowed(config["allowed"]); err != nil {
-		return "", false, err
+		return "", err
 	}
-	return token, readOnly, nil
+	return token, nil
 }
 
 func validateLinearAllowed(value any) error {

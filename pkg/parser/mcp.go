@@ -292,22 +292,10 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 		return nil, errors.New("tools.linear.token is required")
 	}
 
-	readOnly := true
-	if value, exists := toolConfig["read-only"]; exists {
-		var valid bool
-		readOnly, valid = value.(bool)
-		if !valid {
-			return nil, errors.New("tools.linear.read-only must be a boolean")
-		}
-	}
-	url := constants.LinearMCPReadOnlyURL
-	if !readOnly {
-		url = constants.LinearMCPURL
-	}
 	config := &RegistryMCPServerConfig{
 		BaseMCPServerConfig: types.BaseMCPServerConfig{
 			Type: "http",
-			URL:  url,
+			URL:  constants.LinearMCPReadOnlyURL,
 			Headers: map[string]string{
 				"Authorization": "Bearer " + token,
 			},

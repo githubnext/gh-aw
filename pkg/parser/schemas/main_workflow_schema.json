@@ -4670,11 +4670,6 @@
               "description": "Linear API key or OAuth access token provided through a GitHub Actions secret",
               "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}$"
             },
-            "read-only": {
-              "type": "boolean",
-              "description": "Use Linear's server-enforced read-only MCP endpoint. Defaults to true.",
-              "default": true
-            },
             "allowed": {
               "type": "array",
               "description": "List of allowed Linear MCP tool names or wildcard patterns",

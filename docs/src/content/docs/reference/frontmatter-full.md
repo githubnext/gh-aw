@@ -4042,10 +4042,6 @@ tools:
     # Linear API key or OAuth access token provided through a GitHub Actions secret
     token: "example-value"
 
-    # Use Linear's server-enforced read-only MCP endpoint. Defaults to true.
-    # (optional)
-    read-only: true
-
     # List of allowed Linear MCP tool names or wildcard patterns
     # (optional)
     allowed: []
