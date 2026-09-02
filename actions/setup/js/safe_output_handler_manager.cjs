@@ -37,6 +37,9 @@ const GITHUB_TOKEN_CONFIG_KEY = "github-token";
  * Maps safe output types to their handler module file paths
  */
 const HANDLER_MAP = {
+  linear_create_issue: "./linear_create_issue.cjs",
+  linear_add_comment: "./linear_add_comment.cjs",
+  linear_update_issue: "./linear_update_issue.cjs",
   create_issue: "./create_issue.cjs",
   add_comment: "./add_comment.cjs",
   comment_memory: "./comment_memory.cjs",
@@ -131,6 +134,8 @@ const WTD3_REQUIREMENT_ID = "WTD3";
  * @type {Set<string>}
  */
 const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
+  "linear_create_issue",
+  "linear_add_comment",
   "create_issue",
   "add_comment",
   "create_pull_request",
@@ -172,6 +177,7 @@ const THREAT_WARNING_CONVERTIBLE_TYPES = new Map([["push_to_pull_request_branch"
  * @type {Set<string>}
  */
 const THREAT_WARNING_ABORT_TYPES = new Set([
+  "linear_update_issue",
   "noop",
   "close_issue",
   "link_sub_issue",

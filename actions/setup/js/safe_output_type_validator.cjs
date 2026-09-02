@@ -218,6 +218,10 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
+ * @property {boolean} [rejectIfOversized] - When true, reject the field outright (instead of
+ *   silently truncating via sanitizeContent) if the raw pre-sanitization value exceeds
+ *   maxLength. Used for external-system fields (e.g. Linear) where truncation could turn an
+ *   oversized/placeholder value into a deceptively short but "valid" operation.
  * @property {boolean} [x-strip-on-error] - When true, strip the field on validation failure
  *   instead of rejecting the whole item. Bracket access only (validation["x-strip-on-error"])
  *   because the key contains hyphens. Used for optional enrichment fields like confidence and rationale.
@@ -558,6 +562,15 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         });
       }
       return { isValid: true, normalizedValue: normalizedResult };
+    }
+
+    // Reject outright (instead of silently truncating) when configured, so an oversized
+    // raw value cannot be converted into a deceptively short but "valid" operation.
+    if (validation.rejectIfOversized && validation.maxLength && value.length > validation.maxLength) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' exceeds maximum length (${validation.maxLength} characters)`,
+      };
     }
 
     // Handle sanitization

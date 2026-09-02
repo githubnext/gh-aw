@@ -100,6 +100,38 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 | [Create Check Run](#check-run-creation-create-check-run) | `create-check-run` | Create GitHub Check Runs to surface analysis results in the PR checks UI (default max: 1, same-repo only) |
 | [Create Agent Session](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) | `create-agent-session` | Create Copilot coding agent sessions (max: 1) |
 
+### Linear
+
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create Linear Issue](#linear-safe-outputs) | `linear-create-issue` | Create an issue in a configured Linear team (max: 1, experimental) |
+| [Add Linear Comment](#linear-safe-outputs) | `linear-add-comment` | Comment on a configured Linear issue (max: 1, experimental) |
+| [Update Linear Issue](#linear-safe-outputs) | `linear-update-issue` | Update enabled fields on a configured Linear issue (max: 1, experimental) |
+
+#### Linear Safe Outputs
+
+:::caution[Experimental]
+Linear Safe Outputs are experimental. Compiling a workflow that enables any Linear Safe Output emits `Using experimental feature: Linear safe outputs`.
+:::
+
+Linear Safe Outputs use Linear's public GraphQL API from the isolated `safe_outputs` job. Configure a personal Linear API key through a secret expression. The credential is not available to the agent.
+
+```yaml wrap
+safe-outputs:
+  linear-token: ${{ secrets.LINEAR_API_KEY }}
+  linear-create-issue:
+    team-id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"
+    max: 1
+  linear-add-comment:
+    target: "ENG-123"
+  linear-update-issue:
+    target: "ENG-123"
+    title: true
+    body: true
+```
+
+`team-id` is the Linear team model UUID, available through Linear's model UUID tooling or API. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
+
 ### System Types (Auto-Enabled)
 
 | Output | Key | Description |

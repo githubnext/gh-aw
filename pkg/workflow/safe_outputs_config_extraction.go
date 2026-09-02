@@ -42,7 +42,9 @@ package workflow
 //
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
-func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig { //nolint:largefunc // Existing safe-output extraction remains centralized across all output types.
+//
+//nolint:largefunc // Legacy extraction remains centralized while handler parsers are incrementally migrated.
+func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
 	var config *SafeOutputsConfig
@@ -58,6 +60,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			config.AssignWorkItems = c.parseAssignWorkItemConfig(outputMap)
 			config.LinkWorkItems = c.parseLinkWorkItemsConfig(outputMap)
 			config.UploadWorkItemAttachments = c.parseUploadWorkItemAttachmentConfig(outputMap)
+			config.LinearCreateIssue = c.parseLinearCreateIssueConfig(outputMap)
+			config.LinearAddComment = c.parseLinearAddCommentConfig(outputMap)
+			config.LinearUpdateIssue = c.parseLinearUpdateIssueConfig(outputMap)
 
 			// Handle create-issue
 			issuesConfig := c.parseCreateIssuesConfig(outputMap)
@@ -390,11 +395,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
 				// This ensures agents always have a first-class channel to signal task incompletion.
 				if _, exists := outputMap["report-incomplete"]; !exists {
-					trueVal := "true"
+					trueVal := defaultReportIncompleteCreateIssue(config)
 					config.ReportIncomplete = &ReportIncompleteConfig{
 						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
+						Implicit:    true,
 					}
 				}
 			}
