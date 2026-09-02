@@ -4659,6 +4659,54 @@
             false
           ]
         },
+        "ado": {
+          "description": "Azure DevOps tools provided by the official remote Azure DevOps MCP server. The integration is always restricted to read-only operations.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "enum": [false],
+              "description": "Disable the Azure DevOps integration, including a configuration inherited from an import."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["organization", "token"],
+              "properties": {
+                "organization": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?$",
+                  "description": "Azure DevOps organization name only, as used in https://dev.azure.com/<organization>."
+                },
+                "token": {
+                  "$ref": "#/$defs/ci_secret_expression",
+                  "description": "Microsoft Entra access token for Azure DevOps, stored as a direct GitHub Actions secret expression and sent with the HTTP bearer scheme."
+                },
+                "toolsets": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": ["all", "repos", "advsec", "wit", "pipelines", "wiki", "work", "testplan", "elm"]
+                  },
+                  "description": "Optional Azure DevOps MCP toolsets to expose. Omit to use all read-only tools."
+                }
+              }
+            }
+          ],
+          "examples": [
+            {
+              "organization": "contoso",
+              "token": "${{ secrets.ADO_MCP_AUTH_TOKEN }}"
+            },
+            {
+              "organization": "contoso",
+              "token": "${{ secrets.ADO_MCP_AUTH_TOKEN }}",
+              "toolsets": ["repos", "wit"]
+            },
+            false
+          ]
+        },
         "jira": {
           "description": "Jira tools provided by Atlassian's remote Rovo MCP service. This integration supports non-interactive CI/CD authentication only.",
           "oneOf": [

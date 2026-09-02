@@ -80,7 +80,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 
 func prepareToolsForDefaults(data *WorkflowData) error {
 	data.ExplicitlyDisabledTools = collectExplicitlyDisabledTools(data.Tools)
-	return expandJiraToolConfig(data.Tools)
+	if err := expandJiraToolConfig(data.Tools); err != nil {
+		return err
+	}
+	return expandADOToolConfig(data.Tools)
 }
 
 func isToolExplicitlyFalse(value any) bool {

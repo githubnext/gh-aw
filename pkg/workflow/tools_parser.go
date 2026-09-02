@@ -20,6 +20,7 @@
 //
 // Built-in Tools:
 //   - github: GitHub API and repository operations
+//   - ado: Azure DevOps repository, work item, pipeline, and related operations
 //   - bash: Shell command execution
 //   - web-fetch: HTTP content fetching
 //   - web-search: Web search capabilities
@@ -91,6 +92,7 @@ func toAnySlice(ss []string) []any {
 // It is a package-level variable to avoid re-allocating this map on every call.
 var knownTools = map[string]struct{}{
 	"github":            {},
+	"ado":               {},
 	"bash":              {},
 	"web-fetch":         {},
 	"web-search":        {},
@@ -127,6 +129,9 @@ func NewTools(toolsMap map[string]any) *Tools { //nolint:largefunc // Existing t
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {
 		tools.GitHub = parseGitHubTool(val)
+	}
+	if val, exists := toolsMap["ado"]; exists {
+		tools.ADO = parseADOTool(val)
 	}
 	if val, exists := toolsMap["bash"]; exists {
 		tools.Bash = parseBashTool(val)
@@ -186,8 +191,38 @@ func NewTools(toolsMap map[string]any) *Tools { //nolint:largefunc // Existing t
 		}
 	}
 
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
+	toolsParserLog.Printf("Parsed tools: github=%v, ado=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.ADO != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
 	return tools
+}
+
+func parseADOTool(val any) *ADOToolConfig {
+	configMap, ok := val.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	config := &ADOToolConfig{}
+	config.Organization, _ = configMap["organization"].(string)
+	config.Token, _ = configMap["token"].(string)
+	if toolsets, exists := configMap["toolsets"]; exists {
+		config.Toolsets = parseStringSliceAny(toolsets, toolsParserLog)
+	}
+
+	// The compiler expands first-class ADO input into a generic HTTP MCP shape
+	// before ParsedTools is populated. Preserve useful typed metadata in that path.
+	if config.Organization == "" {
+		if endpoint, ok := configMap["url"].(string); ok {
+			config.Organization = strings.TrimPrefix(endpoint, defaultADOMCPURL+"/")
+		}
+	}
+	if len(config.Toolsets) == 0 {
+		if headers, ok := configMap["headers"].(map[string]any); ok {
+			if toolsets, ok := headers[adoToolsetsHeader].(string); ok {
+				config.Toolsets = parseCommaSeparatedOrNewlineList(toolsets)
+			}
+		}
+	}
+	return config
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig

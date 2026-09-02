@@ -31,6 +31,7 @@ var mcpValidationLog = logger.New("workflow:mcp_config_validation")
 // Custom MCP servers must be placed under mcp-servers: instead.
 var builtInToolNames = map[string]bool{
 	"github":            true,
+	"ado":               true,
 	"jira":              true,
 	"playwright":        true,
 	"agentic-workflows": true,

@@ -70,6 +70,7 @@ var toolsTypesLog = logger.New("workflow:tools_types")
 type ToolsConfig struct {
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
+	ADO              *ADOToolConfig              `yaml:"ado,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
 	WebFetch         *WebFetchToolConfig         `yaml:"web-fetch,omitempty"`
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
@@ -201,6 +202,9 @@ func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing co
 	if t.GitHub != nil {
 		result["github"] = t.GitHub
 	}
+	if t.ADO != nil {
+		result["ado"] = t.ADO
+	}
 	if t.Bash != nil {
 		result["bash"] = t.Bash.AllowedCommands
 	}
@@ -249,6 +253,13 @@ func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing co
 
 // GitHubToolName represents a GitHub tool name (e.g., "issue_read", "create_issue")
 type GitHubToolName string
+
+// ADOToolConfig represents the first-class Azure DevOps MCP tool configuration.
+type ADOToolConfig struct {
+	Organization string   `yaml:"organization,omitempty"`
+	Token        string   `yaml:"token,omitempty"`
+	Toolsets     []string `yaml:"toolsets,omitempty"`
+}
 
 // GitHubAllowedTools is a slice of GitHub tool names
 type GitHubAllowedTools []GitHubToolName
@@ -548,6 +559,8 @@ func (t *Tools) HasTool(name string) bool {
 	switch name {
 	case "github":
 		return t.GitHub != nil
+	case "ado":
+		return t.ADO != nil
 	case "bash":
 		return t.Bash != nil
 	case "web-fetch":
@@ -589,6 +602,9 @@ func (t *Tools) GetToolNames() []string {
 
 	if t.GitHub != nil {
 		names = append(names, "github")
+	}
+	if t.ADO != nil {
+		names = append(names, "ado")
 	}
 	if t.Bash != nil {
 		names = append(names, "bash")
