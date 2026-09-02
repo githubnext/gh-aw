@@ -138,30 +138,32 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, opt
 	if opts.maxConcurrentDownloads > 0 {
 		maxConcurrent = opts.maxConcurrentDownloads
 	}
-	if opts.storageLimit != nil {
-		// Preserve API order so a storage-limit continuation resumes at the first
-		// run that was not downloaded.
-		maxConcurrent = 1
-	}
 	params := buildConcurrentDownloadParams(opts.outputDir, opts.verbose, opts.repoOverride, opts.artifactFilter, opts.evalsOnly, opts.artifactSets)
 	params.storageLimit = opts.storageLimit
 	params.maxGitHubAPIRateLimit = opts.maxGitHubAPIRateLimit
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
-	p := pool.NewWithResults[DownloadResult]().
+	// Results are written into a slot pre-allocated per run rather than collected via
+	// pool.NewWithResults, whose completion order is not guaranteed to match submission
+	// order. Preserving submission (API) order lets storage/rate-limit continuation
+	// cursors rely on the position of the oldest run in the batch even though downloads
+	// still run concurrently (the storage limiter itself remains the throughput gate).
+	results := make([]DownloadResult, len(runs))
+	p := pool.New().
 		WithContext(ctx).
 		WithMaxGoroutines(maxConcurrent)
 
 	// Each download task runs concurrently with context awareness.
-	for _, run := range runs {
-		p.Go(func(ctx context.Context) (DownloadResult, error) {
-			return processSingleRunDownload(ctx, run, params, &completedCount, progressBar)
+	for i, run := range runs {
+		p.Go(func(ctx context.Context) error {
+			result, _ := processSingleRunDownload(ctx, run, params, &completedCount, progressBar)
+			results[i] = result
+			return nil
 		})
 	}
 
-	results, err := p.Wait()
-	if err != nil && opts.verbose {
+	if err := p.Wait(); err != nil && opts.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
 	}
 	if progressBar != nil {

@@ -249,8 +249,11 @@ func buildContinuationIfNeeded(
 		return nil
 	}
 	// Use the oldest processed run as the before_run_id cursor for the next page.
-	// A zero cursor restarts the current batch when storage prevented any progress.
-	var oldestRunID int64
+	// When storage prevented any progress in this batch, fall back to the incoming
+	// before_run_id instead of resetting it to zero: a zero cursor re-scans from the
+	// newest run again, which re-triggers the same storage limit with zero progress
+	// and never advances (see github/gh-aw#58022).
+	oldestRunID := opts.previousBeforeRunID
 	if len(processedRuns) > 0 {
 		oldestRunID = processedRuns[len(processedRuns)-1].Run.DatabaseID
 	}
@@ -346,6 +349,7 @@ func collectWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (workflo
 		maxGitHubAPIRateLimit: opts.MaxGitHubAPIRateLimit,
 		maxStorageMB:          opts.MaxStorageMB,
 		lastFetchedBeforeDate: lastFetchedBeforeDate,
+		previousBeforeRunID:   opts.BeforeRunID,
 	})
 	return workflowLogsResult{
 		processedRuns:       processedRuns,

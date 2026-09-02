@@ -114,6 +114,11 @@ type continuationOptions struct {
 	// this one left off instead of re-scanning the whole original window from the
 	// newest run again.
 	lastFetchedBeforeDate string
+	// previousBeforeRunID is the before_run_id the caller passed into this request
+	// (LogsDownloadOptions.BeforeRunID). It is used as the continuation cursor when
+	// no runs were processed in this batch, so a storage-limited request with zero
+	// progress does not reset the cursor to zero and re-scan from the newest run.
+	previousBeforeRunID int64
 }
 
 // renderLogsOutputOptions holds configuration for renderLogsOutput.
