@@ -657,7 +657,11 @@ func SwapImportEdits(fset *token.FileSet, file *ast.File, addPkg, removePkg stri
 // BuildContainsFix builds the suggested fix rewriting a comparison to
 // strings.Contains. fixMessage is used as the SuggestedFix.Message field so
 // callers can identify the rewritten function (e.g. "Index" vs "Count").
-func BuildContainsFix(expr *ast.BinaryExpr, pkgText, sText, subText string, negated bool, fixMessage string) []analysis.SuggestedFix {
+func BuildContainsFix(files []*ast.File, expr *ast.BinaryExpr, pkgText, sText, subText string, negated bool, fixMessage string) []analysis.SuggestedFix {
+	if HasOverlappingComment(files, expr.Pos(), expr.End()) {
+		return nil
+	}
+
 	var replacement string
 	if negated {
 		replacement = "!" + pkgText + ".Contains(" + sText + ", " + subText + ")"
