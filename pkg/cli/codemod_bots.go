@@ -139,7 +139,7 @@ func trailingComment(line string) string {
 	trimmed := strings.TrimSpace(line)
 	inSingleQuoted := false
 	inDoubleQuoted := false
-	for i := 0; i < len(trimmed); i++ {
+	for i := range trimmed {
 		ch := trimmed[i]
 		switch ch {
 		case '\'':
@@ -176,7 +176,7 @@ func collectComments(lines []string, start, end int) []string {
 func mergeBotItemComments(blocks ...[]string) map[string]string {
 	commentsByBot := make(map[string]string)
 	for _, block := range blocks {
-		for i := 0; i < len(block); i++ {
+		for i := range block {
 			trimmed := strings.TrimSpace(block[i])
 			if strings.HasPrefix(trimmed, "- ") {
 				entry := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
@@ -199,7 +199,7 @@ func splitBotEntry(entry string) (string, string) {
 	trimmed := strings.TrimSpace(entry)
 	inSingleQuoted := false
 	inDoubleQuoted := false
-	for i := 0; i < len(trimmed); i++ {
+	for i := range trimmed {
 		ch := trimmed[i]
 		switch ch {
 		case '\'':
