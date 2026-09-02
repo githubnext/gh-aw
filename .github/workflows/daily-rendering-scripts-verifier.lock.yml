@@ -29,11 +29,11 @@
 #   Imports:
 #     - shared/meta-analysis-base.md
 #     - shared/skip-if-issue-open.md
-#     - shared/otlp.md
 #     - shared/activation-app.md
 #     - shared/reporting.md
 #     - shared/daily-pr-base.md
 #     - shared/daily-audit-discussion.md
+#     - shared/otlp.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:
