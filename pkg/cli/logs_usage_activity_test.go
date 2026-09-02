@@ -252,6 +252,55 @@ func TestApplyUsageActivitySummaryDoesNotOverwriteExistingData(t *testing.T) {
 	assert.Same(t, existingMCP, result.MCPToolUsage, "existing MCP tool usage must not be replaced")
 }
 
+func TestApplyUsageActivitySummaryBackfillsMissingMCPMetrics(t *testing.T) {
+	t.Parallel()
+
+	existingMCP := &MCPToolUsageData{
+		Summary: []MCPToolSummary{{
+			ServerName:     "github",
+			ToolName:       "issue_read",
+			CallCount:      2,
+			TotalInputSize: 7,
+		}},
+		Servers: []MCPServerStats{{
+			MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 2},
+			TotalInputSize:     7,
+		}},
+	}
+	result := DownloadResult{RunAnalysis: RunAnalysis{MCPToolUsage: existingMCP}}
+	summary := &usageActivitySummary{
+		Gateway: &usageActivityGateway{
+			Servers: []usageActivityGatewayServer{{
+				ServerName: "github", TotalInputSize: 100, TotalOutputSize: 200,
+			}},
+			Tools: []usageActivityGatewayTool{{
+				ServerName: "github", ToolName: "issue_read", CallCount: 2,
+				TotalInputSize: 100, TotalOutputSize: 200, MaxInputSize: 70, MaxOutputSize: 140,
+				AvgDurationMS: 12, MaxDurationMS: 30,
+			}},
+		},
+		Integrity: &IntegrityFilterSummary{
+			TotalFiltered:        1,
+			FilteredServerCounts: map[string]int{"github": 1},
+			FilteredToolCounts:   map[string]int{"issue_read": 1},
+			FilteredReasonCounts: map[string]int{"integrity": 1},
+		},
+	}
+
+	applyUsageActivitySummaryToResult(summary, &result, false)
+
+	assert.Same(t, existingMCP, result.MCPToolUsage, "existing detailed usage should retain precedence")
+	require.Len(t, existingMCP.Summary, 1)
+	assert.Equal(t, 2, existingMCP.Summary[0].CallCount, "call counts must not be duplicated")
+	assert.Equal(t, 7, existingMCP.Summary[0].TotalInputSize, "existing non-zero metrics must not be overwritten")
+	assert.Equal(t, 200, existingMCP.Summary[0].TotalOutputSize, "missing tool output size should be backfilled")
+	assert.Equal(t, 140, existingMCP.Summary[0].MaxOutputSize, "missing tool maximum output size should be backfilled")
+	assert.Equal(t, 7, existingMCP.Servers[0].TotalInputSize, "existing server metrics must not be overwritten")
+	assert.Equal(t, 200, existingMCP.Servers[0].TotalOutputSize, "missing server output size should be backfilled")
+	require.NotNil(t, existingMCP.Integrity, "missing integrity aggregates should be backfilled when detailed events are absent")
+	assert.Equal(t, 1, existingMCP.Integrity.TotalFiltered)
+}
+
 func TestApplyUsageActivitySummaryBackfillsSafeItemsCount(t *testing.T) {
 	t.Parallel()
 
@@ -432,6 +481,34 @@ func TestCacheHitBackfillsStaleZeroTurns(t *testing.T) {
 	backfillCacheHitIfNeeded(&result, runDir, false)
 
 	assert.Equal(t, 34, result.Run.Turns, "cache-hit backfill should heal stale Turns=0 from activity summary")
+}
+
+func TestCacheHitBackfillsMissingMCPMetrics(t *testing.T) {
+	t.Parallel()
+
+	runDir := t.TempDir()
+	summaryPath := filepath.Join(runDir, "usage", "activity", "summary.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(summaryPath), 0o755))
+	require.NoError(t, os.WriteFile(summaryPath, []byte(`{
+		"schema":"`+usageActivitySummarySchema+`",
+		"gateway":{
+			"servers":[{"server_name":"github","total_input_size":100,"total_output_size":200}],
+			"tools":[{"server_name":"github","tool_name":"issue_read","call_count":2,"total_input_size":100,"total_output_size":200}]
+		}
+	}`), 0o644))
+
+	result := DownloadResult{RunAnalysis: RunAnalysis{
+		Run:        WorkflowRun{Turns: 3, SafeItemsCount: 1},
+		WorkingSet: &WorkingSetMetrics{MeasurementState: "measured"},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{{ServerName: "github", ToolName: "issue_read", CallCount: 2}},
+			Servers: []MCPServerStats{{MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 2}}},
+		},
+	}}
+
+	assert.True(t, backfillCacheHitIfNeeded(&result, runDir, false), "activity summary should be applied on a cache hit")
+	assert.Equal(t, 100, result.MCPToolUsage.Summary[0].TotalInputSize)
+	assert.Equal(t, 200, result.MCPToolUsage.Servers[0].TotalOutputSize)
 }
 
 // TestCacheHitBackfillsStaleZeroTokenUsage verifies that backfillCacheHitIfNeeded

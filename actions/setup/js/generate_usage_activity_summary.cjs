@@ -611,8 +611,9 @@ function parseRPCMessagesJSONL(activity, content) {
       pending.delete(key);
       const responseTimestampMs = Date.parse(entry.timestamp);
       const durationMs = Number.isFinite(request.timestampMs) && Number.isFinite(responseTimestampMs) ? Math.max(0, responseTimestampMs - request.timestampMs) : 0;
-      const failed = payload.error !== null && payload.error !== undefined;
-      const outputSize = jsonByteLength(failed ? payload.error : payload.result);
+      const hasRPCError = payload.error !== null && payload.error !== undefined;
+      const failed = hasRPCError || payload.result?.isError === true;
+      const outputSize = jsonByteLength(hasRPCError ? payload.error : payload.result);
       recordGatewayToolResult(activity.gateway, request.serverName, request.toolName, { failed, outputSize, durationMs });
     } catch {
       continue;

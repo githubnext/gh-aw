@@ -213,7 +213,11 @@ func applyUsageActivityFirewallSummary(firewall *usageActivityFirewall, result *
 }
 
 func applyUsageActivityMCPSummary(gateway *usageActivityGateway, integritySummary *IntegrityFilterSummary, result *DownloadResult) {
-	if result.MCPToolUsage != nil || (gateway == nil && integritySummary == nil) {
+	if gateway == nil && integritySummary == nil {
+		return
+	}
+	if result.MCPToolUsage != nil {
+		backfillUsageActivityMCPMetrics(gateway, integritySummary, result.MCPToolUsage)
 		return
 	}
 	serverCount := 0
@@ -231,18 +235,82 @@ func applyUsageActivityMCPSummary(gateway *usageActivityGateway, integritySummar
 
 	var integrity *IntegrityFilterSummary
 	if integritySummary != nil {
-		integrity = &IntegrityFilterSummary{
-			TotalFiltered:        integritySummary.TotalFiltered,
-			FilteredServerCounts: maps.Clone(integritySummary.FilteredServerCounts),
-			FilteredToolCounts:   maps.Clone(integritySummary.FilteredToolCounts),
-			FilteredReasonCounts: maps.Clone(integritySummary.FilteredReasonCounts),
-		}
+		integrity = cloneIntegrityFilterSummary(integritySummary)
 	}
 	result.MCPToolUsage = &MCPToolUsageData{
 		Summary:   tools,
 		ToolCalls: []MCPToolCall{},
 		Servers:   servers,
 		Integrity: integrity,
+	}
+}
+
+func backfillUsageActivityMCPMetrics(gateway *usageActivityGateway, integritySummary *IntegrityFilterSummary, usage *MCPToolUsageData) {
+	if gateway != nil {
+		activityTools := make(map[string]usageActivityGatewayTool, len(gateway.Tools))
+		for _, tool := range gateway.Tools {
+			activityTools[tool.ServerName+":"+tool.ToolName] = tool
+		}
+		for index := range usage.Summary {
+			tool := &usage.Summary[index]
+			tool.syncFieldsFromBase()
+			if activity, ok := activityTools[tool.ServerName+":"+tool.ToolName]; ok {
+				backfillUsageActivityToolMetrics(tool, activity)
+			}
+		}
+
+		activityServers := make(map[string]usageActivityGatewayServer, len(gateway.Servers))
+		for _, server := range gateway.Servers {
+			activityServers[server.ServerName] = server
+		}
+		for index := range usage.Servers {
+			server := &usage.Servers[index]
+			if activity, ok := activityServers[server.ServerName]; ok {
+				if server.TotalInputSize == 0 {
+					server.TotalInputSize = activity.TotalInputSize
+				}
+				if server.TotalOutputSize == 0 {
+					server.TotalOutputSize = activity.TotalOutputSize
+				}
+			}
+		}
+	}
+	if usage.Integrity == nil && len(usage.FilteredEvents) == 0 && integritySummary != nil {
+		usage.Integrity = cloneIntegrityFilterSummary(integritySummary)
+	}
+}
+
+func backfillUsageActivityToolMetrics(tool *MCPToolSummary, activity usageActivityGatewayTool) {
+	if tool.TotalInputSize == 0 {
+		tool.TotalInputSize = activity.TotalInputSize
+	}
+	if tool.TotalOutputSize == 0 {
+		tool.TotalOutputSize = activity.TotalOutputSize
+	}
+	if tool.MaxInputSize == 0 {
+		tool.MaxInputSize = activity.MaxInputSize
+	}
+	if tool.MaxOutputSize == 0 {
+		tool.MaxOutputSize = activity.MaxOutputSize
+	}
+	if tool.AvgDuration == "" {
+		tool.AvgDuration = formatActivityDuration(activity.AvgDurationMS)
+	}
+	if tool.MaxDuration == "" {
+		tool.MaxDuration = formatActivityDuration(activity.MaxDurationMS)
+	}
+	tool.syncBaseFromFields()
+}
+
+func cloneIntegrityFilterSummary(summary *IntegrityFilterSummary) *IntegrityFilterSummary {
+	if summary == nil {
+		return nil
+	}
+	return &IntegrityFilterSummary{
+		TotalFiltered:        summary.TotalFiltered,
+		FilteredServerCounts: maps.Clone(summary.FilteredServerCounts),
+		FilteredToolCounts:   maps.Clone(summary.FilteredToolCounts),
+		FilteredReasonCounts: maps.Clone(summary.FilteredReasonCounts),
 	}
 }
 

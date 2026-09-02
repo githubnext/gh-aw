@@ -124,7 +124,7 @@ describe("generate_usage_activity_summary.cjs", () => {
       const firstArguments = { query: "is:open" };
       const secondArguments = { number: 1 };
       const firstResult = { items: [1, 2] };
-      const secondError = { code: -1, message: "denied" };
+      const secondResult = { isError: true, content: [{ type: "text", text: "denied" }] };
       const records = [
         {
           timestamp: "2026-08-15T23:48:42.000Z",
@@ -143,7 +143,7 @@ describe("generate_usage_activity_summary.cjs", () => {
           server_id: "github",
           payload: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "issue_read", arguments: secondArguments } },
         },
-        { timestamp: "2026-08-15T23:48:42.140Z", event: "rpc_response", _schema: "rpc-message/v2", direction: "IN", server_id: "github", payload: { jsonrpc: "2.0", id: 2, error: secondError } },
+        { timestamp: "2026-08-15T23:48:42.140Z", event: "rpc_response", _schema: "rpc-message/v2", direction: "IN", server_id: "github", payload: { jsonrpc: "2.0", id: 2, result: secondResult } },
         { timestamp: "2026-08-15T23:48:42.150Z", event: "difc_filtered", _schema: "rpc-message/v2", server_id: "github", tool_name: "issue_read", reason: "integrity" },
       ];
       fs.writeFileSync(path.join(logsDir, "rpc-messages.jsonl"), records.map(JSON.stringify).join("\n"));
@@ -155,8 +155,8 @@ describe("generate_usage_activity_summary.cjs", () => {
           failed_calls: 1,
           total_input_size: Buffer.byteLength(JSON.stringify(firstArguments)) + Buffer.byteLength(JSON.stringify(secondArguments)),
           max_input_size: Buffer.byteLength(JSON.stringify(firstArguments)),
-          total_output_size: Buffer.byteLength(JSON.stringify(firstResult)) + Buffer.byteLength(JSON.stringify(secondError)),
-          max_output_size: Buffer.byteLength(JSON.stringify(secondError)),
+          total_output_size: Buffer.byteLength(JSON.stringify(firstResult)) + Buffer.byteLength(JSON.stringify(secondResult)),
+          max_output_size: Buffer.byteLength(JSON.stringify(secondResult)),
           total_duration_ms: 65,
           max_duration_ms: 40,
         });
