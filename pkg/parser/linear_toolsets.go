@@ -60,11 +60,11 @@ func ParseLinearToolsets(value any) ([]string, error) {
 	seenToolsets := make(map[string]struct{}, len(names))
 	hasAll := false
 	for _, name := range names {
-		if strings.TrimSpace(name) != name {
-			return nil, fmt.Errorf("tools.linear.toolsets must not contain whitespace-padded names; got %q", name)
-		}
 		if name == "" {
 			return nil, errors.New("tools.linear.toolsets must not contain empty strings")
+		}
+		if strings.TrimSpace(name) != name {
+			return nil, fmt.Errorf("tools.linear.toolsets must not contain whitespace-padded names; got %q", name)
 		}
 		if _, duplicate := seenToolsets[name]; duplicate {
 			return nil, fmt.Errorf("tools.linear.toolsets contains duplicate toolset %q", name)
@@ -89,7 +89,8 @@ func ParseLinearToolsets(value any) ([]string, error) {
 }
 
 // ValidateLinearAllowedForToolsets checks that every allowed pattern selects
-// at least one tool from the configured Linear toolsets.
+// at least one tool from the configured Linear toolsets. The all toolset accepts
+// every allowed pattern to remain compatible with tools added by Linear.
 func ValidateLinearAllowedForToolsets(allowed, toolsetTools []string) error {
 	if slices.Contains(toolsetTools, "*") {
 		return nil
