@@ -223,7 +223,7 @@ on:
       - 'docs/astro.config.mjs'
 
 steps:
-  - uses: actions/checkout@v6
+  - uses: actions/checkout@v7
     with:
       persist-credentials: false
   - working-directory: ./docs
