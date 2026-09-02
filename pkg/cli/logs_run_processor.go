@@ -32,13 +32,15 @@ import (
 // concurrentRunDownloadParams holds parameters shared across all goroutines
 // in the concurrent download pool, avoiding repetitive parameter passing.
 type concurrentRunDownloadParams struct {
-	outputDir      string
-	verbose        bool
-	dlHost         string
-	dlOwner        string
-	dlRepo         string
-	artifactFilter []string
-	evalsOnly      bool
+	outputDir             string
+	verbose               bool
+	dlHost                string
+	dlOwner               string
+	dlRepo                string
+	artifactFilter        []string
+	evalsOnly             bool
+	storageLimit          *logsStorageLimit
+	maxGitHubAPIRateLimit int
 	// evalsArtifactRequested is true when the caller wants evals results, either
 	// because --evals was passed (evalsOnly) or because --artifacts evals was
 	// explicitly listed. This drives the fallback download of the dedicated evals
@@ -61,6 +63,8 @@ type runArtifactsConcurrentOptions struct {
 	evalsOnly              bool
 	artifactSets           []string
 	maxConcurrentDownloads int
+	storageLimit           *logsStorageLimit
+	maxGitHubAPIRateLimit  int
 }
 
 // buildConcurrentDownloadParams constructs download parameters by parsing the optional
@@ -135,6 +139,8 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, opt
 		maxConcurrent = opts.maxConcurrentDownloads
 	}
 	params := buildConcurrentDownloadParams(opts.outputDir, opts.verbose, opts.repoOverride, opts.artifactFilter, opts.evalsOnly, opts.artifactSets)
+	params.storageLimit = opts.storageLimit
+	params.maxGitHubAPIRateLimit = opts.maxGitHubAPIRateLimit
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
@@ -181,7 +187,10 @@ func resolveRunRepoContext(run WorkflowRun, params concurrentRunDownloadParams) 
 // all other runs without artifacts are marked as skipped.
 func handleArtifactDownloadError(result *DownloadResult, err error, verbose bool) {
 	run := result.Run
-	if errors.Is(err, ErrNoArtifacts) {
+	if errors.Is(err, errLogsStorageLimitReached) {
+		result.Skipped = true
+		result.Error = err
+	} else if errors.Is(err, ErrNoArtifacts) {
 		logsOrchestratorLog.Printf("No artifacts available for run %d (conclusion=%s)", run.DatabaseID, run.Conclusion)
 		if isFailureConclusion(run.Conclusion) {
 			result.Metrics = LogMetrics{}
@@ -219,7 +228,12 @@ func processSingleRunDownload(
 	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
 	if !ok {
 		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
-		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter})
+		err := params.storageLimit.runDownload(ctx, runOutputDir, func() error {
+			if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit); err != nil {
+				return err
+			}
+			return downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter})
+		})
 
 		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
 		if err != nil {
@@ -253,14 +267,28 @@ func processSingleRunDownload(
 func tryDownloadEvalsArtifactFallback(ctx context.Context, runID int64, runOutputDir string, params concurrentRunDownloadParams) {
 	logsOrchestratorLog.Printf("evals not found in usage artifact for run %d, attempting fallback download of dedicated evals artifact", runID)
 	evalsFilter := []string{constants.EvalsArtifactName.String()}
-	if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter}); err != nil {
+	err := params.storageLimit.runDownload(ctx, runOutputDir, func() error {
+		if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit); err != nil {
+			return err
+		}
+		return downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: runID, outputDir: runOutputDir, verbose: params.verbose, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost, artifactFilter: evalsFilter})
+	})
+	if err != nil {
 		logsOrchestratorLog.Printf("Fallback evals artifact download failed for run %d: %v", runID, err)
 		if params.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evals not found in usage artifact for run %d and fallback download failed: %v", runID, err)))
 		}
+
 	} else {
 		logsOrchestratorLog.Printf("Fallback evals artifact downloaded for run %d", runID)
 	}
+}
+
+func waitForConfiguredRateLimit(ctx context.Context, verbose bool, configuredMax int) error {
+	if configuredMax == 0 {
+		return nil
+	}
+	return checkAndWaitForRateLimitShared(ctx, verbose, configuredMax)
 }
 
 // tryLoadCachedRunResult attempts to return a pre-built DownloadResult from the on-disk

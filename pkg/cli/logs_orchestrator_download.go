@@ -21,6 +21,7 @@ type logsDownloadRuntime struct {
 	artifactFilter  []string
 	fetchAllInRange bool
 	filters         runFilterOpts
+	storageLimit    *logsStorageLimit
 }
 
 type workflowRunBatch struct {
@@ -41,10 +42,15 @@ type processWorkflowRunBatchOptions struct {
 	parse                  bool
 	filters                runFilterOpts
 	maxConcurrentDownloads int
+	storageLimit           *logsStorageLimit
+	maxGitHubAPIRateLimit  int
 }
 
 func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDownloadRuntime, error) {
 	logLogsDownloadStart(opts)
+	if err := validateMaxStorageMB(opts.MaxStorageMB); err != nil {
+		return logsDownloadRuntime{}, err
+	}
 	artifactFilter, err := resolveLogsArtifactFilter(opts.ArtifactSets, opts.Verbose)
 	if err != nil {
 		return logsDownloadRuntime{}, err
@@ -53,6 +59,10 @@ func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDow
 		return logsDownloadRuntime{}, err
 	}
 	activeCtx, timeoutCancel, startTime, timeoutDuration := buildLogsDownloadContext(ctx, opts.TimeoutMinutes, opts.TimeoutSeconds, opts.Verbose)
+	storageLimit := opts.storageLimit
+	if storageLimit == nil {
+		storageLimit = newLogsStorageLimit(opts.OutputDir, opts.MaxStorageMB)
+	}
 	return logsDownloadRuntime{
 		activeCtx:       activeCtx,
 		startTime:       startTime,
@@ -60,6 +70,7 @@ func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDow
 		timeoutCancel:   timeoutCancel,
 		artifactFilter:  artifactFilter,
 		fetchAllInRange: opts.StartDate != "" || opts.EndDate != "",
+		storageLimit:    storageLimit,
 		filters: runFilterOpts{
 			engine:            opts.Engine,
 			runtime:           opts.Runtime,
@@ -187,19 +198,20 @@ var (
 )
 
 type logsCollectionState struct {
-	processedRuns     []ProcessedRun
-	beforeDate        string
-	iteration         int
-	timeoutReached    bool
-	countLimitReached bool
+	processedRuns       []ProcessedRun
+	beforeDate          string
+	iteration           int
+	timeoutReached      bool
+	countLimitReached   bool
+	storageLimitReached bool
 }
 
-func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, string, error) {
+func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, bool, string, error) {
 	state := logsCollectionState{}
 	for state.iteration < MaxIterations {
 		stop, timedOut, err := shouldStopLogsIteration(runtime, opts)
 		if err != nil {
-			return state.processedRuns, state.timeoutReached || timedOut, state.countLimitReached, state.beforeDate, err
+			return state.processedRuns, state.timeoutReached || timedOut, state.countLimitReached, state.storageLimitReached, state.beforeDate, err
 		}
 		if stop {
 			state.timeoutReached = state.timeoutReached || timedOut
@@ -209,13 +221,16 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			state.countLimitReached = runtime.fetchAllInRange
 			break
 		}
-		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration, opts.rateLimitFirstRequest); err != nil {
+		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration, opts.rateLimitFirstRequest, opts.MaxGitHubAPIRateLimit); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				state.timeoutReached = true
 				break
 			}
 			if errors.Is(err, context.Canceled) {
-				return nil, false, false, "", err
+				return nil, false, false, false, "", err
+			}
+			if errors.Is(err, errInvalidMaxGitHubAPIRateLimit) {
+				return state.processedRuns, state.timeoutReached, state.countLimitReached, state.storageLimitReached, state.beforeDate, err
 			}
 			logsOrchestratorLog.Printf("Rate limit wait failed, retrying iteration: %v", err)
 			state.iteration++
@@ -224,7 +239,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 		state.iteration++
 		stop, err = fetchAndProcessLogsBatch(&state, runtime, opts)
 		if err != nil {
-			return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, err
+			return state.processedRuns, state.timeoutReached, state.countLimitReached, state.storageLimitReached, state.beforeDate, err
 		}
 		if stop {
 			break
@@ -232,10 +247,11 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 	}
 	logLogsIterationLimit(runtime.fetchAllInRange, state.iteration, len(state.processedRuns), opts.Count)
 	logLogsTimeoutResult(state.timeoutReached, len(state.processedRuns))
+	logLogsStorageLimitResult(state.storageLimitReached, len(state.processedRuns))
 	if runtime.fetchAllInRange && !state.timeoutReached && state.iteration >= MaxIterations {
 		state.countLimitReached = true
 	}
-	return state.processedRuns, state.timeoutReached, state.countLimitReached, state.beforeDate, nil
+	return state.processedRuns, state.timeoutReached, state.countLimitReached, state.storageLimitReached, state.beforeDate, nil
 }
 
 func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRuntime, opts LogsDownloadOptions) (bool, error) {
@@ -268,13 +284,19 @@ func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRu
 		parse:                  opts.Parse,
 		filters:                runtime.filters,
 		maxConcurrentDownloads: opts.maxConcurrentDownloads,
+		storageLimit:           runtime.storageLimit,
+		maxGitHubAPIRateLimit:  opts.MaxGitHubAPIRateLimit,
 	})
 	state.timeoutReached = state.timeoutReached || batchTimedOut
+	state.storageLimitReached = runtime.storageLimit.isReached()
 	logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, state.iteration, batchProcessed, len(state.processedRuns), opts.Verbose)
 	if allRunsConsumed {
 		if cursor, ok := selectPaginationCursorDate(batch.runs, batch.oldestFetchedCreatedAt); ok {
 			state.beforeDate = cursor
 		}
+	}
+	if state.storageLimitReached {
+		return true, nil
 	}
 	return shouldStopAfterWorkflowRunBatch(batch, opts.Verbose), nil
 }
@@ -312,12 +334,15 @@ func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptio
 	return false, false, nil
 }
 
-func waitForLogsRateLimit(ctx context.Context, verbose bool, iteration int, firstRequest bool) error {
-	if iteration == 0 && !firstRequest {
+func waitForLogsRateLimit(ctx context.Context, verbose bool, iteration int, firstRequest bool, configuredMax int) error {
+	if iteration == 0 && !firstRequest && configuredMax == 0 {
 		return nil
 	}
-	if err := checkAndWaitForRateLimitShared(ctx, verbose); err != nil {
+	if err := checkAndWaitForRateLimitShared(ctx, verbose, configuredMax); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		if errors.Is(err, errInvalidMaxGitHubAPIRateLimit) {
 			return err
 		}
 		logsOrchestratorLog.Printf("Rate limit check failed (using static cooldown): %v", err)
@@ -463,6 +488,8 @@ func appendProcessedWorkflowRuns(
 		evalsOnly:              opts.evalsOnly,
 		artifactSets:           opts.artifactSets,
 		maxConcurrentDownloads: opts.maxConcurrentDownloads,
+		storageLimit:           opts.storageLimit,
+		maxGitHubAPIRateLimit:  opts.maxGitHubAPIRateLimit,
 	})
 	for _, result := range downloadResults {
 		if shouldSkipProcessedWorkflowRun(result, opts.verbose) || applyRunFilters(activeCtx, result, opts.filters, opts.verbose) {
@@ -551,19 +578,27 @@ func logLogsTimeoutResult(timeoutReached bool, processedCount int) {
 	}
 }
 
-func handleEmptyProcessedRuns(processedRuns []ProcessedRun, opts LogsDownloadOptions, timeoutReached bool) (bool, error) {
+func logLogsStorageLimitResult(storageLimitReached bool, processedCount int) {
+	if storageLimitReached && processedCount > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Storage limit reached, returning %d processed runs", processedCount)))
+	}
+}
+
+func handleEmptyProcessedRuns(processedRuns []ProcessedRun, opts LogsDownloadOptions, timeoutReached, storageLimitReached bool) (bool, error) {
 	if len(processedRuns) > 0 {
 		return false, nil
 	}
 	if opts.JSONOutput {
 		logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
-		logsData.Message = noRunsMessage(opts.StartDate, timeoutReached)
+		logsData.Message = noRunsMessage(opts.StartDate, timeoutReached, storageLimitReached)
 		if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 			return true, fmt.Errorf("failed to render JSON output: %w", err)
 		}
 	}
 	if timeoutReached {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached before any runs could be downloaded"))
+	} else if storageLimitReached {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Storage limit reached before any new runs could be downloaded"))
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
 	}

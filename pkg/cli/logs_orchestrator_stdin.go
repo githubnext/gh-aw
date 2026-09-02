@@ -21,10 +21,13 @@ import (
 // DownloadWorkflowLogsFromStdin fetches and processes workflow run logs for runs
 // provided as IDs or URLs, bypassing the GitHub API run-discovery step.
 // This is used when the --stdin flag is passed to the logs command.
-func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) error {
+func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) error { //nolint:largefunc // Existing stdin orchestration remains centralized.
 	logsOrchestratorLog.Printf("Starting stdin log download: runs=%d, outputDir=%s", len(opts.RunURLs), opts.OutputDir)
 
 	if err := ValidateArtifactSets(opts.ArtifactSets); err != nil {
+		return err
+	}
+	if err := validateMaxStorageMB(opts.MaxStorageMB); err != nil {
 		return err
 	}
 	artifactFilter := ResolveArtifactFilter(opts.ArtifactSets)
@@ -147,7 +150,8 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	// Download artifacts for all runs concurrently.
-	downloadResults := downloadRunArtifactsConcurrent(ctx, runs, runArtifactsConcurrentOptions{outputDir: opts.OutputDir, verbose: opts.Verbose, maxRuns: len(runs), repoOverride: opts.RepoOverride, artifactFilter: artifactFilter, evalsOnly: opts.EvalsOnly, artifactSets: opts.ArtifactSets})
+	storageLimit := newLogsStorageLimit(opts.OutputDir, opts.MaxStorageMB)
+	downloadResults := downloadRunArtifactsConcurrent(ctx, runs, runArtifactsConcurrentOptions{outputDir: opts.OutputDir, verbose: opts.Verbose, maxRuns: len(runs), repoOverride: opts.RepoOverride, artifactFilter: artifactFilter, evalsOnly: opts.EvalsOnly, artifactSets: opts.ArtifactSets, storageLimit: storageLimit})
 
 	filters := runFilterOpts{
 		engine:            opts.Engine,
@@ -208,12 +212,16 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	if len(processedRuns) == 0 {
 		if opts.JSONOutput {
 			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
-			logsData.Message = "No runs found matching the specified criteria."
+			logsData.Message = noRunsMessage("", false, storageLimit.isReached())
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
+		if storageLimit.isReached() {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Storage limit reached before any new runs could be processed"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
+		}
 		return nil
 	}
 

@@ -37,8 +37,7 @@ const (
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
 	// APICallCooldown is the minimum pause between successive batch-fetch iterations to
-	// avoid hitting the GitHub API rate limit when processing many runs in a single
-	// invocation.  checkAndWaitForRateLimit always sleeps at least this long.
+	// avoid hitting the GitHub API rate limit when no explicit usage ceiling is configured.
 	APICallCooldown = 500 * time.Millisecond
 	// RateLimitThreshold is the minimum number of GitHub API core requests that must
 	// remain before the rate-limit helper considers the budget healthy.  When the

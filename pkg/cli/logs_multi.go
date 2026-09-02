@@ -43,7 +43,7 @@ func DownloadWorkflowLogsForTargets(
 	}
 
 	results := collectLogsTargets(ctx, opts, targets)
-	processedRuns, continuations, timeoutReached, countLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
+	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping workflow target: "+err.Error()))
 	}
@@ -54,7 +54,7 @@ func DownloadWorkflowLogsForTargets(
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
 		}
-		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached)
+		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached)
 		return err
 	}
 
@@ -90,6 +90,7 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 	workerCount := min(len(targets), getMaxConcurrentWorkflowDownloads())
 	sem := make(chan struct{}, workerCount)
 	perTargetDownloads := max(1, getMaxConcurrentDownloads()/workerCount)
+	storageLimit := newLogsStorageLimit(opts.OutputDir, opts.MaxStorageMB)
 	for _, target := range targets {
 		wg.Go(func() {
 			defer func() {
@@ -115,6 +116,7 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 			targetOpts.skipEnsureGitignore = true
 			targetOpts.rateLimitFirstRequest = true
 			targetOpts.maxConcurrentDownloads = perTargetDownloads
+			targetOpts.storageLimit = storageLimit
 			result, err := collectWorkflowLogsForTarget(ctx, targetOpts)
 			resultChannel <- logsTargetResult{target: target, result: result, err: err}
 		})
@@ -131,11 +133,12 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 func mergeLogsTargetResults(
 	results []logsTargetResult,
 	initialErrors []error,
-) ([]ProcessedRun, []WorkflowContinuation, bool, bool, []error) {
+) ([]ProcessedRun, []WorkflowContinuation, bool, bool, bool, []error) {
 	allErrors := append([]error(nil), initialErrors...)
 	var processedRuns []ProcessedRun
 	timeoutReached := false
 	countLimitReached := false
+	storageLimitReached := false
 	var continuations []WorkflowContinuation
 	for _, targetResult := range results {
 		if targetResult.err != nil {
@@ -145,6 +148,7 @@ func mergeLogsTargetResults(
 		processedRuns = append(processedRuns, targetResult.result.processedRuns...)
 		timeoutReached = timeoutReached || targetResult.result.timeoutReached
 		countLimitReached = countLimitReached || targetResult.result.countLimitReached
+		storageLimitReached = storageLimitReached || targetResult.result.storageLimitReached
 		if targetResult.result.continuation != nil {
 			continuations = append(continuations, WorkflowContinuation{
 				Repository:       targetResult.target.repoOverride,
@@ -155,7 +159,7 @@ func mergeLogsTargetResults(
 			))
 		}
 	}
-	return processedRuns, continuations, timeoutReached, countLimitReached, allErrors
+	return processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors
 }
 
 func (t logsWorkflowTarget) displayName() string {
