@@ -139,6 +139,38 @@ func TestApplyPatchToRepoRejectsDirtyWorktree(t *testing.T) {
 	}
 }
 
+func TestApplyPatchToRepoCleansFailedApplyState(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	prependFakeGH(t, "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"/repos/target-owner/target-repo\" ]; then echo main; exit 0; fi\necho unexpected gh \"$@\" >&2\nexit 1\n")
+	chdirForTest(t, repoDir)
+
+	patchFile := filepath.Join(t.TempDir(), "pr.patch")
+	patch := "diff --git a/README.md b/README.md\nindex 3367afdbbf91e638efe983616377c60477cc6612..3e757656cf36eca53338e520d134963a44f793f8 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n"
+	if err := os.WriteFile(patchFile, []byte(patch), 0o600); err != nil {
+		t.Fatalf("WriteFile() patch error = %v", err)
+	}
+
+	_, err := applyPatchToRepo(patchFile, &PRInfo{Number: 42}, "target-owner", "target-repo", false)
+	if err == nil || !strings.Contains(err.Error(), "could not apply patch") {
+		t.Fatalf("applyPatchToRepo() error = %v, want patch apply error", err)
+	}
+	if got := strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")); got != "main" {
+		t.Fatalf("current branch = %q, want main", got)
+	}
+	if got := gitOutput(t, repoDir, "status", "--porcelain"); got != "" {
+		t.Fatalf("git status = %q, want clean worktree", got)
+	}
+	if got := gitOutput(t, repoDir, "ls-files", "-u"); got != "" {
+		t.Fatalf("unmerged index entries = %q, want none", got)
+	}
+	if got := gitOutput(t, repoDir, "branch", "--list", "transfer-pr-42-*"); got != "" {
+		t.Fatalf("transfer branch still exists: %q", got)
+	}
+	if got := readFileString(t, filepath.Join(repoDir, "README.md")); got != "base\n" {
+		t.Fatalf("README.md = %q, want restored base content", got)
+	}
+}
+
 func prependFakeGH(t *testing.T, script string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -195,6 +227,15 @@ func gitOutput(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %s failed: %s", strings.Join(args, " "), output)
 	}
 	return string(output)
+}
+
+func readFileString(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	return string(content)
 }
 
 func TestParsePRURL(t *testing.T) {
