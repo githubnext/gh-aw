@@ -20,6 +20,7 @@ const (
 	enclaveMCPGatewayContainerEnv = "AWF_ENCLAVE_MCP_GATEWAY_CONTAINER"
 	enclaveMCPGatewayEndpointEnv  = "AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT"
 	enclaveMCPGatewayIdentityEnv  = "AWF_ENCLAVE_MCP_GATEWAY_IDENTITY"
+	enclaveGitHubMCPAgentIDEnv    = "AWF_ENCLAVE_GITHUB_MCP_AGENT_ID"
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
 	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
@@ -30,6 +31,25 @@ const (
 	maxEnclaveTimingBucketSeconds = 4800
 	enclaveMCPTransportAllowance  = 60
 )
+
+func enclaveGitHubMCPAgentPolicy(workflowData *WorkflowData) MCPGatewayAgentPolicy {
+	repos := make([]string, 0)
+	if enclave := enclaveGitHubIssuesConfig(workflowData); enclave != nil {
+		for _, repo := range enclave.Repos {
+			if repo != nil {
+				repos = append(repos, repo.Repo)
+			}
+		}
+	}
+	return MCPGatewayAgentPolicy{
+		Servers: []string{"github"},
+		Tools:   map[string][]string{"github": {"list_issues", "issue_read"}},
+		AllowOnly: map[string]any{
+			"repos":         repos,
+			"min-integrity": "approved",
+		},
+	}
+}
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
 

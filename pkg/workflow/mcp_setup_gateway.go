@@ -309,6 +309,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_CONTAINER=\"awmg-mcpg\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT=\"http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave\"\n")
 		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
+		if enclaveGitHubIssuesEnabled(workflowData) {
+			yaml.WriteString("          AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')\n")
+			yaml.WriteString("          echo \"::add-mask::${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}\"\n")
+			yaml.WriteString("          export AWF_ENCLAVE_GITHUB_MCP_AGENT_ID\n")
+		}
 		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
 		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
 		// Masked values may be suppressed as GitHub Actions step outputs. Enclave host setup
@@ -321,6 +326,9 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_CONTAINER \"$AWF_ENCLAVE_MCP_GATEWAY_CONTAINER\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT \"$AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT\"\n")
 		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS \"$AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS\"\n")
+		if enclaveGitHubIssuesEnabled(workflowData) {
+			yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_GITHUB_MCP_AGENT_ID \"$AWF_ENCLAVE_GITHUB_MCP_AGENT_ID\"\n")
+		}
 		yaml.WriteString("          } >> \"$GITHUB_ENV\"\n")
 	}
 	yaml.WriteString("          export DEBUG=\"*\"\n")

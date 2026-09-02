@@ -53,13 +53,14 @@ type concurrentRunDownloadParams struct {
 // artifactSets is the original pre-resolution set list used to determine evalsOnly fallback behavior.
 // evalsOnly skips non-evals artifacts to reduce download volume on evals-focused runs.
 type runArtifactsConcurrentOptions struct {
-	outputDir      string
-	verbose        bool
-	maxRuns        int
-	repoOverride   string
-	artifactFilter []string
-	evalsOnly      bool
-	artifactSets   []string
+	outputDir              string
+	verbose                bool
+	maxRuns                int
+	repoOverride           string
+	artifactFilter         []string
+	evalsOnly              bool
+	artifactSets           []string
+	maxConcurrentDownloads int
 }
 
 // buildConcurrentDownloadParams constructs download parameters by parsing the optional
@@ -130,6 +131,9 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, opt
 	progressBar := initDownloadProgressBar(opts.verbose, totalRuns)
 	var completedCount atomic.Int64
 	maxConcurrent := getMaxConcurrentDownloads()
+	if opts.maxConcurrentDownloads > 0 {
+		maxConcurrent = opts.maxConcurrentDownloads
+	}
 	params := buildConcurrentDownloadParams(opts.outputDir, opts.verbose, opts.repoOverride, opts.artifactFilter, opts.evalsOnly, opts.artifactSets)
 
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
@@ -522,7 +526,14 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 	result.BehaviorFingerprint = behaviorFingerprint
 	result.AgenticAssessments = agenticAssessments
 
-	summary := &RunSummary{
+	summary := newRunSummary(result, metrics, jobDetails, artifacts)
+	if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", result.Run.DatabaseID, saveErr)))
+	}
+}
+
+func newRunSummary(result *DownloadResult, metrics LogMetrics, jobDetails []JobInfoWithDuration, artifacts []string) *RunSummary {
+	return &RunSummary{
 		CLIVersion:  GetVersion(),
 		RunID:       result.Run.DatabaseID,
 		ProcessedAt: time.Now(),
@@ -548,9 +559,6 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 			JobDetails:              jobDetails,
 		},
 		ArtifactsList: artifacts,
-	}
-	if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", result.Run.DatabaseID, saveErr)))
 	}
 }
 
