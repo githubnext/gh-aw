@@ -13225,6 +13225,8 @@
             "assignee": { "type": "boolean", "default": false },
             "tags": { "type": "boolean", "default": false },
             "allowed-tags": { "$ref": "#/$defs/azure_devops_string_list" },
+            "allowed-area-prefixes": { "$ref": "#/$defs/azure_devops_string_list" },
+            "allowed-iteration-prefixes": { "$ref": "#/$defs/azure_devops_string_list" },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
             "staged": { "$ref": "#/$defs/templatable_boolean" },
             "samples": { "$ref": "#/$defs/azure_devops_samples" }

@@ -66,17 +66,17 @@ function validateAllowedTags(tags, allowedTags) {
   if (disallowed.length > 0) {
     throw new Error(`tags are not permitted by allowed-tags: ${disallowed.join(", ")}`);
   }
+}
 
-  function validateAllowedPath(value, allowedPrefixes, fieldName) {
-    if (!Array.isArray(allowedPrefixes) || allowedPrefixes.length === 0) return;
-    const normalized = String(value).trim().toLowerCase();
-    const allowed = allowedPrefixes.some(prefix => {
-      const normalizedPrefix = String(prefix).trim().replace(/\\+$/, "").toLowerCase();
-      return normalized === normalizedPrefix || normalized.startsWith(`${normalizedPrefix}\\`);
-    });
-    if (!allowed) {
-      throw new Error(`${fieldName} is not permitted by the configured ${fieldName.replace("_", "-")} prefixes`);
-    }
+function validateAllowedPath(value, allowedPrefixes, fieldName) {
+  if (!Array.isArray(allowedPrefixes) || allowedPrefixes.length === 0) return;
+  const normalized = String(value).trim().toLowerCase();
+  const allowed = allowedPrefixes.some(prefix => {
+    const normalizedPrefix = String(prefix).trim().replace(/\\+$/, "").toLowerCase();
+    return normalized === normalizedPrefix || normalized.startsWith(`${normalizedPrefix}\\`);
+  });
+  if (!allowed) {
+    throw new Error(`${fieldName} is not permitted by the configured ${fieldName.replace("_", "-")} prefixes`);
   }
 }
 
