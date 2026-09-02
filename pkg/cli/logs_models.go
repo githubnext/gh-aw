@@ -232,10 +232,11 @@ type MissingDataSummary struct {
 
 // MCPToolUsageSummary aggregates MCP tool usage across all runs
 type MCPToolUsageSummary struct {
-	Summary        []MCPToolSummary    `json:"summary" console:"title:Tool Statistics"`             // Aggregated statistics per tool
-	Servers        []MCPServerStats    `json:"servers,omitempty" console:"title:Server Statistics"` // Server-level statistics
-	ToolCalls      []MCPToolCall       `json:"tool_calls" console:"-"`                              // Individual tool call records (excluded from console)
-	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty" console:"-"`               // DIFC filtered events (excluded from console display)
+	Summary        []MCPToolSummary        `json:"summary" console:"title:Tool Statistics"`             // Aggregated statistics per tool
+	Servers        []MCPServerStats        `json:"servers,omitempty" console:"title:Server Statistics"` // Server-level statistics
+	ToolCalls      []MCPToolCall           `json:"tool_calls" console:"-"`                              // Individual tool call records (excluded from console)
+	FilteredEvents []DifcFilteredEvent     `json:"filtered_events,omitempty" console:"-"`               // DIFC filtered events (excluded from console display)
+	Integrity      *IntegrityFilterSummary `json:"integrity,omitempty" console:"-"`                     // Aggregate DIFC integrity-filter activity
 }
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
