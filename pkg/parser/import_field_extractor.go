@@ -93,6 +93,8 @@ type importAccumulator struct {
 	mergedMaxTurnCacheMisses string
 	mergedMaxAICredits       string
 	mergedMaxDailyAICredits  string
+	mergedConcurrency        string
+	mergedJobDiscriminator   string
 	// Union of excluded-env lists from all imported files (deduplicated).
 	excludedEnv    []string
 	excludedEnvSet map[string]bool
@@ -405,6 +407,8 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turn-cache-misses", &acc.mergedMaxTurnCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
+	acc.extractConcurrencyInImport(fm, fullPath)
+	acc.extractConcurrencyJobDiscriminator(fm, fullPath)
 	if acc.metadataDocs == "" {
 		if metadata, ok := fm["metadata"].(map[string]any); ok {
 			if docs, ok := metadata["docs"].(string); ok {
@@ -425,6 +429,65 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.mergeSandboxAgentRuntimeInstall(fm)
 	acc.appendJSONBuilderField(fm, "permissions", "{}", &acc.permissionsBuilder)
 	acc.appendJSONBuilderField(fm, "secret-masking", "{}", &acc.secretMaskingBuilder)
+}
+
+func (acc *importAccumulator) extractConcurrencyInImport(fm map[string]any, fullPath string) {
+	if acc.mergedConcurrency != "" {
+		return
+	}
+	concurrencyValue, ok := fm["concurrency"]
+	if !ok {
+		return
+	}
+	if group, ok := concurrencyValue.(string); ok && strings.TrimSpace(group) != "" {
+		groupJSON := mustMarshalJSON(group)
+		if len(groupJSON) == 0 {
+			parserLog.Printf("Skipping invalid concurrency.group from import: %s", fullPath)
+			return
+		}
+		acc.mergedConcurrency = string(groupJSON)
+		parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
+		return
+	}
+	concurrencyMap, ok := concurrencyValue.(map[string]any)
+	if !ok {
+		return
+	}
+	groupValue, ok := concurrencyMap["group"].(string)
+	if !ok || strings.TrimSpace(groupValue) == "" {
+		return
+	}
+	groupJSON := mustMarshalJSON(map[string]any{"group": groupValue})
+	if len(groupJSON) == 0 {
+		parserLog.Printf("Skipping invalid concurrency.group from import: %s", fullPath)
+		return
+	}
+	acc.mergedConcurrency = string(groupJSON)
+	parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
+}
+
+func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]any, fullPath string) {
+	if acc.mergedJobDiscriminator != "" {
+		return
+	}
+	concurrency, ok := fm["concurrency"].(map[string]any)
+	if !ok {
+		return
+	}
+	discriminator, ok := concurrency["job-discriminator"].(string)
+	if !ok || discriminator == "" {
+		return
+	}
+	acc.mergedJobDiscriminator = discriminator
+	parserLog.Printf("Extracted concurrency.job-discriminator from import: %s", fullPath)
+}
+
+func mustMarshalJSON(v any) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return data
 }
 
 func (acc *importAccumulator) mergeSandboxAgentMounts(fm map[string]any) {
@@ -1056,6 +1119,8 @@ func (acc *importAccumulator) populateImportsResultScalars(result *ImportsResult
 	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
 	result.MergedMaxAICredits = acc.mergedMaxAICredits
 	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
+	result.MergedConcurrency = acc.mergedConcurrency
+	result.MergedJobDiscriminator = acc.mergedJobDiscriminator
 	result.MergedExcludedEnv = acc.excludedEnv
 }
 
