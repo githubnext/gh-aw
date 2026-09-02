@@ -1,5 +1,10 @@
 package constants
 
+const (
+	LinearMCPURL         = "https://mcp.linear.app/mcp"
+	LinearMCPReadOnlyURL = "https://mcp.linear.app/mcp/readonly"
+)
+
 // AllowedExpressions contains the GitHub Actions expressions that can be used in workflow markdown content
 // see https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
 var AllowedExpressions = []string{

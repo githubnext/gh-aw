@@ -252,7 +252,7 @@ func extractBuiltinMCPTools(frontmatter map[string]any, serverFilter string, con
 		if toolName == "serena" {
 			return errors.New("tools.serena is removed")
 		}
-		if toolName == "github" {
+		if toolName == "github" || toolName == "linear" {
 			config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
 			if err != nil {
 				return err
@@ -276,7 +276,55 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		config := buildGitHubBuiltinConfig(toolValue)
 		return &config, nil
 	}
+	if toolName == "linear" {
+		return buildLinearBuiltinConfig(toolValue)
+	}
 	return nil, nil
+}
+
+func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
+	toolConfig, ok := toolValue.(map[string]any)
+	if !ok {
+		return nil, errors.New("tools.linear must be an object")
+	}
+	token, ok := toolConfig["token"].(string)
+	if !ok || strings.TrimSpace(token) == "" {
+		return nil, errors.New("tools.linear.token is required")
+	}
+
+	readOnly := true
+	if value, exists := toolConfig["read-only"]; exists {
+		var valid bool
+		readOnly, valid = value.(bool)
+		if !valid {
+			return nil, errors.New("tools.linear.read-only must be a boolean")
+		}
+	}
+	url := constants.LinearMCPReadOnlyURL
+	if !readOnly {
+		url = constants.LinearMCPURL
+	}
+	config := &RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type: "http",
+			URL:  url,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+			},
+		},
+		Name: "linear",
+	}
+	if allowed, exists := toolConfig["allowed"].([]any); exists {
+		for _, item := range allowed {
+			if tool, ok := item.(string); ok {
+				config.Allowed = append(config.Allowed, tool)
+			}
+		}
+	}
+	if required, exists := toolConfig["required"].(bool); exists {
+		config.Required = &required
+	}
+	return config, nil
 }
 
 func buildGitHubBuiltinConfig(toolValue any) RegistryMCPServerConfig {

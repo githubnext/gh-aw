@@ -4036,6 +4036,26 @@ tools:
     # (optional)
     features: "example-value"
 
+  # Linear tools provided by Linear's official hosted MCP server
+  # (optional)
+  linear:
+    # Linear API key or OAuth access token provided through a GitHub Actions secret
+    token: "example-value"
+
+    # Use Linear's server-enforced read-only MCP endpoint. Defaults to true.
+    # (optional)
+    read-only: true
+
+    # List of allowed Linear MCP tool names or wildcard patterns
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Whether failure to connect to Linear should fail MCP gateway startup. Defaults
+    # to true.
+    # (optional)
+    required: true
+
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
   # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
@@ -8632,6 +8652,130 @@ safe-outputs:
 
   # Format 2: Enable Jira label additions with default configuration.
   jira-add-label: null
+
+  # Experimental. Create Linear issues through the isolated safe_outputs job.
+  # (optional)
+  linear-create-issue:
+    # Trusted Linear team model UUID.
+    team-id: "example-value"
+
+    # Maximum number of Linear issues to create (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+  # Experimental. Add comments to one trusted Linear issue through the isolated
+  # safe_outputs job.
+  # (optional)
+  linear-add-comment:
+    # Trusted Linear issue UUID or shorthand identifier such as ENG-123.
+    target: "example-value"
+
+    # Maximum number of Linear comments to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+  # Experimental. Update explicitly enabled fields on one trusted Linear issue
+  # through the isolated safe_outputs job.
+  # (optional)
+  linear-update-issue:
+    # Trusted Linear issue UUID or shorthand identifier such as ENG-123.
+    target: "example-value"
+
+    # Allow the agent to update the Linear issue title.
+    # (optional)
+    title: null
+
+    # Allow the agent to replace the Linear issue description.
+    # (optional)
+    body: null
+
+    # Maximum number of updates to apply (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
 
   # Enable AI agents to add comments to GitHub issues, pull requests, or
   # discussions. Supports templating, cross-repository commenting, and automatic
@@ -19938,6 +20082,10 @@ safe-outputs:
   # secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}
   # (optional)
   github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Linear personal API key expression used only by the trusted safe_outputs job.
+  # (optional)
+  linear-token: "example-value"
 
   # GitHub App credentials for minting installation access tokens. When configured,
   # a token will be generated using the app credentials and used for all safe output

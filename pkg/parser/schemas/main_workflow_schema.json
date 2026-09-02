@@ -4659,6 +4659,39 @@
             false
           ]
         },
+        "linear": {
+          "type": "object",
+          "description": "Linear tools provided by Linear's official hosted MCP server",
+          "additionalProperties": false,
+          "required": ["token"],
+          "properties": {
+            "token": {
+              "type": "string",
+              "description": "Linear API key or OAuth access token provided through a GitHub Actions secret",
+              "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}$"
+            },
+            "read-only": {
+              "type": "boolean",
+              "description": "Use Linear's server-enforced read-only MCP endpoint. Defaults to true.",
+              "default": true
+            },
+            "allowed": {
+              "type": "array",
+              "description": "List of allowed Linear MCP tool names or wildcard patterns",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether failure to connect to Linear should fail MCP gateway startup. Defaults to true.",
+              "default": true
+            }
+          }
+        },
         "bash": {
           "description": "Bash shell command execution tool. Supports wildcards: '*' (all commands), 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [

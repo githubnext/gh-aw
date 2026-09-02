@@ -38,6 +38,29 @@ tools:
 
 See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
 
+### Linear Tools (`linear:`)
+
+Connect to [Linear's official hosted MCP server](https://linear.app/docs/mcp) with a Linear API key or OAuth access token stored as a GitHub Actions secret:
+
+```yaml wrap
+tools:
+  linear:
+    token: ${{ secrets.LINEAR_API_KEY }}
+```
+
+The integration uses Streamable HTTP through the MCP gateway and defaults to Linear's server-enforced read-only endpoint. Set `read-only: false` to use the read-write endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
+
+```yaml wrap
+tools:
+  linear:
+    token: ${{ secrets.LINEAR_API_KEY }}
+    read-only: true
+    allowed: ["*"]
+    required: true
+```
+
+The Linear credential is passed to the gateway as an environment variable and sent as an `Authorization: Bearer` header. It is not embedded in MCP configuration. Linear works with `tools.cli-proxy: true` like other remote MCP servers.
+
 ### Bash Tool (`bash:`)
 
 Enables shell command execution in the workspace. Defaults to safe commands (`echo`, `printf`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`, `yq`).
