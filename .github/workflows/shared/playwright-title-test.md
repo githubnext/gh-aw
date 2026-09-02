@@ -45,6 +45,7 @@ steps:
       nohup node "$RUNNER_TEMP/playwright-title-test-server.cjs" \
         > "$RUNNER_TEMP/playwright-title-test-server.log" 2>&1 &
       echo "$!" > "$RUNNER_TEMP/playwright-title-test-server.pid"
+      # runner-guard:ignore RGS-012 -- loopback-only healthcheck for the server started above; no secrets are sent.
       curl --fail --silent --show-error --retry 10 --retry-connrefused \
         --retry-all-errors --retry-max-time 30 \
         "http://127.0.0.1:${PLAYWRIGHT_TITLE_TEST_PORT}/" > /dev/null
