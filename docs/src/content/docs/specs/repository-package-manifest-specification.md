@@ -45,6 +45,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `min-version` | string | No | Minimum supported `gh-aw` version. |
 | `name` | string | Yes | Human-readable package name. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
+| `icon` | string | No | Optional package icon: an emoji, a GitHub primer octicon name (`:...:`), or an SVG resource path. |
 | `description` | string | No | Human-readable package description. |
 | `license` | string | No | SPDX license identifier or license name for the package. |
 | `private` | boolean | No | Whether the package is unavailable for installation. Defaults to `false`. |
@@ -74,6 +75,14 @@ If the running compiler version is lower than `min-version`, validation MUST fai
 ### 4.5 `emoji`
 
 If present, `emoji` MUST be a string.
+
+### 4.5.1 `icon`
+
+If present, `icon` MUST be a non-empty string that matches one of the following formats:
+
+1. **Emoji**: A single or sequence of Unicode emoji characters.
+2. **GitHub Primer Octicon**: A GitHub Primer octicon name enclosed in colons using `:name:` format (for example, `:check-circle:`).
+3. **SVG Package Resource**: A path to an `.svg` file that is declared as a package resource in the `resources` section of `aw.yml`.
 
 ### 4.6 `description`
 

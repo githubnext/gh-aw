@@ -5,8 +5,11 @@ package cli
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/goccy/go-yaml"
 
@@ -19,6 +22,7 @@ type repositoryPackageManifest struct {
 	MinVersion      string
 	Name            string
 	Emoji           string
+	Icon            string
 	Description     string
 	License         string
 	Private         bool
@@ -152,6 +156,9 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		}
 		manifest.Resources = resources
 	}
+	if err := extractRepositoryPackageManifestIcon(manifest, root, manifestPath); err != nil {
+		return nil, err
+	}
 	if skillsValue, ok := root["skills"]; ok {
 		skills, skillWarnings := extractManifestSkillDirs(skillsValue, manifestPath)
 		manifest.Skills = skills
@@ -171,6 +178,20 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		manifest.Bootstrap = bootstrap
 	}
 	return warnings, nil
+}
+
+func extractRepositoryPackageManifestIcon(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
+	if iconVal, ok := root["icon"]; ok {
+		icon, isStr := stringValue(iconVal)
+		if !isStr {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: icon must be a string", manifestPath)
+		}
+		manifest.Icon = icon
+		if err := validateRepositoryPackageManifestIcon(manifest.Icon, manifest.Resources, manifestPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func validateRepositoryPackageVisibility(manifest *repositoryPackageManifest, packageID string) ([]string, error) {
@@ -254,4 +275,79 @@ func validateUniqueManifestWorkflowFilenames(installables []resolvedPackageInsta
 		seen[key] = installPath
 	}
 	return nil
+}
+
+var octiconNameRegexp = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
+func validateRepositoryPackageManifestIcon(icon string, resources []repositoryPackageResource, manifestPath string) error {
+	iconStr := strings.TrimSpace(icon)
+	if iconStr == "" {
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: icon must be a non-empty string", manifestPath)
+	}
+
+	// 1. GitHub primer octicon (:name: syntax)
+	if strings.HasPrefix(iconStr, ":") && strings.HasSuffix(iconStr, ":") {
+		inner := strings.TrimPrefix(strings.TrimSuffix(iconStr, ":"), ":")
+		if !octiconNameRegexp.MatchString(inner) {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: icon octicon name must use :name: syntax with lowercase letters, numbers, and hyphens, got %q", manifestPath, iconStr)
+		}
+		return nil
+	}
+
+	// 2. Emoji
+	if isEmojiString(iconStr) {
+		return nil
+	}
+
+	// 3. Package resource location (SVG only)
+	if isResourcePathMatch(iconStr, resources) {
+		if !strings.HasSuffix(strings.ToLower(iconStr), ".svg") {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: icon file %q in package resources must be an SVG file (.svg)", manifestPath, iconStr)
+		}
+		return nil
+	}
+
+	// Look like a path or SVG file but not in resources?
+	if strings.HasSuffix(strings.ToLower(iconStr), ".svg") || strings.Contains(iconStr, "/") {
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: icon file %q must be declared in package resources", manifestPath, iconStr)
+	}
+
+	return fmt.Errorf("invalid Agentic Workflow manifest %q: icon %q is invalid: must be an emoji, a GitHub primer octicon name (e.g. :check-circle:), or an SVG file declared in package resources", manifestPath, iconStr)
+}
+
+func isResourcePathMatch(iconPath string, resources []repositoryPackageResource) bool {
+	cleanedIcon, err := cleanManifestRelativePath(iconPath)
+	if err != nil {
+		cleanedIcon = path.Clean(filepath.ToSlash(iconPath))
+	}
+	lowerIcon := strings.ToLower(cleanedIcon)
+	for _, res := range resources {
+		cleanSource, err1 := cleanManifestRelativePath(res.Source)
+		if err1 != nil {
+			cleanSource = path.Clean(filepath.ToSlash(res.Source))
+		}
+		cleanDest, err2 := cleanManifestRelativePath(res.Destination)
+		if err2 != nil {
+			cleanDest = path.Clean(filepath.ToSlash(res.Destination))
+		}
+		if lowerIcon == strings.ToLower(cleanSource) || lowerIcon == strings.ToLower(cleanDest) {
+			return true
+		}
+	}
+	return false
+}
+
+func isEmojiString(s string) bool {
+	if s == "" {
+		return false
+	}
+	hasSymbol := false
+	for _, r := range s {
+		if unicode.Is(unicode.So, r) || (r >= 0x1F300 && r <= 0x1F9FF) || (r >= 0x2600 && r <= 0x27BF) || (r >= 0x1F1E6 && r <= 0x1F1FF) || r == 0x200D || r == 0xFE0F || (r >= 0x1F3FB && r <= 0x1F3FF) || r == 0x20E3 {
+			hasSymbol = true
+		} else if !unicode.Is(unicode.M, r) && r != '#' && r != '*' && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return hasSymbol
 }

@@ -57,6 +57,106 @@ private: "true"
 	})
 }
 
+func TestRepositoryPackageIcon(t *testing.T) {
+	t.Run("omitted icon field", func(t *testing.T) {
+		manifest, warnings, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Public Package\n"))
+		require.NoError(t, err)
+		assert.Empty(t, manifest.Icon)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("valid emoji icon", func(t *testing.T) {
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Emoji Package\nicon: \"🚀\"\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "🚀", manifest.Icon)
+	})
+
+	t.Run("valid primer octicon syntax", func(t *testing.T) {
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Octicon Package\nicon: \":check-circle:\"\n"))
+		require.NoError(t, err)
+		assert.Equal(t, ":check-circle:", manifest.Icon)
+
+		manifest, _, err = parseRepositoryPackageManifest("aw.yml", []byte("name: Octicon Package\nicon: \":git-pull-request:\"\n"))
+		require.NoError(t, err)
+		assert.Equal(t, ":git-pull-request:", manifest.Icon)
+	})
+
+	t.Run("invalid octicon syntax", func(t *testing.T) {
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Invalid Package\nicon: \"::\"\n"))
+		require.ErrorContains(t, err, "icon octicon name must use :name: syntax")
+
+		_, _, err = parseRepositoryPackageManifest("aw.yml", []byte("name: Invalid Package\nicon: \":invalid name:\"\n"))
+		require.ErrorContains(t, err, "icon octicon name must use :name: syntax")
+	})
+
+	t.Run("valid SVG resource file matching source", func(t *testing.T) {
+		yamlContent := `name: Resource Package
+resources:
+  - source: assets/logo.svg
+    destination: .github/aw/logo.svg
+icon: assets/logo.svg
+`
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.NoError(t, err)
+		assert.Equal(t, "assets/logo.svg", manifest.Icon)
+	})
+
+	t.Run("valid SVG resource file matching destination", func(t *testing.T) {
+		yamlContent := `name: Resource Package
+resources:
+  - source: assets/logo.svg
+    destination: .github/aw/logo.svg
+icon: .github/aw/logo.svg
+`
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.NoError(t, err)
+		assert.Equal(t, ".github/aw/logo.svg", manifest.Icon)
+	})
+
+	t.Run("non-SVG resource file", func(t *testing.T) {
+		yamlContent := `name: Non SVG Package
+resources:
+  - source: assets/logo.png
+    destination: .github/aw/logo.png
+icon: assets/logo.png
+`
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.ErrorContains(t, err, `icon file "assets/logo.png" in package resources must be an SVG file (.svg)`)
+	})
+
+	t.Run("SVG icon file not declared in package resources", func(t *testing.T) {
+		yamlContent := `name: Undeclared Package
+icon: assets/missing.svg
+`
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.ErrorContains(t, err, `icon file "assets/missing.svg" must be declared in package resources`)
+	})
+
+	t.Run("invalid plain text icon", func(t *testing.T) {
+		yamlContent := `name: Invalid Icon Package
+icon: plain_text_icon
+`
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.ErrorContains(t, err, `icon "plain_text_icon" is invalid: must be an emoji, a GitHub primer octicon name (e.g. :check-circle:), or an SVG file declared in package resources`)
+	})
+
+	t.Run("empty icon string", func(t *testing.T) {
+		yamlContent := `name: Empty Icon Package
+icon: ""
+`
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.ErrorContains(t, err, `icon must be a non-empty string`)
+	})
+
+	t.Run("non-string icon value", func(t *testing.T) {
+		yamlContent := `name: Non String Icon Package
+icon: 123
+`
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(yamlContent))
+		require.Error(t, err)
+	})
+}
+
 func TestResolveRepositoryPackage(t *testing.T) {
 	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
