@@ -509,6 +509,10 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 			continue
 		}
 
+		if toolName == "ado" {
+			domains = append(domains, adoRequiredDomains...)
+		}
+
 		// Special handling for GitHub MCP in remote mode
 		// When mode: remote is set, the URL is implicitly the hosted GitHub Copilot MCP server
 		if toolName == "github" {

@@ -91,6 +91,7 @@ func toAnySlice(ss []string) []any {
 // It is a package-level variable to avoid re-allocating this map on every call.
 var knownTools = map[string]struct{}{
 	"github":            {},
+	"ado":               {},
 	"bash":              {},
 	"web-fetch":         {},
 	"web-search":        {},
@@ -127,6 +128,14 @@ func NewTools(toolsMap map[string]any) *Tools { //nolint:largefunc // Existing t
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {
 		tools.GitHub = parseGitHubTool(val)
+	}
+	if val, exists := toolsMap["ado"]; exists {
+		tools.ADO = parseADOTool(val)
+		if config, ok := val.(map[string]any); ok {
+			if hasConfig, _ := hasMCPConfig(config); hasConfig {
+				tools.Custom["ado"] = parseMCPServerConfig(config)
+			}
+		}
 	}
 	if val, exists := toolsMap["bash"]; exists {
 		tools.Bash = parseBashTool(val)
@@ -188,6 +197,18 @@ func NewTools(toolsMap map[string]any) *Tools { //nolint:largefunc // Existing t
 
 	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
 	return tools
+}
+
+func parseADOTool(value any) *ADOToolConfig {
+	config, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := &ADOToolConfig{}
+	result.Organization, _ = config["organization"].(string)
+	result.Toolsets = parseStringSliceAny(config["toolsets"], toolsParserLog)
+	result.Allowed = parseStringSliceAny(config["allowed"], toolsParserLog)
+	return result
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig

@@ -4659,6 +4659,50 @@
             false
           ]
         },
+        "ado": {
+          "description": "Read-only Azure DevOps tools provided by Microsoft's remote MCP service.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "enum": [false],
+              "description": "Disable the Azure DevOps integration, including a configuration inherited from an import."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["organization"],
+              "properties": {
+                "organization": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 49,
+                  "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,47}[A-Za-z0-9])?$",
+                  "description": "Azure DevOps organization name from https://dev.azure.com/<organization>."
+                },
+                "toolsets": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": ["all", "advsec", "elm", "pipelines", "repos", "testplan", "wiki", "wit", "work"]
+                  },
+                  "description": "Azure DevOps MCP toolsets to expose. The core tools are always available."
+                },
+                "allowed": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "description": "Optional allowlist of exact Azure DevOps MCP tool names exposed to the agent."
+                }
+              }
+            }
+          ]
+        },
         "jira": {
           "description": "Jira tools provided by Atlassian's remote Rovo MCP service. This integration supports non-interactive CI/CD authentication only.",
           "oneOf": [

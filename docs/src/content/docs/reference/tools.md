@@ -38,6 +38,29 @@ tools:
 
 See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
 
+### Azure DevOps Tools (`ado:`)
+
+Connects to Microsoft's remote Azure DevOps MCP service. The integration is always read-only.
+
+```yaml wrap
+tools:
+  ado:
+    organization: contoso
+    toolsets:
+      - repos
+      - wit
+    allowed:
+      - core_list_projects
+      - repo_repository
+      - wit_work_item
+```
+
+`organization` is required and is the organization name from `https://dev.azure.com/<organization>`. `toolsets` accepts `all`, `advsec`, `elm`, `pipelines`, `repos`, `testplan`, `wiki`, `wit`, and `work`. Core tools are always available.
+
+`allowed` optionally restricts the tools exposed to the agent by exact MCP tool name. Current read-only names include `core_list_projects`, `repo_repository`, and `wit_work_item`; consolidated tools such as `repo_repository` and `wit_work_item` select an operation through their `action` argument.
+
+The compiler configures the remote endpoint, required network domains, and the literal `X-MCP-Readonly: "true"` header. Writable Azure DevOps MCP tools cannot be enabled through `tools.ado`.
+
 ### Jira Tools (`jira:`)
 
 Connect to Atlassian's official remote Rovo MCP endpoint from non-interactive GitHub Actions workloads. Browser OAuth, device login, and user-consent flows are not supported.

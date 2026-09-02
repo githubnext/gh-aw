@@ -30,6 +30,7 @@ var mcpValidationLog = logger.New("workflow:mcp_config_validation")
 // Any key in tools: that is not in this set is a compile error.
 // Custom MCP servers must be placed under mcp-servers: instead.
 var builtInToolNames = map[string]bool{
+	"ado":               true,
 	"github":            true,
 	"jira":              true,
 	"playwright":        true,

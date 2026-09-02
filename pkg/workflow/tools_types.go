@@ -70,6 +70,7 @@ var toolsTypesLog = logger.New("workflow:tools_types")
 type ToolsConfig struct {
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
+	ADO              *ADOToolConfig              `yaml:"ado,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
 	WebFetch         *WebFetchToolConfig         `yaml:"web-fetch,omitempty"`
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
@@ -200,6 +201,9 @@ func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing co
 
 	if t.GitHub != nil {
 		result["github"] = t.GitHub
+	}
+	if t.ADO != nil {
+		result["ado"] = t.ADO
 	}
 	if t.Bash != nil {
 		result["bash"] = t.Bash.AllowedCommands
@@ -417,6 +421,13 @@ type GitHubToolConfig struct {
 	//   - []string → compiler emits gateway.sinkVisibilityExemptServers with the listed IDs.
 	// See MCP Gateway Specification Section 10.9.
 	PrivateToPublicFlows any `yaml:"-"`
+}
+
+// ADOToolConfig represents the first-class, read-only Azure DevOps MCP integration.
+type ADOToolConfig struct {
+	Organization string   `yaml:"organization"`
+	Toolsets     []string `yaml:"toolsets,omitempty"`
+	Allowed      []string `yaml:"allowed,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

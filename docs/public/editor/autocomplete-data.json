@@ -1870,6 +1870,29 @@
             }
           }
         },
+        "ado": {
+          "type": "boolean|object",
+          "desc": "Read-only Azure DevOps tools provided by Microsoft's remote MCP service.",
+          "enum": [false],
+          "children": {
+            "organization": {
+              "type": "string",
+              "desc": "Azure DevOps organization name from https://dev.azure.com/<organization>.",
+              "leaf": true
+            },
+            "toolsets": {
+              "type": "array",
+              "desc": "Azure DevOps MCP toolsets to expose. Core tools are always available.",
+              "enum": ["all", "advsec", "elm", "pipelines", "repos", "testplan", "wiki", "wit", "work"],
+              "array": true
+            },
+            "allowed": {
+              "type": "array",
+              "desc": "Optional allowlist of exact Azure DevOps MCP tool names exposed to the agent.",
+              "array": true
+            }
+          }
+        },
         "jira": {
           "type": "boolean|object",
           "desc": "Jira tools provided by Atlassian's remote Rovo MCP service.",
