@@ -125,9 +125,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
 		return fmt.Errorf("failed to generate mcp-scripts setup YAML: %w", err)
 	}
-	if err := c.generateStartEnclaveGitHubProxyStep(yaml, workflowData); err != nil {
-		return fmt.Errorf("failed to generate enclave GitHub proxy setup YAML: %w", err)
-	}
 	// Extract GH_AW_INPUT_* env vars from the safe-outputs config so the MCP
 	// gateway container receives them in its -e allowlist and the nested
 	// safe-outputs container inherits them via its env_vars/env allowlist.
@@ -168,6 +165,9 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	}
 	if enclavesEnabled(workflowData) {
 		mcpTools = append(mcpTools, enclaveMCPServerName)
+	}
+	if enclaveGitHubIssuesEnabled(workflowData) && !slices.Contains(mcpTools, "github") {
+		mcpTools = append(mcpTools, "github")
 	}
 	return mcpTools
 }

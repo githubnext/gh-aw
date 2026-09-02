@@ -186,7 +186,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		}
 	}
 
-	return &MCPGatewayRuntimeConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port:                        int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
 		Domain:                      "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
 		AgentID:                     "${MCP_GATEWAY_AGENT_ID}",                        // Gateway variable expression
@@ -206,6 +206,24 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		OTLPEndpoint: workflowData.OTLPEndpoint,
 		OTLPHeaders:  workflowData.OTLPHeaders,
 	}
+	if enclaveGitHubIssuesEnabled(workflowData) {
+		primaryServers := collectMCPTools(workflowData)
+		if _, hasGitHub := workflowData.Tools["github"]; !hasGitHub {
+			for i, server := range primaryServers {
+				if server == "github" {
+					primaryServers = append(primaryServers[:i], primaryServers[i+1:]...)
+					break
+				}
+			}
+		}
+		config.AgentID = ""
+		config.AgentIDs = []string{"${MCP_GATEWAY_AGENT_ID}", "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"}
+		config.AgentPolicies = map[string]MCPGatewayAgentPolicy{
+			"${MCP_GATEWAY_AGENT_ID}":            {Servers: primaryServers},
+			"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}": enclaveGitHubMCPAgentPolicy(workflowData),
+		}
+	}
+	return config
 }
 
 // isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)

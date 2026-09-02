@@ -40,7 +40,7 @@ sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.13
+    version: v0.4.15
 enclaves:
   - agent:
       model: gpt-5
@@ -57,36 +57,20 @@ enclaves cannot configure `github`. The first profile version accepts at most
 one repository whose sensitivity is not `public`; additional assigned
 repositories must declare `sensitivity: public`.
 
-The profile permits only these paginated REST reads:
+The profile permits only `list_issues` and `issue_read` through the GitHub MCP
+server. GraphQL, search, writes, and every other GitHub tool are denied.
 
-- `GET /repos/{owner}/{repo}/issues`
-- `GET /repos/{owner}/{repo}/issues/{number}`
-- `GET /repos/{owner}/{repo}/issues/{number}/comments`
-
-Use carefully formed `gh api --method GET ...` requests for these routes. Stock
-`gh issue` commands are not guaranteed because they commonly use GraphQL.
-GraphQL, search, writes, and every other REST path are denied.
-
-Public issue data uses the primary GitHub source's effective
-`min-integrity`. An explicit `tools.github.min-integrity` is inherited;
-otherwise the compiler uses the primary-agent default, `approved`. The
-enclave entry cannot weaken this floor. The assigned repository is available
-to its invocation. Other repositories are available only when an exact
-visibility check reports that they are public; all other failures receive the
-same denial. Private repository responses carry the
-`private:<owner>/<repo>` DIFC secrecy label.
-
-The compiler starts a dedicated mcpg proxy in Docker bridge mode. The PAT
-remains in that proxy. AWF attaches it to a private control network, mints a
-short-lived `awf-egh1` capability into a mode-`0600` file, and exposes only an
-AWF-owned PAT-free local CLI proxy to the enclave. Neither the primary agent
-nor the enclave receives the PAT, mcpg address, root key, container identity,
-CA path, or repository catalog.
+The compiler configures a shared mcpg gateway with separate primary and enclave
+identities. The enclave identity can access only those tools and the union of
+repositories declared for the enclave. AWF stages that identity privately and
+connects the enclave directly to `/mcp/github`; the enclave has no `gh`
+executable or GitHub token. Neither the primary agent nor the enclave receives
+the PAT or the other identity.
 
 Provide `GH_AW_GITHUB_MCP_SERVER_TOKEN` or `GH_AW_GITHUB_TOKEN` with read access
 to the assigned repository's Issues. The fallback `GITHUB_TOKEN` can only
 access repositories that token can already read (typically just the current
 repository in Actions).
 
-The minimum supported versions are AWF `v0.28.9` and mcpg `v0.4.13`. The
+The minimum supported versions are AWF `v0.28.9` and mcpg `v0.4.15`. The
 compiler does not fall back to older versions.
