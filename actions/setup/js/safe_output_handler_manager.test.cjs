@@ -153,6 +153,44 @@ describe("Safe Output Handler Manager", () => {
 
         expect(sortMessageIndicesByTemporaryIdDependencies([dependent, producer, unrelated])).toEqual([1, 0, 2]);
       });
+
+      it("tracks a comment emitted before its temporary-ID producer", async () => {
+        const callOrder = [];
+        const handlers = new Map([
+          [
+            "add_comment",
+            vi.fn(async (_message, resolvedTemporaryIds) => {
+              callOrder.push("add_comment");
+              expect(resolvedTemporaryIds).toEqual({});
+              return { success: true, commentId: 123, itemNumber: 42, repo: "owner/repo", isDiscussion: false };
+            }),
+          ],
+          [
+            "create_issue",
+            vi.fn(async () => {
+              callOrder.push("create_issue");
+              return { success: true, temporaryId: "aw_track1", repo: "owner/tracker", number: 99 };
+            }),
+          ],
+        ]);
+        const messages = [
+          { type: "add_comment", item_number: 42, body: "Tracking issue: #aw_track1" },
+          { type: "create_issue", temporary_id: "aw_track1", title: "Tracking issue" },
+        ];
+
+        const result = await processMessages(handlers, messages);
+
+        expect(callOrder).toEqual(["add_comment", "create_issue"]);
+        expect(result.temporaryIdMap.aw_track1).toEqual({ repo: "owner/tracker", number: 99 });
+        expect(result.outputsWithUnresolvedIds).toEqual([
+          {
+            type: "add_comment",
+            message: { type: "add_comment", item_number: 42, body: "Tracking issue: #aw_track1" },
+            result: { commentId: 123, itemNumber: 42, repo: "owner/repo", isDiscussion: false },
+            originalTempIdMapSize: 0,
+          },
+        ]);
+      });
     });
 
     describe("logCreatedItemFromResult", () => {

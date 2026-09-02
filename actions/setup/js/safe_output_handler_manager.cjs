@@ -1166,7 +1166,26 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Check if this output was created with unresolved temporary IDs
       // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
 
-      // Handle add_comment which returns an array of comments
+      // Handle the current add_comment result shape.
+      if (messageType === "add_comment" && result?.commentId && result?.repo) {
+        const contentToCheck = getContentToCheck(messageType, message, result);
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
+          core.info(`Comment ${result.commentId} on ${result.repo}#${result.itemNumber} was created with unresolved temporary IDs - tracking for update`);
+          outputsWithUnresolvedIds.push({
+            type: messageType,
+            message,
+            result: {
+              commentId: result.commentId,
+              itemNumber: result.itemNumber,
+              repo: result.repo,
+              isDiscussion: result.isDiscussion,
+            },
+            originalTempIdMapSize: tempIdMapSizeBefore,
+          });
+        }
+      }
+
+      // Handle the legacy add_comment result shape.
       if (messageType === "add_comment" && Array.isArray(result)) {
         const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
