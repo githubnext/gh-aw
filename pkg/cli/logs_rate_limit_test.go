@@ -100,6 +100,19 @@ func TestSleepWithContextCancellation(t *testing.T) {
 	assert.Less(t, elapsed, time.Second, "sleepWithContext should return quickly when context is already cancelled")
 }
 
+func TestSharedRateLimitGateRespectsCancellation(t *testing.T) {
+	logsRateLimitGate <- struct{}{}
+	t.Cleanup(func() { <-logsRateLimitGate })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	err := checkAndWaitForRateLimitShared(ctx, false)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, time.Since(start), time.Second, "waiting for the shared rate-limit gate should be cancellable")
+}
+
 // TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
 // deadline that expires before the sleep duration.
 func TestSleepWithContextDeadlineExceeded(t *testing.T) {
