@@ -478,10 +478,14 @@ var IgnoredFrontmatterFields = []string{}
 //
 // Forbidden fields fall into these categories:
 //   - Workflow triggers: on (defines it as a main workflow)
-//   - Workflow execution: run-name, runs-on, concurrency, if, timeout-minutes
+//   - Workflow execution: run-name, runs-on, if, timeout-minutes
 //   - Workflow metadata: name, tracker-id, strict
 //   - Workflow features: container, environment, features
 //   - Access control: github-token
+//
+// The concurrency field is partially import-safe: shared workflows may contribute
+// import-safe concurrency.group values and concurrency.job-discriminator values,
+// but unsupported concurrency keys (for example cancel-in-progress) are rejected.
 //
 // All other fields defined in main_workflow_schema.json can be used in shared workflows
 // and will be properly imported and merged when the shared workflow is imported.

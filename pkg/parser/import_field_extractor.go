@@ -93,6 +93,7 @@ type importAccumulator struct {
 	mergedMaxTurnCacheMisses string
 	mergedMaxAICredits       string
 	mergedMaxDailyAICredits  string
+	mergedConcurrency        string
 	mergedJobDiscriminator   string
 	// Union of excluded-env lists from all imported files (deduplicated).
 	excludedEnv    []string
@@ -406,6 +407,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-turn-cache-misses", &acc.mergedMaxTurnCacheMisses)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-ai-credits", &acc.mergedMaxAICredits)
 	acc.extractFirstWinsJSONField(fm, fullPath, "max-daily-ai-credits", &acc.mergedMaxDailyAICredits)
+	acc.extractConcurrencyInImport(fm, fullPath)
 	acc.extractConcurrencyJobDiscriminator(fm, fullPath)
 	if acc.metadataDocs == "" {
 		if metadata, ok := fm["metadata"].(map[string]any); ok {
@@ -429,6 +431,31 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONBuilderField(fm, "secret-masking", "{}", &acc.secretMaskingBuilder)
 }
 
+func (acc *importAccumulator) extractConcurrencyInImport(fm map[string]any, fullPath string) {
+	if acc.mergedConcurrency != "" {
+		return
+	}
+	concurrencyValue, ok := fm["concurrency"]
+	if !ok {
+		return
+	}
+	if group, ok := concurrencyValue.(string); ok && strings.TrimSpace(group) != "" {
+		acc.mergedConcurrency = string(mustMarshalJSON(group))
+		parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
+		return
+	}
+	concurrencyMap, ok := concurrencyValue.(map[string]any)
+	if !ok {
+		return
+	}
+	groupValue, ok := concurrencyMap["group"].(string)
+	if !ok || strings.TrimSpace(groupValue) == "" {
+		return
+	}
+	acc.mergedConcurrency = string(mustMarshalJSON(map[string]any{"group": groupValue}))
+	parserLog.Printf("Extracted concurrency.group from import: %s", fullPath)
+}
+
 func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]any, fullPath string) {
 	if acc.mergedJobDiscriminator != "" {
 		return
@@ -443,6 +470,14 @@ func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]a
 	}
 	acc.mergedJobDiscriminator = discriminator
 	parserLog.Printf("Extracted concurrency.job-discriminator from import: %s", fullPath)
+}
+
+func mustMarshalJSON(v any) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return data
 }
 
 func (acc *importAccumulator) mergeSandboxAgentMounts(fm map[string]any) {

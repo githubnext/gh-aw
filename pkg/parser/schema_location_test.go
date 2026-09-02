@@ -743,14 +743,14 @@ func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_ConcurrencyJobDisc
 		}
 	})
 
-	t.Run("rejects workflow concurrency fields", func(t *testing.T) {
+	t.Run("rejects unsupported workflow concurrency fields", func(t *testing.T) {
 		err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(map[string]any{
 			"concurrency": map[string]any{
-				"job-discriminator": "${{ github.run_id }}",
-				"group":             "shared-group",
+				"group":                "shared-group",
+				"cancel-in-progress": true,
 			},
 		}, "/repo/.github/workflows/shared/concurrency.md")
-		if err == nil || !strings.Contains(err.Error(), "only include import-safe field job-discriminator") {
+		if err == nil || !strings.Contains(err.Error(), "unsupported key: cancel-in-progress") {
 			t.Fatalf("expected unsupported concurrency field error, got: %v", err)
 		}
 	})
