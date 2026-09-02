@@ -43,7 +43,7 @@ package workflow
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
 //
-//nolint:largefunc // Legacy extraction remains centralized while handler parsers are incrementally migrated.
+//nolint:largefunc // Existing centralized safe-output extraction remains intentionally sequential.
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
@@ -54,6 +54,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 
+			config.CreateWorkItems = c.parseCreateWorkItemConfig(outputMap)
+			config.UpdateWorkItems = c.parseUpdateWorkItemConfig(outputMap)
+			config.CommentOnWorkItems = c.parseCommentOnWorkItemConfig(outputMap)
+			config.AssignWorkItems = c.parseAssignWorkItemConfig(outputMap)
+			config.LinkWorkItems = c.parseLinkWorkItemsConfig(outputMap)
+			config.UploadWorkItemAttachments = c.parseUploadWorkItemAttachmentConfig(outputMap)
 			config.LinearCreateIssue = c.parseLinearCreateIssueConfig(outputMap)
 			config.LinearAddComment = c.parseLinearAddCommentConfig(outputMap)
 			config.LinearUpdateIssue = c.parseLinearUpdateIssueConfig(outputMap)
@@ -64,6 +70,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				safeOutputsConfigLog.Print("Configured create-issue output handler")
 				config.CreateIssues = issuesConfig
 			}
+
+			c.extractJiraSafeOutputConfigs(outputMap, config)
 
 			// Handle create-agent-session
 			agentSessionConfig := c.parseAgentSessionConfig(outputMap)

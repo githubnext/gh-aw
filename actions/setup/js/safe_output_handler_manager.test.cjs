@@ -844,7 +844,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results[1].success).toBe(true);
     });
 
-    it.each(["set_issue_type", "set_issue_field", "dispatch_repository", "call_workflow", "upload_artifact"])("should abort %s in detection warning mode", async messageType => {
+    it.each(["set_issue_type", "set_issue_field", "jira_add_label", "dispatch_repository", "call_workflow", "upload_artifact"])("should abort %s in detection warning mode", async messageType => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       const handler = vi.fn().mockResolvedValue({ success: true });
       const handlers = new Map([[messageType, handler]]);
