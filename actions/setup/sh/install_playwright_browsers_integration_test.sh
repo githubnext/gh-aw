@@ -65,6 +65,31 @@ else
   fail "unsupported browser was not rejected (exit ${status})" "$output"
 fi
 
+# Test 2: the dependency install fails closed when playwright-cli cannot be
+# found, instead of downloading browsers that will not launch.
+echo "Test 2: fails closed when playwright-cli is unavailable..."
+empty_bin="$(mktemp -d)"
+fail_closed_browsers_path="$(mktemp -d)/playwright-browsers"
+output=$(PATH="$empty_bin" PLAYWRIGHT_BROWSERS_PATH="$fail_closed_browsers_path" \
+  /bin/bash "$SCRIPT_UNDER_TEST" "${browsers[@]}" 2>&1)
+status=$?
+if [ "$status" -ne 0 ]; then
+  pass "missing playwright-cli exits non-zero"
+else
+  fail "missing playwright-cli did not fail the setup step" "$output"
+fi
+if echo "$output" | grep -q "::error::playwright-cli is not on PATH"; then
+  pass "missing playwright-cli reports an actionable error"
+else
+  fail "missing playwright-cli did not report the expected error" "$output"
+fi
+if [ ! -e "$fail_closed_browsers_path" ]; then
+  pass "no browsers were downloaded after the dependency install failed"
+else
+  fail "browsers were downloaded despite the dependency install failing" "$fail_closed_browsers_path"
+fi
+rm -rf "$empty_bin"
+
 # Install @playwright/cli globally, matching the version the compiler pins.
 if ! command -v playwright-cli >/dev/null 2>&1; then
   version="${PLAYWRIGHT_CLI_VERSION:-}"
@@ -80,8 +105,8 @@ if ! command -v playwright-cli >/dev/null 2>&1; then
   fi
 fi
 
-# Test 2: the script installs system dependencies and browser binaries.
-echo "Test 2: installs system dependencies and browser binaries..."
+# Test 3: the script installs system dependencies and browser binaries.
+echo "Test 3: installs system dependencies and browser binaries..."
 install_log="$(mktemp)"
 trap 'rm -f "$install_log"' EXIT
 bash "$SCRIPT_UNDER_TEST" "${browsers[@]}" >"$install_log" 2>&1
@@ -98,12 +123,6 @@ else
   fail "system dependency install did not run" "$(tail -n 30 "$install_log")"
 fi
 
-if grep -q "Could not locate playwright/cli.js" "$install_log"; then
-  fail "playwright/cli.js resolution fell back to the warning path" "$(grep 'Could not locate' "$install_log")"
-else
-  pass "playwright/cli.js was resolved next to playwright-cli"
-fi
-
 for browser in "${browsers[@]}"; do
   if grep -q "Installing Playwright ${browser} browser" "$install_log"; then
     pass "browser install ran for ${browser}"
@@ -118,19 +137,15 @@ else
   fail "PLAYWRIGHT_BROWSERS_PATH is empty" "$PLAYWRIGHT_BROWSERS_PATH"
 fi
 
-# Test 3: every installed browser actually launches. This is the regression
+# Test 4: every installed browser actually launches. This is the regression
 # test for missing shared libraries: the download above succeeds even when the
 # OS level dependencies are absent, but launching does not.
-echo "Test 3: installed browsers launch..."
+echo "Test 4: installed browsers launch..."
 playwright_cli_real="$(readlink -f "$(command -v playwright-cli)")"
-playwright_dir=""
-search_dir="$(dirname "$playwright_cli_real")"
-for candidate_dir in "$search_dir" "$(dirname "$search_dir")"; do
-  if [ -f "$candidate_dir/node_modules/playwright/cli.js" ]; then
-    playwright_dir="$candidate_dir/node_modules/playwright"
-    break
-  fi
-done
+playwright_dir="$(node -e '
+const path = require("path");
+process.stdout.write(path.dirname(require.resolve("playwright/package.json", { paths: [process.argv[1]] })));
+' "$(dirname "$playwright_cli_real")" 2>/dev/null || true)"
 
 if [ -z "$playwright_dir" ]; then
   fail "could not resolve the playwright package to launch browsers" "$playwright_cli_real"
