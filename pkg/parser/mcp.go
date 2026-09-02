@@ -17,12 +17,12 @@ import (
 )
 
 var mcpLog = logger.New("parser:mcp")
-var linearTokenExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
+var simpleSecretExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
 
 // IsSimpleSecretExpression reports whether value is a direct GitHub Actions
 // secrets reference without additional expression operators.
 func IsSimpleSecretExpression(value string) bool {
-	return linearTokenExpressionPattern.MatchString(value)
+	return simpleSecretExpressionPattern.MatchString(value)
 }
 
 // ValidMCPTypes defines all supported MCP server types.
