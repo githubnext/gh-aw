@@ -11,6 +11,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/rivo/uniseg"
+
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/parser"
@@ -186,8 +188,9 @@ func extractRepositoryPackageManifestIcon(manifest *repositoryPackageManifest, r
 		if !isStr {
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: icon must be a string", manifestPath)
 		}
+		icon = strings.TrimSpace(icon)
 		manifest.Icon = icon
-		if err := validateRepositoryPackageManifestIcon(manifest.Icon, manifest.Resources, manifestPath); err != nil {
+		if err := validateRepositoryPackageManifestIcon(icon, manifest.Resources, manifestPath); err != nil {
 			return err
 		}
 	}
@@ -341,13 +344,57 @@ func isEmojiString(s string) bool {
 	if s == "" {
 		return false
 	}
-	hasSymbol := false
-	for _, r := range s {
-		if unicode.Is(unicode.So, r) || (r >= 0x1F300 && r <= 0x1F9FF) || (r >= 0x2600 && r <= 0x27BF) || (r >= 0x1F1E6 && r <= 0x1F1FF) || r == 0x200D || r == 0xFE0F || (r >= 0x1F3FB && r <= 0x1F3FF) || r == 0x20E3 {
-			hasSymbol = true
-		} else if !unicode.Is(unicode.M, r) && r != '#' && r != '*' && (r < '0' || r > '9') {
+	graphemes := uniseg.NewGraphemes(s)
+	count := 0
+	for graphemes.Next() {
+		if !isEmojiGrapheme(graphemes.Runes()) {
+			return false
+		}
+		count++
+	}
+	return count > 0
+}
+
+func isEmojiGrapheme(runes []rune) bool {
+	if len(runes) == 0 {
+		return false
+	}
+	if len(runes) == 2 && isRegionalIndicator(runes[0]) && isRegionalIndicator(runes[1]) {
+		return true
+	}
+	if (runes[0] == '#' || runes[0] == '*' || unicode.IsDigit(runes[0])) &&
+		len(runes) >= 2 && runes[len(runes)-1] == '\u20e3' {
+		return len(runes) == 2 || (len(runes) == 3 && runes[1] == '\ufe0f')
+	}
+
+	expectBase := true
+	hasBase := false
+	for _, r := range runes {
+		switch {
+		case expectBase && isEmojiBase(r):
+			expectBase = false
+			hasBase = true
+		case !expectBase && (r == '\ufe0f' || isEmojiModifier(r) || unicode.Is(unicode.M, r)):
+		case !expectBase && r == '\u200d':
+			expectBase = true
+		default:
 			return false
 		}
 	}
-	return hasSymbol
+	return hasBase && !expectBase
+}
+
+func isEmojiBase(r rune) bool {
+	return (r >= 0x1f000 && r <= 0x1faff) ||
+		(r >= 0x2300 && r <= 0x23ff) ||
+		(r >= 0x2600 && r <= 0x27bf) ||
+		r == 0x00a9 || r == 0x00ae || r == 0x203c || r == 0x2049
+}
+
+func isEmojiModifier(r rune) bool {
+	return r >= 0x1f3fb && r <= 0x1f3ff
+}
+
+func isRegionalIndicator(r rune) bool {
+	return r >= 0x1f1e6 && r <= 0x1f1ff
 }

@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -67,6 +69,17 @@ func TestRepositoryPackageIcon(t *testing.T) {
 
 	t.Run("valid emoji icon", func(t *testing.T) {
 		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Emoji Package\nicon: \"🚀\"\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "🚀", manifest.Icon)
+	})
+	t.Run("rejects invalid emoji sequences", func(t *testing.T) {
+		for _, icon := range []string{"\u200d", "\ufe0f", "🚀123", "123"} {
+			_, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Invalid Package\nicon: \""+icon+"\"\n"))
+			require.Error(t, err, icon)
+		}
+	})
+	t.Run("trims icon value", func(t *testing.T) {
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Emoji Package\nicon: \" 🚀 \"\n"))
 		require.NoError(t, err)
 		assert.Equal(t, "🚀", manifest.Icon)
 	})
@@ -988,6 +1001,19 @@ files:
 			".github/workflows/dependabot-orchestrator.md",
 		}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
+}
+
+func TestResolveLocalRepositoryPackagePreservesIcon(t *testing.T) {
+	packageDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "aw.yml"), []byte("name: Local Package\nicon: \"📦\"\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "README.md"), []byte("# Local Package\n"), 0o644))
+	require.NoError(t, os.Mkdir(filepath.Join(packageDir, "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "workflows", "review.md"), []byte("---\non: issues\n---\n# Review\n"), 0o644))
+
+	pkg, err := resolveLocalRepositoryPackage(packageDir)
+	require.NoError(t, err)
+	require.NotNil(t, pkg)
+	assert.Equal(t, "📦", pkg.Icon)
 }
 
 func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
