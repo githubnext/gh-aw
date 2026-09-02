@@ -2085,7 +2085,7 @@
   },
   {
     "name": "create-work-item",
-    "description": "Create an Azure DevOps work item and return a temporary #aw_ ID for later work-item tools in this run.",
+    "description": "Experimental. Create an Azure DevOps work item and return a temporary #aw_ ID for later work-item tools in this run.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "description"],
@@ -2113,7 +2113,7 @@
   },
   {
     "name": "update-work-item",
-    "description": "Update explicitly enabled fields on an Azure DevOps work item.",
+    "description": "Experimental. Update explicitly enabled fields on an Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
       "required": ["id"],
@@ -2138,7 +2138,7 @@
   },
   {
     "name": "comment-on-work-item",
-    "description": "Add a Markdown comment to an explicitly scoped Azure DevOps work item.",
+    "description": "Experimental. Add a Markdown comment to an explicitly scoped Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
       "required": ["work_item_id", "body"],
@@ -2159,7 +2159,7 @@
   },
   {
     "name": "assign-work-item",
-    "description": "Assign an allowed Azure DevOps identity to a work item.",
+    "description": "Experimental. Assign an allowed Azure DevOps identity to a work item.",
     "inputSchema": {
       "type": "object",
       "required": ["work_item_id", "assignee"],
@@ -2180,7 +2180,7 @@
   },
   {
     "name": "link-work-items",
-    "description": "Create a relationship between two explicitly scoped Azure DevOps work items.",
+    "description": "Experimental. Create a relationship between two explicitly scoped Azure DevOps work items.",
     "inputSchema": {
       "type": "object",
       "required": ["source_id", "target_id", "link_type"],
@@ -2204,7 +2204,7 @@
   },
   {
     "name": "upload-workitem-attachment",
-    "description": "Upload one workspace file and attach it to an Azure DevOps work item.",
+    "description": "Experimental. Upload one workspace file and attach it to an Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
       "required": ["work_item_id", "file_path"],

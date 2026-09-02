@@ -13168,7 +13168,7 @@
   ],
   "$defs": {
     "azure_devops_create_work_item": {
-      "description": "Create Azure DevOps work items through a trusted safe-output handler.",
+      "description": "Experimental. Create Azure DevOps work items through a trusted safe-output handler. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",
@@ -13204,7 +13204,7 @@
       ]
     },
     "azure_devops_update_work_item": {
-      "description": "Update explicitly scoped Azure DevOps work items and explicitly enabled fields.",
+      "description": "Experimental. Update explicitly scoped Azure DevOps work items and explicitly enabled fields. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",
@@ -13236,7 +13236,7 @@
       ]
     },
     "azure_devops_comment_on_work_item": {
-      "description": "Comment on explicitly scoped Azure DevOps work items.",
+      "description": "Experimental. Comment on explicitly scoped Azure DevOps work items. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",
@@ -13253,7 +13253,7 @@
       ]
     },
     "azure_devops_assign_work_item": {
-      "description": "Assign an Azure DevOps identity to a work item.",
+      "description": "Experimental. Assign an Azure DevOps identity to a work item. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",
@@ -13273,7 +13273,7 @@
       ]
     },
     "azure_devops_link_work_items": {
-      "description": "Link explicitly scoped Azure DevOps work items.",
+      "description": "Experimental. Link explicitly scoped Azure DevOps work items. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",
@@ -13298,7 +13298,7 @@
       ]
     },
     "azure_devops_upload_workitem_attachment": {
-      "description": "Upload a staged workspace file to an Azure DevOps work item.",
+      "description": "Experimental. Upload a staged workspace file to an Azure DevOps work item. Using this field emits a compile-time warning.",
       "oneOf": [
         {
           "type": "object",

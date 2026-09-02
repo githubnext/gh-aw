@@ -81,12 +81,12 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 
 | Output | Key | Description |
 |--------|-----|-------------|
-| [Create Work Item](#azure-devops-work-items) | `create-work-item` | Create an Azure DevOps work item (max: 1) |
-| [Update Work Item](#azure-devops-work-items) | `update-work-item` | Update explicitly enabled fields on a scoped work item (max: 1) |
-| [Comment on Work Item](#azure-devops-work-items) | `comment-on-work-item` | Add a comment to a scoped work item (max: 1) |
-| [Assign Work Item](#azure-devops-work-items) | `assign-work-item` | Assign an allowed identity to a scoped work item (max: 1) |
-| [Link Work Items](#azure-devops-work-items) | `link-work-items` | Link two scoped work items (max: 5) |
-| [Upload Work Item Attachment](#azure-devops-work-items) | `upload-workitem-attachment` | Attach a staged workspace file to a work item (max: 1) |
+| [Create Work Item](#azure-devops-work-items) | `create-work-item` | Create an Azure DevOps work item (max: 1, experimental) |
+| [Update Work Item](#azure-devops-work-items) | `update-work-item` | Update explicitly enabled fields on a scoped work item (max: 1, experimental) |
+| [Comment on Work Item](#azure-devops-work-items) | `comment-on-work-item` | Add a comment to a scoped work item (max: 1, experimental) |
+| [Assign Work Item](#azure-devops-work-items) | `assign-work-item` | Assign an allowed identity to a scoped work item (max: 1, experimental) |
+| [Link Work Items](#azure-devops-work-items) | `link-work-items` | Link two scoped work items (max: 5, experimental) |
+| [Upload Work Item Attachment](#azure-devops-work-items) | `upload-workitem-attachment` | Attach a staged workspace file to a work item (max: 1, experimental) |
 
 ### Security & Agent Tasks
 
@@ -1124,6 +1124,8 @@ git checkout --orphan my-custom-branch && git rm -rf . && git commit --allow-emp
 Azure DevOps work-item safe outputs use the same public tool names as [`ado-aw`](https://githubnext.github.io/ado-aw/reference/safe-outputs/). The agent remains read-only; the safe-output job performs trusted Azure DevOps REST requests.
 
 Provide the organization, project, and credential only to the safe-output job:
+
+> These safe outputs are experimental. Compiling a workflow emits an experimental feature warning for each configured Azure DevOps work-item output.
 
 ```yaml wrap
 safe-outputs:
