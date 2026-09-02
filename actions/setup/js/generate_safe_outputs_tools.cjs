@@ -383,6 +383,20 @@ async function main() {
         enhancedTool.description = updateAddCommentDescription(enhancedTool.description, config.add_comment);
       }
 
+      if (tool.name === "linear_update_issue") {
+        const linearUpdateConfig = config.linear_update_issue;
+        const properties = enhancedTool.inputSchema?.properties;
+        if (properties && linearUpdateConfig && typeof linearUpdateConfig === "object") {
+          if (linearUpdateConfig.allow_title !== true) {
+            delete properties.title;
+          }
+          if (linearUpdateConfig.allow_body !== true) {
+            delete properties.body;
+          }
+          enhancedTool.inputSchema.anyOf = Object.keys(properties).map(field => ({ required: [field] }));
+        }
+      }
+
       // Add repo parameter to inputSchema if configured
       const repoParam = toolsMeta.repo_params?.[tool.name];
       if (repoParam) {

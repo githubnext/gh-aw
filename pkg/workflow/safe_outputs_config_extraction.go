@@ -42,6 +42,8 @@ package workflow
 //
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
+//
+//nolint:largefunc // Legacy extraction remains centralized while handler parsers are incrementally migrated.
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
@@ -51,6 +53,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 		if outputMap, ok := output.(map[string]any); ok {
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
+
+			config.LinearCreateIssue = c.parseLinearCreateIssueConfig(outputMap)
+			config.LinearAddComment = c.parseLinearAddCommentConfig(outputMap)
+			config.LinearUpdateIssue = c.parseLinearUpdateIssueConfig(outputMap)
 
 			// Handle create-issue
 			issuesConfig := c.parseCreateIssuesConfig(outputMap)

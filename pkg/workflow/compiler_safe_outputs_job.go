@@ -324,6 +324,9 @@ type safeOutputsHandlerOutputsAndActionState struct {
 // processed by the consolidated handler manager step (as opposed to a dedicated job/step).
 func hasHandlerManagerTypes(data *WorkflowData) bool {
 	return data.SafeOutputs.CreateIssues != nil ||
+		data.SafeOutputs.LinearCreateIssue != nil ||
+		data.SafeOutputs.LinearAddComment != nil ||
+		data.SafeOutputs.LinearUpdateIssue != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
 		data.SafeOutputs.CloseIssues != nil ||
@@ -403,6 +406,7 @@ func (c *Compiler) appendHandlerManagerStep(data *WorkflowData, state *safeOutpu
 		if err != nil {
 			return err
 		}
+		handlerManagerSteps = injectLinearTokenEnv(handlerManagerSteps, data.SafeOutputs)
 		state.steps = append(state.steps, handlerManagerSteps...)
 		state.safeOutputStepNames = append(state.safeOutputStepNames, "process_safe_outputs")
 		addHandlerManagerOutputs(data, state.outputs)
