@@ -344,7 +344,6 @@ func writeEnclaveMCPJSON(yaml *strings.Builder, workflowData *WorkflowData, isLa
 	fmt.Fprintf(yaml, "              %q: {\n", enclaveMCPServerName)
 	yaml.WriteString("                \"type\": \"http\",\n")
 	fmt.Fprintf(yaml, "                \"url\": %q,\n", enclaveMCPUpstreamURL)
-	yaml.WriteString("                \"required\": false,\n")
 	fmt.Fprintf(yaml, "                \"headers\": {\"Authorization\": \"Bearer \\${%s}\"},\n", enclaveMCPCapabilityEnv)
 	fmt.Fprintf(yaml, "                \"tools\": [")
 	for i, tool := range enabledEnclaveTools(workflowData) {

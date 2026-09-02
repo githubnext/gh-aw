@@ -103,7 +103,7 @@ Read the assigned repository's issues through the enclave.
 	assert.Contains(t, lock, `"agentIds": ["${MCP_GATEWAY_AGENT_ID}","${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"]`)
 	assert.Contains(t, lock, `"safeoutputs": {`)
 	assert.Contains(t, lock, `"awf-enclave": {`)
-	assert.Contains(t, lock, `"required": false`)
+	assert.NotContains(t, lock, `"required": false`)
 	assert.Contains(t, lock, `"GITHUB_TOOLSETS": "context,issues"`)
 	assert.Contains(t, lock, `"${MCP_GATEWAY_AGENT_ID}":{"servers":["awf-enclave","github","safeoutputs"],"tools":{"github":["get_me"]}}`)
 	assert.NotContains(t, lock, `"servers":["awf-enclave","github","safe-outputs"]`)

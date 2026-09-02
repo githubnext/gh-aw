@@ -252,7 +252,7 @@ func TestGenerateEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT="http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave"`)
 	assert.Contains(t, generated, `export GH_AW_MCP_DEFERRED_SERVERS="awf-enclave"`)
 	assert.NotContains(t, generated, `printf '%s=%s\n' GH_AW_MCP_DEFERRED_SERVERS`)
-	assert.Contains(t, generated, `"required": false`)
+	assert.NotContains(t, generated, `"required": false`)
 	assert.NotRegexp(t, `AWF_ENCLAVE_MCP_CAPABILITY=[0-9a-f]{64}`, generated)
 	gatewayCommand := strings.Index(generated, `export MCP_GATEWAY_DOCKER_COMMAND=`)
 	require.Greater(t, gatewayCommand, -1)
@@ -317,7 +317,7 @@ Use the enclave script executor.
 	assert.Less(t, gatewayKeyHandoff, awf)
 	assert.Less(t, deferred, awf)
 	assert.Contains(t, lock, `"awf-enclave"`)
-	assert.Contains(t, lock, `"required": false`)
+	assert.NotContains(t, lock, `"required": false`)
 	assert.Contains(t, lock, "--exclude-env MCP_GATEWAY_AGENT_ID")
 	if mountStart := strings.Index(lock, "- name: Mount MCP servers as CLIs"); mountStart >= 0 {
 		mountEnd := strings.Index(lock[mountStart:], "\n      - name:")
