@@ -339,15 +339,17 @@ func tryLoadCachedRunResult(
 	// Re-apply the usage activity backfill to heal stale cache entries.
 	// Capture the SafeItemsCount before backfill to detect whether the field was healed.
 	safeItemsBefore := result.Run.SafeItemsCount
-	backfillCacheHitIfNeeded(&result, runOutputDir, params.verbose)
+	activitySummaryApplied := backfillCacheHitIfNeeded(&result, runOutputDir, params.verbose)
 	// If the backfill populated SafeItemsCount (i.e. it was 0 before and is now non-zero),
 	// persist the healed value back to run_summary.json so downstream readers (e.g.
 	// the api-consumption-report) see the correct count without having to fall back to
 	// usage/activity/summary.json.
-	if result.Run.SafeItemsCount != safeItemsBefore {
+	if result.Run.SafeItemsCount != safeItemsBefore || activitySummaryApplied {
 		healed := *summary
 		healed.Run = result.Run
 		healed.Metrics = result.Metrics
+		healed.MCPToolUsage = result.MCPToolUsage
+		healed.WorkingSet = result.WorkingSet
 		if err := saveRunSummary(runOutputDir, &healed, params.verbose); err != nil {
 			logsOrchestratorLog.Printf("Warning: failed to persist healed run summary for run %d: %v", result.Run.DatabaseID, err)
 		}
@@ -596,21 +598,21 @@ func newRunSummary(result *DownloadResult, metrics LogMetrics, jobDetails []JobI
 }
 
 // backfillCacheHitIfNeeded re-applies the usage activity summary backfill to heal
-// stale cache entries that were saved before safe-outputs or turn backfill was
-// introduced. It is a no-op when both Run.Turns and Run.SafeItemsCount are already
-// non-zero. Errors loading the summary are logged when verbose is true; a missing
-// summary file is silent (no summary = nothing to backfill).
-func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbose bool) {
+// stale cache entries that were saved before compact activity metrics were
+// introduced. Errors loading the summary are logged when verbose is true; a missing
+// summary file is silent (no summary = nothing to backfill). It returns whether an
+// activity summary was applied so the caller can persist healed cache data.
+func backfillCacheHitIfNeeded(result *DownloadResult, runOutputDir string, verbose bool) bool {
 	backfillRunTokenUsageFromFirewall(&result.Metrics, result, result.TokenUsage)
-	if result.Run.Turns == 0 || result.Run.SafeItemsCount == 0 || result.WorkingSet == nil {
-		usageActivitySummary, err := loadUsageActivitySummary(runOutputDir)
-		if err != nil && verbose {
-			logsOrchestratorLog.Printf("Warning: failed to load usage activity summary for cache-hit backfill (run %d): %v", result.Run.DatabaseID, err)
-		}
-		if usageActivitySummary != nil {
-			applyUsageActivitySummaryToResult(usageActivitySummary, result, true)
-		}
+	usageActivitySummary, err := loadUsageActivitySummary(runOutputDir)
+	if err != nil && verbose {
+		logsOrchestratorLog.Printf("Warning: failed to load usage activity summary for cache-hit backfill (run %d): %v", result.Run.DatabaseID, err)
 	}
+	if usageActivitySummary == nil {
+		return false
+	}
+	applyUsageActivitySummaryToResult(usageActivitySummary, result, true)
+	return true
 }
 
 func backfillRunTokenUsageFromFirewall(metrics *LogMetrics, result *DownloadResult, tokenUsage *TokenUsageSummary) {

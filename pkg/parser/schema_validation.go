@@ -60,6 +60,12 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 			}
 			continue
 		}
+		if key == "concurrency" {
+			if err := validateSharedWorkflowConcurrencyField(frontmatter["concurrency"]); err != nil {
+				return err
+			}
+			continue
+		}
 		if setutil.Contains(sharedWorkflowForbiddenFields, key) {
 			forbiddenFound = append(forbiddenFound, key)
 		}
@@ -74,6 +80,25 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	}
 
 	return nil
+}
+
+func validateSharedWorkflowConcurrencyField(concurrencyValue any) error {
+	switch value := concurrencyValue.(type) {
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return errors.New("field 'concurrency' cannot be used in shared workflows (only concurrency.group and concurrency.job-discriminator are import-safe)")
+		}
+		return nil
+	case map[string]any:
+		for key := range value {
+			if key != "group" && key != "job-discriminator" {
+				return fmt.Errorf("field 'concurrency' in shared workflows can only include import-safe fields group and job-discriminator; found unsupported key: %s", key)
+			}
+		}
+		return nil
+	default:
+		return errors.New("field 'concurrency' cannot be used in shared workflows (only concurrency.group and concurrency.job-discriminator are import-safe)")
+	}
 }
 
 // validateSharedWorkflowOnField validates on: usage in shared workflows.
