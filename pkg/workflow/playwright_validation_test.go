@@ -97,8 +97,23 @@ tools:
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "built-in Playwright MCP support has been removed")
+	assert.Contains(t, err.Error(), "Remove `mode: mcp`")
+	assert.NotContains(t, err.Error(), "mode: cli")
 	assert.Contains(t, err.Error(), "playwright-cli <command>")
 	assert.Contains(t, err.Error(), "mcp-servers")
+}
+
+func TestPiEngineAcceptsPlaywrightWithImplicitCLIMode(t *testing.T) {
+	compiler := NewCompiler()
+	tools := map[string]any{
+		"github":     map[string]any{"mode": "gh-proxy"},
+		"cli-proxy":  true,
+		"playwright": map[string]any{},
+	}
+
+	require.NoError(t, compiler.validatePiEngineRequirements(NewTools(tools), NewPiEngine()))
+	require.NoError(t, compiler.validatePlaywrightMode(&WorkflowData{Tools: tools}))
+	assert.True(t, isPlaywrightCLIMode(tools))
 }
 
 // TestCompileWorkflowRejectsLegacyPlaywrightMCPModeWithArgs ensures that a legacy

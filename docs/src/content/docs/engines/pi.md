@@ -90,7 +90,7 @@ Analyze the repository and create a concise daily status report covering:
 
 ## Capabilities and limitations
 
-Pi supports top-level `max-turns`, provider-prefixed models, and `engine.extensions`. Pi already runs in bare mode, so `engine.bare: true` is accepted but has no effect. Pi does not provide native MCP server integration, native `tools.web-search`, per-command bash allowlisting, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. MCP-backed tools must be exposed through the required CLI proxy.
+Pi supports top-level `max-turns`, provider-prefixed models, and `engine.extensions`. Pi already runs in bare mode, so `engine.bare: true` is accepted but has no effect. The built-in `tools.playwright` integration works through `playwright-cli`; omit its `mode` field because CLI is the only built-in mode. Pi does not provide native MCP server integration, native `tools.web-search`, per-command bash allowlisting, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. MCP-backed tools must be exposed through the required CLI proxy.
 
 See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) and [Pi extensions reference](/gh-aw/reference/engines/#pi-extensions-extensions).
 
