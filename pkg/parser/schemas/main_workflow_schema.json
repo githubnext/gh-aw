@@ -4659,6 +4659,88 @@
             false
           ]
         },
+        "jira": {
+          "description": "Jira tools provided by Atlassian's remote Rovo MCP service. This integration supports non-interactive CI/CD authentication only.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "enum": [false],
+              "description": "Disable the Jira integration, including a Jira configuration inherited from an import."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["auth", "allowed"],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://",
+                  "default": "https://mcp.atlassian.com/v1/mcp",
+                  "description": "Atlassian Rovo MCP endpoint. Defaults to the official hosted endpoint."
+                },
+                "allowed": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "*",
+                      "getIssueLinkTypes",
+                      "getJiraIssue",
+                      "getJiraIssueRemoteIssueLinks",
+                      "getJiraIssueTypeMetaWithFields",
+                      "getJiraProjectIssueTypesMetadata",
+                      "getTransitionsForJiraIssue",
+                      "getVisibleJiraProjects",
+                      "lookupJiraAccountId",
+                      "searchJiraIssuesUsingJql"
+                    ]
+                  },
+                  "description": "Approved read-only Jira MCP tools the agent may call. Required; write-capable tools are not supported. \"*\" expands to all approved read-only tools; the full, unrestricted MCP tool set can never be enabled."
+                },
+                "auth": {
+                  "description": "Non-interactive authentication for GitHub Actions.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "token"],
+                      "properties": {
+                        "type": {
+                          "const": "service-account"
+                        },
+                        "token": {
+                          "$ref": "#/$defs/ci_secret_expression",
+                          "description": "Atlassian service account API key, sent with the HTTP bearer scheme."
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "email", "token"],
+                      "properties": {
+                        "type": {
+                          "const": "api-token"
+                        },
+                        "email": {
+                          "$ref": "#/$defs/ci_secret_expression",
+                          "description": "Atlassian account email stored as a GitHub Actions secret."
+                        },
+                        "token": {
+                          "$ref": "#/$defs/ci_secret_expression",
+                          "description": "Atlassian API token stored as a GitHub Actions secret."
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
         "bash": {
           "description": "Bash shell command execution tool. Supports wildcards: '*' (all commands), 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [
@@ -15077,6 +15159,12 @@
       "pattern": "^\\$\\{\\{\\s*(secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*|needs\\.[A-Za-z_][A-Za-z0-9_]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_]*)\\s*\\}\\}$",
       "description": "GitHub token expression for cross-job or activation-time contexts. Accepts a secrets expression (e.g., `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`) or a cross-job output expression (e.g., `${{ needs.auth.outputs.token }}`). Pattern details: secret names, job IDs, and output names in dot notation match `[A-Za-z_][A-Za-z0-9_]*` (identifiers without hyphens).",
       "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}", "${{ needs.auth.outputs.token }}"]
+    },
+    "ci_secret_expression": {
+      "type": "string",
+      "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}$",
+      "description": "A single GitHub Actions secret expression for a non-interactive CI credential.",
+      "examples": ["${{ secrets.ATLASSIAN_API_TOKEN }}"]
     },
     "github_token_same_job": {
       "type": "string",

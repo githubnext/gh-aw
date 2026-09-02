@@ -4036,6 +4036,46 @@ tools:
     # (optional)
     features: "example-value"
 
+  # Jira tools provided by Atlassian's remote Rovo MCP service. This integration
+  # supports non-interactive CI/CD authentication only.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Disable the Jira integration, including a Jira configuration inherited
+  # from an import.
+  jira: false
+
+  # Format 2: object
+  jira:
+    # Atlassian Rovo MCP endpoint. Defaults to the official hosted endpoint.
+    # (optional)
+    url: "example-value"
+
+    # Approved read-only Jira MCP tools the agent may call. Required; all-tools access
+    # and write-capable tools are not supported.
+    allowed: []
+      # Array of strings
+
+    # Non-interactive authentication for GitHub Actions.
+    # Accepted formats:
+
+    # Format 1: object
+    auth:
+      type: null
+
+      # Atlassian service account API key, sent with the HTTP bearer scheme.
+      token: "example-value"
+
+    # Format 2: object
+    auth:
+      type: null
+
+      # Atlassian account email stored as a GitHub Actions secret.
+      email: "example-value"
+
+      # Atlassian API token stored as a GitHub Actions secret.
+      token: "example-value"
+
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
   # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
