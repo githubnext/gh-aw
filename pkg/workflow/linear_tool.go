@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 // expandLinearTool converts the first-class tools.linear shorthand into the
@@ -77,7 +78,7 @@ func validateLinearToolConfig(config map[string]any) (string, error) {
 			)
 		}
 	}
-	if match := SecretExpressionPattern.FindString(token); match != token {
+	if !parser.IsSimpleSecretExpression(token) {
 		return "", NewValidationError(
 			"tools.linear.token",
 			"[redacted]",

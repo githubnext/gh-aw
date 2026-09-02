@@ -53,6 +53,7 @@ func TestExtractLinearBuiltinMCPToolRejectsInvalidConfiguration(t *testing.T) {
 		map[string]any{"token": "literal-token"},
 		map[string]any{"allowed": []any{}},
 		map[string]any{"allowed": []any{true}},
+		map[string]any{"allowed": []any{" "}},
 		map[string]any{"required": "true"},
 		map[string]any{"unknown": true},
 	} {

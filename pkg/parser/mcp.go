@@ -19,6 +19,12 @@ import (
 var mcpLog = logger.New("parser:mcp")
 var linearTokenExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
 
+// IsSimpleSecretExpression reports whether value is a direct GitHub Actions
+// secrets reference without additional expression operators.
+func IsSimpleSecretExpression(value string) bool {
+	return linearTokenExpressionPattern.MatchString(value)
+}
+
 // ValidMCPTypes defines all supported MCP server types.
 // "local" is an alias for "stdio" and gets normalized during parsing.
 var ValidMCPTypes = []string{"stdio", "http", "local"}
@@ -308,7 +314,7 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 			return nil, errors.New("tools.linear.token must be a GitHub Actions secret reference")
 		}
 	}
-	if !linearTokenExpressionPattern.MatchString(token) {
+	if !IsSimpleSecretExpression(token) {
 		return nil, errors.New("tools.linear.token must be a GitHub Actions secret reference")
 	}
 
