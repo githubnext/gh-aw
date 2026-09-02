@@ -17,6 +17,46 @@ func createRepositoryPackageNotFoundError(path string) error {
 	return normalizeRepositoryPackageRemoteError(fmt.Errorf("404 not found: %s", path))
 }
 
+func TestRepositoryPackageVisibility(t *testing.T) {
+	t.Run("defaults both fields to false", func(t *testing.T) {
+		manifest, warnings, err := parseRepositoryPackageManifest("aw.yml", []byte("name: Public Package\n"))
+		require.NoError(t, err)
+		assert.False(t, manifest.Private)
+		assert.False(t, manifest.Experimental)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("parses explicit boolean fields", func(t *testing.T) {
+		manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Preview Package
+private: true
+experimental: true
+`))
+		require.NoError(t, err)
+		assert.True(t, manifest.Private)
+		assert.True(t, manifest.Experimental)
+	})
+
+	t.Run("rejects non-boolean fields", func(t *testing.T) {
+		_, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Invalid Package
+private: "true"
+`))
+		require.ErrorContains(t, err, "private")
+		require.ErrorContains(t, err, "boolean")
+	})
+
+	t.Run("refuses private packages", func(t *testing.T) {
+		warnings, err := validateRepositoryPackageVisibility(&repositoryPackageManifest{Private: true}, "owner/private-package")
+		require.ErrorContains(t, err, `package "owner/private-package" is private and cannot be added`)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("warns for experimental packages", func(t *testing.T) {
+		warnings, err := validateRepositoryPackageVisibility(&repositoryPackageManifest{Experimental: true}, "owner/preview-package")
+		require.NoError(t, err)
+		assert.Equal(t, []string{`Package "owner/preview-package" is experimental and may change without notice.`}, warnings)
+	})
+}
+
 func TestResolveRepositoryPackage(t *testing.T) {
 	originalVersion := GetVersion()
 	originalDownload := downloadPackageFileFromGitHubForHost
@@ -48,6 +88,43 @@ func TestResolveRepositoryPackage(t *testing.T) {
 	listPackageDirSubdirsForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
+
+	t.Run("refuses private packages", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte("name: Private Package\nprivate: true\n"), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/private-package"}, "")
+		require.ErrorContains(t, err, `package "owner/private-package" is private and cannot be added`)
+	})
+
+	t.Run("warns for experimental packages", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte("name: Preview Package\nexperimental: true\nincludes:\n  - workflows/review.md\n"), nil
+			case "README.md":
+				return []byte("# Preview Package\n"), nil
+			case "workflows/review.md":
+				return []byte("---\non: issues\n---\n# Review\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(_ context.Context, owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/preview-package"}, "")
+		require.NoError(t, err)
+		assert.False(t, pkg.Private)
+		assert.True(t, pkg.Experimental)
+		assert.Contains(t, pkg.Warnings, `Package "owner/preview-package" is experimental and may change without notice.`)
+	})
 
 	t.Run("uses aw manifest files and README docs", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
