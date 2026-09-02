@@ -38,6 +38,39 @@ tools:
 
 See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
 
+### Jira Tools (`jira:`)
+
+Connect to Atlassian's official remote Rovo MCP endpoint from non-interactive GitHub Actions workloads. Browser OAuth, device login, and user-consent flows are not supported.
+
+Use an Atlassian service account API key:
+
+```yaml wrap
+tools:
+  jira:
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}
+    allowed:
+      - getJiraIssue
+      - searchJiraIssuesUsingJql
+```
+
+Or use an Atlassian account email and API token:
+
+```yaml wrap
+tools:
+  jira:
+    auth:
+      type: api-token
+      email: ${{ secrets.ATLASSIAN_EMAIL }}
+      token: ${{ secrets.ATLASSIAN_API_TOKEN }}
+    allowed:
+      - getJiraIssue
+      - searchJiraIssuesUsingJql
+```
+
+The endpoint defaults to `https://mcp.atlassian.com/v1/mcp`. Set `url` only when your organization uses another HTTPS Atlassian MCP endpoint. Credentials must be direct GitHub Actions secret expressions; service account keys use ****** while API tokens use HTTP Basic authentication generated at runtime.
+
 ### Bash Tool (`bash:`)
 
 Enables shell command execution in the workspace. Defaults to safe commands (`echo`, `printf`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`, `yq`).
