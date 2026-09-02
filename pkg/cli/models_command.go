@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultModelsRefreshCount = 20
+
 // NewModelsCommand creates the models command.
 func NewModelsCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -46,7 +48,7 @@ so recent awf-reflect data can be discovered before reporting.`,
 	addJSONFlag(cmd)
 	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Directory containing downloaded logs/artifacts")
 	cmd.Flags().Bool("refresh-observed", true, "Attempt to refresh local observed-model artifacts before reporting")
-	cmd.Flags().Int("refresh-count", 20, "Maximum number of recent runs to inspect when refreshing observed models")
+	cmd.Flags().Int("refresh-count", defaultModelsRefreshCount, "Maximum number of recent runs to inspect when refreshing observed models")
 	addRepoFlag(cmd)
 	return cmd
 }
@@ -155,7 +157,7 @@ func buildModelsReport(ctx context.Context, opts modelsReportOptions) modelsRepo
 
 func refreshObservedArtifacts(ctx context.Context, logsDir string, refreshCount int, repoOverride string) error {
 	if refreshCount <= 0 {
-		refreshCount = 20
+		refreshCount = defaultModelsRefreshCount
 	}
 	return DownloadWorkflowLogs(ctx, LogsDownloadOptions{
 		Count:          refreshCount,

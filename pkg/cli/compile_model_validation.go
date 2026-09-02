@@ -127,7 +127,7 @@ func PrepareCompileModelValidation(ctx context.Context, config *CompileConfig) {
 	report := buildModelsReport(ctx, modelsReportOptions{
 		logsDir:         defaultLogsOutputDir,
 		refreshObserved: true,
-		refreshCount:    20,
+		refreshCount:    defaultModelsRefreshCount,
 	})
 	config.activeModels = buildActiveModelInventory(report)
 }
