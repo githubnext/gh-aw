@@ -6,6 +6,7 @@ const path = require("path");
 const { normalizeTemporaryId, isTemporaryId } = require("./temporary_id.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 const WORK_ITEM_RELATIONS = {
   parent: "System.LinkTypes.Hierarchy-Reverse",
@@ -25,7 +26,7 @@ function failure(error) {
 }
 
 function staged(message, extra = {}) {
-  core.info(message);
+  logStagedPreviewInfo(message);
   return { success: true, staged: true, message, ...extra };
 }
 
@@ -118,6 +119,7 @@ function getAzureDevOpsContext() {
 async function adoRequest(ado, method, apiPath, body, contentType = "application/json") {
   const url = `${ado.orgUrl}/${encodeURIComponent(ado.project)}${apiPath}`;
   let response;
+  core.debug(`Azure DevOps API request started: ${method}`);
   try {
     response = await fetch(url, {
       method,
@@ -133,6 +135,7 @@ async function adoRequest(ado, method, apiPath, body, contentType = "application
   } catch (error) {
     throw new Error(`Azure DevOps ${method} request could not be sent`, { cause: error });
   }
+  core.debug(`Azure DevOps API request completed: ${method} HTTP ${response.status}`);
   if (response.status >= 300 && response.status < 400) {
     throw new Error(`Azure DevOps rejected a redirected ${method} request`);
   }
@@ -255,7 +258,7 @@ async function handleCreateWorkItem(message, config, resolvedTemporaryIds) {
     if (config.assignee) normalizeAssignee(config.assignee);
 
     if (isStagedMode(config)) {
-      return staged(`Would create Azure DevOps ${workItemType} '${title}'`, {
+      return staged(`Would create Azure DevOps ${workItemType}`, {
         temporaryId,
         temporaryIdEntry: { provider: "azure-devops", resourceType: "work-item", staged: true },
       });
@@ -474,7 +477,7 @@ async function handleUploadWorkItemAttachment(message, config, resolvedTemporary
   try {
     const preview = isStagedMode(config);
     const resolved = resolveWorkItemReference(message.work_item_id, resolvedTemporaryIds, preview);
-    if (preview) return staged(`Would attach '${message.file_path}' to Azure DevOps work item ${message.work_item_id}`);
+    if (preview) return staged(`Would attach a file to Azure DevOps work item ${message.work_item_id}`);
     const { bytes, filename } = readStagedAttachment(message, config);
     const ado = getAzureDevOpsContext();
     const upload = await adoRequest(ado, "POST", `/_apis/wit/attachments?fileName=${encodeURIComponent(filename)}&api-version=7.1`, bytes, "application/octet-stream");

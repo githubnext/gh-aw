@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAzureDevOpsWorkItemHandler, resolveWorkItemReference } from "./azure_devops_work_items.cjs";
 
 global.core = {
+  debug: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
 };
@@ -62,6 +63,35 @@ describe("azure_devops_work_items", () => {
         "Content-Type": "application/json-patch+json",
       },
     });
+    expect(core.debug).toHaveBeenNthCalledWith(1, "Azure DevOps API request started: POST");
+    expect(core.debug).toHaveBeenNthCalledWith(2, "Azure DevOps API request completed: POST HTTP 200");
+    expect(core.debug.mock.calls.flat().join(" ")).not.toContain("test-token");
+  });
+
+  it("uses standardized staged logging without work-item content", async () => {
+    await createAzureDevOpsWorkItemHandler("create_work_item", {
+      staged: true,
+      work_item_type: "Task",
+    })(
+      {
+        temporary_id: "#aw_item",
+        title: "Sensitive customer incident",
+        description: "Detailed sensitive customer incident description.",
+      },
+      {}
+    );
+
+    expect(core.info).toHaveBeenCalledWith("🎭 Staged Mode Preview — Would create Azure DevOps Task");
+    expect(core.info.mock.calls.flat().join(" ")).not.toContain("Sensitive customer incident");
+  });
+
+  it("does not log staged attachment paths", async () => {
+    await createAzureDevOpsWorkItemHandler("upload_workitem_attachment", {
+      staged: true,
+    })({ work_item_id: 42, file_path: "private/customer-data.pdf" }, {});
+
+    expect(core.info).toHaveBeenCalledWith("🎭 Staged Mode Preview — Would attach a file to Azure DevOps work item 42");
+    expect(core.info.mock.calls.flat().join(" ")).not.toContain("private/customer-data.pdf");
   });
 
   it("rejects updates to fields not enabled by configuration", async () => {
