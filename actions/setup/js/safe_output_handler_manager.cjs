@@ -1191,7 +1191,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
               outputsWithUnresolvedIds.push({
                 type: messageType,
                 message: message,
-                result: { ...comment, ...comment._tracking },
+                result: { ...comment._tracking, ...(comment.body ? { body: comment.body } : {}) },
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
             }
