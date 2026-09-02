@@ -354,10 +354,10 @@ async function handleUpdateWorkItem(message, config, resolvedTemporaryIds) {
     }
     const patch = requested.map(([name, field]) => {
       const value = name === "tags" ? message.tags.join("; ") : message[name];
-      return fieldPatch("replace", field, value);
+      return fieldPatch("add", field, value);
     });
     if (message.body !== undefined && config.markdown_body === true) {
-      patch.push({ op: "replace", path: "/multilineFieldsFormat/System.Description", value: "Markdown" });
+      patch.push({ op: "add", path: "/multilineFieldsFormat/System.Description", value: "Markdown" });
     }
     await adoRequest(ado, "PATCH", `/_apis/wit/workitems/${resolved.id}?api-version=7.0`, patch, "application/json-patch+json");
     return { success: true, number: resolved.id, url: workItemUrl(ado, resolved.id), metadata: { provider: "azure-devops", project: ado.project } };
@@ -399,7 +399,7 @@ async function handleAssignWorkItem(message, config, resolvedTemporaryIds) {
     if (preview) return staged(`Would assign Azure DevOps work item ${message.work_item_id} to '${assignee}'`);
     const ado = getAzureDevOpsContext();
     if (!resolved.sameRun) await enforceTarget(ado, config.target, resolved.id);
-    await adoRequest(ado, "PATCH", `/_apis/wit/workitems/${resolved.id}?api-version=7.0`, [fieldPatch("replace", "System.AssignedTo", assignee)], "application/json-patch+json");
+    await adoRequest(ado, "PATCH", `/_apis/wit/workitems/${resolved.id}?api-version=7.0`, [fieldPatch("add", "System.AssignedTo", assignee)], "application/json-patch+json");
     return { success: true, number: resolved.id, url: workItemUrl(ado, resolved.id), metadata: { provider: "azure-devops", project: ado.project, assignee } };
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));
@@ -470,7 +470,9 @@ function readStagedAttachment(message, config) {
     throw new Error("staged attachment could not be read", { cause: error });
   }
   if (bytes.includes(Buffer.from("##vso["))) throw new Error("attachment contains an Azure Pipelines command sequence");
-  return { bytes, filename: path.basename(originalPath) || path.basename(filePath) };
+  const originalSegments = originalPath.split(/[\\/]+/).filter(Boolean);
+  const originalBasename = originalSegments.length > 0 ? originalSegments[originalSegments.length - 1] : "";
+  return { bytes, filename: originalBasename || path.basename(filePath) };
 }
 
 async function handleUploadWorkItemAttachment(message, config, resolvedTemporaryIds) {
@@ -480,6 +482,7 @@ async function handleUploadWorkItemAttachment(message, config, resolvedTemporary
     if (preview) return staged(`Would attach a file to Azure DevOps work item ${message.work_item_id}`);
     const { bytes, filename } = readStagedAttachment(message, config);
     const ado = getAzureDevOpsContext();
+    if (!resolved.sameRun) await enforceTarget(ado, config.target, resolved.id);
     const upload = await adoRequest(ado, "POST", `/_apis/wit/attachments?fileName=${encodeURIComponent(filename)}&api-version=7.1`, bytes, "application/octet-stream");
     const attachmentUrl = String(upload?.url || "");
     let parsedAttachmentUrl;

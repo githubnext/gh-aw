@@ -2192,7 +2192,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       const stagingRoot = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts");
       const stagingDirectory = path.join(stagingRoot, "azure-devops-work-items");
       fs.mkdirSync(stagingDirectory, { recursive: true, mode: 0o700 });
-      const stagedName = `${crypto.randomUUID()}-${path.basename(rawPath)}`;
+      const stagedName = `${crypto.randomUUID()}-${segments[segments.length - 1]}`;
       const stagedPath = path.join(stagingDirectory, stagedName);
       fs.copyFileSync(sourcePath, stagedPath, fs.constants.COPYFILE_EXCL);
       fs.chmodSync(stagedPath, 0o600);
@@ -2201,6 +2201,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       throw new Error(`${ERR_SYSTEM}: Failed to stage Azure DevOps work-item attachment: ${getErrorMessage(error)}`, { cause: error });
     }
 
+    entry.file_path = rawPath;
     appendSafeOutputCounted(entry);
     return {
       content: [{ type: "text", text: JSON.stringify({ result: "success", file_path: rawPath }) }],

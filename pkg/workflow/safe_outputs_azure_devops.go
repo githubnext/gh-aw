@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -66,21 +65,13 @@ type LinkWorkItemsConfig struct {
 
 type UploadWorkItemAttachmentConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
+	Target               any      `yaml:"target,omitempty"`
 	MaxFileSize          int64    `yaml:"max-file-size,omitempty"`
 	AllowedExtensions    []string `yaml:"allowed-extensions,omitempty"`
 	CommentPrefix        string   `yaml:"comment-prefix,omitempty"`
 }
 
 func parseAzureDevOpsConfig[T any](c *Compiler, outputMap map[string]any, key string, defaultMax int, postProcess func(*T)) *T {
-	if enabled, ok := outputMap[key].(bool); ok {
-		if !enabled {
-			return nil
-		}
-		normalized := make(map[string]any, len(outputMap))
-		maps.Copy(normalized, outputMap)
-		normalized[key] = map[string]any{}
-		outputMap = normalized
-	}
 	config := parseConfigScaffold(outputMap, key, azureDevOpsSafeOutputsLog, func(err error) *T {
 		azureDevOpsSafeOutputsLog.Printf("Failed to parse %s configuration: %v", key, err)
 		return nil
@@ -234,13 +225,13 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.UploadWorkItemAttachments
-		return newHandlerConfigBuilder().
+		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddDefault("max_file_size", c.MaxFileSize).
 			AddStringSlice("allowed_extensions", c.AllowedExtensions).
 			AddIfNotEmpty("comment_prefix", c.CommentPrefix).
-			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
-			Build()
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
 }
 
@@ -327,6 +318,7 @@ func linkWorkItemsConstraints(config *LinkWorkItemsConfig) []string {
 func uploadWorkItemAttachmentConstraints(config *UploadWorkItemAttachmentConfig) []string {
 	return buildConstraints(config, func(config *UploadWorkItemAttachmentConfig, constraints *[]string) {
 		appendMaxConstraint(constraints, config.Max, "Maximum %d work-item attachment(s) can be uploaded.")
+		appendAzureDevOpsTargetConstraint(constraints, config.Target)
 		if config.MaxFileSize > 0 {
 			*constraints = append(*constraints, fmt.Sprintf("Maximum attachment size: %d bytes.", config.MaxFileSize))
 		}

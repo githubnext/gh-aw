@@ -682,7 +682,7 @@ func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowDa
 		insertIndex += strings.Count(generateOTLPAttributesMaskStep(), stepNameLinePrefix)
 	}
 	insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
-	if data.SafeOutputs.UploadArtifact != nil {
+	if usesSafeOutputsArtifactStaging(data.SafeOutputs) {
 		// The staging download step has uploadArtifactStagingDownloadStepCount YAML string entries.
 		insertIndex += uploadArtifactStagingDownloadStepCount
 	}

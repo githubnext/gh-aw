@@ -13211,10 +13211,7 @@
           "additionalProperties": false,
           "required": ["target"],
           "properties": {
-            "target": {
-              "oneOf": [{ "type": "integer", "minimum": 1 }, { "const": "*" }]
-            },
-            "status": { "type": "boolean", "default": false },
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
             "title": { "type": "boolean", "default": false },
             "body": { "type": "boolean", "default": false },
             "markdown-body": { "type": "boolean", "default": false },
@@ -13259,9 +13256,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "target": {
-              "oneOf": [{ "type": "integer", "minimum": 1 }, { "const": "*" }]
-            },
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
             "allowed": { "$ref": "#/$defs/azure_devops_string_list" },
             "blocked": { "$ref": "#/$defs/azure_devops_string_list" },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
@@ -13304,6 +13299,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
             "max-file-size": { "type": "integer", "minimum": 1, "maximum": 104857600, "default": 5242880 },
             "allowed-extensions": {
               "type": "array",
@@ -13322,13 +13318,14 @@
     "azure_devops_work_item_target": {
       "oneOf": [
         { "type": "integer", "minimum": 1 },
+        { "const": "*" },
         {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "integer", "minimum": 1 }
         },
-        { "type": "string", "minLength": 1, "maxLength": 512 }
+        { "type": "string", "minLength": 1, "maxLength": 512, "not": { "const": "*" } }
       ]
     },
     "azure_devops_field_reference": {

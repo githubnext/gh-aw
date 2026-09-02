@@ -26,10 +26,10 @@ func TestExtractAzureDevOpsSafeOutputsConfig(t *testing.T) {
 				"target": "42",
 				"title":  true,
 			},
-			"ado-comment-on-work-item":       true,
-			"ado-assign-work-item":           true,
-			"ado-link-work-items":            true,
-			"ado-upload-workitem-attachment": true,
+			"ado-comment-on-work-item":       map[string]any{"target": "*"},
+			"ado-assign-work-item":           map[string]any{},
+			"ado-link-work-items":            map[string]any{"target": "*"},
+			"ado-upload-workitem-attachment": map[string]any{},
 		},
 	})
 
