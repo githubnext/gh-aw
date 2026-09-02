@@ -387,10 +387,10 @@ async function main() {
         const linearUpdateConfig = config.linear_update_issue;
         const properties = enhancedTool.inputSchema?.properties;
         if (properties && linearUpdateConfig && typeof linearUpdateConfig === "object") {
-          if (linearUpdateConfig.allow_title !== true) {
+          if (!("allow_title" in linearUpdateConfig) || linearUpdateConfig.allow_title !== true) {
             delete properties.title;
           }
-          if (linearUpdateConfig.allow_body !== true) {
+          if (!("allow_body" in linearUpdateConfig) || linearUpdateConfig.allow_body !== true) {
             delete properties.body;
           }
           enhancedTool.inputSchema.anyOf = Object.keys(properties).map(field => ({ required: [field] }));
