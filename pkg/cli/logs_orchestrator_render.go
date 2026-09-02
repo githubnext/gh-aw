@@ -82,6 +82,9 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
 	var hints []string
+	if opts.message != "" {
+		hints = append(hints, opts.message)
+	}
 	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
 		hints = append(hints, usageOnlyArtifactHintMessage())
 	}

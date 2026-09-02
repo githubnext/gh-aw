@@ -26,18 +26,23 @@ import (
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
 var fetchRateLimitFunc = fetchRateLimit
 var logsRateLimitGate = make(chan struct{}, 1)
+var errInvalidMaxGitHubAPIRateLimit = errors.New("invalid maximum GitHub API rate limit")
 
 // checkAndWaitForRateLimitShared serializes quota checks and their cooldowns so
 // concurrent workflow downloads are staggered rather than consuming the API
-// budget in synchronized bursts.
-func checkAndWaitForRateLimitShared(ctx context.Context, verbose bool) error {
+// budget in synchronized bursts. reserve is the number of additional core
+// requests the caller is about to make before its next check; it is added to
+// the currently reported usage so a caller that issues several API calls per
+// check (e.g. artifact listing plus downloads) does not overshoot a
+// configured ceiling between checks.
+func checkAndWaitForRateLimitShared(ctx context.Context, verbose bool, configuredMax, reserve int) error {
 	select {
 	case logsRateLimitGate <- struct{}{}:
 		defer func() { <-logsRateLimitGate }()
 	case <-ctx.Done():
 		return contextCause(ctx)
 	}
-	return checkAndWaitForRateLimit(ctx, verbose)
+	return checkAndWaitForRateLimit(ctx, verbose, configuredMax, reserve)
 }
 
 func contextCause(ctx context.Context) error {
@@ -71,10 +76,10 @@ type rateLimitResource struct {
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit
 // state.  It is a thin wrapper around `gh api rate_limit` so that callers do
 // not need to know about the CLI invocation details.
-func fetchRateLimit() (rateLimitResource, error) {
+func fetchRateLimit(ctx context.Context) (rateLimitResource, error) {
 	logsRateLimitLog.Print("Querying GitHub API rate limit")
 
-	output, err := workflow.RunGHCombined("Verifying API quota...", "api", "rate_limit")
+	output, err := workflow.RunGHCombinedContext(ctx, "Verifying API quota...", "api", "rate_limit")
 	if err != nil {
 		return rateLimitResource{}, fmt.Errorf("failed to query rate limit: %w", err)
 	}
@@ -123,9 +128,9 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 
 // checkAndWaitForRateLimit queries the GitHub API rate limit and sleeps until
 // the reset window when the remaining core request budget falls at or below
-// RateLimitThreshold.  It always waits at least APICallCooldown between
-// successive calls so that even when requests are plentiful the orchestrator
-// does not hammer the API.
+// RateLimitThreshold. Without an explicit ceiling, it waits at least
+// APICallCooldown between successive calls. An explicit ceiling instead permits
+// full-throughput downloads until the ceiling is reached.
 //
 // ctx is checked on every sleep so that a user cancellation (Ctrl-C) or
 // deadline expiry wakes the function early and propagates the context error.
@@ -133,8 +138,26 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 // If the rate limit cannot be fetched (e.g. network error) the function falls
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
-func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
-	rl, err := fetchRateLimitFunc()
+func resolveMaxGitHubAPIRateLimit(configuredMax, apiLimit int) (int, error) {
+	if configuredMax == 0 {
+		return apiLimit - RateLimitThreshold, nil
+	}
+
+	resolvedMax := configuredMax
+	if configuredMax < 0 {
+		resolvedMax = apiLimit + configuredMax
+	}
+	if resolvedMax <= 0 || resolvedMax > apiLimit {
+		return 0, fmt.Errorf(
+			"%w %d for current core limit %d: expected an absolute value from 1 to %d or a negative reserve smaller than %d",
+			errInvalidMaxGitHubAPIRateLimit, configuredMax, apiLimit, apiLimit, apiLimit,
+		)
+	}
+	return resolvedMax, nil
+}
+
+func checkAndWaitForRateLimit(ctx context.Context, verbose bool, configuredMax, reserve int) error {
+	rl, err := fetchRateLimitFunc(ctx)
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)
@@ -144,12 +167,21 @@ func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
 		return err
 	}
 
-	if rl.Remaining <= RateLimitThreshold {
+	maxUsed, err := resolveMaxGitHubAPIRateLimit(configuredMax, rl.Limit)
+	if err != nil {
+		return err
+	}
+
+	if rl.Used+reserve > maxUsed {
 		resetAt := time.Unix(rl.Reset, 0)
 		waitDur := time.Until(resetAt)
 		if waitDur <= 0 {
-			// Reset has already passed; apply minimal cooldown and carry on.
-			logsRateLimitLog.Print("Rate limit reset has already passed, applying minimal cooldown")
+			// Reset has already passed; carry on, retaining the legacy cooldown
+			// only when no explicit usage ceiling was configured.
+			logsRateLimitLog.Print("Rate limit reset has already passed")
+			if configuredMax != 0 {
+				return nil
+			}
 			return sleepWithContext(ctx, APICallCooldown)
 		}
 
@@ -157,8 +189,8 @@ func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
 		waitDur += rateLimitResetBuffer
 
 		msg := fmt.Sprintf(
-			"GitHub API rate limit nearly exhausted (%d of %d requests remaining). Waiting %.0f seconds until reset at %s",
-			rl.Remaining, rl.Limit, waitDur.Seconds(), resetAt.UTC().Format(time.RFC3339),
+			"GitHub API usage ceiling reached (%d of %d requests used; maximum %d). Waiting %.0f seconds until reset at %s",
+			rl.Used, rl.Limit, maxUsed, waitDur.Seconds(), resetAt.UTC().Format(time.RFC3339),
 		)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 		logsRateLimitLog.Printf("Sleeping for rate limit reset: duration=%s", waitDur)
@@ -167,10 +199,14 @@ func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(
-			fmt.Sprintf("Rate limit OK: %d/%d requests remaining", rl.Remaining, rl.Limit),
+			fmt.Sprintf("Rate limit OK: %d/%d requests used (maximum %d)", rl.Used, rl.Limit, maxUsed),
 		))
 	}
 
-	// Even when budget is healthy, apply the minimum inter-call cooldown.
+	// An explicit ceiling enables full-throughput downloads until that ceiling is
+	// reached. Preserve the legacy cooldown when no ceiling was configured.
+	if configuredMax != 0 {
+		return nil
+	}
 	return sleepWithContext(ctx, APICallCooldown)
 }
