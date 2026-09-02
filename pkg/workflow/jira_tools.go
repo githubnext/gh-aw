@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -141,12 +142,8 @@ func validateJiraAllowedTools(value any) error {
 	if err != nil {
 		return err
 	}
-	if len(allowed) > 1 {
-		for _, tool := range allowed {
-			if tool == jiraAllowedToolsWildcard {
-				return fmt.Errorf("tools.jira.allowed must contain only %q when the wildcard is used", jiraAllowedToolsWildcard)
-			}
-		}
+	if len(allowed) > 1 && slices.Contains(allowed, jiraAllowedToolsWildcard) {
+		return fmt.Errorf("tools.jira.allowed must contain only %q when the wildcard is used", jiraAllowedToolsWildcard)
 	}
 	seen := make(map[string]struct{}, len(allowed))
 	for _, tool := range allowed {
@@ -199,12 +196,10 @@ func expandJiraAllowedTools(value any) any {
 	if err != nil {
 		return value
 	}
-	for _, tool := range allowed {
-		if tool == jiraAllowedToolsWildcard {
-			expanded := make([]string, len(jiraApprovedReadOnlyToolsList))
-			copy(expanded, jiraApprovedReadOnlyToolsList)
-			return expanded
-		}
+	if slices.Contains(allowed, jiraAllowedToolsWildcard) {
+		expanded := make([]string, len(jiraApprovedReadOnlyToolsList))
+		copy(expanded, jiraApprovedReadOnlyToolsList)
+		return expanded
 	}
 	return value
 }
