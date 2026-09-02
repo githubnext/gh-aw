@@ -16,7 +16,7 @@ const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOr
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
-const { parseBoolTemplatable } = require("./templatable.cjs");
+const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -782,6 +782,7 @@ async function main(config = {}) {
   // Tracks the pull requests created so far in this run so later messages can stack on top of them.
   const stackTracker = createStackTracker();
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const maxMentions = parseIntTemplatable(config.mentions?.max, 50);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -1504,7 +1505,7 @@ async function main(config = {}) {
       processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
       // Sanitize body content to neutralize @mentions, URLs, and other security risks
-      processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases });
+      processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
 
       // Auto-add "Fixes #N" closing keyword if triggered from an issue and not already present.
       // This ensures the triggering issue is auto-closed when the PR is merged.
@@ -1898,7 +1899,7 @@ async function main(config = {}) {
                   baseBranch,
                   tempRef: createBundleTempRef(branchName),
                 });
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases, maxMentions })
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
@@ -2267,7 +2268,7 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
                   branchName,
                   baseBranch,
                 });
-                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
+                const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases, maxMentions })
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
