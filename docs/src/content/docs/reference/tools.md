@@ -57,6 +57,16 @@ tools:
     required: true
 ```
 
+Use `toolsets` to enable related groups of tools without maintaining individual tool names:
+
+```yaml wrap
+tools:
+  linear:
+    toolsets: [issues, projects]
+```
+
+Supported toolsets are `all`, `attachments`, `comments`, `customers`, `cycles`, `diffs`, `documentation`, `documents`, `initiatives`, `issues`, `milestones`, `projects`, `status_updates`, `teams`, and `users`. The compiler expands toolsets into the gateway's allowed-tool list. If `allowed` is also set, each name or wildcard must match a tool in the selected toolsets.
+
 The Linear credential is passed to the gateway as an environment variable and sent as an `Authorization: Bearer` header. It is not embedded in MCP configuration. Linear works with `tools.cli-proxy: true` like other remote MCP servers.
 
 ### Bash Tool (`bash:`)

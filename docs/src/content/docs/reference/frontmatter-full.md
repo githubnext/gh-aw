@@ -1073,7 +1073,7 @@ on:
   # Format 2: List of label names; the workflow fires when the triggering label
   # matches any entry.
   labels: []
-    # Array items: undefined
+    # Array items: A non-empty string value.
 
   # Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a
   # checkbox-menu comment as a GitHub App bot and a human maintainer edits it to
@@ -2511,7 +2511,7 @@ steps:
   {}
 
 # Format 2: array
-steps: []
+steps: [{"prompt":"Analyze the issue and create a plan"}]
   # Array items: undefined
 
 # Custom workflow steps to run at the very beginning of the agent job, before
@@ -2527,7 +2527,7 @@ pre-steps:
   {}
 
 # Format 2: array
-pre-steps: []
+pre-steps: [{"name":"Mint short-lived token","id":"mint","uses":"some-org/token-minting-action@v1","with":{"scope":"target-org/target-repo"}}]
   # Array items: undefined
 
 # Custom workflow steps to run immediately before AI execution, after all
@@ -2540,7 +2540,7 @@ pre-agent-steps:
   {}
 
 # Format 2: array
-pre-agent-steps: []
+pre-agent-steps: [{"name":"Prepare final context","run":"echo \"ready\""}]
   # Array items: undefined
 
 # Custom workflow steps to run after AI execution
@@ -2552,7 +2552,7 @@ post-steps:
   {}
 
 # Format 2: array
-post-steps: []
+post-steps: [{"name":"Verify Post-Steps Execution","run":"echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"},{"name":"Upload Test Results","if":"always()","uses":"actions/upload-artifact@v4","with":{"name":"post-steps-test-results","path":"/tmp/gh-aw/","retention-days":1,"if-no-files-found":"ignore"}}]
   # Array items: undefined
 
 # AI engine configuration that specifies which AI processor interprets and
@@ -3696,7 +3696,8 @@ tools:
     # Format 2: Array of GitHub MCP server toolset names to enable specific groups of
     # GitHub API functionalities
     toolsets: []
-      # Array items: undefined
+      # Array items: A GitHub MCP server toolset name that enables a specific group of
+      # GitHub API functionalities.
 
     # Volume mounts for the containerized GitHub MCP server (format:
     # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
@@ -4050,7 +4051,22 @@ tools:
     # (optional)
     token: "example-value"
 
-    # List of allowed Linear MCP tool names or wildcard patterns
+    # Linear MCP toolset name(s) to enable. Toolsets are expanded to gateway-enforced
+    # allowed tools.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: A Linear MCP toolset name that enables a related group of read-only
+    # Linear tools.
+    toolsets: "all"
+
+    # Format 2: Array of Linear MCP toolset names
+    toolsets: ["issues","projects"]
+      # Array items: A Linear MCP toolset name that enables a related group of read-only
+      # Linear tools.
+
+    # List of allowed Linear MCP tool names or wildcard patterns. When toolsets are
+    # set, every pattern must match a tool in those toolsets.
     # (optional)
     allowed: []
       # Array of strings
@@ -4227,7 +4243,7 @@ tools:
       timeout-minutes: 1
 
   # Format 4: Array of cache-memory configurations for multiple caches
-  cache-memory: []
+  cache-memory: [{"id":"default","key":"memory-default"},{"id":"session","key":"memory-session"}]
     # Array items: object
 
   # Private-preview GitHub Drives configuration. Do not configure unless GitHub has
@@ -4496,7 +4512,7 @@ tools:
       timeout-minutes: 1
 
   # Format 4: Array of repo-memory configurations for multiple memory locations
-  repo-memory: []
+  repo-memory: [{"id":"default","branch-name":"memory/default"},{"id":"session","branch-name":"memory/session"}]
     # Array items: object
 
 # ⚠️ Experimental. Top-level Language Server Protocol (LSP) configuration for
@@ -22932,7 +22948,7 @@ checkout:
 
 # Format 2: Multiple checkout configurations
 checkout: []
-  # Array items: undefined
+  # Array items: Configuration for a single actions/checkout step
 
 # Format 3: Set to false to disable the default checkout step. The agent job will
 # not check out any repository (dev-mode checkouts are unaffected).

@@ -14,6 +14,7 @@ func TestExtractLinearBuiltinMCPTool(t *testing.T) {
 		"tools": map[string]any{
 			"linear": map[string]any{
 				"token":    "${{ secrets.LINEAR_API_KEY }}",
+				"toolsets": []any{"issues", "projects"},
 				"allowed":  []any{"get_issue", "list_issues"},
 				"required": required,
 			},
@@ -55,6 +56,8 @@ func TestExtractLinearBuiltinMCPToolRejectsInvalidConfiguration(t *testing.T) {
 		map[string]any{"allowed": []any{true}},
 		map[string]any{"allowed": []any{" "}},
 		map[string]any{"required": "true"},
+		map[string]any{"toolsets": "unknown"},
+		map[string]any{"toolsets": "issues", "allowed": []any{"list_projects"}},
 		map[string]any{"unknown": true},
 	} {
 		frontmatter := map[string]any{"tools": map[string]any{"linear": linear}}
@@ -71,7 +74,8 @@ func TestLinearToolSchema(t *testing.T) {
 		"tools": map[string]any{
 			"linear": map[string]any{
 				"token":    "${{ secrets.LINEAR_API_KEY }}",
-				"allowed":  []any{"*"},
+				"toolsets": []any{"issues", "projects"},
+				"allowed":  []any{"get_issue"},
 				"required": true,
 			},
 		},
@@ -86,6 +90,14 @@ func TestLinearToolSchema(t *testing.T) {
 		}
 		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/linear-default-secret.md"))
 	}
+	for _, toolset := range linearToolsetNames {
+		frontmatter := map[string]any{
+			"on":     "workflow_dispatch",
+			"engine": "copilot",
+			"tools":  map[string]any{"linear": map[string]any{"toolsets": toolset}},
+		}
+		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/linear-toolset.md"))
+	}
 
 	tests := []any{
 		true,
@@ -93,6 +105,7 @@ func TestLinearToolSchema(t *testing.T) {
 		map[string]any{"token": ""},
 		map[string]any{"token": "${{ secrets.LINEAR_API_KEY }}", "read-only": false},
 		map[string]any{"token": "${{ secrets.LINEAR_API_KEY }}", "allowed": []any{}},
+		map[string]any{"toolsets": "unknown"},
 		map[string]any{"token": "${{ secrets.LINEAR_API_KEY }}", "unknown": true},
 	}
 	for _, linear := range tests {

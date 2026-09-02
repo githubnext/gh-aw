@@ -4675,9 +4675,27 @@
                   "description": "Optional Linear API key or OAuth access token secret reference. Defaults to ${{ secrets.LINEAR_API_KEY }}.",
                   "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}$"
                 },
+                "toolsets": {
+                  "description": "Linear MCP toolset name(s) to enable. Toolsets are expanded to gateway-enforced allowed tools.",
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/linear_toolset_name"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Array of Linear MCP toolset names",
+                      "items": {
+                        "$ref": "#/$defs/linear_toolset_name"
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "examples": [["issues", "projects"]]
+                    }
+                  ]
+                },
                 "allowed": {
                   "type": "array",
-                  "description": "List of allowed Linear MCP tool names or wildcard patterns",
+                  "description": "List of allowed Linear MCP tool names or wildcard patterns. When toolsets are set, every pattern must match a tool in those toolsets.",
                   "items": {
                     "type": "string",
                     "minLength": 1
@@ -13532,6 +13550,11 @@
         "stargazers",
         "users"
       ]
+    },
+    "linear_toolset_name": {
+      "type": "string",
+      "description": "A Linear MCP toolset name that enables a related group of read-only Linear tools.",
+      "enum": ["all", "attachments", "comments", "customers", "cycles", "diffs", "documentation", "documents", "initiatives", "issues", "milestones", "projects", "status_updates", "teams", "users"]
     },
     "non_empty_string": {
       "type": "string",

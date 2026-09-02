@@ -24,7 +24,7 @@ func TestExpandLinearTool(t *testing.T) {
 		assert.Equal(t, map[string]any{
 			"Authorization": "Bearer " + "${{ secrets.LINEAR_API_KEY }}",
 		}, config["headers"])
-		assert.Equal(t, []any{"*"}, config["allowed"])
+		assert.Equal(t, []string{"*"}, config["allowed"])
 		assert.NotContains(t, config, "required")
 	})
 
@@ -52,6 +52,37 @@ func TestExpandLinearTool(t *testing.T) {
 		assert.Equal(t, false, config["required"])
 	})
 
+	t.Run("expands toolsets into allowed tools", func(t *testing.T) {
+		tools := map[string]any{
+			"linear": map[string]any{
+				"toolsets": []any{"issues", "projects"},
+				"allowed":  []any{"get_issue", "list_projects"},
+			},
+		}
+
+		require.NoError(t, expandLinearTool(tools))
+		config := tools["linear"].(map[string]any)
+		assert.Equal(t, []string{"get_issue", "list_projects"}, config["allowed"])
+		assert.NotContains(t, config, "toolsets")
+	})
+
+	t.Run("uses expanded toolsets when allowed is omitted", func(t *testing.T) {
+		tools := map[string]any{"linear": map[string]any{"toolsets": []any{"issues", "projects"}}}
+
+		require.NoError(t, expandLinearTool(tools))
+		config := tools["linear"].(map[string]any)
+		assert.Equal(t, []string{
+			"get_issue",
+			"get_issue_status",
+			"get_project",
+			"list_issue_labels",
+			"list_issue_statuses",
+			"list_issues",
+			"list_project_labels",
+			"list_projects",
+		}, config["allowed"])
+	})
+
 	for _, test := range []struct {
 		name  string
 		value any
@@ -61,6 +92,8 @@ func TestExpandLinearTool(t *testing.T) {
 		{name: "rejects empty token", value: map[string]any{"token": ""}, field: "tools.linear.token"},
 		{name: "rejects literal token", value: map[string]any{"token": "lin_api_key"}, field: "tools.linear.token"},
 		{name: "rejects read-only override", value: map[string]any{"token": "${{ secrets.LINEAR_API_KEY }}", "read-only": false}, field: "tools.linear.read-only"},
+		{name: "rejects unknown toolset", value: map[string]any{"toolsets": "unknown"}, field: "unknown Linear toolset"},
+		{name: "rejects allowed outside toolsets", value: map[string]any{"toolsets": "issues", "allowed": []any{"list_projects"}}, field: "does not match any tool"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := expandLinearTool(map[string]any{"linear": test.value})
@@ -82,6 +115,8 @@ tools:
   bash: true
   cli-proxy: true
   linear:
+    toolsets: issues
+    allowed: [get_issue]
 ---
 
 # Linear test
@@ -106,6 +141,7 @@ tools:
 	assert.Contains(t, yamlContent, expectedHeader)
 	assert.Contains(t, yamlContent, `LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}`)
 	assert.Contains(t, yamlContent, `mcp.linear.app`)
+	assert.Contains(t, yamlContent, `"tools":["get_issue"]`)
 	assert.Contains(t, yamlContent, "- `linear` — run `linear --help`")
 	unexpandedHeader := `Authorization": "` + "Bearer" + ` ${{ secrets.LINEAR_API_KEY }}`
 	assert.NotContains(t, yamlContent, unexpandedHeader)

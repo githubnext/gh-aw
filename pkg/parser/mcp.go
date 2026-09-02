@@ -300,7 +300,7 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 	}
 	for field := range toolConfig {
 		switch field {
-		case "token", "allowed", "required":
+		case "token", "toolsets", "allowed", "required":
 		default:
 			return nil, fmt.Errorf("unknown tools.linear property %q", field)
 		}
@@ -328,19 +328,11 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 		},
 		Name: "linear",
 	}
-	if allowedValue, exists := toolConfig["allowed"]; exists {
-		allowed, ok := allowedValue.([]any)
-		if !ok || len(allowed) == 0 {
-			return nil, errors.New("tools.linear.allowed must be a non-empty array of tool names")
-		}
-		for _, item := range allowed {
-			tool, ok := item.(string)
-			if !ok || strings.TrimSpace(tool) == "" {
-				return nil, errors.New("tools.linear.allowed must contain only non-empty tool names")
-			}
-			config.Allowed = append(config.Allowed, tool)
-		}
+	allowed, err := buildLinearAllowedTools(toolConfig)
+	if err != nil {
+		return nil, err
 	}
+	config.Allowed = allowed
 	if requiredValue, exists := toolConfig["required"]; exists {
 		required, ok := requiredValue.(bool)
 		if !ok {
@@ -349,6 +341,39 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 		config.Required = &required
 	}
 	return config, nil
+}
+
+func buildLinearAllowedTools(toolConfig map[string]any) ([]string, error) {
+	var toolsetTools []string
+	if toolsetsValue, exists := toolConfig["toolsets"]; exists {
+		var err error
+		toolsetTools, err = ParseLinearToolsets(toolsetsValue)
+		if err != nil {
+			return nil, err
+		}
+	}
+	allowedValue, exists := toolConfig["allowed"]
+	if !exists {
+		return toolsetTools, nil
+	}
+	allowed, ok := allowedValue.([]any)
+	if !ok || len(allowed) == 0 {
+		return nil, errors.New("tools.linear.allowed must be a non-empty array of tool names")
+	}
+	result := make([]string, 0, len(allowed))
+	for _, item := range allowed {
+		tool, ok := item.(string)
+		if !ok || strings.TrimSpace(tool) == "" {
+			return nil, errors.New("tools.linear.allowed must contain only non-empty tool names")
+		}
+		result = append(result, tool)
+	}
+	if len(toolsetTools) > 0 {
+		if err := ValidateLinearAllowedForToolsets(result, toolsetTools); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func buildGitHubBuiltinConfig(toolValue any) RegistryMCPServerConfig {
