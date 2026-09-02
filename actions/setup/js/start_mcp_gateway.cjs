@@ -1356,7 +1356,7 @@ async function main() {
   // Write GitHub Actions step outputs
   // -----------------------------------------------------------------------
   if (githubOutput) {
-    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-agent-id=${agentId}`, `gateway-domain=${gatewayDomain}`].join("\n");
+    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-agent-id=${agentId}`, `gateway-api-key=${agentId}`, `gateway-domain=${gatewayDomain}`].join("\n");
     try {
       fs.appendFileSync(githubOutput, outputs + "\n");
     } catch {

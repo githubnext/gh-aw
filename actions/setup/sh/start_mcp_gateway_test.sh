@@ -248,6 +248,12 @@ test_validation_functions_exist() {
   else
     print_result "Configuration input handling missing" "FAIL"
   fi
+
+  if grep -q 'gateway-api-key=${MCP_GATEWAY_AGENT_ID}' "$SCRIPT_PATH"; then
+    print_result "Gateway API key output handoff exists" "PASS"
+  else
+    print_result "Gateway API key output handoff missing" "FAIL"
+  fi
   
   # Check for JSON validation
   if grep -q "not valid JSON" "$SCRIPT_PATH"; then

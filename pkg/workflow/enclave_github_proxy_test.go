@@ -110,6 +110,8 @@ Read the assigned repository's issues through the enclave.
 	assert.Contains(t, lock, `"agentPolicies": {"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}":{"servers":["github"],"tools":{"github":["list_issues","issue_read"]},"allow-only":{"min-integrity":"approved","repos":["octo-org/private-service"]}}`)
 	assert.Contains(t, lock, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')`)
 	assert.Contains(t, lock, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_MCP_AGENT_ID "$AWF_ENCLAVE_GITHUB_MCP_AGENT_ID"`)
+	assert.Contains(t, lock, `MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}`)
+	assert.Contains(t, lock, `--exclude-env MCP_GATEWAY_API_KEY`)
 	assert.Contains(t, lock, "--exclude-env AWF_ENCLAVE_GITHUB_MCP_AGENT_ID")
 	assert.NotContains(t, lock, "Enclave GitHub Proxy")
 	assert.NotContains(t, lock, "start_enclave_github_proxy")

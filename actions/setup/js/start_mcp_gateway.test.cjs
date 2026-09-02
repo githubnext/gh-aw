@@ -46,6 +46,11 @@ describe("start_mcp_gateway logging", () => {
     expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
     expect(source).toContain(`path.join(os.tmpdir(), "gh-aw-mcp-gateway-")`);
   });
+
+  it("exports the gateway agent ID as the AWF API key handoff", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).toContain("`gateway-api-key=${agentId}`");
+  });
 });
 
 describe("start_mcp_gateway health timeout", () => {
