@@ -606,23 +606,26 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 func (c *Compiler) buildPreambleTokenSteps(data *WorkflowData, outputs map[string]string) []string {
 	var preambleTokenSteps []string
 	if data.SafeOutputs.GitHubApp != nil {
-		outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
 		appPermissions := computePermissionsForSafeOutputs(data.SafeOutputs, true)
 		if appPermissions != nil && len(appPermissions.permissions) == 0 {
-			appPermissions = NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionMetadata: PermissionRead,
-			})
+			// No enabled handler (e.g. a Linear-only configuration) consumes GitHub
+			// permissions from this global app, so skip minting an unrelated
+			// installation token purely because a top-level github-app was
+			// configured or auto-copied via applyTopLevelGitHubAppFallbacks.
+			safeOutputsPermissionsLog.Print("No GitHub-backed safe output handler enabled; skipping global GitHub App token minting")
+		} else {
+			outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
+			var appTokenFallbackRepo string
+			if hasWorkflowCallTrigger(data.On) {
+				appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
+			}
+			preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepForRepository(
+				data.SafeOutputs.GitHubApp,
+				appPermissions,
+				appTokenFallbackRepo,
+				inferSingleCheckoutRepositoryForGitHubAppOwner(data),
+			)...)
 		}
-		var appTokenFallbackRepo string
-		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
-		}
-		preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepForRepository(
-			data.SafeOutputs.GitHubApp,
-			appPermissions,
-			appTokenFallbackRepo,
-			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
-		)...)
 	}
 	if headApp := getSafeOutputsHeadApp(data.SafeOutputs); headApp != nil {
 		headRepoSlug := getSafeOutputsHeadRepoSlug(data.SafeOutputs)

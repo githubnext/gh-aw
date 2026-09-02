@@ -394,6 +394,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
+						Implicit:    true,
 					}
 				}
 			}

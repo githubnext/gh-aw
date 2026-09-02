@@ -129,3 +129,46 @@ func TestLinearTokenOnlyAddedToTrustedProcessingStep(t *testing.T) {
 	assert.Contains(t, processStep, "env:\n          GH_AW_LINEAR_TOKEN:")
 	assert.NotContains(t, rendered[:strings.Index(rendered, "- name: Process Safe Outputs")], "GH_AW_LINEAR_TOKEN")
 }
+
+// TestLinearOnlyWorkflowSkipsGlobalGitHubAppTokenMinting ensures that a Linear-only
+// safe-outputs configuration does not mint an unrelated GitHub App installation token,
+// even when a top-level (or auto-copied) SafeOutputs.GitHubApp is present. Minting a
+// GitHub App token here would violate the credential-separation guarantee between
+// Linear and GitHub App credentials.
+func TestLinearOnlyWorkflowSkipsGlobalGitHubAppTokenMinting(t *testing.T) {
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+		LinearToken:       "${{ secrets.LINEAR_API_KEY }}",
+		LinearCreateIssue: &LinearCreateIssueConfig{TeamID: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
+		GitHubApp: &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		},
+	}}
+	compiler := NewCompiler()
+	outputs := map[string]string{}
+	steps := compiler.buildPreambleTokenSteps(data, outputs)
+
+	rendered := strings.Join(steps, "")
+	assert.NotContains(t, rendered, "safe-outputs-app-token")
+	assert.NotContains(t, outputs, "app_token_minting_failed")
+}
+
+// TestGitHubHandlerWithGlobalAppStillMintsToken is the control case for
+// TestLinearOnlyWorkflowSkipsGlobalGitHubAppTokenMinting: when a GitHub-backed handler is
+// enabled alongside the global GitHub App, the app-token minting step must still be built.
+func TestGitHubHandlerWithGlobalAppStillMintsToken(t *testing.T) {
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
+		AddComments: &AddCommentsConfig{},
+		GitHubApp: &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		},
+	}}
+	compiler := NewCompiler()
+	outputs := map[string]string{}
+	steps := compiler.buildPreambleTokenSteps(data, outputs)
+
+	rendered := strings.Join(steps, "")
+	assert.Contains(t, rendered, "safe-outputs-app-token")
+	assert.Contains(t, outputs, "app_token_minting_failed")
+}

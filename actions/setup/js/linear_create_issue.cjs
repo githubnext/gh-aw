@@ -33,7 +33,7 @@ async function main(config = {}) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue body is required`);
     }
     if (item.title.length > 128 || item.body.length > 65000 || item.body.length < 20) {
-      throw new Error(`${ERR_VALIDATION}: linear_create_issue content exceeds the configured field limits`);
+      throw new Error(`${ERR_VALIDATION}: linear_create_issue content is outside the configured field limits`);
     }
 
     const title = sanitizeTitle(item.title);
