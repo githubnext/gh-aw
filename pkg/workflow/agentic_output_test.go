@@ -69,6 +69,12 @@ This workflow tests the agentic output collection functionality.
 	if !strings.Contains(lockContent, `echo "RUNNER_TOOL_CACHE=${GH_AW_RUNNER_TOOL_CACHE}" >> "$GITHUB_ENV"`) {
 		t.Error("Expected RUNNER_TOOL_CACHE to be exported via 'Set runtime paths' for later MCP gateway and agent steps")
 	}
+	if !strings.Contains(lockContent, "GH_AW_RUNNER_TOOL_CACHE: ${{ runner.tool_cache }}") {
+		t.Error("Expected runner.tool_cache to be passed through the step environment")
+	}
+	if strings.Contains(lockContent, `echo "RUNNER_TOOL_CACHE=${{ runner.tool_cache }}`) {
+		t.Error("runner.tool_cache must not be interpolated directly in the shell script")
+	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
 		t.Error("Expected 'Ingest agent output' step to be in generated workflow")
