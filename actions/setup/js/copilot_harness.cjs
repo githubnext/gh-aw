@@ -82,7 +82,7 @@ const {
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError: isCommonAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
-const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
+const { CRASH_SIGNAL_EXIT_CODES, isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
@@ -274,6 +274,48 @@ function logCopilotInferenceConfiguration(options) {
  */
 function resolveRetryConfig(env = process.env, logger = log) {
   return resolveSharedRetryConfig(env, logger);
+}
+
+const COPILOT_SDK_STARTUP_CRASH_PATTERN = /copilot-sdk headless server exited before ready\b[^\n]*\bsignal=(SIG[A-Z0-9]+)\b/;
+const COPILOT_SDK_STARTUP_CRASH_SIGNALS = new Set(CRASH_SIGNAL_EXIT_CODES.values());
+
+/**
+ * Start the Copilot SDK sidecar, retrying fatal-signal crashes that happen
+ * before the server becomes ready.
+ *
+ * @param {{
+ *   startOptions: Parameters<typeof startCopilotSDKServer>[0],
+ *   maxRetries: number,
+ *   initialDelayMs: number,
+ *   backoffMultiplier: number,
+ *   maxDelayMs: number,
+ *   logger?: (message: string) => void,
+ *   startImpl?: typeof startCopilotSDKServer,
+ *   sleepImpl?: typeof sleep,
+ * }} options
+ * @returns {ReturnType<typeof startCopilotSDKServer>}
+ */
+async function startCopilotSDKServerWithRetry(options) {
+  const logger = options.logger ?? log;
+  const startImpl = options.startImpl ?? startCopilotSDKServer;
+  const sleepImpl = options.sleepImpl ?? sleep;
+  let delayMs = options.initialDelayMs;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await startImpl(options.startOptions);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      const crashMatch = message.match(COPILOT_SDK_STARTUP_CRASH_PATTERN);
+      if (!crashMatch || !COPILOT_SDK_STARTUP_CRASH_SIGNALS.has(crashMatch[1]) || attempt >= options.maxRetries) {
+        throw error;
+      }
+
+      logger(`copilot-sdk: headless server crashed with ${crashMatch[1]} before ready` + ` — retrying startup (attempt ${attempt + 2}/${options.maxRetries + 1}) after ${delayMs}ms`);
+      await sleepImpl(delayMs);
+      delayMs = Math.min(options.maxDelayMs, Math.round(delayMs * options.backoffMultiplier));
+    }
+  }
 }
 
 /**
@@ -1259,10 +1301,17 @@ async function main() {
           log(`copilot-sdk driver mode: appended workspace --add-dir ${process.env.GITHUB_WORKSPACE}`);
         }
         log(`copilot-sdk driver mode: starting sidecar command=${copilotBin} args=${driverServerArgs.length}`);
-        copilotSDKServer = await startCopilotSDKServer({
-          command: copilotBin,
-          env: childEnv ?? process.env,
-          serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
+        copilotSDKServer = await startCopilotSDKServerWithRetry({
+          startOptions: {
+            command: copilotBin,
+            env: childEnv ?? process.env,
+            serverArgs: driverServerArgs.length > 0 ? driverServerArgs : undefined,
+            logger: log,
+          },
+          maxRetries,
+          initialDelayMs,
+          backoffMultiplier,
+          maxDelayMs,
           logger: log,
         });
       }
@@ -1666,6 +1715,7 @@ if (typeof module !== "undefined" && module.exports) {
     isMCPGatewayShutdownError,
     isSDKSessionIdleTimeoutError,
     startCopilotSDKServer,
+    startCopilotSDKServerWithRetry,
     stopCopilotSDKServer,
     waitForCopilotSDKServer,
     writeCopilotOutputs,

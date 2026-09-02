@@ -58,6 +58,7 @@ const {
   shouldRetryFailedExecution,
   isCrashSignalExitCode,
   crashSignalNameForExitCode,
+  startCopilotSDKServerWithRetry,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
@@ -864,6 +865,71 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("copilot-sdk sidecar helpers", () => {
+    it("retries a fatal-signal crash while starting the sidecar", async () => {
+      const server = { pid: 123 };
+      const startImpl = vi.fn().mockRejectedValueOnce(new Error("copilot-sdk headless server exited before ready (exitCode=unknown signal=SIGABRT)")).mockResolvedValueOnce(server);
+      const sleepImpl = vi.fn().mockResolvedValue(undefined);
+      const logger = vi.fn();
+
+      const result = await startCopilotSDKServerWithRetry({
+        startOptions: { command: "copilot" },
+        maxRetries: 3,
+        initialDelayMs: 5,
+        backoffMultiplier: 2,
+        maxDelayMs: 60,
+        logger,
+        startImpl,
+        sleepImpl,
+      });
+
+      expect(result).toBe(server);
+      expect(startImpl).toHaveBeenCalledTimes(2);
+      expect(sleepImpl).toHaveBeenCalledWith(5);
+      expect(logger).toHaveBeenCalledWith(expect.stringContaining("SIGABRT"));
+    });
+
+    it("does not retry a non-crash sidecar startup failure", async () => {
+      const error = new Error("copilot-sdk headless server did not become ready within 60000ms");
+      const startImpl = vi.fn().mockRejectedValue(error);
+      const sleepImpl = vi.fn();
+
+      await expect(
+        startCopilotSDKServerWithRetry({
+          startOptions: { command: "copilot" },
+          maxRetries: 3,
+          initialDelayMs: 5,
+          backoffMultiplier: 2,
+          maxDelayMs: 60,
+          startImpl,
+          sleepImpl,
+        })
+      ).rejects.toBe(error);
+
+      expect(startImpl).toHaveBeenCalledTimes(1);
+      expect(sleepImpl).not.toHaveBeenCalled();
+    });
+
+    it("stops retrying sidecar crashes when the retry budget is exhausted", async () => {
+      const error = new Error("copilot-sdk headless server exited before ready (exitCode=unknown signal=SIGABRT)");
+      const startImpl = vi.fn().mockRejectedValue(error);
+      const sleepImpl = vi.fn().mockResolvedValue(undefined);
+
+      await expect(
+        startCopilotSDKServerWithRetry({
+          startOptions: { command: "copilot" },
+          maxRetries: 2,
+          initialDelayMs: 5,
+          backoffMultiplier: 2,
+          maxDelayMs: 60,
+          startImpl,
+          sleepImpl,
+        })
+      ).rejects.toBe(error);
+
+      expect(startImpl).toHaveBeenCalledTimes(3);
+      expect(sleepImpl).toHaveBeenCalledTimes(2);
+    });
+
     it("extracts the configured Copilot SDK server port", () => {
       expect(
         getCopilotSDKServerPort({
