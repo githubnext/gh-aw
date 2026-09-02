@@ -83,6 +83,7 @@ fi
 # Test 2: the script installs system dependencies and browser binaries.
 echo "Test 2: installs system dependencies and browser binaries..."
 install_log="$(mktemp)"
+trap 'rm -f "$install_log"' EXIT
 bash "$SCRIPT_UNDER_TEST" "${browsers[@]}" >"$install_log" 2>&1
 status=$?
 if [ "$status" -eq 0 ]; then
@@ -160,8 +161,6 @@ else
     fi
   done
 fi
-
-rm -f "$install_log"
 
 echo
 echo "Tests passed: ${TESTS_PASSED}"
