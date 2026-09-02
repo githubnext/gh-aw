@@ -13,16 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func enclaveGitHubIssuesWorkflowData() *WorkflowData {
-	data := enclaveWorkflowData(false, true, 0, 120)
-	data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
-	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
-		Container: constants.DefaultMCPGatewayContainer,
-		Version:   string(constants.MCPGEnclaveGitHubIssuesMinVersion),
-	}
-	return data
-}
-
 func TestEnclaveGitHubMCPAgentPolicy(t *testing.T) {
 	data := enclaveGitHubIssuesWorkflowData()
 	data.Enclaves[0].Repos = append(data.Enclaves[0].Repos,

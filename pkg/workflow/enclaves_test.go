@@ -44,6 +44,16 @@ func enclaveTestRepos() []*EnclaveRepository {
 	}}
 }
 
+func enclaveGitHubIssuesWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+	return data
+}
+
 func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 	tests := []struct {
 		name                  string
