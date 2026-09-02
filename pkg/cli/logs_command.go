@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -28,14 +29,18 @@ import (
 var logsCommandLog = logger.New("cli:logs_command")
 
 type logsCommandValues struct {
-	workflowName string
+	targets      []logsWorkflowTarget
+	targetErrors []error
 	cacheBefore  string
 	LogsDownloadOptions
 }
 
 const logsCommandExampleTemplate = `  # Basic usage
   %[1]s logs                           # Download logs for all workflows
-  %[1]s logs weekly-research           # Download logs for specific workflow
+  %[1]s logs weekly-research           # Download logs for a specific workflow
+  %[1]s logs workflow-a workflow-b     # Download and combine reports concurrently
+  %[1]s logs owner/repo/workflow-a     # Download using a full repository/workflow path
+  %[1]s logs owner/repo/.github/workflows/workflow-a.yml # Full workflow file path
   %[1]s logs weekly-research.md        # Download logs (alternative format)
   %[1]s logs -c 10                     # Download last 10 matching runs
 
@@ -105,7 +110,7 @@ const logsCommandExampleTemplate = `  # Basic usage
 func NewLogsCommand() *cobra.Command {
 	validArtifactSets := strings.Join(ValidArtifactSetNames(), ", ")
 	logsCmd := &cobra.Command{
-		Use:     "logs [workflow]",
+		Use:     "logs [workflow]...",
 		Short:   "Download and analyze agentic workflow logs and artifacts",
 		Long:    buildLogsCommandLongDescription(validArtifactSets),
 		Example: buildLogsCommandExample(),
@@ -124,6 +129,10 @@ func buildLogsCommandLongDescription(validArtifactSets string) string {
 This command fetches workflow runs, downloads their artifacts, and extracts them into
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
+
+Pass multiple workflow arguments to download them concurrently and produce one combined
+report. Cross-repository targets accept owner/repo/workflow or
+[HOST/]owner/repo/.github/workflows/workflow.yml paths. The count limit applies per workflow.
 
 By default, only the compact usage artifact is downloaded (token usage, run metadata).
 Use --artifacts all to download all artifacts, or specify individual sets such as
@@ -157,8 +166,15 @@ func runLogsCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(values.targets) > 1 || len(values.targetErrors) > 0 {
+		return DownloadWorkflowLogsForTargets(cmd.Context(), values.LogsDownloadOptions, values.targets, values.targetErrors)
+	}
+	if len(values.targets) == 1 {
+		values.WorkflowName = values.targets[0].workflowName
+		values.RepoOverride = values.targets[0].repoOverride
+	}
 	logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v, cache_before=%s",
-		values.workflowName, values.Count, values.Engine, values.Train, values.cacheBefore)
+		values.WorkflowName, values.Count, values.Engine, values.Train, values.cacheBefore)
 	return DownloadWorkflowLogs(cmd.Context(), values.LogsDownloadOptions)
 }
 
@@ -213,25 +229,81 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 }
 
 func loadLogsCommandValues(cmd *cobra.Command, args []string) (*logsCommandValues, error) {
-	workflowName, err := resolveLogsWorkflowName(cmd, args)
-	if err != nil {
-		return nil, err
-	}
 	options, err := loadCommonLogsOptions(cmd)
 	if err != nil {
 		return nil, err
+	}
+	targets, targetErrors := resolveLogsWorkflowTargets(cmd, args)
+	if len(args) <= 1 && len(targetErrors) > 0 {
+		return nil, targetErrors[0]
 	}
 	cacheBefore, _ := cmd.Flags().GetString("cache-before")
 	if !cmd.Flags().Changed("cache-before") && cmd.Flags().Changed("after") {
 		cacheBefore, _ = cmd.Flags().GetString("after")
 	}
-	options.WorkflowName = workflowName
 	options.After = cacheBefore
 	return &logsCommandValues{
-		workflowName:        workflowName,
+		targets:             targets,
+		targetErrors:        targetErrors,
 		cacheBefore:         cacheBefore,
 		LogsDownloadOptions: options,
 	}, nil
+}
+
+func resolveLogsWorkflowTargets(cmd *cobra.Command, args []string) ([]logsWorkflowTarget, []error) {
+	if len(args) == 0 {
+		return []logsWorkflowTarget{{repoOverride: getStringFlag(cmd, "repo")}}, nil
+	}
+	targets := make([]logsWorkflowTarget, 0, len(args))
+	var targetErrors []error
+	for _, arg := range args {
+		target, err := resolveLogsWorkflowTarget(cmd, arg)
+		if err != nil {
+			targetErrors = append(targetErrors, fmt.Errorf("%s: %w", arg, err))
+			continue
+		}
+		targets = append(targets, target)
+	}
+	return targets, targetErrors
+}
+
+func resolveLogsWorkflowTarget(cmd *cobra.Command, arg string) (logsWorkflowTarget, error) {
+	repoOverride := getStringFlag(cmd, "repo")
+	if repoOverride != "" {
+		return logsWorkflowTarget{
+			workflowName: resolveLogsWorkflowNameForRepo(arg, repoOverride),
+			repoOverride: repoOverride,
+		}, nil
+	}
+	if repo, workflowName, ok := splitCrossRepoWorkflowTarget(arg); ok {
+		return logsWorkflowTarget{
+			workflowName: normalizeWorkflowID(workflowName),
+			repoOverride: repo,
+		}, nil
+	}
+	workflowName, err := resolveLogsWorkflowNameLocally(arg)
+	return logsWorkflowTarget{workflowName: workflowName}, err
+}
+
+func splitCrossRepoWorkflowTarget(arg string) (string, string, bool) {
+	if filepath.IsAbs(arg) || strings.HasPrefix(filepath.ToSlash(arg), constants.GithubDir) {
+		return "", "", false
+	}
+	if _, err := os.Stat(arg); err == nil {
+		return "", "", false
+	}
+	parts := strings.Split(filepath.ToSlash(strings.TrimSpace(arg)), "/")
+	if len(parts) < 3 || parts[0] == "" || parts[1] == "" || strings.Join(parts[2:], "/") == "" {
+		return "", "", false
+	}
+	repoParts := 2
+	if len(parts) >= 4 && strings.Contains(parts[0], ".") {
+		repoParts = 3
+	}
+	if strings.Join(parts[repoParts:], "/") == "" {
+		return "", "", false
+	}
+	return strings.Join(parts[:repoParts], "/"), strings.Join(parts[repoParts:], "/"), true
 }
 
 func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
@@ -344,18 +416,6 @@ func validateLogsEngine(engine string) error {
 	return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
 }
 
-func resolveLogsWorkflowName(cmd *cobra.Command, args []string) (string, error) {
-	if len(args) == 0 || args[0] == "" {
-		return "", nil
-	}
-	logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
-	repoOverride := getStringFlag(cmd, "repo")
-	if repoOverride != "" {
-		return resolveLogsWorkflowNameForRepo(args[0], repoOverride), nil
-	}
-	return resolveLogsWorkflowNameLocally(args[0])
-}
-
 func resolveLogsWorkflowNameForRepo(arg, repoOverride string) string {
 	if !repoIsLocal(repoOverride) {
 		workflowName := normalizeWorkflowID(arg)
@@ -391,7 +451,7 @@ func resolveLogsWorkflowNameLocally(arg string) (string, error) {
 }
 
 func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
-	logsCmd.Flags().IntP("count", "c", 10, "Maximum number of matching workflow runs to return (after applying filters)")
+	logsCmd.Flags().IntP("count", "c", 10, "Maximum matching workflow runs to return per workflow (after applying filters)")
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	addOutputFlag(logsCmd, defaultLogsOutputDir)
