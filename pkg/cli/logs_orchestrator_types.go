@@ -41,6 +41,19 @@ type LogsDownloadOptions struct {
 	// downloaded artifacts, and that own stdout themselves, set this so their own
 	// output is not interleaved with the logs report.
 	SuppressRender bool
+	// Internal orchestration flags used when several workflow targets share one
+	// command invocation.
+	skipEnsureGitignore    bool
+	rateLimitFirstRequest  bool
+	maxConcurrentDownloads int
+}
+
+type workflowLogsResult struct {
+	processedRuns     []ProcessedRun
+	artifactFilter    []string
+	continuation      *ContinuationData
+	countLimitReached bool
+	timeoutReached    bool
 }
 
 // StdinLogsOptions holds parameters for DownloadWorkflowLogsFromStdin.
@@ -115,6 +128,7 @@ type renderLogsOutputOptions struct {
 	// scope dateRangeCoverageWarning to the cause it actually describes, rather
 	// than firing for timeout-driven continuations too.
 	countLimitReached bool
+	continuations     []WorkflowContinuation
 	// suppressRender skips all report rendering after the summary file has been
 	// written, for callers that only want the downloaded artifacts.
 	suppressRender bool

@@ -47,6 +47,7 @@ package workflow
 
 import (
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -186,7 +187,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		}
 	}
 
-	return &MCPGatewayRuntimeConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port:                        int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
 		Domain:                      "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
 		AgentID:                     "${MCP_GATEWAY_AGENT_ID}",                        // Gateway variable expression
@@ -206,6 +207,35 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		OTLPEndpoint: workflowData.OTLPEndpoint,
 		OTLPHeaders:  workflowData.OTLPHeaders,
 	}
+	if enclaveGitHubIssuesEnabled(workflowData) {
+		primaryServers := collectMCPTools(workflowData)
+		primaryGitHubEnabled := false
+		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub && githubTool != false {
+			primaryGitHubEnabled = !isGitHubCLIModeEnabled(workflowData)
+		}
+		if !primaryGitHubEnabled {
+			for i, server := range primaryServers {
+				if server == "github" {
+					primaryServers = append(primaryServers[:i], primaryServers[i+1:]...)
+					break
+				}
+			}
+		}
+		sort.Strings(primaryServers)
+		config.AgentID = ""
+		config.AgentIDs = []string{"${MCP_GATEWAY_AGENT_ID}", "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"}
+		config.AgentPolicies = map[string]MCPGatewayAgentPolicy{
+			"${MCP_GATEWAY_AGENT_ID}":            {Servers: primaryServers},
+			"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}": enclaveGitHubMCPAgentPolicy(workflowData),
+		}
+		if primaryGitHubEnabled {
+			config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"] = MCPGatewayAgentPolicy{
+				Servers: primaryServers,
+				Tools:   map[string][]string{"github": collectGitHubMCPManifestTools(workflowData.Tools["github"])},
+			}
+		}
+	}
+	return config
 }
 
 // isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)

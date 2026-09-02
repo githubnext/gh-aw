@@ -349,6 +349,54 @@ EOF
   rm -rf "$tmpdir" /tmp/gh-aw/mcp-config /tmp/gh-aw/mcp-gateway-started
 }
 
+test_gateway_agent_identifier_validation() {
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local fake_bin="$tmpdir/bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/docker" << 'EOF'
+#!/usr/bin/env bash
+exit 42
+EOF
+  chmod +x "$fake_bin/docker"
+
+  assert_agent_identifier_config() {
+    local test_name="$1"
+    local gateway_config="$2"
+    local expected_message="$3"
+    local output
+    set +e
+    output=$(printf '%s\n' "{\"mcpServers\":{},\"gateway\":{\"port\":8080,\"domain\":\"localhost\",${gateway_config}}}" | \
+      PATH="$fake_bin:$PATH" \
+      MCP_GATEWAY_PORT="8080" \
+      MCP_GATEWAY_DOMAIN="localhost" \
+      MCP_GATEWAY_AGENT_ID="test-key" \
+      MCP_GATEWAY_DOCKER_COMMAND="docker run -i --rm --network host test-image" \
+      bash "$SCRIPT_PATH" 2>&1)
+    set -e
+
+    if grep -Fq "$expected_message" <<< "$output"; then
+      print_result "$test_name" "PASS"
+    else
+      print_result "$test_name" "FAIL"
+    fi
+  }
+
+  assert_agent_identifier_config "Accepts a singular agent ID" '"agentId":"agent-1"' "Configuration validated successfully"
+  assert_agent_identifier_config "Accepts one plural agent ID" '"agentIds":["agent-1"]' "Configuration validated successfully"
+  assert_agent_identifier_config "Accepts multiple plural agent IDs" '"agentIds":["agent-1","agent-2"]' "Configuration validated successfully"
+  assert_agent_identifier_config "Rejects an empty plural agent ID list" '"agentIds":[]' "ERROR: Gateway 'agentIds' must be a non-empty array of non-empty strings"
+  assert_agent_identifier_config "Rejects a non-array plural agent ID" '"agentIds":"agent-1"' "ERROR: Gateway 'agentIds' must be a non-empty array of non-empty strings"
+  assert_agent_identifier_config "Rejects an empty ID in the plural list" '"agentIds":["agent-1",""]' "ERROR: Gateway 'agentIds' must be a non-empty array of non-empty strings"
+  assert_agent_identifier_config "Rejects a non-string ID in the plural list" '"agentIds":["agent-1",2]' "ERROR: Gateway 'agentIds' must be a non-empty array of non-empty strings"
+  assert_agent_identifier_config "Rejects both identifier forms" '"agentId":"agent-1","agentIds":["agent-1"]' "ERROR: Gateway configuration must specify exactly one of 'agentId' or 'agentIds'"
+  assert_agent_identifier_config "Rejects neither identifier form" '"other":"value"' "ERROR: Gateway configuration must specify exactly one of 'agentId' or 'agentIds'"
+  assert_agent_identifier_config "Rejects an empty singular agent ID" '"agentId":""' "ERROR: Gateway 'agentId' must be a non-empty string"
+  assert_agent_identifier_config "Rejects a malformed singular agent ID" '"agentId":["agent-1"]' "ERROR: Gateway 'agentId' must be a non-empty string"
+
+  rm -rf "$tmpdir" /tmp/gh-aw/mcp-config /tmp/gh-aw/mcp-gateway-started
+}
+
 # Run all tests
 echo "=== Testing start_mcp_gateway.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -363,6 +411,7 @@ test_container_missing_rm_flag
 test_container_missing_network_flag
 test_validation_functions_exist
 test_gateway_startup_diagnostics
+test_gateway_agent_identifier_validation
 
 # Print summary
 echo ""

@@ -234,6 +234,18 @@
           },
           "minItems": 1
         },
+        "agentPolicies": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "servers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "tools": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string", "minLength": 1 } } },
+              "allow-only": { "type": "object" }
+            },
+            "additionalProperties": false
+          }
+        },
         "domain": {
           "oneOf": [
             {

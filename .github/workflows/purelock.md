@@ -139,7 +139,9 @@ steps:
     uses: actions/setup-go@v7.0.0
     with:
       go-version-file: go.mod
-      cache: true
+      # The sandbox mounts the runner's Go module cache, so restoring it again
+      # causes setup-go's tar extraction to fail on existing files.
+      cache: false
   - name: Download PureLock bundle
     uses: actions/download-artifact@v8.0.1
     with:
