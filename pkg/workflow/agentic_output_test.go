@@ -72,7 +72,16 @@ This workflow tests the agentic output collection functionality.
 	if !strings.Contains(lockContent, "GH_AW_RUNNER_TOOL_CACHE: ${{ runner.tool_cache }}") {
 		t.Error("Expected runner.tool_cache to be passed through the step environment")
 	}
-	if strings.Contains(lockContent, `echo "RUNNER_TOOL_CACHE=${{ runner.tool_cache }}`) {
+	runStart := strings.Index(lockContent, "        run: |\n")
+	if runStart < 0 {
+		t.Fatal("Expected 'Set runtime paths' step to contain a run script")
+	}
+	runEnd := strings.Index(lockContent[runStart:], "\n      - ")
+	if runEnd < 0 {
+		t.Fatal("Expected generated run script to be followed by another step")
+	}
+	runScript := lockContent[runStart : runStart+runEnd]
+	if strings.Contains(runScript, "${{ runner.tool_cache }}") {
 		t.Error("runner.tool_cache must not be interpolated directly in the shell script")
 	}
 
