@@ -1320,6 +1320,43 @@ describe("collect_ndjson_output.cjs", () => {
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
         }),
+        it("should preserve allowed aliases after max when no more than max occur", async () => {
+          const allowed = Array.from({ length: 60 }, (_, i) => `user${i}`);
+          const validationPath = "/tmp/gh-aw/safeoutputs/validation.json";
+          const validationConfig = JSON.parse(fs.readFileSync(validationPath, "utf8"));
+          validationConfig.mentions = { allowContext: false, allowed, max: 3 };
+          fs.writeFileSync(validationPath, JSON.stringify(validationConfig));
+
+          const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+          const ndjsonContent = '{"type":"create_issue","title":"Late allowlist entries","body":"Thanks @user57, @user58, and @user59"}';
+          fs.writeFileSync(testFile, ndjsonContent);
+          process.env.GH_AW_SAFE_OUTPUTS = testFile;
+          fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", '{"create_issue":true}');
+
+          await eval(`(async () => { ${collectScript}; await main(); })()`);
+
+          const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+          const parsedOutput = JSON.parse(outputCall[1]);
+          expect(parsedOutput.items[0].body).toBe("Thanks @user57, @user58, and @user59");
+        }),
+        it("should apply the mention limit across all fields in one item", async () => {
+          const validationPath = "/tmp/gh-aw/safeoutputs/validation.json";
+          const validationConfig = JSON.parse(fs.readFileSync(validationPath, "utf8"));
+          validationConfig.mentions = { allowContext: false, allowed: ["user1", "user2", "user3", "user4"], max: 3 };
+          fs.writeFileSync(validationPath, JSON.stringify(validationConfig));
+
+          const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+          fs.writeFileSync(testFile, '{"type":"create_issue","title":"@user1 @user2","body":"@user3 @user4 @user1"}');
+          process.env.GH_AW_SAFE_OUTPUTS = testFile;
+          fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", '{"create_issue":true}');
+
+          await eval(`(async () => { ${collectScript}; await main(); })()`);
+
+          const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+          const parsedOutput = JSON.parse(outputCall[1]);
+          expect(parsedOutput.items[0].title).toBe("@user1 @user2");
+          expect(parsedOutput.items[0].body).toBe("@user3 `@user4` @user1");
+        }),
         it("should neutralize bot trigger phrases", async () => {
           const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
             ndjsonContent = '{"type": "create_issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}';

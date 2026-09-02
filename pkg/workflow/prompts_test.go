@@ -337,12 +337,12 @@ func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T
 		t.Fatalf("Expected exactly 2 concrete Claude variants, got %#v", variants)
 	}
 	expected := map[any]bool{
-		"claude-sonnet-4.6": true,
-		"claude-haiku-4.5":  true,
+		"claude-sonnet-5":  true,
+		"claude-haiku-4.5": true,
 	}
 	for _, variant := range variants {
 		if !expected[variant] {
-			t.Fatalf("Expected concrete Claude variants [claude-sonnet-4.6, claude-haiku-4.5], got %#v", variants)
+			t.Fatalf("Expected concrete Claude variants [claude-sonnet-5, claude-haiku-4.5], got %#v", variants)
 		}
 	}
 }

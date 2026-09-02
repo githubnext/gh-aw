@@ -54,6 +54,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 
+			config.LinearCreateIssue = c.parseLinearCreateIssueConfig(outputMap)
+			config.LinearAddComment = c.parseLinearAddCommentConfig(outputMap)
+			config.LinearUpdateIssue = c.parseLinearUpdateIssueConfig(outputMap)
+
 			// Handle create-issue
 			issuesConfig := c.parseCreateIssuesConfig(outputMap)
 			if issuesConfig != nil {
@@ -387,11 +391,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
 				// This ensures agents always have a first-class channel to signal task incompletion.
 				if _, exists := outputMap["report-incomplete"]; !exists {
-					trueVal := "true"
+					trueVal := defaultReportIncompleteCreateIssue(config)
 					config.ReportIncomplete = &ReportIncompleteConfig{
 						CreateIssue: &trueVal,
 						TitlePrefix: "",
 						Labels:      nil,
+						Implicit:    true,
 					}
 				}
 			}

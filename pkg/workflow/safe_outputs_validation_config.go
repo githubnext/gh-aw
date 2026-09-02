@@ -32,6 +32,11 @@ type FieldValidation struct {
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
+	// RejectIfOversized rejects the field outright when the raw value exceeds MaxLength,
+	// instead of silently truncating it via sanitization. Used for external-system fields
+	// (e.g. Linear) where truncation could turn an oversized/placeholder value into a
+	// deceptively short but "valid" operation.
+	RejectIfOversized bool `json:"rejectIfOversized,omitempty"`
 	// StripOnError marks optional enrichment fields (e.g. confidence, rationale) that should be
 	// silently dropped when they fail validation instead of rejecting the entire item.
 	// Serialised as "x-strip-on-error" to follow the x- extension convention used in JSON Schema.
@@ -60,6 +65,26 @@ const (
 // ValidationConfig contains all safe output type validation rules
 // This is the single source of truth for validation rules
 var ValidationConfig = map[string]TypeValidationConfig{
+	"linear_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Required: true, Type: "string", Sanitize: true, MaxLength: 128, RejectIfOversized: true},
+			"body":  {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength, RejectIfOversized: true},
+		},
+	},
+	"linear_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, RejectIfOversized: true},
+		},
+	},
+	"linear_update_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Type: "string", Sanitize: true, MaxLength: 128, RejectIfOversized: true},
+			"body":  {Type: "string", Sanitize: true, MaxLength: MaxBodyLength, RejectIfOversized: true},
+		},
+	},
 	"create_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{

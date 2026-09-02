@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.29
+**Version**: 1.0.30
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.30` | `v0.87.9` (or newer) | CTR-001 mapping adds the status-function guard for compiler-owned prerequisites; no new rule or `.lock.yml` schema change. |
 | `1.0.29` | `v0.87.9` (or newer) | No new CTR rules; extends the CTR-004 Sandbox Bypass Configuration mapping (Section 7.2 audit) to document that the unified MCP config renderer's duplicate emission of the Playwright Chromium `--no-sandbox` entrypoint flag (`pkg/workflow/mcp_renderer_builtin.go`, commit `ce08eba4b`) is the same browser-process-level flag already covered under the 2026-07-26 audit for `pkg/workflow/mcp_config_playwright_renderer.go`; not a workflow sandbox bypass. No `.lock.yml` schema changes. |
 | `1.0.28` | `v0.87.4` (or newer) | No new CTR rules; extends the CTR-004 Sandbox Bypass Configuration mapping to document the enclave GitHub proxy trust-surface additions (`pkg/workflow/enclaves.go`, `pkg/workflow/enclave_github_proxy.go`) that were already implemented and tested (`pkg/workflow/enclaves_test.go`, `pkg/workflow/enclave_github_proxy_test.go`) but absent from the Section 7.1 mapping table; `enclaves[].agent.github.cli: issues-read-v1` requires AWF network isolation (`validateEnclavesConfig` rejects when `isAWFNetworkIsolationEnabled` is false), gates on minimum AWF/MCPG versions, uses a dedicated read-only operation allowlist (`issues.comments.list`, `issues.get`, `issues.list`), and derives its upstream GitHub token from a chain that intentionally excludes the default `GITHUB_TOKEN` (`getEffectiveEnclaveGitHubToken`). No `.lock.yml` schema changes. |
 | `1.0.27` | `v0.87.4` (or newer) | No new CTR rules; extends the CTR-006 Template Injection mapping to document `pkg/workflow/mcp_renderer_guard.go`, which uses a sentinel-based defer mechanism (`guardExprSentinel`/`renderGuardPoliciesJSON`) to emit MCP gateway guard-policy expressions as unquoted GitHub Actions runtime expressions in generated heredocs; this behavior was already implemented and tested (`pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/copilot_github_mcp_test.go`) but absent from the Section 7.1 mapping table. No `.lock.yml` schema changes. |
@@ -291,7 +292,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 
 | Rule ID | Primary Implementation Areas | Test Coverage Targets |
 |---------|-------------------------------|-----------------------|
-| CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`, `pkg/workflow/github_app_permissions_validation.go` | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go` |
+| CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`, `pkg/workflow/github_app_permissions_validation.go`, `pkg/workflow/compiler_builtin_job_augmentation.go` (status-function guard for compiler-owned prerequisites) | `pkg/workflow/*permissions*_test.go`, `pkg/workflow/*dangerous_permissions*_test.go`, `pkg/workflow/compiler_custom_jobs_test.go` |
 | CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go`; enclave GitHub proxy network-isolation and version gating in `pkg/workflow/enclaves.go` (`validateEnclavesConfig`, `validateEnclaveGitHubIssuesVersions`) and dedicated read-only credential/operation scoping in `pkg/workflow/enclave_github_proxy.go` (`operationsForEnclaveGitHubProfile`, `getEffectiveEnclaveGitHubToken`) | `pkg/workflow/*sandbox*_test.go`, `pkg/workflow/enclaves_test.go`, `pkg/workflow/enclave_github_proxy_test.go` |
