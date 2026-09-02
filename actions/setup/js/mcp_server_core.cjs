@@ -489,7 +489,7 @@ function registerTool(server, tool) {
   const normalizedName = normalizeTool(tool.name);
   const existing = server.tools[normalizedName];
   if (existing && existing.name !== tool.name) {
-    throw new Error(`Tool name collision: '${existing.name}' and '${tool.name}' both normalize to '${normalizedName}'`);
+    throw new Error(`${ERR_VALIDATION}: Tool name collision: '${existing.name}' and '${tool.name}' both normalize to '${normalizedName}'`);
   }
   server.tools[normalizedName] = {
     ...tool,

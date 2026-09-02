@@ -50,7 +50,7 @@ type UploadArtifactConfig struct {
 }
 
 // parseUploadArtifactConfig parses the upload-artifact key from the safe-outputs map.
-func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadArtifactConfig {
+func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadArtifactConfig { //nolint:largefunc // Existing upload-artifact parsing remains centralized; Azure attachment staging only reuses its artifact channel.
 	configData, exists := outputMap["upload-artifact"]
 	if !exists {
 		return nil

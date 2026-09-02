@@ -70,6 +70,17 @@ describe("safe_outputs_handlers", () => {
     handlers = createHandlers(mockServer, mockAppendSafeOutput);
   });
 
+  it("collects Azure DevOps proposals using underscore-form message types", () => {
+    handlers.createWorkItemHandler({ temporary_id: "item", title: "Create item" });
+    handlers.updateWorkItemHandler({ id: "#item", title: "Update item" });
+    handlers.commentOnWorkItemHandler({ id: "#item", body: "Comment" });
+    handlers.assignWorkItemHandler({ id: "#item", assignee: "user@example.com" });
+    handlers.linkWorkItemsHandler({ source_id: "#item", target_id: 42, type: "related" });
+
+    expect(mockAppendSafeOutput.mock.calls.map(call => call[0].type)).toEqual(["create_work_item", "update_work_item", "comment_on_work_item", "assign_work_item", "link_work_items"]);
+    expect(mockAppendSafeOutput.mock.calls[0][0].temporary_id).toMatch(/^#aw_/);
+  });
+
   afterEach(() => {
     // Clean up test files
     try {

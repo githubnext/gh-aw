@@ -42,7 +42,7 @@ package workflow
 //
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
-func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
+func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig { //nolint:largefunc // Existing safe-output extraction remains centralized across all output types.
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
 	var config *SafeOutputsConfig

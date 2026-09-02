@@ -29,7 +29,7 @@ var safeOutputFieldMapping = buildSafeOutputFieldMapping()
 //
 // NOTE: keep this function in sync with safeOutputFieldMapping above and
 // hasNonBuiltinSafeOutputsEnabled below when adding new safe output types.
-func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
+func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool { //nolint:largefunc // Existing explicit checks avoid reflection on the compilation hot path.
 	if safeOutputs == nil {
 		return false
 	}
@@ -101,7 +101,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 //
 // NOTE: keep this function in sync with safeOutputFieldMapping above and
 // hasAnySafeOutputEnabled above when adding new safe output types.
-func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool { //nolint:largefunc // Existing explicit checks avoid reflection on the compilation hot path.
 	if safeOutputs == nil {
 		return false
 	}

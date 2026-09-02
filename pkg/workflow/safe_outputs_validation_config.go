@@ -619,7 +619,7 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
-func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
+func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) { //nolint:largefunc // Existing schema assembly remains centralized; Azure types only extend the package-level validation map.
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
 	// Cache only the schema-only path; mentions are workflow-specific and cheap to remarshal.

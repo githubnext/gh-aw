@@ -13195,9 +13195,9 @@
                 "branch": { "type": "string", "minLength": 1, "maxLength": 256, "default": "main" }
               }
             },
-            "include-stats": { "type": "boolean", "default": true },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13226,7 +13226,8 @@
             "tags": { "type": "boolean", "default": false },
             "allowed-tags": { "$ref": "#/$defs/azure_devops_string_list" },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13241,9 +13242,9 @@
           "required": ["target"],
           "properties": {
             "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
-            "include-stats": { "type": "boolean", "default": true },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13262,7 +13263,8 @@
             "allowed": { "$ref": "#/$defs/azure_devops_string_list" },
             "blocked": { "$ref": "#/$defs/azure_devops_string_list" },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13286,7 +13288,8 @@
               }
             },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13307,7 +13310,8 @@
             },
             "comment-prefix": { "type": "string", "maxLength": 256 },
             "max": { "$ref": "#/$defs/templatable_positive_integer" },
-            "staged": { "$ref": "#/$defs/templatable_boolean" }
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
           }
         },
         { "type": "null" }
@@ -13334,6 +13338,19 @@
       "type": "array",
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "azure_devops_samples": {
+      "description": "Internal hidden feature. Optional declarative sample payloads for deterministic safe-output replay.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true
+        }
+      ]
     },
     "enclave-repos": {
       "type": "array",

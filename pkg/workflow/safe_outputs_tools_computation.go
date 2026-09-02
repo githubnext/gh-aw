@@ -7,7 +7,7 @@ var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_com
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
 // by the workflow's SafeOutputsConfig. Dynamic tools (dispatch-workflow, custom jobs,
 // call-workflow) are excluded because they are generated separately.
-func computeEnabledToolNames(data *WorkflowData) map[string]struct {
+func computeEnabledToolNames(data *WorkflowData) map[string]struct { //nolint:largefunc // Existing explicit tool-name mapping remains centralized for all safe outputs.
 } {
 	enabledTools := make(map[string]struct {
 	})

@@ -91,6 +91,29 @@ describe("safe_outputs_tools_loader", () => {
   });
 
   describe("attachHandlers", () => {
+    it("attaches Azure DevOps handlers to ado-aw public tool names", () => {
+      const tools = [{ name: "create-work-item" }, { name: "update-work-item" }, { name: "comment-on-work-item" }, { name: "assign-work-item" }, { name: "link-work-items" }, { name: "upload-workitem-attachment" }];
+      const handlers = {
+        createWorkItemHandler: vi.fn(),
+        updateWorkItemHandler: vi.fn(),
+        commentOnWorkItemHandler: vi.fn(),
+        assignWorkItemHandler: vi.fn(),
+        linkWorkItemsHandler: vi.fn(),
+        uploadWorkItemAttachmentHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result.map(tool => tool.handler)).toEqual([
+        handlers.createWorkItemHandler,
+        handlers.updateWorkItemHandler,
+        handlers.commentOnWorkItemHandler,
+        handlers.assignWorkItemHandler,
+        handlers.linkWorkItemsHandler,
+        handlers.uploadWorkItemAttachmentHandler,
+      ]);
+    });
+
     it("should attach create_pull_request handler", () => {
       const tools = [
         { name: "create_pull_request", description: "Create PR" },

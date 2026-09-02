@@ -77,6 +77,17 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 | [Upload Artifact](#artifact-uploads-upload-artifact) | `upload-artifact` | Upload files as run-scoped GitHub Actions artifacts (max: 1 by default) |
 | [Upload Assets](#asset-uploads-upload-asset) | `upload-asset` | Upload files to orphaned git branch (max: 10, same-repo only). **Prefer `upload-artifact` with `skip-archive` instead.** |
 
+### Azure DevOps Work Items
+
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create Work Item](#azure-devops-work-items) | `create-work-item` | Create an Azure DevOps work item (max: 1) |
+| [Update Work Item](#azure-devops-work-items) | `update-work-item` | Update explicitly enabled fields on a scoped work item (max: 1) |
+| [Comment on Work Item](#azure-devops-work-items) | `comment-on-work-item` | Add a comment to a scoped work item (max: 1) |
+| [Assign Work Item](#azure-devops-work-items) | `assign-work-item` | Assign an allowed identity to a scoped work item (max: 1) |
+| [Link Work Items](#azure-devops-work-items) | `link-work-items` | Link two scoped work items (max: 5) |
+| [Upload Work Item Attachment](#azure-devops-work-items) | `upload-workitem-attachment` | Attach a staged workspace file to a work item (max: 1) |
+
 ### Security & Agent Tasks
 
 | Output | Key | Description |
@@ -1107,6 +1118,45 @@ git checkout --orphan my-custom-branch && git rm -rf . && git commit --allow-emp
 **Security**: File path validation (workspace/`/tmp` only), extension allowlist, size limits, SHA-256 verification, orphaned branch isolation, minimal permissions.
 
 **Outputs**: `published_count`, `branch_name`. **Limits**: Same-repo only, max 50MB/file, 100 assets/run.
+
+### Azure DevOps Work Items
+
+Azure DevOps work-item safe outputs use the same public tool names as [`ado-aw`](https://githubnext.github.io/ado-aw/reference/safe-outputs/). The agent remains read-only; the safe-output job performs trusted Azure DevOps REST requests.
+
+Provide the organization, project, and credential only to the safe-output job:
+
+```yaml wrap
+safe-outputs:
+  env:
+    AZURE_DEVOPS_ORG_URL: ${{ vars.AZURE_DEVOPS_ORG_URL }}
+    SYSTEM_TEAMPROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+    AZURE_DEVOPS_EXT_PAT: ${{ secrets.AZURE_DEVOPS_EXT_PAT }}
+  create-work-item:
+    work-item-type: Task
+    area-path: MyProject\Platform
+    allowed-tags: [agent-*]
+  update-work-item:
+    target: MyProject\Platform
+    title: true
+    status: true
+  comment-on-work-item:
+    target: MyProject\Platform
+  assign-work-item:
+    target: "*"
+    allowed: [owner@example.com]
+  link-work-items:
+    target: MyProject\Platform
+    allowed-link-types: [parent, child, related]
+  upload-workitem-attachment:
+    allowed-extensions: [.txt, .log, .pdf]
+    max-file-size: 5242880
+```
+
+Authentication uses `SYSTEM_ACCESSTOKEN` when present, otherwise `AZURE_DEVOPS_EXT_PAT`. `AZURE_DEVOPS_ORG_URL` must use `https://dev.azure.com/{organization}` or `https://{organization}.visualstudio.com`; redirects and embedded credentials are rejected.
+
+`create-work-item` returns a run-scoped `#aw_...` temporary ID. The other work-item tools accept that ID, and same-run IDs bypass their consuming `target` policy because creation was already scoped by trusted configuration. Numeric IDs are checked against `target`: updates and assignments accept `"*"` or one ID; comments and links also accept an ID list or area-path prefix.
+
+For `update-work-item`, each mutable field must be explicitly enabled. Assignment always rejects the reserved `Agency` and `GitHub Copilot` identities. Attachments must be regular workspace files and are checked for traversal, symbolic links, size, extension, and Azure Pipelines command sequences before upload.
 
 ### No-Op Logging (`noop:`)
 

@@ -1,13 +1,18 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"fmt"
+	"maps"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var azureDevOpsSafeOutputsLog = logger.New("workflow:safe_outputs_azure_devops")
 
 type AzureDevOpsArtifactLinkConfig struct {
-	Enabled    bool   `yaml:"enabled,omitempty"`
-	Repository string `yaml:"repository,omitempty"`
-	Branch     string `yaml:"branch,omitempty"`
+	Enabled    bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	Repository string `yaml:"repository,omitempty" json:"repository,omitempty"`
+	Branch     string `yaml:"branch,omitempty" json:"branch,omitempty"`
 }
 
 type CreateWorkItemConfig struct {
@@ -21,29 +26,29 @@ type CreateWorkItemConfig struct {
 	AllowedTags          []string                      `yaml:"allowed-tags,omitempty"`
 	CustomFields         map[string]string             `yaml:"custom-fields,omitempty"`
 	ArtifactLink         AzureDevOpsArtifactLinkConfig `yaml:"artifact-link,omitempty"`
-	IncludeStats         bool                          `yaml:"include-stats,omitempty"`
 }
 
 type UpdateWorkItemConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	Status               bool     `yaml:"status,omitempty"`
-	Title                bool     `yaml:"title,omitempty"`
-	Body                 bool     `yaml:"body,omitempty"`
-	MarkdownBody         bool     `yaml:"markdown-body,omitempty"`
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
-	TagPrefix            string   `yaml:"tag-prefix,omitempty"`
-	Target               any      `yaml:"target,omitempty"`
-	AreaPath             bool     `yaml:"area-path,omitempty"`
-	IterationPath        bool     `yaml:"iteration-path,omitempty"`
-	Assignee             bool     `yaml:"assignee,omitempty"`
-	Tags                 bool     `yaml:"tags,omitempty"`
-	AllowedTags          []string `yaml:"allowed-tags,omitempty"`
+	BaseSafeOutputConfig     `yaml:",inline"`
+	Status                   bool     `yaml:"status,omitempty"`
+	Title                    bool     `yaml:"title,omitempty"`
+	Body                     bool     `yaml:"body,omitempty"`
+	MarkdownBody             bool     `yaml:"markdown-body,omitempty"`
+	TitlePrefix              string   `yaml:"title-prefix,omitempty"`
+	TagPrefix                string   `yaml:"tag-prefix,omitempty"`
+	Target                   any      `yaml:"target,omitempty"`
+	AreaPath                 bool     `yaml:"area-path,omitempty"`
+	IterationPath            bool     `yaml:"iteration-path,omitempty"`
+	Assignee                 bool     `yaml:"assignee,omitempty"`
+	Tags                     bool     `yaml:"tags,omitempty"`
+	AllowedTags              []string `yaml:"allowed-tags,omitempty"`
+	AllowedAreaPrefixes      []string `yaml:"allowed-area-prefixes,omitempty"`
+	AllowedIterationPrefixes []string `yaml:"allowed-iteration-prefixes,omitempty"`
 }
 
 type CommentOnWorkItemConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Target               any  `yaml:"target,omitempty"`
-	IncludeStats         bool `yaml:"include-stats,omitempty"`
+	Target               any `yaml:"target,omitempty"`
 }
 
 type AssignWorkItemConfig struct {
@@ -67,6 +72,15 @@ type UploadWorkItemAttachmentConfig struct {
 }
 
 func parseAzureDevOpsConfig[T any](c *Compiler, outputMap map[string]any, key string, defaultMax int, postProcess func(*T)) *T {
+	if enabled, ok := outputMap[key].(bool); ok {
+		if !enabled {
+			return nil
+		}
+		normalized := make(map[string]any, len(outputMap))
+		maps.Copy(normalized, outputMap)
+		normalized[key] = map[string]any{}
+		outputMap = normalized
+	}
 	config := parseConfigScaffold(outputMap, key, azureDevOpsSafeOutputsLog, func(err error) *T {
 		azureDevOpsSafeOutputsLog.Printf("Failed to parse %s configuration: %v", key, err)
 		return nil
@@ -143,6 +157,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 		if cfg.CreateWorkItems == nil {
 			return nil
 		}
+
 		c := cfg.CreateWorkItems
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
@@ -176,6 +191,8 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("assignee", c.Assignee).
 			AddIfTrue("tags", c.Tags).
 			AddStringSlice("allowed_tags", c.AllowedTags).
+			AddStringSlice("allowed_area_prefixes", c.AllowedAreaPrefixes).
+			AddStringSlice("allowed_iteration_prefixes", c.AllowedIterationPrefixes).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
@@ -225,4 +242,96 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
+}
+
+func appendAzureDevOpsTargetConstraint(constraints *[]string, target any) {
+	if target != nil {
+		*constraints = append(*constraints, fmt.Sprintf("Target: %v.", target))
+	}
+}
+
+func createWorkItemConstraints(config *CreateWorkItemConfig) []string {
+	return buildConstraints(config, func(config *CreateWorkItemConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work item(s) can be created.")
+		appendStringConstraint(constraints, config.WorkItemType, "Work item type: %q.")
+		appendStringConstraint(constraints, config.AreaPath, "Area path: %q.")
+		if len(config.AllowedTags) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these agent-provided tags are allowed: %s.", formatStringList(config.AllowedTags)))
+		}
+	})
+}
+
+func updateWorkItemConstraints(config *UpdateWorkItemConfig) []string {
+	return buildConstraints(config, func(config *UpdateWorkItemConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work item(s) can be updated.")
+		appendAzureDevOpsTargetConstraint(constraints, config.Target)
+		var fields []string
+		for _, field := range []struct {
+			name    string
+			enabled bool
+		}{
+			{"state", config.Status},
+			{"title", config.Title},
+			{"body", config.Body},
+			{"area_path", config.AreaPath},
+			{"iteration_path", config.IterationPath},
+			{"assignee", config.Assignee},
+			{"tags", config.Tags},
+		} {
+			if field.enabled {
+				fields = append(fields, field.name)
+			}
+		}
+		if len(fields) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these fields can be updated: %s.", formatStringList(fields)))
+		}
+		if len(config.AllowedAreaPrefixes) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Area paths must match these prefixes: %s.", formatStringList(config.AllowedAreaPrefixes)))
+		}
+		if len(config.AllowedIterationPrefixes) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Iteration paths must match these prefixes: %s.", formatStringList(config.AllowedIterationPrefixes)))
+		}
+	})
+}
+
+func commentOnWorkItemConstraints(config *CommentOnWorkItemConfig) []string {
+	return buildConstraints(config, func(config *CommentOnWorkItemConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work-item comment(s) can be added.")
+		appendAzureDevOpsTargetConstraint(constraints, config.Target)
+	})
+}
+
+func assignWorkItemConstraints(config *AssignWorkItemConfig) []string {
+	return buildConstraints(config, func(config *AssignWorkItemConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work item(s) can be assigned.")
+		appendAzureDevOpsTargetConstraint(constraints, config.Target)
+		if len(config.Allowed) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these assignees are allowed: %s.", formatStringList(config.Allowed)))
+		}
+		if len(config.Blocked) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("These assignee patterns are blocked: %s.", formatStringList(config.Blocked)))
+		}
+	})
+}
+
+func linkWorkItemsConstraints(config *LinkWorkItemsConfig) []string {
+	return buildConstraints(config, func(config *LinkWorkItemsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work-item link(s) can be created.")
+		appendAzureDevOpsTargetConstraint(constraints, config.Target)
+		if len(config.AllowedLinkTypes) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these link types are allowed: %s.", formatStringList(config.AllowedLinkTypes)))
+		}
+	})
+}
+
+func uploadWorkItemAttachmentConstraints(config *UploadWorkItemAttachmentConfig) []string {
+	return buildConstraints(config, func(config *UploadWorkItemAttachmentConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d work-item attachment(s) can be uploaded.")
+		if config.MaxFileSize > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Maximum attachment size: %d bytes.", config.MaxFileSize))
+		}
+		if len(config.AllowedExtensions) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these file extensions are allowed: %s.", formatStringList(config.AllowedExtensions)))
+		}
+	})
 }

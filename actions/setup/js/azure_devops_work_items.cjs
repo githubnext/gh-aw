@@ -66,6 +66,18 @@ function validateAllowedTags(tags, allowedTags) {
   if (disallowed.length > 0) {
     throw new Error(`tags are not permitted by allowed-tags: ${disallowed.join(", ")}`);
   }
+
+  function validateAllowedPath(value, allowedPrefixes, fieldName) {
+    if (!Array.isArray(allowedPrefixes) || allowedPrefixes.length === 0) return;
+    const normalized = String(value).trim().toLowerCase();
+    const allowed = allowedPrefixes.some(prefix => {
+      const normalizedPrefix = String(prefix).trim().replace(/\\+$/, "").toLowerCase();
+      return normalized === normalizedPrefix || normalized.startsWith(`${normalizedPrefix}\\`);
+    });
+    if (!allowed) {
+      throw new Error(`${fieldName} is not permitted by the configured ${fieldName.replace("_", "-")} prefixes`);
+    }
+  }
 }
 
 function getAzureDevOpsContext() {
@@ -105,16 +117,22 @@ function getAzureDevOpsContext() {
 
 async function adoRequest(ado, method, apiPath, body, contentType = "application/json") {
   const url = `${ado.orgUrl}/${encodeURIComponent(ado.project)}${apiPath}`;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Accept: "application/json",
-      Authorization: ado.authorization,
-      ...(body !== undefined ? { "Content-Type": contentType } : {}),
-    },
-    body: body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body),
-    redirect: "manual",
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        Accept: "application/json",
+        Authorization: ado.authorization,
+        ...(body !== undefined ? { "Content-Type": contentType } : {}),
+      },
+      body: body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body),
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw new Error(`Azure DevOps ${method} request could not be sent`, { cause: error });
+  }
   if (response.status >= 300 && response.status < 400) {
     throw new Error(`Azure DevOps rejected a redirected ${method} request`);
   }
@@ -122,8 +140,18 @@ async function adoRequest(ado, method, apiPath, body, contentType = "application
     throw new Error(`Azure DevOps ${method} request failed with HTTP ${response.status} ${response.statusText}`);
   }
   if (response.status === 204) return {};
-  const text = await response.text();
-  return text ? JSON.parse(text) : {};
+  let text;
+  try {
+    text = await response.text();
+  } catch (error) {
+    throw new Error(`Azure DevOps ${method} response body could not be read`, { cause: error });
+  }
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Azure DevOps ${method} response was not valid JSON`, { cause: error });
+  }
 }
 
 function workItemUrl(ado, id) {
@@ -299,6 +327,12 @@ async function handleUpdateWorkItem(message, config, resolvedTemporaryIds) {
       message.tags = validateTags(message.tags);
       validateAllowedTags(message.tags, config.allowed_tags);
     }
+    if (message.area_path !== undefined) {
+      validateAllowedPath(message.area_path, config.allowed_area_prefixes, "area_path");
+    }
+    if (message.iteration_path !== undefined) {
+      validateAllowedPath(message.iteration_path, config.allowed_iteration_prefixes, "iteration_path");
+    }
     if (preview) return staged(`Would update Azure DevOps work item ${message.id}`);
 
     const ado = getAzureDevOpsContext();
@@ -426,7 +460,12 @@ function readStagedAttachment(message, config) {
   if (allowedExtensions.length > 0 && !allowedExtensions.some(extension => originalPath.toLowerCase().endsWith(String(extension).toLowerCase()))) {
     throw new Error("attachment extension is not permitted");
   }
-  const bytes = fs.readFileSync(filePath);
+  let bytes;
+  try {
+    bytes = fs.readFileSync(filePath);
+  } catch (error) {
+    throw new Error("staged attachment could not be read", { cause: error });
+  }
   if (bytes.includes(Buffer.from("##vso["))) throw new Error("attachment contains an Azure Pipelines command sequence");
   return { bytes, filename: path.basename(originalPath) || path.basename(filePath) };
 }

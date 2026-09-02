@@ -55,7 +55,7 @@ func checkMaxField(toolName string, maxPtr *string) error {
 // This function uses direct struct field access instead of reflection for performance;
 // it is on the hot path and called on every compilation. The field ordering matches
 // the sorted safeOutputFieldMapping keys for deterministic error reporting.
-func validateSafeOutputsMax(config *SafeOutputsConfig) error {
+func validateSafeOutputsMax(config *SafeOutputsConfig) error { //nolint:largefunc // Existing explicit validation preserves deterministic field ordering across output types.
 	if config == nil {
 		return nil
 	}
