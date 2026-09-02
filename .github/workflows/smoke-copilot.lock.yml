@@ -31,12 +31,12 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #     - shared/github-queries-mcp-script.md
+#     - shared/mcp/serena.md
+#     - shared/mcp/serena-go.md
 #     - shared/otlp.md
 #     - shared/token-telemetry-check.md
 #     - shared/smoke-test-brevity.md
 #     - shared/playwright-title-test.md
-#     - shared/mcp/serena.md
-#     - shared/mcp/serena-go.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

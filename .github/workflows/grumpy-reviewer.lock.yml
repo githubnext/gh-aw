@@ -27,10 +27,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/otlp.md
 #     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
 #     - shared/pr-review-base.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

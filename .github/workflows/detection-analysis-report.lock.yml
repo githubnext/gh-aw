@@ -27,11 +27,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/aw-logs-24h-fetch-setup.md
-#     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #     - shared/daily-audit-discussion.md
 #     - shared/otlp.md
+#     - shared/aw-logs-24h-fetch-setup.md
+#     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #     - shared/daily-audit-charts.md
 #
@@ -562,10 +562,6 @@ jobs:
           key: agentic-logs
           path: .github/aw/logs
       - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Download logs from last 24 hours
-        run: ./gh-aw logs --start-date -1d --count 3000 -o /tmp/gh-aw/aw-mcp/logs
-      - env:
           UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
         name: Setup Python environment
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# The agent sandbox cannot run the runner's CPython (glibc mismatch) and only ships\n# PyPy, which has no wheels for the chart libraries — installing them from inside the\n# sandbox builds NumPy/SciPy from source and exhausts the runner disk. Install a\n# portable uv-managed CPython plus the chart libraries under /tmp/gh-aw, which is\n# mounted read-write into the sandbox, so the agent can import them directly.\n# This must match shared/python-dataviz.md and shared/python-nlp.md so either import can\n# create the shared environment first; never recreate it, or a sibling import's packages\n# (for example the NLP libraries) would be discarded.\nif [ ! -d /tmp/gh-aw/python/venv ]; then\n  uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv\nfi\nuv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy\necho \"/tmp/gh-aw/python/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/python/venv/bin/python -c \"import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')\"\n"
@@ -579,6 +575,10 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download logs from last 24 hours
+        run: ./gh-aw logs --start-date -1d --count 3000 -o /tmp/gh-aw/aw-mcp/logs
 
       - name: Configure Git credentials
         env:

@@ -78,6 +78,7 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 	var shellcheckResources []workflow.ShellScriptResource
+	var compiledLockFiles []string // every lock file actually emitted, regardless of which lint tools are enabled
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -155,6 +156,7 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
 				if _, err := os.Stat(fileResult.lockFile); err == nil {
+					compiledLockFiles = append(compiledLockFiles, fileResult.lockFile)
 					if config.Actionlint {
 						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
 					}
@@ -324,7 +326,7 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	// Post-processing
-	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount); err != nil {
+	if err := runPostProcessing(compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
 		return workflowDataList, err
 	}
 
@@ -828,6 +830,7 @@ func runPurgeOperations(workflowsDir string, data *purgeTrackingData, verbose bo
 func runPostProcessing(
 	compiler *workflow.Compiler,
 	workflowDataList []*workflow.WorkflowData,
+	compiledLockFiles []string,
 	config CompileConfig,
 	successCount int,
 ) error {
@@ -855,12 +858,23 @@ func runPostProcessing(
 		}
 	}
 
-	// Generate maintenance workflow if needed
-	// Only generate when compiling all workflows (not specific files)
-	// Skip when using custom --dir option or when compiling specific files
-	// Note: Maintenance workflow generation requires parsing all workflows in the directory
-	// to check for expires fields, so we skip it when compiling specific files to avoid
-	// unnecessary parsing and warnings from unrelated workflows
+	// Reconcile the implicit action-failure expiry marker so specific-file
+	// compiles agree with what a full directory compile would produce.
+	// Maintenance workflow generation itself is skipped for specific-file
+	// compiles because it requires parsing every workflow in the directory to
+	// check for expires fields; only reconcile when using the default
+	// workflow directory (custom --dir compiles and --no-emit compiles are
+	// left untouched).
+	if !config.NoEmit && config.WorkflowDir == "" && len(compiledLockFiles) > 0 {
+		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+			absWorkflowDir := getAbsoluteWorkflowDir(getWorkflowsDir(), gitRoot)
+			repoConfig, err := workflow.LoadRepoConfig(gitRoot)
+			if err != nil {
+				repoConfig = nil
+			}
+			workflow.DisableDefaultActionFailureExpiryMarkersIfUnenforced(compiledLockFiles, absWorkflowDir, repoConfig)
+		}
+	}
 
 	// Prune stale gh-aw-actions entries before saving
 	pruneStaleActionCacheEntries(compiler, actionCache)

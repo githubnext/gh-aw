@@ -29,11 +29,11 @@
 #   Imports:
 #     - shared/kiro.md
 #     - shared/gh.md
+#     - shared/reporting.md
 #     - shared/otlp.md
+#     - shared/reporting-otlp.md
 #     - shared/token-telemetry-check.md
 #     - shared/smoke-test-brevity.md
-#     - shared/reporting.md
-#     - shared/reporting-otlp.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
