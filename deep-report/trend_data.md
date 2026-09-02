@@ -362,3 +362,10 @@ Next cycle checks: (a) does the codex fleet-wide fix land and restore the 10 aff
 - **Copilot PR prompt success** (#57508, 1000-PR/30-day sample): 84.3% overall (up slightly from 84.0% two cycles ago), but CVE-remediation prompts now at just **50%** merge rate — continuing to worsen from 65% (two cycles ago) and 19-points-below-baseline before that. Still no single attributable fix location identified across 2+ investigation cycles.
 - **MCP inventory** (#57499): 19 active servers, 5 disabled for CVEs (arxiv/brave/markitdown/notion/semgrep, all previously actioned), 1 live stale-TODO gap found (tavily wildcard, filed this cycle).
 - **Lockfile stats** (#57504): 297 workflows stable, avg 152KB/file, 70% use schedule+workflow_dispatch trigger combo, engine mix copilot(120)/codex(75)/claude(56)/pi(29) — no change of note vs. prior baselines.
+
+### 2026-09-02 ~06:46Z snapshot
+- Weekly issues (500 sampled): 168 open / 332 closed. 0 open >7 days. ~78 unlabeled (chronic WIP auto-stub pattern, stable range).
+- Safe outputs job success (safe-output-health #57850, 17.5h/290 runs): 98.84% (255/259, 1 skipped, 3 failures — all root-caused).
+- Firewall (daily-firewall-report #57824, 24h/232 runs/84 workflows): 3.12% block rate (471/15076), 8 unique blocked domains — proxy.golang.org (138x, CI Optimization Coach/Design Decision Gate/Matt Pocock), sentry ingest (121x), ab.chatgpt.com (89x), github.com (73x), api.anthropic.com (34x).
+- Fleet spot-check (40 runs, ~4.1h 01:00-05:17Z): 90% raw success; failures concentrated in already-tracked chronic PR-review-bot cluster (#57438) and AI Moderator (#57437).
+- Schema Consistency Checker: 4 findings this run (2 already tracked via #57377, 2 newly filed).
