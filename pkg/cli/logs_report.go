@@ -37,6 +37,7 @@ type LogsData struct {
 	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
 	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
 	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
+	Continuations     []WorkflowContinuation     `json:"continuations,omitempty" console:"-"`
 	LogsLocation      string                     `json:"logs_location" console:"-"`
 	Message           string                     `json:"message,omitempty" console:"-"`
 	StaleWarning      string                     `json:"stale_warning,omitempty" console:"-"`
@@ -54,6 +55,13 @@ type ContinuationData struct {
 	AfterRunID   int64  `json:"after_run_id,omitempty"`
 	BeforeRunID  int64  `json:"before_run_id,omitempty"`
 	Timeout      int    `json:"timeout,omitempty"`
+}
+
+// WorkflowContinuation identifies a per-target cursor in a combined
+// multi-workflow report.
+type WorkflowContinuation struct {
+	Repository string `json:"repository,omitempty"`
+	ContinuationData
 }
 
 // LogsSummary contains aggregate metrics across all runs

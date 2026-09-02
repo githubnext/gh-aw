@@ -279,21 +279,45 @@ func buildContinuationIfNeeded(
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	logsOrchestratorLog.Printf("Downloading workflow logs: workflow=%q, count=%d, outputDir=%q", opts.WorkflowName, opts.Count, opts.OutputDir)
-	runtime, err := prepareLogsDownload(ctx, opts)
+	result, err := collectWorkflowLogs(ctx, opts)
 	if err != nil {
 		return err
+	}
+	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached); handled || err != nil {
+		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", result.timeoutReached, err)
+		return err
+	}
+
+	return renderLogsOutput(result.processedRuns, renderLogsOutputOptions{
+		outputDir:         opts.OutputDir,
+		summaryFile:       opts.SummaryFile,
+		format:            opts.Format,
+		reportFile:        opts.ReportFile,
+		jsonOutput:        opts.JSONOutput,
+		toolGraph:         opts.ToolGraph,
+		train:             opts.Train,
+		continuation:      result.continuation,
+		verbose:           opts.Verbose,
+		artifactFilter:    result.artifactFilter,
+		startDate:         opts.StartDate,
+		endDate:           opts.EndDate,
+		checkStaleness:    true,
+		countLimitReached: result.countLimitReached,
+		suppressRender:    opts.SuppressRender,
+	})
+}
+
+func collectWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (workflowLogsResult, error) {
+	runtime, err := prepareLogsDownload(ctx, opts)
+	if err != nil {
+		return workflowLogsResult{}, err
 	}
 	defer cancelLogsDownload(runtime.timeoutCancel)
 
 	processedRuns, timeoutReached, countLimitReached, lastFetchedBeforeDate, err := collectProcessedWorkflowRuns(runtime, opts)
 	if err != nil {
-		return err
+		return workflowLogsResult{}, err
 	}
-	if handled, err := handleEmptyProcessedRuns(processedRuns, opts, timeoutReached); handled || err != nil {
-		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", timeoutReached, err)
-		return err
-	}
-
 	processedRuns = limitProcessedRuns(processedRuns, opts.Count, opts.Verbose)
 	logsOrchestratorLog.Printf("Collected %d processed runs (timeoutReached=%v, countLimitReached=%v)", len(processedRuns), timeoutReached, countLimitReached)
 	continuation := buildContinuationIfNeeded(processedRuns, timeoutReached, countLimitReached, continuationOptions{
@@ -307,22 +331,11 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		timeoutMinutes:        opts.TimeoutMinutes,
 		lastFetchedBeforeDate: lastFetchedBeforeDate,
 	})
-
-	return renderLogsOutput(processedRuns, renderLogsOutputOptions{
-		outputDir:         opts.OutputDir,
-		summaryFile:       opts.SummaryFile,
-		format:            opts.Format,
-		reportFile:        opts.ReportFile,
-		jsonOutput:        opts.JSONOutput,
-		toolGraph:         opts.ToolGraph,
-		train:             opts.Train,
-		continuation:      continuation,
-		verbose:           opts.Verbose,
+	return workflowLogsResult{
+		processedRuns:     processedRuns,
 		artifactFilter:    runtime.artifactFilter,
-		startDate:         opts.StartDate,
-		endDate:           opts.EndDate,
-		checkStaleness:    true,
+		continuation:      continuation,
 		countLimitReached: countLimitReached,
-		suppressRender:    opts.SuppressRender,
-	})
+		timeoutReached:    timeoutReached,
+	}, nil
 }
