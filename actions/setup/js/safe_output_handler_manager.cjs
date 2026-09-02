@@ -1174,12 +1174,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           outputsWithUnresolvedIds.push({
             type: messageType,
             message,
-            result: {
-              commentId: result.commentId,
-              itemNumber: result.itemNumber,
-              repo: result.repo,
-              isDiscussion: result.isDiscussion,
-            },
+            result,
             originalTempIdMapSize: tempIdMapSizeBefore,
           });
         }
@@ -1196,12 +1191,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
               outputsWithUnresolvedIds.push({
                 type: messageType,
                 message: message,
-                result: {
-                  commentId: comment._tracking.commentId,
-                  itemNumber: comment._tracking.itemNumber,
-                  repo: comment._tracking.repo,
-                  isDiscussion: comment._tracking.isDiscussion,
-                },
+                result: { ...comment, ...comment._tracking },
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
             }
@@ -1403,7 +1393,7 @@ function getContentToCheck(messageType, message, result) {
     case "create_discussion":
       return message.body || "";
     case "add_comment":
-      return message.body || "";
+      return result?.body || message.body || "";
     case "comment_memory":
       return result?.managedBody || message.body || "";
     case "create_pull_request":
@@ -2045,4 +2035,5 @@ module.exports = {
   partitionFailureResults,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,
+  processSyntheticUpdates,
 };

@@ -21,6 +21,7 @@ import {
   partitionFailureResults,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,
+  processSyntheticUpdates,
 } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
@@ -162,7 +163,14 @@ describe("Safe Output Handler Manager", () => {
             vi.fn(async (_message, resolvedTemporaryIds) => {
               callOrder.push("add_comment");
               expect(resolvedTemporaryIds).toEqual({});
-              return { success: true, commentId: 123, itemNumber: 42, repo: "owner/repo", isDiscussion: false };
+              return {
+                success: true,
+                commentId: 123,
+                itemNumber: 42,
+                repo: "owner/repo",
+                isDiscussion: false,
+                body: "Tracking issue: #aw_track1\n\nHandler footer marker",
+              };
             }),
           ],
           [
@@ -186,10 +194,47 @@ describe("Safe Output Handler Manager", () => {
           {
             type: "add_comment",
             message: { type: "add_comment", item_number: 42, body: "Tracking issue: #aw_track1" },
-            result: { commentId: 123, itemNumber: 42, repo: "owner/repo", isDiscussion: false },
+            result: {
+              success: true,
+              commentId: 123,
+              itemNumber: 42,
+              repo: "owner/repo",
+              isDiscussion: false,
+              body: "Tracking issue: #aw_track1\n\nHandler footer marker",
+            },
             originalTempIdMapSize: 0,
           },
         ]);
+      });
+
+      it("updates the posted comment body while retaining handler metadata", async () => {
+        const updateComment = vi.fn().mockResolvedValue({});
+        const github = { rest: { issues: { updateComment } } };
+        const trackedOutputs = [
+          {
+            type: "add_comment",
+            message: { type: "add_comment", body: "Tracking issue: #aw_track1" },
+            result: {
+              success: true,
+              commentId: 123,
+              itemNumber: 42,
+              repo: "owner/repo",
+              isDiscussion: false,
+              body: "Tracking issue: #aw_track1\n\nHandler footer marker",
+            },
+            originalTempIdMapSize: 0,
+          },
+        ];
+
+        const updateCount = await processSyntheticUpdates(github, {}, trackedOutputs, new Map([["aw_track1", { repo: "owner/tracker", number: 99 }]]), new Map());
+
+        expect(updateCount).toBe(1);
+        expect(updateComment).toHaveBeenCalledWith({
+          owner: "owner",
+          repo: "repo",
+          comment_id: 123,
+          body: "Tracking issue: owner/tracker#99\n\nHandler footer marker",
+        });
       });
     });
 
