@@ -30,15 +30,19 @@ var errInvalidMaxGitHubAPIRateLimit = errors.New("invalid maximum GitHub API rat
 
 // checkAndWaitForRateLimitShared serializes quota checks and their cooldowns so
 // concurrent workflow downloads are staggered rather than consuming the API
-// budget in synchronized bursts.
-func checkAndWaitForRateLimitShared(ctx context.Context, verbose bool, configuredMax int) error {
+// budget in synchronized bursts. reserve is the number of additional core
+// requests the caller is about to make before its next check; it is added to
+// the currently reported usage so a caller that issues several API calls per
+// check (e.g. artifact listing plus downloads) does not overshoot a
+// configured ceiling between checks.
+func checkAndWaitForRateLimitShared(ctx context.Context, verbose bool, configuredMax, reserve int) error {
 	select {
 	case logsRateLimitGate <- struct{}{}:
 		defer func() { <-logsRateLimitGate }()
 	case <-ctx.Done():
 		return contextCause(ctx)
 	}
-	return checkAndWaitForRateLimit(ctx, verbose, configuredMax)
+	return checkAndWaitForRateLimit(ctx, verbose, configuredMax, reserve)
 }
 
 func contextCause(ctx context.Context) error {
@@ -152,7 +156,7 @@ func resolveMaxGitHubAPIRateLimit(configuredMax, apiLimit int) (int, error) {
 	return resolvedMax, nil
 }
 
-func checkAndWaitForRateLimit(ctx context.Context, verbose bool, configuredMax int) error {
+func checkAndWaitForRateLimit(ctx context.Context, verbose bool, configuredMax, reserve int) error {
 	rl, err := fetchRateLimitFunc(ctx)
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
@@ -168,7 +172,7 @@ func checkAndWaitForRateLimit(ctx context.Context, verbose bool, configuredMax i
 		return err
 	}
 
-	if rl.Used >= maxUsed {
+	if rl.Used+reserve > maxUsed {
 		resetAt := time.Unix(rl.Reset, 0)
 		waitDur := time.Until(resetAt)
 		if waitDur <= 0 {

@@ -407,11 +407,11 @@ func TestCollectProcessedWorkflowRunsAccumulatesBatches(t *testing.T) {
 		// totalFetched == batchSize keeps pagination going after the first batch.
 		return workflowRunBatch{runs: runs, totalFetched: len(runs), batchSize: 2}, nil
 	}
-	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool, bool) {
 		for _, run := range batch.runs {
 			processedRuns = append(processedRuns, ProcessedRun{Run: run})
 		}
-		return processedRuns, len(batch.runs), true, false
+		return processedRuns, len(batch.runs), true, false, false
 	}
 
 	runs, timeoutReached, countLimitReached, _, _, err := collectProcessedWorkflowRuns(
@@ -445,9 +445,9 @@ func TestFetchAndProcessLogsBatchKeepsCursorWhenStorageLimitReached(t *testing.T
 			oldestFetchedCreatedAt: time.Now().Add(-time.Hour),
 		}, nil
 	}
-	logsProcessWorkflowRunBatch = func(_ context.Context, _ workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+	logsProcessWorkflowRunBatch = func(_ context.Context, _ workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool, bool) {
 		storageLimit.reached.Store(true)
-		return append(processedRuns, ProcessedRun{Run: WorkflowRun{DatabaseID: 10}}), 1, true, false
+		return append(processedRuns, ProcessedRun{Run: WorkflowRun{DatabaseID: 10}}), 1, true, false, true
 	}
 
 	state := logsCollectionState{beforeDate: "previous-cursor"}
@@ -538,11 +538,11 @@ func TestCollectProcessedWorkflowRunsIterationLimitSurfacesContinuation(t *testi
 			oldestFetchedCreatedAt: time.Now().Add(-time.Duration(nextID) * time.Hour),
 		}, nil
 	}
-	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool, bool) {
 		for _, run := range batch.runs {
 			processedRuns = append(processedRuns, ProcessedRun{Run: run})
 		}
-		return processedRuns, len(batch.runs), true, false
+		return processedRuns, len(batch.runs), true, false, false
 	}
 
 	runs, timeoutReached, countLimitReached, _, _, err := collectProcessedWorkflowRuns(

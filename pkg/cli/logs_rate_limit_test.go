@@ -135,7 +135,7 @@ func TestSharedRateLimitGateRespectsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	start := time.Now()
-	err := checkAndWaitForRateLimitShared(ctx, false, 0)
+	err := checkAndWaitForRateLimitShared(ctx, false, 0, 1)
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Less(t, time.Since(start), time.Second, "waiting for the shared rate-limit gate should be cancellable")
@@ -202,7 +202,7 @@ func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 	cancel()
 
 	start := time.Now()
-	err := checkAndWaitForRateLimit(ctx, false, 0)
+	err := checkAndWaitForRateLimit(ctx, false, 0, 1)
 	elapsed := time.Since(start)
 
 	require.ErrorIs(t, err, context.Canceled)
@@ -224,7 +224,7 @@ func TestConfiguredRateLimitWaitRespectsDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	err := checkAndWaitForRateLimit(ctx, false, 12000)
+	err := checkAndWaitForRateLimit(ctx, false, 12000, 1)
 
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
@@ -242,7 +242,7 @@ func TestConfiguredRateLimitRunsWithoutCooldownBelowCeiling(t *testing.T) {
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
 	start := time.Now()
-	err := checkAndWaitForRateLimit(context.Background(), false, -2000)
+	err := checkAndWaitForRateLimit(context.Background(), false, -2000, 1)
 
 	require.NoError(t, err)
 	assert.Less(t, time.Since(start), 100*time.Millisecond)
@@ -259,7 +259,7 @@ func TestCheckAndWaitForRateLimitFetchErrorAndContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := checkAndWaitForRateLimit(ctx, false, 0)
+	err := checkAndWaitForRateLimit(ctx, false, 0, 1)
 	require.Error(t, err)
 	require.ErrorIs(t, err, expectedFetchErr)
 	require.ErrorIs(t, err, context.Canceled)

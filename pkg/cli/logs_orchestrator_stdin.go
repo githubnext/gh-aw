@@ -7,6 +7,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -166,7 +167,11 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 	// Process download results applying the same filters as DownloadWorkflowLogs.
 	var processedRuns []ProcessedRun
+	var storageLimitReached bool
 	for _, result := range downloadResults {
+		if errors.Is(result.Error, errLogsStorageLimitReached) {
+			storageLimitReached = true
+		}
 		if result.Skipped {
 			if opts.Verbose && result.Error != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
@@ -212,12 +217,12 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	if len(processedRuns) == 0 {
 		if opts.JSONOutput {
 			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
-			logsData.Message = noRunsMessage("", false, storageLimit.isReached())
+			logsData.Message = noRunsMessage("", false, storageLimitReached)
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)
 			}
 		}
-		if storageLimit.isReached() {
+		if storageLimitReached {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Storage limit reached before any new runs could be processed"))
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
@@ -226,7 +231,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	message := ""
-	if storageLimit.isReached() {
+	if storageLimitReached {
 		message = "Storage limit reached. Results are partial because some input runs were not downloaded."
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
 	}
