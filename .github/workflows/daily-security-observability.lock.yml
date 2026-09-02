@@ -28,11 +28,11 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/meta-analysis-base.md
-#     - shared/python-dataviz.md
-#     - shared/otlp.md
 #     - shared/trending-charts-simple.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
+#     - shared/python-dataviz.md
+#     - shared/otlp.md
 #     - shared/daily-audit-base.md
 #     - shared/daily-audit-charts.md
 #
@@ -570,6 +570,20 @@ jobs:
         with:
           key: agentic-logs
           path: .github/aw/logs
+      - env:
+          UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
+        name: Setup Python environment
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# The agent sandbox cannot run the runner's CPython (glibc mismatch) and only ships\n# PyPy, which has no wheels for the chart libraries — installing them from inside the\n# sandbox builds NumPy/SciPy from source and exhausts the runner disk. Install a\n# portable uv-managed CPython plus the chart libraries under /tmp/gh-aw, which is\n# mounted read-write into the sandbox, so the agent can import them directly.\n# This must match shared/python-dataviz.md and shared/python-nlp.md so either import can\n# create the shared environment first; never recreate it, or a sibling import's packages\n# (for example the NLP libraries) would be discarded.\nif [ ! -d /tmp/gh-aw/python/venv ]; then\n  uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv\nfi\nuv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy\necho \"/tmp/gh-aw/python/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/python/venv/bin/python -c \"import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')\"\n"
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: warn
+          name: trending-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - env:
@@ -582,20 +596,6 @@ jobs:
         with:
           if-no-files-found: warn
           name: python-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-      - env:
-          UV_PYTHON_INSTALL_DIR: /tmp/gh-aw/python/uv-python
-        name: Setup Python environment
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# The agent sandbox cannot run the runner's CPython (glibc mismatch) and only ships\n# PyPy, which has no wheels for the chart libraries — installing them from inside the\n# sandbox builds NumPy/SciPy from source and exhausts the runner disk. Install a\n# portable uv-managed CPython plus the chart libraries under /tmp/gh-aw, which is\n# mounted read-write into the sandbox, so the agent can import them directly.\n# This must match shared/python-dataviz.md and shared/python-nlp.md so either import can\n# create the shared environment first; never recreate it, or a sibling import's packages\n# (for example the NLP libraries) would be discarded.\nif [ ! -d /tmp/gh-aw/python/venv ]; then\n  uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv\nfi\nuv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy\necho \"/tmp/gh-aw/python/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/python/venv/bin/python -c \"import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')\"\n"
-      - if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          if-no-files-found: warn
-          name: trending-source-and-data
           path: |
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*

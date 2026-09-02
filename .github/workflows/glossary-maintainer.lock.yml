@@ -30,10 +30,10 @@
 #     - ../skills/documentation/SKILL.md
 #     - ../agents/technical-doc-writer.agent.md
 #     - shared/ai-coding-dictionary.md
-#     - shared/otlp.md
-#     - shared/reporting.md
 #     - shared/mcp/serena.md
 #     - shared/mcp/serena-go.md
+#     - shared/otlp.md
+#     - shared/reporting.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
