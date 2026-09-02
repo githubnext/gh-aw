@@ -1,9 +1,14 @@
 // @ts-check
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createJiraClient, formatJiraError, normalizeJiraBaseUrl, textToADF } = require("./jira_client.cjs");
 
+beforeEach(() => {
+  global.core = { debug: vi.fn() };
+});
+
 afterEach(() => {
+  delete global.core;
   vi.unstubAllGlobals();
 });
 
@@ -58,6 +63,9 @@ describe("jira client", () => {
     expect(url).toBe("https://example.atlassian.net/rest/api/3/issue/ENG-1");
     expect(options.headers.Authorization).toBe(`Basic ${Buffer.from("jira@example.com:secret-token").toString("base64")}`);
     expect(options.body).not.toContain("secret-token");
+    expect(global.core.debug).toHaveBeenCalledWith("Jira API request started: PUT /issue/ENG-1");
+    expect(global.core.debug).toHaveBeenCalledWith("Jira API response received: PUT /issue/ENG-1 status=204");
+    expect(global.core.debug.mock.calls.flat().join(" ")).not.toMatch(/secret-token|jira@example\.com|Basic /);
   });
 
   it("surfaces structured Jira errors without leaking credentials", async () => {

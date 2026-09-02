@@ -27,12 +27,17 @@ function jiraHandler(handlerType, handle) {
   return createCountGatedHandler({
     handlerType,
     setup: async (_config, _maxCount, isStaged) => {
+      core.debug(`${handlerType}: initializing handler (staged=${isStaged})`);
       const client = isStaged ? null : createJiraClient();
       return async message => {
+        core.debug(`${handlerType}: processing request`);
         try {
-          return await handle(message || {}, client, isStaged);
+          const result = await handle(message || {}, client, isStaged);
+          core.debug(`${handlerType}: request completed successfully`);
+          return result;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Jira operation failed";
+          core.debug(`${handlerType}: request failed`);
           core.error(message);
           return { success: false, error: message };
         }

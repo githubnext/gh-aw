@@ -65,6 +65,8 @@ describe("Jira safe-output handlers", () => {
       },
     });
     expect(requests[0].body.fields.description.content).toHaveLength(2);
+    expect(global.core.debug).toHaveBeenCalledWith("jira_create_issue: processing request");
+    expect(global.core.debug).toHaveBeenCalledWith("jira_create_issue: request completed successfully");
   });
 
   it.each([
@@ -146,6 +148,7 @@ describe("Jira safe-output handlers", () => {
     expect(result).toMatchObject({ success: false });
     expect(result.error).toContain("Invalid project");
     expect(result.error).not.toContain("secret-token");
+    expect(global.core.debug).toHaveBeenCalledWith("jira_create_issue: request failed");
   });
 });
 

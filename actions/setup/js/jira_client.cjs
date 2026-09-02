@@ -4,6 +4,12 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const JIRA_API_PATH = "/rest/api/3";
 
+function logJiraDebug(message) {
+  if (global.core && typeof global.core.debug === "function") {
+    global.core.debug(message);
+  }
+}
+
 function normalizeJiraBaseUrl(value) {
   const raw = typeof value === "string" ? value.trim() : "";
   if (!raw) {
@@ -85,15 +91,18 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
 
   const authorization = `Basic ${Buffer.from(`${email}:${token}`, "utf8").toString("base64")}`;
   const secrets = [token, email, authorization];
+  logJiraDebug("Jira client configured with API-token authentication");
 
   return {
     async request(path, options = {}) {
       const normalizedPath = path.startsWith("/") ? path : `/${path}`;
       const url = `${baseUrl}${JIRA_API_PATH}${normalizedPath}`;
+      const method = options.method || "GET";
+      logJiraDebug(`Jira API request started: ${method} ${normalizedPath}`);
       let response;
       try {
         response = await fetchImpl(url, {
-          method: options.method || "GET",
+          method,
           headers: {
             Accept: "application/json",
             Authorization: authorization,
@@ -102,9 +111,11 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
           ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
         });
       } catch {
+        logJiraDebug(`Jira API request failed before receiving a response: ${method} ${normalizedPath}`);
         throw new Error("Jira API request failed due to a network error");
       }
 
+      logJiraDebug(`Jira API response received: ${method} ${normalizedPath} status=${response.status}`);
       const responseText = await response.text();
       let responseBody = null;
       if (responseText) {
@@ -112,14 +123,17 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
           responseBody = JSON.parse(responseText);
         } catch {
           if (response.ok) {
+            logJiraDebug(`Jira API response contained invalid JSON: ${method} ${normalizedPath}`);
             throw new Error(`Jira API returned an invalid JSON response (${response.status})`);
           }
         }
       }
 
       if (!response.ok) {
+        logJiraDebug(`Jira API request rejected: ${method} ${normalizedPath} status=${response.status}`);
         throw new Error(formatJiraError(response.status, response.statusText, responseBody, secrets));
       }
+      logJiraDebug(`Jira API request completed: ${method} ${normalizedPath}`);
       return responseBody;
     },
   };
