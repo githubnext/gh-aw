@@ -15,6 +15,9 @@ func expandLinearTool(tools map[string]any) error {
 	if !exists {
 		return nil
 	}
+	if value == nil {
+		value = map[string]any{}
+	}
 	config, ok := value.(map[string]any)
 	if !ok {
 		return NewValidationError(
@@ -61,14 +64,18 @@ func validateLinearToolConfig(config map[string]any) (string, error) {
 		}
 	}
 
-	token, ok := config["token"].(string)
-	if !ok || strings.TrimSpace(token) == "" {
-		return "", NewValidationError(
-			"tools.linear.token",
-			fmt.Sprintf("%v", config["token"]),
-			"'token' is required and must be a GitHub Actions secret reference",
-			"Example:\n\ntools:\n  linear:\n    token: ${{ secrets.LINEAR_API_KEY }}",
-		)
+	token := constants.LinearMCPDefaultTokenExpr
+	if value, exists := config["token"]; exists {
+		var ok bool
+		token, ok = value.(string)
+		if !ok || strings.TrimSpace(token) == "" {
+			return "", NewValidationError(
+				"tools.linear.token",
+				fmt.Sprintf("%v", value),
+				"'token' must be a GitHub Actions secret reference",
+				"Example:\n\ntools:\n  linear:\n    token: ${{ secrets.CUSTOM_LINEAR_TOKEN }}",
+			)
+		}
 	}
 	if match := SecretExpressionPattern.FindString(token); match != token {
 		return "", NewValidationError(

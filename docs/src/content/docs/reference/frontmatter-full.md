@@ -4038,8 +4038,16 @@ tools:
 
   # Linear tools provided by Linear's official hosted MCP server
   # (optional)
+  # Accepted formats:
+
+  # Format 1: Enable Linear using the well-known LINEAR_API_KEY secret
+  linear: null
+
+  # Format 2: object
   linear:
-    # Linear API key or OAuth access token provided through a GitHub Actions secret
+    # Optional Linear API key or OAuth access token secret reference. Defaults to ${{
+    # secrets.LINEAR_API_KEY }}.
+    # (optional)
     token: "example-value"
 
     # List of allowed Linear MCP tool names or wildcard patterns

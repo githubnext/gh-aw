@@ -13,7 +13,6 @@ func TestExpandLinearTool(t *testing.T) {
 	t.Run("defaults to read-only and required", func(t *testing.T) {
 		tools := map[string]any{
 			"linear": map[string]any{
-				"token":   "${{ secrets.LINEAR_API_KEY }}",
 				"allowed": []any{"*"},
 			},
 		}
@@ -27,6 +26,16 @@ func TestExpandLinearTool(t *testing.T) {
 		}, config["headers"])
 		assert.Equal(t, []any{"*"}, config["allowed"])
 		assert.NotContains(t, config, "required")
+	})
+
+	t.Run("supports null shorthand", func(t *testing.T) {
+		tools := map[string]any{"linear": nil}
+
+		require.NoError(t, expandLinearTool(tools))
+		config := tools["linear"].(map[string]any)
+		assert.Equal(t, map[string]any{
+			"Authorization": "Bearer " + constants.LinearMCPDefaultTokenExpr,
+		}, config["headers"])
 	})
 
 	t.Run("supports optional startup", func(t *testing.T) {
@@ -49,7 +58,7 @@ func TestExpandLinearTool(t *testing.T) {
 		field string
 	}{
 		{name: "requires object", value: true, field: "tools.linear"},
-		{name: "requires token", value: map[string]any{}, field: "tools.linear.token"},
+		{name: "rejects empty token", value: map[string]any{"token": ""}, field: "tools.linear.token"},
 		{name: "rejects literal token", value: map[string]any{"token": "lin_api_key"}, field: "tools.linear.token"},
 		{name: "rejects read-only override", value: map[string]any{"token": "${{ secrets.LINEAR_API_KEY }}", "read-only": false}, field: "tools.linear.read-only"},
 	} {
@@ -73,8 +82,6 @@ tools:
   bash: true
   cli-proxy: true
   linear:
-    token: ${{ secrets.LINEAR_API_KEY }}
-    allowed: ["*"]
 ---
 
 # Linear test

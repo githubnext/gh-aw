@@ -1871,12 +1871,12 @@
           }
         },
         "linear": {
-          "type": "object",
+          "type": "null|object",
           "desc": "Linear tools provided by Linear's official hosted MCP server",
           "children": {
             "token": {
               "type": "string",
-              "desc": "Linear API key or OAuth access token provided through a GitHub Actions secret",
+              "desc": "Optional Linear API key or OAuth access token secret reference. Defaults to ${{ secrets.LINEAR_API_KEY }}.",
               "leaf": true
             },
             "allowed": {

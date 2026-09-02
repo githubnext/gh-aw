@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 )
 
 var mcpLog = logger.New("parser:mcp")
+var linearTokenExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
 
 // ValidMCPTypes defines all supported MCP server types.
 // "local" is an alias for "stdio" and gets normalized during parsing.
@@ -283,13 +285,31 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 }
 
 func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
+	if toolValue == nil {
+		toolValue = map[string]any{}
+	}
 	toolConfig, ok := toolValue.(map[string]any)
 	if !ok {
 		return nil, errors.New("tools.linear must be an object")
 	}
-	token, ok := toolConfig["token"].(string)
-	if !ok || strings.TrimSpace(token) == "" {
-		return nil, errors.New("tools.linear.token is required")
+	for field := range toolConfig {
+		switch field {
+		case "token", "allowed", "required":
+		default:
+			return nil, fmt.Errorf("unknown tools.linear property %q", field)
+		}
+	}
+
+	token := constants.LinearMCPDefaultTokenExpr
+	if value, exists := toolConfig["token"]; exists {
+		var ok bool
+		token, ok = value.(string)
+		if !ok || strings.TrimSpace(token) == "" {
+			return nil, errors.New("tools.linear.token must be a GitHub Actions secret reference")
+		}
+	}
+	if !linearTokenExpressionPattern.MatchString(token) {
+		return nil, errors.New("tools.linear.token must be a GitHub Actions secret reference")
 	}
 
 	config := &RegistryMCPServerConfig{
@@ -302,14 +322,24 @@ func buildLinearBuiltinConfig(toolValue any) (*RegistryMCPServerConfig, error) {
 		},
 		Name: "linear",
 	}
-	if allowed, exists := toolConfig["allowed"].([]any); exists {
+	if allowedValue, exists := toolConfig["allowed"]; exists {
+		allowed, ok := allowedValue.([]any)
+		if !ok || len(allowed) == 0 {
+			return nil, errors.New("tools.linear.allowed must be a non-empty array of tool names")
+		}
 		for _, item := range allowed {
-			if tool, ok := item.(string); ok {
-				config.Allowed = append(config.Allowed, tool)
+			tool, ok := item.(string)
+			if !ok || strings.TrimSpace(tool) == "" {
+				return nil, errors.New("tools.linear.allowed must contain only non-empty tool names")
 			}
+			config.Allowed = append(config.Allowed, tool)
 		}
 	}
-	if required, exists := toolConfig["required"].(bool); exists {
+	if requiredValue, exists := toolConfig["required"]; exists {
+		required, ok := requiredValue.(bool)
+		if !ok {
+			return nil, errors.New("tools.linear.required must be a boolean")
+		}
 		config.Required = &required
 	}
 	return config, nil

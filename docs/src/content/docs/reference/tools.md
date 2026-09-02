@@ -40,20 +40,19 @@ See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete co
 
 ### Linear Tools (`linear:`)
 
-Connect to [Linear's official hosted MCP server](https://linear.app/docs/mcp) with a Linear API key or OAuth access token stored as a GitHub Actions secret:
+Connect to [Linear's official hosted MCP server](https://linear.app/docs/mcp) using the well-known `LINEAR_API_KEY` GitHub Actions secret:
 
 ```yaml wrap
 tools:
-  linear:
-    token: ${{ secrets.LINEAR_API_KEY }}
+  linear: {}
 ```
 
-The integration uses Streamable HTTP through the MCP gateway and always uses Linear's server-enforced read-only endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
+Set `token` to use a different secret containing a Linear API key or OAuth access token. The integration uses Streamable HTTP through the MCP gateway and always uses Linear's server-enforced read-only endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
 
 ```yaml wrap
 tools:
   linear:
-    token: ${{ secrets.LINEAR_API_KEY }}
+    token: ${{ secrets.CUSTOM_LINEAR_TOKEN }}
     allowed: ["*"]
     required: true
 ```
