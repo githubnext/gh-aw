@@ -1,3 +1,18 @@
+## Flagged Items (2026-09-02, ~18:34Z cycle, baseline #57810→#57883, window since 06:46Z, 21 new discussions read in full)
+
+- **[new, filed]** Copilot PR Conversation NLP Analysis — PR comment/review pre-fetch returned empty for all 169 PRs, total pipeline failure (not partial) — #57912.
+- **[new, filed]** `LinearTargetConfig` (`pkg/workflow/linear_safe_outputs.go:16-19`) doesn't embed `SafeOutputTargetConfig`, unlike the other 14 safe-output integrations — Typist #57923, live-verified via grep.
+- **[new, filed]** `docker-sbx` KVM-availability check failing during agent-prep, blocking agent execution across 3+ workflows (Daily Fact, Daily Go Test Parallelizer, Sub-Issue Closer) in one 24h window — Storify #57895.
+- **[new, filed]** Code Scanning Fixer blocked by missing Sentry ingest domain (`o205451.ingest.us.sentry.io`) in network allowlist, 5 blocked requests — Storify #57895, concrete new cause for this workflow's chronic 0% pattern.
+- **[new, filed]** Firewall/audit tooling: domain-parsing bug producing `(unknown)`/`and` bogus blocked-domain entries (~11% of 90 blocks) + `policy_analysis.rule_hits` empty across all 92 sampled runs despite active 11-rule policy — Daily Security Observability Report #57991.
+- **[new, filed]** Delight bundle: `cache-memory` scope validator's raw `%v` error message (`pkg/workflow/cache_config.go:266`) inconsistent with sibling validators + blog post #2026-01-13 "carnival-barker" tone mismatch — #57971.
+- **[declined, chronic]** `CLAUDE_CODE_OAUTH_TOKEN` silently ignored, 11th consecutive daily occurrence via #57940 — closed 4+ times previously (#54943, #54584, #46613, #39601, #48005) without a landed fix; see [[known_patterns]].
+- **[declined, dup]** Squad Implement Worker 0% auto-resolve finding — overlaps already-open #57488.
+- **[declined, self-filed]** UK AI Operational Resilience #57980 findings 1-2 (untracked README.md CodeQL alert, alert-dismissal hygiene gap) — already self-filed same-run as #57981/#57982.
+- **[declined, out-of-scope]** UK AI Operational Resilience #57980 finding 3 (add CODEOWNERS file, 30-day SLA) — governance/policy decision, not a quick-win code fix; see [[known_patterns]].
+- Weekly issues-analyst sub-agent: chronic `[WIP] * : work in progress` auto-stub pattern continuing at usual rate, 0 issues stale >7 days.
+- Fleet workflow-log sampling this cycle: per-workflow-filtered queries hit `context deadline exceeded`; unfiltered 50-run sample (partial, ~1h of intended 7-day window) showed no new systemic regression beyond already-tracked chronic clusters (PR-review bot cluster #57438, AI Moderator #57437).
+
 ## Flagged Items (2026-09-02, ~06:46Z cycle, baseline #57810, window since 01:15:13Z, 9 new discussions: 57824,57827,57842,57845,57850,57853,57862,57866,57870)
 
 - **[new, filed]** `approve_workflow_run`/`push_to_pull_request_branch` protected-files policy decline surfaced as hard failure instead of soft skip — Safe Output Health Monitor #57850, now the dominant safe_outputs failure mode (7 failed items in one day, 66.7% of today's 3 failures, 11 occurrences over 7+ days). Re-files expired #56576 (proposed 2026-08-28, auto-closed NOT_PLANNED unfixed).
