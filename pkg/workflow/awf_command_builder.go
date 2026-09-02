@@ -94,7 +94,7 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:ro" --mount "%s:/host%s:ro"`, ghAwDir, ghAwDir, ghAwDir, ghAwDir)
 	}
 	expandableArgs, arcDindDockerHostProbe = appendArcDindMountSettings(expandableArgs, arcDindDockerHostProbe, isArcDind)
-	if !isCloudHypervisor && config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
+	if !isCloudHypervisor && config.WorkflowData != nil && usesSafeOutputsArtifactStaging(config.WorkflowData.SafeOutputs) {
 		stagingDir := SafeOutputsUploadArtifactsDir
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")

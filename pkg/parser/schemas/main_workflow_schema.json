@@ -8797,6 +8797,24 @@
           ],
           "description": "Enable AI agents to create autofixes for code scanning alerts using the GitHub REST API."
         },
+        "ado-create-work-item": {
+          "$ref": "#/$defs/azure_devops_create_work_item"
+        },
+        "ado-update-work-item": {
+          "$ref": "#/$defs/azure_devops_update_work_item"
+        },
+        "ado-comment-on-work-item": {
+          "$ref": "#/$defs/azure_devops_comment_on_work_item"
+        },
+        "ado-assign-work-item": {
+          "$ref": "#/$defs/azure_devops_assign_work_item"
+        },
+        "ado-link-work-items": {
+          "$ref": "#/$defs/azure_devops_link_work_items"
+        },
+        "ado-upload-workitem-attachment": {
+          "$ref": "#/$defs/azure_devops_upload_workitem_attachment"
+        },
         "create-check-run": {
           "oneOf": [
             {
@@ -13416,6 +13434,190 @@
     }
   ],
   "$defs": {
+    "azure_devops_create_work_item": {
+      "description": "Experimental. Create Azure DevOps work items through a trusted safe-output handler. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "work-item-type": { "type": "string", "minLength": 1, "maxLength": 128, "default": "Task" },
+            "description-field": { "$ref": "#/$defs/azure_devops_field_reference" },
+            "area-path": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "iteration-path": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "assignee": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "tags": { "$ref": "#/$defs/azure_devops_string_list" },
+            "allowed-tags": { "$ref": "#/$defs/azure_devops_string_list" },
+            "custom-fields": {
+              "type": "object",
+              "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9_.]*$" },
+              "additionalProperties": { "type": "string", "maxLength": 4096 }
+            },
+            "artifact-link": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "repository": { "type": "string", "minLength": 1, "maxLength": 256 },
+                "branch": { "type": "string", "minLength": 1, "maxLength": 256, "default": "main" }
+              }
+            },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_update_work_item": {
+      "description": "Experimental. Update explicitly scoped Azure DevOps work items and explicitly enabled fields. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "title": { "type": "boolean", "default": false },
+            "body": { "type": "boolean", "default": false },
+            "markdown-body": { "type": "boolean", "default": false },
+            "title-prefix": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "tag-prefix": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "area-path": { "type": "boolean", "default": false },
+            "iteration-path": { "type": "boolean", "default": false },
+            "assignee": { "type": "boolean", "default": false },
+            "tags": { "type": "boolean", "default": false },
+            "allowed-tags": { "$ref": "#/$defs/azure_devops_string_list" },
+            "allowed-area-prefixes": { "$ref": "#/$defs/azure_devops_string_list" },
+            "allowed-iteration-prefixes": { "$ref": "#/$defs/azure_devops_string_list" },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_comment_on_work_item": {
+      "description": "Experimental. Comment on explicitly scoped Azure DevOps work items. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_assign_work_item": {
+      "description": "Experimental. Assign an Azure DevOps identity to a work item. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "allowed": { "$ref": "#/$defs/azure_devops_string_list" },
+            "blocked": { "$ref": "#/$defs/azure_devops_string_list" },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_link_work_items": {
+      "description": "Experimental. Link explicitly scoped Azure DevOps work items. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "allowed-link-types": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["parent", "child", "related", "predecessor", "successor", "duplicate", "duplicate-of"]
+              }
+            },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_upload_workitem_attachment": {
+      "description": "Experimental. Upload a staged workspace file to an Azure DevOps work item. Using this field emits a compile-time warning.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "max-file-size": { "type": "integer", "minimum": 1, "maximum": 104857600, "default": 5242880 },
+            "allowed-extensions": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^\\.[A-Za-z0-9]+$", "maxLength": 16 }
+            },
+            "comment-prefix": { "type": "string", "maxLength": 256 },
+            "max": { "$ref": "#/$defs/templatable_positive_integer" },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": { "$ref": "#/$defs/azure_devops_samples" }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "azure_devops_work_item_target": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1 },
+        { "const": "*" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        { "type": "string", "minLength": 1, "maxLength": 512, "not": { "const": "*" } }
+      ]
+    },
+    "azure_devops_field_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.]*$",
+      "maxLength": 256
+    },
+    "azure_devops_string_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "azure_devops_samples": {
+      "description": "Internal hidden feature. Optional declarative sample payloads for deterministic safe-output replay.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true
+        }
+      ]
+    },
     "enclave-repos": {
       "type": "array",
       "minItems": 1,

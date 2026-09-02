@@ -91,6 +91,12 @@ const HANDLER_MAP = {
   report_incomplete: "./report_incomplete_handler.cjs",
   create_report_incomplete_issue: "./create_report_incomplete_issue.cjs",
   create_project: "./create_project.cjs",
+  ado_create_work_item: "./create_work_item.cjs",
+  ado_update_work_item: "./update_work_item.cjs",
+  ado_comment_on_work_item: "./comment_on_work_item.cjs",
+  ado_assign_work_item: "./assign_work_item.cjs",
+  ado_link_work_items: "./link_work_items.cjs",
+  ado_upload_workitem_attachment: "./upload_workitem_attachment.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
   upload_artifact: "./upload_artifact.cjs",
@@ -158,6 +164,8 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "missing_data",
   "create_report_incomplete_issue",
   "report_incomplete",
+  "ado_create_work_item",
+  "ado_comment_on_work_item",
 ]);
 
 /**
@@ -208,6 +216,10 @@ const THREAT_WARNING_ABORT_TYPES = new Set([
   "call_workflow",
   "autofix_code_scanning_alert",
   "create_agent_session",
+  "ado_update_work_item",
+  "ado_assign_work_item",
+  "ado_link_work_items",
+  "ado_upload_workitem_attachment",
 ]);
 
 /**
@@ -1110,6 +1122,11 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         });
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
       }
+      if (result && result.temporaryId && result.temporaryIdEntry) {
+        const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+        temporaryIdMap.set(normalizedTempId, result.temporaryIdEntry);
+        core.info(`Registered Azure DevOps temporary ID: ${result.temporaryId}`);
+      }
 
       // If this was a successful upload_artifact, register the artifact URL so that
       // subsequent messages can have '#aw_ID' references replaced with the real URL.
@@ -1299,6 +1316,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
                 result: result,
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
+            }
+            if (result && result.temporaryId && result.temporaryIdEntry) {
+              const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+              temporaryIdMap.set(normalizedTempId, result.temporaryIdEntry);
             }
           }
 

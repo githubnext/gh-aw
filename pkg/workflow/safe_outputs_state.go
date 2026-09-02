@@ -29,7 +29,7 @@ var safeOutputFieldMapping = buildSafeOutputFieldMapping()
 //
 // NOTE: keep this function in sync with safeOutputFieldMapping above and
 // hasNonBuiltinSafeOutputsEnabled below when adding new safe output types.
-func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
+func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool { //nolint:largefunc // Existing explicit checks avoid reflection on the compilation hot path.
 	if safeOutputs == nil {
 		return false
 	}
@@ -41,6 +41,12 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Direct nil checks — no reflection, no heap allocation.
 	return safeOutputs.CreateIssues != nil ||
+		safeOutputs.CreateWorkItems != nil ||
+		safeOutputs.UpdateWorkItems != nil ||
+		safeOutputs.CommentOnWorkItems != nil ||
+		safeOutputs.AssignWorkItems != nil ||
+		safeOutputs.LinkWorkItems != nil ||
+		safeOutputs.UploadWorkItemAttachments != nil ||
 		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -97,7 +103,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 //
 // NOTE: keep this function in sync with safeOutputFieldMapping above and
 // hasAnySafeOutputEnabled above when adding new safe output types.
-func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool { //nolint:largefunc // Existing explicit checks avoid reflection on the compilation hot path.
 	if safeOutputs == nil {
 		return false
 	}
@@ -109,6 +115,12 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Direct nil checks for non-builtin pointer fields.
 	return safeOutputs.CreateIssues != nil ||
+		safeOutputs.CreateWorkItems != nil ||
+		safeOutputs.UpdateWorkItems != nil ||
+		safeOutputs.CommentOnWorkItems != nil ||
+		safeOutputs.AssignWorkItems != nil ||
+		safeOutputs.LinkWorkItems != nil ||
+		safeOutputs.UploadWorkItemAttachments != nil ||
 		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
