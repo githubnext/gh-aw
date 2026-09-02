@@ -109,6 +109,19 @@ describe("Jira safe-output handlers", () => {
     });
   });
 
+  it("preserves valid Jira text without GitHub-specific sanitization", async () => {
+    const handler = await createIssueMain({ max: 1 });
+    await handler({
+      project_key: "ENG",
+      issue_type: "Task",
+      summary: "Fix @deprecated flag",
+      description: "Use {{version}}.",
+    });
+
+    expect(requests[0].body.fields.summary).toBe("Fix @deprecated flag");
+    expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Use {{version}}.");
+  });
+
   it("adds one Jira label with additive update semantics", async () => {
     const handler = await addLabelMain({ max: 1 });
     const result = await handler({ issue_key: "ENG-123", label: "needs-investigation" });
@@ -116,6 +129,15 @@ describe("Jira safe-output handlers", () => {
     expect(result).toMatchObject({ success: true, issue_key: "ENG-123", label: "needs-investigation" });
     expect(requests[0].body).toEqual({ update: { labels: [{ add: "needs-investigation" }] } });
     expect(requests[0].body.fields).toBeUndefined();
+  });
+
+  it("rejects labels that Jira cannot accept", async () => {
+    const handler = await addLabelMain({ max: 1 });
+    await expect(handler({ issue_key: "ENG-123", label: "needs investigation" })).resolves.toMatchObject({
+      success: false,
+      error: "label must contain only letters, numbers, periods, hyphens, and underscores",
+    });
+    expect(requests).toHaveLength(0);
   });
 
   it.each([

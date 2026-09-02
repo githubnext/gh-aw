@@ -143,7 +143,7 @@ safe-outputs:
 Use Jira safe outputs for Jira mutations.
 ```
 
-`JIRA_BASE_URL` is the Jira API base without `/rest/api/3`, such as `https://example.atlassian.net`. The initial authentication mechanism uses an Atlassian account email and API token with HTTP Basic authentication.
+`JIRA_BASE_URL` is the Jira API base without `/rest/api/3`. For unscoped API tokens, use the site URL, such as `https://example.atlassian.net`. For scoped API tokens, use the Atlassian gateway URL, such as `https://api.atlassian.com/ex/jira/<cloudId>`. The initial authentication mechanism uses an Atlassian account email and API token with HTTP Basic authentication.
 
 Each output accepts `max` and `staged`. In staged mode, the handler writes a Jira-specific preview without requiring credentials or sending an HTTP request.
 

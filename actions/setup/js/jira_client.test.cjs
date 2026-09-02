@@ -1,7 +1,7 @@
 // @ts-check
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createJiraClient, formatJiraError, normalizeJiraBaseUrl, textToADF } = require("./jira_client.cjs");
+const { createJiraClient, formatJiraError, JIRA_REQUEST_TIMEOUT_MS, normalizeJiraBaseUrl, textToADF } = require("./jira_client.cjs");
 
 beforeEach(() => {
   global.core = { debug: vi.fn() };
@@ -66,6 +66,29 @@ describe("jira client", () => {
     expect(global.core.debug).toHaveBeenCalledWith("Jira API request started: PUT /issue/ENG-1");
     expect(global.core.debug).toHaveBeenCalledWith("Jira API response received: PUT /issue/ENG-1 status=204");
     expect(global.core.debug.mock.calls.flat().join(" ")).not.toMatch(/secret-token|jira@example\.com|Basic /);
+  });
+
+  it("bounds Jira requests with an abort signal", async () => {
+    const fetchMock = vi.fn(async (_url, options) => {
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+      return {
+        ok: true,
+        status: 204,
+        statusText: "No Content",
+        text: async () => "",
+      };
+    });
+    const client = createJiraClient(
+      {
+        JIRA_BASE_URL: "https://example.atlassian.net",
+        JIRA_USER_EMAIL: "jira@example.com",
+        JIRA_API_TOKEN: "secret-token",
+      },
+      fetchMock
+    );
+
+    await client.request("/issue/ENG-1", { method: "PUT" });
+    expect(JIRA_REQUEST_TIMEOUT_MS).toBe(30_000);
   });
 
   it("surfaces structured Jira errors without leaking credentials", async () => {

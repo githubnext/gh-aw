@@ -3,6 +3,7 @@
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const JIRA_API_PATH = "/rest/api/3";
+const JIRA_REQUEST_TIMEOUT_MS = 30_000;
 
 function logJiraDebug(message) {
   if (global.core && typeof global.core.debug === "function") {
@@ -100,9 +101,12 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
       const method = options.method || "GET";
       logJiraDebug(`Jira API request started: ${method} ${normalizedPath}`);
       let response;
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), JIRA_REQUEST_TIMEOUT_MS);
       try {
         response = await fetchImpl(url, {
           method,
+          signal: abortController.signal,
           headers: {
             Accept: "application/json",
             Authorization: authorization,
@@ -113,6 +117,8 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
       } catch {
         logJiraDebug(`Jira API request failed before receiving a response: ${method} ${normalizedPath}`);
         throw new Error("Jira API request failed due to a network error");
+      } finally {
+        clearTimeout(timeout);
       }
 
       logJiraDebug(`Jira API response received: ${method} ${normalizedPath} status=${response.status}`);
@@ -141,6 +147,7 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
 
 module.exports = {
   JIRA_API_PATH,
+  JIRA_REQUEST_TIMEOUT_MS,
   createJiraClient,
   formatJiraError,
   normalizeJiraBaseUrl,

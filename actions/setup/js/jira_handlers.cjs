@@ -1,7 +1,6 @@
 // @ts-check
 
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createJiraClient, textToADF } = require("./jira_client.cjs");
 
@@ -9,11 +8,11 @@ function requiredString(value, field, maxLength = 255) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${field} must be a non-empty string`);
   }
-  const sanitized = sanitizeContent(value.trim(), maxLength);
-  if (!sanitized) {
-    throw new Error(`${field} must contain valid text`);
+  const text = value.trim();
+  if (text.length > maxLength) {
+    throw new Error(`${field} must be at most ${maxLength} characters`);
   }
-  return sanitized;
+  return text;
 }
 
 function optionalString(value, field, maxLength = 32767) {
@@ -36,10 +35,10 @@ function jiraHandler(handlerType, handle) {
           core.debug(`${handlerType}: request completed successfully`);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Jira operation failed";
+          const errorMessage = error instanceof Error ? error.message : "Jira operation failed";
           core.debug(`${handlerType}: request failed`);
-          core.error(message);
-          return { success: false, error: message };
+          core.error(errorMessage);
+          return { success: false, error: errorMessage };
         }
       };
     },
@@ -126,6 +125,9 @@ const addComment = jiraHandler("jira_add_comment", async (message, client, isSta
 const addLabel = jiraHandler("jira_add_label", async (message, client, isStaged) => {
   const issueKey = requiredString(message.issue_key, "issue_key");
   const label = requiredString(message.label, "label");
+  if (!/^[A-Za-z0-9_.-]+$/.test(label)) {
+    throw new Error("label must contain only letters, numbers, periods, hyphens, and underscores");
+  }
 
   if (isStaged) {
     logStagedPreviewInfo(`Jira add label — Issue: ${issueKey}; Label: ${label}`);
