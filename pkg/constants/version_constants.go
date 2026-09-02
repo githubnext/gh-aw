@@ -154,9 +154,11 @@ const AWFFilesystemAllowWriteMinVersion Version = "v0.28.5"
 // AWFFilesystemAllowWriteMinVersion.
 const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 
-// AWFEnclaveGitHubIssuesMinVersion is the first AWF version whose
-// config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
-const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
+// AWFEnclaveGitHubIssuesMinVersion is the first AWF release expected to contain
+// the shared mcpg handoff for enclaves[].agent.github.cli = "issues-read-v1".
+// Keep this above DefaultFirewallVersion until that release is published so
+// enclave GitHub access fails closed rather than claiming support prematurely.
+const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.13"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
