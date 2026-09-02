@@ -352,6 +352,11 @@ func TestSplitCrossRepoWorkflowTarget(t *testing.T) {
 			input:      "workflow-name",
 			expectedOK: false,
 		},
+		{
+			name:       "missing relative local workflow path",
+			input:      "./local/workflow.md",
+			expectedOK: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

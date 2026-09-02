@@ -129,3 +129,14 @@ func TestDownloadWorkflowLogsForTargetsReturnsErrorWhenAllFail(t *testing.T) {
 	}, []logsWorkflowTarget{{workflowName: "private", repoOverride: "org/repo"}}, nil)
 	require.ErrorContains(t, err, "access denied")
 }
+
+func TestMergeLogsTargetResultsPropagatesCountLimitReached(t *testing.T) {
+	processedRuns, _, _, countLimitReached, errs := mergeLogsTargetResults([]logsTargetResult{
+		{target: logsWorkflowTarget{workflowName: "limited"}, result: workflowLogsResult{countLimitReached: true}},
+		{target: logsWorkflowTarget{workflowName: "complete"}, result: workflowLogsResult{countLimitReached: false}},
+	}, nil)
+
+	assert.Empty(t, processedRuns)
+	assert.True(t, countLimitReached)
+	assert.Empty(t, errs)
+}

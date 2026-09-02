@@ -286,7 +286,7 @@ func resolveLogsWorkflowTarget(cmd *cobra.Command, arg string) (logsWorkflowTarg
 }
 
 func splitCrossRepoWorkflowTarget(arg string) (string, string, bool) {
-	if filepath.IsAbs(arg) || strings.HasPrefix(filepath.ToSlash(arg), constants.GithubDir) {
+	if isLocalWorkflowPath(arg) || strings.HasPrefix(filepath.ToSlash(arg), constants.GithubDir) {
 		return "", "", false
 	}
 	if _, err := os.Stat(arg); err == nil {
