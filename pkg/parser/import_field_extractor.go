@@ -631,16 +631,20 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 
 func (acc *importAccumulator) mergeBots(fm map[string]any) {
 	mergeJSONStringListField(fm, "bots", "[]", acc.botsSet, &acc.bots, func(m map[string]any, field string) (string, error) {
-		return extractFieldJSONFromMap(m, field, "[]")
+		return extractOnSectionFieldFromMap(m, field)
 	})
 }
 
 func (acc *importAccumulator) mergeSkipRoles(fm map[string]any) {
-	mergeJSONStringListField(fm, "skip-roles", "[]", acc.skipRolesSet, &acc.skipRoles, extractOnSectionFieldFromMap)
+	mergeJSONStringListField(fm, "skip-roles", "[]", acc.skipRolesSet, &acc.skipRoles, func(m map[string]any, field string) (string, error) {
+		return extractOnSectionFieldFromMap(m, field)
+	})
 }
 
 func (acc *importAccumulator) mergeSkipBots(fm map[string]any) {
-	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, extractOnSectionFieldFromMap)
+	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, func(m map[string]any, field string) (string, error) {
+		return extractOnSectionFieldFromMap(m, field)
+	})
 }
 
 func (acc *importAccumulator) mergeAmbientFolders(fm map[string]any) {
