@@ -30,6 +30,11 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
+	visibilityWarnings, err := validateRepositoryPackageVisibility(manifest, repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, visibilityWarnings...)
 
 	installationSources, includeSkillDirs, includeAgentFiles, err := resolveRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host, manifest, manifestPath)
 	if err != nil {
@@ -233,6 +238,8 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 		Emoji:              manifest.Emoji,
 		Description:        manifest.Description,
 		License:            manifest.License,
+		Private:            manifest.Private,
+		Experimental:       manifest.Experimental,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
 		ResourceFiles:      resourceFiles,

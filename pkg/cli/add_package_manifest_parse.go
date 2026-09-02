@@ -21,6 +21,8 @@ type repositoryPackageManifest struct {
 	Emoji           string
 	Description     string
 	License         string
+	Private         bool
+	Experimental    bool
 	Includes        []repositoryPackageInclude
 	Files           []string
 	Resources       []repositoryPackageResource
@@ -120,6 +122,12 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 	if license, ok := stringValue(root["license"]); ok {
 		manifest.License = license
 	}
+	if private, ok := root["private"].(bool); ok {
+		manifest.Private = private
+	}
+	if experimental, ok := root["experimental"].(bool); ok {
+		manifest.Experimental = experimental
+	}
 	if includesValue, ok := root["includes"]; ok {
 		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
 		if err != nil {
@@ -163,6 +171,16 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		manifest.Bootstrap = bootstrap
 	}
 	return warnings, nil
+}
+
+func validateRepositoryPackageVisibility(manifest *repositoryPackageManifest, packageID string) ([]string, error) {
+	if manifest.Private {
+		return nil, fmt.Errorf("package %q is private and cannot be added", packageID)
+	}
+	if manifest.Experimental {
+		return []string{fmt.Sprintf("Package %q is experimental and may change without notice.", packageID)}, nil
+	}
+	return nil, nil
 }
 
 func populateRepositoryPackageManifestDescription(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) []string {
