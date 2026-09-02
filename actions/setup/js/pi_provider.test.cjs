@@ -116,10 +116,14 @@ describe("pi_provider.cjs", () => {
     expect(stderrOutput.some(line => line.includes("provider_response provider=copilot model=claude-sonnet-4 status=503 method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=content-type,x-request-id"))).toBe(true);
   });
 
-  it("logs assistant inference errors with the last request target", async () => {
+  // Triggers the message_end infrastructure-error handler with a given stand-in
+  // GH_AW_SAFEOUTPUTS_CLI override ('true' simulates a successful CLI call, 'false'
+  // simulates a failed one) and returns the handlers/stderr output for assertions.
+  async function triggerConnectionError(cliOverride) {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
     process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
+    process.env.GH_AW_SAFEOUTPUTS_CLI = cliOverride;
 
     const handlers = {};
     const pi = {
@@ -150,14 +154,30 @@ describe("pi_provider.cjs", () => {
         errorMessage: "Connection error.",
       },
     });
+  }
+
+  it("logs assistant inference errors with the last request target", async () => {
+    // 'true' is a stand-in safeoutputs CLI binary that always exits 0, simulating a
+    // successful emission through the CLI channel instead of a direct fs append.
+    await triggerConnectionError("true");
 
     expect(
       stderrOutput.some(line =>
         line.includes('provider_error provider=aw-gateway model=claude-sonnet-4 api=openai-completions status=no-response method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=none error="Connection error."')
       )
     ).toBe(true);
-    expect(fs.readFileSync(process.env.GH_AW_SAFE_OUTPUTS, "utf8")).toContain('"type":"report_incomplete"');
-    expect(fs.readFileSync(process.env.GH_AW_SAFE_OUTPUTS, "utf8")).toContain("Pi provider request failed before safe outputs were emitted");
+    // Emission goes through the safeoutputs CLI channel (not a direct fs append), so it
+    // survives the read-only sandbox mount that backs GH_AW_SAFE_OUTPUTS in production.
+    expect(stderrOutput.some(line => line.includes("report_incomplete emitted via safeoutputs CLI"))).toBe(true);
+  });
+
+  it("logs a failure when the safeoutputs CLI channel is unavailable (e.g. read-only sandbox)", async () => {
+    // 'false' is a stand-in safeoutputs CLI binary that always exits 1, simulating a
+    // failed CLI invocation without ever touching the filesystem directly.
+    await triggerConnectionError("false");
+
+    expect(stderrOutput.some(line => line.includes("report_incomplete emission failed"))).toBe(true);
+    expect(fs.existsSync(process.env.GH_AW_SAFE_OUTPUTS)).toBe(false);
   });
 
   it("skips synthetic report_incomplete emission when safe outputs already exist", () => {
@@ -166,9 +186,11 @@ describe("pi_provider.cjs", () => {
     process.env.GH_AW_SAFE_OUTPUTS = safeOutputsPath;
     fs.writeFileSync(safeOutputsPath, '{"type":"add_comment","body":"done"}\n');
 
-    module.emitInfrastructureIncompleteIfNoSafeOutputs("temporary outage", () => {});
+    const logs = [];
+    module.emitInfrastructureIncompleteIfNoSafeOutputs("temporary outage", message => logs.push(message));
 
     expect(fs.readFileSync(safeOutputsPath, "utf8")).toBe('{"type":"add_comment","body":"done"}\n');
+    expect(logs.some(m => m.includes("skipped: safe outputs already recorded"))).toBe(true);
   });
 
   it("calls /reflect on the management port (10000) when AWF_REFLECT_ENABLED is set", async () => {

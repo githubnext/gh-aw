@@ -28,8 +28,8 @@
 "use strict";
 
 const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF_REFLECT_TIMEOUT_MS, AWF_MODELS_URL_TIMEOUT_MS } = require("./awf_reflect.cjs");
+const { emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 const fs = require("fs");
-const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
@@ -142,22 +142,15 @@ function formatResponseHeaderNames(headers) {
 }
 
 /**
- * Build a structured report_incomplete payload for infrastructure failures.
- *
- * @param {string} details
- * @returns {string}
- */
-function buildInfrastructureIncompletePayload(details) {
-  return JSON.stringify({
-    type: "report_incomplete",
-    reason: "infrastructure_error",
-    details,
-  });
-}
-
-/**
- * Append a report_incomplete safe output when provider infrastructure fails
+ * Emit a report_incomplete safe output when provider infrastructure fails
  * before any safe outputs have been recorded.
+ *
+ * This Pi extension runs inside the AWF agent sandbox, where the directory
+ * backing GH_AW_SAFE_OUTPUTS is mounted read-only (writes fail with EROFS).
+ * Emission is therefore delegated to the `safeoutputs` CLI (see
+ * safeoutputs_cli.cjs), which forwards the call to the MCP gateway process
+ * that owns write access to the real outputs file — the same channel used
+ * by every other safe-output tool call the agent makes.
  *
  * @param {string} details
  * @param {(msg: string) => void} logger
@@ -176,14 +169,11 @@ function emitInfrastructureIncompleteIfNoSafeOutputs(details, logger) {
       logger(`report_incomplete skipped: safe outputs already recorded at ${safeOutputsPath}`);
       return;
     }
-
-    fs.mkdirSync(path.dirname(safeOutputsPath), { recursive: true });
-    fs.appendFileSync(safeOutputsPath, buildInfrastructureIncompletePayload(details) + "\n", { encoding: "utf8" });
-    logger(`report_incomplete emitted: ${safeOutputsPath}`);
   } catch (error) {
-    const message = getErrorMessage(error);
-    logger(`report_incomplete emission failed: ${message}`);
+    logger(`report_incomplete pre-check failed, proceeding with emission: ${getErrorMessage(error)}`);
   }
+
+  emitInfrastructureIncomplete(details, { safeOutputsPath, logger });
 }
 
 /**
@@ -411,6 +401,5 @@ _piExports.resolveGatewayUrl = resolveGatewayUrl;
 _piExports.registerConfiguredProviders = registerConfiguredProviders;
 _piExports.resolveProviderRequestTarget = resolveProviderRequestTarget;
 _piExports.formatResponseHeaderNames = formatResponseHeaderNames;
-_piExports.buildInfrastructureIncompletePayload = buildInfrastructureIncompletePayload;
 _piExports.emitInfrastructureIncompleteIfNoSafeOutputs = emitInfrastructureIncompleteIfNoSafeOutputs;
 _piExports.logReflectFailure = logReflectFailure;

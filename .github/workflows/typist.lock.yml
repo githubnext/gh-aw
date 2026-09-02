@@ -28,11 +28,11 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
-#     - shared/daily-audit-base.md
 #     - shared/mcp/serena.md
 #     - shared/mcp/serena-go.md
+#     - shared/otlp.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

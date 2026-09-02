@@ -28,12 +28,12 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#     - shared/gh.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
-#     - shared/daily-audit-base.md
+#     - shared/gh.md
 #     - shared/copilot-pr-data-fetch.md
 #     - shared/copilot-pr-analysis-base.md
+#     - shared/otlp.md
+#     - shared/daily-audit-base.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

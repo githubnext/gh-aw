@@ -29,10 +29,10 @@
 #   Imports:
 #     - shared/mcp-pagination.md
 #     - shared/github-mcp-pagination-wrappers.md
-#     - shared/python-dataviz.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
+#     - shared/python-dataviz.md
+#     - shared/otlp.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

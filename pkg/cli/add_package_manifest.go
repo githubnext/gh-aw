@@ -54,6 +54,8 @@ type resolvedRepositoryPackage struct {
 	Emoji              string
 	Description        string
 	License            string
+	Private            bool
+	Experimental       bool
 	DocsPath           string
 	InstallationSource []resolvedPackageInstallable
 	ResourceFiles      []resolvedPackageResource

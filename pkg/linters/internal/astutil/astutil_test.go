@@ -484,7 +484,7 @@ func TestBuildContainsFix(t *testing.T) {
 		Y:  ast.NewIdent("b"),
 	}
 
-	fixes := BuildContainsFix(expr, "strings", "s", "sub", false, "test message")
+	fixes := BuildContainsFix(nil, expr, "strings", "s", "sub", false, "test message")
 	if len(fixes) != 1 {
 		t.Fatalf("got %d fixes, want 1", len(fixes))
 	}
@@ -496,12 +496,41 @@ func TestBuildContainsFix(t *testing.T) {
 	}
 
 	// negated
-	fixes = BuildContainsFix(expr, "strings", "s", "sub", true, "negated message")
+	fixes = BuildContainsFix(nil, expr, "strings", "s", "sub", true, "negated message")
 	if got := string(fixes[0].TextEdits[0].NewText); got != "!strings.Contains(s, sub)" {
 		t.Fatalf("negated NewText = %q, want %q", got, "!strings.Contains(s, sub)")
 	}
 	if fixes[0].Message != "negated message" {
 		t.Fatalf("negated Message = %q, want %q", fixes[0].Message, "negated message")
+	}
+
+	// overlapping comment suppresses fix
+	src := `package p
+func f() bool {
+	return strings.Count("a", "b" /* comment */) > 0
+}`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "p.go", src, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("ParseFile failed: %v", err)
+	}
+	var binExpr *ast.BinaryExpr
+	ast.Inspect(file, func(n ast.Node) bool {
+		if be, ok := n.(*ast.BinaryExpr); ok {
+			binExpr = be
+			return false
+		}
+		return true
+	})
+	if binExpr == nil {
+		t.Fatal("expected BinaryExpr")
+	}
+	if !HasOverlappingComment([]*ast.File{file}, binExpr.Pos(), binExpr.End()) {
+		t.Fatal("expected HasOverlappingComment to be true for test expression")
+	}
+	fixesWithComment := BuildContainsFix([]*ast.File{file}, binExpr, "strings", "s", "sub", false, "test message")
+	if len(fixesWithComment) != 0 {
+		t.Fatalf("got %d fixes with overlapping comment, want 0", len(fixesWithComment))
 	}
 }
 
