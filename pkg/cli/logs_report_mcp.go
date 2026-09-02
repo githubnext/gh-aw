@@ -85,9 +85,9 @@ func mergeIntegrityFilterCounts(destination map[string]int, source map[string]in
 }
 
 func mergeRunIntegrityFilterSummary(destination **IntegrityFilterSummary, usage *MCPToolUsageData) {
-	runIntegrity := usage.Integrity
+	runIntegrity := summarizeIntegrityFilterEvents(usage.FilteredEvents)
 	if runIntegrity == nil {
-		runIntegrity = summarizeIntegrityFilterEvents(usage.FilteredEvents)
+		runIntegrity = usage.Integrity
 	}
 	if runIntegrity == nil || runIntegrity.TotalFiltered == 0 {
 		return

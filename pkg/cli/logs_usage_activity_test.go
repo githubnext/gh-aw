@@ -272,6 +272,7 @@ func TestApplyUsageActivitySummaryBackfillsMissingMCPMetrics(t *testing.T) {
 		Gateway: &usageActivityGateway{
 			Servers: []usageActivityGatewayServer{{
 				ServerName: "github", TotalInputSize: 100, TotalOutputSize: 200,
+				AvgDurationMS: 12,
 			}},
 			Tools: []usageActivityGatewayTool{{
 				ServerName: "github", ToolName: "issue_read", CallCount: 2,
@@ -297,6 +298,7 @@ func TestApplyUsageActivitySummaryBackfillsMissingMCPMetrics(t *testing.T) {
 	assert.Equal(t, 140, existingMCP.Summary[0].MaxOutputSize, "missing tool maximum output size should be backfilled")
 	assert.Equal(t, 7, existingMCP.Servers[0].TotalInputSize, "existing server metrics must not be overwritten")
 	assert.Equal(t, 200, existingMCP.Servers[0].TotalOutputSize, "missing server output size should be backfilled")
+	assert.Equal(t, "12ms", existingMCP.Servers[0].AvgDuration, "missing server duration should be backfilled")
 	require.NotNil(t, existingMCP.Integrity, "missing integrity aggregates should be backfilled when detailed events are absent")
 	assert.Equal(t, 1, existingMCP.Integrity.TotalFiltered)
 }

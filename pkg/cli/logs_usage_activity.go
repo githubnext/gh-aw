@@ -272,6 +272,9 @@ func backfillUsageActivityMCPMetrics(gateway *usageActivityGateway, integritySum
 				if server.TotalOutputSize == 0 {
 					server.TotalOutputSize = activity.TotalOutputSize
 				}
+				if server.AvgDuration == "" {
+					server.AvgDuration = formatActivityDuration(activity.AvgDurationMS)
+				}
 			}
 		}
 	}

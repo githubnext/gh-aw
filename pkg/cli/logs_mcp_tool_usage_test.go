@@ -400,10 +400,10 @@ func TestBuildMCPToolUsageSummaryFilteredEvents(t *testing.T) {
 			MCPToolUsage: &MCPToolUsageData{
 				FilteredEvents: []DifcFilteredEvent{event1},
 				Integrity: &IntegrityFilterSummary{
-					TotalFiltered:        1,
-					FilteredServerCounts: map[string]int{"github": 1},
-					FilteredToolCounts:   map[string]int{"pull_request_read": 1},
-					FilteredReasonCounts: map[string]int{"integrity check failed": 1},
+					TotalFiltered:        2,
+					FilteredServerCounts: map[string]int{"github": 2},
+					FilteredToolCounts:   map[string]int{"pull_request_read": 2},
+					FilteredReasonCounts: map[string]int{"integrity check failed": 2},
 				},
 			},
 		},

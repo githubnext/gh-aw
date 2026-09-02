@@ -364,31 +364,8 @@ function sortedCounts(counts) {
   return Object.fromEntries(Array.from(counts.entries()).sort(([left], [right]) => left.localeCompare(right)));
 }
 
-function createGatewayActivityAccumulator() {
-  return {
-    gateway: {
-      total_calls: 0,
-      failed_calls: 0,
-      total_input_size: 0,
-      total_output_size: 0,
-      max_input_size: 0,
-      max_output_size: 0,
-      total_duration_ms: 0,
-      max_duration_ms: 0,
-      servers: new Map(),
-      tools: new Map(),
-    },
-    integrity: {
-      total_filtered: 0,
-      filtered_server_counts: new Map(),
-      filtered_tool_counts: new Map(),
-      filtered_reason_counts: new Map(),
-    },
-  };
-}
-
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>["gateway"]} gateway
+ * @param {{servers: Map, tools: Map}} gateway
  * @param {string} serverName
  */
 function getGatewayServer(gateway, serverName) {
@@ -409,7 +386,7 @@ function getGatewayServer(gateway, serverName) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>["gateway"]} gateway
+ * @param {{servers: Map, tools: Map}} gateway
  * @param {string} serverName
  * @param {string} toolName
  */
@@ -435,7 +412,7 @@ function getGatewayTool(gateway, serverName, toolName) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>["gateway"]} gateway
+ * @param {{servers: Map, tools: Map}} gateway
  * @param {string} serverName
  * @param {string} toolName
  * @param {number} inputSize
@@ -455,7 +432,7 @@ function recordGatewayToolCall(gateway, serverName, toolName, inputSize) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>["gateway"]} gateway
+ * @param {{servers: Map, tools: Map}} gateway
  * @param {string} serverName
  * @param {string} toolName
  * @param {{failed: boolean, outputSize: number, durationMs: number}} result
@@ -481,7 +458,7 @@ function recordGatewayToolResult(gateway, serverName, toolName, result) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>["integrity"]} integrity
+ * @param {{total_filtered: number, filtered_server_counts: Map, filtered_tool_counts: Map, filtered_reason_counts: Map}} integrity
  * @param {Record<string, any>} entry
  */
 function recordIntegrityFilteredEvent(integrity, entry) {
@@ -507,7 +484,7 @@ function getRpcMessageType(entry) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>} activity
+ * @param {{gateway: object, integrity: object}} activity
  * @param {string} content
  */
 function parseGatewayJSONL(activity, content) {
@@ -558,7 +535,7 @@ function parseGatewayJSONL(activity, content) {
 }
 
 /**
- * @param {ReturnType<typeof createGatewayActivityAccumulator>} activity
+ * @param {{gateway: object, integrity: object}} activity
  * @param {string} content
  */
 function parseRPCMessagesJSONL(activity, content) {
@@ -625,7 +602,26 @@ function parseRPCMessagesJSONL(activity, content) {
  * Parse MCP gateway/RPC logs and aggregate tool-call and integrity-filter metrics.
  */
 function parseGatewayActivity(logRoots = ["/tmp/gh-aw", "/tmp/gh-aw/threat-detection", "/tmp/gh-aw/sandbox/agent/logs", "/tmp/gh-aw/threat-detection/sandbox/agent/logs"]) {
-  const activity = createGatewayActivityAccumulator();
+  const activity = {
+    gateway: {
+      total_calls: 0,
+      failed_calls: 0,
+      total_input_size: 0,
+      total_output_size: 0,
+      max_input_size: 0,
+      max_output_size: 0,
+      total_duration_ms: 0,
+      max_duration_ms: 0,
+      servers: new Map(),
+      tools: new Map(),
+    },
+    integrity: {
+      total_filtered: 0,
+      filtered_server_counts: new Map(),
+      filtered_tool_counts: new Map(),
+      filtered_reason_counts: new Map(),
+    },
+  };
 
   for (const root of logRoots) {
     const gatewayPath = [path.join(root, "mcp-logs/gateway.jsonl"), path.join(root, "gateway.jsonl")].find(candidate => fs.existsSync(candidate));
