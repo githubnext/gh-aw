@@ -29,12 +29,12 @@
 #   Imports:
 #     - shared/reporting.md
 #     - shared/skip-if-issue-open.md
-#     - shared/otlp.md
 #     - shared/activation-app.md
 #     - shared/daily-issue-base.md
 #     - shared/mcp/serena.md
 #     - shared/mcp/serena-go.md
 #     - shared/go-source-analysis.md
+#     - shared/otlp.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN

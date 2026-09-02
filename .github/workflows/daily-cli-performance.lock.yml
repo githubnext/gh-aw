@@ -28,10 +28,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp-pagination.md
-#     - shared/go-make.md
-#     - shared/otlp.md
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
+#     - shared/go-make.md
+#     - shared/otlp.md
 #     - shared/daily-audit-base.md
 #
 # Secrets used:

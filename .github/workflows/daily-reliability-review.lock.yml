@@ -28,10 +28,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/opencode.md
+#     - shared/activation-app.md
 #     - shared/sentry.md
 #     - shared/mcp/sentry.md
 #     - shared/reporting.md
-#     - shared/activation-app.md
 #     - shared/daily-issue-base.md
 #
 # Secrets used:
