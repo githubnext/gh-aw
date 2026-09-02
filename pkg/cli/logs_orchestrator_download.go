@@ -31,15 +31,16 @@ type workflowRunBatch struct {
 }
 
 type processWorkflowRunBatchOptions struct {
-	count          int
-	outputDir      string
-	verbose        bool
-	repoOverride   string
-	artifactFilter []string
-	evalsOnly      bool
-	artifactSets   []string
-	parse          bool
-	filters        runFilterOpts
+	count                  int
+	outputDir              string
+	verbose                bool
+	repoOverride           string
+	artifactFilter         []string
+	evalsOnly              bool
+	artifactSets           []string
+	parse                  bool
+	filters                runFilterOpts
+	maxConcurrentDownloads int
 }
 
 func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDownloadRuntime, error) {
@@ -92,8 +93,10 @@ func resolveLogsArtifactFilter(artifactSets []string, verbose bool) ([]string, e
 }
 
 func prepareLogsDownloadOutput(ctx context.Context, opts LogsDownloadOptions) error {
-	if err := ensureLogsGitignoreWithWarning(opts.Verbose); err != nil {
-		return err
+	if !opts.skipEnsureGitignore {
+		if err := ensureLogsGitignoreWithWarning(opts.Verbose); err != nil {
+			return err
+		}
 	}
 	if err := checkLogsDownloadContext(ctx); err != nil {
 		return err
@@ -206,7 +209,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			state.countLimitReached = runtime.fetchAllInRange
 			break
 		}
-		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration); err != nil {
+		if err := waitForLogsRateLimit(runtime.activeCtx, opts.Verbose, state.iteration, opts.rateLimitFirstRequest); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				state.timeoutReached = true
 				break
@@ -255,15 +258,16 @@ func fetchAndProcessLogsBatch(state *logsCollectionState, runtime logsDownloadRu
 	var batchProcessed int
 	var allRunsConsumed, batchTimedOut bool
 	state.processedRuns, batchProcessed, allRunsConsumed, batchTimedOut = logsProcessWorkflowRunBatch(runtime.activeCtx, batch, state.processedRuns, processWorkflowRunBatchOptions{
-		count:          opts.Count,
-		outputDir:      opts.OutputDir,
-		verbose:        opts.Verbose,
-		repoOverride:   opts.RepoOverride,
-		artifactFilter: runtime.artifactFilter,
-		evalsOnly:      opts.EvalsOnly,
-		artifactSets:   opts.ArtifactSets,
-		parse:          opts.Parse,
-		filters:        runtime.filters,
+		count:                  opts.Count,
+		outputDir:              opts.OutputDir,
+		verbose:                opts.Verbose,
+		repoOverride:           opts.RepoOverride,
+		artifactFilter:         runtime.artifactFilter,
+		evalsOnly:              opts.EvalsOnly,
+		artifactSets:           opts.ArtifactSets,
+		parse:                  opts.Parse,
+		filters:                runtime.filters,
+		maxConcurrentDownloads: opts.maxConcurrentDownloads,
 	})
 	state.timeoutReached = state.timeoutReached || batchTimedOut
 	logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, state.iteration, batchProcessed, len(state.processedRuns), opts.Verbose)
@@ -308,11 +312,11 @@ func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptio
 	return false, false, nil
 }
 
-func waitForLogsRateLimit(ctx context.Context, verbose bool, iteration int) error {
-	if iteration == 0 {
+func waitForLogsRateLimit(ctx context.Context, verbose bool, iteration int, firstRequest bool) error {
+	if iteration == 0 && !firstRequest {
 		return nil
 	}
-	if err := checkAndWaitForRateLimit(ctx, verbose); err != nil {
+	if err := checkAndWaitForRateLimitShared(ctx, verbose); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
@@ -451,13 +455,14 @@ func appendProcessedWorkflowRuns(
 	opts processWorkflowRunBatchOptions,
 ) ([]ProcessedRun, int) {
 	downloadResults := downloadRunArtifactsConcurrent(activeCtx, chunk, runArtifactsConcurrentOptions{
-		outputDir:      opts.outputDir,
-		verbose:        opts.verbose,
-		maxRuns:        opts.count - len(processedRuns),
-		repoOverride:   opts.repoOverride,
-		artifactFilter: opts.artifactFilter,
-		evalsOnly:      opts.evalsOnly,
-		artifactSets:   opts.artifactSets,
+		outputDir:              opts.outputDir,
+		verbose:                opts.verbose,
+		maxRuns:                opts.count - len(processedRuns),
+		repoOverride:           opts.repoOverride,
+		artifactFilter:         opts.artifactFilter,
+		evalsOnly:              opts.evalsOnly,
+		artifactSets:           opts.artifactSets,
+		maxConcurrentDownloads: opts.maxConcurrentDownloads,
 	})
 	for _, result := range downloadResults {
 		if shouldSkipProcessedWorkflowRun(result, opts.verbose) || applyRunFilters(activeCtx, result, opts.filters, opts.verbose) {
