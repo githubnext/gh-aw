@@ -33,7 +33,7 @@ func TestEnclaveGitHubMCPAgentPolicy(t *testing.T) {
 	assert.Equal(t, map[string][]string{"github": {"list_issues", "issue_read"}}, policy.Tools)
 	assert.Equal(t, map[string]any{
 		"repos":         []string{"octo-org/private-service", "octo-org/public-docs"},
-		"min-integrity": "unapproved",
+		"min-integrity": "approved",
 	}, policy.AllowOnly)
 }
 
@@ -82,7 +82,7 @@ Read the assigned repository's issues through the enclave.
 
 	assert.Equal(t, 1, strings.Count(lock, "--name awmg-mcpg"))
 	assert.Contains(t, lock, `"agentIds": ["${MCP_GATEWAY_AGENT_ID}","${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"]`)
-	assert.Contains(t, lock, `"agentPolicies": {"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}":{"servers":["github"],"tools":{"github":["list_issues","issue_read"]},"allow-only":{"min-integrity":"unapproved","repos":["octo-org/private-service"]}}`)
+	assert.Contains(t, lock, `"agentPolicies": {"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}":{"servers":["github"],"tools":{"github":["list_issues","issue_read"]},"allow-only":{"min-integrity":"approved","repos":["octo-org/private-service"]}}`)
 	assert.Contains(t, lock, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')`)
 	assert.Contains(t, lock, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_MCP_AGENT_ID "$AWF_ENCLAVE_GITHUB_MCP_AGENT_ID"`)
 	assert.Contains(t, lock, "--exclude-env AWF_ENCLAVE_GITHUB_MCP_AGENT_ID")

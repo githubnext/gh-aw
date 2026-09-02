@@ -47,6 +47,7 @@ package workflow
 
 import (
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -208,7 +209,11 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	}
 	if enclaveGitHubIssuesEnabled(workflowData) {
 		primaryServers := collectMCPTools(workflowData)
-		if _, hasGitHub := workflowData.Tools["github"]; !hasGitHub {
+		primaryGitHubEnabled := false
+		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub && githubTool != false {
+			primaryGitHubEnabled = !isGitHubCLIModeEnabled(workflowData)
+		}
+		if !primaryGitHubEnabled {
 			for i, server := range primaryServers {
 				if server == "github" {
 					primaryServers = append(primaryServers[:i], primaryServers[i+1:]...)
@@ -216,11 +221,18 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 				}
 			}
 		}
+		sort.Strings(primaryServers)
 		config.AgentID = ""
 		config.AgentIDs = []string{"${MCP_GATEWAY_AGENT_ID}", "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"}
 		config.AgentPolicies = map[string]MCPGatewayAgentPolicy{
 			"${MCP_GATEWAY_AGENT_ID}":            {Servers: primaryServers},
 			"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}": enclaveGitHubMCPAgentPolicy(workflowData),
+		}
+		if primaryGitHubEnabled {
+			config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"] = MCPGatewayAgentPolicy{
+				Servers: primaryServers,
+				Tools:   map[string][]string{"github": collectGitHubMCPManifestTools(workflowData.Tools["github"])},
+			}
 		}
 	}
 	return config

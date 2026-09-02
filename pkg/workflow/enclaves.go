@@ -46,7 +46,7 @@ func enclaveGitHubMCPAgentPolicy(workflowData *WorkflowData) MCPGatewayAgentPoli
 		Tools:   map[string][]string{"github": {"list_issues", "issue_read"}},
 		AllowOnly: map[string]any{
 			"repos":         repos,
-			"min-integrity": "unapproved",
+			"min-integrity": "approved",
 		},
 	}
 }

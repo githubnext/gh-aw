@@ -64,6 +64,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -81,6 +82,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	mcpTools := collectMCPTools(workflowData)
+	tools = toolsWithEnclaveGitHubIssues(tools, workflowData)
 
 	// Populate dispatch-workflow file mappings before generating config
 	// This ensures workflow_files is available in the config.json
@@ -135,6 +137,42 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// dynamic base-branch.
 	workflowData.SafeOutputsInputEnvVars = extractSafeOutputsInputEnvVars(safeOutputConfig)
 	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows, workflowData.SafeOutputsInputEnvVars)
+}
+
+func toolsWithEnclaveGitHubIssues(tools map[string]any, workflowData *WorkflowData) map[string]any {
+	if !enclaveGitHubIssuesEnabled(workflowData) {
+		return tools
+	}
+	updated := make(map[string]any, len(tools)+1)
+	maps.Copy(updated, tools)
+	githubTool, _ := tools["github"].(map[string]any)
+	githubConfig := make(map[string]any, len(githubTool))
+	maps.Copy(githubConfig, githubTool)
+	if allowed, ok := githubConfig["allowed"].([]any); ok {
+		for _, tool := range []string{"list_issues", "issue_read"} {
+			if !slices.Contains(allowed, any(tool)) {
+				githubConfig["allowed"] = append(allowed, tool)
+			}
+		}
+	} else if allowed, ok := githubConfig["allowed"].([]string); ok {
+		for _, tool := range []string{"list_issues", "issue_read"} {
+			if !slices.Contains(allowed, tool) {
+				githubConfig["allowed"] = append(allowed, tool)
+			}
+		}
+	} else if toolsets, ok := githubConfig["toolsets"].([]any); ok {
+		if !slices.Contains(toolsets, "issues") {
+			githubConfig["toolsets"] = append(toolsets, "issues")
+		}
+	} else if toolsets, ok := githubConfig["toolsets"].(string); ok {
+		if !slices.Contains(strings.Split(toolsets, ","), "issues") {
+			githubConfig["toolsets"] = toolsets + ",issues"
+		}
+	} else {
+		githubConfig["toolsets"] = []any{"issues"}
+	}
+	updated["github"] = githubConfig
+	return updated
 }
 
 func collectMCPTools(workflowData *WorkflowData) []string {
