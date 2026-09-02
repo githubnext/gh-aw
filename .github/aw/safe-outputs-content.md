@@ -4,6 +4,35 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
 # Safe Outputs: GitHub Content
 
+- Jira operations are explicitly namespaced and run through Jira Cloud REST API v3:
+
+  ```yaml
+  safe-outputs:
+    env:
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+    jira-create-issue:
+      max: 1
+    jira-update-issue:
+      max: 1
+    jira-add-comment:
+      max: 1
+    jira-add-label:
+      max: 3
+  ```
+
+  | Frontmatter | Tool | Agent inputs |
+  |---|---|---|
+  | `jira-create-issue` | `jira_create_issue` | `project_key`, `issue_type`, `summary`, optional `description` |
+  | `jira-update-issue` | `jira_update_issue` | `issue_key` and at least one of `summary`, `description` |
+  | `jira-add-comment` | `jira_add_comment` | `issue_key`, `body` |
+  | `jira-add-label` | `jira_add_label` | `issue_key`, `label` |
+
+  Use the Jira-prefixed tool whenever the target is Jira. Unprefixed issue, comment, and label tools target GitHub. Description and comment strings are converted to ADF internally. Label addition is additive and preserves existing labels. Each Jira output supports `max` and `staged`; staged mode sends no HTTP request and does not require credentials.
+
+  Jira update, comment, and label operations require a known issue key. Same-run references to an issue created by `jira_create_issue` are not supported. The initial integration does not provide transitions, assignments, custom fields, label removal, JQL, bulk operations, or arbitrary REST calls.
+
 - `create-issue:` - Safe GitHub issue creation (bugs, features)
 
   ```yaml

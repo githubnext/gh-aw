@@ -3955,6 +3955,25 @@ describe("safe_outputs_handlers", () => {
     });
   });
 
+  describe("jiraUpdateIssueHandler", () => {
+    it.each([{}, { summary: "" }, { description: "   " }])("rejects updates without a non-empty field", args => {
+      const result = handlers.jiraUpdateIssueHandler(args);
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        result: "error",
+        error: expect.stringContaining("summary or description"),
+      });
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("records an update with a non-empty field", () => {
+      const result = handlers.jiraUpdateIssueHandler({ issue_key: "ENG-123", summary: "Updated" });
+      expect(result.isError).toBeUndefined();
+      expect(JSON.parse(result.content[0].text).result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "jira_update_issue", issue_key: "ENG-123", summary: "Updated" }));
+    });
+  });
+
   describe("updateIssueHandler", () => {
     it("should return intent error when target is triggering (default) and not in issue context", () => {
       // global.context has eventName: "push" (not an issue context)

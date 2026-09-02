@@ -47,6 +47,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool { //nolint:lar
 		safeOutputs.AssignWorkItems != nil ||
 		safeOutputs.LinkWorkItems != nil ||
 		safeOutputs.UploadWorkItemAttachments != nil ||
+		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.UpdateDiscussions != nil ||
@@ -120,6 +121,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool { //no
 		safeOutputs.AssignWorkItems != nil ||
 		safeOutputs.LinkWorkItems != nil ||
 		safeOutputs.UploadWorkItemAttachments != nil ||
+		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.UpdateDiscussions != nil ||

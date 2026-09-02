@@ -56,7 +56,7 @@ func checkMaxField(toolName string, maxPtr *string) error {
 // it is on the hot path and called on every compilation. The field ordering matches
 // the sorted safeOutputFieldMapping keys for deterministic error reporting.
 //
-//nolint:largefunc // Direct field access keeps this hot-path validation allocation-free.
+//nolint:largefunc // Direct field access intentionally keeps all safe-output max checks together.
 func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
@@ -210,6 +210,26 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	}
 	if config.HideComment != nil {
 		if err := checkMaxField("hide_comment", config.HideComment.Max); err != nil {
+			return err
+		}
+	}
+	if config.JiraAddComment != nil {
+		if err := checkMaxField("jira_add_comment", config.JiraAddComment.Max); err != nil {
+			return err
+		}
+	}
+	if config.JiraAddLabel != nil {
+		if err := checkMaxField("jira_add_label", config.JiraAddLabel.Max); err != nil {
+			return err
+		}
+	}
+	if config.JiraCreateIssue != nil {
+		if err := checkMaxField("jira_create_issue", config.JiraCreateIssue.Max); err != nil {
+			return err
+		}
+	}
+	if config.JiraUpdateIssue != nil {
+		if err := checkMaxField("jira_update_issue", config.JiraUpdateIssue.Max); err != nil {
 			return err
 		}
 	}
