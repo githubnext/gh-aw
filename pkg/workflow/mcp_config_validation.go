@@ -42,6 +42,7 @@ var builtInToolNames = map[string]bool{
 	"edit":              true,
 	"web-fetch":         true,
 	"web-search":        true,
+	"linear":            true,
 	"safety-prompt":     true,
 	"timeout":           true,
 	"startup-timeout":   true,
@@ -68,7 +69,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 		toolConfig := tools[toolName]
 
 		// Skip built-in tools - they have their own schema validation
-		if builtInToolNames[toolName] {
+		if builtInToolNames[toolName] && toolName != "linear" {
 			mcpValidationLog.Printf("Skipping MCP validation for built-in tool: %s", toolName)
 			continue
 		}

@@ -38,6 +38,36 @@ tools:
 
 See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
 
+### Linear Tools (`linear:`)
+
+Connect to [Linear's official hosted MCP server](https://linear.app/docs/mcp) using the well-known `LINEAR_API_KEY` GitHub Actions secret:
+
+```yaml wrap
+tools:
+  linear: {}
+```
+
+Set `token` to use a different secret containing a Linear API key or OAuth access token. The integration uses Streamable HTTP through the MCP gateway and always uses Linear's server-enforced read-only endpoint. Use `allowed` to restrict tool names and `required: false` to make Linear connectivity best-effort:
+
+```yaml wrap
+tools:
+  linear:
+    token: ${{ secrets.CUSTOM_LINEAR_TOKEN }}
+    allowed: ["*"]
+    required: true
+```
+
+Use `toolsets` to enable related groups of tools without maintaining individual tool names:
+
+```yaml wrap
+tools:
+  linear:
+    toolsets: [issues, projects]
+```
+
+Supported toolsets are `all`, `attachments`, `comments`, `customers`, `cycles`, `diffs`, `documentation`, `documents`, `initiatives`, `issues`, `milestones`, `projects`, `status_updates`, `teams`, and `users`. The compiler expands toolsets into the gateway's allowed-tool list. If `allowed` is also set, each name or wildcard must match a tool in the selected toolsets.
+
+The Linear credential is passed to the gateway as an environment variable and sent as an `Authorization: Bearer` header. It is not embedded in MCP configuration. Linear works with `tools.cli-proxy: true` like other remote MCP servers.
 ### Jira Tools (`jira:`)
 
 Connect to Atlassian's official remote Rovo MCP endpoint from non-interactive GitHub Actions workloads. Browser OAuth, device login, and user-consent flows are not supported.
