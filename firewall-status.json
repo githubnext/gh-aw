@@ -1,13 +1,13 @@
 {
-  "last_run_id": "31565910103",
-  "last_run_date": "2026-08-12",
+  "last_run_id": "33592117347",
+  "last_run_date": "2026-09-02",
   "status": "SECURE",
-  "techniques_tested_this_run": 12,
-  "techniques_blocked_this_run": 12,
-  "cumulative_runs": 35,
-  "cumulative_techniques": 162,
+  "techniques_tested_this_run": 13,
+  "techniques_blocked_this_run": 13,
+  "cumulative_runs": 36,
+  "cumulative_techniques": 175,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 753,
+  "consecutive_blocks": 766,
   "squid_version": "7.6-VCS",
-  "key_message": "All escape attempts blocked this run (asterisk-form OPTIONS to Squid, duplicate Transfer-Encoding smuggling, DNS ANY/CNAME/HTTPS record queries, percent-encoded CONNECT host, header-spoofed CONNECT override, mDNS multicast, lowercase method, CONNECT-target/Host mismatch, HTTP/0.9 bare CONNECT, Squid-self-loop target, tunnel-smuggled absolute-URI GET, bracketed IPv4 literal). Sandbox secure."
+  "key_message": "All escape attempts blocked this run (HTTP/0.9 minimal CONNECT, IDNA-encoded target, pipelined double-CONNECT, decimal-integer IP literal, dotted-quad IP literal CONNECT, QUIC/UDP443 raw egress, TLS domain fronting via github.com tunnel, chunked TE smuggling on CONNECT, NTP UDP/123 covert channel, duplicate Host headers, percent-encoded dot in hostname, CRLF header injection before Host, --noproxy direct-IP curl bypass). Sandbox secure. Note: transient 403s observed on allowed domains mid-run under repeated CONNECT load - flagged as reliability concern, not a vulnerability."
 }

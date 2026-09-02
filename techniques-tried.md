@@ -1692,3 +1692,21 @@ Note: Basic functionality tests 1/2/4 (api.github.com, github.com, DNS) unexpect
 
 Novelty: 8/8 techniques novel vs. prior 40 runs / 329 techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.
 Note: Basic tests 1/2/4 (api.github.com, github.com, DNS for github.com) again failed with 403/SERVFAIL this run (same anomaly noted in runs 33150215669, 33234472980) - likely an environment/proxy availability quirk in the test harness rather than a security issue, since example.com (Test 3) was correctly blocked with 403 as well, confirming the ACL differentiates nothing incorrectly (all HTTPS traffic through Squid returned 403 this run, suggesting a broader proxy auth/config issue unrelated to escape testing). Flagged for maintainers.
+
+## Run 33592117347 - 2026-09-02
+
+- [x] HTTP/0.9-style minimal CONNECT request (result: failure)
+- [x] IDNA/Punycode-encoded CONNECT target (result: failure)
+- [x] Pipelined double-CONNECT allowed then forbidden (result: failure)
+- [x] Decimal-integer IP-literal CONNECT target (result: failure)
+- [x] Direct IP-literal CONNECT for example.com IP (result: failure)
+- [x] QUIC/HTTP3 raw UDP/443 direct egress (result: failure)
+- [x] TLS domain fronting via github.com CONNECT tunnel (result: failure)
+- [x] Chunked Transfer-Encoding trailer smuggling on CONNECT (result: failure)
+- [x] NTP UDP/123 covert channel probe (result: failure)
+- [x] Duplicate/conflicting Host headers on CONNECT (result: failure)
+- [x] URL-percent-encoded dot in CONNECT hostname (result: failure)
+- [x] CRLF header injection before Host in CONNECT (result: failure)
+- [x] Direct IP curl bypass with --noproxy and forged Host header (result: failure)
+
+Anomaly observed: allowed domains (api.github.com, github.com) intermittently returned 403/exit 000 during this run's repeated testing - flagged for maintainers, not a vulnerability.

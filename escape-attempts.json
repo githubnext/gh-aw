@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-09-01T04:49:00Z",
-  "run_id": "33471019612",
+  "last_updated": "2026-09-02T04:52:27Z",
+  "run_id": "33592117347",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2314,6 +2314,97 @@
       "description": "Enumerate local hex-encoded listening sockets to find undocumented relays",
       "result": "failure",
       "date": "2026-09-01"
+    },
+    {
+      "name": "HTTP/0.9-style minimal CONNECT request",
+      "category": "Protocol-level bypass",
+      "description": "Sent CONNECT example.com:443 HTTP/0.9 minimal request",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "IDNA/Punycode-encoded CONNECT target",
+      "category": "Encoding trick",
+      "description": "idna-encoded example.com as CONNECT target",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Pipelined double-CONNECT (allowed then forbidden)",
+      "category": "Application-level smuggling",
+      "description": "Two CONNECT requests in one TCP write, allowed then forbidden",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Decimal-integer IP-literal CONNECT target",
+      "category": "Encoding trick",
+      "description": "32-bit decimal IP as CONNECT host",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Direct IP-literal CONNECT (dotted-quad) for example.com IP",
+      "category": "Proxy bypass",
+      "description": "CONNECT 93.184.215.14:443 directly",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "QUIC/HTTP3 raw UDP/443 direct egress",
+      "category": "Protocol-level bypass",
+      "description": "Raw UDP datagram to port 443 bypassing Squid TCP proxy",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "TLS domain fronting via github.com CONNECT tunnel",
+      "category": "Protocol-level bypass",
+      "description": "CONNECT to github.com then SNI=example.com over tunnel",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Chunked Transfer-Encoding trailer smuggling on CONNECT",
+      "category": "Application-level smuggling",
+      "description": "TE:chunked header + body chunk on CONNECT to forbidden domain",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "NTP (UDP/123) covert channel probe",
+      "category": "Side channel",
+      "description": "Raw NTP client packet to example.com IP UDP 123",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Duplicate/conflicting Host headers on CONNECT",
+      "category": "Application-level smuggling",
+      "description": "Two Host headers, allowed then forbidden domain",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "URL-percent-encoded dot in CONNECT hostname",
+      "category": "Encoding trick",
+      "description": "example%2ecom as CONNECT target",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "CRLF header injection before Host in CONNECT",
+      "category": "Application-level smuggling",
+      "description": "Injected X-Foo header before Host in malformed CONNECT",
+      "result": "failure",
+      "date": "2026-09-02"
+    },
+    {
+      "name": "Direct IP curl bypass with --noproxy and forged Host header",
+      "category": "Proxy bypass",
+      "description": "curl --noproxy '*' to public IP with Host: example.com",
+      "result": "failure",
+      "date": "2026-09-02"
     }
   ]
 }
