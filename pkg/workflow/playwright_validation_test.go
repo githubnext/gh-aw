@@ -104,16 +104,39 @@ tools:
 }
 
 func TestPiEngineAcceptsPlaywrightWithImplicitCLIMode(t *testing.T) {
-	compiler := NewCompiler()
-	tools := map[string]any{
-		"github":     map[string]any{"mode": "gh-proxy"},
-		"cli-proxy":  true,
-		"playwright": map[string]any{},
-	}
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+name: pi-playwright-cli
+on: push
+engine: pi
+permissions:
+  contents: read
+  issues: read
 
-	require.NoError(t, compiler.validatePiEngineRequirements(NewTools(tools), NewPiEngine()))
-	require.NoError(t, compiler.validatePlaywrightMode(&WorkflowData{Tools: tools}))
-	assert.True(t, isPlaywrightCLIMode(tools))
+tools:
+  github:
+    mode: gh-proxy
+  cli-proxy: true
+  playwright:
+---
+
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(mdPath))
+
+	lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, "@playwright/cli")
+	assert.Contains(t, lockStr, "playwright-cli install --skills")
+	assert.NotContains(t, lockStr, "@playwright/mcp")
+	assert.NotContains(t, lockStr, "mode: cli")
 }
 
 // TestCompileWorkflowRejectsLegacyPlaywrightMCPModeWithArgs ensures that a legacy
