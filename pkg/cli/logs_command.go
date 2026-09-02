@@ -100,6 +100,11 @@ const logsCommandExampleTemplate = `  # Basic usage
   # Cross-repository
   %[1]s logs weekly-research --repo owner/repo  # Download logs from specific repository
 
+  # Resource budgets
+  %[1]s logs --timeout 30 --max-github-api-rate-limit 12000 # Wait after 12000 core API requests are used
+  %[1]s logs --timeout 30 --max-github-api-rate-limit -2000 # Keep 2000 core API requests available
+  %[1]s logs --timeout 30 --max-storage 10240                # Stop new downloads after using 10 GB
+
   # Cache maintenance
   %[1]s logs --cache-before -1w          # Evict local cache older than 1 week before downloading runs
   %[1]s logs --cache-before -30d         # Evict local cache older than 30 days before downloading runs
@@ -185,6 +190,12 @@ func runLogsCommandFromStdin(cmd *cobra.Command, args []string) error {
 			[]string{"Remove the workflow name argument, or omit --stdin to use the normal discovery mode"},
 		))
 	}
+	if cmd.Flags().Changed("max-github-api-rate-limit") {
+		return errors.New(console.FormatErrorWithSuggestions(
+			"--max-github-api-rate-limit requires discovery mode",
+			[]string{"Remove --stdin to let the logs command paginate and enforce the API usage ceiling"},
+		))
+	}
 	logsCommandLog.Printf("Reading run IDs from stdin")
 	runURLs, err := readRunIDsFromStdin(os.Stdin)
 	if err != nil {
@@ -216,6 +227,7 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 		Parse:             values.Parse,
 		JSONOutput:        values.JSONOutput,
 		Timeout:           values.TimeoutMinutes,
+		MaxStorageMB:      values.MaxStorageMB,
 		SummaryFile:       values.SummaryFile,
 		SafeOutputType:    values.SafeOutputType,
 		FilteredIntegrity: values.FilteredIntegrity,
@@ -318,34 +330,36 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		return LogsDownloadOptions{}, err
 	}
 	options := LogsDownloadOptions{
-		Count:             count,
-		StartDate:         startDate,
-		EndDate:           endDate,
-		OutputDir:         getStringFlag(cmd, "output"),
-		Engine:            getStringFlag(cmd, "engine"),
-		Runtime:           getStringFlag(cmd, "runtime"),
-		Ref:               getStringFlag(cmd, "ref"),
-		BeforeRunID:       getInt64Flag(cmd, "before-run-id"),
-		AfterRunID:        getInt64Flag(cmd, "after-run-id"),
-		RepoOverride:      getStringFlag(cmd, "repo"),
-		Verbose:           getBoolFlag(cmd, "verbose"),
-		ToolGraph:         getBoolFlag(cmd, "tool-graph"),
-		NoStaged:          getBoolFlag(cmd, "exclude-staged"),
-		FirewallOnly:      getBoolFlag(cmd, "firewall"),
-		NoFirewall:        getBoolFlag(cmd, "no-firewall"),
-		Parse:             getBoolFlag(cmd, "parse"),
-		JSONOutput:        getBoolFlag(cmd, "json"),
-		TimeoutMinutes:    getIntFlag(cmd, "timeout"),
-		TimeoutSeconds:    getIntFlag(cmd, "timeout-seconds"),
-		SummaryFile:       getStringFlag(cmd, "summary-file"),
-		SafeOutputType:    getStringFlag(cmd, "safe-output"),
-		FilteredIntegrity: getBoolFlag(cmd, "filtered-integrity"),
-		EvalsOnly:         getBoolFlag(cmd, "evals"),
-		GradersOnly:       getBoolFlag(cmd, "graders"),
-		Train:             getBoolFlag(cmd, "train"),
-		Format:            getStringFlag(cmd, "format"),
-		ReportFile:        getStringFlag(cmd, "report-file"),
-		ArtifactSets:      getStringSliceFlag(cmd, "artifacts"),
+		Count:                 count,
+		StartDate:             startDate,
+		EndDate:               endDate,
+		OutputDir:             getStringFlag(cmd, "output"),
+		Engine:                getStringFlag(cmd, "engine"),
+		Runtime:               getStringFlag(cmd, "runtime"),
+		Ref:                   getStringFlag(cmd, "ref"),
+		BeforeRunID:           getInt64Flag(cmd, "before-run-id"),
+		AfterRunID:            getInt64Flag(cmd, "after-run-id"),
+		RepoOverride:          getStringFlag(cmd, "repo"),
+		Verbose:               getBoolFlag(cmd, "verbose"),
+		ToolGraph:             getBoolFlag(cmd, "tool-graph"),
+		NoStaged:              getBoolFlag(cmd, "exclude-staged"),
+		FirewallOnly:          getBoolFlag(cmd, "firewall"),
+		NoFirewall:            getBoolFlag(cmd, "no-firewall"),
+		Parse:                 getBoolFlag(cmd, "parse"),
+		JSONOutput:            getBoolFlag(cmd, "json"),
+		TimeoutMinutes:        getIntFlag(cmd, "timeout"),
+		TimeoutSeconds:        getIntFlag(cmd, "timeout-seconds"),
+		MaxGitHubAPIRateLimit: getIntFlag(cmd, "max-github-api-rate-limit"),
+		MaxStorageMB:          getIntFlag(cmd, "max-storage"),
+		SummaryFile:           getStringFlag(cmd, "summary-file"),
+		SafeOutputType:        getStringFlag(cmd, "safe-output"),
+		FilteredIntegrity:     getBoolFlag(cmd, "filtered-integrity"),
+		EvalsOnly:             getBoolFlag(cmd, "evals"),
+		GradersOnly:           getBoolFlag(cmd, "graders"),
+		Train:                 getBoolFlag(cmd, "train"),
+		Format:                getStringFlag(cmd, "format"),
+		ReportFile:            getStringFlag(cmd, "report-file"),
+		ArtifactSets:          getStringSliceFlag(cmd, "artifacts"),
 	}
 	if err := validateLogsOptions(options); err != nil {
 		return LogsDownloadOptions{}, err
@@ -382,6 +396,9 @@ func resolveLogsDateRange(startDate, endDate string, now time.Time) (string, str
 }
 
 func validateLogsOptions(options LogsDownloadOptions) error {
+	if err := validateMaxStorageMB(options.MaxStorageMB); err != nil {
+		return err
+	}
 	if err := validateLogsEngine(options.Engine); err != nil {
 		return err
 	}
@@ -474,6 +491,8 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")
 	logsCmd.Flags().Int("timeout-seconds", 0, "Download timeout in seconds (0 = use --timeout)")
 	_ = logsCmd.Flags().MarkHidden("timeout-seconds")
+	logsCmd.Flags().Int("max-github-api-rate-limit", 0, "Maximum used GitHub core API requests before waiting for reset (positive = absolute, negative = reserve from API limit; e.g. 12000 or -2000)")
+	logsCmd.Flags().Int("max-storage", 0, "Maximum logs storage in MB before stopping new downloads (0 = unlimited)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
