@@ -1166,7 +1166,21 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Check if this output was created with unresolved temporary IDs
       // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
 
-      // Handle add_comment which returns an array of comments
+      // Handle the current add_comment result shape.
+      if (messageType === "add_comment" && result?.commentId && result?.repo) {
+        const contentToCheck = getContentToCheck(messageType, message, result);
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
+          core.info(`Comment ${result.commentId} on ${result.repo}#${result.itemNumber} was created with unresolved temporary IDs - tracking for update`);
+          outputsWithUnresolvedIds.push({
+            type: messageType,
+            message,
+            result,
+            originalTempIdMapSize: tempIdMapSizeBefore,
+          });
+        }
+      }
+
+      // Handle the legacy add_comment result shape.
       if (messageType === "add_comment" && Array.isArray(result)) {
         const contentToCheck = getContentToCheck(messageType, message, result);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
@@ -1177,12 +1191,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
               outputsWithUnresolvedIds.push({
                 type: messageType,
                 message: message,
-                result: {
-                  commentId: comment._tracking.commentId,
-                  itemNumber: comment._tracking.itemNumber,
-                  repo: comment._tracking.repo,
-                  isDiscussion: comment._tracking.isDiscussion,
-                },
+                result: { ...comment._tracking, ...(comment.body ? { body: comment.body } : {}) },
                 originalTempIdMapSize: tempIdMapSizeBefore,
               });
             }
@@ -1384,7 +1393,7 @@ function getContentToCheck(messageType, message, result) {
     case "create_discussion":
       return message.body || "";
     case "add_comment":
-      return message.body || "";
+      return result?.body || message.body || "";
     case "comment_memory":
       return result?.managedBody || message.body || "";
     case "create_pull_request":
@@ -2026,4 +2035,5 @@ module.exports = {
   partitionFailureResults,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,
+  processSyntheticUpdates,
 };
