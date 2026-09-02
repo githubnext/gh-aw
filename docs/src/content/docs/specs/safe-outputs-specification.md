@@ -2748,6 +2748,8 @@ This section provides complete definitions for all remaining safe output types. 
 
 **Purpose**: Create an issue in one trusted Linear team using Linear's public GraphQL API.
 
+**Experimental**: Yes. Compiling a workflow with any Linear Safe Output emits: `Using experimental feature: Linear safe outputs`.
+
 **Configuration**:
 
 - `linear-token`: REQUIRED trusted secret expression containing a Linear personal API key
@@ -2773,6 +2775,8 @@ The configured team ID MUST be a canonical UUID. Input exceeding a configured li
 
 **Purpose**: Add a comment to one trusted Linear issue.
 
+**Experimental**: Yes.
+
 **Configuration**:
 
 - `linear-token`: REQUIRED trusted secret expression containing a Linear personal API key
@@ -2789,6 +2793,8 @@ The processor MUST use the fixed `commentCreate(input: CommentCreateInput!)` Gra
 #### Type: linear_update_issue
 
 **Purpose**: Replace explicitly enabled basic fields on one trusted Linear issue.
+
+**Experimental**: Yes.
 
 **Configuration**:
 

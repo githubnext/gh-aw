@@ -156,9 +156,10 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 }
 
 func hasLinearSafeOutputs(safeOutputs *SafeOutputsConfig) bool {
-	return safeOutputs.LinearCreateIssue != nil ||
-		safeOutputs.LinearAddComment != nil ||
-		safeOutputs.LinearUpdateIssue != nil
+	return safeOutputs != nil &&
+		(safeOutputs.LinearCreateIssue != nil ||
+			safeOutputs.LinearAddComment != nil ||
+			safeOutputs.LinearUpdateIssue != nil)
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled

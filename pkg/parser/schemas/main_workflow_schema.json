@@ -7317,7 +7317,7 @@
         },
         "linear-create-issue": {
           "type": "object",
-          "description": "Create Linear issues through the isolated safe_outputs job.",
+          "description": "Experimental. Create Linear issues through the isolated safe_outputs job.",
           "properties": {
             "team-id": {
               "type": "string",
@@ -7344,7 +7344,7 @@
         },
         "linear-add-comment": {
           "type": "object",
-          "description": "Add comments to one trusted Linear issue through the isolated safe_outputs job.",
+          "description": "Experimental. Add comments to one trusted Linear issue through the isolated safe_outputs job.",
           "properties": {
             "target": {
               "$ref": "#/$defs/linear_issue_identifier",
@@ -7370,7 +7370,7 @@
         },
         "linear-update-issue": {
           "type": "object",
-          "description": "Update explicitly enabled fields on one trusted Linear issue through the isolated safe_outputs job.",
+          "description": "Experimental. Update explicitly enabled fields on one trusted Linear issue through the isolated safe_outputs job.",
           "properties": {
             "target": {
               "$ref": "#/$defs/linear_issue_identifier",
