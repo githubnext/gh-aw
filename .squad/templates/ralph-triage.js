@@ -287,30 +287,29 @@ function normalizeName(value) {
     .trim();
 }
 
+// Match strategies tried in priority order: exact name, exact role, partial
+// name, partial role. Each strategy is checked against the whole roster
+// before falling through to the next, matching the original lookup order.
+const MEMBER_MATCH_STRATEGIES = [
+  (member, normalizedTarget) => normalizeName(member.name) === normalizedTarget,
+  (member, normalizedTarget) => normalizeName(member.role) === normalizedTarget,
+  (member, normalizedTarget) => {
+    const memberName = normalizeName(member.name);
+    return normalizedTarget.includes(memberName) || memberName.includes(normalizedTarget);
+  },
+  (member, normalizedTarget) => {
+    const memberRole = normalizeName(member.role);
+    return normalizedTarget.includes(memberRole) || memberRole.includes(normalizedTarget);
+  },
+];
+
 function findMember(target, roster) {
   const normalizedTarget = normalizeName(target);
   if (!normalizedTarget) return null;
 
-  for (const member of roster) {
-    if (normalizeName(member.name) === normalizedTarget) return member;
-  }
-
-  for (const member of roster) {
-    if (normalizeName(member.role) === normalizedTarget) return member;
-  }
-
-  for (const member of roster) {
-    const memberName = normalizeName(member.name);
-    if (normalizedTarget.includes(memberName) || memberName.includes(normalizedTarget)) {
-      return member;
-    }
-  }
-
-  for (const member of roster) {
-    const memberRole = normalizeName(member.role);
-    if (normalizedTarget.includes(memberRole) || memberRole.includes(normalizedTarget)) {
-      return member;
-    }
+  for (const matches of MEMBER_MATCH_STRATEGIES) {
+    const found = roster.find((member) => matches(member, normalizedTarget));
+    if (found) return found;
   }
 
   return null;
@@ -356,29 +355,36 @@ function findBestRuleMatch(issueText, rules) {
   return best;
 }
 
+// Role keyword rules tried in priority order for each roster member, matching
+// the original frontend -> backend -> testing check order.
+const ROLE_KEYWORD_RULES = [
+  {
+    roleKeywords: ['frontend', 'ui'],
+    issueKeywords: ['ui', 'frontend', 'css'],
+    reason: 'Matched frontend/UI role keywords',
+  },
+  {
+    roleKeywords: ['backend', 'api', 'server'],
+    issueKeywords: ['api', 'backend', 'database'],
+    reason: 'Matched backend/API role keywords',
+  },
+  {
+    roleKeywords: ['test', 'qa'],
+    issueKeywords: ['test', 'bug', 'fix'],
+    reason: 'Matched testing/QA role keywords',
+  },
+];
+
 function findRoleKeywordMatch(issueText, roster) {
   for (const member of roster) {
     const role = member.role.toLowerCase();
 
-    if (
-      (role.includes('frontend') || role.includes('ui')) &&
-      (issueText.includes('ui') || issueText.includes('frontend') || issueText.includes('css'))
-    ) {
-      return { agent: member, reason: 'Matched frontend/UI role keywords' };
-    }
-
-    if (
-      (role.includes('backend') || role.includes('api') || role.includes('server')) &&
-      (issueText.includes('api') || issueText.includes('backend') || issueText.includes('database'))
-    ) {
-      return { agent: member, reason: 'Matched backend/API role keywords' };
-    }
-
-    if (
-      (role.includes('test') || role.includes('qa')) &&
-      (issueText.includes('test') || issueText.includes('bug') || issueText.includes('fix'))
-    ) {
-      return { agent: member, reason: 'Matched testing/QA role keywords' };
+    for (const { roleKeywords, issueKeywords, reason } of ROLE_KEYWORD_RULES) {
+      const roleMatches = roleKeywords.some((keyword) => role.includes(keyword));
+      const issueMatches = issueKeywords.some((keyword) => issueText.includes(keyword));
+      if (roleMatches && issueMatches) {
+        return { agent: member, reason };
+      }
     }
   }
 
