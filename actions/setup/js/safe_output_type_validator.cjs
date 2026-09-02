@@ -31,6 +31,8 @@ const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
 /**
  * @typedef {{
  *   allowedAliases?: string[],
+ *   maxMentions?: number,
+ *   allowedAliasesSeen?: Set<string>,
  *   maxBotMentions?: number,
  *   normalizeIssueClosingKeywords?: boolean,
  *   dataEnabled?: boolean,
@@ -90,6 +92,8 @@ function normalizeIssueIntentRationale(rationale, options) {
   const sanitizedRationale = sanitizeContent(unfenceMarkdown(rationale), {
     maxLength: ISSUE_INTENT_RATIONALE_MAX_LENGTH,
     allowedAliases: options?.allowedAliases || [],
+    maxMentions: options?.maxMentions,
+    allowedAliasesSeen: options?.allowedAliasesSeen,
     maxBotMentions: options?.maxBotMentions,
   }).trim();
   // sanitizeContent appends "\n[Content truncated due to length]" when it truncates,
@@ -116,6 +120,8 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
       const name = sanitizeContent(label, {
         maxLength: 128,
         allowedAliases: options?.allowedAliases || [],
+        maxMentions: options?.maxMentions,
+        allowedAliasesSeen: options?.allowedAliasesSeen,
         maxBotMentions: options?.maxBotMentions,
       });
       if (!name) {
@@ -149,6 +155,8 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
     const name = sanitizeContent(label.name, {
       maxLength: 128,
       allowedAliases: options?.allowedAliases || [],
+      maxMentions: options?.maxMentions,
+      allowedAliasesSeen: options?.allowedAliasesSeen,
       maxBotMentions: options?.maxBotMentions,
     });
     if (!name) {
@@ -544,6 +552,8 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         normalizedResult = sanitizeContent(normalizedResult, {
           maxLength: validation.maxLength,
           allowedAliases: options?.allowedAliases || [],
+          maxMentions: options?.maxMentions,
+          allowedAliasesSeen: options?.allowedAliasesSeen,
           maxBotMentions: options?.maxBotMentions,
         });
       }
@@ -557,6 +567,8 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       finalValue = sanitizeContent(unfenceMarkdown(value), {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,
         allowedAliases: options?.allowedAliases || [],
+        maxMentions: options?.maxMentions,
+        allowedAliasesSeen: options?.allowedAliasesSeen,
         maxBotMentions: options?.maxBotMentions,
       });
     }
@@ -635,6 +647,8 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
             ? sanitizeContent(item, {
                 maxLength: validation.itemMaxLength || 128,
                 allowedAliases: options?.allowedAliases || [],
+                maxMentions: options?.maxMentions,
+                allowedAliasesSeen: options?.allowedAliasesSeen,
                 maxBotMentions: options?.maxBotMentions,
               })
             : item
@@ -753,10 +767,13 @@ function validateItem(item, itemType, lineNum, options) {
     }
   }
 
+  // Share mention state across every sanitized field in this output item.
+  const validationOptions = { ...options, allowedAliasesSeen: new Set() };
+
   // Validate each configured field
   for (const [fieldName, validation] of Object.entries(typeConfig.fields)) {
     const fieldValue = item[fieldName];
-    const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
+    const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, validationOptions);
 
     if (!result.isValid) {
       // When x-strip-on-error is set, strip the invalid optional field instead of rejecting the item.

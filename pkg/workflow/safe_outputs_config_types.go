@@ -173,8 +173,8 @@ type MentionsConfig struct {
 	// but the workflow will not fail.
 	AllowedTeams []string `yaml:"allowed-teams,omitempty" json:"allowedTeams,omitempty"`
 
-	// Max is the maximum number of mentions per message (default: 50)
-	Max *int `yaml:"max,omitempty" json:"max,omitempty"`
+	// Max is the maximum number of mentions per message (default: 50). Supports integer or GitHub Actions expression.
+	Max *string `yaml:"max,omitempty" json:"max,omitempty"`
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

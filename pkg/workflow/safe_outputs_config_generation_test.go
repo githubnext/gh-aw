@@ -280,7 +280,7 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	enabled := true
 	allowedCollaborators := false
-	max := 5
+	max := "5"
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -305,6 +305,24 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	assert.True(t, mentions["enabled"].(bool), "enabled should be true")
 	assert.False(t, mentions["allowedCollaborators"].(bool), "allowedCollaborators should be false")
 	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
+}
+
+func TestGenerateSafeOutputsConfigMentionsTemplatableMax(t *testing.T) {
+	max := "${{ inputs.max-mentions }}"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Mentions: &MentionsConfig{Max: &max},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	mentions, ok := parsed["mentions"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, max, mentions["max"])
 }
 
 func TestGenerateSafeOutputsConfigNormalizeClosingKeywordsPerType(t *testing.T) {
