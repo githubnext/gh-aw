@@ -60,6 +60,26 @@ const (
 // ValidationConfig contains all safe output type validation rules
 // This is the single source of truth for validation rules
 var ValidationConfig = map[string]TypeValidationConfig{
+	"linear_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":  {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength},
+		},
+	},
+	"linear_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+		},
+	},
+	"linear_update_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Type: "string", Sanitize: true, MaxLength: 128},
+			"body":  {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+		},
+	},
 	"create_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -564,6 +584,8 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
+//
+//nolint:largefunc // Validation schema assembly remains centralized for deterministic caching.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 

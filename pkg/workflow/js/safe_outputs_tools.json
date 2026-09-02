@@ -9,13 +9,14 @@
         "title": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256,
+          "maxLength": 128,
           "description": "Final Linear issue title. Standard Safe Outputs title sanitization is applied.",
           "x-safe-output-sanitization": "title"
         },
         "body": {
           "type": "string",
-          "maxLength": 65536,
+          "minLength": 20,
+          "maxLength": 65000,
           "description": "Linear issue description in Markdown. Standard Safe Outputs content sanitization is applied.",
           "x-safe-output-sanitization": "content"
         }
@@ -33,7 +34,7 @@
         "body": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 65536,
+          "maxLength": 65000,
           "description": "Comment body in Markdown. Standard Safe Outputs content sanitization is applied.",
           "x-safe-output-sanitization": "content"
         }
@@ -50,13 +51,13 @@
         "title": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256,
+          "maxLength": 128,
           "description": "Replacement Linear issue title. Standard Safe Outputs title sanitization is applied.",
           "x-safe-output-sanitization": "title"
         },
         "body": {
           "type": "string",
-          "maxLength": 65536,
+          "maxLength": 65000,
           "description": "Replacement Linear issue description in Markdown. Standard Safe Outputs content sanitization is applied.",
           "x-safe-output-sanitization": "content"
         }

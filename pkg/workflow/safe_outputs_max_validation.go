@@ -55,6 +55,8 @@ func checkMaxField(toolName string, maxPtr *string) error {
 // This function uses direct struct field access instead of reflection for performance;
 // it is on the hot path and called on every compilation. The field ordering matches
 // the sorted safeOutputFieldMapping keys for deterministic error reporting.
+//
+//nolint:largefunc // Direct field access keeps this hot-path validation allocation-free.
 func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
@@ -186,10 +188,14 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if err := validateLinearSafeOutputsMax(config); err != nil {
+		return err
+	}
 	if config.MarkPullRequestAsReadyForReview != nil {
 		if err := checkMaxField("mark_pull_request_as_ready_for_review", config.MarkPullRequestAsReadyForReview.Max); err != nil {
 			return err
 		}
+
 	}
 	if config.ApproveWorkflowRun != nil {
 		if err := checkMaxField("approve_workflow_run", config.ApproveWorkflowRun.Max); err != nil {
@@ -329,5 +335,22 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	}
 
 	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
+	return nil
+}
+
+func validateLinearSafeOutputsMax(config *SafeOutputsConfig) error {
+	handlers := []struct {
+		name string
+		max  *string
+	}{
+		{name: "linear_add_comment", max: config.linearAddCommentMax()},
+		{name: "linear_create_issue", max: config.linearCreateIssueMax()},
+		{name: "linear_update_issue", max: config.linearUpdateIssueMax()},
+	}
+	for _, handler := range handlers {
+		if err := checkMaxField(handler.name, handler.max); err != nil {
+			return err
+		}
+	}
 	return nil
 }

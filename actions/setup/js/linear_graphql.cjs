@@ -1,7 +1,6 @@
 // @ts-check
 
 const { ERR_API, ERR_CONFIG, ERR_PARSE } = require("./error_codes.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
 
 const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 const LINEAR_ISSUE_PATTERN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Z][A-Z0-9]{0,15}-[1-9][0-9]*)$/i;
@@ -27,8 +26,8 @@ async function linearGraphQL(query, variables, token = process.env.GH_AW_LINEAR_
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(30_000),
     });
-  } catch (error) {
-    throw new Error(`${ERR_API}: Linear request failed: ${redactToken(getErrorMessage(error), token)}`, { cause: error });
+  } catch {
+    throw new Error(`${ERR_API}: Linear request failed: network error`);
   }
 
   if (!response.ok) {
@@ -39,8 +38,8 @@ async function linearGraphQL(query, variables, token = process.env.GH_AW_LINEAR_
   let payload;
   try {
     payload = await response.json();
-  } catch (error) {
-    throw new Error(`${ERR_PARSE}: Linear returned a malformed JSON response`, { cause: error });
+  } catch {
+    throw new Error(`${ERR_PARSE}: Linear returned a malformed JSON response`);
   }
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {

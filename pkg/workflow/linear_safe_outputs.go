@@ -24,6 +24,27 @@ type LinearUpdateIssueConfig struct {
 	Body               *bool `yaml:"body,omitempty"`
 }
 
+func (c *SafeOutputsConfig) linearCreateIssueMax() *string {
+	if c.LinearCreateIssue == nil {
+		return nil
+	}
+	return c.LinearCreateIssue.Max
+}
+
+func (c *SafeOutputsConfig) linearAddCommentMax() *string {
+	if c.LinearAddComment == nil {
+		return nil
+	}
+	return c.LinearAddComment.Max
+}
+
+func (c *SafeOutputsConfig) linearUpdateIssueMax() *string {
+	if c.LinearUpdateIssue == nil {
+		return nil
+	}
+	return c.LinearUpdateIssue.Max
+}
+
 func preprocessLinearBaseConfig(outputMap map[string]any, key string) {
 	configData, _ := outputMap[key].(map[string]any)
 	if configData == nil {
@@ -89,4 +110,18 @@ func injectLinearTokenEnv(steps []string, config *SafeOutputsConfig) []string {
 		}
 	}
 	return steps
+}
+
+func defaultReportIncompleteCreateIssue(config *SafeOutputsConfig) string {
+	if !hasLinearSafeOutputs(config) {
+		return "true"
+	}
+	withoutLinear := *config
+	withoutLinear.LinearCreateIssue = nil
+	withoutLinear.LinearAddComment = nil
+	withoutLinear.LinearUpdateIssue = nil
+	if hasNonBuiltinSafeOutputsEnabled(&withoutLinear) {
+		return "true"
+	}
+	return "false"
 }

@@ -2757,7 +2757,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 **MCP Tool**: `linear_create_issue`
 
-The MCP input object MUST require `title` and `body`, MUST reject additional properties, and MUST limit them to 256 and 65,536 characters respectively. The trusted team UUID and credential MUST NOT be MCP inputs.
+The MCP input object MUST require `title` and `body`, MUST reject additional properties, and MUST limit them to 128 and 65,000 characters respectively. The body MUST contain at least 20 characters. The trusted team UUID and credential MUST NOT be MCP inputs.
 
 **Operational Semantics**:
 
@@ -2782,7 +2782,7 @@ The configured team ID MUST be a canonical UUID. Input exceeding a configured li
 
 **MCP Tool**: `linear_add_comment`
 
-The MCP input object MUST require only `body`, MUST reject additional properties, and MUST limit the body to 65,536 characters. The target and credential MUST NOT be MCP inputs.
+The MCP input object MUST require only `body`, MUST reject additional properties, and MUST limit the body to 65,000 characters. The target and credential MUST NOT be MCP inputs.
 
 The processor MUST use the fixed `commentCreate(input: CommentCreateInput!)` GraphQL document and pass the configured target as `issueId` through variables. The body MUST undergo standard Safe Outputs content sanitization. HTTP, parsing, GraphQL, unsuccessful-payload, and staged-mode behavior MUST match `linear_create_issue`.
 

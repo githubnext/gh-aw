@@ -81,6 +81,33 @@ func TestLinearSafeOutputsNeedNoGitHubWritePermissions(t *testing.T) {
 	assert.Empty(t, permissions.permissions)
 }
 
+func TestLinearSafeOutputsPreventDefaultGitHubIssueInjection(t *testing.T) {
+	data := &WorkflowData{
+		WorkflowID: "linear",
+		SafeOutputs: &SafeOutputsConfig{
+			LinearAddComment: &LinearTargetConfig{Target: "ENG-123"},
+		},
+	}
+
+	applyDefaultCreateIssue(data)
+	assert.Nil(t, data.SafeOutputs.CreateIssues)
+	assert.True(t, HasSafeOutputsEnabled(data.SafeOutputs))
+}
+
+func TestLinearOnlyDefaultsIncompleteReportingWithoutGitHubIssue(t *testing.T) {
+	config := NewCompiler().extractSafeOutputsConfig(map[string]any{
+		"safe-outputs": map[string]any{
+			"linear-token":       "${{ secrets.LINEAR_API_KEY }}",
+			"linear-add-comment": map[string]any{"target": "ENG-123"},
+		},
+	})
+
+	require.NotNil(t, config.ReportIncomplete)
+	require.NotNil(t, config.ReportIncomplete.CreateIssue)
+	assert.Equal(t, "false", *config.ReportIncomplete.CreateIssue)
+	assert.Empty(t, computePermissionsForSafeOutputs(config, false).permissions)
+}
+
 func TestLinearTokenOnlyAddedToTrustedProcessingStep(t *testing.T) {
 	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 		LinearToken:       "${{ secrets.LINEAR_API_KEY }}",

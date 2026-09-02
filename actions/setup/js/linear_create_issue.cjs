@@ -29,14 +29,14 @@ async function main(config = {}) {
     if (typeof item?.title !== "string" || !item.title.trim()) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue title is required`);
     }
-    if (typeof item?.body !== "string") {
+    if (typeof item?.body !== "string" || !item.body.trim()) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue body is required`);
     }
-    if (item.title.length > 256 || item.body.length > 65536) {
+    if (item.title.length > 128 || item.body.length > 65000 || item.body.length < 20) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue content exceeds the configured field limits`);
     }
 
-    const title = sanitizeTitle(item.title, "", 256);
+    const title = sanitizeTitle(item.title);
     const description = sanitizeContent(item.body);
     if (!title) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue title is empty after sanitization`);

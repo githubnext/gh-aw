@@ -38,16 +38,19 @@ async function main(config = {}) {
     if (item.body !== undefined && config.allow_body !== true) {
       throw new Error(`${ERR_VALIDATION}: linear_update_issue body updates are not enabled`);
     }
-    if (item.title !== undefined && (typeof item.title !== "string" || !item.title.trim() || item.title.length > 256)) {
-      throw new Error(`${ERR_VALIDATION}: linear_update_issue title must be a non-empty string of at most 256 characters`);
+    if (item.title !== undefined && (typeof item.title !== "string" || !item.title.trim() || item.title.length > 128)) {
+      throw new Error(`${ERR_VALIDATION}: linear_update_issue title must be a non-empty string of at most 128 characters`);
     }
-    if (item.body !== undefined && (typeof item.body !== "string" || item.body.length > 65536)) {
-      throw new Error(`${ERR_VALIDATION}: linear_update_issue body must be a string of at most 65536 characters`);
+    if (item.body !== undefined && (typeof item.body !== "string" || item.body.length > 65000)) {
+      throw new Error(`${ERR_VALIDATION}: linear_update_issue body must be a string of at most 65000 characters`);
     }
 
     const input = {};
     if (item.title !== undefined) {
-      input.title = sanitizeTitle(item.title, "", 256);
+      input.title = sanitizeTitle(item.title);
+      if (!input.title) {
+        throw new Error(`${ERR_VALIDATION}: linear_update_issue title is empty after sanitization`);
+      }
     }
     if (item.body !== undefined) {
       input.description = sanitizeContent(item.body);

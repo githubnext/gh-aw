@@ -32,7 +32,7 @@ describe("Linear safe outputs", () => {
   it("posts fixed GraphQL documents with variables and raw API-key authorization", async () => {
     fetch.mockResolvedValue(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Safe title" } } } }));
     const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
-    await handler({ title: "Safe title", body: "Hello @user" });
+    await handler({ title: "Safe title", body: "Detailed hello to @user" });
 
     expect(fetch).toHaveBeenCalledWith(
       LINEAR_GRAPHQL_ENDPOINT,
@@ -47,7 +47,7 @@ describe("Linear safe outputs", () => {
     expect(request.variables.input).toEqual({
       teamId: "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
       title: "Safe title",
-      description: "Hello `@user`",
+      description: "Detailed hello to `@user`",
     });
   });
 
@@ -90,12 +90,12 @@ describe("Linear safe outputs", () => {
 
     fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: false, issue: null } } }));
     const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
-    await expect(handler({ title: "Title", body: "Body" })).rejects.toThrow("did not return a successful issue");
+    await expect(handler({ title: "Title", body: "Body with enough detail" })).rejects.toThrow("did not return a successful issue");
   });
 
   it("rejects oversized content instead of truncating it", async () => {
     const handler = await addComment({ target: "ENG-123" });
-    await expect(handler({ body: "x".repeat(65537) })).rejects.toThrow("exceeds 65536 characters");
+    await expect(handler({ body: "x".repeat(65001) })).rejects.toThrow("exceeds 65000 characters");
     expect(fetch).not.toHaveBeenCalled();
   });
 });

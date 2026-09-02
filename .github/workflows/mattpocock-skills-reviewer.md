@@ -18,7 +18,7 @@ imports:
 - shared/otlp.md
 - shared/pr-diff-data-fetch.md
 max-daily-ai-credits: 10000
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 "on":
   pull_request:
     paths-ignore:

@@ -26,10 +26,13 @@ async function main(config = {}) {
     if (typeof item?.body !== "string" || !item.body.trim()) {
       throw new Error(`${ERR_VALIDATION}: linear_add_comment body is required`);
     }
-    if (item.body.length > 65536) {
-      throw new Error(`${ERR_VALIDATION}: linear_add_comment body exceeds 65536 characters`);
+    if (item.body.length > 65000) {
+      throw new Error(`${ERR_VALIDATION}: linear_add_comment body exceeds 65000 characters`);
     }
     const body = sanitizeContent(item.body);
+    if (!body.trim()) {
+      throw new Error(`${ERR_VALIDATION}: linear_add_comment body is empty after sanitization`);
+    }
 
     if (isStagedMode(config)) {
       logStagedPreviewInfo(`Would add a comment to Linear issue ${target}`);
