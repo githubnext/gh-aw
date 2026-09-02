@@ -487,7 +487,6 @@ var IgnoredFrontmatterFields = []string{}
 // and will be properly imported and merged when the shared workflow is imported.
 var SharedWorkflowForbiddenFields = []string{
 	"on",              // Trigger field - only for main workflows
-	"concurrency",     // Concurrency control (except import-safe concurrency.job-discriminator)
 	"container",       // Container configuration
 	"environment",     // Deployment environment
 	"features",        // Feature flags
