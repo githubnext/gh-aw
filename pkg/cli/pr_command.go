@@ -23,7 +23,6 @@ import (
 )
 
 var prLog = logger.New("cli:pr_command")
-var prRunGH = workflow.RunGH
 
 // PullRequest represents a GitHub pull request across transfer and automerge flows.
 // Callers should treat this as a superset model:
@@ -228,7 +227,7 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	patchFile := filepath.Join(tempDir, "pr.patch")
 
 	// Use gh pr diff command directly - this is the most reliable method
-	diffContent, err := prRunGH("Fetching pull request diff...", "pr", "diff", strconv.Itoa(prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
+	diffContent, err := workflow.RunGH("Fetching pull request diff...", "pr", "diff", strconv.Itoa(prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
 	if err != nil {
 		return "", fmt.Errorf("could not get PR diff; ensure required prerequisites are configured, then retry: %w", err)
 	}
@@ -248,18 +247,34 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	}
 
 	return patchFile, nil
-} // applyPatchToRepo applies a patch to the target repository and returns the branch name
-func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
-	// Get current branch to restore later
-	currentBranch, err := getCurrentBranch()
-	if err != nil {
-		return "", fmt.Errorf("could not get current branch; ensure required prerequisites are configured, then retry: %w", err)
-	}
+}
 
+func ensureCleanGitWorktree() error {
+	output, err := exec.Command("git", "status", "--porcelain").Output()
+	if err != nil {
+		return fmt.Errorf("could not inspect git status; ensure this is a valid git repository, then retry: %w", err)
+	}
+	if strings.TrimSpace(string(output)) != "" {
+		return errors.New("target repository has uncommitted changes; commit, stash, or remove them before transferring a PR")
+	}
+	return nil
+}
+
+func resetGitWorktreeToHEAD() error {
+	if err := exec.Command("git", "reset", "--hard", "HEAD").Run(); err != nil {
+		return fmt.Errorf("could not reset transfer branch to HEAD: %w", err)
+	}
+	if err := exec.Command("git", "clean", "-fd").Run(); err != nil {
+		return fmt.Errorf("could not remove untracked files from failed patch apply: %w", err)
+	}
+	return nil
+}
+
+func checkoutUpdatedDefaultBranch(targetOwner, targetRepo string, verbose bool) error {
 	// Get the default branch of the target repository
 	defaultBranchOutput, err := workflow.RunGH("Fetching default branch...", "api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
 	if err != nil {
-		return "", fmt.Errorf("could not get default branch; ensure required prerequisites are configured, then retry: %w", err)
+		return fmt.Errorf("could not get default branch; ensure required prerequisites are configured, then retry: %w", err)
 	}
 	defaultBranch := strings.TrimSpace(string(defaultBranchOutput))
 
@@ -270,77 +285,112 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 
 	cmd := exec.Command("git", "checkout", defaultBranch)
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("could not checkout default branch %s; ensure the branch exists locally and has no conflicting changes, then retry: %w", defaultBranch, err)
+		return fmt.Errorf("could not checkout default branch %s; ensure the branch exists locally and has no conflicting changes, then retry: %w", defaultBranch, err)
 	}
 
 	cmd = exec.Command("git", "pull", "origin", defaultBranch)
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("could not pull latest %s from origin; ensure network access and remote permissions are available, then retry: %w", defaultBranch, err)
+		return fmt.Errorf("could not pull latest %s from origin; ensure network access and remote permissions are available, then retry: %w", defaultBranch, err)
 	}
+	return nil
+}
 
-	// Create a new branch for the transfer based on the updated default branch
-	branchName := fmt.Sprintf("transfer-pr-%d-%d", prInfo.Number, time.Now().Unix())
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating branch: "+branchName))
-	}
-
-	if err := createAndSwitchBranch(branchName, verbose); err != nil {
-		return "", fmt.Errorf("could not create new branch; ensure required prerequisites are configured, then retry: %w", err)
-	}
-
-	// Apply the patch
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch..."))
-
-		// Show some info about the patch file
-		patchContent, err := os.ReadFile(patchFile)
-		if err == nil {
-			lines := strings.Split(string(patchContent), "\n")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patch file has %d lines", len(lines))))
-			if len(lines) > 0 {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("First line: "+lines[0]))
-			}
-		}
-	}
-
-	// Apply the raw diff; PR metadata is never parsed by git as patch content.
+func applyPatchToIndexWithFallback(patchFile, currentBranch, branchName string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch with git apply..."))
 	}
 
-	cmd = exec.Command("git", "apply", "--3way", patchFile)
+	cmd := exec.Command("git", "apply", "--3way", "--index", patchFile)
 	if err := cmd.Run(); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("3-way merge failed, trying with whitespace options..."))
+		return applyPatchToIndexFallback(patchFile, currentBranch, branchName, verbose)
+	}
+	return nil
+}
+
+func applyPatchToIndexFallback(patchFile, currentBranch, branchName string, verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("3-way merge failed, trying with whitespace options..."))
+	}
+	if resetErr := resetGitWorktreeToHEAD(); resetErr != nil {
+		_ = exec.Command("git", "checkout", currentBranch).Run()
+		_ = exec.Command("git", "branch", "-D", branchName).Run()
+		return resetErr
+	}
+
+	cmd := exec.Command("git", "apply", "--index", "--ignore-space-change", "--ignore-whitespace", patchFile)
+	if err := cmd.Run(); err != nil {
+		reportPatchRejectDetails(patchFile, verbose)
+		if resetErr := resetGitWorktreeToHEAD(); resetErr != nil {
+			return resetErr
 		}
+		_ = exec.Command("git", "checkout", currentBranch).Run()
+		_ = exec.Command("git", "branch", "-D", branchName).Run()
+		return fmt.Errorf("could not apply patch; resolve conflicts manually, then rerun transfer-pr. underlying error: %w", err)
+	}
+	return nil
+}
 
-		cmd = exec.Command("git", "apply", "--ignore-space-change", "--ignore-whitespace", patchFile)
-		if err := cmd.Run(); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Standard apply failed, trying with --reject to see what failed..."))
+func reportPatchRejectDetails(patchFile string, verbose bool) {
+	if !verbose {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Standard apply failed, trying with --reject to see what failed..."))
+	if resetErr := resetGitWorktreeToHEAD(); resetErr != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reset before generating reject details: %v", resetErr)))
+	}
+	rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
+	rejectOutput, _ := rejectCmd.CombinedOutput()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patch rejection details:"))
+	fmt.Fprintln(os.Stderr, string(rejectOutput))
+}
 
-				rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
-				rejectOutput, _ := rejectCmd.CombinedOutput()
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patch rejection details:"))
-				fmt.Fprintln(os.Stderr, string(rejectOutput))
-			}
+func logPatchSummary(patchFile string, verbose bool) {
+	if !verbose {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch..."))
+	patchContent, err := os.ReadFile(patchFile)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(patchContent), "\n")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patch file has %d lines", len(lines))))
+	if len(lines) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("First line: "+lines[0]))
+	}
+}
 
-			_ = exec.Command("git", "checkout", currentBranch).Run()
-			_ = exec.Command("git", "branch", "-D", branchName).Run()
-			return "", fmt.Errorf("could not apply patch; resolve conflicts manually, then rerun transfer-pr. underlying error: %w", err)
-		}
+// applyPatchToRepo applies a patch to the target repository and returns the branch name
+func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
+	currentBranch, err := getCurrentBranch()
+	if err != nil {
+		return "", fmt.Errorf("could not get current branch; ensure required prerequisites are configured, then retry: %w", err)
+	}
+	if err := ensureCleanGitWorktree(); err != nil {
+		return "", err
+	}
+	if err := checkoutUpdatedDefaultBranch(targetOwner, targetRepo, verbose); err != nil {
+		return "", err
+	}
+
+	branchName := fmt.Sprintf("transfer-pr-%d-%d", prInfo.Number, time.Now().Unix())
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating branch: "+branchName))
+	}
+	if err := createAndSwitchBranch(branchName, verbose); err != nil {
+		return "", fmt.Errorf("could not create new branch; ensure required prerequisites are configured, then retry: %w", err)
+	}
+
+	logPatchSummary(patchFile, verbose)
+	if err := applyPatchToIndexWithFallback(patchFile, currentBranch, branchName, verbose); err != nil {
+		return "", err
 	}
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git apply"))
 	}
 
-	// Stage all changes and create the commit separately from patch application.
-	cmd = exec.Command("git", "add", ".")
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("could not stage changes; ensure required prerequisites are configured, then retry: %w", err)
-	}
-
+	// Create the commit separately from patch application.
 	commitMsg := fmt.Sprintf("Transfer PR #%d from %s\n\n%s", prInfo.Number, prInfo.SourceRepo, prInfo.Title)
 	if prInfo.Body != "" {
 		commitMsg += "\n\n" + prInfo.Body
@@ -348,7 +398,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	commitMsg += fmt.Sprintf("\n\nOriginal-PR: %s#%d", prInfo.SourceRepo, prInfo.Number)
 	commitMsg += "\nOriginal-Author: " + prInfo.AuthorLogin
 
-	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	cmd := exec.Command("git", "commit", "-m", commitMsg)
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("could not commit changes; ensure required prerequisites are configured, then retry: %w", err)
 	}
@@ -357,7 +407,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 }
 
 // createTransferPR creates a new PR in the target repository
-func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error {
+func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error { //nolint:largefunc
 	// Check if user has write access to target repository
 	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
 	if err != nil && verbose {
@@ -486,7 +536,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 }
 
 // transferPR is the main function that orchestrates the PR transfer
-func transferPR(prURL, targetRepo string, verbose bool) error {
+func transferPR(prURL, targetRepo string, verbose bool) error { //nolint:largefunc
 	prLog.Printf("Starting PR transfer: url=%s, targetRepo=%s", prURL, targetRepo)
 
 	if verbose {
