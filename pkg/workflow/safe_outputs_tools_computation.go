@@ -21,27 +21,27 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct { //nolint:la
 		}{}
 	}
 	if data.SafeOutputs.CreateWorkItems != nil {
-		enabledTools["create-work-item"] = struct {
+		enabledTools["ado_create_work_item"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.UpdateWorkItems != nil {
-		enabledTools["update-work-item"] = struct {
+		enabledTools["ado_update_work_item"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.CommentOnWorkItems != nil {
-		enabledTools["comment-on-work-item"] = struct {
+		enabledTools["ado_comment_on_work_item"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.AssignWorkItems != nil {
-		enabledTools["assign-work-item"] = struct {
+		enabledTools["ado_assign_work_item"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.LinkWorkItems != nil {
-		enabledTools["link-work-items"] = struct {
+		enabledTools["ado_link_work_items"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.UploadWorkItemAttachments != nil {
-		enabledTools["upload-workitem-attachment"] = struct {
+		enabledTools["ado_upload_workitem_attachment"] = struct {
 		}{}
 	}
 	if data.SafeOutputs.CreateAgentSessions != nil {

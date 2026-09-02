@@ -60,7 +60,7 @@ const (
 // ValidationConfig contains all safe output type validation rules
 // This is the single source of truth for validation rules
 var ValidationConfig = map[string]TypeValidationConfig{
-	"create_work_item": {
+	"ado_create_work_item": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"title":        {Required: true, Type: "string", Sanitize: true, MinLength: 6, MaxLength: 255},
@@ -69,7 +69,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"temporary_id": {Required: true, Type: "string", Pattern: "^#aw_[A-Za-z0-9_]{3,12}$", TemporaryID: true},
 		},
 	},
-	"update_work_item": {
+	"ado_update_work_item": {
 		DefaultMax:       1,
 		CustomValidation: "requiresOneOf:title,body,state,area_path,iteration_path,assignee,tags",
 		Fields: map[string]FieldValidation{
@@ -83,21 +83,21 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"tags":           {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 256},
 		},
 	},
-	"comment_on_work_item": {
+	"ado_comment_on_work_item": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"work_item_id": {Required: true, IssueNumberOrTemporaryID: true},
 			"body":         {Required: true, Type: "string", Sanitize: true, MinLength: 10, MaxLength: MaxBodyLength},
 		},
 	},
-	"assign_work_item": {
+	"ado_assign_work_item": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"work_item_id": {Required: true, IssueNumberOrTemporaryID: true},
 			"assignee":     {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256},
 		},
 	},
-	"link_work_items": {
+	"ado_link_work_items": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
 			"source_id": {Required: true, IssueNumberOrTemporaryID: true},
@@ -106,7 +106,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"comment":   {Type: "string", Sanitize: true, MinLength: 5, MaxLength: 1024},
 		},
 	},
-	"upload_workitem_attachment": {
+	"ado_upload_workitem_attachment": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"work_item_id": {Required: true, IssueNumberOrTemporaryID: true},

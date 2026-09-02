@@ -111,7 +111,7 @@ func parseAzureDevOpsConfig[T any](c *Compiler, outputMap map[string]any, key st
 }
 
 func (c *Compiler) parseCreateWorkItemConfig(outputMap map[string]any) *CreateWorkItemConfig {
-	return parseAzureDevOpsConfig(c, outputMap, "create-work-item", 1, func(config *CreateWorkItemConfig) {
+	return parseAzureDevOpsConfig(c, outputMap, "ado-create-work-item", 1, func(config *CreateWorkItemConfig) {
 		if config.WorkItemType == "" {
 			config.WorkItemType = "Task"
 		}
@@ -122,23 +122,23 @@ func (c *Compiler) parseCreateWorkItemConfig(outputMap map[string]any) *CreateWo
 }
 
 func (c *Compiler) parseUpdateWorkItemConfig(outputMap map[string]any) *UpdateWorkItemConfig {
-	return parseAzureDevOpsConfig[UpdateWorkItemConfig](c, outputMap, "update-work-item", 1, nil)
+	return parseAzureDevOpsConfig[UpdateWorkItemConfig](c, outputMap, "ado-update-work-item", 1, nil)
 }
 
 func (c *Compiler) parseCommentOnWorkItemConfig(outputMap map[string]any) *CommentOnWorkItemConfig {
-	return parseAzureDevOpsConfig[CommentOnWorkItemConfig](c, outputMap, "comment-on-work-item", 1, nil)
+	return parseAzureDevOpsConfig[CommentOnWorkItemConfig](c, outputMap, "ado-comment-on-work-item", 1, nil)
 }
 
 func (c *Compiler) parseAssignWorkItemConfig(outputMap map[string]any) *AssignWorkItemConfig {
-	return parseAzureDevOpsConfig[AssignWorkItemConfig](c, outputMap, "assign-work-item", 1, nil)
+	return parseAzureDevOpsConfig[AssignWorkItemConfig](c, outputMap, "ado-assign-work-item", 1, nil)
 }
 
 func (c *Compiler) parseLinkWorkItemsConfig(outputMap map[string]any) *LinkWorkItemsConfig {
-	return parseAzureDevOpsConfig[LinkWorkItemsConfig](c, outputMap, "link-work-items", 5, nil)
+	return parseAzureDevOpsConfig[LinkWorkItemsConfig](c, outputMap, "ado-link-work-items", 5, nil)
 }
 
 func (c *Compiler) parseUploadWorkItemAttachmentConfig(outputMap map[string]any) *UploadWorkItemAttachmentConfig {
-	return parseAzureDevOpsConfig(c, outputMap, "upload-workitem-attachment", 1, func(config *UploadWorkItemAttachmentConfig) {
+	return parseAzureDevOpsConfig(c, outputMap, "ado-upload-workitem-attachment", 1, func(config *UploadWorkItemAttachmentConfig) {
 		if config.MaxFileSize == 0 {
 			config.MaxFileSize = 5 * 1024 * 1024
 		}
@@ -153,7 +153,7 @@ func addAzureDevOpsTarget(builder *handlerConfigBuilder, target any) *handlerCon
 }
 
 var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
-	"create_work_item": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_create_work_item": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateWorkItems == nil {
 			return nil
 		}
@@ -173,7 +173,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	"update_work_item": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_update_work_item": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.UpdateWorkItems == nil {
 			return nil
 		}
@@ -196,7 +196,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
-	"comment_on_work_item": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_comment_on_work_item": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CommentOnWorkItems == nil {
 			return nil
 		}
@@ -206,7 +206,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
-	"assign_work_item": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_assign_work_item": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AssignWorkItems == nil {
 			return nil
 		}
@@ -218,7 +218,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
-	"link_work_items": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_link_work_items": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.LinkWorkItems == nil {
 			return nil
 		}
@@ -229,7 +229,7 @@ var azureDevOpsWorkItemHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
 		return addAzureDevOpsTarget(builder, c.Target).Build()
 	},
-	"upload_workitem_attachment": func(cfg *SafeOutputsConfig) map[string]any {
+	"ado_upload_workitem_attachment": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.UploadWorkItemAttachments == nil {
 			return nil
 		}

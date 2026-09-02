@@ -21,7 +21,7 @@ func TestHandlerRegistryDomainComposition(t *testing.T) {
 		{name: "commentHandlerRegistry", registry: commentHandlerRegistry, wantKeys: []string{"add_comment", "hide_comment"}},
 		{name: "releaseHandlerRegistry", registry: releaseHandlerRegistry, wantKeys: []string{"update_release"}},
 		{name: "diagnosticHandlerRegistry", registry: diagnosticHandlerRegistry, wantKeys: []string{"missing_tool", "missing_data", "noop", "report_incomplete", "create_report_incomplete_issue"}},
-		{name: "azureDevOpsWorkItemHandlerRegistry", registry: azureDevOpsWorkItemHandlerRegistry, wantKeys: []string{"create_work_item", "update_work_item", "comment_on_work_item", "assign_work_item", "link_work_items", "upload_workitem_attachment"}},
+		{name: "azureDevOpsWorkItemHandlerRegistry", registry: azureDevOpsWorkItemHandlerRegistry, wantKeys: []string{"ado_create_work_item", "ado_update_work_item", "ado_comment_on_work_item", "ado_assign_work_item", "ado_link_work_items", "ado_upload_workitem_attachment"}},
 	}
 
 	wantAll := map[string]struct{}{}
@@ -99,12 +99,12 @@ func TestHandlerRegistryBuilders(t *testing.T) {
 		{name: "assign_to_user", cfg: &SafeOutputsConfig{AssignToUser: &AssignToUserConfig{}}},
 		{name: "unassign_from_user", cfg: &SafeOutputsConfig{UnassignFromUser: &UnassignFromUserConfig{}}},
 		{name: "create_agent_session", cfg: &SafeOutputsConfig{CreateAgentSessions: &CreateAgentSessionConfig{}}},
-		{name: "create_work_item", cfg: &SafeOutputsConfig{CreateWorkItems: &CreateWorkItemConfig{}}},
-		{name: "update_work_item", cfg: &SafeOutputsConfig{UpdateWorkItems: &UpdateWorkItemConfig{}}},
-		{name: "comment_on_work_item", cfg: &SafeOutputsConfig{CommentOnWorkItems: &CommentOnWorkItemConfig{}}},
-		{name: "assign_work_item", cfg: &SafeOutputsConfig{AssignWorkItems: &AssignWorkItemConfig{}}},
-		{name: "link_work_items", cfg: &SafeOutputsConfig{LinkWorkItems: &LinkWorkItemsConfig{}}},
-		{name: "upload_workitem_attachment", cfg: &SafeOutputsConfig{UploadWorkItemAttachments: &UploadWorkItemAttachmentConfig{}}},
+		{name: "ado_create_work_item", cfg: &SafeOutputsConfig{CreateWorkItems: &CreateWorkItemConfig{}}},
+		{name: "ado_update_work_item", cfg: &SafeOutputsConfig{UpdateWorkItems: &UpdateWorkItemConfig{}}},
+		{name: "ado_comment_on_work_item", cfg: &SafeOutputsConfig{CommentOnWorkItems: &CommentOnWorkItemConfig{}}},
+		{name: "ado_assign_work_item", cfg: &SafeOutputsConfig{AssignWorkItems: &AssignWorkItemConfig{}}},
+		{name: "ado_link_work_items", cfg: &SafeOutputsConfig{LinkWorkItems: &LinkWorkItemsConfig{}}},
+		{name: "ado_upload_workitem_attachment", cfg: &SafeOutputsConfig{UploadWorkItemAttachments: &UploadWorkItemAttachmentConfig{}}},
 		{name: "add_comment", cfg: &SafeOutputsConfig{AddComments: &AddCommentsConfig{}}},
 		{name: "hide_comment", cfg: &SafeOutputsConfig{HideComment: &HideCommentConfig{}}},
 		{name: "update_release", cfg: &SafeOutputsConfig{UpdateRelease: &UpdateReleaseConfig{}}},

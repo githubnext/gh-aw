@@ -35,7 +35,7 @@ describe("azure_devops_work_items", () => {
       text: vi.fn().mockResolvedValue(JSON.stringify({ id: 42, url: "https://dev.azure.com/test-org/_apis/wit/workItems/42" })),
     });
 
-    const result = await createAzureDevOpsWorkItemHandler("create_work_item", {
+    const result = await createAzureDevOpsWorkItemHandler("ado_create_work_item", {
       work_item_type: "Task",
       area_path: "test-project\\Platform",
       max: 1,
@@ -69,7 +69,7 @@ describe("azure_devops_work_items", () => {
   });
 
   it("uses standardized staged logging without work-item content", async () => {
-    await createAzureDevOpsWorkItemHandler("create_work_item", {
+    await createAzureDevOpsWorkItemHandler("ado_create_work_item", {
       staged: true,
       work_item_type: "Task",
     })(
@@ -86,7 +86,7 @@ describe("azure_devops_work_items", () => {
   });
 
   it("does not log staged attachment paths", async () => {
-    await createAzureDevOpsWorkItemHandler("upload_workitem_attachment", {
+    await createAzureDevOpsWorkItemHandler("ado_upload_workitem_attachment", {
       staged: true,
     })({ work_item_id: 42, file_path: "private/customer-data.pdf" }, {});
 
@@ -95,20 +95,20 @@ describe("azure_devops_work_items", () => {
   });
 
   it("rejects updates to fields not enabled by configuration", async () => {
-    const result = await createAzureDevOpsWorkItemHandler("update_work_item", {
+    const result = await createAzureDevOpsWorkItemHandler("ado_update_work_item", {
       target: "*",
       title: false,
     })({ id: 42, title: "New title" }, {});
 
     expect(result).toEqual({
       success: false,
-      error: "title updates are not enabled by update-work-item",
+      error: "title updates are not enabled by ado_update_work_item",
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("rejects area paths outside configured prefixes", async () => {
-    const result = await createAzureDevOpsWorkItemHandler("update_work_item", {
+    const result = await createAzureDevOpsWorkItemHandler("ado_update_work_item", {
       staged: true,
       area_path: true,
       allowed_area_prefixes: ["test-project\\Platform"],
@@ -122,7 +122,7 @@ describe("azure_devops_work_items", () => {
   });
 
   it("rejects reserved agent identities", async () => {
-    const result = await createAzureDevOpsWorkItemHandler("assign_work_item", {
+    const result = await createAzureDevOpsWorkItemHandler("ado_assign_work_item", {
       target: "*",
     })({ id: 42, assignee: "GitHub Copilot" }, {});
 
@@ -145,6 +145,6 @@ describe("azure_devops_work_items", () => {
         },
         false
       )
-    ).toThrow("has not been resolved by create-work-item in this run");
+    ).toThrow("has not been resolved by ado_create_work_item in this run");
   });
 });

@@ -2084,7 +2084,7 @@
     }
   },
   {
-    "name": "create-work-item",
+    "name": "ado_create_work_item",
     "description": "Experimental. Create an Azure DevOps work item and return a temporary #aw_ ID for later work-item tools in this run.",
     "inputSchema": {
       "type": "object",
@@ -2112,7 +2112,7 @@
     }
   },
   {
-    "name": "update-work-item",
+    "name": "ado_update_work_item",
     "description": "Experimental. Update explicitly enabled fields on an Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
@@ -2120,7 +2120,7 @@
       "properties": {
         "id": {
           "type": ["number", "string"],
-          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by ado_create_work_item."
         },
         "title": { "type": "string", "minLength": 1, "maxLength": 255 },
         "body": { "type": "string", "maxLength": 65000 },
@@ -2137,7 +2137,7 @@
     }
   },
   {
-    "name": "comment-on-work-item",
+    "name": "ado_comment_on_work_item",
     "description": "Experimental. Add a Markdown comment to an explicitly scoped Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
@@ -2145,7 +2145,7 @@
       "properties": {
         "work_item_id": {
           "type": ["number", "string"],
-          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by ado_create_work_item."
         },
         "body": {
           "type": "string",
@@ -2158,7 +2158,7 @@
     }
   },
   {
-    "name": "assign-work-item",
+    "name": "ado_assign_work_item",
     "description": "Experimental. Assign an allowed Azure DevOps identity to a work item.",
     "inputSchema": {
       "type": "object",
@@ -2166,7 +2166,7 @@
       "properties": {
         "work_item_id": {
           "type": ["number", "string"],
-          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by ado_create_work_item."
         },
         "assignee": {
           "type": "string",
@@ -2179,7 +2179,7 @@
     }
   },
   {
-    "name": "link-work-items",
+    "name": "ado_link_work_items",
     "description": "Experimental. Create a relationship between two explicitly scoped Azure DevOps work items.",
     "inputSchema": {
       "type": "object",
@@ -2203,7 +2203,7 @@
     }
   },
   {
-    "name": "upload-workitem-attachment",
+    "name": "ado_upload_workitem_attachment",
     "description": "Experimental. Upload one workspace file and attach it to an Azure DevOps work item.",
     "inputSchema": {
       "type": "object",
@@ -2211,7 +2211,7 @@
       "properties": {
         "work_item_id": {
           "type": ["number", "string"],
-          "description": "Positive work-item ID or a temporary #aw_ ID returned by create-work-item."
+          "description": "Positive work-item ID or a temporary #aw_ ID returned by ado_create_work_item."
         },
         "file_path": {
           "type": "string",

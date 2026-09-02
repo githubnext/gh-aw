@@ -13,22 +13,22 @@ var toolDescriptionEnhancerLog = logger.New("workflow:tool_description_enhancer"
 type toolConstraintBuilder func(*SafeOutputsConfig) []string
 
 var toolConstraintBuilders = map[string]toolConstraintBuilder{
-	"create-work-item": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_create_work_item": func(safeOutputs *SafeOutputsConfig) []string {
 		return createWorkItemConstraints(safeOutputs.CreateWorkItems)
 	},
-	"update-work-item": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_update_work_item": func(safeOutputs *SafeOutputsConfig) []string {
 		return updateWorkItemConstraints(safeOutputs.UpdateWorkItems)
 	},
-	"comment-on-work-item": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_comment_on_work_item": func(safeOutputs *SafeOutputsConfig) []string {
 		return commentOnWorkItemConstraints(safeOutputs.CommentOnWorkItems)
 	},
-	"assign-work-item": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_assign_work_item": func(safeOutputs *SafeOutputsConfig) []string {
 		return assignWorkItemConstraints(safeOutputs.AssignWorkItems)
 	},
-	"link-work-items": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_link_work_items": func(safeOutputs *SafeOutputsConfig) []string {
 		return linkWorkItemsConstraints(safeOutputs.LinkWorkItems)
 	},
-	"upload-workitem-attachment": func(safeOutputs *SafeOutputsConfig) []string {
+	"ado_upload_workitem_attachment": func(safeOutputs *SafeOutputsConfig) []string {
 		return uploadWorkItemAttachmentConstraints(safeOutputs.UploadWorkItemAttachments)
 	},
 	"create_issue": func(safeOutputs *SafeOutputsConfig) []string { return createIssueConstraints(safeOutputs.CreateIssues) },

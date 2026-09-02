@@ -14,12 +14,12 @@ func TestAzureDevOpsSafeOutputsEmitExperimentalWarnings(t *testing.T) {
 		name       string
 		safeOutput *SafeOutputsConfig
 	}{
-		{"create-work-item", &SafeOutputsConfig{CreateWorkItems: &CreateWorkItemConfig{}}},
-		{"update-work-item", &SafeOutputsConfig{UpdateWorkItems: &UpdateWorkItemConfig{}}},
-		{"comment-on-work-item", &SafeOutputsConfig{CommentOnWorkItems: &CommentOnWorkItemConfig{}}},
-		{"assign-work-item", &SafeOutputsConfig{AssignWorkItems: &AssignWorkItemConfig{}}},
-		{"link-work-items", &SafeOutputsConfig{LinkWorkItems: &LinkWorkItemsConfig{}}},
-		{"upload-workitem-attachment", &SafeOutputsConfig{UploadWorkItemAttachments: &UploadWorkItemAttachmentConfig{}}},
+		{"ado-create-work-item", &SafeOutputsConfig{CreateWorkItems: &CreateWorkItemConfig{}}},
+		{"ado-update-work-item", &SafeOutputsConfig{UpdateWorkItems: &UpdateWorkItemConfig{}}},
+		{"ado-comment-on-work-item", &SafeOutputsConfig{CommentOnWorkItems: &CommentOnWorkItemConfig{}}},
+		{"ado-assign-work-item", &SafeOutputsConfig{AssignWorkItems: &AssignWorkItemConfig{}}},
+		{"ado-link-work-items", &SafeOutputsConfig{LinkWorkItems: &LinkWorkItemsConfig{}}},
+		{"ado-upload-workitem-attachment", &SafeOutputsConfig{UploadWorkItemAttachments: &UploadWorkItemAttachmentConfig{}}},
 	}
 
 	for _, tt := range tests {

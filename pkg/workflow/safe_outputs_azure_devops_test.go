@@ -14,7 +14,7 @@ func TestExtractAzureDevOpsSafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()
 	config := compiler.extractSafeOutputsConfig(map[string]any{
 		"safe-outputs": map[string]any{
-			"create-work-item": map[string]any{
+			"ado-create-work-item": map[string]any{
 				"work-item-type": "Bug",
 				"area-path":      `Project\Platform`,
 				"allowed-tags":   []any{"agent-*"},
@@ -22,14 +22,14 @@ func TestExtractAzureDevOpsSafeOutputsConfig(t *testing.T) {
 					map[string]any{"title": "Sample item"},
 				},
 			},
-			"update-work-item": map[string]any{
+			"ado-update-work-item": map[string]any{
 				"target": "42",
 				"title":  true,
 			},
-			"comment-on-work-item":       true,
-			"assign-work-item":           true,
-			"link-work-items":            true,
-			"upload-workitem-attachment": true,
+			"ado-comment-on-work-item":       true,
+			"ado-assign-work-item":           true,
+			"ado-link-work-items":            true,
+			"ado-upload-workitem-attachment": true,
 		},
 	})
 
@@ -64,12 +64,12 @@ func TestAzureDevOpsSafeOutputsUseAdoAwPublicToolNames(t *testing.T) {
 	enabled := computeEnabledToolNames(data)
 
 	for _, name := range []string{
-		"create-work-item",
-		"update-work-item",
-		"comment-on-work-item",
-		"assign-work-item",
-		"link-work-items",
-		"upload-workitem-attachment",
+		"ado_create_work_item",
+		"ado_update_work_item",
+		"ado_comment_on_work_item",
+		"ado_assign_work_item",
+		"ado_link_work_items",
+		"ado_upload_workitem_attachment",
 	} {
 		assert.Contains(t, enabled, name)
 	}
@@ -95,13 +95,13 @@ func TestGenerateAzureDevOpsSafeOutputsConfig(t *testing.T) {
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
-	createConfig := parsed["create_work_item"].(map[string]any)
+	createConfig := parsed["ado_create_work_item"].(map[string]any)
 	assert.InDelta(t, 2, createConfig["max"], 0)
 	assert.Equal(t, "Task", createConfig["work_item_type"])
 	assert.Equal(t, `Project\Platform`, createConfig["area_path"])
 	assert.Equal(t, map[string]any{}, createConfig["artifact_link"])
 
-	updateConfig := parsed["update_work_item"].(map[string]any)
+	updateConfig := parsed["ado_update_work_item"].(map[string]any)
 	assert.Equal(t, "42", updateConfig["target"])
 	assert.Equal(t, true, updateConfig["title"])
 	assert.NotContains(t, updateConfig, "status")
@@ -116,7 +116,7 @@ func TestAzureDevOpsToolDescriptionConstraints(t *testing.T) {
 		},
 	}
 
-	constraints := toolConstraintBuilders["create-work-item"](config)
+	constraints := toolConstraintBuilders["ado_create_work_item"](config)
 
 	assert.Contains(t, constraints, "Maximum 2 work item(s) can be created.")
 	assert.Contains(t, constraints, `Work item type: "Bug".`)

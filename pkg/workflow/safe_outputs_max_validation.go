@@ -67,32 +67,32 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error { //nolint:largefun
 	// matching the sort order of safeOutputFieldMapping keys for deterministic
 	// error reporting.
 	if config.AssignWorkItems != nil {
-		if err := checkMaxField("assign_work_item", config.AssignWorkItems.Max); err != nil {
+		if err := checkMaxField("ado_assign_work_item", config.AssignWorkItems.Max); err != nil {
 			return err
 		}
 	}
 	if config.CommentOnWorkItems != nil {
-		if err := checkMaxField("comment_on_work_item", config.CommentOnWorkItems.Max); err != nil {
+		if err := checkMaxField("ado_comment_on_work_item", config.CommentOnWorkItems.Max); err != nil {
 			return err
 		}
 	}
 	if config.CreateWorkItems != nil {
-		if err := checkMaxField("create_work_item", config.CreateWorkItems.Max); err != nil {
+		if err := checkMaxField("ado_create_work_item", config.CreateWorkItems.Max); err != nil {
 			return err
 		}
 	}
 	if config.LinkWorkItems != nil {
-		if err := checkMaxField("link_work_items", config.LinkWorkItems.Max); err != nil {
+		if err := checkMaxField("ado_link_work_items", config.LinkWorkItems.Max); err != nil {
 			return err
 		}
 	}
 	if config.UpdateWorkItems != nil {
-		if err := checkMaxField("update_work_item", config.UpdateWorkItems.Max); err != nil {
+		if err := checkMaxField("ado_update_work_item", config.UpdateWorkItems.Max); err != nil {
 			return err
 		}
 	}
 	if config.UploadWorkItemAttachments != nil {
-		if err := checkMaxField("upload_workitem_attachment", config.UploadWorkItemAttachments.Max); err != nil {
+		if err := checkMaxField("ado_upload_workitem_attachment", config.UploadWorkItemAttachments.Max); err != nil {
 			return err
 		}
 	}

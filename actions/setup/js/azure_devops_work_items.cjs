@@ -173,7 +173,7 @@ function resolveWorkItemReference(value, resolvedTemporaryIds, allowStaged) {
   const key = normalizeTemporaryId(String(value));
   const resolved = resolvedTemporaryIds?.[key];
   if (!resolved || resolved.provider !== "azure-devops" || resolved.resourceType !== "work-item") {
-    throw new Error(`temporary work-item ID '#${key}' has not been resolved by create-work-item in this run`);
+    throw new Error(`temporary work-item ID '#${key}' has not been resolved by ado_create_work_item in this run`);
   }
   const id = Number(resolved.workItemId);
   if (Number.isSafeInteger(id) && id > 0) return { id, sameRun: true };
@@ -226,7 +226,7 @@ function validateUniqueFields(entries) {
 
 async function handleCreateWorkItem(message, config, resolvedTemporaryIds) {
   const temporaryId = String(message.temporary_id || "");
-  if (!/^#aw_[A-Za-z0-9_]{3,12}$/.test(temporaryId)) return failure("create-work-item requires a server-generated temporary_id");
+  if (!/^#aw_[A-Za-z0-9_]{3,12}$/.test(temporaryId)) return failure("ado_create_work_item requires a server-generated temporary_id");
   const normalized = normalizeTemporaryId(temporaryId);
   if (resolvedTemporaryIds?.[normalized]) return failure(`temporary_id '${temporaryId}' was already used in this run`);
 
@@ -324,7 +324,7 @@ async function handleUpdateWorkItem(message, config, resolvedTemporaryIds) {
     const requested = fields.filter(([name]) => message[name] !== undefined);
     if (requested.length === 0) throw new Error("at least one update field is required");
     const disabled = requested.find(([, , enabled]) => enabled !== true);
-    if (disabled) throw new Error(`${disabled[0]} updates are not enabled by update-work-item`);
+    if (disabled) throw new Error(`${disabled[0]} updates are not enabled by ado_update_work_item`);
     if (message.assignee !== undefined) message.assignee = normalizeAssignee(message.assignee);
     if (message.tags !== undefined) {
       message.tags = validateTags(message.tags);
@@ -389,10 +389,10 @@ async function handleAssignWorkItem(message, config, resolvedTemporaryIds) {
   try {
     const assignee = normalizeAssignee(message.assignee);
     if (Array.isArray(config.allowed) && config.allowed.length > 0 && !config.allowed.some(value => String(value).trim().toLowerCase() === assignee.toLowerCase())) {
-      throw new Error(`assignee '${assignee}' is not permitted by assign-work-item.allowed`);
+      throw new Error(`assignee '${assignee}' is not permitted by ado-assign-work-item.allowed`);
     }
     if (Array.isArray(config.blocked) && config.blocked.some(pattern => matchesPattern(assignee, pattern))) {
-      throw new Error(`assignee '${assignee}' is blocked by assign-work-item.blocked`);
+      throw new Error(`assignee '${assignee}' is blocked by ado-assign-work-item.blocked`);
     }
     const preview = isStagedMode(config);
     const resolved = resolveWorkItemReference(message.work_item_id, resolvedTemporaryIds, preview);
@@ -513,12 +513,12 @@ async function handleUploadWorkItemAttachment(message, config, resolvedTemporary
 }
 
 const HANDLERS = {
-  create_work_item: handleCreateWorkItem,
-  update_work_item: handleUpdateWorkItem,
-  comment_on_work_item: handleCommentOnWorkItem,
-  assign_work_item: handleAssignWorkItem,
-  link_work_items: handleLinkWorkItems,
-  upload_workitem_attachment: handleUploadWorkItemAttachment,
+  ado_create_work_item: handleCreateWorkItem,
+  ado_update_work_item: handleUpdateWorkItem,
+  ado_comment_on_work_item: handleCommentOnWorkItem,
+  ado_assign_work_item: handleAssignWorkItem,
+  ado_link_work_items: handleLinkWorkItems,
+  ado_upload_workitem_attachment: handleUploadWorkItemAttachment,
 };
 
 function createAzureDevOpsWorkItemHandler(type, config = {}) {

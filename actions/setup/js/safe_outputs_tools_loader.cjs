@@ -193,12 +193,12 @@ function attachHandlers(tools, handlers, logger) {
     remove_labels: handlers.removeLabelsHandler,
     update_discussion: handlers.updateDiscussionHandler,
     close_discussion: handlers.closeDiscussionHandler,
-    create_work_item: handlers.createWorkItemHandler,
-    update_work_item: handlers.updateWorkItemHandler,
-    comment_on_work_item: handlers.commentOnWorkItemHandler,
-    assign_work_item: handlers.assignWorkItemHandler,
-    link_work_items: handlers.linkWorkItemsHandler,
-    upload_workitem_attachment: handlers.uploadWorkItemAttachmentHandler,
+    ado_create_work_item: handlers.createWorkItemHandler,
+    ado_update_work_item: handlers.updateWorkItemHandler,
+    ado_comment_on_work_item: handlers.commentOnWorkItemHandler,
+    ado_assign_work_item: handlers.assignWorkItemHandler,
+    ado_link_work_items: handlers.linkWorkItemsHandler,
+    ado_upload_workitem_attachment: handlers.uploadWorkItemAttachmentHandler,
   };
 
   tools.forEach(tool => {

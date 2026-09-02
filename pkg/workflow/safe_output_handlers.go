@@ -22,39 +22,39 @@ type safeOutputHandlerDescriptor struct {
 
 var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	{
-		Key:         "create-work-item",
+		Key:         "ado-create-work-item",
 		StructField: "CreateWorkItems",
-		ToolName:    "create-work-item",
+		ToolName:    "ado_create_work_item",
 		NewConfig:   func() any { return &CreateWorkItemConfig{} },
 	},
 	{
-		Key:         "update-work-item",
+		Key:         "ado-update-work-item",
 		StructField: "UpdateWorkItems",
-		ToolName:    "update-work-item",
+		ToolName:    "ado_update_work_item",
 		NewConfig:   func() any { return &UpdateWorkItemConfig{} },
 	},
 	{
-		Key:         "comment-on-work-item",
+		Key:         "ado-comment-on-work-item",
 		StructField: "CommentOnWorkItems",
-		ToolName:    "comment-on-work-item",
+		ToolName:    "ado_comment_on_work_item",
 		NewConfig:   func() any { return &CommentOnWorkItemConfig{} },
 	},
 	{
-		Key:         "assign-work-item",
+		Key:         "ado-assign-work-item",
 		StructField: "AssignWorkItems",
-		ToolName:    "assign-work-item",
+		ToolName:    "ado_assign_work_item",
 		NewConfig:   func() any { return &AssignWorkItemConfig{} },
 	},
 	{
-		Key:         "link-work-items",
+		Key:         "ado-link-work-items",
 		StructField: "LinkWorkItems",
-		ToolName:    "link-work-items",
+		ToolName:    "ado_link_work_items",
 		NewConfig:   func() any { return &LinkWorkItemsConfig{} },
 	},
 	{
-		Key:         "upload-workitem-attachment",
+		Key:         "ado-upload-workitem-attachment",
 		StructField: "UploadWorkItemAttachments",
-		ToolName:    "upload-workitem-attachment",
+		ToolName:    "ado_upload_workitem_attachment",
 		NewConfig:   func() any { return &UploadWorkItemAttachmentConfig{} },
 	},
 	{

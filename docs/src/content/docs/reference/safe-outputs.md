@@ -81,12 +81,12 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 
 | Output | Key | Description |
 |--------|-----|-------------|
-| [Create Work Item](#azure-devops-work-items) | `create-work-item` | Create an Azure DevOps work item (max: 1, experimental) |
-| [Update Work Item](#azure-devops-work-items) | `update-work-item` | Update explicitly enabled fields on a scoped work item (max: 1, experimental) |
-| [Comment on Work Item](#azure-devops-work-items) | `comment-on-work-item` | Add a comment to a scoped work item (max: 1, experimental) |
-| [Assign Work Item](#azure-devops-work-items) | `assign-work-item` | Assign an allowed identity to a scoped work item (max: 1, experimental) |
-| [Link Work Items](#azure-devops-work-items) | `link-work-items` | Link two scoped work items (max: 5, experimental) |
-| [Upload Work Item Attachment](#azure-devops-work-items) | `upload-workitem-attachment` | Attach a staged workspace file to a work item (max: 1, experimental) |
+| [Create Work Item](#azure-devops-work-items) | `ado-create-work-item` | Create an Azure DevOps work item (max: 1, experimental) |
+| [Update Work Item](#azure-devops-work-items) | `ado-update-work-item` | Update explicitly enabled fields on a scoped work item (max: 1, experimental) |
+| [Comment on Work Item](#azure-devops-work-items) | `ado-comment-on-work-item` | Add a comment to a scoped work item (max: 1, experimental) |
+| [Assign Work Item](#azure-devops-work-items) | `ado-assign-work-item` | Assign an allowed identity to a scoped work item (max: 1, experimental) |
+| [Link Work Items](#azure-devops-work-items) | `ado-link-work-items` | Link two scoped work items (max: 5, experimental) |
+| [Upload Work Item Attachment](#azure-devops-work-items) | `ado-upload-workitem-attachment` | Attach a staged workspace file to a work item (max: 1, experimental) |
 
 ### Security & Agent Tasks
 
@@ -1133,32 +1133,32 @@ safe-outputs:
     AZURE_DEVOPS_ORG_URL: ${{ vars.AZURE_DEVOPS_ORG_URL }}
     SYSTEM_TEAMPROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
     AZURE_DEVOPS_EXT_PAT: ${{ secrets.AZURE_DEVOPS_EXT_PAT }}
-  create-work-item:
+  ado-create-work-item:
     work-item-type: Task
     area-path: MyProject\Platform
     allowed-tags: [agent-*]
-  update-work-item:
+  ado-update-work-item:
     target: MyProject\Platform
     title: true
     status: true
-  comment-on-work-item:
+  ado-comment-on-work-item:
     target: MyProject\Platform
-  assign-work-item:
+  ado-assign-work-item:
     target: "*"
     allowed: [owner@example.com]
-  link-work-items:
+  ado-link-work-items:
     target: MyProject\Platform
     allowed-link-types: [parent, child, related]
-  upload-workitem-attachment:
+  ado-upload-workitem-attachment:
     allowed-extensions: [.txt, .log, .pdf]
     max-file-size: 5242880
 ```
 
 Authentication uses `SYSTEM_ACCESSTOKEN` when present, otherwise `AZURE_DEVOPS_EXT_PAT`. `AZURE_DEVOPS_ORG_URL` must use `https://dev.azure.com/{organization}` or `https://{organization}.visualstudio.com`; redirects and embedded credentials are rejected.
 
-`create-work-item` returns a run-scoped `#aw_...` temporary ID. The other work-item tools accept that ID, and same-run IDs bypass their consuming `target` policy because creation was already scoped by trusted configuration. Numeric IDs are checked against `target`: updates and assignments accept `"*"` or one ID; comments and links also accept an ID list or area-path prefix.
+`ado_create_work_item` returns a run-scoped `#aw_...` temporary ID. The other work-item tools accept that ID, and same-run IDs bypass their consuming `target` policy because creation was already scoped by trusted configuration. Numeric IDs are checked against `target`: updates and assignments accept `"*"` or one ID; comments and links also accept an ID list or area-path prefix.
 
-For `update-work-item`, each mutable field must be explicitly enabled. Assignment always rejects the reserved `Agency` and `GitHub Copilot` identities. Attachments must be regular workspace files and are checked for traversal, symbolic links, size, extension, and Azure Pipelines command sequences before upload.
+For `ado-update-work-item`, each mutable field must be explicitly enabled. Assignment always rejects the reserved `Agency` and `GitHub Copilot` identities. Attachments must be regular workspace files and are checked for traversal, symbolic links, size, extension, and Azure Pipelines command sequences before upload.
 
 ### No-Op Logging (`noop:`)
 

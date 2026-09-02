@@ -8545,22 +8545,22 @@
           ],
           "description": "Enable AI agents to create autofixes for code scanning alerts using the GitHub REST API."
         },
-        "create-work-item": {
+        "ado-create-work-item": {
           "$ref": "#/$defs/azure_devops_create_work_item"
         },
-        "update-work-item": {
+        "ado-update-work-item": {
           "$ref": "#/$defs/azure_devops_update_work_item"
         },
-        "comment-on-work-item": {
+        "ado-comment-on-work-item": {
           "$ref": "#/$defs/azure_devops_comment_on_work_item"
         },
-        "assign-work-item": {
+        "ado-assign-work-item": {
           "$ref": "#/$defs/azure_devops_assign_work_item"
         },
-        "link-work-items": {
+        "ado-link-work-items": {
           "$ref": "#/$defs/azure_devops_link_work_items"
         },
-        "upload-workitem-attachment": {
+        "ado-upload-workitem-attachment": {
           "$ref": "#/$defs/azure_devops_upload_workitem_attachment"
         },
         "create-check-run": {

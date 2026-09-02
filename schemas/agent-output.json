@@ -913,7 +913,7 @@
       "description": "Output for creating an Azure DevOps work item",
       "type": "object",
       "properties": {
-        "type": { "const": "create_work_item" },
+        "type": { "const": "ado_create_work_item" },
         "title": { "type": "string", "minLength": 6, "maxLength": 255 },
         "description": { "type": "string", "minLength": 31, "maxLength": 65000 },
         "tags": { "type": "array", "items": { "type": "string" } },
@@ -927,7 +927,7 @@
       "description": "Output for updating an Azure DevOps work item",
       "type": "object",
       "properties": {
-        "type": { "const": "update_work_item" },
+        "type": { "const": "ado_update_work_item" },
         "id": {
           "oneOf": [
             { "type": "number", "minimum": 1 },
@@ -950,7 +950,7 @@
       "description": "Output for commenting on an Azure DevOps work item",
       "type": "object",
       "properties": {
-        "type": { "const": "comment_on_work_item" },
+        "type": { "const": "ado_comment_on_work_item" },
         "work_item_id": {
           "oneOf": [
             { "type": "number", "minimum": 1 },
@@ -967,7 +967,7 @@
       "description": "Output for assigning an Azure DevOps work item",
       "type": "object",
       "properties": {
-        "type": { "const": "assign_work_item" },
+        "type": { "const": "ado_assign_work_item" },
         "work_item_id": {
           "oneOf": [
             { "type": "number", "minimum": 1 },
@@ -984,7 +984,7 @@
       "description": "Output for linking two Azure DevOps work items",
       "type": "object",
       "properties": {
-        "type": { "const": "link_work_items" },
+        "type": { "const": "ado_link_work_items" },
         "source_id": {
           "oneOf": [
             { "type": "number", "minimum": 1 },
@@ -1011,7 +1011,7 @@
       "description": "Output for attaching a staged workspace file to an Azure DevOps work item",
       "type": "object",
       "properties": {
-        "type": { "const": "upload_workitem_attachment" },
+        "type": { "const": "ado_upload_workitem_attachment" },
         "work_item_id": {
           "oneOf": [
             { "type": "number", "minimum": 1 },

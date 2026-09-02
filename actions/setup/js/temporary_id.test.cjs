@@ -821,7 +821,7 @@ describe("temporary_id.cjs", () => {
       const { extractTemporaryIdReferences } = await import("./temporary_id.cjs");
 
       const refs = extractTemporaryIdReferences({
-        type: "link_work_items",
+        type: "ado_link_work_items",
         id: "#aw_item1",
         work_item_id: "#aw_item2",
         source_id: "#aw_item3",
