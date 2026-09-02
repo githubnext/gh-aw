@@ -116,13 +116,14 @@ describe("pi_provider.cjs", () => {
     expect(stderrOutput.some(line => line.includes("provider_response provider=copilot model=claude-sonnet-4 status=503 method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=content-type,x-request-id"))).toBe(true);
   });
 
-  it("logs assistant inference errors with the last request target", async () => {
+  // Triggers the message_end infrastructure-error handler with a given stand-in
+  // GH_AW_SAFEOUTPUTS_CLI override ('true' simulates a successful CLI call, 'false'
+  // simulates a failed one) and returns the handlers/stderr output for assertions.
+  async function triggerConnectionError(cliOverride) {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
     process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
-    // 'true' is a stand-in safeoutputs CLI binary that always exits 0, simulating a
-    // successful emission through the CLI channel instead of a direct fs append.
-    process.env.GH_AW_SAFEOUTPUTS_CLI = "true";
+    process.env.GH_AW_SAFEOUTPUTS_CLI = cliOverride;
 
     const handlers = {};
     const pi = {
@@ -153,6 +154,12 @@ describe("pi_provider.cjs", () => {
         errorMessage: "Connection error.",
       },
     });
+  }
+
+  it("logs assistant inference errors with the last request target", async () => {
+    // 'true' is a stand-in safeoutputs CLI binary that always exits 0, simulating a
+    // successful emission through the CLI channel instead of a direct fs append.
+    await triggerConnectionError("true");
 
     expect(
       stderrOutput.some(line =>
@@ -165,42 +172,9 @@ describe("pi_provider.cjs", () => {
   });
 
   it("logs a failure when the safeoutputs CLI channel is unavailable (e.g. read-only sandbox)", async () => {
-    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
-    process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
     // 'false' is a stand-in safeoutputs CLI binary that always exits 1, simulating a
     // failed CLI invocation without ever touching the filesystem directly.
-    process.env.GH_AW_SAFEOUTPUTS_CLI = "false";
-
-    const handlers = {};
-    const pi = {
-      registerProvider: vi.fn(),
-      on: vi.fn((event, handler) => {
-        handlers[event] = handler;
-      }),
-    };
-    const ctx = {
-      model: {
-        provider: "copilot",
-        id: "claude-sonnet-4",
-        api: "openai-completions",
-        baseUrl: "http://api-proxy:10002/v1",
-      },
-    };
-
-    module.default(pi);
-    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
-    await handlers.message_end({
-      type: "message_end",
-      message: {
-        role: "assistant",
-        provider: "aw-gateway",
-        model: "claude-sonnet-4",
-        api: "openai-completions",
-        stopReason: "error",
-        errorMessage: "Connection error.",
-      },
-    });
+    await triggerConnectionError("false");
 
     expect(stderrOutput.some(line => line.includes("report_incomplete emission failed"))).toBe(true);
     expect(fs.existsSync(process.env.GH_AW_SAFE_OUTPUTS)).toBe(false);
