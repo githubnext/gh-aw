@@ -365,7 +365,7 @@ function sortedCounts(counts) {
 }
 
 /**
- * @param {{servers: Map, tools: Map}} gateway
+ * @param {any} gateway
  * @param {string} serverName
  */
 function getGatewayServer(gateway, serverName) {
@@ -386,7 +386,7 @@ function getGatewayServer(gateway, serverName) {
 }
 
 /**
- * @param {{servers: Map, tools: Map}} gateway
+ * @param {any} gateway
  * @param {string} serverName
  * @param {string} toolName
  */
@@ -412,7 +412,7 @@ function getGatewayTool(gateway, serverName, toolName) {
 }
 
 /**
- * @param {{servers: Map, tools: Map}} gateway
+ * @param {any} gateway
  * @param {string} serverName
  * @param {string} toolName
  * @param {number} inputSize
@@ -432,7 +432,7 @@ function recordGatewayToolCall(gateway, serverName, toolName, inputSize) {
 }
 
 /**
- * @param {{servers: Map, tools: Map}} gateway
+ * @param {any} gateway
  * @param {string} serverName
  * @param {string} toolName
  * @param {{failed: boolean, outputSize: number, durationMs: number}} result
@@ -458,7 +458,7 @@ function recordGatewayToolResult(gateway, serverName, toolName, result) {
 }
 
 /**
- * @param {{total_filtered: number, filtered_server_counts: Map, filtered_tool_counts: Map, filtered_reason_counts: Map}} integrity
+ * @param {any} integrity
  * @param {Record<string, any>} entry
  */
 function recordIntegrityFilteredEvent(integrity, entry) {
@@ -484,7 +484,7 @@ function getRpcMessageType(entry) {
 }
 
 /**
- * @param {{gateway: object, integrity: object}} activity
+ * @param {any} activity
  * @param {string} content
  */
 function parseGatewayJSONL(activity, content) {
@@ -535,7 +535,7 @@ function parseGatewayJSONL(activity, content) {
 }
 
 /**
- * @param {{gateway: object, integrity: object}} activity
+ * @param {any} activity
  * @param {string} content
  */
 function parseRPCMessagesJSONL(activity, content) {
