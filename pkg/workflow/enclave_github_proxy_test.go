@@ -49,6 +49,18 @@ func TestEnclaveGitHubMCPGatewayConfiguration(t *testing.T) {
 	}
 }
 
+func TestToolsWithEnclaveGitHubIssuesUnionsTypedToolsets(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	tools := map[string]any{
+		"github": map[string]any{"toolsets": []string{"context"}},
+	}
+
+	updated := toolsWithEnclaveGitHubIssues(tools, data)
+
+	assert.Equal(t, []string{"context", "issues"}, updated["github"].(map[string]any)["toolsets"])
+	assert.Equal(t, []string{"context"}, tools["github"].(map[string]any)["toolsets"], "original tools must remain unchanged")
+}
+
 func TestCompileEnclaveGitHubSharedGateway(t *testing.T) {
 	tmp := t.TempDir()
 	workflowPath := filepath.Join(tmp, "enclave-github.md")
@@ -57,6 +69,9 @@ on: workflow_dispatch
 strict: false
 network: defaults
 engine: copilot
+tools:
+  github:
+    toolsets: [context]
 safe-outputs:
   add-comment:
 sandbox:
@@ -87,7 +102,10 @@ Read the assigned repository's issues through the enclave.
 	assert.Equal(t, 1, strings.Count(lock, "--name awmg-mcpg"))
 	assert.Contains(t, lock, `"agentIds": ["${MCP_GATEWAY_AGENT_ID}","${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"]`)
 	assert.Contains(t, lock, `"safeoutputs": {`)
-	assert.Contains(t, lock, `"${MCP_GATEWAY_AGENT_ID}":{"servers":["awf-enclave","github","safeoutputs"]`)
+	assert.Contains(t, lock, `"awf-enclave": {`)
+	assert.Contains(t, lock, `"required": false`)
+	assert.Contains(t, lock, `"GITHUB_TOOLSETS": "context,issues"`)
+	assert.Contains(t, lock, `"${MCP_GATEWAY_AGENT_ID}":{"servers":["awf-enclave","github","safeoutputs"],"tools":{"github":["get_me"]}}`)
 	assert.NotContains(t, lock, `"servers":["awf-enclave","github","safe-outputs"]`)
 	assert.Contains(t, lock, `"agentPolicies": {"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}":{"servers":["github"],"tools":{"github":["list_issues","issue_read"]},"allow-only":{"min-integrity":"approved","repos":["octo-org/private-service"]}}`)
 	assert.Contains(t, lock, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')`)
