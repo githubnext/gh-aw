@@ -325,19 +325,19 @@ Test workflow content.`
 		`Expected compiled workflow to expand "copilot" alias to all Copilot bot identifiers`)
 }
 
-// TestBotsImportMerge tests that bots from imported workflows are merged with top-level bots
+// TestBotsImportMerge tests that on.bots from imported workflows are merged with main workflow bots
 // in the compiled output (regression test for the fix in compiler_orchestrator_workflow.go).
 func TestBotsImportMerge(t *testing.T) {
 	compiler := NewCompiler()
 
-	t.Run("imported_bots_merged_with_top_level_bots", func(t *testing.T) {
+	t.Run("imported_bots_merged_with_main_workflow_bots", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "bots-import-merge-test")
 
-		// Shared workflow defines a bot at the top level (the format used by the importer)
+		// Shared workflow defines an on.bots allowlist without defining a trigger
 		sharedContent := `---
-on: issues
-bots:
-  - "renovate[bot]"
+on:
+  bots:
+    - "renovate[bot]"
 ---
 `
 		sharedPath := filepath.Join(tmpDir, "shared-bots.md")
@@ -376,9 +376,9 @@ imports:
 		tmpDir := testutil.TempDir(t, "bots-import-only-test")
 
 		sharedContent := `---
-on: issues
-bots:
-  - "github-actions[bot]"
+on:
+  bots:
+    - "github-actions[bot]"
 ---
 `
 		sharedPath := filepath.Join(tmpDir, "shared-bots-only.md")
@@ -416,10 +416,10 @@ imports:
 		tmpDir := testutil.TempDir(t, "bots-import-dedup-test")
 
 		sharedContent := `---
-on: issues
-bots:
-  - "dependabot[bot]"
-  - "renovate[bot]"
+on:
+  bots:
+    - "dependabot[bot]"
+    - "renovate[bot]"
 ---
 `
 		sharedPath := filepath.Join(tmpDir, "shared-bots-dup.md")
