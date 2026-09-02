@@ -115,7 +115,12 @@ func buildCopilotMCPConfigExport(workflowData *WorkflowData) string {
 	return b.String()
 }
 
-const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
+// nodePathSetupCommand resolves the global node_modules directory and exports it via
+// NODE_PATH. It prefers `npm root -g` when npm is available on PATH, but does not require
+// it: sandboxes that mount only the node binary and its global node_modules directory (and
+// not npm itself, e.g. to avoid rejecting npm's symlink bind mount) fall back to deriving
+// the standard "<node prefix>/lib/node_modules" layout from the resolved node executable.
+const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT=""; if command -v npm >/dev/null 2>&1; then GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NPM_GLOBAL_ROOT" ] && [ -n "${GH_AW_NODE_EXEC:-}" ]; then GH_AW_NPM_GLOBAL_ROOT="$(dirname "$(dirname "$GH_AW_NODE_EXEC")")/lib/node_modules"; fi; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ] && [ -d "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
 const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK + `; "$GH_AW_NODE_EXEC"`
