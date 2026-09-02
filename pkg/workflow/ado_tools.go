@@ -16,8 +16,9 @@ const (
 )
 
 var (
-	adoOrganizationPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?$`)
-	adoToolsetNames        = map[string]struct{}{
+	adoOrganizationPattern     = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?$`)
+	adoSecretExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Z_][A-Z0-9_]*\s*\}\}$`)
+	adoToolsetNames            = map[string]struct{}{
 		"all": {}, "repos": {}, "advsec": {}, "wit": {}, "pipelines": {},
 		"wiki": {}, "work": {}, "testplan": {}, "elm": {},
 	}
@@ -77,7 +78,7 @@ func validateADOToolConfig(config map[string]any) (string, string, []string, err
 	if token == "" {
 		return "", "", nil, errors.New("tools.ado.token is required")
 	}
-	if !jiraSecretExpressionPattern.MatchString(token) {
+	if !adoSecretExpressionPattern.MatchString(token) {
 		return "", "", nil, errors.New("tools.ado.token must be a direct GitHub Actions secret expression")
 	}
 
@@ -106,7 +107,7 @@ func parseADOToolsets(value any) ([]string, error) {
 			toolsets = append(toolsets, toolset)
 		}
 	default:
-		return nil, errors.New("tools.ado.toolsets must be a non-empty array of supported toolset names")
+		return nil, errors.New("tools.ado.toolsets must be an array of supported toolset names")
 	}
 	if len(toolsets) == 0 {
 		return nil, errors.New("tools.ado.toolsets must be a non-empty array of supported toolset names")
