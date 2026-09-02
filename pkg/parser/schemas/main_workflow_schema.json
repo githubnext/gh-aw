@@ -7315,6 +7315,94 @@
           ],
           "description": "Enable AI agents to approve pending workflow runs in the action required state."
         },
+        "linear-create-issue": {
+          "type": "object",
+          "description": "Experimental. Create Linear issues through the isolated safe_outputs job.",
+          "properties": {
+            "team-id": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "description": "Trusted Linear team model UUID."
+            },
+            "max": {
+              "oneOf": [
+                { "type": "integer", "minimum": 1, "maximum": 100 },
+                { "type": "string", "pattern": "^\\$\\{\\{.*\\}\\}$" }
+              ],
+              "description": "Maximum number of Linear issues to create (default: 1)."
+            },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": {
+              "oneOf": [
+                { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                { "type": "object", "additionalProperties": true }
+              ]
+            }
+          },
+          "required": ["team-id"],
+          "additionalProperties": false
+        },
+        "linear-add-comment": {
+          "type": "object",
+          "description": "Experimental. Add comments to one trusted Linear issue through the isolated safe_outputs job.",
+          "properties": {
+            "target": {
+              "$ref": "#/$defs/linear_issue_identifier",
+              "description": "Trusted Linear issue UUID or shorthand identifier such as ENG-123."
+            },
+            "max": {
+              "oneOf": [
+                { "type": "integer", "minimum": 1, "maximum": 100 },
+                { "type": "string", "pattern": "^\\$\\{\\{.*\\}\\}$" }
+              ],
+              "description": "Maximum number of Linear comments to add (default: 1)."
+            },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": {
+              "oneOf": [
+                { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                { "type": "object", "additionalProperties": true }
+              ]
+            }
+          },
+          "required": ["target"],
+          "additionalProperties": false
+        },
+        "linear-update-issue": {
+          "type": "object",
+          "description": "Experimental. Update explicitly enabled fields on one trusted Linear issue through the isolated safe_outputs job.",
+          "properties": {
+            "target": {
+              "$ref": "#/$defs/linear_issue_identifier",
+              "description": "Trusted Linear issue UUID or shorthand identifier such as ENG-123."
+            },
+            "title": {
+              "const": true,
+              "description": "Allow the agent to update the Linear issue title."
+            },
+            "body": {
+              "const": true,
+              "description": "Allow the agent to replace the Linear issue description."
+            },
+            "max": {
+              "oneOf": [
+                { "type": "integer", "minimum": 1, "maximum": 100 },
+                { "type": "string", "pattern": "^\\$\\{\\{.*\\}\\}$" }
+              ],
+              "description": "Maximum number of updates to apply (default: 1)."
+            },
+            "staged": { "$ref": "#/$defs/templatable_boolean" },
+            "samples": {
+              "oneOf": [
+                { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                { "type": "object", "additionalProperties": true }
+              ]
+            }
+          },
+          "required": ["target"],
+          "anyOf": [{ "required": ["title"] }, { "required": ["body"] }],
+          "additionalProperties": false
+        },
         "add-comment": {
           "oneOf": [
             {
@@ -11305,6 +11393,11 @@
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
           "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
         },
+        "linear-token": {
+          "$ref": "#/$defs/linear_token",
+          "description": "Linear personal API key expression used only by the trusted safe_outputs job.",
+          "examples": ["${{ secrets.LINEAR_API_KEY }}"]
+        },
         "github-app": {
           "$ref": "#/$defs/github_app",
           "description": "GitHub App credentials for minting installation access tokens. When configured, a token will be generated using the app credentials and used for all safe output operations."
@@ -12240,6 +12333,16 @@
           "description": "Enable AI agents to replace one label with another on GitHub issues or pull requests in a single atomic operation. Ideal for maintaining label-based state machines (e.g. transitioning issues through workflow states)."
         }
       },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [{ "required": ["linear-create-issue"] }, { "required": ["linear-add-comment"] }, { "required": ["linear-update-issue"] }]
+          },
+          "then": {
+            "required": ["linear-token"]
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "secret-masking": {
@@ -14614,6 +14717,18 @@
       "pattern": "^\\$\\{\\{\\s*(secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*|needs\\.[A-Za-z_][A-Za-z0-9_]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_]*|steps\\.[A-Za-z_][A-Za-z0-9_-]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_-]*)\\s*\\}\\}$",
       "description": "GitHub token expression for same-job contexts. Accepts a secrets expression (e.g., `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`), a cross-job output expression (e.g., `${{ needs.auth.outputs.token }}`), or a same-job step output expression (e.g., `${{ steps.fetch-token.outputs.my-token }}`). Pattern details: secret names and job IDs match `[A-Za-z_][A-Za-z0-9_]*`; same-job step IDs and output names match `[A-Za-z_][A-Za-z0-9_-]*`.",
       "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}", "${{ needs.auth.outputs.token }}", "${{ steps.fetch-token.outputs.my-token }}"]
+    },
+    "linear_token": {
+      "type": "string",
+      "pattern": "^\\$\\{\\{\\s*(secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*|needs\\.[A-Za-z_][A-Za-z0-9_]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_]*|steps\\.[A-Za-z_][A-Za-z0-9_-]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_-]*)\\s*\\}\\}$",
+      "description": "Linear API key expression resolved only in the trusted safe_outputs job."
+    },
+    "linear_issue_identifier": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 100,
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Z][A-Z0-9]{0,15}-[1-9][0-9]*)$",
+      "description": "Linear issue model UUID or uppercase shorthand identifier."
     },
     "github_app": {
       "type": "object",
