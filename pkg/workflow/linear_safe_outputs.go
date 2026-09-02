@@ -97,14 +97,19 @@ func (c *Compiler) parseLinearUpdateIssueConfig(outputMap map[string]any) *Linea
 	return parseLinearConfig[LinearUpdateIssueConfig](outputMap, "linear-update-issue")
 }
 
-func injectLinearTokenEnv(steps []string, config *SafeOutputsConfig) []string {
+func injectLinearTokenIntoProcessorStep(steps []string, config *SafeOutputsConfig) []string {
 	if config == nil || config.LinearToken == "" ||
 		(config.LinearCreateIssue == nil && config.LinearAddComment == nil && config.LinearUpdateIssue == nil) {
 		return steps
 	}
 
+	processStepFound := false
 	for index, step := range steps {
-		if step == "        env:\n" {
+		if step == "      - name: Process Safe Outputs\n" {
+			processStepFound = true
+			continue
+		}
+		if processStepFound && step == "        env:\n" {
 			tokenEnv := fmt.Sprintf("          GH_AW_LINEAR_TOKEN: %s\n", config.LinearToken)
 			return append(steps[:index+1], append([]string{tokenEnv}, steps[index+1:]...)...)
 		}

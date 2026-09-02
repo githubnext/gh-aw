@@ -112,13 +112,20 @@ func TestLinearTokenOnlyAddedToTrustedProcessingStep(t *testing.T) {
 	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{
 		LinearToken:       "${{ secrets.LINEAR_API_KEY }}",
 		LinearCreateIssue: &LinearCreateIssueConfig{TeamID: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
+		GitHubApp: &GitHubAppConfig{
+			AppID:      "${{ vars.APP_ID }}",
+			PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+		},
 	}}
 	compiler := NewCompiler()
 	steps, err := compiler.buildHandlerManagerStep(data)
 	require.NoError(t, err)
-	steps = injectLinearTokenEnv(steps, data.SafeOutputs)
+	steps = injectLinearTokenIntoProcessorStep(steps, data.SafeOutputs)
 	rendered := strings.Join(steps, "")
 
 	assert.Contains(t, rendered, "GH_AW_LINEAR_TOKEN: ${{ secrets.LINEAR_API_KEY }}")
 	assert.NotContains(t, rendered, "linear-token")
+	processStep := rendered[strings.Index(rendered, "- name: Process Safe Outputs"):]
+	assert.Contains(t, processStep, "env:\n          GH_AW_LINEAR_TOKEN:")
+	assert.NotContains(t, rendered[:strings.Index(rendered, "- name: Process Safe Outputs")], "GH_AW_LINEAR_TOKEN")
 }
