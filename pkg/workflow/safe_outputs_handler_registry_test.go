@@ -21,6 +21,7 @@ func TestHandlerRegistryDomainComposition(t *testing.T) {
 		{name: "commentHandlerRegistry", registry: commentHandlerRegistry, wantKeys: []string{"add_comment", "hide_comment"}},
 		{name: "releaseHandlerRegistry", registry: releaseHandlerRegistry, wantKeys: []string{"update_release"}},
 		{name: "diagnosticHandlerRegistry", registry: diagnosticHandlerRegistry, wantKeys: []string{"missing_tool", "missing_data", "noop", "report_incomplete", "create_report_incomplete_issue"}},
+		{name: "linearHandlerRegistry", registry: linearHandlerRegistry, wantKeys: []string{"linear_create_issue", "linear_add_comment", "linear_update_issue"}},
 	}
 
 	wantAll := map[string]struct{}{}
@@ -106,6 +107,9 @@ func TestHandlerRegistryBuilders(t *testing.T) {
 		{name: "noop", cfg: &SafeOutputsConfig{NoOp: &NoOpConfig{}}},
 		{name: "report_incomplete", cfg: &SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{}}},
 		{name: "create_report_incomplete_issue", cfg: &SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{CreateIssue: strPtr("true")}}},
+		{name: "linear_create_issue", cfg: &SafeOutputsConfig{LinearCreateIssue: &LinearCreateIssueConfig{}}},
+		{name: "linear_add_comment", cfg: &SafeOutputsConfig{LinearAddComment: &LinearTargetConfig{}}},
+		{name: "linear_update_issue", cfg: &SafeOutputsConfig{LinearUpdateIssue: &LinearUpdateIssueConfig{}}},
 	}
 
 	for _, tt := range tests {
