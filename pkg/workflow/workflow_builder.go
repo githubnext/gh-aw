@@ -98,6 +98,14 @@ func (c *Compiler) buildInitialWorkflowData(
 		InlinedImports:             inlinedImports,
 		EngineConfigSteps:          engineSetup.configSteps,
 	}
+	if importsResult.MergedConcurrency != "" && !hasExplicitConcurrencyGroup(result.Frontmatter) {
+		var importedConcurrency any
+		if err := json.Unmarshal([]byte(importsResult.MergedConcurrency), &importedConcurrency); err == nil {
+			workflowData.Concurrency = c.extractTopLevelYAMLSection(map[string]any{"concurrency": importedConcurrency}, "concurrency")
+		} else {
+			workflowBuilderLog.Printf("Skipping imported concurrency merge: invalid JSON: %v", err)
+		}
+	}
 
 	// Populate checkout configs from parsed frontmatter.
 	// Fall back to raw frontmatter parsing when full ParseFrontmatterConfig fails
