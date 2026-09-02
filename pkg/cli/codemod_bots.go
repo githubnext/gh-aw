@@ -225,7 +225,7 @@ func isInlineBotsValue(line string) bool {
 }
 
 func findBotsBlock(lines []string, start, end, indent int, nested bool) (int, int) {
-	var targetIndent = indent
+	var directChildIndent = -1
 	for i := start; i < end; i++ {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
@@ -237,10 +237,13 @@ func findBotsBlock(lines []string, start, end, indent int, nested bool) (int, in
 			if lineIndent <= indent {
 				continue
 			}
-			if targetIndent == indent {
-				targetIndent = lineIndent
+			if directChildIndent == -1 {
+				directChildIndent = lineIndent
 			}
-			if lineIndent != targetIndent {
+			if lineIndent > directChildIndent {
+				continue
+			}
+			if lineIndent != directChildIndent {
 				continue
 			}
 		} else if lineIndent != indent {
