@@ -567,22 +567,21 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 }
 
 func (acc *importAccumulator) mergeBots(fm map[string]any) {
-	mergeJSONStringListField(fm, "bots", "[]", acc.botsSet, &acc.bots, extractImportedFieldWithLegacyFallback)
+	mergeJSONStringListField(fm, "bots", "[]", acc.botsSet, &acc.bots, func(m map[string]any, field string) (string, error) {
+		return extractOnSectionFieldFromMap(m, field)
+	})
 }
 
 func (acc *importAccumulator) mergeSkipRoles(fm map[string]any) {
-	mergeJSONStringListField(fm, "skip-roles", "[]", acc.skipRolesSet, &acc.skipRoles, extractImportedFieldWithLegacyFallback)
+	mergeJSONStringListField(fm, "skip-roles", "[]", acc.skipRolesSet, &acc.skipRoles, func(m map[string]any, field string) (string, error) {
+		return extractOnSectionFieldFromMap(m, field)
+	})
 }
 
 func (acc *importAccumulator) mergeSkipBots(fm map[string]any) {
-	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, extractImportedFieldWithLegacyFallback)
-}
-
-func extractImportedFieldWithLegacyFallback(frontmatter map[string]any, fieldName string) (string, error) {
-	if content, err := extractOnSectionFieldFromMap(frontmatter, fieldName); err == nil && content != "" && content != "[]" {
-		return content, nil
-	}
-	return extractFieldJSONFromMap(frontmatter, fieldName, "[]")
+	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, func(m map[string]any, field string) (string, error) {
+		return extractOnSectionFieldFromMap(m, field)
+	})
 }
 
 func (acc *importAccumulator) mergeAmbientFolders(fm map[string]any) {
