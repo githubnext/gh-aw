@@ -65,3 +65,39 @@ since the gate is currently JS/shell-only. Future runs should verify whether a
 Go port of the gate has landed before reusing these stubs, and consider bridging
 to `actions/setup/js/aw_context.test.cjs` behavior for cross-language parity
 checks instead of a pure Go stub.
+
+### 2026-09-02 run — T-IS/T-NI input sanitization & network isolation matrices
+
+**Last formalized**: 2026-09-02-15-52-00
+**Notation**: TLA+ / Z3-style guard conjunction
+**Issue**: created via safe-output (this run)
+
+Closed the two remaining coverage gaps flagged by prior runs: §4 Input
+Sanitization (T-IS-001..T-IS-008) and §6 Network Isolation (T-NI-001..T-NI-009).
+Both matrices map directly to existing, already-implemented Go functions
+(`sanitizeRunStepExpressions` in `pkg/workflow/run_step_sanitizer.go`;
+`GetAllowedDomains` / `matchesDomain` in `pkg/workflow/domains.go`), so no stub
+interfaces were needed — all 11 new tests call production code directly.
+
+| ID | Predicate | Description |
+|---|---|---|
+| P14 | `IS01_ExpressionExtraction` | Inline `${{ }}` expression moved into `env:` with generated var name |
+| P15 | `IS02_NoInlineExpressionSurvives` | Sanitized `run:` contains no raw `${{` text |
+| P16 | `IS03_HeredocExempt` | Expression inside heredoc body is left untouched |
+| P17 | `IS04_NoOpWhenNoExpression` | No-expression steps returned unchanged (plain/empty/comment-only) |
+| P18 | `IS05_OriginalStepImmutable` | Caller's original step map never mutated |
+| P19 | `IS06_DeterministicEnvVarNaming` | Identical expression content → same env var name across steps |
+| P20 | `NI01_DefaultAllowlistNonEmpty` | nil network → non-empty "defaults" ecosystem allowlist |
+| P21 | `NI02_EmptyAllowedDenyAll` | Empty `Allowed` list → empty (deny-all) result, not defaults |
+| P22 | `NI03_EcosystemExpansion` | Ecosystem identifier in `Allowed` expands to full domain set |
+| P23 | `NI04_WildcardSuffixMatch` | `*.suffix` matches bare suffix + subdomains, rejects unrelated |
+| P24 | `NI05_ExactMatchOnly` | Non-wildcard pattern matches only identical domain string |
+
+New test file: `pkg/workflow/security_architecture_is_ni_formal_test.go` (11
+test functions, all against real implementations — no stubs).
+
+**Remaining gaps for future runs**: T-OI-001..T-OI-007 (Output Isolation),
+T-PM-001..T-PM-007 beyond PM-10/PM-11 (broader Permission Management),
+T-SI-001..T-SI-007 (Sandbox Isolation beyond SG-05), T-TD-001..T-TD-007
+(Threat Detection beyond SG-06/BP-05). AppG3-AppG6 and AppG8 (concurrency
+controls) of the lock-file validation checklist also remain unformalized.
