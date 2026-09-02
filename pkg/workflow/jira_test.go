@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -64,34 +65,77 @@ func TestExpandJiraToolConfigAPIToken(t *testing.T) {
 func TestExpandJiraToolConfigRejectsInvalidAuth(t *testing.T) {
 	tests := []struct {
 		name    string
-		auth    map[string]any
+		config  map[string]any
 		message string
 	}{
 		{
 			name:    "unsupported auth type",
-			auth:    map[string]any{"type": "oauth", "token": "${{ secrets.TOKEN }}"},
+			config:  map[string]any{"auth": map[string]any{"type": "oauth", "token": "${{ secrets.TOKEN }}"}},
 			message: "tools.jira.auth.type must be",
 		},
 		{
 			name:    "missing token",
-			auth:    map[string]any{"type": jiraServiceAccountAuth},
+			config:  map[string]any{"auth": map[string]any{"type": jiraServiceAccountAuth}},
 			message: "tools.jira.auth.token is required",
 		},
 		{
 			name:    "missing email",
-			auth:    map[string]any{"type": jiraAPITokenAuth, "token": "${{ secrets.TOKEN }}"},
+			config:  map[string]any{"auth": map[string]any{"type": jiraAPITokenAuth, "token": "${{ secrets.TOKEN }}"}},
 			message: "tools.jira.auth.email is required",
+		},
+		{
+			name:    "literal credential",
+			config:  map[string]any{"auth": map[string]any{"type": jiraServiceAccountAuth, "token": "literal-token"}},
+			message: "must be a direct GitHub Actions secret expression",
+		},
+		{
+			name: "insecure endpoint",
+			config: map[string]any{
+				"url":  "http://mcp.atlassian.example/mcp",
+				"auth": map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: "tools.jira.url must be an HTTPS URL",
+		},
+		{
+			name: "endpoint with credentials",
+			config: map[string]any{
+				"url":  strings.Join([]string{"https://example", "credential@mcp.atlassian.example/mcp"}, ":"),
+				"auth": map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: "without embedded credentials",
+		},
+		{
+			name: "unknown field",
+			config: map[string]any{
+				"oauth": true,
+				"auth":  map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: "tools.jira.oauth is not supported",
+		},
+		{
+			name: "malformed allowlist",
+			config: map[string]any{
+				"allowed": []any{"getJiraIssue", 1},
+				"auth":    map[string]any{"type": jiraServiceAccountAuth, "token": "${{ secrets.TOKEN }}"},
+			},
+			message: "tools.jira.allowed must contain only",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tools := map[string]any{"jira": map[string]any{"auth": tt.auth}}
+			tools := map[string]any{"jira": tt.config}
 			err := expandJiraToolConfig(tools)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.message)
 		})
 	}
+}
+
+func TestExpandJiraToolConfigDisablesInheritedConfiguration(t *testing.T) {
+	tools := map[string]any{"jira": false}
+	require.NoError(t, expandJiraToolConfig(tools))
+	assert.NotContains(t, tools, "jira")
 }
 
 func TestJiraHeadersUseRuntimeEnvironmentReferences(t *testing.T) {
@@ -150,4 +194,108 @@ Read Jira issues.
 	assert.Contains(t, compiled, `"Authorization": "Basic \${GH_AW_JIRA_BASIC_AUTH}"`)
 	assert.NotContains(t, compiled, `"email": "${{ secrets.ATLASSIAN_EMAIL }}"`)
 	assert.NotContains(t, compiled, `"token": "${{ secrets.ATLASSIAN_API_TOKEN }}"`)
+}
+
+func TestJiraServiceAccountCompilationAcrossEngines(t *testing.T) {
+	for _, engine := range []string{"copilot", "claude", "codex", "gemini", "pi"} {
+		t.Run(engine, func(t *testing.T) {
+			workflow := `---
+on:
+  workflow_dispatch:
+strict: false
+engine: ` + engine + `
+tools:
+  jira:
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}
+    allowed:
+      - getJiraIssue
+---
+
+Read a Jira issue.
+`
+			file, err := os.CreateTemp("", "jira-service-account-*.md")
+			require.NoError(t, err)
+			defer os.Remove(file.Name())
+			_, err = file.WriteString(workflow)
+			require.NoError(t, err)
+			require.NoError(t, file.Close())
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+			data, err := compiler.ParseWorkflowFile(file.Name())
+			require.NoError(t, err)
+			compiled, _, _, err := compiler.generateYAML(data, file.Name())
+			require.NoError(t, err)
+
+			assert.Contains(t, compiled, defaultJiraMCPURL)
+			assert.Contains(t, compiled, "getJiraIssue")
+			assert.Contains(t, compiled, "ATLASSIAN_SERVICE_ACCOUNT_API_KEY: ${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}")
+			assert.NotContains(t, compiled, `"token": "${{ secrets.ATLASSIAN_SERVICE_ACCOUNT_API_KEY }}"`)
+			if engine == "codex" {
+				assert.Contains(t, compiled, "Bear"+"er ${ATLASSIAN_SERVICE_ACCOUNT_API_KEY}")
+			} else {
+				assert.Contains(t, compiled, "Bear"+`er \${ATLASSIAN_SERVICE_ACCOUNT_API_KEY}`)
+			}
+		})
+	}
+}
+
+func TestImportedJiraConfigurationIsValidatedAfterMerge(t *testing.T) {
+	tests := []struct {
+		name    string
+		jira    string
+		message string
+	}{
+		{
+			name: "literal credential",
+			jira: `    auth:
+      type: service-account
+      token: literal-token`,
+			message: "must be a direct GitHub Actions secret expression",
+		},
+		{
+			name: "insecure endpoint",
+			jira: `    url: http://mcp.atlassian.example/mcp
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_TOKEN }}`,
+			message: "tools.jira.url must be an HTTPS URL",
+		},
+		{
+			name: "unknown field",
+			jira: `    browser-oauth: true
+    auth:
+      type: service-account
+      token: ${{ secrets.ATLASSIAN_TOKEN }}`,
+			message: "tools.jira.browser-oauth is not supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			importPath := filepath.Join(dir, "jira.md")
+			require.NoError(t, os.WriteFile(importPath, []byte("---\ntools:\n  jira:\n"+tt.jira+"\n---\n"), 0o600))
+
+			workflowPath := filepath.Join(dir, "workflow.md")
+			workflow := `---
+on:
+  workflow_dispatch:
+strict: false
+engine: copilot
+imports:
+  - jira.md
+---
+
+Read Jira issues.
+`
+			require.NoError(t, os.WriteFile(workflowPath, []byte(workflow), 0o600))
+
+			err := NewCompiler().CompileWorkflow(workflowPath)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.message)
+		})
+	}
 }
