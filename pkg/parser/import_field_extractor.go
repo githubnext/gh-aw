@@ -87,13 +87,13 @@ type importAccumulator struct {
 	// max-daily-ai-credits found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxTurns                    string
-	mergedMaxToolDenials              string
-	mergedMaxRuns                     string
-	mergedMaxTurnCacheMisses          string
-	mergedMaxAICredits                string
-	mergedMaxDailyAICredits           string
-	mergedConcurrencyJobDiscriminator string
+	mergedMaxTurns           string
+	mergedMaxToolDenials     string
+	mergedMaxRuns            string
+	mergedMaxTurnCacheMisses string
+	mergedMaxAICredits       string
+	mergedMaxDailyAICredits  string
+	mergedJobDiscriminator   string
 	// Union of excluded-env lists from all imported files (deduplicated).
 	excludedEnv    []string
 	excludedEnvSet map[string]bool
@@ -430,7 +430,7 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 }
 
 func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]any, fullPath string) {
-	if acc.mergedConcurrencyJobDiscriminator != "" {
+	if acc.mergedJobDiscriminator != "" {
 		return
 	}
 	concurrency, ok := fm["concurrency"].(map[string]any)
@@ -441,7 +441,7 @@ func (acc *importAccumulator) extractConcurrencyJobDiscriminator(fm map[string]a
 	if !ok || discriminator == "" {
 		return
 	}
-	acc.mergedConcurrencyJobDiscriminator = discriminator
+	acc.mergedJobDiscriminator = discriminator
 	parserLog.Printf("Extracted concurrency.job-discriminator from import: %s", fullPath)
 }
 
@@ -1074,7 +1074,7 @@ func (acc *importAccumulator) populateImportsResultScalars(result *ImportsResult
 	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
 	result.MergedMaxAICredits = acc.mergedMaxAICredits
 	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
-	result.MergedConcurrencyJobDiscriminator = acc.mergedConcurrencyJobDiscriminator
+	result.MergedJobDiscriminator = acc.mergedJobDiscriminator
 	result.MergedExcludedEnv = acc.excludedEnv
 }
 

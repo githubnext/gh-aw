@@ -1001,7 +1001,7 @@ func TestExtractConcurrencyJobDiscriminator_FirstImportWins(t *testing.T) {
 	}, "second.md")
 
 	result := acc.toImportsResult(nil)
-	assert.Equal(t, "${{ inputs.first_id }}", result.MergedConcurrencyJobDiscriminator)
+	assert.Equal(t, "${{ inputs.first_id }}", result.MergedJobDiscriminator)
 }
 
 // TestValidateGitHubAppJSON verifies that validateGitHubAppJSON accepts well-formed
