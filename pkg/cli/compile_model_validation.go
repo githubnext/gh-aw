@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -69,7 +68,7 @@ func (i *activeModelInventory) contains(candidate string, workflowAliases map[st
 	}
 
 	for _, model := range i.models {
-		if matched, err := filepath.Match(normalized, model); err == nil && matched {
+		if matched, err := path.Match(normalized, model); err == nil && matched {
 			return true
 		}
 	}

@@ -13,6 +13,7 @@ import (
 )
 
 func TestWarnUnknownConfiguredModels(t *testing.T) {
+	// This test redirects the process-wide stderr stream and cannot run in parallel.
 	compiler := NewCompiler()
 	compiler.SetConfiguredModelValidator(func(data *WorkflowData) []string {
 		assert.Equal(t, "test", data.WorkflowID)
