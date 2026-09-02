@@ -27,7 +27,7 @@ func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
 func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *testing.T) {
 	t.Parallel()
 
-	for _, field := range []string{"version", "include"} {
+	for _, field := range []string{"version", "include", "bots"} {
 		t.Run(field, func(t *testing.T) {
 			t.Parallel()
 
