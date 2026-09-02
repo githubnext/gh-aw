@@ -1149,3 +1149,27 @@ const branch = stdout.trim();
 - `child_process.spawn()` and `child_process.spawnSync()` — used for long-running, detached, or interactively-streamed processes (background servers, sidecars, and similar) for which `@actions/exec` has no equivalent, since `exec()` / `getExecOutput()` always wait for the command to finish before resolving
 - `exec()` / `execFile()` calls that retain the returned `ChildProcess` handle (used as a value: assigned, returned, member-accessed, passed to another call, ...) — those callers can write to `child.stdin`, stream `child.stdout`, or manage the process lifecycle, which `@actions/exec` cannot express; only calls whose result is discarded (pure callback style) are flagged
 - Calls to `exec`/`execSync`/`execFile`/`execFileSync` from any module other than `child_process` (or `node:child_process`)
+
+### `require-match-result-null-check`
+
+Require the result of `String.prototype.match()` to be null-checked before its properties are accessed.
+
+Why: `match()` returns `null` (not an empty array) whenever the pattern does not match, so `result[1]` or `result.groups` throws `TypeError: Cannot read properties of null` on any unmatched input — a common source of runtime crashes in log parsers and text-extraction helpers.
+
+**Flagged form:**
+```js
+const m = text.match(/version=(\d+)/);
+const version = m[1];
+```
+
+**Safe alternatives:**
+```js
+const m = text.match(/version=(\d+)/);
+if (!m) return null;
+const version = m[1];
+```
+```js
+const version = text.match(/version=(\d+)/)?.[1];
+```
+
+**Out of scope:** inline `.match(...)?.[...]` chains (already null-safe), accesses guarded by an `if`/ternary truthiness check, `=== null` / `!== null` comparisons, or a logical (`&&`) guard on the same variable.
