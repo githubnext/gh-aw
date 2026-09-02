@@ -34,7 +34,7 @@ experiments:
 tracker-id: breaking-change-checker
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: docker-sbx
 tools:
   cli-proxy: true
   github:
