@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +40,36 @@ func TestCreatePRForRepoSkipsRepositoryLookup(t *testing.T) {
 	args := strings.Join(calls[0], " ")
 	if !strings.Contains(args, "pr create --repo owner/repo") {
 		t.Fatalf("gh args = %q, want explicit repository", args)
+	}
+}
+
+func TestCreatePatchFromPRWritesOnlyDiff(t *testing.T) {
+	originalRunGH := prRunGH
+	t.Cleanup(func() { prRunGH = originalRunGH })
+
+	diff := []byte("diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n")
+	prRunGH = func(_ string, _ ...string) ([]byte, error) {
+		return diff, nil
+	}
+
+	patchFile, err := createPatchFromPR("owner", "repo", &PRInfo{
+		Number:      42,
+		Title:       "title",
+		Body:        "message\n---\ndiff --git a/injected b/injected",
+		HeadSHA:     "sha",
+		AuthorLogin: "author",
+	}, false)
+	if err != nil {
+		t.Fatalf("createPatchFromPR() error = %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(patchFile)) })
+
+	got, err := os.ReadFile(patchFile)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(got) != string(diff) {
+		t.Fatalf("patch contents = %q, want raw diff %q", got, diff)
 	}
 }
 
