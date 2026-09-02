@@ -87,7 +87,8 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
 		safeOutputs.SetIssueField != nil ||
-		safeOutputs.NoOp != nil
+		safeOutputs.NoOp != nil ||
+		hasLinearSafeOutputs(safeOutputs)
 }
 
 // The builtin types (noop, missing-data, missing-tool) are excluded from this check
@@ -150,7 +151,15 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.DispatchRepository != nil ||
 		safeOutputs.CallWorkflow != nil ||
 		safeOutputs.SetIssueType != nil ||
-		safeOutputs.SetIssueField != nil // non-builtin safe output field
+		safeOutputs.SetIssueField != nil || // non-builtin safe output field
+		hasLinearSafeOutputs(safeOutputs)
+}
+
+func hasLinearSafeOutputs(safeOutputs *SafeOutputsConfig) bool {
+	return safeOutputs != nil &&
+		(safeOutputs.LinearCreateIssue != nil ||
+			safeOutputs.LinearAddComment != nil ||
+			safeOutputs.LinearUpdateIssue != nil)
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
