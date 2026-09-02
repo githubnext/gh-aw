@@ -22,6 +22,24 @@ type safeOutputHandlerDescriptor struct {
 
 var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	{
+		Key:         "linear-create-issue",
+		StructField: "LinearCreateIssue",
+		ToolName:    "linear_create_issue",
+		NewConfig:   func() any { return &LinearCreateIssueConfig{} },
+	},
+	{
+		Key:         "linear-add-comment",
+		StructField: "LinearAddComment",
+		ToolName:    "linear_add_comment",
+		NewConfig:   func() any { return &LinearTargetConfig{} },
+	},
+	{
+		Key:         "linear-update-issue",
+		StructField: "LinearUpdateIssue",
+		ToolName:    "linear_update_issue",
+		NewConfig:   func() any { return &LinearUpdateIssueConfig{} },
+	},
+	{
 		Key:         "create-issue",
 		StructField: "CreateIssues",
 		ToolName:    "create_issue",
@@ -32,6 +50,30 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			}
 			return NewPermissionsIssuesWrite()
 		},
+	},
+	{
+		Key:         "jira-create-issue",
+		StructField: "JiraCreateIssue",
+		ToolName:    "jira_create_issue",
+		NewConfig:   func() any { return &JiraSafeOutputConfig{} },
+	},
+	{
+		Key:         "jira-update-issue",
+		StructField: "JiraUpdateIssue",
+		ToolName:    "jira_update_issue",
+		NewConfig:   func() any { return &JiraSafeOutputConfig{} },
+	},
+	{
+		Key:         "jira-add-comment",
+		StructField: "JiraAddComment",
+		ToolName:    "jira_add_comment",
+		NewConfig:   func() any { return &JiraSafeOutputConfig{} },
+	},
+	{
+		Key:         "jira-add-label",
+		StructField: "JiraAddLabel",
+		ToolName:    "jira_add_label",
+		NewConfig:   func() any { return &JiraSafeOutputConfig{} },
 	},
 	{
 		Key:         "create-agent-session",

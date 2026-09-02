@@ -40,6 +40,9 @@ type BaseSafeOutputConfig struct {
 type SafeOutputsConfig struct {
 	Steer                                  bool                                   `yaml:"steer,omitempty"` // Experimental. Create an issue and steer the agent from issue comments.
 	CreateIssues                           *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	LinearCreateIssue                      *LinearCreateIssueConfig               `yaml:"linear-create-issue,omitempty"`
+	LinearAddComment                       *LinearTargetConfig                    `yaml:"linear-add-comment,omitempty"`
+	LinearUpdateIssue                      *LinearUpdateIssueConfig               `yaml:"linear-update-issue,omitempty"`
 	CreateDiscussions                      *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
 	UpdateDiscussions                      *UpdateDiscussionsConfig               `yaml:"update-discussion,omitempty"`
 	CloseDiscussions                       *CloseDiscussionsConfig                `yaml:"close-discussion,omitempty"`
@@ -57,6 +60,10 @@ type SafeOutputsConfig struct {
 	CreateCodeScanningAlerts               *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
 	AutofixCodeScanningAlert               *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
 	CreateCheckRun                         *CreateCheckRunConfig                  `yaml:"create-check-run,omitempty"` // Create GitHub Check Runs to report agent analysis results
+	JiraCreateIssue                        *JiraSafeOutputConfig                  `yaml:"jira-create-issue,omitempty"`
+	JiraUpdateIssue                        *JiraSafeOutputConfig                  `yaml:"jira-update-issue,omitempty"`
+	JiraAddComment                         *JiraSafeOutputConfig                  `yaml:"jira-add-comment,omitempty"`
+	JiraAddLabel                           *JiraSafeOutputConfig                  `yaml:"jira-add-label,omitempty"`
 	AddLabels                              *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	RemoveLabels                           *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
 	ReplaceLabel                           *ReplaceLabelConfig                    `yaml:"replace-label,omitempty"` // Replace one label with another in a single atomic operation
@@ -102,6 +109,7 @@ type SafeOutputsConfig struct {
 	Staged                                 *TemplatableBool                       `yaml:"staged,omitempty"`                       // Templatable preview-only mode for all safe outputs
 	Env                                    map[string]string                      `yaml:"env,omitempty"`                          // Environment variables to pass to safe output jobs
 	GitHubToken                            string                                 `yaml:"github-token,omitempty"`                 // GitHub token for safe output jobs
+	LinearToken                            string                                 `yaml:"linear-token,omitempty"`                 // Linear API key for Linear safe output handlers
 	MaximumPatchSize                       int                                    `yaml:"max-patch-size,omitempty"`               // Maximum allowed patch size in KB (defaults to 4096)
 	MaximumPatchFiles                      int                                    `yaml:"max-patch-files,omitempty"`              // Maximum allowed unique files per create-pull-request patch (defaults to 100)
 	RunsOn                                 string                                 `yaml:"runs-on,omitempty"`                      // Runner configuration for safe-outputs jobs
@@ -173,8 +181,8 @@ type MentionsConfig struct {
 	// but the workflow will not fail.
 	AllowedTeams []string `yaml:"allowed-teams,omitempty" json:"allowedTeams,omitempty"`
 
-	// Max is the maximum number of mentions per message (default: 50)
-	Max *int `yaml:"max,omitempty" json:"max,omitempty"`
+	// Max is the maximum number of mentions per message (default: 50). Supports integer or GitHub Actions expression.
+	Max *string `yaml:"max,omitempty" json:"max,omitempty"`
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

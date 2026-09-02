@@ -41,6 +41,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Direct nil checks — no reflection, no heap allocation.
 	return safeOutputs.CreateIssues != nil ||
+		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.UpdateDiscussions != nil ||
@@ -87,7 +88,8 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
 		safeOutputs.SetIssueField != nil ||
-		safeOutputs.NoOp != nil
+		safeOutputs.NoOp != nil ||
+		hasLinearSafeOutputs(safeOutputs)
 }
 
 // The builtin types (noop, missing-data, missing-tool) are excluded from this check
@@ -107,6 +109,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	// Direct nil checks for non-builtin pointer fields.
 	return safeOutputs.CreateIssues != nil ||
+		hasAnyJiraSafeOutputEnabled(safeOutputs) ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.UpdateDiscussions != nil ||
@@ -150,7 +153,15 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.DispatchRepository != nil ||
 		safeOutputs.CallWorkflow != nil ||
 		safeOutputs.SetIssueType != nil ||
-		safeOutputs.SetIssueField != nil // non-builtin safe output field
+		safeOutputs.SetIssueField != nil || // non-builtin safe output field
+		hasLinearSafeOutputs(safeOutputs)
+}
+
+func hasLinearSafeOutputs(safeOutputs *SafeOutputsConfig) bool {
+	return safeOutputs != nil &&
+		(safeOutputs.LinearCreateIssue != nil ||
+			safeOutputs.LinearAddComment != nil ||
+			safeOutputs.LinearUpdateIssue != nil)
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled

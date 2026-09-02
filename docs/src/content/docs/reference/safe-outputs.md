@@ -66,6 +66,15 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 | [Set Issue Type](#set-issue-type-set-issue-type) | `set-issue-type` | Set or clear the type of GitHub issues (max: 5) |
 | [Set Issue Field](#set-issue-field-set-issue-field) | `set-issue-field` | Set one issue field value by name/value (max: 5) |
 
+### External Integrations
+
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Jira Create Issue](#jira-safe-outputs) | `jira-create-issue` | Create a Jira issue (max: 1) |
+| [Jira Update Issue](#jira-safe-outputs) | `jira-update-issue` | Update a Jira issue summary or description (max: 1) |
+| [Jira Add Comment](#jira-safe-outputs) | `jira-add-comment` | Add a comment to a Jira issue (max: 1) |
+| [Jira Add Label](#jira-safe-outputs) | `jira-add-label` | Add one label to a Jira issue (max: 1) |
+
 ### Projects, Releases & Assets
 
 | Output | Key | Description |
@@ -89,6 +98,38 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 | [Create Check Run](#check-run-creation-create-check-run) | `create-check-run` | Create GitHub Check Runs to surface analysis results in the PR checks UI (default max: 1, same-repo only) |
 | [Create Agent Session](/gh-aw/reference/copilot-cloud-agent/#create-agent-session) | `create-agent-session` | Create Copilot coding agent sessions (max: 1) |
 
+### Linear
+
+| Output | Key | Description |
+|--------|-----|-------------|
+| [Create Linear Issue](#linear-safe-outputs) | `linear-create-issue` | Create an issue in a configured Linear team (max: 1, experimental) |
+| [Add Linear Comment](#linear-safe-outputs) | `linear-add-comment` | Comment on a configured Linear issue (max: 1, experimental) |
+| [Update Linear Issue](#linear-safe-outputs) | `linear-update-issue` | Update enabled fields on a configured Linear issue (max: 1, experimental) |
+
+#### Linear Safe Outputs
+
+:::caution[Experimental]
+Linear Safe Outputs are experimental. Compiling a workflow that enables any Linear Safe Output emits `Using experimental feature: Linear safe outputs`.
+:::
+
+Linear Safe Outputs use Linear's public GraphQL API from the isolated `safe_outputs` job. Configure a personal Linear API key through a secret expression. The credential is not available to the agent.
+
+```yaml wrap
+safe-outputs:
+  linear-token: ${{ secrets.LINEAR_API_KEY }}
+  linear-create-issue:
+    team-id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"
+    max: 1
+  linear-add-comment:
+    target: "ENG-123"
+  linear-update-issue:
+    target: "ENG-123"
+    title: true
+    body: true
+```
+
+`team-id` is the Linear team model UUID, available through Linear's model UUID tooling or API. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
+
 ### System Types (Auto-Enabled)
 
 | Output | Key | Description |
@@ -105,6 +146,52 @@ Create custom post-processing jobs registered as Model Context Protocol (MCP) to
 ### GitHub Action Wrappers (`actions:`)
 
 Mount any public GitHub Action as a once-callable MCP tool. The compiler pins the action reference to a SHA at compile time and derives the tool's input schema from the action's `action.yml`. See [GitHub Action Wrappers](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).
+
+## Jira Safe Outputs
+
+Jira safe outputs call Jira Cloud REST API v3 from the privileged safe-output job. Jira credentials are not exposed to the agent or included in `agent_output`.
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+safe-outputs:
+  env:
+    JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+    JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+    JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+  jira-create-issue:
+    max: 1
+  jira-update-issue:
+    max: 1
+  jira-add-comment:
+    max: 1
+  jira-add-label:
+    max: 3
+---
+
+# Jira maintenance
+
+Use Jira safe outputs for Jira mutations.
+```
+
+`JIRA_BASE_URL` is the Jira API base without `/rest/api/3`. For unscoped API tokens, use the site URL, such as `https://example.atlassian.net`. For scoped API tokens, use the Atlassian gateway URL, such as `https://api.atlassian.com/ex/jira/<cloudId>`. The initial authentication mechanism uses an Atlassian account email and API token with HTTP Basic authentication.
+
+Each output accepts `max` and `staged`. In staged mode, the handler writes a Jira-specific preview without requiring credentials or sending an HTTP request.
+
+| Frontmatter key | Agent tool | Inputs |
+|---|---|---|
+| `jira-create-issue` | `jira_create_issue` | Required: `project_key`, `issue_type`, `summary`; optional: `description` |
+| `jira-update-issue` | `jira_update_issue` | Required: `issue_key`; at least one of `summary` or `description` |
+| `jira-add-comment` | `jira_add_comment` | Required: `issue_key`, `body` |
+| `jira-add-label` | `jira_add_label` | Required: `issue_key`, `label` |
+
+Descriptions and comment bodies remain plain strings at the agent boundary. The runtime converts them deterministically to Atlassian Document Format version 1, preserving paragraphs and line breaks. `jira_add_label` uses Jira's additive field-update operation and does not replace existing labels.
+
+> [!IMPORTANT]
+> Unprefixed tools such as `create_issue`, `update_issue`, `add_comment`, and `add_labels` operate on GitHub. Jira operations always use the `jira_` prefix.
+
+This initial integration does not support transitions, assignment, custom fields, priorities, components, attachments, issue links, subtasks, label removal, JQL, bulk operations, arbitrary Jira REST calls, or OAuth installation flows. Update, comment, and label operations require a known Jira issue key; they cannot reference a Jira issue created earlier in the same run.
 
 ## Steering Issues (`steer:`)
 

@@ -4149,6 +4149,13 @@ tools:
     # (optional)
     version: null
 
+    # Removed: legacy MCP-mode argument list. Accepted here only so the compiler can
+    # reject 'mode: mcp' configurations with actionable migration guidance instead of
+    # an unhelpful schema error.
+    # (optional)
+    args: []
+      # Array of strings
+
     # Integration mode. Only 'cli' is supported. The compiler rejects the removed
     # 'mcp' value with migration guidance. Must be a literal value; GitHub Actions
     # expressions are rejected.
@@ -4161,6 +4168,12 @@ tools:
     # Format 2: Not allowed at runtime: mode must be the literal 'cli' value, not a
     # GitHub Actions expression.
     mode: "example-value"
+
+    # Browsers to provision before the agent starts. Defaults to Chromium. Chrome is
+    # accepted as an alias for Chromium.
+    # (optional)
+    browsers: []
+      # Array of strings
 
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and
@@ -8543,6 +8556,122 @@ safe-outputs:
 
   # Format 2: Enable workflow run approval with default configuration
   approve-workflow-run: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for creating Jira Cloud issues through the privileged
+  # safe-output execution path.
+  jira-create-issue:
+    # Maximum number of Jira issues to create (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira issue creation without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira issue creation with default configuration.
+  jira-create-issue: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for updating Jira Cloud issue summaries or descriptions
+  # through the privileged safe-output execution path.
+  jira-update-issue:
+    # Maximum number of Jira issues to update (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira issue updates without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira issue updates with default configuration.
+  jira-update-issue: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for commenting on Jira Cloud issues through the
+  # privileged safe-output execution path.
+  jira-add-comment:
+    # Maximum number of Jira comments to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira comments without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira comments with default configuration.
+  jira-add-comment: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for adding labels to Jira Cloud issues through the
+  # privileged safe-output execution path.
+  jira-add-label:
+    # Maximum number of Jira labels to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira label additions without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira label additions with default configuration.
+  jira-add-label: null
 
   # Enable AI agents to add comments to GitHub issues, pull requests, or
   # discussions. Supports templating, cross-repository commenting, and automatic

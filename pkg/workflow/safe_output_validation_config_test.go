@@ -483,6 +483,7 @@ func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
 		"requiresOneOf:status,title,body,labels,assignees,milestone": true,
+		"requiresOneOf:summary,description":                          true,
 		"requiresOneOf:title,body":                                   true,
 		"requiresOneOf:title,body,update_branch":                     true,
 		"requiresOneOf:title,body,labels":                            true,

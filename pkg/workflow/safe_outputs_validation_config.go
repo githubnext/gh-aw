@@ -32,6 +32,11 @@ type FieldValidation struct {
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
+	// RejectIfOversized rejects the field outright when the raw value exceeds MaxLength,
+	// instead of silently truncating it via sanitization. Used for external-system fields
+	// (e.g. Linear) where truncation could turn an oversized/placeholder value into a
+	// deceptively short but "valid" operation.
+	RejectIfOversized bool `json:"rejectIfOversized,omitempty"`
 	// StripOnError marks optional enrichment fields (e.g. confidence, rationale) that should be
 	// silently dropped when they fail validation instead of rejecting the entire item.
 	// Serialised as "x-strip-on-error" to follow the x- extension convention used in JSON Schema.
@@ -60,6 +65,26 @@ const (
 // ValidationConfig contains all safe output type validation rules
 // This is the single source of truth for validation rules
 var ValidationConfig = map[string]TypeValidationConfig{
+	"linear_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Required: true, Type: "string", Sanitize: true, MaxLength: 128, RejectIfOversized: true},
+			"body":  {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinIssueBodyLength, RejectIfOversized: true},
+		},
+	},
+	"linear_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, RejectIfOversized: true},
+		},
+	},
+	"linear_update_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"title": {Type: "string", Sanitize: true, MaxLength: 128, RejectIfOversized: true},
+			"body":  {Type: "string", Sanitize: true, MaxLength: MaxBodyLength, RejectIfOversized: true},
+		},
+	},
 	"create_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -100,6 +125,38 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"target":       {Type: "string", Enum: []string{"status"}},
 			"comment_id":   {OptionalPositiveInteger: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"jira_create_issue": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"project_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"issue_type":  {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"summary":     {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"description": {Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_update_issue": {
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:summary,description",
+		Fields: map[string]FieldValidation{
+			"issue_key":   {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"summary":     {Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"description": {Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_add_comment": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"body":      {Required: true, Type: "string", MinLength: 1, MaxLength: 32767, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+		},
+	},
+	"jira_add_label": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_key": {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"label":     {Required: true, Type: "string", MinLength: 1, MaxLength: 255, Pattern: "^[A-Za-z0-9_.-]+$", PatternError: "must contain only letters, numbers, periods, hyphens, and underscores"},
 		},
 	},
 	"comment_memory": {
@@ -564,6 +621,8 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
+//
+//nolint:largefunc // Existing validation serialization flow remains linear and explicit.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
