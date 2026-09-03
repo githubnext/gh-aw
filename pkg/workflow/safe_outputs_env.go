@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
@@ -216,8 +217,8 @@ func buildEngineMetadataEnvVars(engineConfig *EngineConfig, model string) []stri
 // addCustomSafeOutputEnvVars adds custom environment variables to safe output job steps
 func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
-		for key, value := range data.SafeOutputs.Env {
-			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, value))
+		for _, key := range sliceutil.SortedKeys(data.SafeOutputs.Env) {
+			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, data.SafeOutputs.Env[key]))
 		}
 	}
 }

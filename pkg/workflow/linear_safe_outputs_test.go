@@ -17,7 +17,8 @@ func TestExtractLinearSafeOutputsConfig(t *testing.T) {
 		"safe-outputs": map[string]any{
 			"linear-token": "${{ secrets.LINEAR_API_KEY }}",
 			"linear-create-issue": map[string]any{
-				"team-id": "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+				"team-id":    "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+				"project-id": "810f57a7e383",
 			},
 			"linear-add-comment": map[string]any{
 				"target": "ENG-123",
@@ -33,6 +34,7 @@ func TestExtractLinearSafeOutputsConfig(t *testing.T) {
 	assert.Equal(t, "${{ secrets.LINEAR_API_KEY }}", config.LinearToken)
 	require.NotNil(t, config.LinearCreateIssue)
 	assert.Equal(t, "9cfb482a-81e3-4154-b5b9-2c805e70a02d", config.LinearCreateIssue.TeamID)
+	assert.Equal(t, "810f57a7e383", config.LinearCreateIssue.ProjectID)
 	assert.Equal(t, "1", *config.LinearCreateIssue.Max)
 	require.NotNil(t, config.LinearAddComment)
 	assert.Equal(t, "ENG-123", config.LinearAddComment.Target)
@@ -48,6 +50,7 @@ func TestLinearHandlerConfigExcludesCredential(t *testing.T) {
 		LinearCreateIssue: &LinearCreateIssueConfig{
 			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 			TeamID:               "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+			ProjectID:            "810f57a7e383",
 		},
 		LinearAddComment: &LinearTargetConfig{
 			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
@@ -66,6 +69,7 @@ func TestLinearHandlerConfigExcludesCredential(t *testing.T) {
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, "810f57a7e383", parsed["linear_create_issue"].(map[string]any)["project_id"])
 	assert.Equal(t, "ENG-123", parsed["linear_add_comment"].(map[string]any)["target"])
 	assert.Equal(t, true, parsed["linear_update_issue"].(map[string]any)["allow_title"])
 }

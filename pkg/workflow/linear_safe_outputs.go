@@ -11,6 +11,7 @@ var linearSafeOutputsLog = logger.New("workflow:linear_safe_outputs")
 type LinearCreateIssueConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TeamID               string `yaml:"team-id"`
+	ProjectID            string `yaml:"project-id,omitempty"`
 }
 
 type LinearTargetConfig struct {

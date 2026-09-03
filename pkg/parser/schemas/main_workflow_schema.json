@@ -7623,6 +7623,11 @@
               "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "description": "Trusted Linear team model UUID."
             },
+            "project-id": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-fA-F]{12}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+              "description": "Optional trusted Linear project identifier from a project URL or model UUID."
+            },
             "max": {
               "oneOf": [
                 { "type": "integer", "minimum": 1, "maximum": 100 },
