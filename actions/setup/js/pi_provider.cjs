@@ -120,7 +120,7 @@ function resolveProviderRequestTarget(model) {
       return { api, method, url: joinApiUrl(baseUrl, "/responses") };
     case "anthropic":
     case "anthropic-messages":
-      return { api, method, url: joinApiUrl(baseUrl, "/messages") };
+      return { api, method, url: joinApiUrl(baseUrl, "/v1/messages") };
     case "mistral-conversations":
       return { api, method, url: joinApiUrl(baseUrl, "/conversations") };
     default:
@@ -308,9 +308,12 @@ function piProviderExtension(pi) {
   let lastProviderRequest = null;
   /** @type {{ status: number, responseHeaders: string }|null} */
   let lastProviderResponse = null;
+  let providerRequestCount = 0;
+  let successfulProviderResponseCount = 0;
   registerConfiguredProviders(pi, log);
 
   pi.on("before_provider_request", (_event, ctx) => {
+    providerRequestCount += 1;
     lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = null;
     const provider = ctx?.model?.provider || "(unknown provider)";
@@ -319,6 +322,9 @@ function piProviderExtension(pi) {
   });
 
   pi.on("after_provider_response", (event, ctx) => {
+    if (event.status >= 200 && event.status < 300) {
+      successfulProviderResponseCount += 1;
+    }
     const request = lastProviderRequest || resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = {
       status: event.status,
@@ -388,6 +394,11 @@ function piProviderExtension(pi) {
         logger: log,
       });
       logReflectFailure({ phase: "agent_end", provider, model, result, logger: log });
+    }
+
+    if (providerRequestCount > 0 && successfulProviderResponseCount === 0) {
+      emitInfrastructureIncompleteIfNoSafeOutputs(`All ${providerRequestCount} Pi provider requests failed before safe outputs were emitted.`, log);
+      process.exitCode = 1;
     }
   });
 }
