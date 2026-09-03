@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"0508796123024d88243b67bd63a2de785ad47ea05a5b8ac47a53d80a3d1dfea9","body_hash":"4b687526d80577644d842c5d5ff80fae5b74a8e1aaa9aff6b5f3c884bdbb278c","strict":true,"agent_id":"codex","agent_model":"copilot/gpt-5.6-sol","engine_versions":{"codex":"0.150.1"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.12","digest":"sha256:390051be4ed1847f774fd8980b61d3a3523574c0175d00c3fc7cdf2002a88202","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.12@sha256:390051be4ed1847f774fd8980b61d3a3523574c0175d00c3fc7cdf2002a88202"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.12","digest":"sha256:d7d533d87c80d87ff91ac0e21e9299055c3beedff1536262b97ed700fb065a32","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.12@sha256:d7d533d87c80d87ff91ac0e21e9299055c3beedff1536262b97ed700fb065a32"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.12","digest":"sha256:5250629d48eaedfedf2e948785228e8da29eec2a83cbab58ea0751c14a7b021d","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.12@sha256:5250629d48eaedfedf2e948785228e8da29eec2a83cbab58ea0751c14a7b021d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.12","digest":"sha256:52c34aca98d2a6833c329f1505912a6949c4fda16618c010c979bd59ea99254f","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.12@sha256:52c34aca98d2a6833c329f1505912a6949c4fda16618c010c979bd59ea99254f"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.15","digest":"sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.15@sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_pull_request","missing_data","missing_tool","noop"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"ad57f6650b3121f759807f406193d8c46da31221e42951a7606b294096ad2541","body_hash":"36c43264d46e63332c574230d71bd895c5bf42173087e8594ffb6b83388e4a25","strict":true,"agent_id":"codex","agent_model":"copilot/gpt-5.6-sol","engine_versions":{"codex":"0.150.1"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.12","digest":"sha256:390051be4ed1847f774fd8980b61d3a3523574c0175d00c3fc7cdf2002a88202","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.12@sha256:390051be4ed1847f774fd8980b61d3a3523574c0175d00c3fc7cdf2002a88202"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.12","digest":"sha256:d7d533d87c80d87ff91ac0e21e9299055c3beedff1536262b97ed700fb065a32","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.12@sha256:d7d533d87c80d87ff91ac0e21e9299055c3beedff1536262b97ed700fb065a32"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.12","digest":"sha256:5250629d48eaedfedf2e948785228e8da29eec2a83cbab58ea0751c14a7b021d","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.12@sha256:5250629d48eaedfedf2e948785228e8da29eec2a83cbab58ea0751c14a7b021d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.12","digest":"sha256:52c34aca98d2a6833c329f1505912a6949c4fda16618c010c979bd59ea99254f","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.12@sha256:52c34aca98d2a6833c329f1505912a6949c4fda16618c010c979bd59ea99254f"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.15","digest":"sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.15@sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"safeoutputs","tools":["create_issue","create_pull_request","missing_data","missing_tool","noop"]}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -62,6 +62,10 @@ on:
       aw_context:
         default: ""
         description: "Agent caller context (used internally by Agentic Workflows)."
+        required: false
+        type: string
+      release-tag:
+        description: Release tag to scan (latest stable when omitted)
         required: false
         type: string
 
@@ -269,7 +273,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_pull_request, missing_tool, missing_data, noop\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue, create_pull_request, missing_tool, missing_data, noop\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_802A9F6A__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_1A3A194A__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_463A214A__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_FF1D34CE__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
@@ -557,7 +561,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{\"allowed_files\":[\"**/*.go\",\"**/*.cjs\",\"**/*.js\",\"go.mod\",\"go.sum\",\"Makefile\",\"scripts/build-release.sh\",\".changeset/**\"],\"draft\":true,\"expires\":168,\"labels\":[\"security\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[windows-defender] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"deduplicate_by_title\":true,\"labels\":[\"security\",\"automation\"],\"max\":1,\"title_prefix\":\"[windows-defender] \"},\"create_pull_request\":{\"allowed_files\":[\"**/*.go\",\"**/*.cjs\",\"**/*.js\",\"go.mod\",\"go.sum\",\"Makefile\",\"scripts/build-release.sh\",\".changeset/**\"],\"draft\":true,\"expires\":168,\"labels\":[\"security\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[windows-defender] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
         with:
           script: |
             const path = require('path');
@@ -571,6 +575,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
+                "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[windows-defender] \". Labels [\"security\" \"automation\"] will be automatically added.",
                 "create_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[windows-defender] \". Labels [\"security\" \"automation\"] will be automatically added. PRs will be created as drafts."
               },
               "repo_params": {},
@@ -578,6 +583,44 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
+              "create_issue": {
+                "defaultMax": 1,
+                "fields": {
+                  "blocked_by": {},
+                  "body": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000,
+                    "minLength": 20
+                  },
+                  "fields": {
+                    "type": "array"
+                  },
+                  "labels": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 128
+                  },
+                  "parent": {
+                    "issueOrPRNumber": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "temporary_id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                }
+              },
               "create_pull_request": {
                 "defaultMax": 1,
                 "fields": {
@@ -1490,16 +1533,24 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Download latest Windows release
+      - name: Download Windows release
         run: |
           $ErrorActionPreference = "Stop"
           $releaseDir = Join-Path $env:RUNNER_TEMP "gh-aw-release"
           $reportDir = Join-Path $env:RUNNER_TEMP "defender-report"
           New-Item -ItemType Directory -Path $releaseDir, $reportDir -Force | Out-Null
+          $downloadStartedAt = [DateTime]::UtcNow
 
-          $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
+          if ($env:REQUESTED_RELEASE_TAG) {
+            if ($env:REQUESTED_RELEASE_TAG -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
+              throw "Requested release tag is invalid"
+            }
+            $releaseJson = gh api "repos/$env:GH_REPO/releases/tags/$env:REQUESTED_RELEASE_TAG"
+          } else {
+            $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
+          }
           if ($LASTEXITCODE -ne 0) {
-            throw "Could not query the latest release for $env:GH_REPO"
+            throw "Could not query the requested release for $env:GH_REPO"
           }
           $release = $releaseJson | ConvertFrom-Json
           $releaseTag = [string]$release.tag_name
@@ -1530,16 +1581,30 @@ jobs:
             }
           }
 
+          gh release download $releaseTag `
+            --repo $env:GH_REPO `
+            --pattern "checksums.txt" `
+            --dir $releaseDir `
+            --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not download checksums.txt for $releaseTag"
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "checksums.txt") -PathType Leaf)) {
+            throw "Downloaded checksum manifest was not found"
+          }
+
           [ordered]@{
             tag = $releaseTag
             url = [string]$release.html_url
             published_at = [string]$release.published_at
+            download_started_at_utc = $downloadStartedAt.ToString("o")
             assets = $assetNames
           } | ConvertTo-Json -Depth 4 |
             Set-Content -Path (Join-Path $reportDir "release.json") -Encoding utf8
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_RELEASE_TAG: ${{ inputs.release-tag }}
         shell: pwsh
       - name: Scan release with Microsoft Defender
         id: scan
@@ -1607,15 +1672,51 @@ jobs:
             $defenderStatus = [pscustomobject]@{ error = $_.Exception.Message }
           }
 
+          $checksumPath = Join-Path $releaseDir "checksums.txt"
+          $expectedHashes = @{}
+          foreach ($line in Get-Content -LiteralPath $checksumPath) {
+            if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$') {
+              $expectedHashes[[IO.Path]::GetFileName($Matches[2])] = $Matches[1].ToUpperInvariant()
+            }
+          }
+          $expectedBinaryNames = @(
+            $expectedHashes.Keys |
+              Where-Object { $_ -match '^windows-(amd64|arm64)\.exe$' } |
+              Sort-Object
+          )
+          if ($expectedBinaryNames.Count -eq 0) {
+            $findings.Add([pscustomobject]@{
+              category = "checksums-invalid"
+              binary = $null
+              detail = "No Windows executable entries were found in checksums.txt"
+            })
+          }
+
+          foreach ($expectedBinaryName in $expectedBinaryNames) {
+            if (-not (Test-Path -LiteralPath (Join-Path $releaseDir $expectedBinaryName) -PathType Leaf)) {
+              $findings.Add([pscustomobject]@{
+                category = "binary-missing"
+                binary = $expectedBinaryName
+                detail = "Published binary was missing before the explicit scan; real-time protection may have removed it"
+              })
+            }
+          }
+
           if ($defenderAvailable -and $signatureUpdate.succeeded) {
             $binaries = @(Get-ChildItem -LiteralPath $releaseDir -Filter "windows-*.exe" -File)
             foreach ($binary in $binaries) {
-              $sourceHash = (Get-FileHash -LiteralPath $binary.FullName -Algorithm SHA256).Hash
+              $sourceHash = (Get-FileHash -LiteralPath $binary.FullName -Algorithm SHA256).Hash.ToUpperInvariant()
+              $expectedHash = $expectedHashes[$binary.Name]
               $scanPath = Join-Path $scanDir $binary.Name
               Copy-Item -LiteralPath $binary.FullName -Destination $scanPath -Force
-              $scanHash = (Get-FileHash -LiteralPath $scanPath -Algorithm SHA256).Hash
+              $scanHash = (Get-FileHash -LiteralPath $scanPath -Algorithm SHA256).Hash.ToUpperInvariant()
 
               $reasons = [System.Collections.Generic.List[string]]::new()
+              if (-not $expectedHash) {
+                $reasons.Add("No published checksum was found for the binary")
+              } elseif ($sourceHash -ne $expectedHash) {
+                $reasons.Add("Downloaded binary hash did not match checksums.txt: expected $expectedHash, got $sourceHash")
+              }
               if ($sourceHash -ne $scanHash) {
                 $reasons.Add("Copied binary hash did not match the downloaded release asset")
               }
@@ -1664,7 +1765,9 @@ jobs:
               $scanResults.Add([pscustomobject]@{
                 binary = $binary.Name
                 size = $binary.Length
+                expected_sha256 = $expectedHash
                 sha256 = $sourceHash
+                checksum_verified = $expectedHash -and $sourceHash -eq $expectedHash
                 exit_code = $scanExitCode
                 log = $logName
                 findings = @($reasons)
@@ -1682,6 +1785,34 @@ jobs:
 
           $release = Get-Content -LiteralPath (Join-Path $reportDir "release.json") -Raw |
             ConvertFrom-Json
+          $detectionWindowStart = [DateTime]::Parse($release.download_started_at_utc).ToUniversalTime()
+          $threatNames = @{}
+          $detections = @()
+          try {
+            Get-MpThreatCatalog | ForEach-Object {
+              $threatNames[[string]$_.ThreatID] = $_.ThreatName
+            }
+            $detections = @(
+              Get-MpThreatDetection |
+                Where-Object {
+                  $_.InitialDetectionTime -and
+                  $_.InitialDetectionTime.ToUniversalTime() -ge $detectionWindowStart -and
+                  (($_.Resources | Out-String) -match 'windows-(amd64|arm64)|defender-scan')
+                } |
+                ForEach-Object {
+                  [pscustomobject]@{
+                    threat_id = $_.ThreatID
+                    threat_name = $threatNames[[string]$_.ThreatID]
+                    initial_detection_time_utc = $_.InitialDetectionTime.ToUniversalTime().ToString("o")
+                    resources = @($_.Resources)
+                    action_success = $_.ActionSuccess
+                    execution_status_id = $_.CurrentThreatExecutionStatusID
+                  }
+                }
+            )
+          } catch {
+            $detections = @([pscustomobject]@{ error = $_.Exception.Message })
+          }
           $report = [ordered]@{
             schema_version = 1
             scanned_at_utc = [DateTime]::UtcNow.ToString("o")
@@ -1691,6 +1822,7 @@ jobs:
             findings_count = $findings.Count
             findings = @($findings)
             scans = @($scanResults)
+            detections = @($detections)
           }
           $report | ConvertTo-Json -Depth 8 |
             Set-Content -Path (Join-Path $reportDir "report.json") -Encoding utf8
@@ -1715,7 +1847,7 @@ jobs:
           ) | Add-Content -Path $env:GITHUB_OUTPUT
         shell: pwsh
       - name: Upload Defender report
-        if: steps.scan.outputs.has_findings == 'true'
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: error
@@ -2091,6 +2223,8 @@ jobs:
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
+      created_issue_number: ${{ steps.process_safe_outputs.outputs.created_issue_number }}
+      created_issue_url: ${{ steps.process_safe_outputs.outputs.created_issue_url }}
       created_pr_number: ${{ steps.process_safe_outputs.outputs.created_pr_number }}
       created_pr_url: ${{ steps.process_safe_outputs.outputs.created_pr_url }}
       process_safe_outputs_items_applied: ${{ steps.process_safe_outputs.outputs.items_applied }}
@@ -2182,7 +2316,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,go.dev,golang.org,goproxy.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,pkg.go.dev,ppa.launchpad.net,proxy.golang.org,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,storage.googleapis.com,sum.golang.org,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request\":{\"allowed_files\":[\"**/*.go\",\"**/*.cjs\",\"**/*.js\",\"go.mod\",\"go.sum\",\"Makefile\",\"scripts/build-release.sh\",\".changeset/**\"],\"draft\":true,\"expires\":168,\"labels\":[\"security\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[windows-defender] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"deduplicate_by_title\":true,\"labels\":[\"security\",\"automation\"],\"max\":1,\"title_prefix\":\"[windows-defender] \"},\"create_pull_request\":{\"allowed_files\":[\"**/*.go\",\"**/*.cjs\",\"**/*.js\",\"go.mod\",\"go.sum\",\"Makefile\",\"scripts/build-release.sh\",\".changeset/**\"],\"draft\":true,\"expires\":168,\"labels\":[\"security\",\"automation\"],\"max\":1,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request_review\",\"title_prefix\":\"[windows-defender] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

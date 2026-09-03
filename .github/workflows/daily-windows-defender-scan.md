@@ -5,6 +5,11 @@ description: Downloads the latest gh-aw Windows release, scans it with Microsoft
 on:
   schedule: daily
   workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag to scan (latest stable when omitted)'
+        required: false
+        type: string
   skip-if-match: 'is:pr is:open label:security in:title "[windows-defender]"'
 permissions:
   actions: read
@@ -33,20 +38,29 @@ jobs:
       findings_count: ${{ steps.scan.outputs.findings_count }}
       has_findings: ${{ steps.scan.outputs.has_findings }}
     steps:
-      - name: Download latest Windows release
+      - name: Download Windows release
         shell: pwsh
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_RELEASE_TAG: ${{ inputs.release-tag }}
         run: |
           $ErrorActionPreference = "Stop"
           $releaseDir = Join-Path $env:RUNNER_TEMP "gh-aw-release"
           $reportDir = Join-Path $env:RUNNER_TEMP "defender-report"
           New-Item -ItemType Directory -Path $releaseDir, $reportDir -Force | Out-Null
+          $downloadStartedAt = [DateTime]::UtcNow
 
-          $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
+          if ($env:REQUESTED_RELEASE_TAG) {
+            if ($env:REQUESTED_RELEASE_TAG -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
+              throw "Requested release tag is invalid"
+            }
+            $releaseJson = gh api "repos/$env:GH_REPO/releases/tags/$env:REQUESTED_RELEASE_TAG"
+          } else {
+            $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
+          }
           if ($LASTEXITCODE -ne 0) {
-            throw "Could not query the latest release for $env:GH_REPO"
+            throw "Could not query the requested release for $env:GH_REPO"
           }
           $release = $releaseJson | ConvertFrom-Json
           $releaseTag = [string]$release.tag_name
@@ -77,10 +91,23 @@ jobs:
             }
           }
 
+          gh release download $releaseTag `
+            --repo $env:GH_REPO `
+            --pattern "checksums.txt" `
+            --dir $releaseDir `
+            --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not download checksums.txt for $releaseTag"
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "checksums.txt") -PathType Leaf)) {
+            throw "Downloaded checksum manifest was not found"
+          }
+
           [ordered]@{
             tag = $releaseTag
             url = [string]$release.html_url
             published_at = [string]$release.published_at
+            download_started_at_utc = $downloadStartedAt.ToString("o")
             assets = $assetNames
           } | ConvertTo-Json -Depth 4 |
             Set-Content -Path (Join-Path $reportDir "release.json") -Encoding utf8
@@ -152,15 +179,51 @@ jobs:
             $defenderStatus = [pscustomobject]@{ error = $_.Exception.Message }
           }
 
+          $checksumPath = Join-Path $releaseDir "checksums.txt"
+          $expectedHashes = @{}
+          foreach ($line in Get-Content -LiteralPath $checksumPath) {
+            if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$') {
+              $expectedHashes[[IO.Path]::GetFileName($Matches[2])] = $Matches[1].ToUpperInvariant()
+            }
+          }
+          $expectedBinaryNames = @(
+            $expectedHashes.Keys |
+              Where-Object { $_ -match '^windows-(amd64|arm64)\.exe$' } |
+              Sort-Object
+          )
+          if ($expectedBinaryNames.Count -eq 0) {
+            $findings.Add([pscustomobject]@{
+              category = "checksums-invalid"
+              binary = $null
+              detail = "No Windows executable entries were found in checksums.txt"
+            })
+          }
+
+          foreach ($expectedBinaryName in $expectedBinaryNames) {
+            if (-not (Test-Path -LiteralPath (Join-Path $releaseDir $expectedBinaryName) -PathType Leaf)) {
+              $findings.Add([pscustomobject]@{
+                category = "binary-missing"
+                binary = $expectedBinaryName
+                detail = "Published binary was missing before the explicit scan; real-time protection may have removed it"
+              })
+            }
+          }
+
           if ($defenderAvailable -and $signatureUpdate.succeeded) {
             $binaries = @(Get-ChildItem -LiteralPath $releaseDir -Filter "windows-*.exe" -File)
             foreach ($binary in $binaries) {
-              $sourceHash = (Get-FileHash -LiteralPath $binary.FullName -Algorithm SHA256).Hash
+              $sourceHash = (Get-FileHash -LiteralPath $binary.FullName -Algorithm SHA256).Hash.ToUpperInvariant()
+              $expectedHash = $expectedHashes[$binary.Name]
               $scanPath = Join-Path $scanDir $binary.Name
               Copy-Item -LiteralPath $binary.FullName -Destination $scanPath -Force
-              $scanHash = (Get-FileHash -LiteralPath $scanPath -Algorithm SHA256).Hash
+              $scanHash = (Get-FileHash -LiteralPath $scanPath -Algorithm SHA256).Hash.ToUpperInvariant()
 
               $reasons = [System.Collections.Generic.List[string]]::new()
+              if (-not $expectedHash) {
+                $reasons.Add("No published checksum was found for the binary")
+              } elseif ($sourceHash -ne $expectedHash) {
+                $reasons.Add("Downloaded binary hash did not match checksums.txt: expected $expectedHash, got $sourceHash")
+              }
               if ($sourceHash -ne $scanHash) {
                 $reasons.Add("Copied binary hash did not match the downloaded release asset")
               }
@@ -209,7 +272,9 @@ jobs:
               $scanResults.Add([pscustomobject]@{
                 binary = $binary.Name
                 size = $binary.Length
+                expected_sha256 = $expectedHash
                 sha256 = $sourceHash
+                checksum_verified = $expectedHash -and $sourceHash -eq $expectedHash
                 exit_code = $scanExitCode
                 log = $logName
                 findings = @($reasons)
@@ -227,6 +292,34 @@ jobs:
 
           $release = Get-Content -LiteralPath (Join-Path $reportDir "release.json") -Raw |
             ConvertFrom-Json
+          $detectionWindowStart = [DateTime]::Parse($release.download_started_at_utc).ToUniversalTime()
+          $threatNames = @{}
+          $detections = @()
+          try {
+            Get-MpThreatCatalog | ForEach-Object {
+              $threatNames[[string]$_.ThreatID] = $_.ThreatName
+            }
+            $detections = @(
+              Get-MpThreatDetection |
+                Where-Object {
+                  $_.InitialDetectionTime -and
+                  $_.InitialDetectionTime.ToUniversalTime() -ge $detectionWindowStart -and
+                  (($_.Resources | Out-String) -match 'windows-(amd64|arm64)|defender-scan')
+                } |
+                ForEach-Object {
+                  [pscustomobject]@{
+                    threat_id = $_.ThreatID
+                    threat_name = $threatNames[[string]$_.ThreatID]
+                    initial_detection_time_utc = $_.InitialDetectionTime.ToUniversalTime().ToString("o")
+                    resources = @($_.Resources)
+                    action_success = $_.ActionSuccess
+                    execution_status_id = $_.CurrentThreatExecutionStatusID
+                  }
+                }
+            )
+          } catch {
+            $detections = @([pscustomobject]@{ error = $_.Exception.Message })
+          }
           $report = [ordered]@{
             schema_version = 1
             scanned_at_utc = [DateTime]::UtcNow.ToString("o")
@@ -236,6 +329,7 @@ jobs:
             findings_count = $findings.Count
             findings = @($findings)
             scans = @($scanResults)
+            detections = @($detections)
           }
           $report | ConvertTo-Json -Depth 8 |
             Set-Content -Path (Join-Path $reportDir "report.json") -Encoding utf8
@@ -260,7 +354,7 @@ jobs:
           ) | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Upload Defender report
-        if: steps.scan.outputs.has_findings == 'true'
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: defender-report-${{ github.run_id }}
@@ -293,6 +387,10 @@ tools:
   bash: ["*"]
   edit:
 safe-outputs:
+  create-issue:
+    title-prefix: "[windows-defender] "
+    labels: [security, automation]
+    deduplicate-by-title: true
   create-pull-request:
     title-prefix: "[windows-defender] "
     labels: [security, automation]
@@ -334,14 +432,22 @@ copied from the report.
 
 1. Read the structured report and the referenced logs. Identify whether the finding is:
    - an actionable detection tied to the released binary,
+  - a checksum-valid, release-specific classification suitable for a Microsoft false-positive submission,
    - a transient Microsoft Defender or runner failure, or
    - insufficient evidence for a source change.
-2. For an actionable detection, inspect the repository source and release build path to find the smallest
-   root-cause fix. Review recent related changes and existing pull requests before editing.
-3. Never weaken the Defender scan, disable security features, add exclusions, suppress detections, or
+2. If a published checksum is valid and Defender identifies the binary, create one deduplicated tracking
+  issue. Include the release and asset names, expected and actual SHA-256, Defender product/engine/signature
+  versions, detection name and ID when available, scan timestamps and exit code, and a link to Microsoft's
+  malware-analysis submission portal. Do not propose changing source solely to evade a Defender signature.
+3. Only when evidence identifies an actionable source or release-build defect, inspect the repository source
+  and release build path to find the smallest root-cause fix. Review recent related issues and pull requests
+  before editing.
+4. Never weaken the Defender scan, disable security features, add exclusions, suppress detections, or
    obfuscate the binary to evade scanning.
-4. Make only evidence-backed changes within the configured file allowlist. Add or update focused tests when
+5. Make only evidence-backed changes within the configured file allowlist. Add or update focused tests when
    appropriate, then run the narrowest relevant formatting, build, and test commands.
-5. Create one draft pull request that explains the Defender evidence, root cause, fix, and validation.
-6. If the evidence is transient, unactionable, already fixed, or cannot justify a safe source change, call
+6. For an evidence-backed source or release-build defect, create one draft pull request that explains the
+  Defender evidence, root cause, fix, and validation.
+7. If the evidence is transient, unactionable, already tracked, or cannot justify either a tracking issue or
+  a safe source change, call
    `noop` with a concise reason and do not create a pull request.
