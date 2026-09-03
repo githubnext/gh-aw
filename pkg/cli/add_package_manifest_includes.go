@@ -51,6 +51,14 @@ func extractManifestIncludes(value any, manifestPath string) ([]repositoryPackag
 	var warnings []string
 	appendRawEntry := func(item any) error {
 		if include, ok := stringValue(item); ok {
+			include = strings.TrimSpace(include)
+			if path.Base(filepath.ToSlash(include)) == repositoryPackageManifestFileName {
+				cleaned, err := cleanManifestImportPath(include)
+				if err != nil {
+					return fmt.Errorf("invalid Agentic Workflow manifest %q: include %q is invalid: %w", manifestPath, include, err)
+				}
+				include = cleaned
+			}
 			rawIncludes = append(rawIncludes, repositoryPackageInclude{Source: include})
 			return nil
 		}
@@ -83,7 +91,7 @@ func extractManifestIncludes(value any, manifestPath string) ([]repositoryPackag
 	normalized := make([]repositoryPackageInclude, 0, len(rawIncludes))
 	seen := make(map[repositoryPackageInclude]struct{})
 	for _, include := range rawIncludes {
-		if !include.isMapping() && !isSupportedManifestIncludePath(include.Source) {
+		if !include.isMapping() && !isSupportedManifestIncludePath(include.Source) && !isManifestImportPath(include.Source) {
 			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, agentic-workflows/, .github/workflows/), skill directories (skills/, .github/skills/), agent markdown files (agents/, .github/agents/), or a source/destination mapping", include.Source, manifestPath))
 			continue
 		}
