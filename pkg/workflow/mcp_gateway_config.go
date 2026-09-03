@@ -208,7 +208,11 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		OTLPHeaders:  workflowData.OTLPHeaders,
 	}
 	if enclaveGitHubIssuesEnabled(workflowData) {
-		primaryServers := collectMCPTools(workflowData)
+		manifestServers := collectMCPServersForManifest(workflowData)
+		primaryServers := make([]string, 0, len(manifestServers))
+		for _, server := range manifestServers {
+			primaryServers = append(primaryServers, server.Name)
+		}
 		primaryGitHubEnabled := false
 		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub && githubTool != false {
 			primaryGitHubEnabled = !isGitHubCLIModeEnabled(workflowData)

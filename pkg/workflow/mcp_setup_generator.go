@@ -164,6 +164,10 @@ func toolsWithEnclaveGitHubIssues(tools map[string]any, workflowData *WorkflowDa
 		if !slices.Contains(toolsets, "issues") {
 			githubConfig["toolsets"] = append(toolsets, "issues")
 		}
+	} else if toolsets, ok := githubConfig["toolsets"].([]string); ok {
+		if !slices.Contains(toolsets, "issues") {
+			githubConfig["toolsets"] = append(toolsets, "issues")
+		}
 	} else if toolsets, ok := githubConfig["toolsets"].(string); ok {
 		if !slices.Contains(strings.Split(toolsets, ","), "issues") {
 			githubConfig["toolsets"] = toolsets + ",issues"
