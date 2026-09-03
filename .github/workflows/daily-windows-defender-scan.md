@@ -34,9 +34,9 @@ jobs:
     permissions:
       contents: read
     outputs:
-      artifact_name: ${{ steps.scan.outputs.artifact_name }}
-      findings_count: ${{ steps.scan.outputs.findings_count }}
-      has_findings: ${{ steps.scan.outputs.has_findings }}
+      artifact_name: ${{ steps.finalize.outputs.artifact_name }}
+      findings_count: ${{ steps.finalize.outputs.findings_count }}
+      has_findings: ${{ steps.finalize.outputs.has_findings }}
     steps:
       - name: Download Windows release
         shell: pwsh
@@ -390,6 +390,68 @@ jobs:
             "artifact_name=defender-report-$env:GITHUB_RUN_ID"
             "findings_count=$($findings.Count)"
             "has_findings=$hasFindings"
+          ) | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Finalize Defender report
+        id: finalize
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $reportDir = Join-Path $env:RUNNER_TEMP "defender-report"
+          New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+          $reportPath = Join-Path $reportDir "report.json"
+          $scanError = if ($env:SCAN_OUTCOME -eq "failure") {
+            "The Defender scan step failed before it could complete"
+          } else {
+            $null
+          }
+
+          if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
+            $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+            if ($scanError) {
+              $report.findings = @($report.findings) + @([pscustomobject]@{
+                category = "scan-step-failed"
+                binary = $null
+                detail = $scanError
+              })
+              $report.findings_count = @($report.findings).Count
+              $report | ConvertTo-Json -Depth 8 | Set-Content -Path $reportPath -Encoding utf8
+            }
+          } else {
+            $releasePath = Join-Path $reportDir "release.json"
+            $release = if (Test-Path -LiteralPath $releasePath -PathType Leaf) {
+              Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+            } else {
+              $null
+            }
+            $findings = @([pscustomobject]@{
+              category = "scan-step-failed"
+              binary = $null
+              detail = if ($scanError) { $scanError } else { "No Defender report was produced" }
+            })
+            [ordered]@{
+              schema_version = 1
+              scanned_at_utc = [DateTime]::UtcNow.ToString("o")
+              release = $release
+              defender = $null
+              signature_update = $null
+              findings_count = $findings.Count
+              findings = $findings
+              scans = @()
+              detections = @()
+            } | ConvertTo-Json -Depth 8 | Set-Content -Path $reportPath -Encoding utf8
+          }
+
+          $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+          $findingsCount = [int]$report.findings_count
+          @(
+            "artifact_name=defender-report-$env:GITHUB_RUN_ID"
+            "findings_count=$findingsCount"
+            "has_findings=$(if ($findingsCount -gt 0) { "true" } else { "false" })"
           ) | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Upload Defender report
