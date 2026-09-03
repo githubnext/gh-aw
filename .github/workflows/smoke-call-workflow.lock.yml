@@ -674,6 +674,23 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
+              "call_workflow": {
+                "defaultMax": 1,
+                "fields": {
+                  "inputs": {
+                    "type": "object"
+                  },
+                  "workflow_name": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "pattern": ".*\\S.*",
+                    "patternError": "must not be empty"
+                  }
+                }
+              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
