@@ -71,15 +71,19 @@ func TestJiraCredentialsAreAddedOnlyToProcessorStep(t *testing.T) {
 			"OTHER":         "value",
 		},
 	}
-	steps := []string{
+	steps := make([]string, 3, 8)
+	copy(steps, []string{
 		"      - name: Process Safe Outputs\n",
 		"        env:\n",
-	}
+		"        with:\n",
+	})
 
-	rendered := strings.Join(injectJiraCredentialsIntoProcessorStep(steps, config), "")
+	injectedSteps := injectJiraCredentialsIntoProcessorStep(steps, config)
+	rendered := strings.Join(injectedSteps, "")
 	assert.Contains(t, rendered, "JIRA_BASE_URL: https://example.atlassian.net")
 	assert.Contains(t, rendered, "JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}")
 	assert.Contains(t, rendered, "JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}")
+	assert.Equal(t, "        with:\n", injectedSteps[len(injectedSteps)-1])
 
 	customSteps := []string{}
 	NewCompiler().addCustomSafeOutputEnvVars(&customSteps, &WorkflowData{SafeOutputs: config})

@@ -241,7 +241,8 @@ func injectProcessorStepEnv(steps []string, env map[string]string) []string {
 			for _, name := range sliceutil.SortedKeys(env) {
 				inserted = append(inserted, fmt.Sprintf("          %s: %s\n", name, env[name]))
 			}
-			return append(steps[:index+1], append(inserted, steps[index+1:]...)...)
+			tail := append([]string(nil), steps[index+1:]...)
+			return append(append(steps[:index+1], inserted...), tail...)
 		}
 	}
 	return steps
