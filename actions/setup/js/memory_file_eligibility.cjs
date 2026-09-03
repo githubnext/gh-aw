@@ -118,4 +118,18 @@ function filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilte
   return { kept, removed };
 }
 
-module.exports = { compileFileGlobPatterns, isMemoryFileEligible, filterIneligibleMemoryFiles };
+/**
+ * Entry point used by the compiler's "Filter memory files" step (via
+ * generateGitHubScriptWithRequire). Reads MEMORY_DIR, ALLOWED_EXTENSIONS
+ * (JSON array), and FILE_GLOB_FILTER from the environment and filters the
+ * memory directory in place, relying on the `core` global set up by
+ * setup_globals.cjs.
+ */
+function main() {
+  const memoryDir = process.env.MEMORY_DIR || "";
+  const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || "[]");
+  const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+  filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilter, core);
+}
+
+module.exports = { compileFileGlobPatterns, isMemoryFileEligible, filterIneligibleMemoryFiles, main };

@@ -354,96 +354,105 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 	builder.WriteString("      # Upload repo memory as artifacts for push job\n")
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
-		// Determine the memory directory
 		memoryDir := constants.TmpRepoMemoryDir + memory.ID
-
-		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
-
-		// Determine the label for step names
 		memoryLabel := "repo-memory"
 		if memory.Wiki {
 			memoryLabel = "wiki-memory"
 		}
 
-		// Step: Sanitize filenames before upload to prevent artifact upload failures.
-		// GitHub Actions artifacts are stored on NTFS-compatible filesystems, so filenames
-		// must not contain: ? : * | < > " (among other characters).
-		// The agent may create files with these characters (e.g. "Can-we-have-a-PR?.md"),
-		// which causes the upload-artifact action to fail with a hard error.
-		// The script uses git commands (git mv for tracked files, mv for untracked) since
-		// repo-memory is backed by a git working tree.
-		fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
-		builder.WriteString("        if: always()\n")
-		builder.WriteString("        continue-on-error: true\n")
-		builder.WriteString("        env:\n")
-		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
-		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
-
-		// Step: Filter out files that are ineligible for persistence (disallowed
-		// extensions or non-matching file-glob patterns) before validation and
-		// upload. Allowed-extensions and file-glob are persistence filters: ineligible
-		// files are logged and removed here so that custom validation, the uploaded
-		// artifact, and the downstream push all see the same effective file set.
-		if len(memory.AllowedExtensions) > 0 || len(memory.FileGlob) > 0 {
-			allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
-			fmt.Fprintf(builder, "      - name: Filter %s files (%s)\n", memoryLabel, memory.ID)
-			builder.WriteString("        if: always()\n")
-			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
-			builder.WriteString("        env:\n")
-			fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
-			fmt.Fprintf(builder, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
-			if len(memory.FileGlob) > 0 {
-				fmt.Fprintf(builder, "          FILE_GLOB_FILTER: \"%s\"\n", strings.Join(memory.FileGlob, " "))
-			}
-			builder.WriteString("        with:\n")
-			builder.WriteString("          script: |\n")
-			builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-			builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-			builder.WriteString("            const { filterIneligibleMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/memory_file_eligibility.cjs');\n")
-			builder.WriteString("            const memoryDir = process.env.MEMORY_DIR || '';\n")
-			builder.WriteString("            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');\n")
-			builder.WriteString("            const fileGlobFilter = process.env.FILE_GLOB_FILTER || '';\n")
-			builder.WriteString("            filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilter, core);\n")
-		}
-
-		validationStepID := repoMemoryValidationStepID(memory.ID)
-		if memory.Validation != nil {
-			fmt.Fprintf(builder, "      - name: Validate %s domain content (%s)\n", memoryLabel, memory.ID)
-			fmt.Fprintf(builder, "        id: %s\n", validationStepID)
-			builder.WriteString("        if: always()\n")
-			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
-			builder.WriteString("        env:\n")
-			fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
-			fmt.Fprintf(builder, "          MEMORY_ID: %s\n", memory.ID)
-			fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
-			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
-			if memory.FormatJSON {
-				builder.WriteString("          FORMAT_JSON: 'true'\n")
-			}
-
-			builder.WriteString("        with:\n")
-			builder.WriteString("          script: |\n")
-			builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-			builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-			builder.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
-			builder.WriteString("            validateMemoryStep(core, { kind: 'repo', formatJSON: process.env.FORMAT_JSON === 'true', requireValidationScript: true });\n")
-		}
-
-		// Step: Upload repo-memory directory as artifact
-		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
-		if memory.Validation != nil {
-			fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", validationStepID)
-		} else {
-			builder.WriteString("        if: always()\n")
-		}
-		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
-		builder.WriteString("        with:\n")
-		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
-		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
-		builder.WriteString("          retention-days: 1\n")
-		builder.WriteString("          if-no-files-found: ignore\n")
+		generateRepoMemorySanitizeFilenamesStep(builder, memory, memoryDir, memoryLabel)
+		generateRepoMemoryFilterFilesStep(builder, memory, memoryDir, memoryLabel)
+		validationStepID := generateRepoMemoryCustomValidationStep(builder, memory, memoryDir, memoryLabel)
+		generateRepoMemoryUploadArtifactStep(builder, memory, memoryDir, memoryLabel, sanitizedID, prefix, validationStepID, pinAction)
 	}
+}
+
+// generateRepoMemorySanitizeFilenamesStep emits the step that renames files with characters
+// unsafe for artifact upload before validation and upload.
+// GitHub Actions artifacts are stored on NTFS-compatible filesystems, so filenames
+// must not contain: ? : * | < > " (among other characters).
+// The agent may create files with these characters (e.g. "Can-we-have-a-PR?.md"),
+// which causes the upload-artifact action to fail with a hard error.
+// The script uses git commands (git mv for tracked files, mv for untracked) since
+// repo-memory is backed by a git working tree.
+func generateRepoMemorySanitizeFilenamesStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) {
+	fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
+	builder.WriteString("        if: always()\n")
+	builder.WriteString("        continue-on-error: true\n")
+	builder.WriteString("        env:\n")
+	fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
+}
+
+// generateRepoMemoryFilterFilesStep emits the step that filters out files ineligible for
+// persistence (disallowed extensions or non-matching file-glob patterns) before validation
+// and upload. Allowed-extensions and file-glob are persistence filters: ineligible files
+// are logged and removed here so that custom validation, the uploaded artifact, and the
+// downstream push all see the same effective file set.
+func generateRepoMemoryFilterFilesStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) {
+	if len(memory.AllowedExtensions) == 0 && len(memory.FileGlob) == 0 {
+		return
+	}
+	allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
+	fmt.Fprintf(builder, "      - name: Filter %s files (%s)\n", memoryLabel, memory.ID)
+	builder.WriteString("        if: always()\n")
+	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
+	builder.WriteString("        env:\n")
+	fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+	fmt.Fprintf(builder, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+	if len(memory.FileGlob) > 0 {
+		fmt.Fprintf(builder, "          FILE_GLOB_FILTER: \"%s\"\n", strings.Join(memory.FileGlob, " "))
+	}
+	builder.WriteString("        with:\n")
+	builder.WriteString("          script: |\n")
+	builder.WriteString(generateGitHubScriptWithRequire("memory_file_eligibility.cjs"))
+}
+
+// generateRepoMemoryCustomValidationStep emits the optional custom-validation step and
+// returns its step ID (used to gate the subsequent upload step), or "" when no custom
+// validation is configured for this memory.
+func generateRepoMemoryCustomValidationStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) string {
+	if memory.Validation == nil {
+		return ""
+	}
+	validationStepID := repoMemoryValidationStepID(memory.ID)
+	fmt.Fprintf(builder, "      - name: Validate %s domain content (%s)\n", memoryLabel, memory.ID)
+	fmt.Fprintf(builder, "        id: %s\n", validationStepID)
+	builder.WriteString("        if: always()\n")
+	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
+	builder.WriteString("        env:\n")
+	fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+	fmt.Fprintf(builder, "          MEMORY_ID: %s\n", memory.ID)
+	fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
+	fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
+	if memory.FormatJSON {
+		builder.WriteString("          FORMAT_JSON: 'true'\n")
+	}
+	builder.WriteString("        with:\n")
+	builder.WriteString("          script: |\n")
+	builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+	builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	builder.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
+	builder.WriteString("            validateMemoryStep(core, { kind: 'repo', formatJSON: process.env.FORMAT_JSON === 'true', requireValidationScript: true });\n")
+	return validationStepID
+}
+
+// generateRepoMemoryUploadArtifactStep emits the step that uploads the repo-memory
+// directory as an artifact, gated on the custom-validation step's outcome when configured.
+func generateRepoMemoryUploadArtifactStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel, sanitizedID, prefix, validationStepID string, pinAction func(string) string) {
+	fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
+	if validationStepID != "" {
+		fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", validationStepID)
+	} else {
+		builder.WriteString("        if: always()\n")
+	}
+	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
+	builder.WriteString("        with:\n")
+	fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
+	fmt.Fprintf(builder, "          path: %s\n", memoryDir)
+	builder.WriteString("          retention-days: 1\n")
+	builder.WriteString("          if-no-files-found: ignore\n")
 }
 
 func repoMemoryValidationStepID(memoryID string) string {

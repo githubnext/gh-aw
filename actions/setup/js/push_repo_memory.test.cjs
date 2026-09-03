@@ -1617,7 +1617,7 @@ describe("push_repo_memory.cjs - allowed-extensions persistence filter (regressi
     // Allowed-extensions and file-glob must both be applied as persistence filters
     // via the shared eligibility helper, before size/count/patch/custom validation.
     expect(scriptContent).toContain("isMemoryFileEligible(relativeFilePath, allowedExtensions, compiledPatterns)");
-    expect(scriptContent).toContain("require(\"./memory_file_eligibility.cjs\")");
+    expect(scriptContent).toContain('require("./memory_file_eligibility.cjs")');
 
     // The old behavior — validating the whole source directory after scanning and
     // hard-failing the job (e.g. for a leftover "notes.json.new" file) — must be gone.
@@ -1635,7 +1635,6 @@ describe("push_repo_memory.cjs - allowed-extensions persistence filter (regressi
     expect(scriptContent).toContain("No eligible files to copy from artifact");
   });
 });
-
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Signed-commit push tests

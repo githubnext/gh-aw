@@ -1228,11 +1228,8 @@ jobs:
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { filterIneligibleMemoryFiles } = require(path.join(actionsDir, 'memory_file_eligibility.cjs'));
-            const memoryDir = process.env.MEMORY_DIR || '';
-            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
-            const fileGlobFilter = process.env.FILE_GLOB_FILTER || '';
-            filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilter, core);
+            const { main } = require(path.join(actionsDir, 'memory_file_eligibility.cjs'));
+            await main();
       - name: Upload repo-memory artifact (default)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
