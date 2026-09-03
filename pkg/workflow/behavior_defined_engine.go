@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path"
 	"slices"
 	"strings"
 	"sync"
@@ -177,6 +178,7 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 	})
 }
 
+//nolint:largefunc // Existing installation steps assembly is kept in generated order.
 func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	behavior := e.behavior()
 	if behavior == nil {
@@ -542,7 +544,7 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedEngineCommand(exec *EngineEx
 		if len(exec.Args) > 0 {
 			harnessArgs = append(harnessArgs, shellJoinArgs(exec.Args))
 		}
-		harnessPath := SetupActionDestinationShell + "/" + e.harnessScriptFilename()
+		harnessPath := path.Join(SetupActionDestinationShell, e.harnessScriptFilename())
 		return fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessArgs, " "))
 	}
 
@@ -601,6 +603,7 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 	applySafeOutputEnvToMap(env, workflowData)
+	applyDefaultMaxAICreditsEnvToMap(env, workflowData)
 	applyTraceContextEnvToMap(env)
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
@@ -635,7 +638,7 @@ func (e *BehaviorDefinedEngine) applyBehaviorDefinedModelEnv(exec *EngineExecuti
 	modelVal := workflowData.Model
 	if exec.ModelEnvProviderPrefix != "" {
 		if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
-			modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
+			modelVal = path.Join(exec.ModelEnvProviderPrefix, parts[1])
 		}
 	}
 	env[exec.ModelEnvVarName] = modelVal
@@ -947,6 +950,8 @@ func deepCopyEngineDefinition(src EngineDefinition) EngineDefinition {
 }
 
 // deepCopyEngineBehaviorDefinition returns a fully independent copy of src.
+//
+//nolint:largefunc // Deep copy initializes all fields explicitly.
 func deepCopyEngineBehaviorDefinition(src EngineBehaviorDefinition) EngineBehaviorDefinition {
 	dst := src // value copy covers all scalar fields
 
