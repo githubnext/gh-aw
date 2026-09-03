@@ -29,6 +29,7 @@ type repositoryPackageManifest struct {
 	License         string
 	Private         bool
 	Experimental    bool
+	Imports         []string
 	Includes        []repositoryPackageInclude
 	Files           []string
 	Resources       []repositoryPackageResource
@@ -122,17 +123,9 @@ func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManife
 
 func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
 	warnings := populateRepositoryPackageManifestDescription(manifest, root, manifestPath)
-	if emoji, ok := stringValue(root["emoji"]); ok {
-		manifest.Emoji = emoji
-	}
-	if license, ok := stringValue(root["license"]); ok {
-		manifest.License = license
-	}
-	if private, ok := root["private"].(bool); ok {
-		manifest.Private = private
-	}
-	if experimental, ok := root["experimental"].(bool); ok {
-		manifest.Experimental = experimental
+	populateRepositoryPackageManifestBasicMetadata(manifest, root)
+	if err := populateRepositoryPackageManifestImports(manifest, root, manifestPath); err != nil {
+		return nil, err
 	}
 	if includesValue, ok := root["includes"]; ok {
 		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
@@ -161,6 +154,25 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 	if err := extractRepositoryPackageManifestIcon(manifest, root, manifestPath); err != nil {
 		return nil, err
 	}
+	return populateRepositoryPackageManifestExtensions(manifest, root, manifestPath, warnings)
+}
+
+func populateRepositoryPackageManifestBasicMetadata(manifest *repositoryPackageManifest, root map[string]any) {
+	if emoji, ok := stringValue(root["emoji"]); ok {
+		manifest.Emoji = emoji
+	}
+	if license, ok := stringValue(root["license"]); ok {
+		manifest.License = license
+	}
+	if private, ok := root["private"].(bool); ok {
+		manifest.Private = private
+	}
+	if experimental, ok := root["experimental"].(bool); ok {
+		manifest.Experimental = experimental
+	}
+}
+
+func populateRepositoryPackageManifestExtensions(manifest *repositoryPackageManifest, root map[string]any, manifestPath string, warnings []string) ([]string, error) {
 	if skillsValue, ok := root["skills"]; ok {
 		skills, skillWarnings := extractManifestSkillDirs(skillsValue, manifestPath)
 		manifest.Skills = skills
@@ -180,6 +192,19 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 		manifest.Bootstrap = bootstrap
 	}
 	return warnings, nil
+}
+
+func populateRepositoryPackageManifestImports(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
+	importsValue, ok := root["imports"]
+	if !ok {
+		return nil
+	}
+	imports, err := extractManifestImports(importsValue, manifestPath)
+	if err != nil {
+		return err
+	}
+	manifest.Imports = imports
+	return nil
 }
 
 func extractRepositoryPackageManifestIcon(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
