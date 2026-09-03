@@ -20,6 +20,10 @@
     "emoji": {
       "type": "string"
     },
+    "icon": {
+      "type": "string",
+      "description": "Optional icon for the package: an emoji, a GitHub primer octicon in :name: format (e.g. :check-circle:), or a package resource path to an SVG file."
+    },
     "description": {
       "type": "string"
     },

@@ -29,6 +29,7 @@ The package root is the folder that contains `aw.yml`.
 | `min-version` | string | No | Minimum compatible `gh aw` version in `vMAJOR.minor.patch` form, such as `v0.38.0`. |
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
+| `icon` | string | No | Optional package icon: an emoji, a GitHub primer octicon name in `:name:` format (e.g. `:check-circle:`), or a package resource path to an SVG file. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `private` | boolean | No | Marks the package as unavailable for installation. Defaults to `false`; `gh aw add` refuses packages set to `true`. |
 | `experimental` | boolean | No | Marks the package as experimental. Defaults to `false`; `gh aw add` displays a warning when set to `true`. |

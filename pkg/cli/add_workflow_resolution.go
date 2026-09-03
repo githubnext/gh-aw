@@ -521,6 +521,7 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 		ManifestPath:       manifestPath,
 		Name:               manifest.Name,
 		Emoji:              manifest.Emoji,
+		Icon:               manifest.Icon,
 		Description:        manifest.Description,
 		License:            manifest.License,
 		DocsPath:           filepath.Join(packageDir, "README.md"),

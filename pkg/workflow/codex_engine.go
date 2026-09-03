@@ -481,6 +481,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		env["GH_AW_VERSION"] = "dev"
 	}
 	applySafeOutputEnvToMap(env, workflowData)
+	applyDefaultMaxAICreditsEnvToMap(env, workflowData)
 	applyTraceContextEnvToMap(env)
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
