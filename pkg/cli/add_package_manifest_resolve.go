@@ -236,6 +236,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 		ResolvedRef:        ref,
 		Name:               manifest.Name,
 		Emoji:              manifest.Emoji,
+		Icon:               manifest.Icon,
 		Description:        manifest.Description,
 		License:            manifest.License,
 		Private:            manifest.Private,
