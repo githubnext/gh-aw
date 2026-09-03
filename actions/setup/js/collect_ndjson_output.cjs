@@ -54,7 +54,7 @@ async function main() {
       if (value === undefined || value === null) {
         return {
           isValid: true,
-          normalizedValue: inputSchema.default || undefined,
+          normalizedValue: inputSchema.default ?? undefined,
         };
       }
       const inputType = inputSchema.type || "string";
