@@ -305,6 +305,18 @@ describe("collect_ndjson_output.cjs", () => {
       (expect(parsedOutput.errors).toHaveLength(0), expect(parsedOutput.items).toEqual([{ type: "post_to_slack", text: slackText }]));
       expect(parsedOutput.items[0]).not.toHaveProperty("channel");
     }),
+    it("should preserve zero-valued defaults in custom safe-job inputs", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      fs.writeFileSync(testFile, JSON.stringify({ type: "process_batch" }));
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", JSON.stringify({ process_batch: { inputs: { count: { type: "number", default: 0 } } } }));
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.errors).toHaveLength(0);
+      expect(parsedOutput.items).toEqual([{ type: "process_batch", count: 0 }]);
+    }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "unexpected-type", "data": "some data"}';
