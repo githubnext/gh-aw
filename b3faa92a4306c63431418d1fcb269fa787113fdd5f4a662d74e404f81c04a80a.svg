@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Helvetica, Arial, sans-serif"><rect width="900" height="520" fill="white"/><text x="450.0" y="34" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">Usefulness Rating by Toolset (Latest Day)</text>
+<line x1="90" y1="60" x2="90" y2="400" stroke="#888"/>
+<line x1="90" y1="400" x2="870" y2="400" stroke="#888"/>
+<line x1="90" y1="400.0" x2="870" y2="400.0" stroke="#eee"/>
+<text x="80" y="404.0" font-size="12" text-anchor="end" fill="#555">0.0</text>
+<line x1="90" y1="315.0" x2="870" y2="315.0" stroke="#eee"/>
+<text x="80" y="319.0" font-size="12" text-anchor="end" fill="#555">1.4</text>
+<line x1="90" y1="230.0" x2="870" y2="230.0" stroke="#eee"/>
+<text x="80" y="234.0" font-size="12" text-anchor="end" fill="#555">2.8</text>
+<line x1="90" y1="145.0" x2="870" y2="145.0" stroke="#eee"/>
+<text x="80" y="149.0" font-size="12" text-anchor="end" fill="#555">4.1</text>
+<line x1="90" y1="60.0" x2="870" y2="60.0" stroke="#eee"/>
+<text x="80" y="64.0" font-size="12" text-anchor="end" fill="#555">5.5</text>
+<line x1="90" y1="152.7" x2="870" y2="152.7" stroke="#2ECC71" stroke-dasharray="6,4"/>
+<line x1="90" y1="214.5" x2="870" y2="214.5" stroke="#F39C12" stroke-dasharray="6,4"/>
+<rect x="105.6" y="90.9" width="46.8" height="309.1" fill="#2ECC71" rx="3"/>
+<text x="129.0" y="84.9" font-size="12" text-anchor="middle" fill="#222">5</text>
+<text x="129.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 129.0 416.0)">workflow_context</text>
+<rect x="183.6" y="90.9" width="46.8" height="309.1" fill="#2ECC71" rx="3"/>
+<text x="207.0" y="84.9" font-size="12" text-anchor="middle" fill="#222">5</text>
+<text x="207.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 207.0 416.0)">actions</text>
+<rect x="261.6" y="152.7" width="46.8" height="247.3" fill="#2ECC71" rx="3"/>
+<text x="285.0" y="146.7" font-size="12" text-anchor="middle" fill="#222">4</text>
+<text x="285.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 285.0 416.0)">pull_requests</text>
+<rect x="339.6" y="152.7" width="46.8" height="247.3" fill="#2ECC71" rx="3"/>
+<text x="363.0" y="146.7" font-size="12" text-anchor="middle" fill="#222">4</text>
+<text x="363.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 363.0 416.0)">code_security</text>
+<rect x="417.6" y="152.7" width="46.8" height="247.3" fill="#2ECC71" rx="3"/>
+<text x="441.0" y="146.7" font-size="12" text-anchor="middle" fill="#222">4</text>
+<text x="441.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 441.0 416.0)">search</text>
+<rect x="495.6" y="214.5" width="46.8" height="185.5" fill="#F39C12" rx="3"/>
+<text x="519.0" y="208.5" font-size="12" text-anchor="middle" fill="#222">3</text>
+<text x="519.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 519.0 416.0)">repos</text>
+<rect x="573.6" y="214.5" width="46.8" height="185.5" fill="#F39C12" rx="3"/>
+<text x="597.0" y="208.5" font-size="12" text-anchor="middle" fill="#222">3</text>
+<text x="597.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 597.0 416.0)">discussions</text>
+<rect x="651.6" y="214.5" width="46.8" height="185.5" fill="#F39C12" rx="3"/>
+<text x="675.0" y="208.5" font-size="12" text-anchor="middle" fill="#222">3</text>
+<text x="675.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 675.0 416.0)">labels</text>
+<rect x="729.6" y="214.5" width="46.8" height="185.5" fill="#F39C12" rx="3"/>
+<text x="753.0" y="208.5" font-size="12" text-anchor="middle" fill="#222">3</text>
+<text x="753.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 753.0 416.0)">users</text>
+<rect x="807.6" y="276.4" width="46.8" height="123.6" fill="#E74C3C" rx="3"/>
+<text x="831.0" y="270.4" font-size="12" text-anchor="middle" fill="#222">2</text>
+<text x="831.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 831.0 416.0)">issues</text>
+<text x="20" y="230.0" font-size="13" fill="#333" transform="rotate(-90 20 230.0)" text-anchor="middle">Rating (1-5)</text>
+</svg>

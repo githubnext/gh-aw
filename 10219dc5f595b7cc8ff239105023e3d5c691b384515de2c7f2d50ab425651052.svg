@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="Helvetica, Arial, sans-serif"><rect width="900" height="520" fill="white"/><text x="450.0" y="34" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">Average Response Size by Toolset (30-day)</text>
+<line x1="90" y1="60" x2="90" y2="400" stroke="#888"/>
+<line x1="90" y1="400" x2="870" y2="400" stroke="#888"/>
+<line x1="90" y1="400.0" x2="870" y2="400.0" stroke="#eee"/>
+<text x="80" y="404.0" font-size="12" text-anchor="end" fill="#555">0.0</text>
+<line x1="90" y1="315.0" x2="870" y2="315.0" stroke="#eee"/>
+<text x="80" y="319.0" font-size="12" text-anchor="end" fill="#555">531.5</text>
+<line x1="90" y1="230.0" x2="870" y2="230.0" stroke="#eee"/>
+<text x="80" y="234.0" font-size="12" text-anchor="end" fill="#555">1062.9</text>
+<line x1="90" y1="145.0" x2="870" y2="145.0" stroke="#eee"/>
+<text x="80" y="149.0" font-size="12" text-anchor="end" fill="#555">1594.4</text>
+<line x1="90" y1="60.0" x2="870" y2="60.0" stroke="#eee"/>
+<text x="80" y="64.0" font-size="12" text-anchor="end" fill="#555">2125.9</text>
+<rect x="105.6" y="104.3" width="46.8" height="295.7" fill="#FF6B6B" rx="3"/>
+<text x="129.0" y="98.3" font-size="12" text-anchor="middle" fill="#222">1849</text>
+<text x="129.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 129.0 416.0)">repos</text>
+<rect x="183.6" y="185.5" width="46.8" height="214.5" fill="#4ECDC4" rx="3"/>
+<text x="207.0" y="179.5" font-size="12" text-anchor="middle" fill="#222">1341</text>
+<text x="207.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 207.0 416.0)">code_security</text>
+<rect x="261.6" y="268.6" width="46.8" height="131.4" fill="#45B7D1" rx="3"/>
+<text x="285.0" y="262.6" font-size="12" text-anchor="middle" fill="#222">821</text>
+<text x="285.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 285.0 416.0)">labels</text>
+<rect x="339.6" y="292.2" width="46.8" height="107.8" fill="#FFA07A" rx="3"/>
+<text x="363.0" y="286.2" font-size="12" text-anchor="middle" fill="#222">674</text>
+<text x="363.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 363.0 416.0)">discussions</text>
+<rect x="417.6" y="304.7" width="46.8" height="95.3" fill="#98D8C8" rx="3"/>
+<text x="441.0" y="298.7" font-size="12" text-anchor="middle" fill="#222">596</text>
+<text x="441.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 441.0 416.0)">users</text>
+<rect x="495.6" y="309.9" width="46.8" height="90.1" fill="#DDA0DD" rx="3"/>
+<text x="519.0" y="303.9" font-size="12" text-anchor="middle" fill="#222">564</text>
+<text x="519.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 519.0 416.0)">search</text>
+<rect x="573.6" y="372.9" width="46.8" height="27.1" fill="#F0E68C" rx="3"/>
+<text x="597.0" y="366.9" font-size="12" text-anchor="middle" fill="#222">170</text>
+<text x="597.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 597.0 416.0)">actions</text>
+<rect x="651.6" y="384.2" width="46.8" height="15.8" fill="#8899AA" rx="3"/>
+<text x="675.0" y="378.2" font-size="12" text-anchor="middle" fill="#222">99</text>
+<text x="675.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 675.0 416.0)">workflow_context</text>
+<rect x="729.6" y="390.6" width="46.8" height="9.4" fill="#C39BD3" rx="3"/>
+<text x="753.0" y="384.6" font-size="12" text-anchor="middle" fill="#222">59</text>
+<text x="753.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 753.0 416.0)">issues</text>
+<rect x="807.6" y="393.8" width="46.8" height="6.2" fill="#7FB3D5" rx="3"/>
+<text x="831.0" y="387.8" font-size="12" text-anchor="middle" fill="#222">39</text>
+<text x="831.0" y="416.0" font-size="12" text-anchor="end" fill="#333" transform="rotate(-40 831.0 416.0)">pull_requests</text>
+<text x="20" y="230.0" font-size="13" fill="#333" transform="rotate(-90 20 230.0)" text-anchor="middle">Tokens</text>
+</svg>

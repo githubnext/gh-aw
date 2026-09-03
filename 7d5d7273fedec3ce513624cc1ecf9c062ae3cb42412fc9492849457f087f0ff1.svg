@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" font-family="Helvetica, Arial, sans-serif"><rect width="1000" height="560" fill="white"/><text x="500.0" y="34" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">Daily Total Token Usage Trend</text>
+<line x1="100" y1="60" x2="100" y2="470" stroke="#888"/>
+<line x1="100" y1="470" x2="960" y2="470" stroke="#888"/>
+<line x1="100" y1="470.0" x2="960" y2="470.0" stroke="#eee"/>
+<text x="90" y="474.0" font-size="12" text-anchor="end" fill="#555">0</text>
+<line x1="100" y1="367.5" x2="960" y2="367.5" stroke="#eee"/>
+<text x="90" y="371.5" font-size="12" text-anchor="end" fill="#555">2728</text>
+<line x1="100" y1="265.0" x2="960" y2="265.0" stroke="#eee"/>
+<text x="90" y="269.0" font-size="12" text-anchor="end" fill="#555">5457</text>
+<line x1="100" y1="162.5" x2="960" y2="162.5" stroke="#eee"/>
+<text x="90" y="166.5" font-size="12" text-anchor="end" fill="#555">8185</text>
+<line x1="100" y1="60.0" x2="960" y2="60.0" stroke="#eee"/>
+<text x="90" y="64.0" font-size="12" text-anchor="end" fill="#555">10914</text>
+<polygon points="100.0,470.0 100.0,160.6 243.3,164.9 386.7,352.2 530.0,309.9 673.3,305.3 816.7,250.4 960.0,113.5 960.0,470.0" fill="#4ECDC4" opacity="0.2"/>
+<polyline points="100.0,160.6 243.3,164.9 386.7,352.2 530.0,309.9 673.3,305.3 816.7,250.4 960.0,113.5" fill="none" stroke="#4ECDC4" stroke-width="3"/>
+<circle cx="100.0" cy="160.6" r="4.5" fill="#2C9C94"/>
+<text x="100.0" y="148.6" font-size="11" text-anchor="middle" fill="#222">8235</text>
+<text x="100.0" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 100.0 488.0)">2026-08-25</text>
+<circle cx="243.3" cy="164.9" r="4.5" fill="#2C9C94"/>
+<text x="243.3" y="152.9" font-size="11" text-anchor="middle" fill="#222">8120</text>
+<text x="243.3" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 243.3 488.0)">2026-08-26</text>
+<circle cx="386.7" cy="352.2" r="4.5" fill="#2C9C94"/>
+<text x="386.7" y="340.2" font-size="11" text-anchor="middle" fill="#222">3135</text>
+<text x="386.7" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 386.7 488.0)">2026-08-27</text>
+<circle cx="530.0" cy="309.9" r="4.5" fill="#2C9C94"/>
+<text x="530.0" y="297.9" font-size="11" text-anchor="middle" fill="#222">4262</text>
+<text x="530.0" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 530.0 488.0)">2026-08-28</text>
+<circle cx="673.3" cy="305.3" r="4.5" fill="#2C9C94"/>
+<text x="673.3" y="293.3" font-size="11" text-anchor="middle" fill="#222">4385</text>
+<text x="673.3" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 673.3 488.0)">2026-08-31</text>
+<circle cx="816.7" cy="250.4" r="4.5" fill="#2C9C94"/>
+<text x="816.7" y="238.4" font-size="11" text-anchor="middle" fill="#222">5845</text>
+<text x="816.7" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 816.7 488.0)">2026-09-02</text>
+<circle cx="960.0" cy="113.5" r="4.5" fill="#2C9C94"/>
+<text x="960.0" y="101.5" font-size="11" text-anchor="middle" fill="#222">9490</text>
+<text x="960.0" y="488.0" font-size="11" text-anchor="end" fill="#333" transform="rotate(-35 960.0 488.0)">2026-09-03</text>
+<text x="20" y="265.0" font-size="13" fill="#333" transform="rotate(-90 20 265.0)" text-anchor="middle">Total Tokens</text>
+</svg>

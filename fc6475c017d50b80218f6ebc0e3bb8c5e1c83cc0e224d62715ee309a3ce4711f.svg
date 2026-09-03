@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="950" height="620" viewBox="0 0 950 620" font-family="Helvetica, Arial, sans-serif"><rect width="950" height="620" fill="white"/><text x="475.0" y="34" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">Token Size vs Usefulness Rating (Latest Day)</text>
+<line x1="90" y1="60" x2="90" y2="550" stroke="#888"/>
+<line x1="90" y1="550" x2="910" y2="550" stroke="#888"/>
+<line x1="90" y1="550.0" x2="910" y2="550.0" stroke="#eee"/>
+<text x="80" y="554.0" font-size="12" text-anchor="end" fill="#555">0.0</text>
+<line x1="90" y1="452.0" x2="910" y2="452.0" stroke="#eee"/>
+<text x="80" y="456.0" font-size="12" text-anchor="end" fill="#555">1.1</text>
+<line x1="90" y1="354.0" x2="910" y2="354.0" stroke="#eee"/>
+<text x="80" y="358.0" font-size="12" text-anchor="end" fill="#555">2.2</text>
+<line x1="90" y1="256.0" x2="910" y2="256.0" stroke="#eee"/>
+<text x="80" y="260.0" font-size="12" text-anchor="end" fill="#555">3.3</text>
+<line x1="90" y1="158.0" x2="910" y2="158.0" stroke="#eee"/>
+<text x="80" y="162.0" font-size="12" text-anchor="end" fill="#555">4.4</text>
+<line x1="90" y1="60.0" x2="910" y2="60.0" stroke="#eee"/>
+<text x="80" y="64.0" font-size="12" text-anchor="end" fill="#555">5.5</text>
+<text x="90.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">0</text>
+<text x="254.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">1196</text>
+<text x="418.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">2392</text>
+<text x="582.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">3588</text>
+<text x="746.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">4784</text>
+<text x="910.0" y="570.0" font-size="11" text-anchor="middle" fill="#555">5980</text>
+<circle cx="103.0" cy="104.5" r="8" fill="#FF6B6B" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="113.0" y="108.5" font-size="11" fill="#222">github_context</text>
+<circle cx="277.9" cy="282.7" r="8" fill="#4ECDC4" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="287.9" y="286.7" font-size="11" fill="#222">get_file_contents</text>
+<circle cx="97.5" cy="371.8" r="8" fill="#45B7D1" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="107.5" y="375.8" font-size="11" fill="#222">list_issues</text>
+<circle cx="96.9" cy="193.6" r="8" fill="#FFA07A" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="106.9" y="197.6" font-size="11" fill="#222">list_pull_requests</text>
+<circle cx="109.2" cy="104.5" r="8" fill="#98D8C8" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="119.2" y="108.5" font-size="11" fill="#222">list_workflows</text>
+<circle cx="803.0" cy="193.6" r="8" fill="#DDA0DD" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="813.0" y="197.6" font-size="11" fill="#222">list_code_scanning_alerts</text>
+<circle cx="179.1" cy="282.7" r="8" fill="#F0E68C" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="189.1" y="286.7" font-size="11" fill="#222">list_discussions</text>
+<circle cx="175.0" cy="282.7" r="8" fill="#8899AA" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="185.0" y="286.7" font-size="11" fill="#222">get_label</text>
+<circle cx="176.4" cy="282.7" r="8" fill="#C39BD3" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="186.4" y="286.7" font-size="11" fill="#222">search_users</text>
+<circle cx="183.2" cy="193.6" r="8" fill="#7FB3D5" fill-opacity="0.8" stroke="#333" stroke-width="0.5"/>
+<text x="193.2" y="197.6" font-size="11" fill="#222">search_code</text>
+<text x="500.0" y="605" font-size="13" text-anchor="middle" fill="#333">Tokens</text>
+<text x="20" y="305.0" font-size="13" fill="#333" transform="rotate(-90 20 305.0)" text-anchor="middle">Usefulness Rating</text>
+</svg>
