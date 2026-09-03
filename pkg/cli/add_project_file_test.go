@@ -55,6 +55,15 @@ func TestMergeProjectJSONRequiresObjects(t *testing.T) {
 	require.ErrorContains(t, err, "added project file is not valid JSON")
 }
 
+func TestMergeProjectJSONPreservesLargeNumbers(t *testing.T) {
+	merged, err := mergeProjectJSON(
+		[]byte(`{"maintenance":{"action_failure_issue_expires":9007199254740993}}`),
+		[]byte(`{"utc":"+01:00"}`),
+	)
+	require.NoError(t, err)
+	assert.Contains(t, string(merged), "9007199254740993")
+}
+
 func TestMergeProjectFileWithTracking(t *testing.T) {
 	gitRoot := t.TempDir()
 	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
@@ -78,6 +87,22 @@ func TestMergeProjectFileWithTracking(t *testing.T) {
 	assert.JSONEq(t, `{"utc":"+01:00","help_command":true}`, string(merged))
 }
 
+func TestMergeProjectFileWithTrackingDoesNotModifyCreatedFile(t *testing.T) {
+	gitRoot := t.TempDir()
+	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
+	tracker := NewFileTracker()
+	tracker.TrackCreated(destFile)
+	require.NoError(t, os.MkdirAll(filepath.Dir(destFile), 0o755))
+	require.NoError(t, os.WriteFile(destFile, []byte(`{"utc":"-08:00"}`), 0o644))
+
+	resolved := &ResolvedWorkflow{
+		Spec:    &WorkflowSpec{WorkflowPath: "aw.json"},
+		Content: []byte(`{"utc":"+01:00"}`),
+	}
+	require.NoError(t, mergeProjectFileWithTracking(resolved, tracker, gitRoot))
+	assert.Empty(t, tracker.ModifiedFiles)
+}
+
 func TestMergeProjectFileRejectsInvalidSettingsWithoutWriting(t *testing.T) {
 	gitRoot := t.TempDir()
 	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
@@ -95,4 +120,20 @@ func TestMergeProjectFileRejectsInvalidSettingsWithoutWriting(t *testing.T) {
 	actual, readErr := os.ReadFile(destFile)
 	require.NoError(t, readErr)
 	assert.Equal(t, original, actual)
+}
+
+func TestMergeProjectFileRejectsDestinationSymlinkOutsideRoot(t *testing.T) {
+	gitRoot := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.json")
+	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
+	require.NoError(t, os.MkdirAll(filepath.Dir(destFile), 0o755))
+	require.NoError(t, os.Symlink(outside, destFile))
+
+	resolved := &ResolvedWorkflow{
+		Spec:    &WorkflowSpec{WorkflowPath: "aw.json"},
+		Content: []byte(`{"utc":"+01:00"}`),
+	}
+	err := mergeProjectFileWithTracking(resolved, NewFileTracker(), gitRoot)
+	require.Error(t, err)
+	require.NoFileExists(t, outside)
 }

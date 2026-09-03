@@ -528,11 +528,18 @@ func resolveLocalPackageProjectFileAndValidateAssets(packageDir string, assets *
 
 func resolveLocalRepositoryPackageProjectFile(packageDir string) (*resolvedPackageResource, error) {
 	projectFilePath := filepath.Join(packageDir, filepath.FromSlash(workflow.RepoConfigFileName))
-	if _, err := os.Stat(projectFilePath); err != nil {
+	info, err := os.Lstat(projectFilePath)
+	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to inspect package project file %q: %w", projectFilePath, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("package project file %q is a symbolic link, which is not allowed", projectFilePath)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("package project file %q is not a regular file", projectFilePath)
 	}
 	return &resolvedPackageResource{
 		SourcePath:      projectFilePath,

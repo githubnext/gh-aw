@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
@@ -16,6 +19,12 @@ func mergeProjectFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTrack
 	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
 	existing := []byte("{}")
 	fileExists := fileutil.FileExists(destFile)
+	if err := fileutil.ValidatePathWithinBase(gitRoot, destFile); err != nil {
+		return fmt.Errorf("failed to validate project file destination %q: %w", workflow.RepoConfigFileName, err)
+	}
+	if info, err := os.Lstat(destFile); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("project file destination %q is a symbolic link, which is not allowed", workflow.RepoConfigFileName)
+	}
 	if fileExists {
 		var err error
 		existing, err = os.ReadFile(filepath.Clean(destFile))
@@ -37,7 +46,14 @@ func mergeProjectFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTrack
 
 	if tracker != nil {
 		if fileExists {
-			tracker.TrackModified(destFile)
+			created := false
+			absDestFile, absErr := filepath.Abs(destFile)
+			if absErr == nil {
+				created = slices.Contains(tracker.CreatedFiles, absDestFile)
+			}
+			if !created {
+				tracker.TrackModified(destFile)
+			}
 		} else {
 			tracker.TrackCreated(destFile)
 		}
@@ -67,11 +83,11 @@ func validateMergedProjectJSON(merged []byte) error {
 
 func mergeProjectJSON(existing, added []byte) ([]byte, error) {
 	var existingSettings map[string]any
-	if err := json.Unmarshal(existing, &existingSettings); err != nil {
+	if err := decodeProjectJSON(existing, &existingSettings); err != nil {
 		return nil, fmt.Errorf("target project file is not valid JSON: %w", err)
 	}
 	var addedSettings map[string]any
-	if err := json.Unmarshal(added, &addedSettings); err != nil {
+	if err := decodeProjectJSON(added, &addedSettings); err != nil {
 		return nil, fmt.Errorf("added project file is not valid JSON: %w", err)
 	}
 	if existingSettings == nil || addedSettings == nil {
@@ -83,6 +99,22 @@ func mergeProjectJSON(existing, added []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to encode merged project file: %w", err)
 	}
 	return append(merged, '\n'), nil
+}
+
+func decodeProjectJSON(content []byte, settings *map[string]any) error {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.UseNumber()
+	if err := decoder.Decode(settings); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 func mergeProjectSettings(target, added map[string]any) {

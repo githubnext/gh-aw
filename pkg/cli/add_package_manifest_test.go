@@ -1032,6 +1032,19 @@ func TestResolveLocalRepositoryPackageDiscoversProjectFile(t *testing.T) {
 	assert.Equal(t, workflow.RepoConfigFileName, pkg.ProjectFile.DestinationPath)
 }
 
+func TestResolveLocalRepositoryPackageRejectsProjectFileSymlink(t *testing.T) {
+	packageDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "aw.yml"), []byte("name: Local Package\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "README.md"), []byte("# Local Package\n"), 0o644))
+	projectDir := filepath.Join(packageDir, filepath.FromSlash(filepath.Dir(workflow.RepoConfigFileName)))
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
+	target := filepath.Join(t.TempDir(), "outside.json")
+	require.NoError(t, os.Symlink(target, filepath.Join(projectDir, filepath.Base(workflow.RepoConfigFileName))))
+
+	_, err := resolveLocalRepositoryPackage(packageDir)
+	require.ErrorContains(t, err, "symbolic link")
+}
+
 func TestResolveRepositoryPackageProjectFile(t *testing.T) {
 	originalDownload := downloadPackageFileFromGitHubForHost
 	t.Cleanup(func() {
