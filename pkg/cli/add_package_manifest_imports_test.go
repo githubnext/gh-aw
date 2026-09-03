@@ -139,6 +139,28 @@ includes:
 	assert.Equal(t, filepath.Join(packageDir, "activity", "config.json"), pkg.ResourceFiles[0].SourcePath)
 }
 
+func TestResolveLocalRepositoryPackageImportRootRelativeWorkflow(t *testing.T) {
+	packageDir := t.TempDir()
+	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
+	writePackageTestFile(t, packageDir, "aw.yml", `name: Bundle
+includes:
+  - ambient-context/aw.yml
+`)
+	writePackageTestFile(t, packageDir, "ambient-context/aw.yml", `name: Ambient Context
+includes:
+  - .github/workflows/ambient-context.md
+`)
+	writePackageTestFile(t, packageDir, ".github/workflows/ambient-context.md", "# Ambient Context\n")
+
+	pkg, err := resolveLocalRepositoryPackage(packageDir)
+	require.NoError(t, err)
+	require.NotNil(t, pkg)
+	assert.Equal(t, []string{
+		filepath.Join(packageDir, ".github", "workflows", "ambient-context.md"),
+	}, packageInstallableSourcePaths(pkg.InstallationSource))
+	assert.NoFileExists(t, filepath.Join(packageDir, "ambient-context", ".github", "workflows", "ambient-context.md"))
+}
+
 func TestResolveLocalRepositoryPackageImportClash(t *testing.T) {
 	packageDir := t.TempDir()
 	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
