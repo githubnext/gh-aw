@@ -40,6 +40,15 @@ describe("memory_file_eligibility.cjs", () => {
       // Passes both filters
       expect(isMemoryFileEligible("sub/notes.json", [".json"], compiledPatterns).eligible).toBe(true);
     });
+
+    it("matches slashless patterns against root-level (depth 0) files, per the documented FILE_GLOB_FILTER contract", () => {
+      // FILE_GLOB_FILTER docs (push_repo_memory.cjs) document that a file at the memory
+      // directory root, e.g. "history.jsonl", is matched by the slashless pattern "*.jsonl".
+      const { compiledPatterns } = compileFileGlobPatterns("*.jsonl");
+      expect(isMemoryFileEligible("history.jsonl", [], compiledPatterns).eligible).toBe(true);
+      // A nested file should not match a slashless pattern (single * doesn't cross directories).
+      expect(isMemoryFileEligible("sub/history.jsonl", [], compiledPatterns).eligible).toBe(false);
+    });
   });
 
   describe("compileFileGlobPatterns", () => {

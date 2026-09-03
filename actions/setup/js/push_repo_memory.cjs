@@ -9,7 +9,7 @@ const { getGitAuthEnv } = require("./git_auth_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
 const { formatJSONFiles, runCustomMemoryValidation } = require("./memory_custom_validation.cjs");
-const { compileFileGlobPatterns, isMemoryFileEligible } = require("./memory_file_eligibility.cjs");
+const { compileFileGlobPatterns, filterIneligibleMemoryFiles, isMemoryFileEligible } = require("./memory_file_eligibility.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
@@ -309,6 +309,18 @@ async function main() {
   // but files go at the branch root, not in a nested subdirectory
   const destMemoryPath = workspaceDir;
   core.info(`Destination directory: ${destMemoryPath}`);
+
+  // Remove any pre-existing files in the checked-out branch that no longer pass the
+  // current allowed-extensions/file-glob filters (e.g. left over from a prior run with
+  // different filter settings). Without this, formatJSONFiles/runCustomMemoryValidation
+  // below would still process stale ineligible files even though the newly copied files
+  // are already filtered.
+  if (allowedExtensions.length > 0 || fileGlobFilter) {
+    const { removed } = filterIneligibleMemoryFiles(destMemoryPath, allowedExtensions, fileGlobFilter, core);
+    if (removed.length > 0) {
+      core.info(`Removed ${removed.length} stale ineligible file(s) from existing branch content`);
+    }
+  }
 
   // Recursively scan and collect files from artifact directory
   let filesToCopy = [];

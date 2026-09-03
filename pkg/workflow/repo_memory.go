@@ -362,9 +362,18 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		}
 
 		generateRepoMemorySanitizeFilenamesStep(builder, memory, memoryDir, memoryLabel)
-		generateRepoMemoryFilterFilesStep(builder, memory, memoryDir, memoryLabel)
-		validationStepID := generateRepoMemoryCustomValidationStep(builder, memory, memoryDir, memoryLabel)
-		generateRepoMemoryUploadArtifactStep(builder, memory, memoryDir, memoryLabel, sanitizedID, prefix, validationStepID, pinAction)
+		filterStepID := generateRepoMemoryFilterFilesStep(builder, memory, memoryDir, memoryLabel)
+		validationStepID := generateRepoMemoryCustomValidationStep(builder, memory, memoryDir, memoryLabel, filterStepID)
+		generateRepoMemoryUploadArtifactStep(builder, repoMemoryUploadStepParams{
+			memory:           memory,
+			memoryDir:        memoryDir,
+			memoryLabel:      memoryLabel,
+			sanitizedID:      sanitizedID,
+			prefix:           prefix,
+			filterStepID:     filterStepID,
+			validationStepID: validationStepID,
+			pinAction:        pinAction,
+		})
 	}
 }
 
@@ -390,12 +399,16 @@ func generateRepoMemorySanitizeFilenamesStep(builder *strings.Builder, memory Re
 // and upload. Allowed-extensions and file-glob are persistence filters: ineligible files
 // are logged and removed here so that custom validation, the uploaded artifact, and the
 // downstream push all see the same effective file set.
-func generateRepoMemoryFilterFilesStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) {
+// It returns the step's ID (used to gate subsequent validation/upload steps on its
+// successful outcome), or "" when no filter is configured for this memory.
+func generateRepoMemoryFilterFilesStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) string {
 	if len(memory.AllowedExtensions) == 0 && len(memory.FileGlob) == 0 {
-		return
+		return ""
 	}
+	filterStepID := repoMemoryFilterStepID(memory.ID)
 	allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 	fmt.Fprintf(builder, "      - name: Filter %s files (%s)\n", memoryLabel, memory.ID)
+	fmt.Fprintf(builder, "        id: %s\n", filterStepID)
 	builder.WriteString("        if: always()\n")
 	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
 	builder.WriteString("        env:\n")
@@ -407,19 +420,27 @@ func generateRepoMemoryFilterFilesStep(builder *strings.Builder, memory RepoMemo
 	builder.WriteString("        with:\n")
 	builder.WriteString("          script: |\n")
 	builder.WriteString(generateGitHubScriptWithRequire("memory_file_eligibility.cjs"))
+	return filterStepID
 }
 
 // generateRepoMemoryCustomValidationStep emits the optional custom-validation step and
 // returns its step ID (used to gate the subsequent upload step), or "" when no custom
-// validation is configured for this memory.
-func generateRepoMemoryCustomValidationStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel string) string {
+// validation is configured for this memory. When filterStepID is non-empty, this step is
+// skipped unless the filter step completed successfully, so a filter failure (e.g. an
+// fs error while removing ineligible files) can never result in the unfiltered directory
+// being validated.
+func generateRepoMemoryCustomValidationStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel, filterStepID string) string {
 	if memory.Validation == nil {
 		return ""
 	}
 	validationStepID := repoMemoryValidationStepID(memory.ID)
 	fmt.Fprintf(builder, "      - name: Validate %s domain content (%s)\n", memoryLabel, memory.ID)
 	fmt.Fprintf(builder, "        id: %s\n", validationStepID)
-	builder.WriteString("        if: always()\n")
+	if filterStepID != "" {
+		fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", filterStepID)
+	} else {
+		builder.WriteString("        if: always()\n")
+	}
 	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
@@ -438,21 +459,48 @@ func generateRepoMemoryCustomValidationStep(builder *strings.Builder, memory Rep
 	return validationStepID
 }
 
+// repoMemoryUploadStepParams bundles the parameters for generateRepoMemoryUploadArtifactStep
+// (kept as a struct rather than individual parameters to stay within the repo's
+// function-parameter-count lint limit).
+type repoMemoryUploadStepParams struct {
+	memory           RepoMemoryEntry
+	memoryDir        string
+	memoryLabel      string
+	sanitizedID      string
+	prefix           string
+	filterStepID     string
+	validationStepID string
+	pinAction        func(string) string
+}
+
 // generateRepoMemoryUploadArtifactStep emits the step that uploads the repo-memory
-// directory as an artifact, gated on the custom-validation step's outcome when configured.
-func generateRepoMemoryUploadArtifactStep(builder *strings.Builder, memory RepoMemoryEntry, memoryDir, memoryLabel, sanitizedID, prefix, validationStepID string, pinAction func(string) string) {
-	fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
-	if validationStepID != "" {
-		fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", validationStepID)
+// directory as an artifact, gated on the filter and custom-validation steps' outcomes
+// when configured, so a filter or validation failure can never result in an unfiltered
+// or unvalidated directory being uploaded.
+func generateRepoMemoryUploadArtifactStep(builder *strings.Builder, p repoMemoryUploadStepParams) {
+	fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", p.memoryLabel, p.memory.ID)
+	var conditions []string
+	if p.filterStepID != "" {
+		conditions = append(conditions, fmt.Sprintf("steps.%s.outcome == 'success'", p.filterStepID))
+	}
+	if p.validationStepID != "" {
+		conditions = append(conditions, fmt.Sprintf("steps.%s.outcome == 'success'", p.validationStepID))
+	}
+	if len(conditions) > 0 {
+		fmt.Fprintf(builder, "        if: always() && %s\n", strings.Join(conditions, " && "))
 	} else {
 		builder.WriteString("        if: always()\n")
 	}
-	fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
+	fmt.Fprintf(builder, "        uses: %s\n", p.pinAction("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
-	fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
-	fmt.Fprintf(builder, "          path: %s\n", memoryDir)
+	fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", p.prefix, p.sanitizedID)
+	fmt.Fprintf(builder, "          path: %s\n", p.memoryDir)
 	builder.WriteString("          retention-days: 1\n")
 	builder.WriteString("          if-no-files-found: ignore\n")
+}
+
+func repoMemoryFilterStepID(memoryID string) string {
+	return memoryValidationStepID("filter_repo_memory", memoryID)
 }
 
 func repoMemoryValidationStepID(memoryID string) string {

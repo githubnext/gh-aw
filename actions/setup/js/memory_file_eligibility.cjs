@@ -8,9 +8,10 @@ const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * Compile a space-separated FILE_GLOB_FILTER string into an array of RegExp patterns.
- * Slashless patterns (e.g. "*.json") are matched at the root of a single memory
- * subfolder (depth 1 only). Patterns that already contain "/" are matched against
- * the full relative path unchanged.
+ * Patterns are matched against the file's path relative to the memory directory root.
+ * Slashless patterns (e.g. "*.json") match files directly at that root (depth 0), matching
+ * the documented FILE_GLOB_FILTER contract (e.g. "history.jsonl" at the memory directory
+ * root matches "*.jsonl"). Patterns containing "/" match the full relative path unchanged.
  *
  * @param {string} fileGlobFilter - Space-separated glob patterns (may be empty)
  * @returns {{ patternStrs: string[], compiledPatterns: RegExp[] }}
@@ -20,7 +21,7 @@ function compileFileGlobPatterns(fileGlobFilter) {
     return { patternStrs: [], compiledPatterns: [] };
   }
   const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
-  const compiledPatterns = patternStrs.map(pattern => globPatternToRegex(pattern, { matchSubfolderRoot: !pattern.includes("/") }));
+  const compiledPatterns = patternStrs.map(pattern => globPatternToRegex(pattern));
   return { patternStrs, compiledPatterns };
 }
 

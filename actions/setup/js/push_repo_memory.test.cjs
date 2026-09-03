@@ -1634,6 +1634,26 @@ describe("push_repo_memory.cjs - allowed-extensions persistence filter (regressi
     expect(scriptContent).toContain("if (filesToCopy.length === 0)");
     expect(scriptContent).toContain("No eligible files to copy from artifact");
   });
+
+  it("filters stale ineligible files already present in the checked-out branch before format/validation (source check)", () => {
+    // Review feedback: after checking out an existing memory branch, files from prior
+    // runs that no longer match the current allowed-extensions/file-glob filters must
+    // not be left in destMemoryPath, since formatJSONFiles/runCustomMemoryValidation
+    // operate on the whole destMemoryPath, not just the newly-copied eligible files.
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    expect(scriptContent).toContain("filterIneligibleMemoryFiles(destMemoryPath, allowedExtensions, fileGlobFilter, core)");
+    // The stale-file filter must run before destMemoryPath is formatted/validated.
+    const filterIdx = scriptContent.indexOf("filterIneligibleMemoryFiles(destMemoryPath");
+    const formatIdx = scriptContent.indexOf("formatJSONFiles(destMemoryPath, maxFileSize)");
+    const validateIdx = scriptContent.indexOf("runCustomMemoryValidation({");
+    expect(filterIdx).toBeGreaterThan(-1);
+    expect(filterIdx).toBeLessThan(formatIdx);
+    expect(filterIdx).toBeLessThan(validateIdx);
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
