@@ -262,7 +262,7 @@ To build and test repository custom linters:
 [@katriendg (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Akatriendg)
 [@kbreit-insight (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Akbreit-insight)
 [@KGoovaer (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AKGoovaer)
-[@kkruel8100 (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Akkruel8100)
+[@kkruel8100 (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Akkruel8100)
 [@Knufle (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AKnufle)
 [@Krzysztof-Cieslak (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AKrzysztof-Cieslak)
 [@kthompson (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Akthompson)
@@ -410,6 +410,14 @@ To build and test repository custom linters:
 [@yskopets (53)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ayskopets)
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
+
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but were marked as NOT_PLANNED. Please verify whether they should be credited:
+
+- **@silambarasan** for [GH_AW_GITHUB_TOKEN secret not propagated to safeoutputs MCP container in agent job](https://github.com/github/gh-aw/issues/55516) — closed 2026-08-25, not planned for this release
+- **@pelikhan** for [Recreate the Dreaming task router as a repository skill](https://github.com/github/gh-aw/issues/57520) — closed 2026-09-01, not planned for this release
 
 GitHub Agentic Workflows is supported by companion projects that provide additional security and integration capabilities:
 
