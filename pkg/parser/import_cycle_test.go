@@ -324,6 +324,19 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 	}
 }
 
+func TestImportCycleError_QuoteBearingPaths(t *testing.T) {
+	cycleErr := &parser.ImportCycleError{
+		Chain: []string{"entry.md", `importer's "path".md`, `imported's "path".md`},
+	}
+
+	formatted := parser.FormatImportCycleError(cycleErr)
+
+	assert.Equal(t,
+		`circular import detected: entry.md → importer's "path".md → imported's "path".md. Imports must form a directed acyclic graph. Example: remove the import of "imported's \"path\".md" from "importer's \"path\".md"`,
+		formatted.Error(),
+	)
+}
+
 // TestImportCycleError_InvalidChain tests handling of invalid cycle chains
 func TestImportCycleError_InvalidChain(t *testing.T) {
 	tests := []struct {
