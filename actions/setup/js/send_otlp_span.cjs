@@ -2249,6 +2249,23 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // setup action post-step emits this run-level span.
   if (jobName === "conclusion") {
     const usageActivity = readJSONIfExists("/tmp/gh-aw/usage/activity/summary.json");
+    for (const [attributeName, sectionName, fieldName] of [
+      ["gh-aw.integrity.filtered_events", "integrity", "total_filtered"],
+      ["gh-aw.firewall.requests", "firewall", "total_requests"],
+      ["gh-aw.firewall.allowed_requests", "firewall", "allowed_requests"],
+      ["gh-aw.firewall.blocked_requests", "firewall", "blocked_requests"],
+      ["gh-aw.mcp.tool_calls", "gateway", "total_calls"],
+      ["gh-aw.mcp.failed_tool_calls", "gateway", "failed_calls"],
+      ["gh-aw.mcp.input_bytes", "gateway", "total_input_size"],
+      ["gh-aw.mcp.max_input_bytes", "gateway", "max_input_size"],
+      ["gh-aw.mcp.output_bytes", "gateway", "total_output_size"],
+      ["gh-aw.mcp.max_output_bytes", "gateway", "max_output_size"],
+    ]) {
+      const value = usageActivity?.[sectionName]?.[fieldName];
+      if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+        attributes.push(buildAttr(attributeName, value));
+      }
+    }
     const workingSet = usageActivity?.working_set;
     const measurementState = workingSet?.measurement_state;
     if (measurementState === "measured" || measurementState === "partial" || measurementState === "unavailable") {

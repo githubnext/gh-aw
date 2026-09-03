@@ -30,9 +30,12 @@ tools:
     version: "0.1.18"
 ```
 
-`mode: cli` is accepted but unnecessary. `mode: mcp` is not supported by the
-built-in tool. If MCP is required, configure and pin `@playwright/mcp` explicitly
-under `mcp-servers` and allow only the required tools.
+Omit `mode`; the built-in Playwright integration is CLI-only by default. The
+explicit `mode: cli` setting remains accepted for compatibility, but it is not
+needed and should be removed from workflows that still carry it. `mode: mcp` is
+not supported by the built-in tool. If MCP is required, configure and pin
+`@playwright/mcp` explicitly under `mcp-servers` and allow only the required
+tools.
 
 ## Configure network access
 

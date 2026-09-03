@@ -103,6 +103,9 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	if HasMCPServers(workflowData) {
 		addUnique("MCP_GATEWAY_AGENT_ID")
 	}
+	if enclavesEnabled(workflowData) {
+		addUnique("MCP_GATEWAY_API_KEY")
+	}
 
 	// GitHub MCP server token is always a secret when the GitHub tool is present.
 	if hasGitHubTool(workflowData.ParsedTools) {
@@ -164,10 +167,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		addUnique(enclaveMCPReadinessTimeoutEnv)
 	}
 	if enclaveGitHubIssuesEnabled(workflowData) {
-		addUnique(enclaveGitHubProxyContainerEnv)
-		addUnique(enclaveGitHubProxyIdentityEnv)
-		addUnique(enclaveGitHubProxyCACertEnv)
-		addUnique(enclaveGitHubProxyRootKeyEnv)
+		addUnique(enclaveGitHubMCPAgentIDEnv)
 	}
 
 	// Explicitly excluded env vars from the frontmatter excluded-env field.

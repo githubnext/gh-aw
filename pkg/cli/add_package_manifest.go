@@ -52,6 +52,7 @@ type resolvedRepositoryPackage struct {
 	ResolvedRef        string
 	Name               string
 	Emoji              string
+	Icon               string
 	Description        string
 	License            string
 	Private            bool

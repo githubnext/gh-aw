@@ -40,6 +40,13 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 			}
 		}
 	}
+	if workflowData != nil && enclaveGitHubIssuesEnabled(workflowData) {
+		image := "ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion)
+		if !setutil.Contains(imageSet, image) {
+			images = append(images, image)
+			imageSet[image] = struct{}{}
+		}
+	}
 
 	// Check for safe-outputs MCP server.
 	// Safe outputs run in the published gh-aw node container and must be part of

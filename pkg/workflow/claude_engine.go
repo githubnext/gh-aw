@@ -471,6 +471,7 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
 	applyClaudeTimeoutEnvVars(env, workflowData)
+	applyDefaultMaxAICreditsEnvToMap(env, workflowData)
 	applySafeOutputEnvToMap(env, workflowData)
 	applyTraceContextEnvToMap(env)
 	applyOptionalEngineToolTimeouts(env, workflowData)
