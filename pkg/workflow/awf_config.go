@@ -131,6 +131,10 @@ type AWFNetworkConfig struct {
 	// Maps to: --network-isolation
 	Isolation bool `json:"isolation,omitempty"`
 
+	// VerifySbxEgress enables fail-closed direct-egress verification for Docker sbx.
+	// Maps to: --verify-sbx-egress
+	VerifySbxEgress bool `json:"verifySbxEgress,omitempty"`
+
 	// TopologyAttach lists container names AWF should attach to awf-net.
 	// Maps to: --topology-attach <name> (repeatable)
 	TopologyAttach []string `json:"topologyAttach,omitempty"`

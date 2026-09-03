@@ -164,6 +164,10 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 // under strict config validation.
 const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
 
+// AWFVerifySbxEgressMinVersion is the minimum AWF version that supports
+// network.verifySbxEgress for fail-closed Docker sbx egress verification.
+const AWFVerifySbxEgressMinVersion Version = "v0.28.13"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for

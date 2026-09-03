@@ -87,6 +87,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
 			awfConfigLog.Printf("Network section: added %s for microVM runtime routing", hostDockerInternal)
 		}
+		if awfSupportsVerifySbxEgress(firewallConfig) {
+			awfConfig.Network.VerifySbxEgress = true
+		} else {
+			awfConfigLog.Printf("Skipping network.verifySbxEgress: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFVerifySbxEgressMinVersion)
+		}
 	}
 
 	// ── Filesystem section ───────────────────────────────────────────────────

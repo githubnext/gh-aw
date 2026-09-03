@@ -103,6 +103,12 @@ func awfSupportsAPIProxyCACert(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFAPIProxyCACertMinVersion)
 }
 
+// awfSupportsVerifySbxEgress returns true when the effective AWF version supports
+// network.verifySbxEgress for Docker sbx runtime egress verification.
+func awfSupportsVerifySbxEgress(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFVerifySbxEgressMinVersion)
+}
+
 // awfEmitsFilesystemAllowWrite reports whether the compiler may emit the
 // filesystem section of awf-config.json for this workflow.
 //
