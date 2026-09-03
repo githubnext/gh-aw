@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveEngineID(t *testing.T) {
@@ -234,11 +235,11 @@ func TestGetNpmBinPathSetup_PreservesSelectedRuby(t *testing.T) {
 	tmpDir := t.TempDir()
 	selectedRubyBin := filepath.Join(tmpDir, "selected-ruby", "bin")
 	cachedRubyBin := filepath.Join(tmpDir, "Ruby", "3.2.11", "x64", "bin")
-	os.MkdirAll(selectedRubyBin, 0o755)
-	os.MkdirAll(cachedRubyBin, 0o755)
-	os.WriteFile(filepath.Join(selectedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.4.8'\n"), 0o755)
-	os.WriteFile(filepath.Join(cachedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.2.11'\n"), 0o755)
-	os.WriteFile(filepath.Join(cachedRubyBin, "npm-agent"), []byte("#!/bin/sh\necho 'npm agent found'\n"), 0o755)
+	require.NoError(t, os.MkdirAll(selectedRubyBin, 0o755))
+	require.NoError(t, os.MkdirAll(cachedRubyBin, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(selectedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.4.8'\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cachedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.2.11'\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cachedRubyBin, "npm-agent"), []byte("#!/bin/sh\necho 'npm agent found'\n"), 0o755))
 
 	shellCmd := fmt.Sprintf(
 		`unset GOROOT ERLANG_HOME; export RUNNER_TOOL_CACHE=%q; export PATH=%q:/usr/bin:/bin; %s; ruby --version; npm-agent`,
