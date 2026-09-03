@@ -50,67 +50,79 @@ jobs:
           $reportDir = Join-Path $env:RUNNER_TEMP "defender-report"
           New-Item -ItemType Directory -Path $releaseDir, $reportDir -Force | Out-Null
           $downloadStartedAt = [DateTime]::UtcNow
-
-          if ($env:REQUESTED_RELEASE_TAG) {
-            if ($env:REQUESTED_RELEASE_TAG -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
-              throw "Requested release tag is invalid"
+          try {
+            if ($env:REQUESTED_RELEASE_TAG) {
+              if ($env:REQUESTED_RELEASE_TAG -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
+                throw "Requested release tag is invalid"
+              }
+              $releaseJson = gh api "repos/$env:GH_REPO/releases/tags/$env:REQUESTED_RELEASE_TAG"
+            } else {
+              $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
             }
-            $releaseJson = gh api "repos/$env:GH_REPO/releases/tags/$env:REQUESTED_RELEASE_TAG"
-          } else {
-            $releaseJson = gh api "repos/$env:GH_REPO/releases/latest"
-          }
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not query the requested release for $env:GH_REPO"
-          }
-          $release = $releaseJson | ConvertFrom-Json
-          $releaseTag = [string]$release.tag_name
-          if ($releaseTag -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
-            throw "Latest release has an invalid tag"
-          }
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not query the requested release for $env:GH_REPO"
+            }
+            $release = $releaseJson | ConvertFrom-Json
+            $releaseTag = [string]$release.tag_name
+            if ($releaseTag -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') {
+              throw "Release has an invalid tag"
+            }
 
-          $assetNames = @(
-            $release.assets |
-              Where-Object { $_.name -match '^windows-(amd64|arm64)\.exe$' } |
-              ForEach-Object { [string]$_.name }
-          )
-          if ($assetNames.Count -eq 0) {
-            throw "Latest release $releaseTag has no Windows executable assets"
-          }
+            $assetNames = @(
+              $release.assets |
+                Where-Object { $_.name -match '^windows-(amd64|arm64)\.exe$' } |
+                ForEach-Object { [string]$_.name }
+            )
+            if ($assetNames.Count -eq 0) {
+              throw "Release $releaseTag has no Windows executable assets"
+            }
 
-          foreach ($assetName in $assetNames) {
+            foreach ($assetName in $assetNames) {
+              gh release download $releaseTag `
+                --repo $env:GH_REPO `
+                --pattern $assetName `
+                --dir $releaseDir `
+                --clobber
+              if ($LASTEXITCODE -ne 0) {
+                throw "Could not download release asset $assetName"
+              }
+              if (-not (Test-Path -LiteralPath (Join-Path $releaseDir $assetName) -PathType Leaf)) {
+                throw "Downloaded release asset was not found: $assetName"
+              }
+            }
+
             gh release download $releaseTag `
               --repo $env:GH_REPO `
-              --pattern $assetName `
+              --pattern "checksums.txt" `
               --dir $releaseDir `
               --clobber
             if ($LASTEXITCODE -ne 0) {
-              throw "Could not download release asset $assetName"
+              throw "Could not download checksums.txt for $releaseTag"
             }
-            if (-not (Test-Path -LiteralPath (Join-Path $releaseDir $assetName) -PathType Leaf)) {
-              throw "Downloaded release asset was not found: $assetName"
+            if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "checksums.txt") -PathType Leaf)) {
+              throw "Downloaded checksum manifest was not found"
             }
-          }
 
-          gh release download $releaseTag `
-            --repo $env:GH_REPO `
-            --pattern "checksums.txt" `
-            --dir $releaseDir `
-            --clobber
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not download checksums.txt for $releaseTag"
+            [ordered]@{
+              tag = $releaseTag
+              url = [string]$release.html_url
+              published_at = [string]$release.published_at
+              download_started_at_utc = $downloadStartedAt.ToString("o")
+              assets = $assetNames
+              error = $null
+            } | ConvertTo-Json -Depth 4 |
+              Set-Content -Path (Join-Path $reportDir "release.json") -Encoding utf8
+          } catch {
+            [ordered]@{
+              tag = if ($env:REQUESTED_RELEASE_TAG) { $env:REQUESTED_RELEASE_TAG } else { $null }
+              url = $null
+              published_at = $null
+              download_started_at_utc = $downloadStartedAt.ToString("o")
+              assets = @()
+              error = $_.Exception.Message
+            } | ConvertTo-Json -Depth 4 |
+              Set-Content -Path (Join-Path $reportDir "release.json") -Encoding utf8
           }
-          if (-not (Test-Path -LiteralPath (Join-Path $releaseDir "checksums.txt") -PathType Leaf)) {
-            throw "Downloaded checksum manifest was not found"
-          }
-
-          [ordered]@{
-            tag = $releaseTag
-            url = [string]$release.html_url
-            published_at = [string]$release.published_at
-            download_started_at_utc = $downloadStartedAt.ToString("o")
-            assets = $assetNames
-          } | ConvertTo-Json -Depth 4 |
-            Set-Content -Path (Join-Path $reportDir "release.json") -Encoding utf8
 
       - name: Scan release with Microsoft Defender
         id: scan
@@ -181,10 +193,18 @@ jobs:
 
           $checksumPath = Join-Path $releaseDir "checksums.txt"
           $expectedHashes = @{}
-          foreach ($line in Get-Content -LiteralPath $checksumPath) {
-            if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$') {
-              $expectedHashes[[IO.Path]::GetFileName($Matches[2])] = $Matches[1].ToUpperInvariant()
+          if (Test-Path -LiteralPath $checksumPath -PathType Leaf) {
+            foreach ($line in Get-Content -LiteralPath $checksumPath) {
+              if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$') {
+                $expectedHashes[[IO.Path]::GetFileName($Matches[2])] = $Matches[1].ToUpperInvariant()
+              }
             }
+          } else {
+            $findings.Add([pscustomobject]@{
+              category = "checksums-missing"
+              binary = $null
+              detail = "checksums.txt was not available for verification"
+            })
           }
           $expectedBinaryNames = @(
             $expectedHashes.Keys |
@@ -292,6 +312,13 @@ jobs:
 
           $release = Get-Content -LiteralPath (Join-Path $reportDir "release.json") -Raw |
             ConvertFrom-Json
+          if ($release.error) {
+            $findings.Add([pscustomobject]@{
+              category = "release-download-failed"
+              binary = $null
+              detail = [string]$release.error
+            })
+          }
           $detectionWindowStart = [DateTime]::Parse($release.download_started_at_utc).ToUniversalTime()
           $threatNames = @{}
           $detections = @()
@@ -319,6 +346,18 @@ jobs:
             )
           } catch {
             $detections = @([pscustomobject]@{ error = $_.Exception.Message })
+            $findings.Add([pscustomobject]@{
+              category = "detection-history-query-failed"
+              binary = $null
+              detail = $_.Exception.Message
+            })
+          }
+          foreach ($detection in @($detections | Where-Object { -not $_.error })) {
+            $findings.Add([pscustomobject]@{
+              category = "defender-detection"
+              binary = $null
+              detail = "Microsoft Defender reported threat $($detection.threat_name) (ID $($detection.threat_id))"
+            })
           }
           $report = [ordered]@{
             schema_version = 1
