@@ -735,6 +735,9 @@ func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, co
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
 	allowedSecrets := e.GetRequiredSecretNames(workflowData)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+	if enclavesEnabled(workflowData) {
+		filteredEnv["MCP_GATEWAY_API_KEY"] = "${{ steps.start-mcp-gateway.outputs.gateway-api-key }}"
+	}
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
 	// fallback expression that is always allowed when cli-proxy is enabled)
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)

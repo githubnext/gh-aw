@@ -102,6 +102,48 @@ func TestApproveWorkflowRunValidationConfig(t *testing.T) {
 	}
 }
 
+// TestCallWorkflowValidationConfigPreservesWorkflowName is a regression test for
+// samples-mode call-workflow replay dropping the workflow name (github/gh-aw#55176):
+// without a "call_workflow" entry in ValidationConfig, collect_ndjson_output.cjs
+// fell back to validateItemWithSafeJobConfig, which drops every field except
+// "type" because the call_workflow safe-outputs config has no "inputs" key. This
+// test verifies the compiler emits a validation config that declares
+// "workflow_name" (required) and "inputs" for call_workflow, mirroring
+// dispatch_workflow, so the field survives ingestion.
+func TestCallWorkflowValidationConfigPreservesWorkflowName(t *testing.T) {
+	config, ok := ValidationConfig["call_workflow"]
+	if !ok {
+		t.Fatal("call_workflow not found in ValidationConfig")
+	}
+	if config.DefaultMax != 1 {
+		t.Errorf("call_workflow DefaultMax = %d, want 1", config.DefaultMax)
+	}
+	workflowName, ok := config.Fields["workflow_name"]
+	if !ok || !workflowName.Required || workflowName.Type != "string" {
+		t.Errorf("call_workflow workflow_name = %+v, want required string", workflowName)
+	}
+	inputs, ok := config.Fields["inputs"]
+	if !ok || inputs.Type != "object" {
+		t.Errorf("call_workflow inputs = %+v, want object", inputs)
+	}
+
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"call_workflow"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+	parsedConfig, ok := parsed["call_workflow"]
+	if len(parsed) != 1 || !ok || parsedConfig.DefaultMax != 1 {
+		t.Errorf("call_workflow validation config = %#v, want defaultMax 1", parsedConfig)
+	}
+	if workflowName := parsedConfig.Fields["workflow_name"]; !workflowName.Required || workflowName.Type != "string" {
+		t.Errorf("generated call_workflow workflow_name = %+v, want required string", workflowName)
+	}
+}
+
 func TestDismissPullRequestReviewValidationConfigSupportsAutoReviewID(t *testing.T) {
 	config, ok := ValidationConfig["dismiss_pull_request_review"]
 	if !ok {

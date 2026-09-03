@@ -476,61 +476,96 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	if err := validateLocalRepositoryPackageContents(manifestPath); err != nil {
 		return nil, err
 	}
-
-	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
-	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
-	installationSources, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, packageDir)
+	manifestNodes, importWarnings, err := resolveRepositoryPackageManifestGraph(manifestPath, manifest, func(importPath string) ([]byte, error) {
+		return readLocalImportedManifest(importPath, packageDir)
+	})
 	if err != nil {
 		return nil, err
 	}
-	if len(installationSources) == 0 {
-		scanned, err := scanLocalRepositoryPackageInstallablePaths(packageDir)
+	for _, node := range manifestNodes {
+		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, node.Path)
 		if err != nil {
 			return nil, err
 		}
-		installationSources = packageInstallablesFromSourcePaths(scanned)
+		warnings = append(warnings, visibilityWarnings...)
 	}
-	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
-		return nil, err
-	}
-	if err := validateUniqueManifestInstallDestinations(installationSources, manifestPath); err != nil {
-		return nil, err
-	}
-	resourceFiles, err := normalizeLocalPackageResourcePaths(manifest.Resources, packageDir)
+	warnings = append(warnings, importWarnings...)
+
+	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes)
 	if err != nil {
 		return nil, err
 	}
-
-	skillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(packageDir, append(append([]string{}, manifest.Skills...), includeSkillDirs...))
-	if err != nil {
+	warnings = append(warnings, assets.warnings...)
+	if err := validateUniqueResolvedPackageFiles(assets.installationSources, assets.resourceFiles, assets.extensionFiles.skillFiles, assets.extensionFiles.agentFiles, manifestPath); err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, skillWarnings...)
-
-	agentFiles, agentWarnings, err := resolveLocalPackageAgentFiles(packageDir, append(append([]string{}, manifest.Agents...), includeAgentFiles...))
-	if err != nil {
+	if err := validateUniqueManifestWorkflowFilenames(assets.installationSources, manifestPath); err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, agentWarnings...)
-
-	if len(installationSources) == 0 && len(resourceFiles) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
+	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 {
 		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered)", packageDir)
 	}
 
+	return newResolvedLocalRepositoryPackage(manifestPath, packageDir, manifest, assets, warnings), nil
+}
+
+func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest *repositoryPackageManifest, assets *resolvedRepositoryPackageAssets, warnings []string) *resolvedRepositoryPackage {
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		Name:               manifest.Name,
 		Emoji:              manifest.Emoji,
+		Icon:               manifest.Icon,
 		Description:        manifest.Description,
 		License:            manifest.License,
 		DocsPath:           filepath.Join(packageDir, "README.md"),
-		InstallationSource: installationSources,
-		ResourceFiles:      resourceFiles,
+		InstallationSource: assets.installationSources,
+		ResourceFiles:      assets.resourceFiles,
 		Bootstrap:          manifest.Bootstrap,
-		SkillFiles:         skillFiles,
-		AgentFiles:         agentFiles,
+		SkillFiles:         assets.extensionFiles.skillFiles,
+		AgentFiles:         assets.extensionFiles.agentFiles,
 		Warnings:           warnings,
-	}, nil
+	}
+}
+
+func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
+	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
+	for _, node := range nodes {
+		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(node.Manifest.Includes)
+		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(node.Manifest.Files)...)
+		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath)
+		if err != nil {
+			return nil, err
+		}
+		if len(nodeInstallables) == 0 && len(node.Manifest.Imports) == 0 {
+			scanned, err := scanLocalRepositoryPackageInstallablePaths(node.PackagePath)
+			if err != nil {
+				return nil, err
+			}
+			nodeInstallables = localPackageInstallablesFromScannedPaths(scanned, node.PackagePath)
+		}
+		assets.installationSources = append(assets.installationSources, nodeInstallables...)
+
+		nodeResources, err := normalizeLocalPackageResourcePaths(node.Manifest.Resources, node.PackagePath)
+		if err != nil {
+			return nil, err
+		}
+		assets.resourceFiles = append(assets.resourceFiles, nodeResources...)
+
+		nodeSkillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(node.PackagePath, append(append([]string{}, node.Manifest.Skills...), includeSkillDirs...))
+		if err != nil {
+			return nil, err
+		}
+		assets.extensionFiles.skillFiles = append(assets.extensionFiles.skillFiles, nodeSkillFiles...)
+		assets.warnings = append(assets.warnings, skillWarnings...)
+
+		nodeAgentFiles, agentWarnings, err := resolveLocalPackageAgentFiles(node.PackagePath, append(append([]string{}, node.Manifest.Agents...), includeAgentFiles...))
+		if err != nil {
+			return nil, err
+		}
+		assets.extensionFiles.agentFiles = append(assets.extensionFiles.agentFiles, nodeAgentFiles...)
+		assets.warnings = append(assets.warnings, agentWarnings...)
+	}
+	return assets, nil
 }
 
 func localRepositoryPackageManifest(source string) (string, string, error) {
@@ -588,6 +623,14 @@ func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, 
 	return normalized, nil
 }
 
+func localPackageInstallablesFromScannedPaths(sourcePaths []string, packageDir string) []resolvedPackageInstallable {
+	absolutePaths := make([]string, 0, len(sourcePaths))
+	for _, sourcePath := range sourcePaths {
+		absolutePaths = append(absolutePaths, filepath.Join(packageDir, filepath.FromSlash(sourcePath)))
+	}
+	return packageInstallablesFromSourcePaths(absolutePaths)
+}
+
 // validateLocalPackageMappingSource rejects mapping sources that resolve outside the
 // package directory or that are symlinks.
 func validateLocalPackageMappingSource(absolutePath, packageDir, source string) error {
@@ -642,7 +685,7 @@ func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg 
 	}
 	for _, skillFile := range pkg.SkillFiles {
 		base := filepath.Base(skillFile.SourcePath)
-		workflowName := skillFile.SkillName + "/" + strings.TrimSuffix(base, filepath.Ext(base))
+		workflowName := filepath.Join(skillFile.SkillName, strings.TrimSuffix(base, filepath.Ext(base)))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			WorkflowPath:       skillFile.SourcePath,
 			WorkflowName:       workflowName,
@@ -707,26 +750,30 @@ func resolveLocalPackageSkillFiles(packageDir string, explicitSkillDirs []string
 				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w", markerPath, err)
 			}
 		}
-		skillName := filepath.Base(skillDir)
-		err := filepath.WalkDir(skillDir, func(currentPath string, d os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				return nil
-			}
-			skillFiles = append(skillFiles, resolvedPackageSkillFile{
-				SourcePath: currentPath,
-				SkillName:  skillName,
-			})
-			return nil
-		})
+		files, err := collectLocalPackageSkillDirFiles(skillDir)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w", skillDir, err)
 		}
+		skillFiles = append(skillFiles, files...)
 	}
 
 	return skillFiles, warnings, nil
+}
+
+func collectLocalPackageSkillDirFiles(skillDir string) ([]resolvedPackageSkillFile, error) {
+	var skillFiles []resolvedPackageSkillFile
+	skillName := filepath.Base(skillDir)
+	err := filepath.WalkDir(skillDir, func(currentPath string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		skillFiles = append(skillFiles, resolvedPackageSkillFile{SourcePath: currentPath, SkillName: skillName})
+		return nil
+	})
+	return skillFiles, err
 }
 
 func resolveLocalPackageAgentFiles(packageDir string, explicitAgentFiles []string) ([]string, []string, error) {
@@ -821,13 +868,13 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			IsPackageResourceFile:  true,
 		})
 	}
+	return appendRepositoryPackageExtensionSpecs(parsedSpecs, repoSpec, pkg, effectiveVersion, host)
+}
 
-	// Append skill file specs. Each spec carries IsPackageSkillFile=true and the SkillName
-	// so that the installation step can route the file to the correct skill directory.
+func appendRepositoryPackageExtensionSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage, effectiveVersion, host string) []*WorkflowSpec {
 	for _, skillFile := range pkg.SkillFiles {
 		base := filepath.Base(skillFile.SourcePath)
-		// WorkflowName is unused for skill files but set to a stable value for logging.
-		workflowName := skillFile.SkillName + "/" + strings.TrimSuffix(base, filepath.Ext(base))
+		workflowName := filepath.Join(skillFile.SkillName, strings.TrimSuffix(base, filepath.Ext(base)))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
@@ -841,9 +888,6 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			SkillName:          skillFile.SkillName,
 		})
 	}
-
-	// Append agent file specs. Each spec carries IsPackageAgentFile=true so the installation
-	// step routes the file to the correct agents directory.
 	for _, agentFile := range pkg.AgentFiles {
 		base := filepath.Base(agentFile)
 		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
@@ -859,7 +903,6 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			IsPackageAgentFile: true,
 		})
 	}
-
 	return parsedSpecs
 }
 
@@ -867,19 +910,14 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 	currentSpec := *initialSpec
 	visited := make(map[string]struct{})
 	followedRedirect := false
-
 	for range maxRedirectDepth {
-		// Fetch workflow content - handles both local and remote.
 		fetched, err := fetchWorkflowFromSourceWithContextFn(ctx, &currentSpec, verbose)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		// Redirects only apply to remote workflows.
 		if fetched.IsLocal {
 			return &currentSpec, fetched, nil
 		}
-
 		currentRef := currentSpec.Version
 		if currentRef == "" {
 			currentRef = "main"
@@ -889,28 +927,20 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 			return nil, nil, fmt.Errorf("redirect loop detected at %s", locationKey)
 		}
 		visited[locationKey] = struct{}{}
-
 		redirect, err := extractRedirectFromContent(string(fetched.Content))
 		if err != nil {
 			return nil, nil, err
 		}
 		if redirect == "" {
-			// Preserve the original WorkflowName from the user's request only when
-			// one or more redirects were followed, so the final local file keeps
-			// the requested name.
-			// Without redirects, keep any name derived during fetch, such as JSON
-			// imports where conversion picks a better filename from `name`.
 			if followedRedirect {
 				currentSpec.WorkflowName = initialSpec.WorkflowName
 			}
 			return &currentSpec, fetched, nil
 		}
-
 		redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid redirect %q in %s: %w", redirect, locationKey, err)
 		}
-
 		nextSpec := &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug: redirectedSource.Repo,
@@ -927,7 +957,6 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 		followedRedirect = true
 		currentSpec = *nextSpec
 	}
-
 	return nil, nil, fmt.Errorf("redirect chain exceeded maximum depth (%d) for workflow '%s'", maxRedirectDepth, initialSpec.String())
 }
 

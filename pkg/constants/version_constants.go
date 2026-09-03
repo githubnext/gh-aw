@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.12"
+const DefaultFirewallVersion Version = "v0.28.13"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -163,6 +163,10 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 // sandbox.agent.ca-cert). Older AWF versions reject the unknown property
 // under strict config validation.
 const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
+
+// AWFVerifySbxEgressMinVersion is the minimum AWF version that supports
+// network.verifySbxEgress for fail-closed Docker sbx egress verification.
+const AWFVerifySbxEgressMinVersion Version = "v0.28.13"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure

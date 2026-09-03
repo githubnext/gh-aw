@@ -87,7 +87,7 @@ imports:
 	require.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
 	require.NotNil(t, cycleErr)
 	assert.Equal(t, []string{"a.md", "a.md"}, cycleErr.Chain)
-	assert.Contains(t, err.Error(), "remove the import of 'a.md' from 'a.md'")
+	assert.Contains(t, err.Error(), "remove the import of \"a.md\" from \"a.md\"")
 }
 
 // TestImportCycleDetection_FourFiles tests that a 4-file cycle (A→B→C→D→B) is detected
@@ -290,7 +290,7 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 			expectedParts: []string{
 				"circular import detected: a.md → b.md → a.md",
 				"Imports must form a directed acyclic graph",
-				"remove the import of 'a.md' from 'b.md'",
+				"remove the import of \"a.md\" from \"b.md\"",
 			},
 		},
 		{
@@ -299,7 +299,7 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 			expectedParts: []string{
 				"circular import detected: b.md → c.md → d.md → b.md",
 				"Imports must form a directed acyclic graph",
-				"remove the import of 'b.md' from 'd.md'",
+				"remove the import of \"b.md\" from \"d.md\"",
 			},
 		},
 	}
@@ -322,6 +322,19 @@ func TestImportCycleError_FormattedOutput(t *testing.T) {
 			assert.NotContains(t, errMsg, "\n", "Error should follow the concise validation message style")
 		})
 	}
+}
+
+func TestImportCycleError_QuoteBearingPaths(t *testing.T) {
+	cycleErr := &parser.ImportCycleError{
+		Chain: []string{"entry.md", `importer's "path".md`, `imported's "path".md`},
+	}
+
+	formatted := parser.FormatImportCycleError(cycleErr)
+
+	assert.Equal(t,
+		`circular import detected: entry.md → importer's "path".md → imported's "path".md. Imports must form a directed acyclic graph. Example: remove the import of "imported's \"path\".md" from "importer's \"path\".md"`,
+		formatted.Error(),
+	)
 }
 
 // TestImportCycleError_InvalidChain tests handling of invalid cycle chains

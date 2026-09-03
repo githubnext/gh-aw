@@ -131,7 +131,7 @@ func TestDownloadWorkflowLogsForTargetsReturnsErrorWhenAllFail(t *testing.T) {
 }
 
 func TestMergeLogsTargetResultsPropagatesCountLimitReached(t *testing.T) {
-	processedRuns, _, _, countLimitReached, errs := mergeLogsTargetResults([]logsTargetResult{
+	processedRuns, _, _, countLimitReached, _, errs := mergeLogsTargetResults([]logsTargetResult{
 		{target: logsWorkflowTarget{workflowName: "limited"}, result: workflowLogsResult{countLimitReached: true}},
 		{target: logsWorkflowTarget{workflowName: "complete"}, result: workflowLogsResult{countLimitReached: false}},
 	}, nil)
