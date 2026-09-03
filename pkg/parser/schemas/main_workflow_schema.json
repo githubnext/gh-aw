@@ -12655,16 +12655,6 @@
           "description": "Enable AI agents to replace one label with another on GitHub issues or pull requests in a single atomic operation. Ideal for maintaining label-based state machines (e.g. transitioning issues through workflow states)."
         }
       },
-      "allOf": [
-        {
-          "if": {
-            "anyOf": [{ "required": ["linear-create-issue"] }, { "required": ["linear-add-comment"] }, { "required": ["linear-update-issue"] }]
-          },
-          "then": {
-            "required": ["linear-token"]
-          }
-        }
-      ],
       "additionalProperties": false
     },
     "secret-masking": {

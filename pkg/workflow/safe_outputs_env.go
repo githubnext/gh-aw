@@ -218,9 +218,33 @@ func buildEngineMetadataEnvVars(engineConfig *EngineConfig, model string) []stri
 func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
 		for _, key := range sliceutil.SortedKeys(data.SafeOutputs.Env) {
+			if hasAnyJiraSafeOutputEnabled(data.SafeOutputs) && jiraSafeOutputDefaultEnv[key] != "" {
+				continue
+			}
 			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, data.SafeOutputs.Env[key]))
 		}
 	}
+}
+
+func injectProcessorStepEnv(steps []string, env map[string]string) []string {
+	if len(env) == 0 {
+		return steps
+	}
+	processStepFound := false
+	for index, step := range steps {
+		if step == "      - name: Process Safe Outputs\n" {
+			processStepFound = true
+			continue
+		}
+		if processStepFound && step == "        env:\n" {
+			var inserted []string
+			for _, name := range sliceutil.SortedKeys(env) {
+				inserted = append(inserted, fmt.Sprintf("          %s: %s\n", name, env[name]))
+			}
+			return append(steps[:index+1], append(inserted, steps[index+1:]...)...)
+		}
+	}
+	return steps
 }
 
 func (c *Compiler) addResolvedSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string, resolver func(string) string, allowGitHubApp bool) {

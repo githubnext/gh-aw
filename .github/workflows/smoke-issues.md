@@ -11,11 +11,6 @@ permissions:
   actions: read
 engine: copilot
 safe-outputs:
-  env:
-    JIRA_BASE_URL: https://pelidehalleux.atlassian.net
-    JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-    JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-  linear-token: ${{ secrets.LINEAR_API_KEY }}
   linear-create-issue:
     team-id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"
     project-id: "810f57a7e383"

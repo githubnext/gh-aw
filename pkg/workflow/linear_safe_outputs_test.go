@@ -134,6 +134,19 @@ func TestLinearTokenOnlyAddedToTrustedProcessingStep(t *testing.T) {
 	assert.NotContains(t, rendered[:strings.Index(rendered, "- name: Process Safe Outputs")], "GH_AW_LINEAR_TOKEN")
 }
 
+func TestLinearSafeOutputUsesDefaultCredential(t *testing.T) {
+	config := &SafeOutputsConfig{
+		LinearCreateIssue: &LinearCreateIssueConfig{TeamID: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
+	}
+	steps := []string{
+		"      - name: Process Safe Outputs\n",
+		"        env:\n",
+	}
+
+	rendered := strings.Join(injectLinearTokenIntoProcessorStep(steps, config), "")
+	assert.Contains(t, rendered, "GH_AW_LINEAR_TOKEN: ${{ secrets.LINEAR_API_KEY }}")
+}
+
 // TestLinearOnlyWorkflowSkipsGlobalGitHubAppTokenMinting ensures that a Linear-only
 // safe-outputs configuration does not mint an unrelated GitHub App installation token,
 // even when a top-level (or auto-copied) SafeOutputs.GitHubApp is present. Minting a

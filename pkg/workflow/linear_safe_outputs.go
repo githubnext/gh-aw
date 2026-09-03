@@ -1,8 +1,7 @@
 package workflow
 
 import (
-	"fmt"
-
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -99,23 +98,16 @@ func (c *Compiler) parseLinearUpdateIssueConfig(outputMap map[string]any) *Linea
 }
 
 func injectLinearTokenIntoProcessorStep(steps []string, config *SafeOutputsConfig) []string {
-	if config == nil || config.LinearToken == "" ||
+	if config == nil ||
 		(config.LinearCreateIssue == nil && config.LinearAddComment == nil && config.LinearUpdateIssue == nil) {
 		return steps
 	}
 
-	processStepFound := false
-	for index, step := range steps {
-		if step == "      - name: Process Safe Outputs\n" {
-			processStepFound = true
-			continue
-		}
-		if processStepFound && step == "        env:\n" {
-			tokenEnv := fmt.Sprintf("          GH_AW_LINEAR_TOKEN: %s\n", config.LinearToken)
-			return append(steps[:index+1], append([]string{tokenEnv}, steps[index+1:]...)...)
-		}
+	token := config.LinearToken
+	if token == "" {
+		token = constants.LinearMCPDefaultTokenExpr
 	}
-	return steps
+	return injectProcessorStepEnv(steps, map[string]string{"GH_AW_LINEAR_TOKEN": token})
 }
 
 func defaultReportIncompleteCreateIssue(config *SafeOutputsConfig) string {

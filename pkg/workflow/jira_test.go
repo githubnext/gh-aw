@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,4 +61,27 @@ func TestJiraSafeOutputsRequireNoGitHubWritePermissions(t *testing.T) {
 func TestJiraSafeOutputsCountAsNonBuiltin(t *testing.T) {
 	assert.True(t, hasAnySafeOutputEnabled(&SafeOutputsConfig{JiraAddComment: &JiraSafeOutputConfig{}}))
 	assert.True(t, hasNonBuiltinSafeOutputsEnabled(&SafeOutputsConfig{JiraAddComment: &JiraSafeOutputConfig{}}))
+}
+
+func TestJiraCredentialsAreAddedOnlyToProcessorStep(t *testing.T) {
+	config := &SafeOutputsConfig{
+		JiraCreateIssue: &JiraSafeOutputConfig{},
+		Env: map[string]string{
+			"JIRA_BASE_URL": "https://example.atlassian.net",
+			"OTHER":         "value",
+		},
+	}
+	steps := []string{
+		"      - name: Process Safe Outputs\n",
+		"        env:\n",
+	}
+
+	rendered := strings.Join(injectJiraCredentialsIntoProcessorStep(steps, config), "")
+	assert.Contains(t, rendered, "JIRA_BASE_URL: https://example.atlassian.net")
+	assert.Contains(t, rendered, "JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}")
+	assert.Contains(t, rendered, "JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}")
+
+	customSteps := []string{}
+	NewCompiler().addCustomSafeOutputEnvVars(&customSteps, &WorkflowData{SafeOutputs: config})
+	assert.Equal(t, "          OTHER: value\n", strings.Join(customSteps, ""))
 }

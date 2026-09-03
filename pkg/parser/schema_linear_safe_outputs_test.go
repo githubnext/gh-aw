@@ -11,7 +11,6 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		"on":     "push",
 		"engine": "copilot",
 		"safe-outputs": map[string]any{
-			"linear-token": "${{ secrets.LINEAR_API_KEY }}",
 			"linear-create-issue": map[string]any{
 				"team-id":    "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
 				"project-id": "810f57a7e383",
@@ -35,12 +34,6 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		name        string
 		safeOutputs map[string]any
 	}{
-		{
-			name: "missing token",
-			safeOutputs: map[string]any{
-				"linear-create-issue": map[string]any{"team-id": "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
-			},
-		},
 		{
 			name: "missing team ID",
 			safeOutputs: map[string]any{
