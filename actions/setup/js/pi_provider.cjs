@@ -119,6 +119,7 @@ function resolveProviderRequestTarget(model) {
     case "openai-codex-responses":
       return { api, method, url: joinApiUrl(baseUrl, "/responses") };
     case "anthropic":
+      return { api, method, url: joinApiUrl(baseUrl, "/messages") };
     case "anthropic-messages":
       return { api, method, url: joinApiUrl(baseUrl, "/v1/messages") };
     case "mistral-conversations":
@@ -310,10 +311,12 @@ function piProviderExtension(pi) {
   let lastProviderResponse = null;
   let providerRequestCount = 0;
   let successfulProviderResponseCount = 0;
+  let currentProviderResponseSucceeded = false;
   registerConfiguredProviders(pi, log);
 
   pi.on("before_provider_request", (_event, ctx) => {
     providerRequestCount += 1;
+    currentProviderResponseSucceeded = false;
     lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = null;
     const provider = ctx?.model?.provider || "(unknown provider)";
@@ -324,6 +327,7 @@ function piProviderExtension(pi) {
   pi.on("after_provider_response", (event, ctx) => {
     if (event.status >= 200 && event.status < 300) {
       successfulProviderResponseCount += 1;
+      currentProviderResponseSucceeded = true;
     }
     const request = lastProviderRequest || resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = {
@@ -346,7 +350,10 @@ function piProviderExtension(pi) {
     log(
       `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
     );
-    emitInfrastructureIncompleteIfNoSafeOutputs(`Pi provider request failed before safe outputs were emitted: ${message.errorMessage}`, log);
+    if (currentProviderResponseSucceeded) {
+      successfulProviderResponseCount -= 1;
+      currentProviderResponseSucceeded = false;
+    }
   });
 
   pi.on("agent_start", async () => {
