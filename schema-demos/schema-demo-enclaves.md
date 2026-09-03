@@ -15,14 +15,14 @@ enclaves:
   - script:
     repos:
       - repo: octo-org/private-service
-        sensitivity: confidential
+        sensitivity: trusted
   - agent:
       model: gpt-5
       github:
         cli: issues-read-v1
     repos:
       - repo: octo-org/private-service
-        sensitivity: confidential
+        sensitivity: trusted
 timeout-minutes: 5
 ---
 

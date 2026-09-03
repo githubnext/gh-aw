@@ -13768,7 +13768,7 @@
           },
           "sensitivity": {
             "type": "string",
-            "enum": ["public", "internal", "confidential", "sealed"]
+            "enum": ["public", "trusted", "internal", "confidential", "sealed"]
           }
         }
       }

@@ -158,6 +158,10 @@ const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 // config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
 const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
+// AWFEnclaveTrustedSensitivityMinVersion is the first AWF version whose
+// enclave response schema permits free-form string values for trusted repositories.
+const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.13"
+
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
 // sandbox.agent.ca-cert). Older AWF versions reject the unknown property
