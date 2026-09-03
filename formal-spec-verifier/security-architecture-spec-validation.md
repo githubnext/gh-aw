@@ -1,41 +1,36 @@
 # Formal Notes: security-architecture-spec-validation.md
 
-**Last formalized**: 2026-08-12-15-52-00
-**Notation**: TLA+ / Z3-style guard conjunction / F*
+**Last formalized**: 2026-09-03-15-35-21
+**Notation**: TLA+-style bash-guard predicates / Z3-style version-gate conjunction
 **Issue**: created via safe-output (number assigned post-processing)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `WorkflowRunRepoSafetyCondition` | Compiled `if:` guard requires repo-id match and not-fork when event is workflow_run (T-PM-005) |
-| P2 | `WorkflowRunRepoSafetyOnlyAppliesWhenTriggerPresent` | Guard only injected when `hasWorkflowRunTrigger` detects the trigger |
-| P3 | `WorkflowRunRequiresNonEmptyWorkflowsField` | `on.workflow_run.workflows` must be non-empty (string/[]string/[]any forms) |
-| P4 | `WorkflowRunBranchRestrictionModeSensitive` | Missing branches -> error in strict mode, warning otherwise (T-PM-003) |
-| P5 | `WorkflowRunBranchRestrictionSatisfiedNoOp` | Present branches never triggers strict/warn path |
-| P6 | `NoWorkflowRunTriggerIsNoOp` | Non-workflow_run triggers skip validation entirely |
-| P7 | `DefaultGitHubTokenPrecedence` | Custom token wins; else 3-tier secret fallback (MCP_SERVER/GH_AW/GITHUB_TOKEN) (T-PM-007) |
-| P8 | `SafeOutputGitHubTokenPrecedence` | Custom token wins; else 2-tier safe-output fallback chain (T-PM-007) |
-| P9 | `TokenChainsAreDistinctByJobRole` | Tool-token chain includes MCP-server secret; safe-output chain excludes it (write isolation) |
-| P10 | `StrictModeIsPerCompilerInstance` | `SetStrictMode` deterministically toggles `strictMode` field |
-| P11 | `BashRestrictionWildcardSafe` | nil/wildcard/false/empty-list boundary matrix (carried from CTR notes) |
+| P1 | `ChrootPatchInjectedOnlyWhenDockerHostMatchesTCP` | AWF chroot config patch (§8c T-SI-002/003/005) only injected when `DOCKER_HOST` matches the `tcp://` arc-dind regex |
+| P2 | `ExcludeEnvFlagGatedByAWFVersion` | `--exclude-env` flags only emitted when effective AWF version >= `AWFExcludeEnvMinVersion` (v0.25.3) |
+| P3 | `EnvAllAlwaysPrecedesExcludeEnv` | `--env-all` is unconditional and always precedes any `--exclude-env` pairs |
+| P4 | `ToolCacheMountReadOnlyOutsideOptPrefix` | Tool-cache mount is read-only and skipped when path is under `/opt/` (image-baked) or missing |
+| P5 | `MountRestrictedToStagedGhAwTree` | Sandbox mounts must be scoped under `${RUNNER_TEMP}/gh-aw`, never arbitrary host paths |
+| P6 | `ChrootPatchUsesBashVariantForDetectionRuns` | Detection runs use the bash/jq chroot-patch variant; agent runs use the Node.js variant (T-SI-007 composed sandboxing) |
+| P7 | `VersionGateMonotonicity` | Version-gate helper is monotonic: version >= X and X >= min implies version >= min |
 
 ## Key Invariants
 
-- workflow_run repository-safety `if:` guard is only injected when `on.workflow_run` is present in frontmatter (map or exact string form).
-- Strict mode (`Compiler.strictMode`, set via `SetStrictMode`) converts missing workflow_run branch restrictions from a warning into a hard compile error — this closes the T-PM-003 evidence gap.
-- Repository-ID + not-fork guard (`buildWorkflowRunRepoSafetyCondition`) closes T-PM-005.
-- GitHub token precedence chains differ by job role: tool/agent tokens include `GH_AW_GITHUB_MCP_SERVER_TOKEN` first; safe-output tokens omit it, preserving write-scope isolation — closes T-PM-007.
+- Sandbox chroot patching and `--exclude-env` filtering are both conditionally gated (by DOCKER_HOST value and AWF version respectively) rather than unconditional — absence of the gate must never silently degrade to an insecure default.
+- All sandbox mounts observed in compiled workflows are scoped under the staged `${RUNNER_TEMP}/gh-aw` tree; no arbitrary host path (e.g. `/`, `/var/run/docker.sock`) should ever be mountable.
+- Detection-job and agent-job invocations share the same underlying chroot-patch mechanism but select different script variants (bash vs Node.js) — sandboxing and detection composed, not exclusive (T-SI-007).
 
 ## Edge Cases Identified
 
-- `on: workflow_run` as a bare string (not map form) is NOT detected as a workflow_run trigger by `hasWorkflowRunTrigger`'s string-equality branch when combined with other trigger keys — documented as current, non-obvious behavior in the test suite.
-- Empty vs. whitespace-only `workflow_run.workflows` values must both be rejected.
-- `SetStrictMode` must be idempotent under repeated calls with the same value.
+- Malformed/partial `tcp` prefixes (`tcp:/`, `tcp127.0.0.1`, case variations, leading whitespace) must NOT match the DOCKER_HOST arc-dind regex.
+- An empty (but non-nil) exclude-env list must produce zero `--exclude-env` pairs, not an empty/bare flag.
+- Non-semver / unparseable version strings (branch names, missing "v" prefix) must conservatively fail version gates — except empty string, which falls back to the default version.
 
 ## Notes for Future Runs
 
-- The generated test suite targets internal (unexported) functions (`hasWorkflowRunTrigger`, `buildWorkflowRunRepoSafetyCondition`, `validateWorkflowRunBranches`, `hasNonEmptyWorkflowRunWorkflows`, `getEffectiveGitHubToken`, `getEffectiveSafeOutputGitHubToken`). A follow-up PR should add small test-only exported wrappers (or move the suite into `package workflow`) before it can compile as-is.
-- T-PM-001, T-PM-002, T-PM-004, T-PM-006 were already evidenced in the base spec (PM-01/PM-02 defaults, PM-08 fork protection, PM-10/PM-11 RBAC) — not re-derived this run.
-- Sandbox Isolation (T-SI-001..007) and Threat Detection (T-TD-002..007) remain the next-highest-priority gaps per the compliance matrix; a future run should target those once exposed via testable Go APIs.
-- T-GH-047 to T-GH-060 (companion MCP access-control spec) remain out of scope for this document — see `specs/github-mcp-access-control-compliance/README.md` notes instead.
+- This run targeted §8c "Sandbox Isolation Supplemental Evidence" (T-SI-001 to T-SI-007), flagged as the top-priority partial-evidence gap in prior runs' notes.
+- The generated test suite is written against a **stub** re-implementation of `versionAtLeast`, `awfSupportsExcludeEnv`, DOCKER_HOST regex matching, and mount/patch-variant selection logic (all unexported in `pkg/workflow`). A follow-up PR should move this suite into `package workflow` (or add exported test-only wrappers) so it exercises the real `pkg/workflow/awf_command_builder.go`, `pkg/workflow/awf_arc_dind.go`, and `pkg/workflow/version_gate.go` implementations directly.
+- The direct runtime host/socket-visibility probe from inside the AWF sandbox (tracked in gh-aw#48686) remains unaddressed — it requires an actual running sandbox, not unit-level Go tests, and is out of scope for this formalization.
+- Next-highest-priority target per the compliance matrix: Threat Detection (T-TD-002 to T-TD-007) — only TD-01 (job presence) has been verified so far.
