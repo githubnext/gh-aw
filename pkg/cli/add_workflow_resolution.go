@@ -602,7 +602,7 @@ func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, 
 			continue
 		}
 		sourceDir := packageDir
-		if !include.isMapping() && strings.HasPrefix(include.Source, constants.GithubDir) {
+		if !include.isMapping() && strings.HasPrefix(filepath.ToSlash(include.Source), constants.GithubDir) {
 			sourceDir = packageRoot
 		}
 		absolutePath := filepath.Clean(filepath.Join(sourceDir, filepath.FromSlash(include.Source)))
