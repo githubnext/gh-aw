@@ -120,10 +120,12 @@ func (r *repositoryPackageManifestGraphResolver) visit(manifestPath string, mani
 		if !isPathWithinPackageRoot(importPath, r.rootPackagePath) {
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: import %q resolves outside the package root", manifestPath, relativeImport)
 		}
-		if r.states[importPath] != 0 {
+		switch r.states[importPath] {
+		case 1:
 			if err := r.visit(importPath, nil); err != nil {
 				return err
 			}
+		case 2:
 			continue
 		}
 		content, err := r.readManifest(importPath)
@@ -218,9 +220,13 @@ func readLocalImportedManifest(manifestPath, packageRoot string) ([]byte, error)
 		return nil, err
 	}
 	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
-		return nil, errors.New("import resolves outside the package root")
+		return nil, fmt.Errorf("import %q resolves outside the package root", manifestPath)
 	}
-	if filepath.Clean(evaluatedPath) != filepath.Clean(manifestPath) {
+	declaredRelative, err := filepath.Rel(filepath.Clean(packageRoot), filepath.Clean(manifestPath))
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(relative) != filepath.Clean(declaredRelative) {
 		return nil, errors.New("imported manifests must not use symbolic links")
 	}
 	return os.ReadFile(manifestPath)

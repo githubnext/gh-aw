@@ -59,6 +59,24 @@ func TestResolveRepositoryPackageManifestGraphCycle(t *testing.T) {
 	require.ErrorContains(t, err, "aw.yml -> packages/a/aw.yml -> aw.yml")
 }
 
+func TestReadLocalImportedManifestSymlinks(t *testing.T) {
+	realRoot := t.TempDir()
+	writePackageTestFile(t, realRoot, "child/aw.yml", "name: Child\n")
+	symlinkRoot := filepath.Join(t.TempDir(), "package")
+	if err := os.Symlink(realRoot, symlinkRoot); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+	_, err := readLocalImportedManifest(filepath.Join(symlinkRoot, "child", "aw.yml"), symlinkRoot)
+	require.NoError(t, err)
+
+	outsideManifest := filepath.Join(t.TempDir(), "aw.yml")
+	require.NoError(t, os.WriteFile(outsideManifest, []byte("name: Outside\n"), 0o644))
+	internalLink := filepath.Join(realRoot, "linked")
+	require.NoError(t, os.Symlink(filepath.Dir(outsideManifest), internalLink))
+	_, err = readLocalImportedManifest(filepath.Join(realRoot, "linked", "aw.yml"), realRoot)
+	require.ErrorContains(t, err, "outside the package root")
+}
+
 func TestResolveLocalRepositoryPackageImports(t *testing.T) {
 	packageDir := t.TempDir()
 	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
