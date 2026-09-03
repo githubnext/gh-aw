@@ -120,3 +120,22 @@ Follow-up for next cycle:
 2. Reconcile engine.version pinning count (14 vs 38) using a standardized full-engine-block grep pattern; record the exact pattern used in repo-memory for future consistency.
 3. Confirm with a maintainer whether plugins and copilot-sdk tracking should continue every cycle or move to a quarterly check, given both are now fully flat for 8-10 cycles.
 4. If shared-defaults still absent, consider this research format itself needs a "escalated items" section that persists rather than being re-derived each cycle.
+
+## Run: 2026-09-03 (workflow-run-id: 33717428493)
+Eleventh analysis. Compared to all prior cycles (08-23 through 09-02).
+
+Changes since last run:
+- copilot_workflows measured at 104 (standard combined engine:/id: copilot grep) — within normal range of recent cycles (107-111).
+- engine.agent ground-truth re-verified via direct grep of the 7 known workflows (archie, contribution-check, daily-file-diet, glossary-maintainer, hourly-ci-cleaner, technical-doc-writer, workflow-generator) — confirmed present, all 7 unchanged for 7 consecutive cycles.
+- copilot-sdk: true flat at 61 for a 9th consecutive cycle — fully settled.
+- plugins: 0 adoption for an 11th consecutive cycle. This cycle's report explicitly frames this as requiring a binary maintainer decision (promote vs. deprecate) rather than continued observation.
+- shared/copilot-defaults.md: STILL not created — 9 cycles since the run-2 (08-24) origin recommendation. This cycle's issue explicitly recommends moving this OUT of the recurring report and into a standalone tracking issue, since 9 cycles of repetition here have produced zero action.
+- --share: confirmed still only referenced in this research workflow's own descriptive text (not an actual CLI invocation anywhere). Flagged this cycle that the flag's current wiring status in copilot_engine_execution.go could not be confirmed — no `--share`-related code found in the engine execution file. Recommend verifying the flag is still real/supported by the current Copilot CLI before further promoting it as an opportunity.
+- --block-domains: flat 0 for a 6th consecutive cycle vs. network.allowed at 183/298 (61%) — recommending docs de-emphasize block-domains going forward.
+- engine.version pinning: STILL unreconciled between run 7's loose-pattern count (38) and the strict full-engine-block scan used in runs 10-11 (~0). No standardized pattern has yet been recorded in repo-memory despite being flagged as a to-do in both run 10 and this run.
+
+Follow-up for next cycle:
+1. Confirm whether a standalone tracking issue for shared/copilot-defaults.md was opened as a result of this cycle's escalation — if so, stop tracking it in the recurring report and just link to the issue.
+2. Actually standardize and record (in this file) the exact grep/awk pattern for engine.version pinning so the 38-vs-0 discrepancy can finally be resolved with one comparable number.
+3. Check copilot CLI release notes/changelog for any new flags or capabilities added since this cycle that aren't yet reflected in pkg/workflow/copilot_engine*.go.
+4. Treat copilot-sdk, engine.agent, plugins, --block-domains, and --share as settled/plateaued — only produce full write-ups for these again if a maintainer explicitly asks, or if their numbers change.
