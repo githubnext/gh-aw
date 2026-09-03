@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1014,6 +1015,38 @@ func TestResolveLocalRepositoryPackagePreservesIcon(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, pkg)
 	assert.Equal(t, "📦", pkg.Icon)
+}
+
+func TestResolveLocalRepositoryPackageDiscoversProjectFile(t *testing.T) {
+	packageDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "aw.yml"), []byte("name: Local Package\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(packageDir, "README.md"), []byte("# Local Package\n"), 0o644))
+	projectFile := filepath.Join(packageDir, filepath.FromSlash(workflow.RepoConfigFileName))
+	require.NoError(t, os.MkdirAll(filepath.Dir(projectFile), 0o755))
+	require.NoError(t, os.WriteFile(projectFile, []byte(`{"utc":"+01:00"}`), 0o644))
+
+	pkg, err := resolveLocalRepositoryPackage(packageDir)
+	require.NoError(t, err)
+	require.NotNil(t, pkg.ProjectFile)
+	assert.Equal(t, projectFile, pkg.ProjectFile.SourcePath)
+	assert.Equal(t, workflow.RepoConfigFileName, pkg.ProjectFile.DestinationPath)
+}
+
+func TestResolveRepositoryPackageProjectFile(t *testing.T) {
+	originalDownload := downloadPackageFileFromGitHubForHost
+	t.Cleanup(func() {
+		downloadPackageFileFromGitHubForHost = originalDownload
+	})
+	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, filePath, ref, host string) ([]byte, error) {
+		assert.Equal(t, "packages/repo-assist/.github/workflows/aw.json", filePath)
+		return []byte(`{"utc":"+01:00"}`), nil
+	}
+
+	projectFile, err := resolveRepositoryPackageProjectFile(t.Context(), "owner", "repo", "packages/repo-assist", "main", "github.com")
+	require.NoError(t, err)
+	require.NotNil(t, projectFile)
+	assert.Equal(t, "packages/repo-assist/.github/workflows/aw.json", projectFile.SourcePath)
+	assert.Equal(t, workflow.RepoConfigFileName, projectFile.DestinationPath)
 }
 
 func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
