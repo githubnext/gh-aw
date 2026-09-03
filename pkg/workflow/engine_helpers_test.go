@@ -232,9 +232,9 @@ func TestGetNpmBinPathSetup_PreservesSelectedRuby(t *testing.T) {
 		t.Skip("Skipping shell-based test on non-Linux platform")
 	}
 
-	tmpDir := t.TempDir()
-	selectedRubyBin := filepath.Join(tmpDir, "selected-ruby", "bin")
-	cachedRubyBin := filepath.Join(tmpDir, "Ruby", "3.2.11", "x64", "bin")
+	cacheRoot := filepath.Join(t.TempDir(), "toolcache")
+	selectedRubyBin := filepath.Join(t.TempDir(), "selected-ruby", "bin")
+	cachedRubyBin := filepath.Join(cacheRoot, "Ruby", "3.2.11", "x64", "bin")
 	require.NoError(t, os.MkdirAll(selectedRubyBin, 0o755))
 	require.NoError(t, os.MkdirAll(cachedRubyBin, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(selectedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.4.8'\n"), 0o755))
@@ -243,7 +243,7 @@ func TestGetNpmBinPathSetup_PreservesSelectedRuby(t *testing.T) {
 
 	shellCmd := fmt.Sprintf(
 		`unset GOROOT ERLANG_HOME; export RUNNER_TOOL_CACHE=%q; export PATH=%q:/usr/bin:/bin; %s; ruby --version; npm-agent`,
-		tmpDir,
+		cacheRoot,
 		selectedRubyBin,
 		GetNpmBinPathSetup(),
 	)
