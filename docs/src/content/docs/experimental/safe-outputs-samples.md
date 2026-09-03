@@ -102,7 +102,7 @@ Trivial workflow exercising create-pull-request via --use-samples.
 
 Even without `--use-samples`, every `samples:` entry on every enabled handler is validated at compile time against the corresponding MCP tool's `inputSchema`. Sidecar keys are stripped first. Any `${{ ... }}` runtime expression inside a sample string is substituted with a schema-aware placeholder for validation only (e.g. an enum value for `severity`, `true` for a boolean, `aw_sample` for a generic `aw_*` temporary-id pattern); the original expression is preserved verbatim in the emitted YAML.
 
-When samples replay is enabled, the compiler also warns about every enabled safe output that declares no `samples:` entries. Those handlers are never called by the replay driver, so the run succeeds without performing the configured operation — add a `samples:` list to each one you expect the suite to exercise.
+When samples replay is enabled, the compiler also warns about each enabled non-builtin handler that supports `samples:` but declares no entries. Those handlers are never called by the replay driver, so the run succeeds without performing the configured operation — add a `samples:` list to each one you expect the suite to exercise.
 
 ## Interaction with other features
 
