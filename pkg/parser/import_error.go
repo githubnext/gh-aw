@@ -33,7 +33,7 @@ func (e *ImportCycleError) Error() string {
 	importer := e.Chain[len(e.Chain)-2]
 	imported := e.Chain[len(e.Chain)-1]
 	return fmt.Sprintf(
-		"circular import detected: %s. Imports must form a directed acyclic graph. Example: remove the import of '%s' from '%s'",
+		"circular import detected: %s. Imports must form a directed acyclic graph. Example: remove the import of %q from %q",
 		strings.Join(e.Chain, " → "), imported, importer)
 }
 
