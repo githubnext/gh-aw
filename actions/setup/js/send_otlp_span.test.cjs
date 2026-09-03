@@ -6710,6 +6710,17 @@ describe("parseOTLPEndpoints", () => {
     expect(parseOTLPEndpoints()).toEqual([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
   });
 
+  it("keeps later endpoints when an earlier header pair has an invalid percent escape", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
+    expect(parseOTLPEndpoints()).toEqual([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
+  });
+
   describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {
     afterEach(() => {
       delete process.env.GH_AW_OTLP_IF_MISSING;

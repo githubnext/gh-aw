@@ -861,10 +861,14 @@ function parseOTLPHeaders(raw) {
   for (const pair of raw.split(",")) {
     const eqIdx = pair.indexOf("=");
     if (eqIdx <= 0) continue; // skip malformed pairs (no =) or empty keys (= at start)
-    // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
-    const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
-    const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
-    if (key) result[key] = value;
+    try {
+      // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
+      const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
+      const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
+      if (key) result[key] = value;
+    } catch {
+      // Ignore only the malformed pair so other configured headers remain usable.
+    }
   }
   return result;
 }

@@ -191,6 +191,20 @@ describe("action_setup_otlp.cjs", () => {
       expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://grafana.example.com");
       expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=******");
     });
+
+    it("preserves explicit exporter overrides when the primary endpoint is unavailable", async () => {
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([
+        { url: "https://sentry.example.com", headers: "x-sentry-auth=" },
+        { url: "https://grafana.example.com", headers: "Authorization=******" },
+      ]);
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://custom.example.com";
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=custom";
+
+      await run();
+
+      expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://custom.example.com");
+      expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=custom");
+    });
   });
 
   describe("OTLP OIDC token header injection", () => {

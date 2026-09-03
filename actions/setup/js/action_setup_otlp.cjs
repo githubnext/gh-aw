@@ -107,6 +107,21 @@ function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
 }
 
 /**
+ * @param {string} endpointsRaw
+ * @returns {{ url: string, headers: string } | null}
+ */
+function getPrimaryOTLPEndpoint(endpointsRaw) {
+  try {
+    const endpoints = JSON.parse(endpointsRaw);
+    const primary = Array.isArray(endpoints) ? endpoints[0] : null;
+    if (!primary || typeof primary.url !== "string") return null;
+    return { url: primary.url, headers: typeof primary.headers === "string" ? primary.headers : "" };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
  * GITHUB_ENV.  Non-fatal: all errors are silently swallowed.
  *
@@ -166,16 +181,20 @@ async function run() {
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
   if (endpoints) {
-    const [primaryEndpoint] = parsedEndpoints;
-    const endpoint = primaryEndpoint?.url || "";
-    const headers = primaryEndpoint?.headers || "";
-    if (endpoint !== (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "")) {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
-      writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
-    }
-    if (headers !== (process.env.OTEL_EXPORTER_OTLP_HEADERS || "")) {
-      process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
-      writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+    const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
+    const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+    const currentHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+    if (primaryEndpoint && currentEndpoint === primaryEndpoint.url && currentHeaders === primaryEndpoint.headers) {
+      const endpoint = parsedEndpoints[0]?.url || "";
+      const headers = parsedEndpoints[0]?.headers || "";
+      if (endpoint !== currentEndpoint) {
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
+        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+      }
+      if (headers !== currentHeaders) {
+        process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+      }
     }
   }
 
