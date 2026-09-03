@@ -226,6 +226,34 @@ func TestGetNpmBinPathSetup_GorootOrdering(t *testing.T) {
 	}
 }
 
+func TestGetNpmBinPathSetup_PreservesSelectedRuby(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping shell-based test on non-Linux platform")
+	}
+
+	tmpDir := t.TempDir()
+	selectedRubyBin := filepath.Join(tmpDir, "selected-ruby", "bin")
+	cachedRubyBin := filepath.Join(tmpDir, "Ruby", "3.2.11", "x64", "bin")
+	os.MkdirAll(selectedRubyBin, 0o755)
+	os.MkdirAll(cachedRubyBin, 0o755)
+	os.WriteFile(filepath.Join(selectedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.4.8'\n"), 0o755)
+	os.WriteFile(filepath.Join(cachedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.2.11'\n"), 0o755)
+	os.WriteFile(filepath.Join(cachedRubyBin, "npm-agent"), []byte("#!/bin/sh\necho 'npm agent found'\n"), 0o755)
+
+	shellCmd := fmt.Sprintf(
+		`unset GOROOT ERLANG_HOME; export RUNNER_TOOL_CACHE=%q; export PATH=%q:/usr/bin:/bin; %s; ruby --version; npm-agent`,
+		tmpDir,
+		selectedRubyBin,
+		GetNpmBinPathSetup(),
+	)
+
+	output, err := exec.Command("bash", "-c", shellCmd).Output()
+	if err != nil {
+		t.Fatalf("Failed to execute shell command: %v", err)
+	}
+	assert.Equal(t, "ruby 3.4.8\nnpm agent found\n", string(output))
+}
+
 // TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain verifies that when GOROOT is
 // not set, the command chain continues (the || true prevents short-circuit).
 func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
