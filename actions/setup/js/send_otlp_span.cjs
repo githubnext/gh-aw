@@ -870,6 +870,18 @@ function parseOTLPHeaders(raw) {
 }
 
 /**
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function hasEmptyOTLPAuthorizationHeader(raw) {
+  const headers = parseOTLPHeaders(raw);
+  return Object.entries(headers).some(([key, value]) => {
+    const normalizedKey = key.toLowerCase();
+    return (normalizedKey === "authorization" || normalizedKey === "x-sentry-auth") && value === "";
+  });
+}
+
+/**
  * Determine whether OTLP export should use a proxy-aware transport.
  * Native Node fetch does not honor proxy environment variables by default.
  *
@@ -1126,6 +1138,9 @@ function parseOTLPEndpoints() {
         .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
         .filter(e => {
           const hasHeaders = typeof e.headers === "string" && e.headers !== "";
+          if (hasHeaders && hasEmptyOTLPAuthorizationHeader(e.headers)) {
+            return false;
+          }
           if (ignoreMissingCredentials && !hasHeaders) {
             // Enterprise-default endpoint configured without matching credentials:
             // treat as unconfigured instead of exporting unauthenticated telemetry.

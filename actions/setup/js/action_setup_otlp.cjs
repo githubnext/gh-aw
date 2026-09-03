@@ -51,6 +51,21 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
 }
 
 /**
+ * @param {string | undefined} filePath
+ * @param {string} key
+ * @param {string} value
+ */
+function writeEnvValue(filePath, key, value) {
+  if (!filePath) return;
+  try {
+    appendFileSync(filePath, `${key}=${value}\n`);
+    core.info(`[otlp] ${key} written to GITHUB_ENV`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * @param {string} headers
  * @returns {boolean}
  */
@@ -101,9 +116,7 @@ function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
  * @returns {Promise<void>}
  */
 async function run() {
-  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
-
-  const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require("./send_otlp_span.cjs");
+  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints } = require("./send_otlp_span.cjs");
 
   const rawStartMs = process.env.SETUP_START_MS;
   const parsedMs = /^\d+$/.test(rawStartMs ?? "") ? Number(rawStartMs) : NaN;
@@ -150,8 +163,26 @@ async function run() {
     }
   }
 
+  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
+  const parsedEndpoints = parseOTLPEndpoints();
+  if (endpoints) {
+    const [primaryEndpoint] = parsedEndpoints;
+    const endpoint = primaryEndpoint?.url || "";
+    const headers = primaryEndpoint?.headers || "";
+    if (endpoint !== (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "")) {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
+      writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+    }
+    if (headers !== (process.env.OTEL_EXPORTER_OTLP_HEADERS || "")) {
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+      writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+    }
+  }
+
   if (!endpoints) {
     core.info("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
+  } else if (parsedEndpoints.length === 0) {
+    core.info("[otlp] no OTLP endpoints have usable credentials, skipping setup span");
   } else {
     core.info(`[otlp] sending setup span to configured endpoints`);
   }
@@ -164,7 +195,7 @@ async function run() {
 
   core.info(`[otlp] resolved trace-id=${traceId}`);
 
-  if (endpoints) {
+  if (parsedEndpoints.length > 0) {
     core.info(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
   }
 
