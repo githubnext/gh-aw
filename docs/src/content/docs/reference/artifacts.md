@@ -208,7 +208,13 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   "firewall": {
     "total_requests": 12,
     "allowed_requests": 10,
-    "blocked_requests": 2
+    "blocked_requests": 2,
+    "allowed_domains": ["api.github.com:443"],
+    "blocked_domains": ["blocked.example.com:443"],
+    "requests_by_domain": {
+      "api.github.com:443": { "allowed": 10, "blocked": 0 },
+      "blocked.example.com:443": { "allowed": 0, "blocked": 2 }
+    }
   },
   "gateway": {
     "total_calls": 5,
@@ -256,6 +262,10 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   }
 }
 ```
+
+The firewall aggregate preserves the unique sets of allowed and blocked domains. The
+`requests_by_domain` values record each domain's request arity split by allowed and
+blocked decisions.
 
 The conclusion job derives `gateway` and `integrity` from MCP gateway logs, falling back to `rpc-messages.jsonl` when `gateway.jsonl` is unavailable. These compact aggregates let `gh aw logs --artifacts usage` report MCP call, payload-size, duration, failure, and integrity-filter metrics without downloading raw logs. Cross-run reports include `runs_with_filtered_events`; the existing logs report summary remains the source for the total number of runs.
 
