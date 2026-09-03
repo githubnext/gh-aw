@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+<rect width="100%" height="100%" fill="white"/>
+<style>text{font-family:Arial,sans-serif;fill:#222}.title{font-size:28px;font-weight:bold}.axis{font-size:16px}.legend{font-size:15px}.small{font-size:13px}.grid{stroke:#d9d9d9;stroke-width:1}.axisline{stroke:#333;stroke-width:2}.bar{fill:#4C72B0;opacity:.75}</style>
+<text x="600.0" y="40" text-anchor="middle" class="title">Commit Activity &amp; Contributors - Last 30 Days</text>
+<line x1="90" y1="70.0" x2="1120" y2="70.0" class="grid"/>
+<text x="80" y="75.0" text-anchor="end" class="axis">43.0</text>
+<text x="1130" y="75.0" class="axis">4.0</text>
+<line x1="90" y1="180.0" x2="1120" y2="180.0" class="grid"/>
+<text x="80" y="185.0" text-anchor="end" class="axis">34.4</text>
+<text x="1130" y="185.0" class="axis">3.2</text>
+<line x1="90" y1="290.0" x2="1120" y2="290.0" class="grid"/>
+<text x="80" y="295.0" text-anchor="end" class="axis">25.8</text>
+<text x="1130" y="295.0" class="axis">2.4</text>
+<line x1="90" y1="400.0" x2="1120" y2="400.0" class="grid"/>
+<text x="80" y="405.0" text-anchor="end" class="axis">17.2</text>
+<text x="1130" y="405.0" class="axis">1.6</text>
+<line x1="90" y1="510.0" x2="1120" y2="510.0" class="grid"/>
+<text x="80" y="515.0" text-anchor="end" class="axis">8.6</text>
+<text x="1130" y="515.0" class="axis">0.8</text>
+<line x1="90" y1="620.0" x2="1120" y2="620.0" class="grid"/>
+<text x="80" y="625.0" text-anchor="end" class="axis">0.0</text>
+<text x="1130" y="625.0" class="axis">0.0</text>
+<line x1="90" y1="70" x2="90" y2="620" class="axisline"/>
+<line x1="1120" y1="70" x2="1120" y2="620" class="axisline"/>
+<line x1="90" y1="620" x2="1120" y2="620" class="axisline"/>
+<text x="90.0" y="645" text-anchor="middle" class="small">Aug 05</text>
+<rect x="77.98333333333333" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="113.50057471264368" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="149.01781609195402" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="184.53505747126437" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="232.06896551724137" y="645" text-anchor="middle" class="small">Aug 09</text>
+<rect x="220.0522988505747" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="255.56954022988506" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="291.08678160919544" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="326.6040229885058" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="374.13793103448273" y="645" text-anchor="middle" class="small">Aug 13</text>
+<rect x="362.1212643678161" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="397.6385057471265" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="433.15574712643684" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="468.6729885057471" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="516.2068965517242" y="645" text-anchor="middle" class="small">Aug 17</text>
+<rect x="504.19022988505753" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="539.7074712643678" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="575.2247126436782" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="610.7419540229886" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="658.2758620689655" y="645" text-anchor="middle" class="small">Aug 21</text>
+<rect x="646.2591954022988" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="681.7764367816092" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="717.2936781609196" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="752.8109195402299" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="800.344827586207" y="645" text-anchor="middle" class="small">Aug 25</text>
+<rect x="788.3281609195403" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="823.8454022988506" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="859.3626436781609" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="894.8798850574713" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<text x="942.4137931034483" y="645" text-anchor="middle" class="small">Aug 29</text>
+<rect x="930.3971264367816" y="620.0" width="24.033333333333335" height="0.0" class="bar"/>
+<rect x="965.914367816092" y="466.51162790697674" width="24.033333333333335" height="153.48837209302326" class="bar"/>
+<rect x="1001.4316091954023" y="453.72093023255815" width="24.033333333333335" height="166.27906976744185" class="bar"/>
+<rect x="1036.9488505747127" y="351.3953488372093" width="24.033333333333335" height="268.6046511627907" class="bar"/>
+<text x="1084.4827586206898" y="645" text-anchor="middle" class="small">Sep 02</text>
+<rect x="1072.466091954023" y="70.0" width="24.033333333333335" height="550.0" class="bar"/>
+<text x="1120.0" y="645" text-anchor="middle" class="small">Sep 03</text>
+<rect x="1107.9833333333333" y="479.30232558139534" width="24.033333333333335" height="140.69767441860466" class="bar"/>
+<circle cx="90.0" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="125.51724137931035" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="161.0344827586207" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="196.55172413793105" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="232.06896551724137" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="267.58620689655174" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="303.1034482758621" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="338.62068965517244" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="374.13793103448273" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="409.65517241379314" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="445.1724137931035" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="480.6896551724138" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="516.2068965517242" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="551.7241379310344" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="587.2413793103449" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="622.7586206896552" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="658.2758620689655" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="693.7931034482758" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="729.3103448275863" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="764.8275862068965" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="800.344827586207" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="835.8620689655172" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="871.3793103448276" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="906.8965517241379" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="942.4137931034483" cy="620.0" r="4" fill="#DD8452"/>
+<circle cx="977.9310344827586" cy="345.0" r="4" fill="#DD8452"/>
+<circle cx="1013.448275862069" cy="207.5" r="4" fill="#DD8452"/>
+<circle cx="1048.9655172413793" cy="207.5" r="4" fill="#DD8452"/>
+<circle cx="1084.4827586206898" cy="207.5" r="4" fill="#DD8452"/>
+<circle cx="1120.0" cy="70.0" r="4" fill="#DD8452"/>
+<polyline fill="none" stroke="#DD8452" stroke-width="3" points="90.0,620.0 125.51724137931035,620.0 161.0344827586207,620.0 196.55172413793105,620.0 232.06896551724137,620.0 267.58620689655174,620.0 303.1034482758621,620.0 338.62068965517244,620.0 374.13793103448273,620.0 409.65517241379314,620.0 445.1724137931035,620.0 480.6896551724138,620.0 516.2068965517242,620.0 551.7241379310344,620.0 587.2413793103449,620.0 622.7586206896552,620.0 658.2758620689655,620.0 693.7931034482758,620.0 729.3103448275863,620.0 764.8275862068965,620.0 800.344827586207,620.0 835.8620689655172,620.0 871.3793103448276,620.0 906.8965517241379,620.0 942.4137931034483,620.0 977.9310344827586,345.0 1013.448275862069,207.5 1048.9655172413793,207.5 1084.4827586206898,207.5 1120.0,70.0"/>
+<polyline fill="none" stroke="#DD8452" stroke-width="2" stroke-dasharray="8,6" opacity="0.6" points="90.0,620.0 125.51724137931035,620.0 161.0344827586207,620.0 196.55172413793105,620.0 232.06896551724137,620.0 267.58620689655174,620.0 303.1034482758621,620.0 338.62068965517244,620.0 374.13793103448273,620.0 409.65517241379314,620.0 445.1724137931035,620.0 480.6896551724138,620.0 516.2068965517242,620.0 551.7241379310344,620.0 587.2413793103449,620.0 622.7586206896552,620.0 658.2758620689655,620.0 693.7931034482758,620.0 729.3103448275863,620.0 764.8275862068965,620.0 800.344827586207,620.0 835.8620689655172,620.0 871.3793103448276,620.0 906.8965517241379,620.0 942.4137931034483,620.0 977.9310344827586,580.7142857142858 1013.448275862069,521.7857142857142 1048.9655172413793,462.8571428571429 1084.4827586206898,403.92857142857144 1120.0,325.3571428571429"/>
+<line x1="1084.4827586206898" y1="70.0" x2="1154.4827586206898" y2="25.0" stroke="black"/>
+<text x="1159.4827586206898" y="20.0" class="legend">Commit surge: 43</text>
+<rect x="900" y="70" width="24" height="12" class="bar"/>
+<text x="935" y="80" class="legend">Commits</text>
+<line x1="900" y1="104" x2="930" y2="104" stroke="#DD8452" stroke-width="4"/>
+<text x="940" y="109" class="legend">Contributors</text>
+</svg>
