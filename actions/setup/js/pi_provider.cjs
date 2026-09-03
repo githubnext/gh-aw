@@ -307,16 +307,14 @@ function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
   /** @type {{ api: string, method: string, url: string }|null} */
   let lastProviderRequest = null;
-  /** @type {{ status: number, responseHeaders: string }|null} */
+  /** @type {{ status: number, responseHeaders: string, succeeded: boolean }|null} */
   let lastProviderResponse = null;
   let providerRequestCount = 0;
   let successfulProviderResponseCount = 0;
-  let currentProviderResponseSucceeded = false;
   registerConfiguredProviders(pi, log);
 
   pi.on("before_provider_request", (_event, ctx) => {
     providerRequestCount += 1;
-    currentProviderResponseSucceeded = false;
     lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = null;
     const provider = ctx?.model?.provider || "(unknown provider)";
@@ -325,14 +323,15 @@ function piProviderExtension(pi) {
   });
 
   pi.on("after_provider_response", (event, ctx) => {
-    if (event.status >= 200 && event.status < 300) {
+    const succeeded = event.status >= 200 && event.status < 300;
+    if (succeeded) {
       successfulProviderResponseCount += 1;
-      currentProviderResponseSucceeded = true;
     }
     const request = lastProviderRequest || resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = {
       status: event.status,
       responseHeaders: formatResponseHeaderNames(event.headers),
+      succeeded,
     };
     const provider = ctx?.model?.provider || "(unknown provider)";
     const model = ctx?.model?.id || getConfiguredModel() || "(unknown model)";
@@ -350,9 +349,9 @@ function piProviderExtension(pi) {
     log(
       `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
     );
-    if (currentProviderResponseSucceeded) {
+    if (lastProviderResponse?.succeeded) {
       successfulProviderResponseCount -= 1;
-      currentProviderResponseSucceeded = false;
+      lastProviderResponse.succeeded = false;
     }
   });
 
