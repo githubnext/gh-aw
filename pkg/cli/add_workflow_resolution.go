@@ -491,7 +491,7 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	}
 	warnings = append(warnings, importWarnings...)
 
-	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes)
+	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes, packageDir)
 	if err != nil {
 		return nil, err
 	}
@@ -527,12 +527,12 @@ func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest
 	}
 }
 
-func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
+func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode, packageRoot string) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
 	for _, node := range nodes {
 		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(node.Manifest.Includes)
 		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(node.Manifest.Files)...)
-		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath)
+		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath, packageRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -594,14 +594,18 @@ func localRepositoryPackageManifest(source string) (string, string, error) {
 	return resolvedPath, filepath.Dir(resolvedPath), nil
 }
 
-func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, packageDir string) ([]resolvedPackageInstallable, error) {
+func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, packageDir, packageRoot string) ([]resolvedPackageInstallable, error) {
 	normalized := make([]resolvedPackageInstallable, 0, len(includes))
 	seen := make(map[string]struct{})
 	for _, include := range includes {
 		if !include.isMapping() && !isSupportedPackageInstallablePath(include.Source) {
 			continue
 		}
-		absolutePath := filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(include.Source)))
+		sourceDir := packageDir
+		if !include.isMapping() && strings.HasPrefix(include.Source, constants.GithubDir) {
+			sourceDir = packageRoot
+		}
+		absolutePath := filepath.Clean(filepath.Join(sourceDir, filepath.FromSlash(include.Source)))
 		if include.isMapping() {
 			if err := validateLocalPackageMappingSource(absolutePath, packageDir, include.Source); err != nil {
 				return nil, err
