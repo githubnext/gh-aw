@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,12 +12,18 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+// npmInstallTimeout bounds how long "npm install --package-lock-only" is allowed to
+// run. Without a timeout, a slow or unreachable npm registry can hang the command
+// indefinitely, which is especially problematic in sandboxed/offline test environments.
+const npmInstallTimeout = 60 * time.Second
 
 // generateNpmManifests generates package.json and package-lock.json for npm dependencies
 // detected in the workflows. It returns true if npm dependencies were found.
@@ -274,19 +281,8 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running npm install --package-lock-only..."))
 	}
 
-	// Run npm install --package-lock-only without lifecycle scripts.
-	// The generated package.json can be influenced by workflow content, so explicitly
-	// disable script execution to avoid running untrusted hooks while generating lockfiles.
-	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
-	// the fixed arguments contain no user-controlled data.
-	cmd := exec.Command(npmPath, "install", "--package-lock-only", "--ignore-scripts")
-	cmd.Dir = absWorkflowDir
-	cmd.Env = append(os.Environ(), "NPM_CONFIG_IGNORE_SCRIPTS=true")
-
-	// Capture output for error reporting
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("npm install --package-lock-only failed: %w\nOutput: %s", err, string(output))
+	if err := runNpmInstallPackageLockOnly(npmPath, absWorkflowDir); err != nil {
+		return err
 	}
 
 	lockfilePath := filepath.Join(absWorkflowDir, "package-lock.json")
@@ -304,6 +300,32 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		c.fileTracker.TrackCreated(lockfilePath)
 	}
 
+	return nil
+}
+
+// runNpmInstallPackageLockOnly runs "npm install --package-lock-only --ignore-scripts"
+// in workflowDir, bounded by npmInstallTimeout so a slow or unreachable npm registry
+// cannot hang the compiler (or tests) indefinitely.
+func runNpmInstallPackageLockOnly(npmPath, workflowDir string) error {
+	// Run npm install --package-lock-only without lifecycle scripts.
+	// The generated package.json can be influenced by workflow content, so explicitly
+	// disable script execution to avoid running untrusted hooks while generating lockfiles.
+	ctx, cancel := context.WithTimeout(context.Background(), npmInstallTimeout)
+	defer cancel()
+	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
+	// the fixed arguments contain no user-controlled data.
+	cmd := exec.CommandContext(ctx, npmPath, "install", "--package-lock-only", "--ignore-scripts")
+	cmd.Dir = workflowDir
+	cmd.Env = append(os.Environ(), "NPM_CONFIG_IGNORE_SCRIPTS=true")
+
+	// Capture output for error reporting
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("npm install --package-lock-only timed out after %s: %w\nOutput: %s", npmInstallTimeout, err, string(output))
+		}
+		return fmt.Errorf("npm install --package-lock-only failed: %w\nOutput: %s", err, string(output))
+	}
 	return nil
 }
 
