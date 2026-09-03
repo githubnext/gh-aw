@@ -28,7 +28,7 @@ type repositoryPackageManifestGraphResolver struct {
 
 func isManifestImportPath(importPath string) bool {
 	_, err := cleanManifestImportPath(importPath)
-	return err == nil
+	return err == nil && path.Base(filepath.ToSlash(importPath)) == repositoryPackageManifestFileName
 }
 
 func cleanManifestImportPath(importPath string) (string, error) {

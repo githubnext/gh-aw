@@ -33,14 +33,13 @@ The package root is the folder that contains `aw.yml`.
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `private` | boolean | No | Marks the package as unavailable for installation. Defaults to `false`; `gh aw add` refuses packages set to `true`. |
 | `experimental` | boolean | No | Marks the package as experimental. Defaults to `false`; `gh aw add` displays a warning when set to `true`. |
-| `imports` | array of strings | No | Paths to other `aw.yml` manifests whose installable files are included recursively. |
 | `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
-| `includes` | array | No | Installable entries. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
+| `includes` | array | No | Installable entries, or paths to other `aw.yml` manifests whose installable files are included recursively. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
 | `resources` | array | No | Repository assets copied from package-relative `source` paths to allowlisted repository-relative `destination` paths. |
 
 ## Imported manifests
 
-Use `imports` to compose a package from manifests in the same repository:
+Use `includes` entries naming `aw.yml` files to compose a package from manifests in the same repository:
 
 ```yaml
 name: Central Agentic Ops
@@ -50,7 +49,7 @@ includes:
   - dashboard/aw.yml
 ```
 
-Import paths are resolved relative to the manifest that declares them and must name an
+These paths are resolved relative to the manifest that declares them and must name an
 `aw.yml` file within the top-level package root. Imports are recursive. The imported
 manifests' workflows, resources, skills, and agents are combined into one install list;
 metadata and `config` continue to come from the top-level manifest.
@@ -132,7 +131,6 @@ emoji: 🤖
 description: Friendly repository automation for review and issue triage
 includes:
   - packages/common/aw.yml
-includes:
   - workflows/review.md                # agentic workflow — compiled on install
   - .github/workflows/nightly-review.md # repository-root-relative string entry
   - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim

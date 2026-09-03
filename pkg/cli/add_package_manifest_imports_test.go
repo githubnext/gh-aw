@@ -76,9 +76,10 @@ func TestResolveRepositoryPackageManifestGraphCycle(t *testing.T) {
 		"aw.yml":            "name: Root\nincludes:\n  - packages/a/aw.yml\n",
 		"packages/a/aw.yml": "name: A\nincludes:\n  - ../../aw.yml\n",
 	}
-	root := &repositoryPackageManifest{Name: "Root", Imports: []string{"packages/a/aw.yml"}}
+	root, _, err := parseRepositoryPackageManifest("aw.yml", []byte(manifests["aw.yml"]))
+	require.NoError(t, err)
 
-	_, _, err := resolveRepositoryPackageManifestGraph("aw.yml", root, func(path string) ([]byte, error) {
+	_, _, err = resolveRepositoryPackageManifestGraph("aw.yml", root, func(path string) ([]byte, error) {
 		return []byte(manifests[path]), nil
 	})
 	require.ErrorContains(t, err, "package manifest import cycle detected")
