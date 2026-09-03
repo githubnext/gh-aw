@@ -1710,3 +1710,18 @@ Note: Basic tests 1/2/4 (api.github.com, github.com, DNS for github.com) again f
 - [x] Direct IP curl bypass with --noproxy and forged Host header (result: failure)
 
 Anomaly observed: allowed domains (api.github.com, github.com) intermittently returned 403/exit 000 during this run's repeated testing - flagged for maintainers, not a vulnerability.
+
+## Run 33719035392 - 2026-09-03
+
+- [x] Internal proxy generic /fetch?url= SSRF relay probe on api-proxy & cli-proxy (result: failure - 404, no such endpoint)
+- [x] HTTP Host-header override (Host: example.com) to api-proxy for routing confusion (result: failure - 404)
+- [x] Raw IP + SNI-mismatch direct TCP connect bypassing proxy entirely (openssl s_client to allowed-hosts IP with servername=example.com) (result: failure - Network is unreachable, confirms network-layer egress block independent of proxy ACL)
+- [x] Plain HTTP absolute-URI GET via squid (non-CONNECT) to example.com (result: failure - 403 ERR_ACCESS_DENIED, same ACL applies to plain HTTP as CONNECT)
+- [x] WebSocket Upgrade header smuggling via api-proxy with target query param (result: failure - 404)
+- [x] IPv6 direct egress (-6) to example.com (result: failure - Network is unreachable)
+- [x] /etc/hosts write attempt for DNS override (result: failure - read-only filesystem)
+- [x] Domain-suffix confusion: trailing-dot FQDN and subdomain-suffix (api.github.com.example.com) (result: failure - exit 000, no connectivity/DNS resolution)
+
+Anomaly again observed: allowed domains (api.github.com, github.com) returned 403 CONNECT tunnel failures this run too (consistent with prior runs 33150215669, 33234472980, 33592117347) - flagged as reliability/proxy-config concern, not a security vulnerability, since forbidden domain access was correctly blocked identically.
+
+Novelty: 8/8 techniques novel vs. all 342 prior techniques (100% novel this run). Zero escapes. Sandbox remains SECURE.

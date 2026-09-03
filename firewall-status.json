@@ -1,13 +1,13 @@
 {
-  "last_run_id": "33592117347",
-  "last_run_date": "2026-09-02",
+  "last_run_id": "33719035392",
+  "last_run_date": "2026-09-03",
   "status": "SECURE",
-  "techniques_tested_this_run": 13,
-  "techniques_blocked_this_run": 13,
-  "cumulative_runs": 36,
-  "cumulative_techniques": 175,
+  "techniques_tested_this_run": 8,
+  "techniques_blocked_this_run": 8,
+  "cumulative_runs": 37,
+  "cumulative_techniques": 183,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 766,
+  "consecutive_blocks": 774,
   "squid_version": "7.6-VCS",
-  "key_message": "All escape attempts blocked this run (HTTP/0.9 minimal CONNECT, IDNA-encoded target, pipelined double-CONNECT, decimal-integer IP literal, dotted-quad IP literal CONNECT, QUIC/UDP443 raw egress, TLS domain fronting via github.com tunnel, chunked TE smuggling on CONNECT, NTP UDP/123 covert channel, duplicate Host headers, percent-encoded dot in hostname, CRLF header injection before Host, --noproxy direct-IP curl bypass). Sandbox secure. Note: transient 403s observed on allowed domains mid-run under repeated CONNECT load - flagged as reliability concern, not a vulnerability."
+  "key_message": "All escape attempts blocked this run (SSRF /fetch relay probe on api-proxy/cli-proxy, Host-header override routing confusion, raw IP+SNI-mismatch direct TCP bypass, plain HTTP absolute-URI via squid, WebSocket upgrade smuggling, IPv6 direct egress, /etc/hosts write attempt, domain-suffix confusion). Sandbox secure. Note: transient 403s observed on allowed domains (api.github.com, github.com) again this run under Squid CONNECT - same recurring anomaly as prior 3 runs, flagged for maintainers as reliability issue, not a vulnerability, since example.com was blocked identically (403)."
 }
