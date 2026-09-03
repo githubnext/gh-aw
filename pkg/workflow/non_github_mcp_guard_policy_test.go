@@ -287,10 +287,10 @@ func TestNonGitHubMCPServersGetGuardPoliciesFromAutoLockdown(t *testing.T) {
 
 }
 
-// TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp verifies that non-GitHub MCP servers
-// do NOT get write-sink guard policies when a GitHub App is configured.
-// GitHub App tokens are already repo-scoped, so auto-lockdown detection is skipped.
-func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
+// TestNonGitHubMCPServersGetGuardPoliciesWithGitHubApp verifies that non-GitHub MCP servers
+// still get write-sink guard policies when a GitHub App is configured. GitHub App token scope
+// is authentication, not a substitute for DIFC sink policy labels.
+func TestNonGitHubMCPServersGetGuardPoliciesWithGitHubApp(t *testing.T) {
 	workflowData := &WorkflowData{
 		Tools: map[string]any{
 			"github": map[string]any{
@@ -304,7 +304,13 @@ func TestNonGitHubMCPServersNoGuardPoliciesWithGitHubApp(t *testing.T) {
 	}
 
 	policies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
-	assert.Nil(t, policies, "no guard policies when GitHub App is configured (auto-lockdown is skipped)")
+	expectedPolicies := map[string]any{
+		"write-sink": map[string]any{
+			"accept":          []string{"*"},
+			"sink-visibility": sinkVisibilityExpr,
+		},
+	}
+	assert.Equal(t, expectedPolicies, policies, "GitHub App authentication should not suppress write-sink policy generation")
 }
 
 // TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly verifies that when the GitHub
