@@ -380,6 +380,33 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
 
+		// Step: Filter out files that are ineligible for persistence (disallowed
+		// extensions or non-matching file-glob patterns) before validation and
+		// upload. Allowed-extensions and file-glob are persistence filters: ineligible
+		// files are logged and removed here so that custom validation, the uploaded
+		// artifact, and the downstream push all see the same effective file set.
+		if len(memory.AllowedExtensions) > 0 || len(memory.FileGlob) > 0 {
+			allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
+			fmt.Fprintf(builder, "      - name: Filter %s files (%s)\n", memoryLabel, memory.ID)
+			builder.WriteString("        if: always()\n")
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
+			builder.WriteString("        env:\n")
+			fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+			fmt.Fprintf(builder, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+			if len(memory.FileGlob) > 0 {
+				fmt.Fprintf(builder, "          FILE_GLOB_FILTER: \"%s\"\n", strings.Join(memory.FileGlob, " "))
+			}
+			builder.WriteString("        with:\n")
+			builder.WriteString("          script: |\n")
+			builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+			builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+			builder.WriteString("            const { filterIneligibleMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/memory_file_eligibility.cjs');\n")
+			builder.WriteString("            const memoryDir = process.env.MEMORY_DIR || '';\n")
+			builder.WriteString("            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');\n")
+			builder.WriteString("            const fileGlobFilter = process.env.FILE_GLOB_FILTER || '';\n")
+			builder.WriteString("            filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilter, core);\n")
+		}
+
 		validationStepID := repoMemoryValidationStepID(memory.ID)
 		if memory.Validation != nil {
 			fmt.Fprintf(builder, "      - name: Validate %s domain content (%s)\n", memoryLabel, memory.ID)

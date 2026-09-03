@@ -1223,6 +1223,24 @@ jobs:
         env:
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
         run: bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh"
+      - name: Filter repo-memory files (default)
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          ALLOWED_EXTENSIONS: '[]'
+          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { filterIneligibleMemoryFiles } = require(path.join(actionsDir, 'memory_file_eligibility.cjs'));
+            const memoryDir = process.env.MEMORY_DIR || '';
+            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
+            const fileGlobFilter = process.env.FILE_GLOB_FILTER || '';
+            filterIneligibleMemoryFiles(memoryDir, allowedExtensions, fileGlobFilter, core);
       - name: Upload repo-memory artifact (default)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1607,6 +1607,36 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
   });
 });
 
+describe("push_repo_memory.cjs - allowed-extensions persistence filter (regression: notes.json.new)", () => {
+  it("filters ineligible files before validation/upload instead of hard-failing on them (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // Allowed-extensions and file-glob must both be applied as persistence filters
+    // via the shared eligibility helper, before size/count/patch/custom validation.
+    expect(scriptContent).toContain("isMemoryFileEligible(relativeFilePath, allowedExtensions, compiledPatterns)");
+    expect(scriptContent).toContain("require(\"./memory_file_eligibility.cjs\")");
+
+    // The old behavior — validating the whole source directory after scanning and
+    // hard-failing the job (e.g. for a leftover "notes.json.new" file) — must be gone.
+    // Disallowed files are filtered out during the scan (never copied/pushed) instead.
+    expect(scriptContent).not.toContain('validateMemoryFiles(sourceMemoryPath, "repo", allowedExtensions)');
+  });
+
+  it("does not fail with no eligible files, and reports a no-op instead (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    expect(scriptContent).toContain("if (filesToCopy.length === 0)");
+    expect(scriptContent).toContain("No eligible files to copy from artifact");
+  });
+});
+
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Signed-commit push tests
 // Verifies that push_repo_memory delegates to pushSignedCommits (GraphQL-based
