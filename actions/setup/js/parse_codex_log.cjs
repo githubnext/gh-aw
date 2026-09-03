@@ -410,8 +410,9 @@ function parseCodexJsonl(logContent) {
         break;
       }
       case "error": {
-        const message = typeof item.message === "string" ? item.message : JSON.stringify(item);
-        if (message.trim()) {
+        const rawMessage = typeof item.message === "string" ? item.message : JSON.stringify(item);
+        const message = rawMessage.trim();
+        if (message) {
           parsedData.push({ type: "error", content: message });
         }
         break;
