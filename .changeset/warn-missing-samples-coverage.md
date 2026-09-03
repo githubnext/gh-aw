@@ -1,4 +1,6 @@
+---
 "gh-aw": patch
+---
 
 Warn when samples replay is enabled but a safe output has no samples
 
