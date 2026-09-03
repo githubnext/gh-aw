@@ -44,7 +44,7 @@ Use `imports` to compose a package from manifests in the same repository:
 
 ```yaml
 name: Central Agentic Ops
-imports:
+includes:
   - activity/aw.yml
   - ambient-context/aw.yml
   - dashboard/aw.yml
@@ -130,7 +130,7 @@ The embedded JSON schema source of truth is `pkg/parser/schemas/aw_manifest_sche
 name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
-imports:
+includes:
   - packages/common/aw.yml
 includes:
   - workflows/review.md                # agentic workflow — compiled on install

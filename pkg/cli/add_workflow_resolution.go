@@ -482,6 +482,13 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	if err != nil {
 		return nil, err
 	}
+	for _, node := range manifestNodes {
+		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, node.Path)
+		if err != nil {
+			return nil, err
+		}
+		warnings = append(warnings, visibilityWarnings...)
+	}
 	warnings = append(warnings, importWarnings...)
 
 	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes)
@@ -523,12 +530,6 @@ func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest
 func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
 	for _, node := range nodes {
-		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, node.Path)
-		if err != nil {
-			return nil, err
-		}
-		assets.warnings = append(assets.warnings, visibilityWarnings...)
-
 		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(node.Manifest.Includes)
 		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(node.Manifest.Files)...)
 		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath)

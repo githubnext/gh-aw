@@ -26,31 +26,9 @@ type repositoryPackageManifestGraphResolver struct {
 	warnings        []string
 }
 
-func extractManifestImports(value any, manifestPath string) ([]string, error) {
-	items, ok := value.([]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: imports must be a list of package-relative aw.yml paths", manifestPath)
-	}
-
-	imports := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		importPath, ok := stringValue(item)
-		if !ok {
-			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: imports entries must be package-relative aw.yml paths", manifestPath)
-		}
-		importPath = strings.TrimSpace(importPath)
-		cleaned, err := cleanManifestImportPath(importPath)
-		if err != nil {
-			return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: import %q is invalid: %w", manifestPath, importPath, err)
-		}
-		if _, exists := seen[cleaned]; exists {
-			continue
-		}
-		seen[cleaned] = struct{}{}
-		imports = append(imports, cleaned)
-	}
-	return imports, nil
+func isManifestImportPath(importPath string) bool {
+	_, err := cleanManifestImportPath(importPath)
+	return err == nil
 }
 
 func cleanManifestImportPath(importPath string) (string, error) {

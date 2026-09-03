@@ -11,23 +11,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExtractManifestImports(t *testing.T) {
+func TestExtractManifestIncludesWithPackageImports(t *testing.T) {
 	manifest, _, err := parseRepositoryPackageManifest("aw.yml", []byte(`name: Bundle
-imports:
+includes:
   - activity/aw.yml
   - dashboard/../activity/aw.yml
 `))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"activity/aw.yml"}, manifest.Imports)
 
-	_, _, err = parseRepositoryPackageManifest("aw.yml", []byte("name: Bundle\nimports:\n  - /tmp/aw.yml\n"))
+	_, _, err = parseRepositoryPackageManifest("aw.yml", []byte("name: Bundle\nincludes:\n  - /tmp/aw.yml\n"))
 	require.ErrorContains(t, err, "absolute paths are not allowed")
 }
 
 func TestResolveRepositoryPackageManifestGraph(t *testing.T) {
 	manifests := map[string]string{
-		"aw.yml":            "name: Root\nimports:\n  - packages/a/aw.yml\n",
-		"packages/a/aw.yml": "name: A\nimports:\n  - ../b/aw.yml\n",
+		"aw.yml":            "name: Root\nincludes:\n  - packages/a/aw.yml\n",
+		"packages/a/aw.yml": "name: A\nincludes:\n  - ../b/aw.yml\n",
 		"packages/b/aw.yml": "name: B\nincludes:\n  - workflows/b.md\n",
 	}
 	root, _, err := parseRepositoryPackageManifest("aw.yml", []byte(manifests["aw.yml"]))
@@ -45,10 +45,36 @@ func TestResolveRepositoryPackageManifestGraph(t *testing.T) {
 	assert.Equal(t, []string{"packages/b/aw.yml", "packages/a/aw.yml", "aw.yml"}, []string{nodes[0].Path, nodes[1].Path, nodes[2].Path})
 }
 
+func TestResolveRepositoryPackageManifestGraphSharedImport(t *testing.T) {
+	manifests := map[string]string{
+		"aw.yml":                 "name: Root\nincludes:\n  - packages/a/aw.yml\n  - packages/b/aw.yml\n",
+		"packages/a/aw.yml":      "name: A\nincludes:\n  - ../shared/aw.yml\n",
+		"packages/b/aw.yml":      "name: B\nincludes:\n  - ../shared/aw.yml\n",
+		"packages/shared/aw.yml": "name: Shared\nincludes:\n  - workflows/shared.md\n",
+	}
+	root, _, err := parseRepositoryPackageManifest("aw.yml", []byte(manifests["aw.yml"]))
+	require.NoError(t, err)
+
+	nodes, _, err := resolveRepositoryPackageManifestGraph("aw.yml", root, func(path string) ([]byte, error) {
+		content, ok := manifests[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return []byte(content), nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"packages/shared/aw.yml",
+		"packages/a/aw.yml",
+		"packages/b/aw.yml",
+		"aw.yml",
+	}, []string{nodes[0].Path, nodes[1].Path, nodes[2].Path, nodes[3].Path})
+}
+
 func TestResolveRepositoryPackageManifestGraphCycle(t *testing.T) {
 	manifests := map[string]string{
-		"aw.yml":            "name: Root\nimports:\n  - packages/a/aw.yml\n",
-		"packages/a/aw.yml": "name: A\nimports:\n  - ../../aw.yml\n",
+		"aw.yml":            "name: Root\nincludes:\n  - packages/a/aw.yml\n",
+		"packages/a/aw.yml": "name: A\nincludes:\n  - ../../aw.yml\n",
 	}
 	root := &repositoryPackageManifest{Name: "Root", Imports: []string{"packages/a/aw.yml"}}
 
@@ -81,7 +107,7 @@ func TestResolveLocalRepositoryPackageImports(t *testing.T) {
 	packageDir := t.TempDir()
 	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
 	writePackageTestFile(t, packageDir, "aw.yml", `name: Bundle
-imports:
+includes:
   - activity/aw.yml
   - dashboard/aw.yml
 `)
@@ -116,7 +142,7 @@ func TestResolveLocalRepositoryPackageImportClash(t *testing.T) {
 	packageDir := t.TempDir()
 	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
 	writePackageTestFile(t, packageDir, "aw.yml", `name: Bundle
-imports:
+includes:
   - first/aw.yml
   - second/aw.yml
 `)

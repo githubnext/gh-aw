@@ -124,15 +124,18 @@ func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManife
 func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
 	warnings := populateRepositoryPackageManifestDescription(manifest, root, manifestPath)
 	populateRepositoryPackageManifestBasicMetadata(manifest, root)
-	if err := populateRepositoryPackageManifestImports(manifest, root, manifestPath); err != nil {
-		return nil, err
-	}
 	if includesValue, ok := root["includes"]; ok {
 		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
 		if err != nil {
 			return nil, err
 		}
-		manifest.Includes = includes
+		for _, include := range includes {
+			if isManifestImportPath(include.Source) {
+				manifest.Imports = append(manifest.Imports, include.Source)
+				continue
+			}
+			manifest.Includes = append(manifest.Includes, include)
+		}
 		warnings = append(warnings, includeWarnings...)
 	}
 	if filesValue, ok := root["files"]; ok {
@@ -192,19 +195,6 @@ func populateRepositoryPackageManifestExtensions(manifest *repositoryPackageMani
 		manifest.Bootstrap = bootstrap
 	}
 	return warnings, nil
-}
-
-func populateRepositoryPackageManifestImports(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
-	importsValue, ok := root["imports"]
-	if !ok {
-		return nil
-	}
-	imports, err := extractManifestImports(importsValue, manifestPath)
-	if err != nil {
-		return err
-	}
-	manifest.Imports = imports
-	return nil
 }
 
 func extractRepositoryPackageManifestIcon(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
