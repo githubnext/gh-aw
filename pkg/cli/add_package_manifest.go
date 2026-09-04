@@ -60,6 +60,7 @@ type resolvedRepositoryPackage struct {
 	DocsPath           string
 	InstallationSource []resolvedPackageInstallable
 	ResourceFiles      []resolvedPackageResource
+	ProjectFile        *resolvedPackageResource
 	Bootstrap          *repositoryPackageBootstrap
 	SkillFiles         []resolvedPackageSkillFile
 	AgentFiles         []string

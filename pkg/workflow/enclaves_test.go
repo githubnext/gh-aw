@@ -46,6 +46,7 @@ func enclaveTestRepos() []*EnclaveRepository {
 
 func enclaveGitHubIssuesWorkflowData() *WorkflowData {
 	data := enclaveWorkflowData(false, true, 0, 120)
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveTrustedSensitivityMinVersion)
 	data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
 	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
 		Container: constants.DefaultMCPGatewayContainer,
@@ -200,6 +201,24 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 
 	data.Enclaves[0].Repos[1].Sensitivity = "public"
 	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimitTreatsTrustedAsPublic(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.Enclaves[0].Repos = []*EnclaveRepository{
+		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
+		{Repo: "octo-org/public-service", Sensitivity: "public"},
+	}
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveTrustedSensitivityRequiresAWFVersion(t *testing.T) {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Repos[0].Sensitivity = "trusted"
+	data.NetworkPermissions.Firewall.Version = "v0.28.12"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires AWF v0.28.14 or newer")
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimitScopesToGitHubEntry(t *testing.T) {
