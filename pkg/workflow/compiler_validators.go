@@ -393,9 +393,8 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"Disabling AWF with sandbox.agent: false is deprecated and will be removed in a future release. "+
-				"Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. "+
-				"The AI agent will have direct network access without firewall filtering. "+
+			"sandbox.agent: false is deprecated and will be removed in a future release. "+
+				"It disables the firewall, giving the AI agent direct network access without filtering. "+
 				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
 				"environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()

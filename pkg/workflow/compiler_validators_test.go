@@ -293,7 +293,7 @@ func TestEmitGeneralToolWarningsDeprecatedSandboxOptions(t *testing.T) {
 		{
 			name:            "disabled AWF",
 			agent:           &AgentSandboxConfig{Disabled: true},
-			expectedMessage: "Disabling AWF with sandbox.agent: false is deprecated and will be removed in a future release",
+			expectedMessage: "sandbox.agent: false is deprecated and will be removed in a future release",
 		},
 	}
 
@@ -857,7 +857,7 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 
 	require.Error(t, validateErr)
 	require.ErrorContains(t, validateErr, "threat detection requires sandbox.agent")
-	assert.Contains(t, stderr, "Agent sandbox disabled (sandbox.agent: false)")
+	assert.Contains(t, stderr, "sandbox.agent: false is deprecated and will be removed in a future release")
 	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
 }
 
