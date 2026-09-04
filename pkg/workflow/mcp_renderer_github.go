@@ -15,7 +15,7 @@ import (
 
 // RenderGitHubMCP generates the GitHub MCP server configuration
 // Supports both local (Docker) and remote (hosted) modes
-func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) {
+func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) { //nolint:largefunc // Existing renderer preserves emitted YAML field ordering.
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly()
 
@@ -23,7 +23,8 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	lockdown := getGitHubLockdown(githubTool)
 
 	// Guard policies from step: automatically applied for public repositories when no explicit
-	// guard policy is configured and no GitHub App token is in use.
+	// guard policy is configured. GitHub App token scope is authentication, not a substitute
+	// for the DIFC source labels enforced by the MCP gateway.
 	// The determine-automatic-lockdown step outputs min_integrity and repos for public repos.
 	explicitGuardPolicies := getGitHubGuardPolicies(githubTool)
 	// Integrity reaction fields are only supported in proxy mode (DIFC/CLI proxy),
@@ -38,7 +39,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 					"in proxy mode (DIFC proxy / CLI proxy)."))
 		}
 	}
-	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
+	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0
 
 	toolsets := getGitHubToolsets(githubTool)
 	features := getGitHubFeatures(githubTool)
@@ -110,7 +111,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 }
 
 // renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
-func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) {
+func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githubTool map[string]any, workflowData *WorkflowData) { //nolint:largefunc // Existing renderer preserves emitted TOML field ordering.
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly()
 	lockdown := getGitHubLockdown(githubTool)
