@@ -113,7 +113,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		claudeLog.Printf("Skipping Claude CLI installation: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
+		return buildNpmEngineInstallStepsWithAWF(nil, workflowData, false)
 	}
 
 	// Use version from engine config if provided, otherwise default to pinned version

@@ -185,7 +185,11 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 		return nil
 	}
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
+		var steps []GitHubActionStep
+		if behavior.HarnessScript != "" {
+			steps = append(steps, GenerateNodeJsSetupStep())
+		}
+		return buildNpmEngineInstallStepsWithAWF(steps, workflowData, false)
 	}
 
 	// Behavior-defined engines that execute via a harness script (e.g. Goose) run the

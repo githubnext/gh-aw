@@ -262,6 +262,7 @@ func TestCustomEngineCommandFirewallInstallation(t *testing.T) {
 						Version: firewallVersion,
 					},
 				},
+				RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
 			})
 			stepStr := strings.Join(flattenSteps(steps), "\n")
 
@@ -273,6 +274,9 @@ func TestCustomEngineCommandFirewallInstallation(t *testing.T) {
 			}
 			if strings.Contains(stepStr, test.packageName) {
 				t.Errorf("Expected custom command to skip the %s engine installation, got:\n%s", test.name, stepStr)
+			}
+			if strings.Contains(stepStr, "Copy Copilot CLI to daemon-visible path") {
+				t.Errorf("Expected custom command not to stage the Copilot CLI, got:\n%s", stepStr)
 			}
 		})
 	}
