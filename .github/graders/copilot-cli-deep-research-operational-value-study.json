@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-cli-deep-research",
+  "recordedAt": "2026-09-04T14:57:29.465Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The adoption-time workflow produces a research issue, but defines no externally observable repository decision, implementation, or other outcome that could directly demonstrate attainment. Counting issue creation, report content, recommendations, traces, or agent assessments would measure activity or output rather than operational value.",
+  "classification": {
+    "domain": "Copilot CLI adoption research",
+    "subdomain": null,
+    "taskArchetype": "periodic research report",
+    "interventionType": "repository analysis",
+    "outcomeType": "research findings",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the intended result as a comprehensive GitHub issue reporting Copilot CLI findings and recommendations.",
+      "alternatives": ["Treat a workflow run or a created issue as the intended repository outcome", "Treat implementation of a recommendation as the intended result"],
+      "rationale": "The adoption-time workflow explicitly directs the agent to create a research issue, while its recommendations describe possible future changes rather than a run-owned implementation outcome.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L238-L436"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No operational opportunity is assigned.",
+      "alternatives": ["Use the repository state at the run SHA as an analysis opportunity", "Use each recommendation identified by the report as an opportunity"],
+      "rationale": "The workflow asks for broad repository analysis and does not specify a bounded, uniquely owned repository condition whose attainment can be observed.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L89-L200"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No historical assignment reconstruction contract is defined.",
+      "alternatives": ["Assign by run SHA", "Assign by report issue number"],
+      "rationale": "Neither the adoption-time trigger context nor the pre-adoption repository state binds a run to one stable operational case; an issue number identifies an output, not an opportunity.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L83-L88", "82239c030d6a1ef6ec8b87a80a1346eeef211f8d:.github/workflows/copilot-cli-deep-research.md (path absent)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Do not accept created issues, report sections, recommendations, traces, or agent evaluations as attainment evidence.",
+      "alternatives": ["Score issue creation", "Score the count of recommendations or cited files", "Score report quality from agent evaluation"],
+      "rationale": "These alternatives are workflow output, activity, volume, or judgment. The workflow defines no accepted downstream repository decision or implementation evidence.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L238-L436", "82239c030d6a1ef6ec8b87a80a1346eeef211f8d:.github/workflows/copilot-cli-deep-research.md (path absent)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation horizon is defined.",
+      "alternatives": ["Use the issue creation time", "Use a fixed post-run observation window"],
+      "rationale": "A time window cannot convert the unavailable direct outcome evidence into a direct attainment measure, so no stable evidence cutoff can be frozen.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L465-L477"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Block the grader rather than define a primary metric.",
+      "alternatives": ["Binary issue-created metric", "Proportion of requested report sections present", "Recommendation-count metric"],
+      "rationale": "Every available numeric candidate measures activity or output characteristics rather than direct attainment of an observable operational outcome.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L465-L477"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline is defined.",
+      "alternatives": ["Use the pre-adoption repository state as a baseline", "Use prior research issues as a baseline"],
+      "rationale": "The workflow path is absent in the first parent, and no same-metric direct outcome exists before adoption from which to establish a comparable baseline.",
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d:.github/workflows/copilot-cli-deep-research.md (path absent)"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's requested research issue may inform later decisions, but the workflow does not define a direct repository outcome for a single run.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/copilot-cli-deep-research.md#L181-L200"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "Pre-adoption evidence shows that this workflow path did not exist, so no prior same-contract direct attainment observations are available.",
+      "mitigation": null,
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d:.github/workflows/copilot-cli-deep-research.md (path absent)"]
+    }
+  ]
+}
