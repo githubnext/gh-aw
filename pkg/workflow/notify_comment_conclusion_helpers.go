@@ -522,7 +522,11 @@ func (c *Compiler) buildConclusionJobCondition(data *WorkflowData, mainJobName s
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyAICExceeded)
 	}
 	if len(data.SkillReferences) > 0 || len(data.Skills) > 0 {
-		skillInstallFailed := BuildNotEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.skill_install_failure_count", constants.ActivationJobName)), BuildStringLiteral("0"))
+		skillInstallFailureCount := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.skill_install_failure_count", constants.ActivationJobName))
+		skillInstallFailed := BuildAnd(
+			BuildNotEquals(skillInstallFailureCount, BuildStringLiteral("")),
+			BuildNotEquals(skillInstallFailureCount, BuildStringLiteral("0")),
+		)
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, skillInstallFailed)
 	}
 	if isSteeringIssueEnabled(data) {

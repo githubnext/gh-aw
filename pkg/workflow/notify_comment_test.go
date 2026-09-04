@@ -266,7 +266,8 @@ func TestConclusionJobRunsForSkillInstallFailures(t *testing.T) {
 
 	condition := RenderCondition(compiler.buildConclusionJobCondition(data, string(constants.AgentJobName), nil))
 
-	if !strings.Contains(condition, "needs.activation.outputs.skill_install_failure_count != '0'") {
+	if !strings.Contains(condition, "needs.activation.outputs.skill_install_failure_count != ''") ||
+		!strings.Contains(condition, "needs.activation.outputs.skill_install_failure_count != '0'") {
 		t.Errorf("Expected conclusion condition to include skill installation failures, got: %q", condition)
 	}
 }
