@@ -21,6 +21,9 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+graders:
+  operational-value:
+    run: .github/graders/approach-validator-operational-value.sh
 engine: claude
 imports:
   - shared/safe-output-upload-artifact.md

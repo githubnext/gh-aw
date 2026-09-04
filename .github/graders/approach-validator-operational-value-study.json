@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "approach-validator",
+  "recordedAt": "2026-09-04T12:02:30Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "engineering design review",
+    "subdomain": null,
+    "taskArchetype": "human decision capture",
+    "interventionType": "approach validation",
+    "outcomeType": "explicit approval decision",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Explicit human approval or rejection of each validation report",
+      "alternatives": ["Agent-produced recommendation", "Report publication"],
+      "rationale": "The adoption workflow explicitly requires a human ✅ or ❌ reaction before implementation proceeds.",
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44:.github/workflows/approach-validator.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "The uniquely matching report comment, keyed by its issue or pull request number",
+      "alternatives": ["Workflow run ID as an opportunity", "Workflow event payload"],
+      "rationale": "The generated report footer contains the run URL, and its containing issue-comment URL provides a stable repository item key when event data is absent.",
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44:.github/workflows/approach-validator.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary attainment: a non-bot +1 or -1 reaction exists on the assigned report by the cutoff",
+      "alternatives": ["Approval-only rate", "Report artifact count", "Panel evaluation quality"],
+      "rationale": "Either explicit human decision completes the workflow's stated approval checkpoint; report creation and agent output are not outcome attainment.",
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44:.github/workflows/approach-validator.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Thirty days after run creation",
+      "alternatives": ["Immediate observation", "Seven-day window"],
+      "rationale": "The adoption workflow retains the validation report artifact for 30 days, supplying a fixed review horizon.",
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44:.github/workflows/approach-validator.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with no baseline",
+      "alternatives": ["Pre-adoption issue reaction rate"],
+      "rationale": "Before the workflow was added, no Approach Validation Report or its required human approval checkpoint existed, so no comparable direct pre-adoption evidence is available.",
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44", "parent of 9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Deleted report comments or unavailable reaction records cannot be distinguished from absent historical evidence.",
+      "mitigation": "Return null rather than zero when assignment or reaction collection is unavailable.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A human decision records completion of the checkpoint but does not show that the workflow caused the decision.",
+      "mitigation": null,
+      "evidenceReferences": ["9e7ad8ff23ed9d9ed2dfe23a9818a46292a08f44:.github/workflows/approach-validator.md"]
+    }
+  ]
+}
