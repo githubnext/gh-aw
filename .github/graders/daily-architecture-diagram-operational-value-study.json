@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-architecture-diagram",
+  "recordedAt": "2026-09-04T15:20:14Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's intended outcome is an architecture diagram that accurately represents repository structure; the available repository evidence can show that a diagram was published, but cannot deterministically establish its semantic accuracy or reader utility without agent judgment.",
+  "classification": {
+    "domain": "architecture documentation",
+    "subdomain": null,
+    "taskArchetype": "diagram maintenance",
+    "interventionType": "automated documentation",
+    "outcomeType": "architecture understanding",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Assess architecture-diagram accuracy and usefulness as the intended repository outcome.",
+      "alternatives": ["Count created issues or pull requests", "Measure diagram length or package count"],
+      "rationale": "The adoption workflow requires diagrams to reflect real packages and dependency arrows; publication and size are workflow activity, not evidence that this outcome was attained.",
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:171-175"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A repository structural change since the prior cached analysis would be the opportunity.",
+      "alternatives": ["Every scheduled workflow run", "Every architecture-diagram issue"],
+      "rationale": "The adopted workflow directs a noop when no Go files or relevant directories changed, so a run alone is not an operational opportunity.",
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:94-103"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Do not assign a metric case because the prior cache state that defines the change range is unavailable from repository history.",
+      "alternatives": ["Assign the run SHA", "Assign the most recently created architecture-diagram issue"],
+      "rationale": "Historical replay with null case and event cannot recover the cache-memory last_commit that bounded the workflow's analysis; either alternative would change the assigned opportunity.",
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:87-99"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Treat issue and scratchpad publication as activity evidence only, not primary attainment evidence.",
+      "alternatives": ["Score presence of an architecture-diagram issue", "Score freshness of scratchpad/architecture.md"],
+      "rationale": "The adoption workflow's accepted artifact is an ASCII diagram, but no deterministic repository-side contract maps its text to the real package graph or measures whether it improves architecture understanding.",
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:171-175", ".github/workflows/daily-architecture-diagram.md:196-253"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation horizon is defined because no direct metric is defensible.",
+      "alternatives": ["Use the workflow issue expiry", "Use a fixed weekly evidence horizon"],
+      "rationale": "Issue expiry governs safe-output retention rather than observation of diagram accuracy or user understanding.",
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:48-59"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The cache-memory state that identifies the prior analysis commit is not durable repository evidence, so historical null-case replay cannot reconstruct the precise structural-change opportunity.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:87-99"]
+    },
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "Repository artifacts can establish that a diagram exists, but not whether its package descriptions and dependency arrows accurately represent the code or improve reader understanding.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md:171-175"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "The adoption commit created the workflow and its first-parent repository state had no prior workflow artifact, so it supplies intent and pre-adoption absence only, not a comparable direct baseline outcome.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 07a9bbdae049ef5b3323608f96fe4018dac2c9b7", ".github/workflows/daily-architecture-diagram.md"]
+    }
+  ]
+}
