@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-session-insights",
+  "recordedAt": "2026-09-04T15:07:26Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "Adoption-time mission (commit 12f94cc1c04e11c5331a0b9bd014cebe0a469122, 2025-10-31, 'Add Copilot agent session analysis workflow with experimental strategies') is a read-only analytics/reporting workflow: it holds only contents:read, actions:read, issues:read, and pull-requests:read, and its sole safe-output is publishing one Discussion (create-discussion, max 1) summarizing Copilot coding-agent sessions. No per-run repository opportunity exists for this workflow to resolve, so no direct, deterministic primary metric in [0,1] can be defined. The only candidates require substituting activity (crediting the run merely for publishing a discussion), proxy attribution (crediting this run for later, third-party resolution of orphaned-branch escalations that a separate feature added long after adoption, commit 25d123f3f0ac5c96be08c8fe1382d39107b86163 on 2026-04-30, merely reports), or agent judgment (assessing whether the report's insights, prompt-quality scores, or recommendations are accurate). Per contract, this design is blocked rather than substituting activity, proxy attribution, or agent judgment for a direct operational metric.",
+  "classification": {
+    "domain": "AI agent session analytics",
+    "subdomain": null,
+    "taskArchetype": "diagnostic-reporting",
+    "interventionType": "read-only analysis and report publication",
+    "outcomeType": "insight-discussion-publication",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time mission is production of one analytical Discussion report summarizing ~50 Copilot coding-agent sessions (behavioral patterns, success/failure signals, prompt-quality indicators, recommendations); the workflow performs no repository-changing action.",
+      "alternatives": [
+        "Treat the later-added orphaned-branch escalation detection sub-feature as the workflow's primary mission"
+      ],
+      "rationale": "First commit 12f94cc1c04e11c5331a0b9bd014cebe0a469122 (2025-10-31) scopes the mission strictly to producing an insights report published via safe-outputs.create-discussion; permissions granted at adoption (and preserved today) are read-only across contents, actions, issues, and pull-requests, so the workflow cannot itself resolve any repository opportunity.",
+      "evidenceReferences": [
+        "commit 12f94cc1c04e11c5331a0b9bd014cebe0a469122",
+        ".github/workflows/copilot-session-insights.md#safe-outputs",
+        ".github/workflows/copilot-session-insights.md#permissions"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No stable per-run repository opportunity exists that this workflow itself resolves; each run's only artifact is a natural-language report.",
+      "alternatives": [
+        "An escalated orphaned-branch/PR flagged in a given run's Orphaned Branch Escalation Alerts section",
+        "A specific Copilot session analyzed in a given run"
+      ],
+      "rationale": "Sessions analyzed are read-only historical facts the workflow only reads, never resolves. Orphaned-branch escalations were added on 2026-04-30 (commit 25d123f3f0ac5c96be08c8fe1382d39107b86163), long after adoption, and are resolved (if at all) by a human reviewer or a separate agent-assignment workflow, not by this workflow's own run, so binding an opportunityKey to an escalated PR would attribute a third party's later action to this run.",
+      "evidenceReferences": [
+        "commit 25d123f3f0ac5c96be08c8fe1382d39107b86163",
+        ".github/workflows/copilot-session-insights.md#Phase 2b: Orphaned Branch Escalation Detection"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted repository evidence exists that independently verifies the discussion's insights were correct, adopted, or caused a measurable repository state change.",
+      "alternatives": [
+        "Discussion existence/schema validity as accepted evidence (activity substitution)",
+        "Escalation-table candidate later marked resolved (agent-assigned or PR closed/merged) as accepted evidence (proxy causal attribution)"
+      ],
+      "rationale": "Verifying claims in the report (completion-rate estimates, prompt-quality scores, recommendations) is only checkable by re-judging the report's content, which the contract disallows as agent judgment. Verifying later resolution of a flagged branch measures the actions of other workflows or humans, not this run's direct attainment.",
+      "evidenceReferences": [
+        ".github/workflows/shared/daily-audit-discussion.md",
+        ".github/workflows/copilot-session-insights.md#Phase 5: Create Analysis Discussion"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric adopted; design is blocked rather than accepted with a substitute metric.",
+      "alternatives": [
+        "Binary discussion-created flag in [0,1] (activity substitution, rejected)",
+        "Proportion of escalated PRs resolved (agent-assigned or closed/merged) by a fixed maturation window (proxy causal attribution to a third party's action, rejected)"
+      ],
+      "rationale": "Both alternatives substitute activity or proxy attribution for direct attainment, which the operational-value contract explicitly prohibits for this workflow's read-only, report-only adoption-time mission.",
+      "evidenceReferences": [],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's adoption-time purpose is diagnostic/analytical rather than operational: it has no permission or safe-output that changes repository state beyond publishing a Discussion, so no direct primary metric in [0,1] can be defended without proxying report quality (agent judgment) or unrelated third-party follow-up actions (proxy attribution).",
+      "mitigation": null,
+      "evidenceReferences": [
+        "commit 12f94cc1c04e11c5331a0b9bd014cebe0a469122"
+      ]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "The later-added orphaned-branch escalation feature surfaces per-run candidate PR numbers, but resolution of those PRs is driven by separate humans or workflows outside this workflow's execution, so no accepted repository evidence can attribute resolution to this run without misattributing causality.",
+      "mitigation": null,
+      "evidenceReferences": [
+        "commit 25d123f3f0ac5c96be08c8fe1382d39107b86163"
+      ]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Because the core adoption-time deliverable (an analysis Discussion) has no natural single per-run opportunity, a stable, non-ambiguous opportunityKey binding cannot be defined without inventing an artificial proxy target that is not part of the workflow's own resolvable scope.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
