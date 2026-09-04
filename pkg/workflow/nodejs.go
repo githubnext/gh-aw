@@ -213,7 +213,7 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 // runner tool_cache context. The generated command does not guess fallback paths.
 //
 // Returns:
-//   - string: A shell command that exports PATH with hostedtoolcache bin directories prepended
+//   - string: A shell command that exports PATH with hostedtoolcache bin directories appended
 func GetNpmBinPathSetup() string {
 	// Find all bin directories in hostedtoolcache (Node.js, Python, etc.)
 	// This finds paths like /opt/hostedtoolcache/node/22.13.0/x64/bin
@@ -230,7 +230,7 @@ func GetNpmBinPathSetup() string {
 	// captured by the elixir runtime capture step and exported to GITHUB_ENV,
 	// making it available inside the AWF container. Without this, mix commands
 	// fail because Elixir tries to exec erl which is not found via the find.
-	return `: "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true`
+	return `: "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; GH_AW_TOOL_BINS="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')"; GH_AW_TOOL_BINS="${GH_AW_TOOL_BINS%:}"; export PATH="$PATH${GH_AW_TOOL_BINS:+:}$GH_AW_TOOL_BINS"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true`
 }
 
 // GenerateDockerSbxNpmCLIInstallStep installs an npm CLI into a runner path that is
