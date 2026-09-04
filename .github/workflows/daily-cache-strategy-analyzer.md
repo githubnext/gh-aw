@@ -75,6 +75,9 @@ evals:
     question: Did the agent analyze agentic workflow logs for cache misses and misconfigured caches?
   - id: issue_created_or_noop
     question: Was an issue created for cache problems or improvements, or was noop used when no problems were found?
+graders:
+  operational-value:
+    run: .github/graders/daily-cache-strategy-analyzer-operational-value.sh
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

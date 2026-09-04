@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-cache-strategy-analyzer",
+  "recordedAt": "2026-09-04T15:29:39Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "cache strategy",
+    "subdomain": null,
+    "taskArchetype": "daily remediation tracking",
+    "interventionType": "issue creation",
+    "outcomeType": "finding remediation",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure remediation of cache-strategy findings rather than workflow activity.",
+      "alternatives": ["Count issues or discussions created"],
+      "rationale": "The adoption-time mission is to identify repeated cache problems and raise actionable issues; creation alone is not repository attainment.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L84-L88"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Assign the linked [cache-strategy] issues whose bodies name the workflow run URL.",
+      "alternatives": ["Assign every cache-memory workflow examined that day"],
+      "rationale": "The issue template embeds the producing run URL, which provides a stable, reconstructable ownership key without relying on agent logs.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L326-L365"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accept a linked issue closed as completed.",
+      "alternatives": ["Agent log cache-hit signals", "Issue creation"],
+      "rationale": "Completed issue state is durable repository evidence of the assigned remediation; logs and output creation are activity evidence.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Use completed linked issues divided by linked issues.",
+      "alternatives": ["Binary any-issue-completed score", "Cache-hit rate from logs"],
+      "rationale": "The proportion measures full attainment for all findings assigned to one run without combining operational attainment with diagnostics.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Thirty days after the run.",
+      "alternatives": ["Immediate scoring", "Seven-day scoring"],
+      "rationale": "The workflow allows seven days for safe issue output, so a fixed thirty-day horizon preserves a post-output remediation window and stable observations.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L50-L56"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only with null baseline",
+      "alternatives": ["Pre-adoption comparable baseline"],
+      "rationale": "The workflow was introduced in its adoption commit and no pre-adoption workflow cases exist to score under this contract.",
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc", "36b5fa159d2f09a0b187a01e275ec984491e1145"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub issue search or issue-state evidence can be unavailable during replay.",
+      "mitigation": "Return null rather than treating unavailable evidence as a missed remediation.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A completed issue does not establish that this workflow caused the remediation.",
+      "mitigation": null,
+      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"]
+    }
+  ]
+}
