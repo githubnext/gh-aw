@@ -15,14 +15,16 @@ import (
 
 func TestEnclaveGitHubMCPAgentPolicy(t *testing.T) {
 	data := enclaveGitHubIssuesWorkflowData()
-	data.Enclaves[0].Repos = append(data.Enclaves[0].Repos,
-		&EnclaveRepository{Repo: "octo-org/public-docs", Sensitivity: "public"})
+	data.Enclaves[0].Repos = []*EnclaveRepository{
+		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
+		{Repo: "octo-org/public-docs", Sensitivity: "public"},
+	}
 
 	policy := enclaveGitHubMCPAgentPolicy(data)
 	assert.Equal(t, []string{"github"}, policy.Servers)
 	assert.Equal(t, map[string][]string{"github": {"list_issues", "issue_read"}}, policy.Tools)
 	assert.Equal(t, map[string]any{
-		"repos":         []string{"octo-org/private-service", "octo-org/public-docs"},
+		"repos":         []string{"octo-org/trusted-service", "octo-org/public-docs"},
 		"min-integrity": "approved",
 	}, policy.AllowOnly)
 }

@@ -31,7 +31,7 @@ describe("Linear safe outputs", () => {
 
   it("posts fixed GraphQL documents with variables and raw API-key authorization", async () => {
     fetch.mockResolvedValue(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Safe title" } } } }));
-    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
+    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "810f57a7e383" });
     await handler({ title: "Safe title", body: "Detailed hello to @user" });
 
     expect(fetch).toHaveBeenCalledWith(
@@ -46,6 +46,7 @@ describe("Linear safe outputs", () => {
     expect(request.query).not.toContain("Safe title");
     expect(request.variables.input).toEqual({
       teamId: "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+      projectId: "810f57a7e383",
       title: "Safe title",
       description: "Detailed hello to `@user`",
     });
@@ -76,6 +77,10 @@ describe("Linear safe outputs", () => {
     const handler = await addComment({ target: "ENG-123", staged: true });
     await expect(handler({ body: "Preview" })).resolves.toMatchObject({ success: true, staged: true });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed configured project IDs", async () => {
+    await expect(createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "not-a-project" })).rejects.toThrow("valid configured project ID");
   });
 
   it("rejects HTTP, malformed JSON, GraphQL, and unsuccessful mutation responses", async () => {

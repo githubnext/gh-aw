@@ -25,7 +25,7 @@ enclaves:
     timeout: 180
 ```
 
-Each type can appear at most once. When the same repository appears in both entries, its sensitivity must match because its information budget is shared across executor types. AWF fixes the script enclave network and interpreter and the agent enclave network internally; workflows cannot override those security invariants.
+Each `repos` entry uses `public`, `trusted`, `internal`, `confidential`, or `sealed` sensitivity. `trusted` is unmetered and permits free-form string values inside an otherwise strict structured response schema, but is appropriate only when repository content is approved for unrestricted return to the primary agent without confidentiality accounting. Do not select it merely to obtain string output. All other sensitivities are finite-schema-only. Each type can appear at most once. When the same repository appears in both entries, its sensitivity must match because its information budget is shared across executor types. AWF fixes the script enclave network and interpreter and the agent enclave network internally; workflows cannot override those security invariants.
 
 The generated gateway upstream uses a fresh masked capability for each workflow run. That capability is passed only to mcpg and AWF and is excluded from the primary agent environment. The gateway allows 120 seconds for the AWF-owned HTTP upstream to become available. It enforces a 4,860-second tool timeout, covering AWF's maximum 4,800-second finite-disclosure timing bucket plus a 60-second transport allowance. Executor timeouts are capped at 4,740 seconds because AWF reserves 60 seconds in the final bucket for processing and cleanup. The gateway timeout is an enforcement bound, not an absolute AWF wall-clock guarantee under pathological host cleanup or scheduler stalls.
 
@@ -53,9 +53,7 @@ enclaves:
 ```
 
 `issues-read-v1` is the only accepted `agent.github.cli` value. Script
-enclaves cannot configure `github`. The first profile version accepts at most
-one repository whose sensitivity is not `public`; additional assigned
-repositories must declare `sensitivity: public`.
+enclaves cannot configure `github`. The first profile version accepts at most one repository whose sensitivity is neither `public` nor `trusted`; additional assigned repositories may declare `sensitivity: public` or `trusted`.
 
 The profile permits only `list_issues` and `issue_read` through the GitHub MCP
 server. GraphQL, search, writes, and every other GitHub tool are denied.
@@ -72,5 +70,5 @@ to the assigned repository's Issues. The fallback `GITHUB_TOKEN` can only
 access repositories that token can already read (typically just the current
 repository in Actions).
 
-The minimum supported versions are AWF `v0.28.9` and mcpg `v0.4.15`. The
+The minimum supported versions are AWF `v0.28.9` (or `v0.28.14` when using `trusted`) and mcpg `v0.4.15`. The
 compiler does not fall back to older versions.

@@ -7,11 +7,13 @@ describe("pi_provider.cjs", () => {
   let module;
   let originalEnv;
   let originalFetch;
+  let originalExitCode;
   let stderrOutput;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
     originalFetch = global.fetch;
+    originalExitCode = process.exitCode;
     stderrOutput = [];
     vi.spyOn(process.stderr, "write").mockImplementation(msg => {
       stderrOutput.push(String(msg));
@@ -23,6 +25,7 @@ describe("pi_provider.cjs", () => {
   afterEach(() => {
     process.env = originalEnv;
     global.fetch = originalFetch;
+    process.exitCode = originalExitCode;
     vi.restoreAllMocks();
   });
 
@@ -116,6 +119,127 @@ describe("pi_provider.cjs", () => {
     expect(stderrOutput.some(line => line.includes("provider_response provider=copilot model=claude-sonnet-4 status=503 method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=content-type,x-request-id"))).toBe(true);
   });
 
+  it("resolves native Anthropic requests to the Messages API", () => {
+    expect(
+      module.resolveProviderRequestTarget({
+        api: "anthropic-messages",
+        baseUrl: "http://api-proxy:10001",
+      })
+    ).toEqual({
+      api: "anthropic-messages",
+      method: "POST",
+      url: "http://api-proxy:10001/v1/messages",
+    });
+  });
+
+  it("keeps legacy Anthropic requests on the compatibility endpoint", () => {
+    expect(
+      module.resolveProviderRequestTarget({
+        api: "anthropic",
+        baseUrl: "http://anthropic.example.test",
+      })
+    ).toEqual({
+      api: "anthropic",
+      method: "POST",
+      url: "http://anthropic.example.test/messages",
+    });
+  });
+
+  it("fails the run when every provider request fails", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
+    process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
+    process.env.GH_AW_SAFEOUTPUTS_CLI = "true";
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const ctx = {
+      model: {
+        provider: "aw-gateway",
+        id: "claude-sonnet-5",
+        api: "anthropic-messages",
+        baseUrl: "http://api-proxy:10001",
+      },
+    };
+
+    module.default(pi);
+    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
+    await handlers.after_provider_response({ type: "after_provider_response", status: 404, headers: {} }, ctx);
+    await handlers.agent_end();
+
+    expect(process.exitCode).toBe(1);
+    expect(stderrOutput.some(line => line.includes("report_incomplete emitted via safeoutputs CLI"))).toBe(true);
+  });
+
+  it("does not fail the run when a provider request succeeds after a failure", async () => {
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const ctx = {
+      model: {
+        provider: "aw-gateway",
+        id: "claude-sonnet-5",
+        api: "anthropic-messages",
+        baseUrl: "http://api-proxy:10001",
+      },
+    };
+
+    module.default(pi);
+    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
+    await handlers.after_provider_response({ type: "after_provider_response", status: 503, headers: {} }, ctx);
+    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
+    await handlers.after_provider_response({ type: "after_provider_response", status: 200, headers: {} }, ctx);
+    await handlers.agent_end();
+
+    expect(process.exitCode).toBe(originalExitCode);
+  });
+
+  it("fails the run when a successful response ends with a stream error", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
+    process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
+    process.env.GH_AW_SAFEOUTPUTS_CLI = "true";
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const ctx = {
+      model: {
+        provider: "aw-gateway",
+        id: "claude-sonnet-5",
+        api: "anthropic-messages",
+        baseUrl: "http://api-proxy:10001",
+      },
+    };
+
+    module.default(pi);
+    await handlers.before_provider_request({}, ctx);
+    await handlers.after_provider_response({ status: 200, headers: {} }, ctx);
+    await handlers.message_end({
+      message: {
+        role: "assistant",
+        provider: "aw-gateway",
+        model: "claude-sonnet-5",
+        stopReason: "error",
+        errorMessage: "stream interrupted",
+      },
+    });
+    await handlers.agent_end();
+
+    expect(process.exitCode).toBe(1);
+  });
+
   // Triggers the message_end infrastructure-error handler with a given stand-in
   // GH_AW_SAFEOUTPUTS_CLI override ('true' simulates a successful CLI call, 'false'
   // simulates a failed one) and returns the handlers/stderr output for assertions.
@@ -154,6 +278,7 @@ describe("pi_provider.cjs", () => {
         errorMessage: "Connection error.",
       },
     });
+    await handlers.agent_end();
   }
 
   it("logs assistant inference errors with the last request target", async () => {

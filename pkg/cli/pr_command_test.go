@@ -190,6 +190,7 @@ func initPRTransferRepo(t *testing.T) string {
 	runGitIn(t, "", "clone", remoteDir, repoDir)
 	runGit(t, repoDir, "config", "user.name", "Test User")
 	runGit(t, repoDir, "config", "user.email", "test@example.com")
+	runGit(t, repoDir, "config", "maintenance.auto", "false")
 	if err := os.WriteFile(filepath.Join(repoDir, ".gitignore"), []byte("ignored.txt\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile() .gitignore error = %v", err)
 	}

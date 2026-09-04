@@ -86,7 +86,7 @@ func writePackageOwnershipRecords(workflows []*ResolvedWorkflow, tracker *FileTr
 func packageManagedWorkflowGroups(workflows []*ResolvedWorkflow) map[string][]*ResolvedWorkflow {
 	groups := make(map[string][]*ResolvedWorkflow)
 	for _, resolved := range workflows {
-		if resolved == nil || resolved.Spec == nil || !resolved.Spec.FromRepositoryManifest {
+		if resolved == nil || resolved.Spec == nil || !resolved.Spec.FromRepositoryManifest || resolved.IsPackageProjectFile {
 			continue
 		}
 		source := packageSourceForSpec(resolved.Spec, resolved.SourceInfo)

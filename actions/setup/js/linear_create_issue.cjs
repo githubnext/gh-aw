@@ -8,6 +8,9 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
+const LINEAR_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LINEAR_PROJECT_ID_PATTERN = /^(?:[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 const LINEAR_CREATE_ISSUE = `mutation LinearCreateIssue($input: IssueCreateInput!) {
   issueCreate(input: $input) {
     success
@@ -21,8 +24,12 @@ const LINEAR_CREATE_ISSUE = `mutation LinearCreateIssue($input: IssueCreateInput
 
 async function main(config = {}) {
   const teamId = config.team_id;
-  if (typeof teamId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId)) {
+  if (typeof teamId !== "string" || !LINEAR_UUID_PATTERN.test(teamId)) {
     throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured team ID`);
+  }
+  const projectId = config.project_id;
+  if (projectId !== undefined && (typeof projectId !== "string" || !LINEAR_PROJECT_ID_PATTERN.test(projectId))) {
+    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured project ID`);
   }
 
   return async function handleLinearCreateIssue(item) {
@@ -47,9 +54,11 @@ async function main(config = {}) {
       return { success: true, staged: true, title };
     }
 
-    const data = await linearGraphQL(LINEAR_CREATE_ISSUE, {
-      input: { teamId, title, description },
-    });
+    const input = { teamId, title, description };
+    if (projectId) {
+      input.projectId = projectId;
+    }
+    const data = await linearGraphQL(LINEAR_CREATE_ISSUE, { input });
     const payload = data?.issueCreate;
     if (payload?.success !== true || !payload.issue) {
       throw new Error(`${ERR_API}: Linear issueCreate did not return a successful issue`);

@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var resolutionLog = logger.New("cli:add_workflow_resolution")
@@ -53,6 +54,9 @@ type ResolvedWorkflow struct {
 	// IsPackageResourceFile is true when the file is a declarative repository resource
 	// from an aw.yml package manifest. The file is installed as-is to DestinationPath.
 	IsPackageResourceFile bool
+	// IsPackageProjectFile is true when the file is an aw.json project file from a package.
+	// It is merged into the target repository's aw.json instead of copied as-is.
+	IsPackageProjectFile bool
 	// SkillName is the skill directory name for package skill files (e.g. "my-skill").
 	// Only meaningful when IsPackageSkillFile is true.
 	SkillName string
@@ -350,6 +354,7 @@ func resolvePackageOrActionWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *F
 	}
 
 	if spec.IsPackageResourceFile {
+		isProjectFile := filepath.ToSlash(filepath.Clean(spec.DestinationPath)) == workflow.RepoConfigFileName
 		resolutionLog.Printf("Resolved package resource file: spec=%s, destination=%s, content_size=%d bytes",
 			spec.String(), spec.DestinationPath, len(fetched.Content))
 		return &ResolvedWorkflow{
@@ -357,6 +362,7 @@ func resolvePackageOrActionWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *F
 			Content:               fetched.Content,
 			SourceInfo:            fetched,
 			IsPackageResourceFile: true,
+			IsPackageProjectFile:  isProjectFile,
 		}, true
 	}
 
@@ -491,25 +497,57 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	}
 	warnings = append(warnings, importWarnings...)
 
-	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes)
+	assets, err := resolveLocalRepositoryPackageManifestNodes(manifestNodes, packageDir)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, assets.warnings...)
+	projectFile, err := resolveLocalPackageProjectFileAndValidateAssets(packageDir, assets)
+	if err != nil {
+		return nil, err
+	}
 	if err := validateUniqueResolvedPackageFiles(assets.installationSources, assets.resourceFiles, assets.extensionFiles.skillFiles, assets.extensionFiles.agentFiles, manifestPath); err != nil {
 		return nil, err
 	}
 	if err := validateUniqueManifestWorkflowFilenames(assets.installationSources, manifestPath); err != nil {
 		return nil, err
 	}
-	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 {
-		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered)", packageDir)
-	}
-
-	return newResolvedLocalRepositoryPackage(manifestPath, packageDir, manifest, assets, warnings), nil
+	return newResolvedLocalRepositoryPackage(manifestPath, packageDir, manifest, assets, projectFile, warnings), nil
 }
 
-func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest *repositoryPackageManifest, assets *resolvedRepositoryPackageAssets, warnings []string) *resolvedRepositoryPackage {
+func resolveLocalPackageProjectFileAndValidateAssets(packageDir string, assets *resolvedRepositoryPackageAssets) (*resolvedPackageResource, error) {
+	projectFile, err := resolveLocalRepositoryPackageProjectFile(packageDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 && projectFile == nil {
+		return nil, fmt.Errorf("repository package at %q does not contain any installable workflows, resources, skills, agents, or aw.json project settings (either explicitly declared or auto-discovered)", packageDir)
+	}
+	return projectFile, nil
+}
+
+func resolveLocalRepositoryPackageProjectFile(packageDir string) (*resolvedPackageResource, error) {
+	projectFilePath := filepath.Join(packageDir, filepath.FromSlash(workflow.RepoConfigFileName))
+	info, err := os.Lstat(projectFilePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to inspect package project file %q: %w", projectFilePath, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("package project file %q is a symbolic link, which is not allowed", projectFilePath)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("package project file %q is not a regular file", projectFilePath)
+	}
+	return &resolvedPackageResource{
+		SourcePath:      projectFilePath,
+		DestinationPath: workflow.RepoConfigFileName,
+	}, nil
+}
+
+func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest *repositoryPackageManifest, assets *resolvedRepositoryPackageAssets, projectFile *resolvedPackageResource, warnings []string) *resolvedRepositoryPackage {
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		Name:               manifest.Name,
@@ -520,6 +558,7 @@ func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest
 		DocsPath:           filepath.Join(packageDir, "README.md"),
 		InstallationSource: assets.installationSources,
 		ResourceFiles:      assets.resourceFiles,
+		ProjectFile:        projectFile,
 		Bootstrap:          manifest.Bootstrap,
 		SkillFiles:         assets.extensionFiles.skillFiles,
 		AgentFiles:         assets.extensionFiles.agentFiles,
@@ -527,12 +566,12 @@ func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest
 	}
 }
 
-func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
+func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode, packageRoot string) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
 	for _, node := range nodes {
 		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(node.Manifest.Includes)
 		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(node.Manifest.Files)...)
-		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath)
+		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath, packageRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -594,14 +633,18 @@ func localRepositoryPackageManifest(source string) (string, string, error) {
 	return resolvedPath, filepath.Dir(resolvedPath), nil
 }
 
-func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, packageDir string) ([]resolvedPackageInstallable, error) {
+func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, packageDir, packageRoot string) ([]resolvedPackageInstallable, error) {
 	normalized := make([]resolvedPackageInstallable, 0, len(includes))
 	seen := make(map[string]struct{})
 	for _, include := range includes {
 		if !include.isMapping() && !isSupportedPackageInstallablePath(include.Source) {
 			continue
 		}
-		absolutePath := filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(include.Source)))
+		sourceDir := packageDir
+		if !include.isMapping() && strings.HasPrefix(filepath.ToSlash(include.Source), constants.GithubDir) {
+			sourceDir = packageRoot
+		}
+		absolutePath := filepath.Clean(filepath.Join(sourceDir, filepath.FromSlash(include.Source)))
 		if include.isMapping() {
 			if err := validateLocalPackageMappingSource(absolutePath, packageDir, include.Source); err != nil {
 				return nil, err
@@ -679,6 +722,15 @@ func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg 
 			WorkflowPath:           resource.SourcePath,
 			WorkflowName:           packageResourceName(resource),
 			DestinationPath:        resource.DestinationPath,
+			FromRepositoryManifest: true,
+			IsPackageResourceFile:  true,
+		})
+	}
+	if pkg.ProjectFile != nil {
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			WorkflowPath:           pkg.ProjectFile.SourcePath,
+			WorkflowName:           "aw.json",
+			DestinationPath:        pkg.ProjectFile.DestinationPath,
 			FromRepositoryManifest: true,
 			IsPackageResourceFile:  true,
 		})
@@ -863,6 +915,21 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			WorkflowPath:           resource.SourcePath,
 			WorkflowName:           packageResourceName(resource),
 			DestinationPath:        resource.DestinationPath,
+			Host:                   host,
+			FromRepositoryManifest: true,
+			IsPackageResourceFile:  true,
+		})
+	}
+	if pkg.ProjectFile != nil {
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     effectiveVersion,
+				PackagePath: repoSpec.PackagePath,
+			},
+			WorkflowPath:           pkg.ProjectFile.SourcePath,
+			WorkflowName:           "aw.json",
+			DestinationPath:        pkg.ProjectFile.DestinationPath,
 			Host:                   host,
 			FromRepositoryManifest: true,
 			IsPackageResourceFile:  true,

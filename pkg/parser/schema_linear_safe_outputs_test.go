@@ -11,10 +11,10 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		"on":     "push",
 		"engine": "copilot",
 		"safe-outputs": map[string]any{
-			"linear-token": "${{ secrets.LINEAR_API_KEY }}",
 			"linear-create-issue": map[string]any{
-				"team-id": "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
-				"max":     1,
+				"team-id":    "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+				"project-id": "810f57a7e383",
+				"max":        1,
 			},
 			"linear-add-comment": map[string]any{
 				"target": "ENG-123",
@@ -35,16 +35,20 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		safeOutputs map[string]any
 	}{
 		{
-			name: "missing token",
-			safeOutputs: map[string]any{
-				"linear-create-issue": map[string]any{"team-id": "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
-			},
-		},
-		{
 			name: "missing team ID",
 			safeOutputs: map[string]any{
 				"linear-token":        "${{ secrets.LINEAR_API_KEY }}",
 				"linear-create-issue": map[string]any{},
+			},
+		},
+		{
+			name: "malformed project ID",
+			safeOutputs: map[string]any{
+				"linear-token": "${{ secrets.LINEAR_API_KEY }}",
+				"linear-create-issue": map[string]any{
+					"team-id":    "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+					"project-id": "not-a-project",
+				},
 			},
 		},
 		{
