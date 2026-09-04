@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "avenger",
+  "recordedAt": "2026-09-04T14:15:19Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "continuous integration",
+    "subdomain": null,
+    "taskArchetype": "CI repair",
+    "interventionType": "automated remediation",
+    "outcomeType": "CI recovery",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Restore main-branch CI after a completed failure.",
+      "alternatives": ["Count created pull requests", "Count changed files"],
+      "rationale": "The adoption-time workflow mission is to keep the repository buildable by repairing failed CI; PR and activity counts are not operational attainment.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/avenger.md:137-140"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Latest completed failing CI run on main at or before the Avenger run.",
+      "alternatives": ["The Avenger run itself", "The latest issue or pull request"],
+      "rationale": "The workflow's precheck explicitly selects the latest completed CI failure on main.",
+      "evidenceReferences": [".github/workflows/avenger.md:62-90"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Stable key ci-run:<database id>; reconstruct from Actions history when case and event are null.",
+      "alternatives": ["Assign by commit SHA only"],
+      "rationale": "Actions run IDs distinguish repeated failures on the same commit and preserve duplicate keys for clustering.",
+      "evidenceReferences": [".github/workflows/avenger.md:68-80"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Completed successful ci.yml run on main after the assigned failure and by the cutoff.",
+      "alternatives": ["Agent traces", "Safe-output PR creation"],
+      "rationale": "A successful CI run is direct repository evidence of restored buildability.",
+      "evidenceReferences": [".github/workflows/avenger.md:139-140", ".github/workflows/avenger.md:159-166"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after Avenger run creation, with an earlier evidenceAt cap.",
+      "alternatives": ["Fixed one-hour window", "No evidence horizon"],
+      "rationale": "The delayed recovery outcome needs a stable horizon while allowing as-of observations before maturity.",
+      "evidenceReferences": [".github/workflows/avenger.md:148-153"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary direct attainment: successful recovery is 1, otherwise 0; unavailable evidence is null.",
+      "alternatives": ["PR count", "CI run count", "Recovery latency as primary"],
+      "rationale": "The binary metric has one direct operational outcome and keeps activity and timing out of the primary value.",
+      "evidenceReferences": [".github/workflows/avenger.md:139-140"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Pre-adoption CI recovery rate"],
+      "rationale": "The workflow had no pre-adoption Avenger assignments; generic CI history is not comparable evidence for this workflow's assigned opportunities.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Actions history may be unavailable or truncated to the API page horizon.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A later successful CI run does not establish that Avenger caused the recovery.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/avenger.md:159-166"]
+    }
+  ]
+}

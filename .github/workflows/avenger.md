@@ -131,6 +131,9 @@ evals:
     question: Did the agent assess the current CI state and determine if intervention was needed?
   - id: pr_created_or_skipped
     question: Was a PR created with CI fixes, or was the run correctly skipped because CI was already passing?
+graders:
+  operational-value:
+    run: .github/graders/avenger-operational-value.sh
 
 ---
 
