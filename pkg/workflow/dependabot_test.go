@@ -641,6 +641,12 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	if err := os.WriteFile(fakeNpm, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	// Workflow with npm dependencies
 	workflows := []*WorkflowData{
