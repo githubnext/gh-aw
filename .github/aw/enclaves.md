@@ -17,7 +17,7 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 
 - Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler launches the MCP gateway in bridge mode and AWF can attach it to the isolated topology.
 - Each `repos:` entry needs `repo:` (`owner/name`) and `sensitivity:` (`public`, `trusted`, `internal`, `confidential`, or `sealed`).
-- Choose `trusted` for repositories where the enclave may return free-form strings in a declared response schema. All other sensitivities are finite-schema-only; do not recommend free-form string schemas for them.
+- Choose `trusted` only for repositories whose content is approved for unrestricted return to the primary agent without confidentiality accounting, and where the enclave may return free-form strings in a declared response schema. Do not select it merely to obtain string output. All other sensitivities are finite-schema-only; do not recommend free-form string schemas for them.
 
 ## Example
 
@@ -76,7 +76,7 @@ enclaves:
   to `/mcp/github`; the enclave has no `gh` executable or GitHub token.
 - The primary agent receives neither the enclave identity nor the gateway
   configuration.
-- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
 
 For a trusted repository, an `enclave_run_agent` response schema may contain strings while remaining structured and strict:
 

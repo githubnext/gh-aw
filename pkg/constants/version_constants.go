@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.13"
+const DefaultFirewallVersion Version = "v0.28.14"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -160,7 +160,7 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
 // AWFEnclaveTrustedSensitivityMinVersion is the first AWF version whose
 // enclave response schema permits free-form string values for trusted repositories.
-const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.13"
+const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
