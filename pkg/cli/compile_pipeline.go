@@ -326,7 +326,7 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	// Post-processing
-	if err := runPostProcessing(compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
+	if err := runPostProcessing(ctx, compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
 		return workflowDataList, err
 	}
 
@@ -828,6 +828,7 @@ func runPurgeOperations(workflowsDir string, data *purgeTrackingData, verbose bo
 
 // runPostProcessing runs post-processing for specific files compilation
 func runPostProcessing(
+	ctx context.Context,
 	compiler *workflow.Compiler,
 	workflowDataList []*workflow.WorkflowData,
 	compiledLockFiles []string,
@@ -844,7 +845,7 @@ func runPostProcessing(
 	if config.Dependabot && !config.NoEmit {
 		if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 			absWorkflowDir := filepath.Join(gitRoot, config.WorkflowDir)
-			if err := generateDependabotManifestsWrapper(compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
+			if err := generateDependabotManifestsWrapper(ctx, compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
 				if config.Strict {
 					return err
 				}
@@ -905,7 +906,7 @@ func runPostProcessingForDirectory(
 	// Generate Dependabot manifests if requested
 	if config.Dependabot && !config.NoEmit {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateDependabotManifestsWrapper(compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
+		if err := generateDependabotManifestsWrapper(ctx, compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
 			if config.Strict {
 				return err
 			}
