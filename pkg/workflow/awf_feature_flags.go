@@ -23,7 +23,7 @@ func awfVersionAtLeast(firewallConfig *FirewallConfig, minVersion constants.Vers
 }
 
 // awfSupportsCliProxy returns true when the effective AWF version supports --difc-proxy-host
-// and --difc-proxy-ca-cert (introduced in AWF v0.26.0).
+// and --difc-proxy-ca-cert (introduced in AWF v0.25.17).
 func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFCliProxyMinVersion)
 }
