@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "archie",
+  "recordedAt": "2026-09-04T12:01:52Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "repository collaboration",
+    "subdomain": null,
+    "taskArchetype": "relationship visualization",
+    "interventionType": "diagram response",
+    "outcomeType": "diagram availability",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Post one to three Mermaid diagrams in the triggering issue or pull-request thread.",
+      "alternatives": ["Measure diagram generation activity", "Measure comment volume"],
+      "rationale": "The adoption workflow explicitly requires posting GitHub-compatible diagrams in the original thread; generation and volume do not establish that result.",
+      "evidenceReferences": ["c5e2550db37fb8c8b99af299e0fa362216334fe8:.github/workflows/archie.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Recorded subject case, with exact workflow-run URL comment search as the historical fallback.",
+      "alternatives": ["Use run ID as the opportunity", "Assign all repository discussions in the run window"],
+      "rationale": "The workflow acts on its triggering issue or pull request. The exact footer URL uniquely recovers an otherwise absent historical subject without treating unrelated discussion as assigned.",
+      "evidenceReferences": [".github/workflows/archie.md:68-78", ".github/workflows/archie.md:40"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "A github-actions[bot] comment with an exact run URL and Mermaid fence.",
+      "alternatives": ["Agent trace", "Eval result", "Any Mermaid comment"],
+      "rationale": "This is direct, repository-local evidence of the required posted diagram and rejects unrelated or user-authored diagrams.",
+      "evidenceReferences": ["c5e2550db37fb8c8b99af299e0fa362216334fe8:.github/workflows/archie.md", ".github/workflows/archie.md:40"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary attainment: accepted diagram comment present is 1; absent on a known subject is 0.",
+      "alternatives": ["Count diagrams", "Score Mermaid complexity"],
+      "rationale": "The adoption intent requires a posted diagram, not a quantity or stylistic quality level.",
+      "evidenceReferences": ["c5e2550db37fb8c8b99af299e0fa362216334fe8:.github/workflows/archie.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation, with cutoff capped at maturity.",
+      "alternatives": ["Immediate cutoff", "Unbounded collection"],
+      "rationale": "The fixed window allows delayed safe-output publication while making replays stable.",
+      "evidenceReferences": [".github/workflows/archie.md:36-46"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only with null baseline",
+      "alternatives": ["Pre-adoption comment-rate baseline"],
+      "rationale": "The workflow was added in its adoption commit, so no pre-adoption Archie-run subject and result pairs exist to score under this contract.",
+      "evidenceReferences": ["c5e2550db37fb8c8b99af299e0fa362216334fe8"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub search or comment retrieval can be unavailable or may not index a footer immediately.",
+      "mitigation": "Return null rather than zero when retrieval fails; use the fixed seven-day horizon for stable replay.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "temporal",
+      "level": "medium",
+      "description": "The adoption workflow does not specify an evidence delay.",
+      "mitigation": "Freeze a seven-day maturation window and cap all observations at it.",
+      "evidenceReferences": ["c5e2550db37fb8c8b99af299e0fa362216334fe8:.github/workflows/archie.md"]
+    }
+  ]
+}
