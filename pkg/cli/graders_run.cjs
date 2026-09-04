@@ -29,10 +29,11 @@ const builtins = {
   "execution-duration": trace => trace.totalDurationMs,
   "working-set-rebuild-factor": trace => {
     const entries = trace.tokenUsageEntries || [];
-    if (entries.length === 0) return null;
-    const total = entries.reduce((sum, entry) => sum + (Number(entry.input_tokens) || 0), 0);
-    const peak = Math.max(...entries.map(entry => Number(entry.input_tokens) || 0));
-    return peak === 0 ? null : total / peak;
+    const valid = entries.map(entry => entry?.input_tokens).filter(value => typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+    if (valid.length === 0) return null;
+    const total = valid.reduce((sum, value) => sum + value, 0);
+    const peak = Math.max(...valid);
+    return peak === 0 ? null : Math.max(1, total / peak);
   },
   "context-growth": trace => {
     const entries = trace.tokenUsageEntries || [];
@@ -87,15 +88,32 @@ function runInline(grader, trace) {
     parsingContext: context,
     filename: `grader:${grader.id}`,
   });
-  return fn(sandbox.trace, sandbox.run, sandbox.workflow, sandbox.config, helpers, safeMath, { timeout: 5000 });
+  context.__grader = fn;
+  context.__helpers = helpers;
+  context.__math = safeMath;
+  return vm.runInContext("__grader(trace, run, workflow, config, __helpers, __math)", context, {
+    timeout: 5000,
+    filename: `grader:${grader.id}:invoke`,
+  });
 }
 
 function normalize(grader, raw) {
   const object = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const value = Object.hasOwn(object, "value") ? object.value : raw;
   let passed = typeof object.passed === "boolean" ? object.passed : null;
+  const implementation = { id: "gh-aw/graders", version: 1, ...(grader.digest ? { digest: grader.digest } : {}) };
   if (value !== null && value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
-    throw new Error(`grader ${grader.id} returned a non-finite value`);
+    return {
+      id: grader.id,
+      name: grader.name || grader.id,
+      value: null,
+      unit: grader.unit || "",
+      passed: null,
+      status: "error",
+      source: grader.source,
+      error: `grader ${grader.id} returned non-finite value: ${String(value)}`,
+      implementation,
+    };
   }
   if (passed === null && value !== null && value !== undefined && grader.threshold !== null && grader.threshold !== undefined) {
     passed = grader.direction === "higher_is_better" ? value >= grader.threshold : value <= grader.threshold;
@@ -109,7 +127,8 @@ function normalize(grader, raw) {
     passed,
     status,
     source: grader.source,
-    ...(typeof object.severity === "string" ? { severity: object.severity } : {}),
+    implementation,
+    ...(typeof object.severity === "string" && ["error", "warning", "info", "note"].includes(object.severity) ? { severity: object.severity } : {}),
     ...(object.details ? { details: String(object.details) } : {}),
     ...(object.message ? { message: String(object.message) } : {}),
   };

@@ -19,7 +19,10 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-const maxGraderPayloadBytes = 50 * 1024 * 1024
+const (
+	maxGraderPayloadBytes = 50 * 1024 * 1024
+	graderJSTimeout       = 7 * time.Second
+)
 
 //go:embed graders_run.cjs
 var gradersRunScript []byte
@@ -42,6 +45,7 @@ type graderRunDefinition struct {
 	Threshold *float64       `json:"threshold"`
 	Config    map[string]any `json:"config,omitempty"`
 	Script    string         `json:"script,omitempty"`
+	Digest    string         `json:"digest,omitempty"`
 }
 
 func runGrader(ctx context.Context, config graderRunConfig) error {
@@ -99,6 +103,7 @@ func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition,
 		Threshold: definition.Threshold,
 		Config:    definition.Config,
 		Script:    definition.Script,
+		Digest:    definition.ScriptDigest(),
 	}, nil
 }
 
@@ -195,7 +200,7 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 	if err != nil {
 		return fmt.Errorf("failed to encode grader input: %w", err)
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, 7*time.Second)
+	commandCtx, cancel := context.WithTimeout(ctx, graderJSTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(commandCtx, nodePath, scriptPath)
 	cmd.Stdin = bytes.NewReader(input)
@@ -204,7 +209,7 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
 		if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
-			return errors.New("grader timed out after 7s")
+			return fmt.Errorf("grader timed out after %s", graderJSTimeout)
 		}
 		if message := bytes.TrimSpace(stderr.Bytes()); len(message) > 0 {
 			return errors.New(string(message))

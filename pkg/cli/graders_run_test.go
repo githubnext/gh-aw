@@ -49,7 +49,8 @@ func TestRunGraderFromStdin(t *testing.T) {
 		"unit":"count",
 		"passed":true,
 		"status":"pass",
-		"source":"builtin"
+		"source":"builtin",
+		"implementation":{"id":"gh-aw/graders","version":1}
 	}`, output.String())
 }
 

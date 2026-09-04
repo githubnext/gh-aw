@@ -1395,6 +1395,24 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'trace_graders.cjs'));
             await main('eyJ2ZXJzaW9uIjoxLCJncmFkZXJzIjpbeyJpZCI6InRvb2wtc3VjY2Vzcy1yYXRlIiwibmFtZSI6IlRvb2wgU3VjY2VzcyBSYXRlIiwiZGVzY3JpcHRpb24iOiJGcmFjdGlvbiBvZiB0b29sIGNhbGxzIHRoYXQgc3VjY2VlZGVkIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJyYXRpbyIsImRpcmVjdGlvbiI6ImhpZ2hlcl9pc19iZXR0ZXIiLCJ0aHJlc2hvbGQiOjAuOCwibWF4IjoxLCJtaW4iOjB9LHsiaWQiOiJ0b29sLWZhaWx1cmUtY291bnQiLCJuYW1lIjoiVG9vbCBGYWlsdXJlIENvdW50IiwiZGVzY3JpcHRpb24iOiJOdW1iZXIgb2YgdG9vbCBjYWxscyB0aGF0IGZhaWxlZCIsInNvdXJjZSI6ImJ1aWx0aW4iLCJlbmFibGVkIjp0cnVlLCJ1bml0IjoiY291bnQiLCJkaXJlY3Rpb24iOiJsb3dlcl9pc19iZXR0ZXIiLCJ0aHJlc2hvbGQiOjV9LHsiaWQiOiJyZXRyaWVzIiwibmFtZSI6IlJldHJpZXMiLCJkZXNjcmlwdGlvbiI6Ik51bWJlciBvZiByZXRyeSBldmVudHMgZGV0ZWN0ZWQgaW4gZ2F0ZXdheSBsb2dzIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJjb3VudCIsImRpcmVjdGlvbiI6Imxvd2VyX2lzX2JldHRlciIsInRocmVzaG9sZCI6MTB9LHsiaWQiOiJsb29wcyIsIm5hbWUiOiJMb29wcyIsImRlc2NyaXB0aW9uIjoiQ29uc2VjdXRpdmUgaWRlbnRpY2FsIHRvb2wgY2FsbHMgKHNhbWUgbmFtZSBhbmQgYXJndW1lbnRzKSIsInNvdXJjZSI6ImJ1aWx0aW4iLCJlbmFibGVkIjp0cnVlLCJ1bml0IjoiY291bnQiLCJkaXJlY3Rpb24iOiJsb3dlcl9pc19iZXR0ZXIiLCJ0aHJlc2hvbGQiOjN9LHsiaWQiOiJ0cmFqZWN0b3J5LWVmZmljaWVuY3kiLCJuYW1lIjoiVHJhamVjdG9yeSBFZmZpY2llbmN5IiwiZGVzY3JpcHRpb24iOiJSYXRpbyBvZiB1bmlxdWUgdG9vbCBuYW1lcyB0byB0b3RhbCB0b29sIGNhbGxzIChoaWdoZXIgPSBtb3JlIGRpdmVyc2UgdXNhZ2UpIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJyYXRpbyIsImRpcmVjdGlvbiI6ImhpZ2hlcl9pc19iZXR0ZXIiLCJtYXgiOjEsIm1pbiI6MH0seyJpZCI6ImV4ZWN1dGlvbi1zdGVwLWNvdW50IiwibmFtZSI6IkV4ZWN1dGlvbiBTdGVwIENvdW50IiwiZGVzY3JpcHRpb24iOiJUb3RhbCBMTE0gcmVxdWVzdCBjb3VudCIsInNvdXJjZSI6ImJ1aWx0aW4iLCJlbmFibGVkIjp0cnVlLCJ1bml0IjoiY291bnQiLCJkaXJlY3Rpb24iOiJsb3dlcl9pc19iZXR0ZXIifSx7ImlkIjoiZXhlY3V0aW9uLWR1cmF0aW9uIiwibmFtZSI6IkV4ZWN1dGlvbiBEdXJhdGlvbiIsImRlc2NyaXB0aW9uIjoiVG90YWwgZXhlY3V0aW9uIGR1cmF0aW9uIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJtcyIsImRpcmVjdGlvbiI6Imxvd2VyX2lzX2JldHRlciJ9LHsiaWQiOiJ3b3JraW5nLXNldC1yZWJ1aWxkLWZhY3RvciIsIm5hbWUiOiJXb3JraW5nLVNldCBSZWJ1aWxkIEZhY3RvciIsImRlc2NyaXB0aW9uIjoiQ3VtdWxhdGl2ZSBpbnB1dCB0b2tlbnMgZGl2aWRlZCBieSBwZWFrIGludm9jYXRpb24gaW5wdXQgdG9rZW5zIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJmYWN0b3IiLCJkaXJlY3Rpb24iOiJsb3dlcl9pc19iZXR0ZXIiLCJtaW4iOjF9LHsiaWQiOiJjb250ZXh0LWdyb3d0aCIsIm5hbWUiOiJDb250ZXh0IEdyb3d0aCIsImRlc2NyaXB0aW9uIjoiUmF0aW8gb2YgdG90YWwgdG9rZW5zIHRvIGZpcnN0LXJlcXVlc3QgdG9rZW5zIiwic291cmNlIjoiYnVpbHRpbiIsImVuYWJsZWQiOnRydWUsInVuaXQiOiJmYWN0b3IiLCJkaXJlY3Rpb24iOiJsb3dlcl9pc19iZXR0ZXIifSx7ImlkIjoiYXJ0aWZhY3QtcHJvZHVjdGlvbiIsIm5hbWUiOiJBcnRpZmFjdCBQcm9kdWN0aW9uIiwiZGVzY3JpcHRpb24iOiJDb3VudCBvZiBvdXRwdXRzL2FydGlmYWN0cyBwcm9kdWNlZCBieSB0aGUgYWdlbnQiLCJzb3VyY2UiOiJidWlsdGluIiwiZW5hYmxlZCI6dHJ1ZSwidW5pdCI6ImNvdW50IiwiZGlyZWN0aW9uIjoiaGlnaGVyX2lzX2JldHRlciJ9XX0=', 'bnVsbA==');
+      - name: Redact grader outputs
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { redactFilesInDir } = require(path.join(actionsDir, 'redact_secrets.cjs'));
+            await redactFilesInDir('/tmp/gh-aw/agent/graders');
+        env:
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Write agent output placeholder if missing
         if: always()
         run: |

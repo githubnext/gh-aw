@@ -210,9 +210,6 @@ func (c *Compiler) generateGraderRedactionStep(yaml *strings.Builder, yamlConten
 	if data.Graders == nil || !data.Graders.HasGraders() {
 		return
 	}
-	if !data.Graders.HasCustomScripts() {
-		return
-	}
 
 	secretReferences := CollectSecretReferences(yamlContent)
 	c.stepOrderTracker.RecordSecretRedaction("Redact grader outputs")
