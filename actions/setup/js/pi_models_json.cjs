@@ -108,19 +108,18 @@ function buildModelsJSON(options) {
  * routing the "openai" provider through /responses keeps tool calling working for
  * all reasoning-capable models without requiring workflow authors to opt in.
  *
- * Other providers (github/copilot, anthropic) keep their existing chat-completions-
- * style gateway protocol, which is unaffected by this OpenAI-specific restriction.
- * The AWF api-proxy gateway (used here) exposes a normalized chat-completions-style
- * surface for every backend it fronts, including anthropic — this is a distinct
- * protocol layer from the native "anthropic-messages" api used in no-firewall mode
- * (see pi_agent_core_driver.cjs's buildModel), so anthropic intentionally falls
- * through to "openai-completions" here rather than "anthropic-messages".
+ * GitHub/Copilot models keep their chat-completions-style gateway protocol.
+ * Anthropic uses its native Messages API so the proxy receives /v1/messages and
+ * can apply Anthropic prompt caching.
  *
  * @param {string} provider - normalized GH_AW_LLM_PROVIDER value (e.g. "openai", "anthropic", "github")
  * @returns {string}
  */
 function resolvePiApiForProvider(provider) {
-  return provider === "openai" || provider === "codex" ? "openai-responses" : "openai-completions";
+  if (provider === "openai" || provider === "codex") {
+    return "openai-responses";
+  }
+  return provider === "anthropic" ? "anthropic-messages" : "openai-completions";
 }
 
 async function main() {

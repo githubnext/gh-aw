@@ -118,7 +118,7 @@ func validateLocalRepositoryPackageContents(manifestPath string) error {
 		if err != nil {
 			return err
 		}
-		assets, err := resolveLocalRepositoryPackageManifestNodes(nodes)
+		assets, err := resolveLocalRepositoryPackageManifestNodes(nodes, packageDir)
 		if err != nil {
 			return err
 		}
