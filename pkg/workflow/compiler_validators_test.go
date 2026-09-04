@@ -713,6 +713,93 @@ func TestValidatePermissions_QuietSuppressesCopilotRequestsTip(t *testing.T) {
 	assert.NotContains(t, stderr, "Tip: set permissions.copilot-requests: write")
 }
 
+func TestEmitGeneralToolWarnings_PiThreatDetectionAuthWarning(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        *WorkflowData
+		wantWarning bool
+	}{
+		{
+			name: "warns without Copilot authentication",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			wantWarning: true,
+		},
+		{
+			name: "does not warn with copilot requests permission",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n  copilot-requests: write\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "does not warn with explicit Copilot token",
+			data: &WorkflowData{
+				AI: "pi",
+				EngineConfig: &EngineConfig{
+					ID: "pi",
+					Env: map[string]string{
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.DETECTION_COPILOT_TOKEN }}",
+					},
+				},
+				Permissions: "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "does not warn when threat detection is disabled",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+			},
+		},
+		{
+			name: "does not warn for a non-Copilot detection override",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{ID: "codex"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			stderr := testutil.CaptureStderr(t, func() {
+				compiler.emitGeneralToolWarnings(tt.data, "test.md")
+			})
+
+			const warning = "Threat detection for engine: pi runs on the GitHub Copilot CLI."
+			if tt.wantWarning {
+				assert.Contains(t, stderr, warning)
+				assert.Equal(t, 1, compiler.GetWarningCount())
+			} else {
+				assert.NotContains(t, stderr, warning)
+				assert.Zero(t, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
 	tests := []struct {
 		name     string
