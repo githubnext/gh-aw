@@ -217,7 +217,7 @@ func TestValidateEnclaveTrustedSensitivityRequiresAWFVersion(t *testing.T) {
 	data.NetworkPermissions.Firewall.Version = "v0.28.12"
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires AWF v0.28.14 or newer")
+	assert.Contains(t, err.Error(), "requires AWF v0.28.13 or newer")
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimitScopesToGitHubEntry(t *testing.T) {
