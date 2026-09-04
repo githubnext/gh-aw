@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-opt",
+  "recordedAt": "2026-09-04T15:07:24Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "copilot-opt's adoption-time intent (commit 1378d27a7efc20f30e8fedd484fab57beea7db26, PR #27121) is to analyze 14-day Copilot session logs and create exactly three optimization issues, each targeting a distinct, freely-chosen root cause across five open-ended domains (instruction/context reduction, agent specialization, tool payload/latency, validation strategy, prompt drift). A sample of 30 issues the workflow has actually created (e.g. #57489 data-completeness gaps, #55466 WIP-PR stall detection, #53450 75-94 minute CI runtimes, #50062 concurrency control on an unrelated workflow, #48426 MCP token inflation, #46904 slow make build validation, #45304 a stale version constant, #37901 action_required approval-gate rates) shows the assigned opportunities have no common, structured repository-state variable comparable across runs, unlike file-line-count or similar state metrics used by other graders. Assignment of a run to its issues is deterministic (safe-outputs create-issue stamps a footer/marker with the run URL, per actions/setup/js/create_issue.cjs and generate_footer.cjs), but no accepted-evidence type can score attainment directly: (a) issue-closed-via-merged-PR is activity/output, not the intended session-efficiency outcome, and the SKILL explicitly forbids substituting activity for a direct metric; (b) re-measuring the named session/CI metric (runtime, token inflation, approval-gate rate, etc.) after maturation is confounded by unrelated concurrent changes to the same CI/session pipeline, so attributing any shift to one issue's fix would require agent judgment, which is also forbidden; (c) issue bodies are free text with no structured target/baseline/threshold fields, so there is no deterministic way to extract a per-opportunity formula the way daily-file-diet extracts line counts from a fixed path. No direct, single-formula, [0,1] primary metric is defensible without agent judgment or an activity proxy, so this design is blocked per the SKILL's guidance to record only this study when no direct operational metric is defensible.",
+  "classification": {
+    "domain": "agentic-workflow-self-optimization",
+    "subdomain": null,
+    "taskArchetype": "recommendation-issue-generation",
+    "interventionType": "automated-issue-creation",
+    "outcomeType": "heterogeneous-operational-improvement",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Recover intent from the workflow's first commit 1378d27a7efc20f30e8fedd484fab57beea7db26 (PR #27121, 2026-04-18): analyze 14 days of Copilot session logs and create exactly three evidence-backed optimization issues covering distinct root causes.",
+      "alternatives": ["Infer intent only from the current workflow instructions without checking the adoption commit"],
+      "rationale": "The workflow's frontmatter/body have since evolved (context-size trims, Copilot SDK enablement, sandbox/network changes across #46969, #41380, #40698, #29418) but the core objective and issue-creation contract are unchanged since adoption, so the first commit is the correct intent anchor.",
+      "evidenceReferences": ["commit 1378d27a7efc20f30e8fedd484fab57beea7db26", "PR #27121", ".github/workflows/copilot-opt.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Treat each scheduled/dispatched run as owning up to three created issues as its opportunity set, keyed by run.",
+      "alternatives": [
+        "One opportunity per fixed recommendation domain (the five domains named in the workflow body)",
+        "One opportunity per detected session-log inefficiency pattern"
+      ],
+      "rationale": "The workflow explicitly creates 'exactly three' issues per run with no fixed domain assignment (PR #27139 shows domains are excluded/adjusted over time), and sampled issue titles (#57489, #55466, #53450, #50062, #48426, #46904, #45304, #37901) span at least ten distinct, non-recurring categories, so neither a fixed-domain nor a pattern-based opportunity key would be stable across runs.",
+      "evidenceReferences": ["issue #57489", "issue #55466", "issue #53450", "issue #50062", "issue #48426", "issue #46904", "issue #45304", "issue #37901", "PR #27139"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Map a run to its issues deterministically via the safe-outputs create-issue footer/marker, which embeds the triggering workflow run URL in every created issue.",
+      "alternatives": ["Match issues to runs using textual similarity between issue body and session-log excerpts (requires agent judgment)"],
+      "rationale": "actions/setup/js/create_issue.cjs generates a footer and XML markers containing the run URL for every issue safe-outputs creates, giving a deterministic, non-judgmental link from run to its assigned issues even though the issues' content is open-ended.",
+      "evidenceReferences": ["actions/setup/js/create_issue.cjs:1074-1083", "actions/setup/js/generate_footer.cjs"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted-evidence type can score attainment directly across all opportunity domains without activity substitution or agent judgment; blocked.",
+      "alternatives": [
+        "Score attainment by whether the assigned issue was closed via a merged pull request (rejected: this is activity/output, not the session-efficiency outcome the workflow targets)",
+        "Score attainment by re-measuring the named CI/session metric (runtime, token size, approval-gate rate) after maturation (rejected: confounded by unrelated concurrent repository changes, and attributing any shift to a specific issue requires agent judgment)",
+        "Parse a structured target/baseline/threshold from the issue body (rejected: the issue template's Evidence/Proposed Change/Expected Impact sections are free text with no required structured fields)"
+      ],
+      "rationale": "Sampled issues span CI job runtimes, approval-gate rates, concurrency configuration of unrelated workflows, MCP payload/token growth, PR polling caching, stale CLI-version constants, and WIP-PR stall detection, none of which share a common, directly measurable repository-state variable the way daily-file-diet shares Go file line counts.",
+      "evidenceReferences": ["issue #53450", "issue #48426", "issue #50062", "issue #45304", "issue #55466", ".github/graders/daily-file-diet-operational-value.sh"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "Recommendation domains are open-ended and heterogeneous across runs (CI runtime, approval-gate rate, concurrency configuration, MCP token inflation, PR polling, stale constants, WIP-PR handling), so no single repository-state variable can serve as accepted evidence for every opportunity.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Even for a single recurring domain (e.g. CI runtime), a later change in the metric cannot be attributed to one specific issue's recommendation without agent judgment, because concurrent unrelated commits affect the same CI/session pipeline.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Issue bodies follow a free-text Problem/Evidence/Proposed Change/Expected Impact template with no structured, machine-parseable target, baseline, or threshold fields, so accepted evidence cannot be extracted deterministically the way line counts are extracted from source files.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-opt.md"]
+    }
+  ]
+}
