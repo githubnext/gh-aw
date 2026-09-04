@@ -861,12 +861,28 @@ function parseOTLPHeaders(raw) {
   for (const pair of raw.split(",")) {
     const eqIdx = pair.indexOf("=");
     if (eqIdx <= 0) continue; // skip malformed pairs (no =) or empty keys (= at start)
-    // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
-    const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
-    const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
-    if (key) result[key] = value;
+    try {
+      // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
+      const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
+      const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
+      if (key) result[key] = value;
+    } catch {
+      // Ignore only the malformed pair so other configured headers remain usable.
+    }
   }
   return result;
+}
+
+/**
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function hasEmptyOTLPAuthorizationHeader(raw) {
+  const headers = parseOTLPHeaders(raw);
+  return Object.entries(headers).some(([key, value]) => {
+    const normalizedKey = key.toLowerCase();
+    return (normalizedKey === "authorization" || normalizedKey === "x-sentry-auth") && value === "";
+  });
 }
 
 /**
@@ -1126,6 +1142,9 @@ function parseOTLPEndpoints() {
         .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
         .filter(e => {
           const hasHeaders = typeof e.headers === "string" && e.headers !== "";
+          if (hasHeaders && hasEmptyOTLPAuthorizationHeader(e.headers)) {
+            return false;
+          }
           if (ignoreMissingCredentials && !hasHeaders) {
             // Enterprise-default endpoint configured without matching credentials:
             // treat as unconfigured instead of exporting unauthenticated telemetry.
