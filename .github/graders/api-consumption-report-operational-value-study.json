@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "api-consumption-report",
+  "recordedAt": "2026-09-04T11:58:05Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The adoption-time workflow defines reporting and analysis activities, but no repository outcome, target, or accepted outcome evidence that a deterministic direct attainment metric could measure.",
+  "classification": {
+    "domain": "API quota monitoring",
+    "subdomain": null,
+    "taskArchetype": "daily report",
+    "interventionType": "observational reporting",
+    "outcomeType": "repository API consumption",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "rate",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the daily report's stated mission as monitoring API footprint, safe-output writes, run health, and trends.",
+      "alternatives": ["Treat reduced API consumption as the workflow's intended outcome"],
+      "rationale": "The adoption-time workflow instructs the agent to analyse and report consumption; it does not specify a consumption target or an intervention that reduces consumption.",
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:57-68", "82239c030d6a1ef6ec8b87a80a1346eeef211f8d"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No operational case is assigned.",
+      "alternatives": ["Assign the preceding 24-hour collection window", "Assign a workflow ranked by API consumption"],
+      "rationale": "A reporting window and a ranked workflow identify data to describe, not a repository outcome that this workflow is tasked to attain.",
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:61-67", ".github/workflows/api-consumption-report.md:77-100"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Do not accept run summaries, discussions, charts, or cache entries as primary attainment evidence.",
+      "alternatives": ["Use run_summary.json API usage totals", "Use creation of the daily discussion and charts", "Use cache-memory history entries"],
+      "rationale": "Run summaries measure the observed subject, while the discussion, charts, and cache measure report production or volume; none demonstrate attainment of a stated repository outcome.",
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:94-98", ".github/workflows/api-consumption-report.md:146-245", ".github/workflows/api-consumption-report.md:302-307"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Block an operational-value metric.",
+      "alternatives": ["Proportion of workflow runs with collected API usage", "API consumption below the hourly limit", "Count of reports, charts, or safe-output writes"],
+      "rationale": "The first and third alternatives are activity or output-volume measures. The limit is presented as report context and not as an adoption-time target or direct outcome attributable to the reporting workflow.",
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:49-52", ".github/workflows/api-consumption-report.md:169-171", ".github/workflows/api-consumption-report.md:207-245"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline is defined.",
+      "alternatives": ["Compare pre-adoption API consumption"],
+      "rationale": "Without a direct primary attainment metric, pre-adoption API-consumption observations cannot be scored under the same attainment formula.",
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d", ".github/workflows/api-consumption-report.md:63-67"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's intended operational effect may be a future human decision, but the adoption-time contract does not specify a decision, target, owner, or accepted repository evidence for it.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:57-68", ".github/workflows/api-consumption-report.md:146-245"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "Pre-adoption API-consumption history can describe prior conditions but cannot supply a comparable direct-attainment baseline while the metric is blocked.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/api-consumption-report.md:63-67", "82239c030d6a1ef6ec8b87a80a1346eeef211f8d"]
+    }
+  ]
+}
