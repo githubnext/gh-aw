@@ -7,6 +7,7 @@ on:
 max-daily-ai-credits: 10000
 permissions:
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
 tracker-id: blog-auditor-weekly
@@ -67,6 +68,9 @@ evals:
     question: Did the workflow complete the blog availability audit, including page access and content validation checks?
   - id: discussion-created
     question: Was an audit discussion created summarizing the pass or fail results and suggested remediation when needed?
+graders:
+  operational-value:
+    run: .github/graders/blog-auditor-operational-value.sh
 
 ---
 

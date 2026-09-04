@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "blog-auditor",
+  "recordedAt": "2026-09-04T14:20:19.755Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "blog monitoring",
+    "subdomain": null,
+    "taskArchetype": "availability audit",
+    "interventionType": "scheduled auditor",
+    "outcomeType": "published verdict",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure whether the workflow publishes a repository audit verdict for the fixed GitHub Next Agentic Workflows blog target.",
+      "alternatives": ["Measure token cost or trace quality", "Ask an agent to judge audit quality"],
+      "rationale": "The adoption workflow explicitly described an automated monitor for a fixed blog URL and required reporting validation results; activity and agent judgment are not direct repository outcome evidence.",
+      "evidenceReferences": ["31dbf0d7997d44bd86983726e83b7ba3813eafac:.github/workflows/blog-auditor.md", ".github/workflows/blog-auditor.md:73-80"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One Monday-based UTC weekly opportunity for https://githubnext.com/projects/agentic-workflows/ based on run createdAt.",
+      "alternatives": ["Use each workflow run ID as a separate opportunity", "Use all blog pages on githubnext.com as the opportunity set"],
+      "rationale": "The workflow is scheduled weekly against one exact target URL; weekly keys keep duplicate runs for the same target window clustered instead of treating reruns as independent opportunities.",
+      "evidenceReferences": [".github/workflows/blog-auditor.md:5-6", ".github/workflows/blog-auditor.md:81-86"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Derive opportunityKey from the target URL and the Monday UTC week containing run.createdAt, reconstructing the same key when case and event are null.",
+      "alternatives": ["Require archived event payload fields", "Assign by discussion number"],
+      "rationale": "Historical report backfills may supply only the run subject; createdAt and the frozen target URL are sufficient to reconstruct a stable assignment without relying on archived case/event data.",
+      "evidenceReferences": [".github/graders/blog-auditor-operational-value.sh", ".github/workflows/blog-auditor.md:83-85"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accept only Audits discussions in github/gh-aw that reference the exact workflow run URL, target URL, required validation sections, and a recognized PASSED or FAILED verdict before cutoff.",
+      "alternatives": ["Use safe-output counts only", "Use eval answers audit-completed or discussion-created", "Fetch the live external blog page at grading time"],
+      "rationale": "The discussion is the durable repository-local artifact the workflow is instructed to publish, while evals, traces, and output counts are indirect activity signals and live page fetches cannot reconstruct historical outcomes.",
+      "evidenceReferences": ["1a9e24e914a9affee7afc69d940a9d8576d1df5e", ".github/workflows/blog-auditor.md:97-98", ".github/workflows/blog-auditor.md:191-304"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Cap evidence at min(evidenceAt, run.createdAt + 1 day).",
+      "alternatives": ["Treat the run as immediately final", "Use an unbounded future evidence window"],
+      "rationale": "The workflow timeout is ten minutes and safe-output publication should be immediate, but a fixed one-day maturation window allows delayed publication while making mature observations stable.",
+      "evidenceReferences": [".github/workflows/blog-auditor.md:51", ".github/workflows/blog-auditor.md:52-57"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Primary value is binary: 1 for a matching recognized audit discussion, 0 for completed search with no match, null for unavailable or malformed evidence.",
+      "alternatives": ["Proportion of required sections present", "Number of discussions created", "Pass/fail state of the external page"],
+      "rationale": "The direct repository outcome is the presence of a usable published audit verdict for the assigned opportunity; partial section counts would be a diagnostic completeness score, output volume is activity, and external page state is not historically reconstructable from accepted evidence.",
+      "evidenceReferences": [".github/graders/blog-auditor-operational-value.sh", ".github/workflows/blog-auditor.md:326-343"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Use attainment-only baseline with null value and null cutoff.",
+      "alternatives": ["Assume pre-adoption value 0 because the workflow did not exist", "Use another workflow's discussion publication rate"],
+      "rationale": "The workflow was added in the adoption commit, and no comparable pre-adoption weekly blog-audit discussions under this contract were identified; missing comparable evidence is null, not zero.",
+      "evidenceReferences": ["31dbf0d7997d44bd86983726e83b7ba3813eafac", "31dbf0d7997d44bd86983726e83b7ba3813eafac^:.github/workflows/blog-auditor.md absent"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "medium",
+      "description": "The metric verifies a durable published verdict and required validation sections, but it does not independently replay the external page state at the historical run time.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/blog-auditor.md:90-98", ".github/workflows/blog-auditor.md:102-183"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub Discussion search or body access may be unavailable to the grader token; those cases are reported as null rather than zero.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/blog-auditor-operational-value.sh"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "low",
+      "description": "The observation records attainment for a run and does not claim that the workflow caused the external blog to be available or current.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
