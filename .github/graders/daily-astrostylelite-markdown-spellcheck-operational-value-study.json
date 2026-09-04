@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-astrostylelite-markdown-spellcheck",
+  "recordedAt": "2026-09-04T15:19:27Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "documentation quality",
+    "subdomain": null,
+    "taskArchetype": "spell correction",
+    "interventionType": "automated remediation",
+    "outcomeType": "finding resolution",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Resolve American-English spelling findings in docs/src/content Markdown.",
+      "alternatives": ["Measure pull-request creation or agent execution"],
+      "rationale": "The adoption workflow explicitly tasks the agent with justified spelling fixes and makes the spellcheck artifact its source of truth.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "All cspell findings from one run-commit documentation snapshot, including a zero-finding healthy snapshot.",
+      "alternatives": ["A pull request", "A count of agent actions"],
+      "rationale": "The adoption workflow's deterministic spellcheck job enumerates the concrete spelling work before the conditional agent path.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Re-run the adoption-pinned cspell configuration at run.sha; key duplicate snapshots as spellcheck:<run SHA>.",
+      "alternatives": ["Use archived action artifacts", "Assign by pull-request branch"],
+      "rationale": "Commit content reconstructs the same assignment when case and event are null; short-retention artifacts and branches do not.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Cspell findings in the default-branch commit at the capped cutoff.",
+      "alternatives": ["PR merge status", "Safe-output records"],
+      "rationale": "Absence of each assigned spelling finding in repository content directly measures the intended documentation-quality outcome.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation; evidence is capped at that instant.",
+      "alternatives": ["Artifact retention period", "Unbounded observation"],
+      "rationale": "A stable one-week horizon permits repository changes to land without allowing later unrelated changes to alter mature observations.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Proportion of assigned file-and-word spelling findings no longer flagged, with zero findings scoring 1.",
+      "alternatives": ["Finding count", "Merged PR count", "Agent judgment"],
+      "rationale": "The proportion is one direct attainment metric in [0,1] and preserves the assignment denominator.",
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137:.github/workflows/daily-astrostylelite-markdown-spellcheck.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only baseline with null value.",
+      "alternatives": ["Post-adoption spellcheck results", "Synthetic pre-adoption baseline"],
+      "rationale": "The parent predates the workflow and its spellcheck configuration, so no comparable pre-adoption measurement exists.",
+      "evidenceReferences": ["e99a27e3c9f90db2a37362cb2e7ecbf6aea2e5c7", "e4729b3d90afe948d7294dd6365efa8c01547137"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Historical archive retrieval or the pinned cspell execution can be unavailable.",
+      "mitigation": "Return null rather than zero and retry on later report runs.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "temporal",
+      "level": "medium",
+      "description": "The one-week maturation horizon is a stable contract choice rather than a pre-adoption turnaround estimate.",
+      "mitigation": null,
+      "evidenceReferences": ["e4729b3d90afe948d7294dd6365efa8c01547137"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A finding can disappear through changes not made by this workflow.",
+      "mitigation": "Report attainment observationally and do not attribute causation.",
+      "evidenceReferences": []
+    }
+  ]
+}

@@ -19,6 +19,10 @@ tracker-id: daily-astrostylelite-markdown-spellcheck
 engine: claude
 strict: true
 
+graders:
+  operational-value:
+    run: .github/graders/daily-astrostylelite-markdown-spellcheck-operational-value.sh
+
 if: needs.spellcheck.outputs.has_findings == 'true'
 
 jobs:
