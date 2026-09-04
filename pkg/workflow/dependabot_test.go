@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -624,7 +625,7 @@ func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 		},
 	}
 
-	err := compiler.GenerateDependabotManifests(workflows, tempDir, false)
+	err := compiler.GenerateDependabotManifests(context.Background(), workflows, tempDir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -636,17 +637,27 @@ func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 	}
 }
 
+// setupFakeFailingNpm puts a fake "npm" binary on PATH for the duration of the test
+// that always fails immediately, instead of letting tests hit the real npm registry
+// over the network, which is slow and unreliable in offline/sandboxed CI.
+func setupFakeFailingNpm(t *testing.T) {
+	t.Helper()
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	script := "#!/bin/sh\necho 'simulated npm failure' >&2\nexit 1\n"
+	if err := os.WriteFile(fakeNpm, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
-	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
-	fakeNpm := filepath.Join(fakeBinDir, "npm")
-	if err := os.WriteFile(fakeNpm, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
-		t.Fatalf("failed to write fake npm binary: %v", err)
-	}
-	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	setupFakeFailingNpm(t)
 
 	// Workflow with npm dependencies
 	workflows := []*WorkflowData{
@@ -655,7 +666,8 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 		},
 	}
 
-	_ = compiler.GenerateDependabotManifests(workflows, workflowDir, false)
+	// Note: This will fail npm install, but we can test the package.json generation
+	_ = compiler.GenerateDependabotManifests(context.Background(), workflows, workflowDir, false)
 
 	// In non-strict mode, npm failure is just a warning
 	// Check that package.json was created
@@ -688,12 +700,8 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
-	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
-	fakeNpm := filepath.Join(fakeBinDir, "npm")
-	if err := os.WriteFile(fakeNpm, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
-		t.Fatalf("failed to write fake npm binary: %v", err)
-	}
-	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	setupFakeFailingNpm(t)
 
 	// Workflow with npm dependencies
 	workflows := []*WorkflowData{
@@ -702,9 +710,12 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 		},
 	}
 
-	strictErr := compiler.GenerateDependabotManifests(workflows, workflowDir, false)
+	// In strict mode, npm failure should cause an error
+	strictErr := compiler.GenerateDependabotManifests(context.Background(), workflows, workflowDir, false)
+
+	// We expect an error in strict mode since the fake npm always fails
 	if strictErr == nil {
-		t.Fatal("expected strict mode to return npm install error")
+		t.Error("expected an error in strict mode when npm install fails")
 	}
 }
 
@@ -730,7 +741,7 @@ touch package-lock.json
 	t.Setenv("GH_AW_TEST_ARGS_FILE", argsFile)
 	t.Setenv("GH_AW_TEST_ENV_FILE", envFile)
 
-	if err := compiler.generatePackageLock(workflowDir); err != nil {
+	if err := compiler.generatePackageLock(context.Background(), workflowDir); err != nil {
 		t.Fatalf("generatePackageLock() error = %v", err)
 	}
 
@@ -782,7 +793,7 @@ touch package-lock.json
 	t.Setenv("GH_AW_TEST_PWD_FILE", pwdFile)
 	t.Chdir(parentDir)
 
-	if err := compiler.generatePackageLock("workflow"); err != nil {
+	if err := compiler.generatePackageLock(context.Background(), "workflow"); err != nil {
 		t.Fatalf("generatePackageLock() error = %v", err)
 	}
 
@@ -812,7 +823,7 @@ func TestGeneratePackageLock_RejectsInvalidWorkflowDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := compiler.generatePackageLock(tt.workflowDir)
+			err := compiler.generatePackageLock(context.Background(), tt.workflowDir)
 			if err == nil {
 				t.Fatal("expected error for invalid workflow directory")
 			}
@@ -1247,6 +1258,8 @@ func TestGenerateDependabotManifests_AllEcosystems(t *testing.T) {
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
 
+	setupFakeFailingNpm(t)
+
 	// Workflow with npm, pip, and go dependencies
 	workflows := []*WorkflowData{
 		{
@@ -1258,8 +1271,8 @@ go install github.com/user/tool@v1.0.0
 		},
 	}
 
-	// This will skip npm install (no npm in test env), but should generate manifest files
-	_ = compiler.GenerateDependabotManifests(workflows, workflowDir, false)
+	// This will fail npm install (fake npm always fails), but should still generate manifest files
+	_ = compiler.GenerateDependabotManifests(context.Background(), workflows, workflowDir, false)
 
 	// Check that package.json was created
 	packageJSONPath := filepath.Join(workflowDir, "package.json")
