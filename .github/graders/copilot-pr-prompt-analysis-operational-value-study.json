@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-pr-prompt-analysis",
+  "recordedAt": "2026-09-04T15:07:33Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow is an informational analytics and reporting process whose sole observable effect is generating a periodic GitHub Discussion summarizing trailing 30-day PR prompt patterns. No discrete repository entity (issue, PR, or file) is assigned for remediation or state transition, discussion creation is activity/output volume rather than operational attainment, and downstream repository merge rates lack discrete per-run opportunity assignment, have total window overlap across daily runs, and cannot be causally attributed or deterministically scored without subjective agent judgment.",
+  "classification": {
+    "domain": "pull-request-analytics",
+    "subdomain": "prompt-pattern-analysis",
+    "taskArchetype": "periodic-reporting",
+    "interventionType": "discussion-broadcast",
+    "outcomeType": "developer-behavior-change",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat workflow intent as periodic retrospective analytics and informational guidance to assist developers writing Copilot PR prompts.",
+      "alternatives": ["Treat workflow intent as direct automated PR remediation or prompt rewriting"],
+      "rationale": "Workflow prompt specifies mission to analyze last 30 days of PRs, extract keywords, and publish a daily discussion with recommendations; no automated PR editing or repository mutation occurs.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-prompt-analysis.md:4-5",
+        ".github/workflows/copilot-pr-prompt-analysis.md:63-68",
+        ".github/workflows/copilot-pr-prompt-analysis.md:198-200",
+        ".github/workflows/copilot-pr-prompt-analysis.md:319-320"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No discrete, non-overlapping per-run opportunity can be bound to a single workflow run.",
+      "alternatives": ["Bind opportunity to trailing 30-day PR collection", "Bind opportunity to future PRs created after the run"],
+      "rationale": "Daily scheduled runs evaluate overlapping 30-day trailing windows where individual PRs are analyzed by up to 30 successive runs, preventing discrete per-run opportunity isolation.",
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:7-9", ".github/workflows/copilot-pr-prompt-analysis.md:71-73"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Decline run-to-entity assignment due to ambiguous entity attribution and overlapping observation windows.",
+      "alternatives": ["Assign run to daily calendar date key", "Assign run to trailing PR list hash"],
+      "rationale": "Calendar-based or PR-list assignment records execution events but does not bind to an addressable repository entity undergoing an observable state transition.",
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:6-10", "docs/adr/55155-operational-value-grader.md:11-12"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Reject discussion artifact creation and downstream repository merge rates as accepted operational evidence.",
+      "alternatives": ["Accept created GitHub Discussion as evidence of attainment", "Accept trailing or downstream PR merge rate as evidence of attainment"],
+      "rationale": "Discussion creation is safe-output activity rather than repository outcome attainment. Downstream PR merge rates reflect multifactorial engineering outcomes confounded by scope, reviewer availability, and code domain rather than the prompt analysis discussion.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:6-8", ".github/workflows/copilot-pr-prompt-analysis.md:198-205"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Indeterminate maturation horizon due to the absence of a bounded downstream state transition.",
+      "alternatives": ["Fixed 30-day lookback window", "7-day forward observation window for developer adoption"],
+      "rationale": "Because no discrete repository opportunity is assigned, no definite cutoff timestamp exists after which evidence stabilizes into a mature operational outcome.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:55-57"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Block metric formulation because no direct operational attainment metric in [0,1] is defensible without substituting activity, output volume, or unassigned macro proxies.",
+      "alternatives": ["Binary indicator of discussion creation", "Trailing 30-day PR merge rate", "Prompt specificity scoring via LLM grader"],
+      "rationale": "Discussion creation measures output activity; trailing merge rate measures historical input rather than run effects; prompt scoring relies on subjective agent judgment prohibited by the operational-value contract.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:6-8", ".github/skills/operational-value-designer/SKILL.md:29-30"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Omit baseline definition due to blocked design outcome.",
+      "alternatives": ["Historical repository PR merge rate prior to commit 134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "rationale": "Without a valid primary operational metric, comparable pre-adoption baseline scoring cannot be computed.",
+      "evidenceReferences": ["commit:134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Changes in developer prompt writing and PR merge success rates cannot be causally attributed to reading the daily prompt analysis discussion versus normal developer learning, tool improvements, or task variation.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:319-320"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Daily scheduled execution causes severe overlap across 30-day trailing PR analysis windows, making independent run-to-opportunity binding impossible.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:7-9", ".github/workflows/copilot-pr-prompt-analysis.md:71-73"]
+    },
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "Evaluating prompt quality, specificity, and adherence to recommendations deterministically from repository artifacts is impossible without subjective natural language evaluation or LLM judging.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:113-135"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Developer consumption, engagement, and actual reading of posted discussions are unobservable in repository git trees or GitHub API metadata.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-prompt-analysis.md:198-205"]
+    }
+  ]
+}
