@@ -39,11 +39,11 @@ var enclaveAgentGitHubSupportedTools = map[string]struct{}{
 
 var enclaveAgentGitHubDefaultTools = []string{"list_issues", "issue_read"}
 
-var enclaveAgentGitHubValidIntegrityLevels = map[GitHubIntegrityLevel]bool{
-	GitHubIntegrityNone:       true,
-	GitHubIntegrityUnapproved: true,
-	GitHubIntegrityApproved:   true,
-	GitHubIntegrityMerged:     true,
+var enclaveAgentGitHubValidIntegrityLevels = map[GitHubIntegrityLevel]struct{}{
+	GitHubIntegrityNone:       {},
+	GitHubIntegrityUnapproved: {},
+	GitHubIntegrityApproved:   {},
+	GitHubIntegrityMerged:     {},
 }
 
 func enclaveGitHubMCPAgentPolicy(workflowData *WorkflowData) MCPGatewayAgentPolicy {
@@ -302,7 +302,7 @@ func validateEnclaveGitHubTools(index int, enclave *EnclaveConfig) error {
 		}
 	}
 	if github.MinIntegrity != "" {
-		if !enclaveAgentGitHubValidIntegrityLevels[github.MinIntegrity] {
+		if _, ok := enclaveAgentGitHubValidIntegrityLevels[github.MinIntegrity]; !ok {
 			return fmt.Errorf("enclaves[%d].agent.tools.github.min-integrity must be one of: none, unapproved, approved, merged. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues]\n          min-integrity: approved\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
 		}
 	}
