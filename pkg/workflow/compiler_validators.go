@@ -348,6 +348,16 @@ func validateWorkflowConcurrency(workflowData *WorkflowData, markdownPath string
 // emitSandboxRuntimeWarnings warns about sandbox runtime choices that need human
 // review or whose configuration the compiler cannot honour.
 func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdownPath string) {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil {
+		switch agentConfig.Runtime {
+		case AgentRuntimeGVisor, AgentRuntimeDockerSbx:
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+				fmt.Sprintf("sandbox.agent.runtime: %s is deprecated and will be removed in a future release. "+
+					"Use sandbox.agent.runtime: docker instead.", agentConfig.Runtime)))
+			c.IncrementWarningCount()
+		}
+	}
 	if isCloudHypervisorRuntime(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
@@ -383,8 +393,8 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. "+
-				"The AI agent will have direct network access without firewall filtering. "+
+			"sandbox.agent: false is deprecated and will be removed in a future release. "+
+				"It disables the firewall, giving the AI agent direct network access without filtering. "+
 				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
 				"environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
