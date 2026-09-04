@@ -141,8 +141,8 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		codexEngineLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+		codexEngineLog.Printf("Skipping Codex CLI installation: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return buildNpmEngineInstallStepsWithAWF(nil, workflowData, false)
 	}
 
 	steps := BuildStandardNpmEngineInstallStepsNoCooldown(
