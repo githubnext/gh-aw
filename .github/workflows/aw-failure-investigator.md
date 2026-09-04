@@ -355,6 +355,9 @@ evals:
     question: Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?
   - id: issues_created_or_closed
     question: Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?
+graders:
+  operational-value:
+    run: .github/graders/aw-failure-investigator-operational-value.sh
 
 ---
 

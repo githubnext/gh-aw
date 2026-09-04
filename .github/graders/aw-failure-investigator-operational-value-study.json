@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "aw-failure-investigator",
+  "recordedAt": "2026-09-04T14:15:45Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "workflow reliability",
+    "subdomain": null,
+    "taskArchetype": "failure triage",
+    "interventionType": "issue tracking",
+    "outcomeType": "failure coverage",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure whether qualifying failures become repository-tracked, evidence-backed issues.",
+      "alternatives": ["Measure report length or agent investigation activity."],
+      "rationale": "The workflow mission explicitly requires correlating failures with issues and creating focused fix sub-issues.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:372-377"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Each failed, timed-out, or startup-failed agentic-workflow run in the preceding six-hour window.",
+      "alternatives": ["One aggregate opportunity per investigator run.", "Only P0 failures."],
+      "rationale": "The workflow's bounded scope is the last six hours, and the required investigation covers all discovered failure severities.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:82-89", ".github/workflows/aw-failure-investigator.md:374-377"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use failure run ID as the stable opportunity key; reconstruct the earliest qualifying failure when case is null.",
+      "alternatives": ["Use issue number as the key.", "Use workflow name only."],
+      "rationale": "Run IDs are immutable and are explicitly required in generated tracking issues, while issue numbers do not exist before adoption.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:430-435"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "A same-repository issue labeled agentic-workflows, created by the cutoff, containing the exact failure run ID.",
+      "alternatives": ["Agent output, traces, issue counts, or issue title similarity."],
+      "rationale": "An issue with an exact run reference is a repository-observable tracking outcome and avoids semantic judgment about the investigation text.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:419-435"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after investigator run creation, with the earlier-of cap for evidenceCutoff.",
+      "alternatives": ["Score immediately.", "Use an unbounded evidence horizon."],
+      "rationale": "Issue creation and correlation can occur after the run, while a fixed horizon makes historical observations stable.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:46-58"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary attainment: covered eligible failure is 1, uncovered eligible failure is 0, unavailable or no opportunity is null.",
+      "alternatives": ["Issue count rate.", "Sub-issue count.", "A weighted severity index."],
+      "rationale": "The binary metric directly answers whether the assigned failure received the required tracking outcome without mixing diagnostics or activity.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:391-403"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only baseline with null value.",
+      "alternatives": ["Baseline from issue volume or historical workflow activity."],
+      "rationale": "The workflow is first introduced in adoption commit 134fc10e16a282117bfb386199c1d775a0a8f288; no pre-adoption tracking contract with comparable run-level assignments was found, so activity cannot be substituted for a baseline.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/aw-failure-investigator.md:1-15"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostic metric; retain only the authoritative direct attainment value.",
+      "alternatives": ["Report issue counts or trace-derived efficiency as diagnostics."],
+      "rationale": "Those quantities measure activity or execution context rather than the repository outcome and are not needed to interpret the binary attainment.",
+      "evidenceReferences": [".github/workflows/aw-failure-investigator.md:20-27"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub API pagination or unavailable issue history can prevent observing accepted tracking evidence.",
+      "mitigation": "Return null rather than zero and preserve the missing reason in diagnostics.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "No comparable pre-adoption run-level assignment and tracking series exists for this newly added workflow.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Issue coverage after a run is observational and does not establish that the workflow caused the tracking outcome.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
