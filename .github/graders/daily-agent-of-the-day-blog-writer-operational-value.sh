@@ -88,6 +88,9 @@ github_api() {
 # Searches for merged pull requests tagged with this workflow's tracker-id marker, then
 # matches the run id against each candidate's body. Returns the merged_at timestamp of the
 # matching pull request and its number, or nothing (empty output) when no match is found.
+# Capped at 100 most-recently-created results (single page, no pagination): a documented,
+# accepted risk (see the study's evidence-availability uncertainty) that only matters once
+# far more than 100 merged blog pull requests carry this tracker-id.
 find_merged_evidence() {
     local repository=$1 run_id=$2 results
 
@@ -98,7 +101,7 @@ find_merged_evidence() {
     printf '%s\n' "$results" | jq -c --arg runId "$run_id" '
         [.items[]
          | select(.number | type == "number")
-         | select((.body // "") | test("id: " + $runId + ","; "l"))
+         | select((.body // "") | test("(^|[^0-9])id: " + $runId + ",(?!\\d)"))
          | {number: .number, mergedAt: .pull_request.merged_at}]
         | sort_by(.mergedAt)[0] // empty' || return 1
 }
