@@ -6700,6 +6700,27 @@ describe("parseOTLPEndpoints", () => {
     expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
   });
 
+  it.each(["Authorization=", "x-sentry-auth="])("drops an endpoint when its %s header is empty", headers => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers }]);
+    expect(parseOTLPEndpoints()).toEqual([]);
+  });
+
+  it("keeps an endpoint when an unrelated header is empty", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
+    expect(parseOTLPEndpoints()).toEqual([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
+  });
+
+  it("keeps later endpoints when an earlier header pair has an invalid percent escape", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
+    expect(parseOTLPEndpoints()).toEqual([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
+  });
+
   describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {
     afterEach(() => {
       delete process.env.GH_AW_OTLP_IF_MISSING;

@@ -8718,6 +8718,10 @@ safe-outputs:
     # Trusted Linear team model UUID.
     team-id: "example-value"
 
+    # Optional trusted Linear project identifier from a project URL or model UUID.
+    # (optional)
+    project-id: "example-value"
+
     # Maximum number of Linear issues to create (default: 1).
     # (optional)
     # Accepted formats:
