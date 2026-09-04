@@ -207,6 +207,13 @@ const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 // concurrent per-agent isolation for the issues-read-v1 enclave capability.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.15"
 
+// MCPGEnclaveAgentToolsMinVersion is the first MCPG version whose distinct
+// enclave identity supports agent.tools.github allowlists and guard policies.
+// Currently identical to MCPGEnclaveGitHubIssuesMinVersion because both
+// enclave GitHub shapes share the same distinct-identity implementation;
+// kept as a separate constant so the two gates can diverge independently.
+const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
+
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
