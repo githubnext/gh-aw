@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "changeset",
+  "recordedAt": "2026-09-04T14:23:20Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "release documentation",
+    "subdomain": null,
+    "taskArchetype": "changeset generation",
+    "interventionType": "labeled pull-request automation",
+    "outcomeType": "valid changeset committed",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat creation of a valid changeset file on the labeled pull request as the operational outcome.",
+      "alternatives": ["Use changeset content quality as the primary outcome."],
+      "rationale": "The workflow mission and task explicitly require creating a properly formatted changeset; content accuracy is a separate workflow evaluation.",
+      "evidenceReferences": [".github/workflows/changeset.md:70-147", ".github/workflows/shared/changeset-format.md:7-24"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One pull request activated by the changeset or smoke label.",
+      "alternatives": ["Treat every workflow run, including workflow_dispatch, as an opportunity."],
+      "rationale": "The trigger and activation condition are label-based; manual runs do not identify the intended pull-request opportunity.",
+      "evidenceReferences": [".github/workflows/changeset.md:5-12"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Bind to pull-request number, recovering it from the historical workflow run when case and event are null.",
+      "alternatives": ["Bind only from the event payload."],
+      "rationale": "The run API retains pull-request associations, allowing historical replay without relying on a supplied case or event.",
+      "evidenceReferences": [".github/workflows/changeset.md:5-8"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "A new non-README .changeset markdown file with valid frontmatter and non-empty body at the cutoff commit.",
+      "alternatives": ["Count any .changeset file", "Use agent traces or safe-output activity."],
+      "rationale": "The repository format specifies the accepted file structure, while file content and Git history directly demonstrate the repository outcome.",
+      "evidenceReferences": [".github/workflows/shared/changeset-format.md:7-24"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "One day after run creation, capped at the earlier evidence time.",
+      "alternatives": ["Score only at workflow completion", "Use a permanently open evidence window."],
+      "rationale": "Safe output commits can arrive after the agent run; a fixed one-day horizon permits delivery while making mature observations stable.",
+      "evidenceReferences": [".github/workflows/changeset.md:150-164"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary direct attainment: 1 for at least one new valid changeset, otherwise 0; unavailable evidence is null.",
+      "alternatives": ["Use a proportion of files", "Use activity or output counts as the primary value."],
+      "rationale": "The operational target is satisfied by the existence of a valid changeset, and no defensible partial attainment scale is specified.",
+      "evidenceReferences": [".github/workflows/changeset.md:145-164", ".github/workflows/shared/changeset-format.md:7-24"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Use pre-adoption changeset prevalence as a comparable baseline."],
+      "rationale": "The workflow was adopted in commit 06d7770; pre-adoption repository changesets are not observations of this labeled automation and cannot establish a comparable workflow baseline.",
+      "evidenceReferences": ["06d7770e80228207b6436fd22cd01ce145daf71c"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Report the count of new valid changeset files separately.",
+      "alternatives": ["Combine file count with attainment in the primary value."],
+      "rationale": "Multiple files provide context but do not represent greater completion of the single requested changeset outcome.",
+      "evidenceReferences": [".github/workflows/shared/changeset-format.md:20-24"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "GitHub workflow-run pull_requests association may be unavailable for some historical or manually replayed runs.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Pull-request commit or contents API responses may be unavailable or truncated during replay.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "A changeset may be committed after the one-day maturation horizon.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/changeset.md:150-164"]
+    }
+  ]
+}

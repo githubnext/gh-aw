@@ -11,6 +11,7 @@ on:
 max-daily-ai-credits: 10000
 if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
+  actions: read
   contents: read
   pull-requests: read
   issues: read
@@ -64,6 +65,9 @@ evals:
     question: Did the agent create a valid changeset file for the labeled pull request?
   - id: content-accurate
     question: Does the changeset accurately summarize the changes described in the pull request?
+graders:
+  operational-value:
+    run: .github/graders/changeset-operational-value.sh
 
 ---
 
