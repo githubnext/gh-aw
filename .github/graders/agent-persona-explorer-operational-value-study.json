@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "agent-persona-explorer",
+  "recordedAt": "2026-09-04T11:52:47.350Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow explicitly explores agent responses and publishes findings as an issue, but it does not perform or require a subsequent repository outcome. Issue creation, scenario counts, quality scores, traces, and agent judgments are activity or output evidence rather than direct operational attainment. No defensible direct metric with a frozen accepted-evidence contract exists.",
+  "classification": {
+    "domain": "agent evaluation",
+    "subdomain": null,
+    "taskArchetype": "research exploration",
+    "interventionType": "persona-based agent testing",
+    "outcomeType": "validated repository improvement",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Evaluate how the agentic-workflows custom agent responds to persona-specific automation scenarios and publish concise findings.",
+      "alternatives": ["Treat token usage, duration, or response quality scores as the operational outcome."],
+      "rationale": "The adoption-time workflow mission and mandatory Phase 5 output explicitly describe exploratory testing and issue publication, not a repository change or decision that must follow.",
+      "evidenceReferences": ["131133a9e1b197a80bff06ba9ab1cd088d19d925", ".github/workflows/agent-persona-explorer.md:74-80", ".github/workflows/agent-persona-explorer.md:193-199"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No bounded operational opportunity is defined beyond conducting the exploratory research run.",
+      "alternatives": ["A persona, scenario, or generated issue as the operational opportunity."],
+      "rationale": "Personas and scenarios are selected for coverage and the issue is a publication artifact; neither identifies a repository state that the workflow is expected to attain.",
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:82-118", ".github/workflows/agent-persona-explorer.md:193-199"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No operational case assignment is defensible.",
+      "alternatives": ["Assign each run to its selected personas.", "Assign each run to its created issue."],
+      "rationale": "The workflow's cache-based rotation selects research subjects, but no selected subject maps to a unique repository outcome whose attainment can be observed.",
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:96-108", ".github/workflows/agent-persona-explorer.md:261-264"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted direct repository evidence.",
+      "alternatives": ["Issue existence or closure.", "Scenario and quality-score fields in the report.", "Traces, token counts, or generated response volume."],
+      "rationale": "The alternatives measure publication, activity, execution, or agent judgment and are expressly not operational attainment. Pre-adoption evidence independently provides no required downstream repository outcome to reuse.",
+      "evidenceReferences": ["b5cb008a7e32620cd3a451177cc31595b4385ab6", "131133a9e1b197a80bff06ba9ab1cd088d19d925", ".github/workflows/agent-persona-explorer.md:140-168", ".github/workflows/agent-persona-explorer.md:221-257"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not defined because no accepted outcome or evidence window exists.",
+      "alternatives": ["A fixed post-run horizon for issue or repository changes."],
+      "rationale": "A time horizon cannot make publication or agent assessment become direct operational attainment when the workflow does not specify a downstream state transition.",
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:193-199", ".github/workflows/agent-persona-explorer.md:297-305"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational-value metric; design is blocked.",
+      "alternatives": ["Binary issue-created metric.", "Scenario coverage or quality-score proportion.", "Token or duration rate."],
+      "rationale": "Each alternative is activity, output volume, execution telemetry, or agent judgment rather than a direct measure of an intended repository outcome.",
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:16-31", ".github/workflows/agent-persona-explorer.md:297-305"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Pre-adoption issue, trace, or activity rate."],
+      "rationale": "Without a direct primary metric, a pre-adoption activity baseline would not provide comparable operational attainment.",
+      "evidenceReferences": ["b5cb008a7e32620cd3a451177cc31595b4385ab6", "131133a9e1b197a80bff06ba9ab1cd088d19d925"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostics are declared because available measures are not valid operational-value evidence.",
+      "alternatives": ["Report token efficiency, duration, scenario count, and quality as diagnostics."],
+      "rationale": "The workflow labels those measures as experiment and evaluation metrics, but retaining them in an operational-value contract would blur the required separation from activity and agent judgment.",
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:16-31", ".github/workflows/agent-persona-explorer.md:66-70"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "No downstream repository state is specified or required after findings are published.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:193-199"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is an exploratory study of agent behavior, so its explicit measures describe research execution and judged response quality rather than operational attainment.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:74-80", ".github/workflows/agent-persona-explorer.md:285-295"]
+    },
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "Persona rotation is reproducible only through cache state and does not bind a run to a unique repository outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agent-persona-explorer.md:96-108", ".github/workflows/agent-persona-explorer.md:261-264"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "Pre-adoption evidence contains no comparable direct operational outcome for this workflow.",
+      "mitigation": null,
+      "evidenceReferences": ["b5cb008a7e32620cd3a451177cc31595b4385ab6", "131133a9e1b197a80bff06ba9ab1cd088d19d925"]
+    }
+  ]
+}
