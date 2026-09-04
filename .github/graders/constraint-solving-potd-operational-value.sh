@@ -116,7 +116,7 @@ discussion_count() {
       [.[]
        | .[]
        | select(.category.name == "Announcements")
-       | select((.title | type) == "string" and startswith($prefix))
+       | select((.title | type) == "string" and (.title | startswith($prefix)))
        | select((.created_at | type) == "string")
        | select((.created_at | startswith($date)) and .created_at <= $cutoff)]
       | length
@@ -182,10 +182,10 @@ grade_run() {
     jq -cn --argjson value "$value" --arg opportunityKey "$opportunity_key" \
         --argjson case "$case_json" --arg evidenceCutoff "$evidence_cutoff" \
         --arg maturesAt "$matures_at" --arg repository "$repository" \
-        --arg runId "$run_id" --arg sha "$run_sha" --argjson count "$count" \
+        --arg date "$created_date" --argjson count "$count" \
         '{value:$value, opportunityKey:$opportunityKey, case:$case,
           evidenceCutoff:$evidenceCutoff, maturesAt:$maturesAt,
-          provenance:[{repository:$repository, kind:"discussion", ref:($runId + "/" + $sha)}],
+          provenance:[{repository:$repository, kind:"discussion", ref:("date:" + $date)}],
           diagnostics: {"qualifying-discussion-count":$count}}'
 }
 
