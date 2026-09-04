@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "agentic-token-trend-audit",
+  "recordedAt": "2026-09-04T11:54:09Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "agentic-token-trend-audit is a workflow_dispatch-only, caller-specified date-range reporting tool (an on-demand analogue of the scheduled agentic-token-audit). Its adoption-time intent (commit 04175d0cabf11fc28b7b9f16a6ddc88998bd85a5, 2026-06-02) and every later revision is to compute AIC/effective-token aggregates over an arbitrary caller-chosen window from ephemeral gh-aw logs and publish them as a report issue; it does not fix, decompose, or otherwise change any repository artifact. There is no repository 'opportunity' state (comparable to an oversized file or an open bug) that the workflow is meant to move toward a target, so no opportunityKey or assignment rule can be defined independent of the caller's freely chosen date_range input, which is not reconstructable from repository state for historical replay. The only durable repository evidence a run leaves behind is the report issue itself; the source data (gh aw logs output) is not persisted, is not deterministic across time (later runs see more history and possibly rotated retention), and is not independently re-derivable at evaluation time. Accepting the created issue's presence, size, or numeric content as the accepted evidence would substitute output volume or a trace of the agent's own arithmetic for an independently verifiable repository outcome, which the operational-value contract explicitly excludes. No comparable pre-adoption evidence exists to freeze as a baseline either, since the workflow itself is the first and only source of these on-demand trend reports. Because no direct, non-activity, non-trace primary metric in [0,1] can be defended, this workflow is blocked rather than assigned a grader.",
+  "classification": {
+    "domain": "developer-tooling-observability",
+    "subdomain": null,
+    "taskArchetype": "on-demand-usage-report",
+    "interventionType": "reporting",
+    "outcomeType": "descriptive-audit-issue",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time intent is a caller-triggered, date-range-scoped AIC/token usage report published as an issue, distinct from the scheduled daily agentic-token-audit and from agentic-token-optimizer's efficiency recommendations.",
+      "alternatives": ["Treat it as equivalent to the scheduled agentic-token-audit workflow and reuse that workflow's contract"],
+      "rationale": "The adoption commit (04175d0cabf11fc28b7b9f16a6ddc88998bd85a5, 'Add on-demand token audit workflow with date-range dispatch input') introduces the workflow_dispatch-only trigger with a required date_range input and no schedule, confirming it is a caller-initiated on-demand report rather than a recurring monitor with a fixed window.",
+      "evidenceReferences": ["commit 04175d0cabf11fc28b7b9f16a6ddc88998bd85a5", ".github/workflows/agentic-token-trend-audit.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No stable per-run repository opportunity exists: the caller-chosen date_range is free text and is not derived from, nor bound to, any repository state such as an issue, file, or open finding.",
+      "alternatives": ["Define the opportunity as 'produce a report for the current window', treating the requested date_range as the case key"],
+      "rationale": "Unlike Daily File Diet's largest-oversized-file opportunity, there is no repository artifact whose state before the run determines what 'success' looks like; the same repository state can be queried with arbitrarily different, overlapping, or non-contiguous ranges by different callers, so no opportunityKey can prevent overlapping ownership or support historical reconstruction from case=null, event=null alone.",
+      "evidenceReferences": [".github/workflows/agentic-token-trend-audit.md (workflow_dispatch.inputs.date_range)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted repository evidence of outcome attainment is available beyond the created report issue itself.",
+      "alternatives": ["Accept the created issue's existence or section completeness as evidence", "Recompute the same aggregates from live gh aw logs at evaluation time and diff them against the issue body"],
+      "rationale": "Accepting issue existence/section completeness is exactly the excluded 'activity/output volume' evidence. Recomputing aggregates from gh aw logs is not viable evidence because the source logs are not persisted in the repository, are not deterministic across time (retention and history grow), and re-deriving them at evaluation time would only check the agent's own arithmetic trace rather than an independent repository outcome.",
+      "evidenceReferences": [".github/workflows/agentic-token-trend-audit.md (Phase 1/Phase 3, safe-outputs.create-issue)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Blocked: no direct primary metric in [0,1] is defensible without substituting activity, output volume, traces, or agent judgment.",
+      "alternatives": ["Score whether the issue was created (binary activity proxy)", "Score chart/asset upload success (output volume proxy)", "Re-run the agent's own aggregation logic and score numeric agreement (trace/judgment proxy)"],
+      "rationale": "Every considered alternative reduces to one of the explicitly disallowed substitutes (activity, output volume, traces, or agent judgment) rather than an independently verifiable repository outcome, so the design is blocked per the operational-value-designer contract's explicit escape hatch.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "This workflow's deliverable is a descriptive report over caller-chosen historical data rather than a repository change, so the operational-value framing (attainment toward a repository outcome) may not fit reporting/analytics workflows in general, not just this one.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agentic-token-trend-audit.md"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The workflow_dispatch date_range input is free-form text chosen per invocation, so no stable, non-overlapping opportunityKey can be derived for historical assignment reconstruction when case and event are null.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agentic-token-trend-audit.md (workflow_dispatch.inputs.date_range)"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The only durable artifact a run produces is a report issue whose numeric content cannot be independently re-verified later, since the underlying gh aw logs data is not persisted in the repository and is not stable across time.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/agentic-token-trend-audit.md (safe-outputs.create-issue)"]
+    }
+  ]
+}
