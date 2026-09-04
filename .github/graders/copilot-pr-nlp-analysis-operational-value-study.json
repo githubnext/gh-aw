@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-pr-nlp-analysis",
+  "recordedAt": "2026-09-04T15:10:00Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's adoption-time intent is to produce a weekly NLP analysis (sentiment, topic clustering, keyword trends) of Copilot PR conversations and post it as a GitHub Discussion. Its only accepted run artifact is an agent-authored discussion containing subjective NLP interpretations (sentiment scores, topic labels, keyword rankings) that have no frozen, machine-verifiable ground truth in the repository. Discussion creation, chart count, word count, or any parse of the discussion body would substitute output volume or agent judgment for operational attainment, so no direct primary metric in [0,1] is defensible.",
+  "classification": {
+    "domain": "conversation analytics",
+    "subdomain": null,
+    "taskArchetype": "recurring NLP report generation",
+    "interventionType": "scheduled analysis and reporting",
+    "outcomeType": "subjective interpretive report",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the adoption-time intent as generating a weekly NLP-based sentiment/topic/keyword analysis of Copilot PR conversations and publishing it as a Discussion, not as a repository-state or code-quality intervention.",
+      "alternatives": [
+        "Treat the workflow as a repository-health or CI-quality intervention",
+        "Treat discussion creation itself as the operational outcome"
+      ],
+      "rationale": "The mission statement and success criteria both describe the deliverable as an analytical report with visualizations posted to a Discussion; the workflow makes no repository-state or code-change claims.",
+      "evidenceReferences": [
+        "17fbd6f1ab7e44c2222f2b8f7065fd3b22fb377e",
+        ".github/workflows/copilot-pr-nlp-analysis.md:90-92",
+        ".github/workflows/copilot-pr-nlp-analysis.md:485-494"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No stable per-run opportunity is defined; each run's population of merged Copilot PRs from the trailing 7 days varies with the schedule and cannot be bound to one recurring operational case.",
+      "alternatives": [
+        "One opportunity per merged Copilot PR in the trailing window",
+        "One opportunity per scheduled run (repository-wide audit)"
+      ],
+      "rationale": "The PR population overlaps across consecutive weekly runs (a PR merged on day 3 appears in multiple 7-day windows), so no non-overlapping, deduplicated opportunity key can be assigned per PR, and a repository-wide audit key would only measure whether a report was produced, i.e. activity.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-nlp-analysis.md:92-99",
+        ".github/workflows/copilot-pr-nlp-analysis.md:130-135"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Do not freeze an operational case assignment.",
+      "alternatives": [
+        "Bind each run to its run ID and score discussion presence",
+        "Bind each run to the set of PR numbers analyzed"
+      ],
+      "rationale": "A run ID or PR-number set only identifies which data was read; it does not establish that any operational outcome (correct sentiment, correct topics) was attained, so freezing either as the case would misrepresent activity as attainment.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-nlp-analysis.md:92-99"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted evidence contract.",
+      "alternatives": [
+        "Use the created Discussion body as direct evidence",
+        "Use chart asset uploads as evidence",
+        "Use evaluator parsing of sentiment/topic values from the discussion text"
+      ],
+      "rationale": "The Discussion body and chart uploads are agent-authored outputs whose correctness (are sentiment scores accurate, are topics meaningful) cannot be checked against any frozen repository ground truth; parsing them would only quantify output volume or require agent judgment, both of which the study explicitly forbids as substitutes.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-nlp-analysis.md:243-271",
+        ".github/workflows/copilot-pr-nlp-analysis.md:290-296"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window is frozen because no accepted direct evidence exists to collect at its end.",
+      "alternatives": [
+        "Use the discussion's implicit weekly cadence as a maturation window",
+        "Use a fixed post-run window equal to the analysis period (7 days)"
+      ],
+      "rationale": "A maturation window only stabilizes an already-defensible metric; without a direct metric, freezing a window would create the appearance of measurement rigor over an activity signal.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-nlp-analysis.md:92-99"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric; design blocked.",
+      "alternatives": [
+        "Discussion-created binary",
+        "Chart-upload count normalized to 5 expected charts",
+        "Agent self-reported confidence in sentiment/topic accuracy"
+      ],
+      "rationale": "Each alternative measures activity, output volume, or agent judgment rather than a direct, independently verifiable repository outcome, which the operational-value contract prohibits as a primary metric.",
+      "evidenceReferences": [
+        ".github/skills/operational-value-designer/SKILL.md",
+        ".github/workflows/copilot-pr-nlp-analysis.md:196-215"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline; the design is blocked before a comparable metric exists.",
+      "alternatives": [
+        "Use pre-adoption Copilot PR merge volume as a baseline",
+        "Use pre-adoption manual conversation review activity as a baseline"
+      ],
+      "rationale": "Pre-adoption PR or review activity is an activity measure, not the same direct operational metric that this study would need to freeze as a comparable baseline.",
+      "evidenceReferences": [
+        "17fbd6f1ab7e44c2222f2b8f7065fd3b22fb377e"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Do not add diagnostics because the only available signals (discussion presence, chart count, keyword counts) are the same prohibited activity and output measures.",
+      "alternatives": [
+        "Report count of charts uploaded",
+        "Report number of PRs analyzed per run"
+      ],
+      "rationale": "Reporting these separately as diagnostics would not make them operational attainment; the study records the limitation instead of laundering activity counts as diagnostics.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-nlp-analysis.md:196-215"
+      ],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is a recurring analytics/reporting task with no repository-state or code-quality target, so it does not fit the operational-value contract's requirement for a direct, checkable outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-nlp-analysis.md:90-99"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "Run evidence consists only of an agent-authored Discussion and uploaded chart assets; no structured, independently verifiable outcome record is archived.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-nlp-analysis.md:243-271"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The trailing 7-day merged-PR window overlaps across consecutive scheduled runs, preventing a stable, non-overlapping opportunity key per PR.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-nlp-analysis.md:92-99"]
+    },
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "Sentiment scores, topic clusters, and keyword rankings are subjective NLP interpretations without a frozen ground truth to validate against.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-nlp-analysis.md:196-215"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "unknown",
+      "description": "Without a direct metric or accepted outcome evidence, no comparison across runs or to a baseline can be attributed to this workflow's operation.",
+      "mitigation": null,
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md"]
+    }
+  ]
+}
