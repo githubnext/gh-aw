@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-agent-analysis",
+  "recordedAt": "2026-09-04T14:57:51Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "copilot-agent-analysis is a scheduled, read-only analytics workflow whose adoption-time intent (commit 28f78d42d5bd28888283f34fdb8daea7468399c2, 2025-10-17, 'Add daily agentic workflow for pull request analysis') and every later revision is to observe, aggregate, and report copilot-swe-agent pull-request outcomes that already exist from prior, independently authored PR workflows; it does not create, review, merge, or close any pull request or issue itself. Its declared permissions (contents/issues/pull-requests/actions: read) confirm it cannot change the state it reports on, and its only repository-visible artifacts are a discussion post and repo-memory history entries, both of which are the analysis output rather than an outcome attained for an opportunity this run owns. Because the underlying PR population (agent_prs_total, agent_prs_merged, agent_success_rate, etc.) is produced and owned by unrelated PR-authoring workflows and human reviewers, any metric built from that population would score an outcome this run did not cause or control, misattributing another actor's operational result to this reporting run. The only alternative evidence available -- discussion/report existence, table completeness, or agreement between the report's computed numbers and an independent recomputation of the same PR query -- reduces to output volume, activity, or a trace check of the agent's own arithmetic, all of which the operational-value contract explicitly excludes. No comparable pre-adoption repository state exists to freeze as a baseline either, since the workflow itself is the first and only source of this daily analysis. Because no direct, non-activity, non-output-volume, non-trace primary metric in [0,1] can be defended, this workflow is blocked rather than assigned a grader.",
+  "classification": {
+    "domain": "developer-tooling-observability",
+    "subdomain": null,
+    "taskArchetype": "recurring-usage-report",
+    "interventionType": "reporting",
+    "outcomeType": "descriptive-discussion-report",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time and current intent is a scheduled, read-only analysis of copilot-swe-agent pull-request outcomes (created/merged/closed, timing, comments) that publishes a report and appends history; it performs no repository write action on any pull request or issue.",
+      "alternatives": ["Treat the workflow as an intervention that improves copilot-swe-agent PR outcomes", "Treat it as equivalent to an action-taking workflow such as daily-file-diet"],
+      "rationale": "The adoption commit (28f78d42d5bd28888283f34fdb8daea7468399c2, 'Add daily agentic workflow for pull request analysis') grants only contents/pull-requests/actions read permissions and defines Phases that search, read, and summarize existing PR data into a created issue; the current version keeps the same read-only permission set and now reports via a discussion (shared/daily-audit-base.md) plus repo-memory history, with no phase that edits, merges, closes, or reviews a PR or issue.",
+      "evidenceReferences": ["commit:28f78d42d5bd28888283f34fdb8daea7468399c2", "file:.github/workflows/copilot-agent-analysis.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No repository opportunity state (comparable to an oversized file or an open issue) exists for this workflow to move toward a target; the only per-run unit is the fixed prior-UTC-day analysis window, which is a reporting scope, not an attainable outcome.",
+      "alternatives": ["Define the opportunity as 'the daily cohort of copilot-swe-agent PRs created in the window'", "Define the opportunity as 'the discussion report for the day'"],
+      "rationale": "Both alternatives bind the run to a reporting unit (a data window or the report itself) rather than to a repository state this run is responsible for changing; the workflow's own mission statement scopes it to 'daily analysis... tracking performance metrics,' not to producing or influencing PR outcomes.",
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No operational case assignment is frozen because a read-only reporting run has no attainable repository outcome to bind an opportunityKey to.",
+      "alternatives": ["Assign each run to its half-open UTC day window as opportunityKey `day:YYYY-MM-DD`", "Assign each run to the copilot-swe-agent PR cohort it analyzes"],
+      "rationale": "Both alternatives would produce a stable, non-overlapping key, but keying on a data window or PR cohort this run merely observes -- rather than owns or changes -- does not satisfy 'operational case' as defined by the contract, which requires an opportunity the run's own action can move toward attainment.",
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Reject discussion existence, report table completeness, repo-memory history entries, and recomputed PR-query agreement as primary operational evidence.",
+      "alternatives": ["Accept the created discussion's existence or section completeness as evidence", "Recompute agent_prs_total/agent_prs_merged/agent_success_rate directly from the GitHub API at evaluation time and compare to the report"],
+      "rationale": "Discussion existence and section completeness are exactly the excluded 'activity/output volume' evidence. Independently recomputing the same PR-outcome numbers the workflow already computes would only check whether the agent's own arithmetic/trace matches ground truth, not whether an independent repository outcome was attained by this run, which the contract also excludes ('agent judgment', 'traces').",
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md", "file:.github/skills/operational-value-designer/SKILL.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not applicable for a blocked design outcome.",
+      "alternatives": ["1 day after the analysis window closes", "7 days to allow late PR comments"],
+      "rationale": "Because no direct operational metric is defensible, no maturation window is defined.",
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Blocked: no direct primary metric in [0,1] is defensible without substituting activity, output volume, traces, or agent judgment, or misattributing another actor's PR outcomes to this reporting run.",
+      "alternatives": ["Score whether the discussion was created for the day (binary activity proxy)", "Score agent_success_rate of the analyzed PR cohort as the run's attainment", "Score numeric agreement between the report and an independent recomputation (trace proxy)"],
+      "rationale": "Every candidate reduces to one of the explicitly disallowed substitutes: activity/output volume (discussion creation), misattributed causal outcome (a downstream PR cohort this run does not own or influence), or a trace/agent-judgment check (recomputation agreement), so the design is blocked per the operational-value-designer contract's explicit escape hatch.",
+      "evidenceReferences": ["file:.github/skills/operational-value-designer/SKILL.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline for a blocked design outcome.",
+      "alternatives": ["Use pre-adoption manual tracking of copilot-swe-agent PR outcomes as a comparable baseline"],
+      "rationale": "No pre-adoption repository evidence of this same reporting activity exists to freeze as a comparable baseline; the workflow itself is the first and only source of this daily analysis, and no primary metric was accepted to score such a baseline against.",
+      "evidenceReferences": ["commit:28f78d42d5bd28888283f34fdb8daea7468399c2"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostic metrics defined for a blocked design outcome.",
+      "alternatives": ["Report agent_success_rate, avg_comments, and avg_total_duration_minutes from repo-memory history as diagnostics"],
+      "rationale": "Diagnostics are omitted when the primary operational-value design is blocked; retaining them in a grader would risk presenting the report's own descriptive statistics as operational value.",
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "This workflow's deliverable is a descriptive, read-only report over copilot-swe-agent PR outcomes it does not create or influence, so the operational-value framing (attainment toward a repository outcome the run owns) does not fit reporting/analytics workflows of this kind in general, not just this one instance.",
+      "mitigation": null,
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Any observed change in the reported PR success rate or durations reflects the behavior of copilot-swe-agent and its reviewers, not any action taken by this analysis workflow's runs.",
+      "mitigation": null,
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "While the underlying PR data (merge state, timestamps) is durable and independently re-derivable via the GitHub API, that durability does not by itself establish that the data represents an outcome this workflow's run attained, since the run neither creates nor changes those PRs.",
+      "mitigation": null,
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"]
+    },
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "A stable, non-overlapping opportunityKey (e.g. the half-open UTC day window) could be reconstructed for historical replay when case and event are null, but this determinism does not resolve the underlying domain-fit and evidence-availability blockers.",
+      "mitigation": null,
+      "evidenceReferences": ["file:.github/workflows/copilot-agent-analysis.md"]
+    }
+  ]
+}
