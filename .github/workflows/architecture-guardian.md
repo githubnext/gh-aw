@@ -141,6 +141,9 @@ evals:
     question: Did the workflow analyze changed Go or JavaScript files from the last 24 hours for architecture violations, or correctly conclude there were none?
   - id: issue-created-or-noop
     question: Was an architecture report issue created when violations were found, or was noop or skip behavior used appropriately when there was nothing actionable?
+graders:
+  operational-value:
+    run: .github/graders/architecture-guardian-operational-value.sh
 
 ---
 

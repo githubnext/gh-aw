@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "architecture-guardian",
+  "recordedAt": "2026-09-04T12:12:20Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "Go code structural hygiene",
+    "subdomain": null,
+    "taskArchetype": "flag-and-remediate structural debt",
+    "interventionType": "automated function-size violation detection and issue reporting",
+    "outcomeType": "oversized function decomposition toward a size target",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "distance-to-target",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Track decomposition of the run's longest oversized non-test Go function, matching the workflow's adoption-time Step 3 'Function Size (Go)' check (>${thresholds.function_lines} lines, default 80, from .architecture.yml) rather than file size, export count, or import cycles.",
+      "alternatives": ["Reuse daily-file-diet's largest-file decomposition contract", "Score import-cycle absence (BLOCKER check)", "Score export-count reduction (INFO check)"],
+      "rationale": "Adoption commit 559b2b3's workflow body defines four independent checks (file size, function size, export count, import cycles). File size is already the exclusive subject of daily-file-diet's frozen operational-value contract, so reusing it would duplicate an existing metric rather than measure this workflow's distinct contribution. Import cycles cannot exist in a buildable Go repository (the compiler rejects them), so real BLOCKER evidence is structurally unobtainable and the check never fires in practice. Export-count violations are INFO-only and the adoption text asks only for a 'brief note', not a refactoring plan, so it carries weaker adoption-time intent than the function-size WARNING check, which explicitly asks for 'a concrete plan to fix it'.",
+      "evidenceReferences": [".github/workflows/architecture-guardian.md@559b2b3 Step 3/Step 5", "github/gh-aw#28113 (function-size BLOCKER remediated)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The longest span between consecutive `^func ` markers across pkg/**/*.go (excluding _test.go) at the run commit, using the exact awk marker-to-marker method from the workflow's own pre-step, with the function_lines threshold read from .architecture.yml at that commit (default 80).",
+      "alternatives": ["Only scan files changed in the last 24 hours (matching the workflow's daily window)", "Use a fixed 80-line threshold regardless of .architecture.yml"],
+      "rationale": "Restricting to the 24-hour changed-file window would make the opportunity depend on git history retention and commit cadence, and would frequently be empty (noop) for days without qualifying commits, losing comparability across runs. Scanning the full repository tree at the run commit gives a stable, always-available opportunity while still measuring the same structural property the workflow enforces. Reading .architecture.yml keeps the opportunity consistent with the actually-configured thresholds (2026-09 config sets function_lines: 200, not the 80 default) rather than a hardcoded value that would drift from real severity classification.",
+      "evidenceReferences": [".architecture.yml (function_lines: 200)", ".github/workflows/architecture-guardian.md Step 1"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "opportunityKey = go-function:<path>::<name> for the single largest function span (ties broken by reverse-lexical path then full function header text); repository-health:go-functions-under-threshold when every scanned function is already below the threshold.",
+      "alternatives": ["Assign every oversized function found in the run as separate parallel cases", "Assign by file (largest-file's total function-line mass) instead of by individual function"],
+      "rationale": "Assigning every oversized function per run would produce an unbounded, non-deterministic-length case set per run and complicate opportunity-key stability; a single deterministic largest-span pick mirrors the single-target-per-run pattern used elsewhere in this codebase for git-evidence-graded workflows and keeps exactly one operational case per run for clustering. Assigning by whole-file mass would conflate this contract with daily-file-diet's file-size contract.",
+      "evidenceReferences": [".github/graders/architecture-guardian-operational-value.sh#assign_case"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accepted evidence is Git-derived only: at the evidence-cutoff commit, re-run the identical marker-scan on the assigned file and match the exact original function header text; a matching header's new line span is the current evidence, and an absent header (function removed, renamed, or file deleted) is treated as full attainment.",
+      "alternatives": ["Accept issue-closed-by-PR status as evidence of remediation", "Accept agent or reviewer commentary that a violation was addressed"],
+      "rationale": "Issue-closure evidence was directly tested against three real violations issues: #28113 was closed by merged PR #28114 (real fix), but #26048 closed not_planned with zero linked PRs and #26230's only linked PR (#26231) was closed unmerged -- so issue-closure status does not reliably indicate a repository change occurred. Git evidence (the function's own measured span) is the only accepted-evidence source that cannot be satisfied by administrative issue closure alone.",
+      "evidenceReferences": ["github/gh-aw#28113 (closed by merged PR #28114)", "github/gh-aw#26048 (closed not_planned, no linked PR)", "github/gh-aw#26230 (linked PR #26231 closed unmerged)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "maturesAt = run.createdAt + 7 days; evidenceCutoff is capped at min(evidenceAt, maturesAt) and is stable once evidenceAt passes maturesAt.",
+      "alternatives": ["2-day maturation matching the create-issue expires:2d window", "Same 2-day maturation frozen by the daily-file-diet contract"],
+      "rationale": "The only confirmed real fix (#28113 -> merged PR #28114) closed in 0.06 days, but that issue's own auto-expiry is only 2 days and the other two real violations issues closed not_planned or via an unmerged PR at/after their 2-day expiry without any repository change -- meaning fixes plausibly land after the issue itself has already expired and is no longer tracked. A maturation window equal to or shorter than the 2-day expiry would risk freezing evidenceCutoff before a genuine post-expiry fix could land, so a longer, independently-chosen 7-day window was selected instead of copying either the 2-day expiry or daily-file-diet's frozen 2-day maturation.",
+      "evidenceReferences": ["github/gh-aw#28113 (created 2026-04-23T15:04:17Z, closed 2026-04-23T16:31:31Z by merged PR #28114)", "github/gh-aw#26048 (closed not_planned)", "github/gh-aw#26230 (PR #26231 closed unmerged)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "primaryMetric = 1 when initialLines < thresholdLines; else clamp((initialLines-currentLines)/(initialLines-targetLines), 0, 1) where targetLines = floor(thresholdLines/2); null when evidence is invalid, unavailable, or thresholdLines<=targetLines.",
+      "alternatives": ["Binary metric: 1 if currentLines < thresholdLines else 0", "Use a fixed targetLines (e.g. 40) independent of the configured threshold"],
+      "rationale": "A binary threshold-crossing metric would treat a function that shrinks from 852 to 81 lines identically to one untouched at 852 lines, discarding partial-progress signal that the distance-to-target form preserves in [0,1]. Deriving targetLines as half of the run's own effective threshold keeps the target consistent with whatever function_lines value is configured at that commit (80 by default, 200 currently), rather than freezing an arbitrary absolute number that could become inconsistent with future configuration changes.",
+      "evidenceReferences": [".github/graders/architecture-guardian-operational-value.sh#metric", "github/gh-aw#28113 (generateMCPSetup 852 -> ~852-628=224 additions/deletions net change)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only; baseline value, evidenceCutoff, and provenance are all null.",
+      "alternatives": ["Score pre-adoption commits with the same function-scan formula as a frozen baseline"],
+      "rationale": "No comparable pre-adoption process existed: before commit 559b2b3 there was no automated per-run function-size detection or remediation-tracking mechanism to score retroactively, and the pre-adoption repository state is not a 'run' with an assignable opportunity under this contract. attainment-only avoids fabricating a baseline from unrelated historical commits.",
+      "evidenceReferences": [".github/workflows/architecture-guardian.md@559b2b3 (first commit adding the workflow)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Two separate diagnostics: longest-function-health = min(1, (thresholdLines-1)/initialLines) at assignment, and compliant-function-line-share = compliantFunctionLines/totalFunctionLines at assignment; both excluded from the primary value.",
+      "alternatives": ["Fold repository-wide function health into the primary metric as a weighted average", "Omit diagnostics entirely"],
+      "rationale": "The primary metric must answer only whether the specific assigned function was decomposed; repository-wide function-health context is useful for trend analysis but would corrupt the single direct attainment signal if merged into value, so it is reported as separate, non-aggregated diagnostics consistent with the skill's separation requirement.",
+      "evidenceReferences": [".github/graders/architecture-guardian-operational-value.sh#case_diagnostics"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "medium",
+      "description": "Function identity is matched by exact declaration header text (the full `^func ...` line). Any edit to the function's signature (parameter list, receiver, or return type) while its body is otherwise unchanged will read as header-absence and score full attainment (1), even though no line-count reduction occurred. Verified against pkg/constants/constants.go: because the same marker-to-marker method is reused verbatim from the workflow's own pre-step, a span between two real functions with no intervening `^func` line also silently includes trailing top-level const/var declarations in the measured line count, matching the production tool's own known imprecision rather than a new defect.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/architecture-guardian-operational-value.sh#scan_functions", "pkg/constants/constants.go:134-706 (IsValid spans through unrelated trailing const blocks to the next real func marker)"]
+    },
+    {
+      "type": "assignment",
+      "level": "low",
+      "description": "Ties in function line span are broken by reverse-lexical (path, header) ordering, an arbitrary but deterministic rule; a repository with two functions of exactly equal length could assign either as the case depending on this ordering.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/architecture-guardian-operational-value.sh#assign_case"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Only one of five known 'Architecture Violations Detected' issues (#28113) is confirmed to have led to a merged repository fix; the other four either closed not_planned, linked an unmerged PR, or have not been individually verified, so the maturation window and zero rule are calibrated on a single strong confirmatory example.",
+      "mitigation": null,
+      "evidenceReferences": ["github/gh-aw#28113", "github/gh-aw#26048", "github/gh-aw#26230"]
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "The 7-day maturation window is a reasoned choice bounding above the 2-day issue-expiry window with margin for post-expiry fixes, not a value directly measured from a distribution of confirmed remediation latencies (only one confirmed data point exists at 0.06 days).",
+      "mitigation": null,
+      "evidenceReferences": ["github/gh-aw#28113"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "low",
+      "description": "The contract only scans pkg/**/*.go; architecture-guardian also flags JavaScript/CJS file-size and export-count violations and Go import cycles, which this operational-value contract does not measure at all.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/architecture-guardian.md Step 3 (Checks 3-5)"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "A function shrinking toward the target after a run does not establish that the architecture-guardian workflow (versus an unrelated refactor, a different tool, or coincidental cleanup) caused the change.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
