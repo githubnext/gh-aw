@@ -16,7 +16,8 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 ## Prerequisites
 
 - Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler launches the MCP gateway in bridge mode and AWF can attach it to the isolated topology.
-- Each `repos:` entry needs `repo:` (`owner/name`) and `sensitivity:` (`public`, `internal`, `confidential`, or `sealed`).
+- Each `repos:` entry needs `repo:` (`owner/name`) and `sensitivity:` (`public`, `trusted`, `internal`, `confidential`, or `sealed`).
+- Choose `trusted` only for repositories whose content is approved for unrestricted return to the primary agent without confidentiality accounting, and where the enclave may return free-form strings in a declared response schema. Do not select it merely to obtain string output. All other sensitivities are finite-schema-only; do not recommend free-form string schemas for them.
 
 ## Example
 
@@ -53,7 +54,7 @@ Use only this closed opt-in:
 ```yaml
 sandbox:
   mcp:
-    version: v0.4.13
+    version: v0.4.15
 enclaves:
   - agent:
       model: gpt-5
@@ -64,20 +65,34 @@ enclaves:
         sensitivity: confidential
 ```
 
-- `issues-read-v1` permits only paginated REST GETs for issue lists, one issue,
-  and that issue's comments. Use `gh api --method GET`; do not promise stock
-  `gh issue` commands because they may use denied GraphQL calls.
-- GraphQL, search, writes, and all other REST paths fail closed.
-- V1 allows at most one non-`public` repository in the agent entry.
-- Public data inherits explicit `tools.github.min-integrity`, or the compiler's
-  primary default (`approved`) when the primary GitHub tool is omitted.
-- Private repository responses carry the `private:<owner>/<repo>` DIFC secrecy
-  label.
-- The compiler starts a dedicated bridge-mode mcpg proxy holding the PAT. AWF
-  supplies only its own local PAT-free proxy to the enclave and keeps the
-  `awf-egh1` invocation capability in a mode-`0600` file.
-- The primary agent receives no enclave proxy address, key, CA path, container
-  identity, capability, PAT, or repository catalog.
-- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.13`.
+- `issues-read-v1` permits only the `list_issues` and `issue_read` GitHub MCP
+  tools. GraphQL, search, writes, and all other GitHub tools fail closed.
+- V1 allows at most one repository whose sensitivity is neither `public` nor `trusted` in the agent entry; `trusted` is public-equivalent for this limit.
+- `trusted` repositories are public-equivalent for this limit, so multiple `trusted` and `public` repositories are allowed.
+- The compiler generates separate primary and enclave identities for one shared
+  mcpg gateway. The enclave identity is restricted to the GitHub server, those
+  two tools, and the union of repositories declared in its trusted entry.
+- AWF privately stages the enclave identity and connects the enclave directly
+  to `/mcp/github`; the enclave has no `gh` executable or GitHub token.
+- The primary agent receives neither the enclave identity nor the gateway
+  configuration.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
+
+For a trusted repository, an `enclave_run_agent` response schema may contain strings while remaining structured and strict:
+
+```json
+{
+  "type": "object",
+  "fields": {
+    "should_dispatch": { "type": "boolean" },
+    "title": { "type": "string" },
+    "problem": { "type": "string" },
+    "root_cause": { "type": "string" },
+    "proposed_solution": { "type": "string" }
+  }
+}
+```
+
+Responses must conform exactly to the declared schema: fields are required, extra properties are rejected, floats, `$ref`, recursion, regex schemas, and untagged unions are unsupported. Output remains subject to AWF's configured limit and the global 8 KiB ceiling.
 
 See also: [agent-runtime-instructions.md](agent-runtime-instructions.md) for `sandbox.agent` fields, and [network.md](network.md) for network isolation defaults.

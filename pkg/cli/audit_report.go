@@ -165,13 +165,23 @@ type ToolUsageInfo struct {
 	OutputSample  string `json:"output_sample,omitempty" console:"header:Response Preview,omitempty"`
 }
 
+// IntegrityFilterSummary contains aggregate DIFC integrity-filter activity.
+type IntegrityFilterSummary struct {
+	TotalFiltered          int            `json:"total_filtered"`
+	RunsWithFilteredEvents int            `json:"runs_with_filtered_events,omitempty"`
+	FilteredServerCounts   map[string]int `json:"filtered_server_counts,omitempty"`
+	FilteredToolCounts     map[string]int `json:"filtered_tool_counts,omitempty"`
+	FilteredReasonCounts   map[string]int `json:"filtered_reason_counts,omitempty"`
+}
+
 // MCPToolUsageData contains detailed MCP tool usage statistics and individual call records
 type MCPToolUsageData struct {
-	Summary            []MCPToolSummary    `json:"summary"`                        // Aggregated statistics per tool
-	ToolCalls          []MCPToolCall       `json:"tool_calls"`                     // Individual tool call records
-	Servers            []MCPServerStats    `json:"servers,omitempty"`              // Server-level statistics
-	FilteredEvents     []DifcFilteredEvent `json:"filtered_events,omitempty"`      // DIFC filtered events
-	GuardPolicySummary *GuardPolicySummary `json:"guard_policy_summary,omitempty"` // Guard policy enforcement summary
+	Summary            []MCPToolSummary        `json:"summary"`                        // Aggregated statistics per tool
+	ToolCalls          []MCPToolCall           `json:"tool_calls"`                     // Individual tool call records
+	Servers            []MCPServerStats        `json:"servers,omitempty"`              // Server-level statistics
+	FilteredEvents     []DifcFilteredEvent     `json:"filtered_events,omitempty"`      // DIFC filtered events
+	Integrity          *IntegrityFilterSummary `json:"integrity,omitempty"`            // Aggregate DIFC integrity-filter activity
+	GuardPolicySummary *GuardPolicySummary     `json:"guard_policy_summary,omitempty"` // Guard policy enforcement summary
 }
 
 // MCPToolSummary contains aggregated statistics for a single MCP tool

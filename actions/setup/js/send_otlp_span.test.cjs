@@ -3664,7 +3664,7 @@ describe("sendJobConclusionSpan", () => {
     expect(aicAttr.value.doubleValue).toBe(0.125);
   });
 
-  it("emits working-set attributes on the built-in conclusion span", async () => {
+  it("emits usage activity attributes on the built-in conclusion span", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
@@ -3673,6 +3673,16 @@ describe("sendJobConclusionSpan", () => {
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/usage/activity/summary.json") {
         return JSON.stringify({
+          integrity: { total_filtered: 3 },
+          firewall: { total_requests: 12, allowed_requests: 10, blocked_requests: 2 },
+          gateway: {
+            total_calls: 5,
+            failed_calls: 1,
+            total_input_size: 1000,
+            max_input_size: 400,
+            total_output_size: 5000,
+            max_output_size: 3000,
+          },
           working_set: {
             measurement_state: "measured",
             rebuild_factor: 3.9017857142857144,
@@ -3692,6 +3702,16 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(attribute => [attribute.key, attribute.value]));
+    expect(attrs["gh-aw.integrity.filtered_events"].intValue).toBe(3);
+    expect(attrs["gh-aw.firewall.requests"].intValue).toBe(12);
+    expect(attrs["gh-aw.firewall.allowed_requests"].intValue).toBe(10);
+    expect(attrs["gh-aw.firewall.blocked_requests"].intValue).toBe(2);
+    expect(attrs["gh-aw.mcp.tool_calls"].intValue).toBe(5);
+    expect(attrs["gh-aw.mcp.failed_tool_calls"].intValue).toBe(1);
+    expect(attrs["gh-aw.mcp.input_bytes"].intValue).toBe(1000);
+    expect(attrs["gh-aw.mcp.max_input_bytes"].intValue).toBe(400);
+    expect(attrs["gh-aw.mcp.output_bytes"].intValue).toBe(5000);
+    expect(attrs["gh-aw.mcp.max_output_bytes"].intValue).toBe(3000);
     expect(attrs["gh-aw.working_set.measurement_state"].stringValue).toBe("measured");
     expect(attrs["gh-aw.working_set.rebuild_factor"].doubleValue).toBeCloseTo(3.9017857142857144);
     expect(attrs["gh-aw.working_set.cumulative_input_tokens"].intValue).toBe(874000);
@@ -6678,6 +6698,27 @@ describe("parseOTLPEndpoints", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317" }]);
     const result = parseOTLPEndpoints();
     expect(result).toEqual([{ url: "https://traces.example.com:4317" }]);
+  });
+
+  it.each(["Authorization=", "x-sentry-auth="])("drops an endpoint when its %s header is empty", headers => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers }]);
+    expect(parseOTLPEndpoints()).toEqual([]);
+  });
+
+  it("keeps an endpoint when an unrelated header is empty", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
+    expect(parseOTLPEndpoints()).toEqual([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
+  });
+
+  it("keeps later endpoints when an earlier header pair has an invalid percent escape", () => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
+    expect(parseOTLPEndpoints()).toEqual([
+      { url: "https://malformed.example.com:4317", headers: "X-Tenant=%" },
+      { url: "https://traces.example.com:4317", headers: "Authorization=******" },
+    ]);
   });
 
   describe("GH_AW_OTLP_IF_MISSING=ignore (enterprise-default fallback)", () => {

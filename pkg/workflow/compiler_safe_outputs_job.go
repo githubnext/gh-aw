@@ -413,6 +413,7 @@ func (c *Compiler) appendHandlerManagerStep(data *WorkflowData, state *safeOutpu
 			return err
 		}
 		handlerManagerSteps = injectLinearTokenIntoProcessorStep(handlerManagerSteps, data.SafeOutputs)
+		handlerManagerSteps = injectJiraCredentialsIntoProcessorStep(handlerManagerSteps, data.SafeOutputs)
 		state.steps = append(state.steps, handlerManagerSteps...)
 		state.safeOutputStepNames = append(state.safeOutputStepNames, "process_safe_outputs")
 		addHandlerManagerOutputs(data, state.outputs)

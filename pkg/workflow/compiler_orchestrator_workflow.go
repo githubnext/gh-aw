@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -130,6 +131,7 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 	if err := c.validateWorkflowModelAliasMap(ctx); err != nil {
 		return err
 	}
+	c.warnUnknownConfiguredModels(ctx.workflowData, ctx.cleanPath)
 	if err := c.validateWorkflowEngineSettings(ctx.cleanPath, ctx.workflowData); err != nil {
 		return err
 	}
@@ -249,7 +251,38 @@ func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
 	workflowData.ContainerPinMappings = c.getContainerPinMappings()
 }
 
+func hasExplicitConcurrencyGroup(frontmatter map[string]any) bool {
+	concurrencyValue, ok := frontmatter["concurrency"]
+	if !ok {
+		return false
+	}
+	if concurrencyString, ok := concurrencyValue.(string); ok {
+		return strings.TrimSpace(concurrencyString) != ""
+	}
+	concurrencyMap, ok := concurrencyValue.(map[string]any)
+	if !ok {
+		return false
+	}
+	groupValue, ok := concurrencyMap["group"]
+	if !ok {
+		return false
+	}
+	groupString, ok := groupValue.(string)
+	return ok && strings.TrimSpace(groupString) != ""
+}
+
 func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext) error {
+	if ctx.engineSetup.importsResult.MergedConcurrency != "" && !hasExplicitConcurrencyGroup(ctx.frontmatter.Frontmatter) {
+		var importedConcurrency any
+		if err := json.Unmarshal([]byte(ctx.engineSetup.importsResult.MergedConcurrency), &importedConcurrency); err == nil {
+			ctx.workflowData.Concurrency = c.extractTopLevelYAMLSection(map[string]any{"concurrency": importedConcurrency}, "concurrency")
+		} else {
+			orchestratorWorkflowLog.Printf("Skipping imported concurrency merge: invalid JSON: %v", err)
+		}
+	}
+	if ctx.workflowData.ConcurrencyJobDiscriminator == "" {
+		ctx.workflowData.ConcurrencyJobDiscriminator = ctx.engineSetup.importsResult.MergedJobDiscriminator
+	}
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
 	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return err

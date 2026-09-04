@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveEngineID(t *testing.T) {
@@ -224,6 +225,34 @@ func TestGetNpmBinPathSetup_GorootOrdering(t *testing.T) {
 	if !strings.Contains(result, "go1.25.0") {
 		t.Errorf("Expected go1.25.0 to take precedence, but got: %s", result)
 	}
+}
+
+func TestGetNpmBinPathSetup_PreservesSelectedRuby(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping shell-based test on non-Linux platform")
+	}
+
+	cacheRoot := filepath.Join(t.TempDir(), "toolcache")
+	selectedRubyBin := filepath.Join(t.TempDir(), "selected-ruby", "bin")
+	cachedRubyBin := filepath.Join(cacheRoot, "Ruby", "3.2.11", "x64", "bin")
+	require.NoError(t, os.MkdirAll(selectedRubyBin, 0o755))
+	require.NoError(t, os.MkdirAll(cachedRubyBin, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(selectedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.4.8'\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cachedRubyBin, "ruby"), []byte("#!/bin/sh\necho 'ruby 3.2.11'\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cachedRubyBin, "npm-agent"), []byte("#!/bin/sh\necho 'npm agent found'\n"), 0o755))
+
+	shellCmd := fmt.Sprintf(
+		`unset GOROOT ERLANG_HOME; export RUNNER_TOOL_CACHE=%q; export PATH=%q:/usr/bin:/bin; %s; ruby --version; npm-agent`,
+		cacheRoot,
+		selectedRubyBin,
+		GetNpmBinPathSetup(),
+	)
+
+	output, err := exec.Command("bash", "-c", shellCmd).Output()
+	if err != nil {
+		t.Fatalf("Failed to execute shell command: %v", err)
+	}
+	assert.Equal(t, "ruby 3.4.8\nnpm agent found\n", string(output))
 }
 
 // TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain verifies that when GOROOT is

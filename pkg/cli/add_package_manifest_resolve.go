@@ -10,7 +10,15 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow"
 )
+
+type resolvedRepositoryPackageAssets struct {
+	installationSources []resolvedPackageInstallable
+	resourceFiles       []resolvedPackageResource
+	extensionFiles      *repositoryPackageExtensionFiles
+	warnings            []string
+}
 
 func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
 	addPackageManifestLog.Printf("Resolving repository package %q (packagePath=%q, host=%q)", repoSpec.RepoSlug, repoSpec.PackagePath, host)
@@ -30,18 +38,27 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-	visibilityWarnings, err := validateRepositoryPackageVisibility(manifest, repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	manifestNodes, importWarnings, err := resolveRepositoryPackageManifestGraph(manifestPath, manifest, func(importPath string) ([]byte, error) {
+		return downloadPackageFileFromGitHubForHost(ctx, owner, repo, importPath, ref, host)
+	})
 	if err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, visibilityWarnings...)
+	warnings = append(warnings, importWarnings...)
 
-	installationSources, includeSkillDirs, includeAgentFiles, err := resolveRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host, manifest, manifestPath)
+	assets, err := resolveRepositoryPackageManifestNodes(ctx, owner, repo, ref, host, repoSpec.RepoSlug, manifestNodes)
 	if err != nil {
 		return nil, err
 	}
-	resourceFiles, err := resolveRepositoryPackageResourceFiles(ctx, owner, repo, packagePath, ref, host, manifest, installationSources)
+	warnings = append(warnings, assets.warnings...)
+	projectFile, err := resolveRepositoryPackageProjectFile(ctx, owner, repo, packagePath, ref, host)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateUniqueResolvedPackageFiles(assets.installationSources, assets.resourceFiles, assets.extensionFiles.skillFiles, assets.extensionFiles.agentFiles, manifestPath); err != nil {
+		return nil, err
+	}
+	if err := validateUniqueManifestWorkflowFilenames(assets.installationSources, manifestPath); err != nil {
 		return nil, err
 	}
 
@@ -49,32 +66,67 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-
-	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageExtensionFilesOptions{
-		owner:             owner,
-		repo:              repo,
-		packagePath:       packagePath,
-		ref:               ref,
-		host:              host,
-		manifest:          manifest,
-		includeSkillDirs:  includeSkillDirs,
-		includeAgentFiles: includeAgentFiles,
-	})
-	if err != nil {
-		return nil, err
+	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 && projectFile == nil {
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, resources, skills, agents, or aw.json project settings (either explicitly declared or auto-discovered). Add workflows under 'workflows/', resources in aw.yml, skills under 'skills/', agents under 'agents/', or an aw.json file", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
-	warnings = append(warnings, extensionFiles.warnings...)
-
-	if len(installationSources) == 0 && len(resourceFiles) == 0 && len(extensionFiles.skillFiles) == 0 && len(extensionFiles.agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', resources in aw.yml, skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
-	}
-
-	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, installationSources, resourceFiles, extensionFiles, warnings), nil
+	pkg := newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, assets.installationSources, assets.resourceFiles, assets.extensionFiles, warnings)
+	pkg.ProjectFile = projectFile
+	return pkg, nil
 }
 
-func resolveRepositoryPackageResourceFiles(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, installationSources []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
-	resourceFiles := normalizePackageResourcePaths(manifest.Resources, packagePath)
-	return appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, packagePath, resourceFiles, installationSources)
+func resolveRepositoryPackageProjectFile(ctx context.Context, owner, repo, packagePath, ref, host string) (*resolvedPackageResource, error) {
+	sourcePath := joinRepositoryPackagePath(packagePath, workflow.RepoConfigFileName)
+	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, sourcePath, ref, host); err != nil {
+		if isRepositoryFileNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read package project file %q: %w", sourcePath, err)
+	}
+	return &resolvedPackageResource{
+		SourcePath:      sourcePath,
+		DestinationPath: workflow.RepoConfigFileName,
+	}, nil
+}
+
+func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref, host, repoSlug string, nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
+	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
+	for _, node := range nodes {
+		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, repositoryPackageIdentifier(repoSlug, node.PackagePath))
+		if err != nil {
+			return nil, err
+		}
+		assets.warnings = append(assets.warnings, visibilityWarnings...)
+
+		nodeInstallables, includeSkillDirs, includeAgentFiles, err := resolveRepositoryPackageInstallablePaths(ctx, owner, repo, node.PackagePath, ref, host, node.Manifest, node.Path)
+		if err != nil {
+			return nil, err
+		}
+		assets.installationSources = append(assets.installationSources, nodeInstallables...)
+		nodeResources := normalizePackageResourcePaths(node.Manifest.Resources, node.PackagePath)
+		nodeResources, err = appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, node.PackagePath, nodeResources, nodeInstallables)
+		if err != nil {
+			return nil, err
+		}
+		assets.resourceFiles = append(assets.resourceFiles, nodeResources...)
+
+		nodeExtensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageExtensionFilesOptions{
+			owner:             owner,
+			repo:              repo,
+			packagePath:       node.PackagePath,
+			ref:               ref,
+			host:              host,
+			manifest:          node.Manifest,
+			includeSkillDirs:  includeSkillDirs,
+			includeAgentFiles: includeAgentFiles,
+		})
+		if err != nil {
+			return nil, err
+		}
+		assets.extensionFiles.skillFiles = append(assets.extensionFiles.skillFiles, nodeExtensionFiles.skillFiles...)
+		assets.extensionFiles.agentFiles = append(assets.extensionFiles.agentFiles, nodeExtensionFiles.agentFiles...)
+		assets.warnings = append(assets.warnings, nodeExtensionFiles.warnings...)
+	}
+	return assets, nil
 }
 
 func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host, packagePath string, resourceFiles []resolvedPackageResource, installationSources []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
@@ -170,7 +222,7 @@ func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, 
 	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
-	if len(installationSources) == 0 {
+	if len(installationSources) == 0 && len(manifest.Imports) == 0 {
 		addPackageManifestLog.Print("No explicit installable paths in manifest, scanning repository for installables")
 		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
@@ -236,6 +288,7 @@ func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *
 		ResolvedRef:        ref,
 		Name:               manifest.Name,
 		Emoji:              manifest.Emoji,
+		Icon:               manifest.Icon,
 		Description:        manifest.Description,
 		License:            manifest.License,
 		Private:            manifest.Private,

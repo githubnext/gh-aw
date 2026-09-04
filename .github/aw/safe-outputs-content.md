@@ -8,10 +8,6 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
   ```yaml
   safe-outputs:
-    env:
-      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-      JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
     jira-create-issue:
       max: 1
     jira-update-issue:
@@ -29,9 +25,66 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   | `jira-add-comment` | `jira_add_comment` | `issue_key`, `body` |
   | `jira-add-label` | `jira_add_label` | `issue_key`, `label` |
 
-  Use the Jira-prefixed tool whenever the target is Jira. Unprefixed issue, comment, and label tools target GitHub. Description and comment strings are converted to ADF internally. Label addition is additive and preserves existing labels. Each Jira output supports `max` and `staged`; staged mode sends no HTTP request and does not require credentials.
+  Use the Jira-prefixed tool whenever the target is Jira. Unprefixed issue, comment, and label tools target GitHub. The compiler supplies `JIRA_BASE_URL` from `vars.JIRA_BASE_URL` and `JIRA_USER_EMAIL` and `JIRA_API_TOKEN` from same-named secrets; `safe-outputs.env` may override them. Description and comment strings are converted to ADF internally. Label addition is additive and preserves existing labels. Each Jira output supports `max` and `staged`; staged mode sends no HTTP request and does not require credentials.
 
   Jira update, comment, and label operations require a known issue key. Same-run references to an issue created by `jira_create_issue` are not supported. The initial integration does not provide transitions, assignments, custom fields, label removal, JQL, bulk operations, or arbitrary REST calls.
+
+- **[Experimental]** Linear operations use the `LINEAR_API_KEY` secret and run through the Linear GraphQL API:
+
+  ```yaml
+  safe-outputs:
+    linear-create-issue:
+      max: 1
+      team-id: "TEAM_ID"
+      project-id: "PROJECT_ID"
+    linear-add-comment:
+      max: 1
+    linear-update-issue:
+      max: 1
+      title: true
+      body: true
+  ```
+
+  | Frontmatter | Tool | Agent inputs |
+  |---|---|---|
+  | `linear-create-issue` | `linear_create_issue` | `title`, `body` (team and optional project taken from config) |
+  | `linear-add-comment` | `linear_add_comment` | `body` (target issue) |
+  | `linear-update-issue` | `linear_update_issue` | `title`/`body`, gated by the matching `title:`/`body:` config flags |
+
+  `linear-token:` optionally overrides the `LINEAR_API_KEY` secret and is a top-level `safe-outputs:` field, not nested under `env:`. `linear-create-issue.project-id` optionally fixes created issues to a trusted Linear project identifier from its URL or model UUID. Each output supports `max` and `staged`. Only fields explicitly enabled in `update-issue` config (`title`, `body`) can be changed by the agent.
+
+- **[Experimental]** Azure DevOps work-item operations are namespaced `ado-*` and rely on an Azure DevOps MCP server (configured separately under `mcp-servers:`/`tools:`) for the underlying connection and credentials:
+
+  ```yaml
+  safe-outputs:
+    ado-create-work-item:
+      max: 1
+      work-item-type: "Bug"
+    ado-update-work-item:
+      max: 1
+      status: true
+      title: true
+    ado-comment-on-work-item:
+      max: 1
+      target: "*"
+    ado-assign-work-item:
+      max: 1
+    ado-link-work-items:
+      max: 5
+    ado-upload-workitem-attachment:
+      max: 1
+  ```
+
+  | Frontmatter | Tool | Agent inputs |
+  |---|---|---|
+  | `ado-create-work-item` | `ado_create_work_item` | `title`, `description`, optional `tags`, `temporary_id` |
+  | `ado-update-work-item` | `ado_update_work_item` | `id`, plus one of `title`/`body`/`state`/`area_path`/`iteration_path`/`assignee`/`tags` enabled via config |
+  | `ado-comment-on-work-item` | `ado_comment_on_work_item` | `work_item_id`, `body` |
+  | `ado-assign-work-item` | `ado_assign_work_item` | `work_item_id`, `assignee` (checked against `allowed`/`blocked`) |
+  | `ado-link-work-items` | `ado_link_work_items` | `source_id`, `target_id`, `link_type` (checked against `allowed-link-types`) |
+  | `ado-upload-workitem-attachment` | `ado_upload_workitem_attachment` | `work_item_id`, `file_path`, `staged_file` (checked against `max-file-size`/`allowed-extensions`) |
+
+  `ado-create-work-item` accepts a `temporary_id` (`#aw_xxxx`) so later outputs in the same run can reference a just-created work item. `target:` on update/comment/assign/link/attach constrains which work item IDs are addressable. Config-level allow-lists (`allowed-tags`, `allowed-area-prefixes`, `allowed-iteration-prefixes`, `allowed`, `blocked`, `allowed-link-types`, `allowed-extensions`) gate what the agent can set; unlisted values are rejected.
 
 - `create-issue:` - Safe GitHub issue creation (bugs, features)
 

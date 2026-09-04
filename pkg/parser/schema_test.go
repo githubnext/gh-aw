@@ -27,7 +27,7 @@ func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
 func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *testing.T) {
 	t.Parallel()
 
-	for _, field := range []string{"version", "include"} {
+	for _, field := range []string{"version", "include", "bots"} {
 		t.Run(field, func(t *testing.T) {
 			t.Parallel()
 
@@ -200,6 +200,15 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
 		t.Fatalf("expected keyed top-level enclaves to validate: %v", err)
+	}
+
+	valid["enclaves"].([]any)[0].(map[string]any)["repos"].([]any)[0].(map[string]any)["sensitivity"] = "trusted"
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
+		t.Fatalf("expected trusted enclave sensitivity to validate: %v", err)
+	}
+	valid["enclaves"].([]any)[0].(map[string]any)["repos"].([]any)[0].(map[string]any)["sensitivity"] = "unsupported"
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err == nil {
+		t.Fatal("expected unsupported enclave sensitivity to be rejected")
 	}
 
 	legacy := map[string]any{

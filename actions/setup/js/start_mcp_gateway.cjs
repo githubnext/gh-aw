@@ -650,6 +650,27 @@ function detectEngineType(configDir, env = process.env, existsSync = fs.existsSy
   return "unknown";
 }
 
+/**
+ * Validates the mutually exclusive gateway agent identifier forms.
+ *
+ * @param {Record<string, unknown>} gateway
+ * @returns {string | null}
+ */
+function validateGatewayAgentIdentifiers(gateway) {
+  const hasAgentId = Object.prototype.hasOwnProperty.call(gateway, "agentId");
+  const hasAgentIds = Object.prototype.hasOwnProperty.call(gateway, "agentIds");
+
+  if (hasAgentId === hasAgentIds) {
+    return "ERROR: Gateway configuration must specify exactly one of 'agentId' or 'agentIds'";
+  }
+  if (hasAgentId) {
+    return typeof gateway.agentId === "string" && gateway.agentId.length > 0 ? null : "ERROR: Gateway 'agentId' must be a non-empty string";
+  }
+  return Array.isArray(gateway.agentIds) && gateway.agentIds.length > 0 && gateway.agentIds.every(agentId => typeof agentId === "string" && agentId.length > 0)
+    ? null
+    : "ERROR: Gateway 'agentIds' must be a non-empty array of non-empty strings";
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -821,8 +842,9 @@ async function main() {
     core.setFailed("ERROR: Gateway configuration is missing required 'domain' field");
     return;
   }
-  if (!("agentId" in gw) || gw.agentId == null) {
-    core.setFailed("ERROR: Gateway configuration is missing required 'agentId' field");
+  const agentIdentifierError = validateGatewayAgentIdentifiers(gw);
+  if (agentIdentifierError) {
+    core.setFailed(agentIdentifierError);
     return;
   }
 
@@ -1334,7 +1356,9 @@ async function main() {
   // Write GitHub Actions step outputs
   // -----------------------------------------------------------------------
   if (githubOutput) {
-    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-agent-id=${agentId}`, `gateway-domain=${gatewayDomain}`].join("\n");
+    // The gateway authenticates with its agent ID; expose the same value under the
+    // API-key output name expected by the AWF host handoff.
+    const outputs = [`gateway-pid=${gatewayPid}`, `gateway-port=${gatewayPort}`, `gateway-agent-id=${agentId}`, `gateway-api-key=${agentId}`, `gateway-domain=${gatewayDomain}`].join("\n");
     try {
       fs.appendFileSync(githubOutput, outputs + "\n");
     } catch {
@@ -1379,5 +1403,6 @@ module.exports = {
   normalizeSinkVisibilityEncoding,
   redactGatewayDiagnostics,
   resolveCopilotConfigPaths,
+  validateGatewayAgentIdentifiers,
   writeGatewayStartupMarker,
 };

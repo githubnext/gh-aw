@@ -44,6 +44,16 @@ func enclaveTestRepos() []*EnclaveRepository {
 	}}
 }
 
+func enclaveGitHubIssuesWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+	return data
+}
+
 func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -189,6 +199,28 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 	assert.Contains(t, err.Error(), "supports at most one non-public repository")
 
 	data.Enclaves[0].Repos[1].Sensitivity = "public"
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimitTreatsTrustedAsPublic(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
+	data.Enclaves[0].Repos = []*EnclaveRepository{
+		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
+		{Repo: "octo-org/public-service", Sensitivity: "public"},
+	}
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveTrustedSensitivityRequiresAWFVersion(t *testing.T) {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Repos[0].Sensitivity = "trusted"
+	data.NetworkPermissions.Firewall.Version = "v0.28.13"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires AWF v0.28.14 or newer")
+
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
 	require.NoError(t, validateEnclavesConfig(data))
 }
 

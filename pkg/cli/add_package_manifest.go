@@ -52,6 +52,7 @@ type resolvedRepositoryPackage struct {
 	ResolvedRef        string
 	Name               string
 	Emoji              string
+	Icon               string
 	Description        string
 	License            string
 	Private            bool
@@ -59,6 +60,7 @@ type resolvedRepositoryPackage struct {
 	DocsPath           string
 	InstallationSource []resolvedPackageInstallable
 	ResourceFiles      []resolvedPackageResource
+	ProjectFile        *resolvedPackageResource
 	Bootstrap          *repositoryPackageBootstrap
 	SkillFiles         []resolvedPackageSkillFile
 	AgentFiles         []string

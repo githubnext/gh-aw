@@ -450,6 +450,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"ref":           {Type: "string", MinLength: 1, MaxLength: 256, Pattern: "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$", PatternError: "must be a valid git ref"},
 		},
 	},
+	"call_workflow": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"workflow_name": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256, Pattern: ".*\\S.*", PatternError: "must not be empty"},
+			"inputs":        {Type: "object"},
+		},
+	},
 	"missing_tool": {
 		DefaultMax: 20,
 		Fields: map[string]FieldValidation{

@@ -29,12 +29,34 @@ The package root is the folder that contains `aw.yml`.
 | `min-version` | string | No | Minimum compatible `gh aw` version in `vMAJOR.minor.patch` form, such as `v0.38.0`. |
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
+| `icon` | string | No | Optional package icon: an emoji, a GitHub primer octicon name in `:name:` format (e.g. `:check-circle:`), or a package resource path to an SVG file. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
 | `private` | boolean | No | Marks the package as unavailable for installation. Defaults to `false`; `gh aw add` refuses packages set to `true`. |
 | `experimental` | boolean | No | Marks the package as experimental. Defaults to `false`; `gh aw add` displays a warning when set to `true`. |
 | `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
-| `includes` | array | No | Installable entries. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
+| `includes` | array | No | Installable entries, or paths to other `aw.yml` manifests whose installable files are included recursively. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
 | `resources` | array | No | Repository assets copied from package-relative `source` paths to allowlisted repository-relative `destination` paths. |
+
+## Imported manifests
+
+Use `includes` entries naming `aw.yml` files to compose a package from manifests in the same repository:
+
+```yaml
+name: Central Agentic Ops
+includes:
+  - activity/aw.yml
+  - ambient-context/aw.yml
+  - dashboard/aw.yml
+```
+
+These paths are resolved relative to the manifest that declares them and must name an
+`aw.yml` file within the top-level package root. Imports are recursive. The imported
+manifests' workflows, resources, skills, and agents are combined into one install list;
+metadata and `config` continue to come from the top-level manifest.
+
+`gh aw` rejects import cycles and any files that would install to the same destination,
+including case-insensitive destination clashes. A manifest that only declares imports does
+not auto-discover workflows from its own directory.
 
 ## Installable workflows
 
@@ -108,6 +130,7 @@ name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
 includes:
+  - packages/common/aw.yml
   - workflows/review.md                # agentic workflow — compiled on install
   - .github/workflows/nightly-review.md # repository-root-relative string entry
   - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim

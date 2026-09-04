@@ -20,6 +20,7 @@ const (
 	enclaveMCPGatewayContainerEnv = "AWF_ENCLAVE_MCP_GATEWAY_CONTAINER"
 	enclaveMCPGatewayEndpointEnv  = "AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT"
 	enclaveMCPGatewayIdentityEnv  = "AWF_ENCLAVE_MCP_GATEWAY_IDENTITY"
+	enclaveGitHubMCPAgentIDEnv    = "AWF_ENCLAVE_GITHUB_MCP_AGENT_ID"
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
 	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
@@ -30,6 +31,25 @@ const (
 	maxEnclaveTimingBucketSeconds = 4800
 	enclaveMCPTransportAllowance  = 60
 )
+
+func enclaveGitHubMCPAgentPolicy(workflowData *WorkflowData) MCPGatewayAgentPolicy {
+	repos := make([]string, 0)
+	if enclave := enclaveGitHubIssuesConfig(workflowData); enclave != nil {
+		for _, repo := range enclave.Repos {
+			if repo != nil {
+				repos = append(repos, repo.Repo)
+			}
+		}
+	}
+	return MCPGatewayAgentPolicy{
+		Servers: []string{"github"},
+		Tools:   map[string][]string{"github": {"list_issues", "issue_read"}},
+		AllowOnly: map[string]any{
+			"repos":         repos,
+			"min-integrity": "approved",
+		},
+	}
+}
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
 
@@ -155,6 +175,9 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 			return err
 		}
 	}
+	if err := validateEnclaveTrustedSensitivityVersion(workflowData); err != nil {
+		return err
+	}
 	if err := validateEnclaveGitHubIssuesVersions(workflowData); err != nil {
 		return err
 	}
@@ -209,11 +232,11 @@ func validateEnclaveRepositories(index int, enclave *EnclaveConfig, repositorySe
 		}
 		seenInEnclave[key] = struct{}{}
 		switch repo.Sensitivity {
-		case "public", "internal", "confidential", "sealed":
+		case "public", "trusted", "internal", "confidential", "sealed":
 		default:
-			return 0, fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
+			return 0, fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, trusted, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
 		}
-		if repo.Sensitivity != "public" {
+		if repo.Sensitivity != "public" && repo.Sensitivity != "trusted" {
 			nonPublicRepositories++
 		}
 		if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
@@ -246,6 +269,28 @@ func validateEnclaveGitHubIssuesVersions(workflowData *WorkflowData) error {
 	}
 	if !versionAtLeast(effectiveVersion, string(constants.DefaultMCPGatewayVersion), string(constants.MCPGEnclaveGitHubIssuesMinVersion)) {
 		return fmt.Errorf("enclaves[].agent.github.cli %q requires MCPG %s or newer, but the effective version is %s; set sandbox.mcp.version to %s or newer", enclaveGitHubIssuesProfile, constants.MCPGEnclaveGitHubIssuesMinVersion, effectiveVersion, constants.MCPGEnclaveGitHubIssuesMinVersion)
+	}
+	return nil
+}
+
+func validateEnclaveTrustedSensitivityVersion(workflowData *WorkflowData) error {
+	for _, enclave := range workflowData.Enclaves {
+		if enclave == nil {
+			continue
+		}
+		for _, repo := range enclave.Repos {
+			if repo != nil && repo.Sensitivity == "trusted" {
+				firewallConfig := getFirewallConfig(workflowData)
+				if !awfVersionAtLeast(firewallConfig, constants.AWFEnclaveTrustedSensitivityMinVersion) {
+					effectiveVersion := string(constants.DefaultFirewallVersion)
+					if firewallConfig != nil && firewallConfig.Version != "" {
+						effectiveVersion = firewallConfig.Version
+					}
+					return fmt.Errorf("enclaves[].repos sensitivity %q requires AWF %s or newer, but the effective version is %s", "trusted", constants.AWFEnclaveTrustedSensitivityMinVersion, effectiveVersion)
+				}
+				return nil
+			}
+		}
 	}
 	return nil
 }

@@ -381,6 +381,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 
 	c.emitExperimentalFeatureWarnings(workflowData)
+	c.emitSamplesCoverageWarnings(workflowData, markdownPath)
 	if len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"Both slash_command and bots triggers are configured. If a bot listed in bots: "+
@@ -606,4 +607,26 @@ func validateOTLPWorkloadIdentity(workflowData *WorkflowData) error {
 		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials; use one authentication method only. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	return nil
+}
+
+// emitSamplesCoverageWarnings warns when samples replay is active but one or
+// more enabled safe outputs declare no `samples:` entries. Without samples the
+// deterministic replay driver never calls those handlers, so the run silently
+// succeeds without performing the configured operation — a failure mode that is
+// otherwise only visible by inspecting `GH_AW_SAMPLES` in the lock file.
+func (c *Compiler) emitSamplesCoverageWarnings(workflowData *WorkflowData, markdownPath string) {
+	if workflowData == nil || !workflowData.UseSamples {
+		return
+	}
+	missing := safeOutputsMissingSamples(workflowData.SafeOutputs)
+	if len(missing) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+		fmt.Sprintf("samples replay is enabled but no samples are configured for: %s. "+
+			"These safe outputs will not be exercised — the replay driver replaces the agent, "+
+			"so the run succeeds without producing any output for them. "+
+			"Add a `samples:` list under each safe output to replay it deterministically.",
+			strings.Join(missing, ", "))))
+	c.IncrementWarningCount()
 }
