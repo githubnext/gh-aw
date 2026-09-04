@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-arxiv-researcher",
+  "recordedAt": "2026-09-04T15:20:00Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The adoption-time workflow produces research discussions but defines no repository-state outcome, acceptance event, or durable link from a paper-derived opportunity to a subsequent implementation. A direct attainment metric therefore cannot be reconstructed deterministically without substituting activity, output volume, or agent judgment.",
+  "classification": {
+    "domain": "agentic workflow research",
+    "subdomain": null,
+    "taskArchetype": "research dissemination",
+    "interventionType": "arXiv opportunity discovery",
+    "outcomeType": "repository improvement adoption",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the intended outcome as adoption of an actionable gh-aw improvement suggested by a scanned arXiv paper.",
+      "alternatives": ["Treat creation of a research discussion as the outcome", "Treat the number of screened or relevant papers as the outcome"],
+      "rationale": "The adoption workflow explicitly asks for actionable improvements and supplies next-step prompts; creating a discussion and screening papers are delivery activities rather than repository outcomes.",
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60", ".github/workflows/daily-arxiv-researcher.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A paper-derived improvement opportunity named in a workflow-created research discussion.",
+      "alternatives": ["Each scheduled workflow run", "Each newly fetched arXiv paper"],
+      "rationale": "The adoption workflow's stated deliverable is a specific actionable improvement, but neither run nor paper identity alone establishes an implementation opportunity.",
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked: no stable identifier or required reference binds a workflow run or discussion opportunity to a later issue, pull request, or merged change.",
+      "alternatives": ["Match subsequent changes by paper URL", "Match subsequent changes by natural-language opportunity text"],
+      "rationale": "The adoption workflow permits open-ended opportunity text and emits no required repository reference for later work, so both alternatives require non-deterministic matching.",
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60", ".github/workflows/daily-arxiv-researcher.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Only an explicitly linked merged repository change could directly demonstrate adoption.",
+      "alternatives": ["Discussion creation", "Discussion comments or reactions", "Agent safe-output records"],
+      "rationale": "Those alternatives demonstrate publication, engagement, or workflow activity, not that the suggested improvement was adopted.",
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Blocked: no fixed evidence horizon is defensible without a deterministically assigned implementation target.",
+      "alternatives": ["Fourteen-day discussion expiry", "A fixed post-run implementation window"],
+      "rationale": "The expiry limits the discussion lifetime, not the time needed to evaluate adoption; the adoption workflow establishes no implementation target or deadline.",
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline: pre-adoption repository state contains no runs or linked opportunities for this workflow.",
+      "alternatives": ["Score generic repository improvements before adoption", "Use discussion volume before adoption"],
+      "rationale": "The workflow was added in its adoption commit, and neither alternative measures the same paper-derived opportunity outcome.",
+      "evidenceReferences": ["commit 81f056d0446bd08fdd6ac0c3403c951930c86eeb", "commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The workflow's open-ended discussion content provides no immutable key for linking an opportunity to later repository work.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "No adoption-time contract identifies accepted repository evidence for whether a suggestion was implemented.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"]
+    },
+    {
+      "type": "temporal",
+      "level": "high",
+      "description": "The fourteen-day discussion expiry does not define when an implementation outcome should be considered complete.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 10e21b7a0a94a99df8fcfbf4d694989ff124bb60"]
+    }
+  ]
+}
