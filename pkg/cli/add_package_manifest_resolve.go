@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -218,11 +219,27 @@ func resolveRepositoryPackageRef(ctx context.Context, repoSpec *RepoSpec, host s
 }
 
 func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, manifestPath string) ([]resolvedPackageInstallable, []string, []string, error) {
-	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
+	expandedIncludes, err := expandRepositoryPackageWildcardIncludes(ctx, owner, repo, packagePath, ref, host, manifest.Includes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(expandedIncludes)
 	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
+	hasExplicitWorkflowSelector := len(manifest.Files) > 0
+	for _, include := range manifest.Includes {
+		if include.isMapping() || isSupportedPackageInstallablePath(include.Source) {
+			hasExplicitWorkflowSelector = true
+			break
+		}
+		if parent, wildcard := manifestIncludeWildcardParent(include.Source); wildcard &&
+			(parent == "workflows" || parent == "agentic-workflows" || parent == constants.WorkflowsDir) {
+			hasExplicitWorkflowSelector = true
+			break
+		}
+	}
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
-	if len(installationSources) == 0 && len(manifest.Imports) == 0 {
+	if len(installationSources) == 0 && !hasExplicitWorkflowSelector && len(manifest.Imports) == 0 {
 		addPackageManifestLog.Print("No explicit installable paths in manifest, scanning repository for installables")
 		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
@@ -238,6 +255,54 @@ func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, 
 		return nil, nil, nil, err
 	}
 	return installationSources, includeSkillDirs, includeAgentFiles, nil
+}
+
+func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, packagePath, ref, host string, includes []repositoryPackageInclude) ([]repositoryPackageInclude, error) {
+	expanded := make([]repositoryPackageInclude, 0, len(includes))
+	for _, include := range includes {
+		parent, wildcard := manifestIncludeWildcardParent(include.Source)
+		if !wildcard {
+			expanded = append(expanded, include)
+			continue
+		}
+
+		remoteParent := parent
+		rootRelative := strings.HasPrefix(parent, constants.GithubDir)
+		if packagePath != "" && !strings.HasPrefix(parent, constants.GithubDir) {
+			remoteParent = joinRepositoryPackagePath(packagePath, parent)
+		}
+		files, err := listPackageDirFilesForHost(ctx, owner, repo, ref, remoteParent, host)
+		if err != nil && !isRepositoryFileNotFound(err) {
+			return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, err)
+		}
+		dirs, dirErr := listPackageDirSubdirsForHost(ctx, owner, repo, ref, remoteParent, host)
+		if dirErr != nil && !isRepositoryFileNotFound(dirErr) {
+			return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, dirErr)
+		}
+
+		fileCandidates := make([]string, 0, len(files))
+		for _, candidate := range files {
+			candidate = filepath.ToSlash(candidate)
+			if packagePath != "" && !rootRelative {
+				candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
+			}
+			fileCandidates = append(fileCandidates, candidate)
+		}
+		expanded = append(expanded, expandManifestWildcardMatches(parent, fileCandidates, func(source string) bool {
+			return isSupportedPackageInstallablePath(source) || isSupportedAgentFilePath(source)
+		})...)
+
+		dirCandidates := make([]string, 0, len(dirs))
+		for _, candidate := range dirs {
+			candidate = filepath.ToSlash(candidate)
+			if packagePath != "" && !rootRelative {
+				candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
+			}
+			dirCandidates = append(dirCandidates, candidate)
+		}
+		expanded = append(expanded, expandManifestWildcardMatches(parent, dirCandidates, isSupportedSkillDirPath)...)
+	}
+	return deduplicateManifestIncludes(expanded), nil
 }
 
 type repositoryPackageExtensionFiles struct {
