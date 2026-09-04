@@ -1,6 +1,6 @@
 ---
 emoji: "🔍"
-description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed
+description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes consolidated failures as duplicates, and opens focused fix sub-issues when needed
 on:
   schedule:
     - cron: "every 30m"
@@ -50,6 +50,12 @@ safe-outputs:
     labels: [agentic-workflows, automation, cookie]
     max: 2
     group: true
+  close-issue:
+    target: "*"
+    required-labels: [agentic-workflows]
+    required-title-prefix: "[aw]"
+    state-reason: duplicate
+    max: 100
   update-issue:
     target: "*"
     max: 10
@@ -355,6 +361,8 @@ evals:
     question: Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?
   - id: issues_created_or_closed
     question: Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?
+  - id: consolidated_failures_closed
+    question: When failures were consolidated into an issue, were all corresponding source failure issues closed as duplicates with comments referencing the consolidated issue?
 
 ---
 
@@ -374,7 +382,7 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 1. Find recent failures from agentic workflows in the last 6 hours.
 2. Correlate findings with currently open `agentic-workflows` issues.
 3. Perform large-scale failure analysis using logs + audit + audit-diff.
-4. Close fixed/stale issues first, then create only the minimum necessary linked fix sub-issues.
+4. Close fixed/stale issues first, then create only the minimum necessary linked fix sub-issues and close every source failure issue represented by a consolidated issue.
 
 ## Required Investigation Steps
 
@@ -414,7 +422,7 @@ Use `agentic-workflows` MCP `audit-diff` to compare **the single highest-severit
 
 Identify regressions and deltas (metrics/tooling/firewall/MCP behavior) that support fix recommendations.
 
-### 4) Close fixed issues first, then add focused sub-issues
+### 4) Close fixed issues, add focused sub-issues, then close consolidated failures
 
 First, identify currently open `agentic-workflows` issues that are now fixed, stale, or no longer actionable based on fresh evidence, and close them using `update-issue`.
 
@@ -433,6 +441,15 @@ Each new sub-issue must include:
 - probable root cause
 - specific proposed remediation
 - success criteria / verification
+
+After selecting or filing a consolidated parent report or fix issue, identify every open source failure issue represented by it. Source failure issues are the automated `[aw]` issues for the included workflow failures, such as issues reporting that a workflow failed or produced an incomplete result.
+
+Close **every** represented source failure issue with `close_issue`:
+- set `issue_number` to the source failure issue
+- set `duplicate_of` to the consolidated issue number
+- set `body` to `Consolidated into #<consolidated issue number>.`
+
+The configured close reason marks these issues as duplicates. Use the actual consolidated issue number in both `duplicate_of` and the comment. Do not close the consolidated issue itself, its remediation sub-issues, or source failure issues that were not included in it.
 
 ## Tone Variant Instructions
 
