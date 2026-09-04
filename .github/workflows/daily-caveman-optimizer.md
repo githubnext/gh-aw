@@ -80,6 +80,9 @@ evals:
     question: Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?
   - id: pr_created_or_noop
     question: Was a PR created with concise improvements, or was noop used when no improvements were needed?
+graders:
+  operational-value:
+    run: .github/graders/daily-caveman-optimizer-operational-value.sh
 ---
 
 # Daily Caveman Optimizer 🪨

@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-caveman-optimizer",
+  "recordedAt": "2026-09-04T15:46:44Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "agentic-instruction-maintenance",
+    "subdomain": null,
+    "taskArchetype": "content-trimming",
+    "interventionType": "automated-pr-authoring",
+    "outcomeType": "durable-file-size-reduction",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time intent (commit 9b89368509e8c0a5520d90448853ad28bcece346, PR #29111) is to make .github/aw and .github/agents instruction files more concise without losing technical accuracy, batching 5 files per daily run and opening a pull request only when genuine improvements are found.",
+      "alternatives": ["Treat the workflow as an activity/output-volume producer (files touched per run) rather than an outcome producer."],
+      "rationale": "The workflow's own description and body text ('make instruction files ... more concise ... without degrading usefulness') state a durable-content-reduction outcome, not an activity count.",
+      "evidenceReferences": [".github/workflows/daily-caveman-optimizer.md:5,89-92", "commit 9b89368509e8c0a5520d90448853ad28bcece346"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The opportunity is the pull request opened by a given run's safe-output job for its round-robin batch of instruction files.",
+      "alternatives": ["Aggregate corpus-wide line-count of all eligible instruction files as a single always-overlapping repository-health case."],
+      "rationale": "Per-PR assignment avoids diluting the signal with unrelated commits that touch the same directories for other reasons, and keeps ownership close to non-overlapping (one PR per run, per repository convention of one create-pull-request safe-output call per run).",
+      "evidenceReferences": [".github/workflows/daily-caveman-optimizer.md:45-55 (safe-outputs.create-pull-request)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Reconstruct the assigned PR by searching merged/open pull requests titled with the safe-output's configured title-prefix ('[caveman] '), labelled documentation/automation/prompt-quality, authored by github-actions[bot], created within [run.createdAt, run.createdAt+3h); ties broken by earliest created_at then lowest PR number.",
+      "alternatives": [
+        "Match by an embedded gh-aw-workflow-id/run-id HTML comment in the PR body (the repo-wide safe-outputs footer convention).",
+        "Match by PR head branch name pattern (caveman-optimize-<date>-<hash>)."
+      ],
+      "rationale": "Verified against real PRs (#57777, #56727) that a separate always-on workflow, pr-description-caveman (.github/workflows/pr-description-caveman.md, triggers on every merged PR except signed/jsweep and copilot branches), rewrites merged PR bodies and destroys the original gh-aw-workflow-id/run-id footer marker, making body-marker matching unreliable. Branch names carry an agent-chosen hash suffix that cannot be derived from run metadata. Title/label/author/time-window matching survived body rewrites in both inspected examples and is bounded by the observed near-immediate (minutes to hours) gap between run start and PR creation for this workflow.",
+      "evidenceReferences": [
+        "PR github/gh-aw#57777 (title and labels intact after merge, body rewritten)",
+        "PR github/gh-aw#56727 (footer replaced with pr-description-caveman's own marker)",
+        ".github/workflows/pr-description-caveman.md:6-8",
+        "workflow run 33556938804 created_at 2026-09-01T20:43:00Z vs PR #57777 created_at 2026-09-01T20:51:05Z"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accept the PR's own files API (deletions/additions) as the claimed line reduction for eligible paths (.github/aw/**.md, .github/agents/**.md), and accept git-evidence line counts of those same paths at the merge commit and at the evidence-cutoff commit as proof the reduction persisted (was not reverted).",
+      "alternatives": ["Accept only whether the PR merged (binary), ignoring whether the reduction survived subsequent commits."],
+      "rationale": "A merged-but-later-reverted trim (evidenced e.g. by closed-unmerged sibling PRs #40158, #29246 showing this workflow's PRs do sometimes get closed rather than accepted) would falsely count as full attainment under a merge-only rule; durability against reverts is the more direct signal of accepted, accuracy-preserving conciseness gains.",
+      "evidenceReferences": ["PR github/gh-aw#57777 files API (additions:3, deletions:27)", "PR github/gh-aw#40158 (closed, unmerged)", "PR github/gh-aw#29246 (closed, unmerged)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Maturation is a fixed 7 days (604800s) after run.createdAt.",
+      "alternatives": ["2 days (mirroring daily-file-diet's Go-refactor maturation window)."],
+      "rationale": "The workflow's own safe-output config expires unmerged PRs after 3 days (safe-outputs.create-pull-request.expires: 3d); 7 days gives that expiry window time to resolve plus a buffer to observe whether a merged reduction is reverted.",
+      "evidenceReferences": [".github/workflows/daily-caveman-optimizer.md:48 (expires: 3d)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "primaryMetric id pr-reduction-durability: reductionClaimed = sum(deletions-additions) over the PR's eligible files; if unmerged, value=0; else value = clamp((reductionClaimed - growthSinceMerge)/reductionClaimed, 0, 1), where growthSinceMerge is the net line-count change of those same paths between the merge commit and the evidence-cutoff commit.",
+      "alternatives": [
+        "Score by raw line-count delta against an arbitrary fixed target (e.g. reduce toward a fixed target-lines threshold), as daily-file-diet does for Go files.",
+        "Score corpus-wide aggregate conciseness (total eligible instruction lines) rather than the run's specific assigned files."
+      ],
+      "rationale": "Markdown instruction files have no established compiler-enforced size convention analogous to daily-file-diet's 1000/500 Go-line thresholds, so an arbitrary target-lines value would not be defensible from adoption-time evidence. Anchoring the target to the PR's own claimed reduction and measuring only its durability keeps the metric direct, bounded in [0,1], and free of an invented threshold, while still rewarding higher-magnitude trims that survive.",
+      "evidenceReferences": ["PR github/gh-aw#57777 (deletions:27, additions:3)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only; no baseline value.",
+      "alternatives": ["Score pre-adoption manual instruction-trimming commits, if any existed, as a comparable baseline."],
+      "rationale": "No automated or manual round-robin instruction-conciseness effort existed in this repository before the adoption commit; the workflow introduced this behavior from scratch, so there is no comparable pre-adoption evidence to freeze as a baseline.",
+      "evidenceReferences": ["commit 9b89368509e8c0a5520d90448853ad28bcece346 (first commit adding the workflow, no prior similar automation found)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "diagnosticMetric batch-size-ratio: min(1, eligibleFileCount/5), reported separately from the primary value.",
+      "alternatives": ["Omit diagnostics entirely."],
+      "rationale": "The workflow's own documented batch size is 5 files per run; reporting how much of that target batch a given PR actually covers gives normalized context on run scope without being combined into the durability metric.",
+      "evidenceReferences": [".github/workflows/daily-caveman-optimizer.md:157 (Pick the next 5 files ... this is your batch for this run)"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "The time-window PR search (title/label/author, 3-hour window) could match the wrong PR if a manual workflow_dispatch run and the daily cron run both produce a caveman PR within the same window on the same day, or if title/label conventions change.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "evidence-availability",
+      "level": "low",
+      "description": "GitHub search/issues and pulls/files API calls can fail transiently (rate limiting, outages); such failures are surfaced as null rather than a score.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "measurement",
+      "level": "low",
+      "description": "Line counts are computed via newline counting (wc -l / git blob content); files without a trailing newline or with unusual line endings could be off by one line.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Growth in the assigned files' line counts after merge could come from unrelated commits (e.g. schema updates, new examples) rather than a genuine revert of this run's specific trim, so a low durability score does not prove the trim itself was rejected.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "baseline",
+      "level": "medium",
+      "description": "attainment-only baseline means no pre-adoption comparison point exists; scores can only be interpreted in absolute terms, not relative to a prior state of the repository.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "The 7-day maturation window is a design choice calibrated from the 3-day PR expiry plus buffer, not derived from a formal distribution of historical merge-to-revert times.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-caveman-optimizer.md:48 (expires: 3d)"]
+    }
+  ]
+}
