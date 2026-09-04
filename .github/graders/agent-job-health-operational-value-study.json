@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "agent-job-health",
+  "recordedAt": "2026-09-04T11:47:38Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow is explicitly measurement-only: its adoption-time contract measures and reports agent-job failures, classifies them, and may create an issue, but it does not change fleet reliability. Available repository evidence therefore measures monitoring activity or failure state rather than a direct operational outcome attributable to an assigned run.",
+  "classification": {
+    "domain": "workflow reliability",
+    "subdomain": null,
+    "taskArchetype": "fleet health monitor",
+    "interventionType": "measurement-only",
+    "outcomeType": "agent-job reliability",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the intended outcome as fleet-wide agent-job health being measured and regressions being surfaced for follow-up.",
+      "alternatives": ["Treat the workflow as an intervention that improves agent-job reliability."],
+      "rationale": "The adoption-time workflow says it owns the failure-rate measurement and determines whether failures are chronic or novel; it does not prescribe or perform a reliability fix.",
+      "evidenceReferences": ["commit:32e524754071fc1b1aea93187b11b239b82aeb23", "PR:#52108", "file:.github/workflows/agent-job-health.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A daily 24-hour fleet-health observation with agent-job failures separated from activation, detection, and safe-output failures.",
+      "alternatives": ["A per-workflow reliability improvement opportunity.", "A schedule-heartbeat remediation opportunity."],
+      "rationale": "The workflow's report window, in-scope jobs, and exclusions are explicit, while the remediation opportunities are only recommendations or issue candidates.",
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "issue:#52093"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No operational case assignment is frozen because a measurement-only run has no direct attainable repository outcome.",
+      "alternatives": ["Assign each run to its 24-hour fleet window.", "Assign each run to the most severe novel failure cluster."],
+      "rationale": "Both alternatives bind observations to reporting units or findings, not to an operational outcome the run can attain.",
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "PR:#52108"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Reject run counts, failure rates, issue matches, discussions, and traces as primary operational evidence.",
+      "alternatives": ["Use a lower fleet failure rate as direct attainment.", "Use issue creation or novel-cluster volume as direct attainment."],
+      "rationale": "The former is the state being monitored and the latter are report outputs or activity; neither demonstrates that the assigned run produced an operational improvement.",
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "issue:#52093"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric; design blocked.",
+      "alternatives": ["1 - agent_failures / total_runs.", "Share of novel failures with a created issue."],
+      "rationale": "The first is a fleet condition, not attainment by the monitor; the second is output activity. Substituting either would violate the direct-primary-metric requirement.",
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "PR:#52108"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Use the 49.0% pre-adoption fleet failure rate as a comparable baseline."],
+      "rationale": "Issue #52093 supplies pre-adoption context, but it is the monitored failure state and cannot become a baseline for direct operational attainment.",
+      "evidenceReferences": ["issue:#52093"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Do not define diagnostics because no accepted primary operational metric exists.",
+      "alternatives": ["Report run-weighted and workflow-weighted failure rates as diagnostics."],
+      "rationale": "Those rates are useful monitoring outputs, but retaining them in a grader would risk presenting activity or observed fleet state as operational value.",
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "PR:#52108"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's stated purpose is ownership and measurement of fleet health rather than changing that health.",
+      "mitigation": null,
+      "evidenceReferences": ["file:.github/workflows/agent-job-health.md", "PR:#52108"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A later change in agent-job failure rate could result from unrelated workflow, engine, or infrastructure changes.",
+      "mitigation": null,
+      "evidenceReferences": ["issue:#52093"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "low",
+      "description": "Pre-adoption issue evidence exists, but it describes the monitored fleet condition and not an outcome produced by this workflow.",
+      "mitigation": null,
+      "evidenceReferences": ["issue:#52093"]
+    }
+  ]
+}
