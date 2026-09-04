@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "audit-workflows",
+  "recordedAt": "2026-09-04T14:14:38Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's intended result is an audit report and recommendations about other workflow runs. The repository exposes no deterministic, directly attributable operational state change that this read-only workflow can establish: findings are agent judgment, report/repo-memory production is activity or output volume, and run success is execution quality. No direct primary attainment metric can therefore be defended without substituting a proxy.",
+  "classification": {
+    "domain": "workflow reliability",
+    "subdomain": null,
+    "taskArchetype": "operational audit",
+    "interventionType": "diagnostic review",
+    "outcomeType": "unresolved",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "index",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the adoption-time mission as reviewing the previous 24 hours of agentic workflow logs for issues, missing tools, errors, and improvement opportunities.",
+      "alternatives": ["Treat successful workflow execution as the operational outcome.", "Treat uploaded charts, discussions, or repo-memory files as the operational outcome."],
+      "rationale": "The adoption-time workflow states this mission directly and separately asks for findings or noop; its experiment also names run_success_rate as a hypothesis metric rather than the audit's mission.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:73-79", ".github/workflows/audit-workflows.md:65-68"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A recent fleet run or reliability problem that the audit could review.",
+      "alternatives": ["Every scheduled audit invocation.", "Every generated finding or recommendation."],
+      "rationale": "The workflow reviews a rolling 24-hour log window, but the markdown does not define a stable operational case, target owner, or finite completion state for a reviewed problem.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:103-118", ".github/workflows/audit-workflows.md:131-142"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No assignment contract; retain the design as blocked rather than inventing a case key.",
+      "alternatives": ["Bind a run to its GitHub run ID.", "Bind a run to each log record or detected issue signature."],
+      "rationale": "A run ID identifies execution, while log records and issue signatures are discovered by the agent and can overlap or change; neither is an adoption-time operational opportunity definition.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:103-118", ".github/workflows/audit-workflows.md:144-167"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted direct operational evidence.",
+      "alternatives": ["Count audit findings or recommendations.", "Use experiment eval answers as attainment.", "Use success rate, duration, token usage, or traces."],
+      "rationale": "Findings, eval answers, output files, and runtime measures establish activity or execution quality, not that a repository or external workflow reached a target state attributable to the audit.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:65-68", ".github/workflows/audit-workflows.md:91-99", ".github/workflows/audit-workflows.md:144-167"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not defined because no direct outcome is accepted.",
+      "alternatives": ["Use one day, matching the audit lookback.", "Use the next audit cycle or a fixed seven-day window."],
+      "rationale": "A stable maturity horizon cannot be chosen without a defined case, target, and accepted state transition.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:4-6", ".github/workflows/audit-workflows.md:103-112"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric; designOutcome is blocked.",
+      "alternatives": ["Finding rate or empty-findings rate.", "Run success rate.", "A normalized count of identified issues."],
+      "rationale": "Each alternative is a proxy for activity, output, or execution quality and would violate the requirement for exactly one direct operational attainment metric.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:16-27", ".github/workflows/audit-workflows.md:131-142"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Pre-adoption run success rate.", "Historical finding volume or issue count."],
+      "rationale": "Historical activity and execution metrics cannot serve as a comparable direct operational baseline when the direct outcome itself is undefined.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:16-29", ".github/workflows/agent-job-health.md:138"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostics.",
+      "alternatives": ["Report run success, duration, token usage, or finding counts as normalized diagnostics."],
+      "rationale": "Those signals may support workflow operations, but adding them would not resolve the absence of a direct operational metric and could obscure the blocked result.",
+      "evidenceReferences": [".github/workflows/audit-workflows.md:16-27", ".github/workflows/audit-workflows.md:91-99"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "The workflow does not name a repository state or external operational target whose attainment can be observed directly.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/audit-workflows.md:73-79", ".github/workflows/audit-workflows.md:159-167"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The markdown defines a rolling log window rather than a stable case assignment, and findings may span multiple workflows and runs.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/audit-workflows.md:103-118", ".github/workflows/audit-workflows.md:131-142"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The workflow has read-only repository, action, issue, and pull-request permissions and writes audit artifacts to temporary repo-memory paths; no accepted post-audit state transition is specified.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/audit-workflows.md:9-12", ".github/workflows/audit-workflows.md:144-165"]
+    },
+    {
+      "type": "temporal",
+      "level": "medium",
+      "description": "The 24-hour lookback and daily schedule describe observation timing but do not establish when an operational result matures.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/audit-workflows.md:4-6", ".github/workflows/audit-workflows.md:107-112"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "Pre-adoption repository evidence describes audit-workflows as a meta-agent and documents silent schedule gaps, but it does not define a direct accepted outcome for this audit workflow.",
+      "mitigation": null,
+      "evidenceReferences": ["docs/src/content/docs/blog/2026-01-13-meet-the-workflows-metrics-analytics.md:33", ".github/workflows/agent-job-health.md:138"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Any later improvement in another workflow would have multiple possible causes and cannot be attributed to this audit from the adoption-time contract.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/audit-workflows.md:16-29", ".github/workflows/audit-workflows.md:131-142"]
+    }
+  ]
+}
