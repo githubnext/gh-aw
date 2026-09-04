@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "breaking-change-checker",
+  "recordedAt": "2026-09-04T14:40:00Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "CLI breaking-change governance",
+    "subdomain": null,
+    "taskArchetype": "flag-and-remediate documentation debt",
+    "interventionType": "automated breaking-change detection and issue reporting",
+    "outcomeType": "self-declared major changeset includes migration guidance",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Track whether a major changeset landing alongside a CLI-path commit in the run's 24-hour window contains migration-guidance text, matching the CONTRIBUTING.md 'CLI Breaking Changes' rule added by this workflow's own adoption commit ('Use major changeset type', 'Provide migration guidance in the changeset') rather than re-deriving whether the code change is itself breaking.",
+      "alternatives": ["Reproduce the workflow's own decision-tree breaking-change classification (command/flag removal, JSON output change, etc.) in the evaluator", "Score whether the created '[breaking-change]' issue was closed"],
+      "rationale": "Reproducing the breaking-change decision tree would require the grader to perform the same code-semantic judgment the agent itself performs, which the skill explicitly forbids substituting. Issue-closure was rejected because create-issue outputs expire after 2 days (shared/daily-issue-base.md) and closure reflects triage activity, not a repository-recorded outcome. The major-changeset convention is an independently pre-existing, human-enforced repository rule (CONTRIBUTING.md, added in the same PR that introduced this workflow) that a self-declared breaking change must document, so its presence and quality are checkable purely from Git evidence.",
+      "evidenceReferences": ["CONTRIBUTING.md@1b9624bd63b4ec51584288bfa335b113b70629c2 (CLI Breaking Changes section)", ".github/workflows/breaking-change-checker.md Step 5 'Required Actions' checklist ('Add a major changeset with migration guidance')"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The earliest commit reachable from the run commit, dated within the 24 hours before run.createdAt, that both touches cmd/**, pkg/cli/**, pkg/workflow/**, or pkg/parser/schemas/** and adds/modifies a .changeset/*.md file whose frontmatter declares \"gh-aw\": major.",
+      "alternatives": ["Scan the full repository tree for any existing major changeset regardless of window", "Use a 7-day window matching architecture-guardian's maturation choice for the opportunity scan itself"],
+      "rationale": "The workflow's own adoption-time and current prompt both fix a 24-hour 'Analysis Period', so the opportunity window mirrors the workflow's own stated scope rather than an unrelated longer horizon. Scanning the full tree regardless of window would conflate this run's opportunity with unrelated historical changesets and break comparability across daily runs.",
+      "evidenceReferences": [".github/workflows/breaking-change-checker.md ('Analysis Period: Last 24 hours', Step 2 'Gather Recent Changes')"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "opportunityKey = changeset:<path>@<commitSha> for the earliest qualifying commit (ties broken by lexically-smallest commit SHA); repository-health:no-major-changeset-in-window when no commit in the window pairs a CLI-path change with a major changeset.",
+      "alternatives": ["Assign every qualifying major changeset in the window as separate parallel cases", "Assign by PR number instead of commit SHA"],
+      "rationale": "A single deterministic earliest-commit pick keeps exactly one operational case per run, consistent with the single-target-per-run pattern used by daily-file-diet and architecture-guardian, and avoids an unbounded per-run case count. Commit SHA was used over PR number because this repository's history is squash-merged (one commit per PR, verified across #58384, #4926, #4925), so the commit already uniquely identifies the merged change and its paired changeset without needing a separate PR lookup.",
+      "evidenceReferences": [".github/graders/breaking-change-checker-operational-value.sh#assign_case", "github/gh-aw@134fc10 (#58384), @98d551b (#4926) (single commit per merged PR)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accepted evidence is the assigned changeset file's content at the evidence-cutoff commit (falling back to its last known content at the assignment commit if later removed by a version-bump release), tested for the presence of migration-guidance text (case-insensitive 'migrat' match).",
+      "alternatives": ["Require a specific heading such as '## Migration' or '**Migration guide:**'", "Accept CHANGELOG.md text as evidence instead of the changeset file"],
+      "rationale": "Auditing all 17 major changesets merged into this repository shows migration guidance is expressed inconsistently -- as a heading ('**Migration guide:**', '**Migration:**'), or embedded in prose ('...migration guidance', '...migrate existing workflows...') -- so a fixed heading pattern would reject genuinely compliant changesets (e.g. major-safe-job-runs-on.md, remove-playwright-mcp.md). CHANGELOG.md is populated by the changeset release process at version-bump time, not per merged PR, so it cannot be checked per-run without conflating this contract with release cadence.",
+      "evidenceReferences": [".changeset/breaking-aw-add-config-packages.md ('**Migration guide:**')", ".changeset/major-remove-antigravity-engine.md ('**Migration:**')", ".changeset/remove-playwright-mcp.md ('...compile error with migration guidance...')", ".changeset/major-safe-job-runs-on.md ('...migrate existing workflows...')"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "maturesAt = run.createdAt + 2 days; evidenceCutoff is capped at min(evidenceAt, maturesAt).",
+      "alternatives": ["7-day maturation matching architecture-guardian's frozen contract", "No maturation window (evaluate only at merge time)"],
+      "rationale": "A changeset's content is fixed at merge (this outcome is immediately observable), but a short buffer is retained so a follow-up correction landing before the workflow's own generated issue would otherwise expire is still credited. Two days was chosen to match this exact workflow's own 'expires: \"2d\"' create-issue window (shared/daily-issue-base.md import), rather than copying an unrelated workflow's 7-day figure chosen for a different (slower, code-decomposition) remediation pattern.",
+      "evidenceReferences": [".github/workflows/breaking-change-checker.md (imports shared/daily-issue-base.md with expires: \"2d\")"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "primaryMetric = 1 for a repository-health case; for a changeset case, 1 if the accepted evidence text contains migration-guidance text, else 0; null when evidence is invalid or unavailable.",
+      "alternatives": ["distance-to-target metric counting guidance line/character length against an arbitrary target", "Binary metric requiring a specific migration-guidance heading"],
+      "rationale": "Counting guidance lines against a target line count was rejected because every one of the 17 real major changesets already contains 'migrat' text at wildly differing lengths (1 to 22 non-empty lines after the marker) with no natural target derivable from adoption-time content or configuration, unlike architecture-guardian's config-derived function-size target; picking an arbitrary target would not be evidence-backed. The CONTRIBUTING.md rule itself states the requirement as present-or-absent ('Provide migration guidance in the changeset'), so a binary compliance metric is the more direct, defensible form.",
+      "evidenceReferences": ["CONTRIBUTING.md@1b9624bd63b4ec51584288bfa335b113b70629c2 ('Provide migration guidance in the changeset')", ".github/graders/breaking-change-checker-operational-value.sh#metric"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only; baseline value, evidenceCutoff, and provenance are all null.",
+      "alternatives": ["Score pre-adoption major changesets with the same formula as a frozen baseline"],
+      "rationale": "No 'gh-aw': major changeset exists anywhere in this repository's history before the workflow's adoption commit (verified by scanning every .changeset/*.md file added before 2025-11-27T11:54:52Z); the major bump type itself only came into use after this workflow's CONTRIBUTING.md rule was introduced. There is no comparable pre-adoption evidence to freeze as a baseline.",
+      "evidenceReferences": ["git log --before=2025-11-27T11:54:52Z -- '.changeset/*.md' (no file with \"gh-aw\": major frontmatter)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "One diagnostic, migration-guidance-present-at-merge, recording whether the assigned changeset already had migration-guidance text in the commit that introduced it, separate from the primary (possibly later-remediated) value.",
+      "alternatives": ["Omit diagnostics entirely", "Add a repository-wide 'major changeset rate' diagnostic across all CLI-path commits in the window"],
+      "rationale": "The primary value can rise from 0 to 1 if a follow-up commit edits the changeset before evidenceCutoff; a separate merge-time diagnostic preserves visibility into whether the original PR was compliant without corrupting the single primary attainment signal, consistent with the skill's separation requirement. A repository-wide rate diagnostic was deferred to keep the evaluator's collection cost bounded to the single assigned case.",
+      "evidenceReferences": [".github/graders/breaking-change-checker-operational-value.sh#grade_run (migration_at_merge)"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "medium",
+      "description": "Migration-guidance presence is detected by a case-insensitive substring match on 'migrat' anywhere in the changeset body. This is deliberately permissive (verified to match all 17 real major changesets, which use varied phrasing) but could be satisfied by a spurious use of the word without any actual actionable guidance, or could miss guidance phrased without any 'migrat*' word at all.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/breaking-change-checker-operational-value.sh#has_migration_guidance"]
+    },
+    {
+      "type": "assignment",
+      "level": "low",
+      "description": "This repository's history is squash-merged (one commit per PR), so a commit-based assignment reliably identifies one PR's paired code change and changeset. A non-squash-merged history, or a changeset added in a separate follow-up PR from the code change, would not be picked up by this contract.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/breaking-change-checker-operational-value.sh#find_window_commit_local"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Only 17 major changesets exist in this repository's entire history, all post-adoption, and none were observed to lack migration-guidance text; the zero-value branch of the primary metric is therefore validated only by a synthetic example, not an observed real violation.",
+      "mitigation": null,
+      "evidenceReferences": ["grep -rl '\"gh-aw\": major' .changeset/*.md (17 files, all containing 'migrat' text)"]
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "The 2-day maturation window is chosen to match this workflow's own create-issue expiry rather than measured from a distribution of confirmed post-merge changeset edits, since no such edit was observed in the available history.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/breaking-change-checker.md (shared/daily-issue-base.md import, expires: \"2d\")"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "medium",
+      "description": "This contract only measures documentation compliance (major changeset + migration guidance) for self-declared breaking changes; it cannot detect a CLI breaking change that was never given a major changeset at all, since determining that independently would require reproducing the workflow's own code-semantic breaking-change judgment, which this design intentionally avoids.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/breaking-change-checker.md Step 4 'Apply the Decision Tree'"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "A compliant major changeset existing in the window does not establish that this workflow's run (versus contributor/reviewer diligence independent of the bot) caused that compliance.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}

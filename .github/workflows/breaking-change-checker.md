@@ -75,6 +75,9 @@ evals:
     question: Did the agent complete an analysis of recent commits and merged PRs for breaking CLI changes?
   - id: issue-created-or-noop
     question: Was a breaking change issue created when breaking changes were found, or was noop correctly called when no breaking changes were detected?
+graders:
+  operational-value:
+    run: .github/graders/breaking-change-checker-operational-value.sh
 
 ---
 
