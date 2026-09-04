@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "chaos-pr-bundle-fuzzer",
+  "recordedAt": "2026-09-04T14:25:28.242Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The adoption contract defines randomized safe-output exercise generation, but no accepted repository evidence directly measures whether patch/bundle handling is robust. Counting created PRs, checking their metadata, or inspecting workflow traces would measure output activity or execution rather than the intended reliability outcome.",
+  "classification": {
+    "domain": "software reliability",
+    "subdomain": "safe-output bundle fuzzing",
+    "taskArchetype": "chaos testing",
+    "interventionType": "randomized PR generation",
+    "outcomeType": "bundle-handling robustness",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Stress-test safe-output create-pull-request patch/bundle handling with randomized small-change personas.",
+      "alternatives": ["Measure test PR creation as operational attainment"],
+      "rationale": "The adoption workflow and PR describe bounded chaos coverage of safe-output bundle generation, not a repository state to be changed.",
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a", "PR #32249"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No repository-observable operational opportunity is defined.",
+      "alternatives": ["Each workflow run", "Each generated test PR", "Each randomized strategy"],
+      "rationale": "The adopted workflow's scenarios and strategy ledger are ephemeral randomized test inputs; they are not durable repository opportunities with an attainment state.",
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a", "PR #32249"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No deterministic historical assignment is available when case and event are null.",
+      "alternatives": ["Assign PRs by creation-time window", "Assign by chaos branch prefix", "Assign by the ephemeral cache-memory ledger"],
+      "rationale": "The adoption contract has no persistent run identifier in PR metadata or scenario ledger, so historical PR grouping would be ambiguous and cache-memory cannot be reconstructed from repository evidence.",
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted direct evidence.",
+      "alternatives": ["Created PR count and metadata", "Workflow logs or traces", "Agent summary"],
+      "rationale": "PR records demonstrate generated test output, while logs, traces, and summaries demonstrate execution; none directly establishes bundle-handling robustness.",
+      "evidenceReferences": ["PR #32249", "6027ae110ad085e13b40af37a6121a8955562128", "83c340a4604c013372534b6841e06ef169f0b478"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturity horizon is defined.",
+      "alternatives": ["The four-hour test PR expiry", "The workflow timeout"],
+      "rationale": "Expiry and timeout bound test execution and artifact lifetime, not the observation of a direct reliability outcome.",
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a", "PR #32249"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational-value metric; design blocked.",
+      "alternatives": ["Binary score for a compliant PR bundle", "Proportion of compliant generated PRs", "Strategy coverage count"],
+      "rationale": "All alternatives quantify activity, output volume, or test-input coverage rather than direct operational attainment.",
+      "evidenceReferences": ["PR #32249"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Pre-adoption safe-output bundle fixes", "Pre-adoption test PR output"],
+      "rationale": "Pre-adoption commits establish that bundle handling had known failure modes, but they do not provide observations under a defensible direct outcome metric.",
+      "evidenceReferences": ["6027ae110ad085e13b40af37a6121a8955562128", "83c340a4604c013372534b6841e06ef169f0b478", "286abd06240a5568060132c85690a0da97d97a5a"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is a chaos-testing harness, whose declared result is test exercise rather than a durable repository outcome.",
+      "mitigation": null,
+      "evidenceReferences": ["PR #32249"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The adoption contract does not persist a workflow-run identifier with each generated PR or scenario, preventing unambiguous historical reconstruction.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The randomized strategy ledger is stored in runtime cache-memory and is not accepted same-repository evidence for historical replay.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/chaos-pr-bundle-fuzzer.md@286abd06240a5568060132c85690a0da97d97a5a"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Even future bundle fixes could not be attributed to individual randomized workflow runs without a direct, predeclared outcome observation.",
+      "mitigation": null,
+      "evidenceReferences": ["6027ae110ad085e13b40af37a6121a8955562128", "83c340a4604c013372534b6841e06ef169f0b478"]
+    }
+  ]
+}
