@@ -416,6 +416,14 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				expectedHost: "http://anthropic-gateway.example.com",
 			},
 			{
+				name:         "preserves an explicit HTTP port",
+				engine:       "codex",
+				envVar:       "OPENAI_BASE_URL",
+				baseURL:      "http://openai-gateway.example.com:8080/v1",
+				provider:     "openai",
+				expectedHost: "http://openai-gateway.example.com:8080",
+			},
+			{
 				name:         "gemini preserves HTTP with a newer AWF version",
 				engine:       "gemini",
 				envVar:       "GEMINI_API_BASE_URL",
