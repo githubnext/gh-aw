@@ -56,8 +56,8 @@ Test workflow to verify sandbox.agent: false is accepted when the feature flag i
 		lockStr := string(lockContent)
 
 		// Verify that AWF firewall is NOT present (agent sandbox disabled)
-		if strings.Contains(lockStr, "sudo -E awf") {
-			t.Error("Expected AWF firewall to be disabled, but found 'sudo -E awf' command in lock file")
+		if strings.Contains(lockStr, "sudo -E ") {
+			t.Error("Expected AWF firewall to be disabled, but found privileged AWF command in lock file")
 		}
 
 		// Verify that MCP gateway IS present (gateway always enabled)
