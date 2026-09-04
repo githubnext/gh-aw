@@ -21,11 +21,12 @@ func TestValidateGitHubCLIProxyVersion(t *testing.T) {
 		Tools: map[string]any{
 			"github": map[string]any{"mode": "gh-proxy"},
 		},
-		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{Enabled: true},
-		},
 	}
+	require.NoError(t, validateGitHubCLIProxyVersion(workflowData))
 
+	workflowData.NetworkPermissions = &NetworkPermissions{
+		Firewall: &FirewallConfig{Enabled: true},
+	}
 	require.NoError(t, validateGitHubCLIProxyVersion(workflowData))
 
 	workflowData.NetworkPermissions.Firewall.Version = "v0.28.12"
