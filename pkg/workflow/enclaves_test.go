@@ -204,6 +204,7 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimitTreatsTrustedAsPublic(t *testing.T) {
 	data := enclaveGitHubIssuesWorkflowData()
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
 	data.Enclaves[0].Repos = []*EnclaveRepository{
 		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
 		{Repo: "octo-org/public-service", Sensitivity: "public"},
@@ -214,10 +215,13 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimitTreatsTrustedAsPublic(t *test
 func TestValidateEnclaveTrustedSensitivityRequiresAWFVersion(t *testing.T) {
 	data := enclaveWorkflowData(false, true, 0, 120)
 	data.Enclaves[0].Repos[0].Sensitivity = "trusted"
-	data.NetworkPermissions.Firewall.Version = "v0.28.12"
+	data.NetworkPermissions.Firewall.Version = "v0.28.13"
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires AWF v0.28.14 or newer")
+
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
+	require.NoError(t, validateEnclavesConfig(data))
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimitScopesToGitHubEntry(t *testing.T) {
