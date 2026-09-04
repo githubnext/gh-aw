@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "bot-detection",
+  "recordedAt": "2026-09-04T14:15:54Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's only repository effect is creating or updating a triage report; no direct, independently observable security outcome is defined or controlled by the workflow.",
+  "classification": {
+    "domain": "repository security",
+    "subdomain": null,
+    "taskArchetype": "activity triage",
+    "interventionType": "triage reporting",
+    "outcomeType": "review-queue escalation",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the workflow as suspicious-activity triage that maintains one review queue.",
+      "alternatives": ["Treat repository activity investigation itself as the operational outcome"],
+      "rationale": "The adoption-time workflow explicitly requires detecting suspicious activity and maintaining a single triage issue.",
+      "evidenceReferences": [".github/workflows/bot-detection.md:853-889", "commit 134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The six-hour suspicious-activity observation window preceding a scheduled run.",
+      "alternatives": ["Each created or updated triage issue"],
+      "rationale": "The workflow defines its investigation scope as the preceding six hours, while a triage issue can combine multiple observations.",
+      "evidenceReferences": [".github/workflows/bot-detection.md:7", ".github/workflows/bot-detection.md:855"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use the run's six-hour observation window; duplicate runs retain the same window when applicable.",
+      "alternatives": ["Use the mutable single triage issue as the case"],
+      "rationale": "The time window is a stable run subject; the workflow intentionally reuses one mutable issue, so that issue cannot isolate a single run's opportunity.",
+      "evidenceReferences": [".github/workflows/bot-detection.md:855", ".github/workflows/bot-detection.md:880-889"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Do not accept safe-output creation, issue updates, report content, traces, or activity counts as attainment evidence.",
+      "alternatives": ["Score whether the triage issue was created or updated", "Score the number of reported suspicious signals"],
+      "rationale": "Those records demonstrate workflow output or activity, not an independently observable security outcome such as remediation, containment, or a validated incident disposition.",
+      "evidenceReferences": [".github/workflows/bot-detection.md:845-849", ".github/workflows/bot-detection.md:878-901"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline is defined.",
+      "alternatives": ["Score pre-adoption triage issue activity"],
+      "rationale": "The workflow was introduced in its adoption commit and the local history has no first parent; independently recovered pre-adoption evidence cannot establish a direct outcome baseline.",
+      "evidenceReferences": ["commit 134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/bot-detection.md:1-14"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No operational-value evaluator is created.",
+      "alternatives": ["Binary triage-issue update metric", "Reported-signal proportion"],
+      "rationale": "Neither alternative measures direct operational attainment, and no direct repository outcome is specified for this reporting workflow.",
+      "evidenceReferences": [".github/workflows/bot-detection.md:878-916"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow may support a human security response, but the workflow does not define or observe that response's remediation outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/bot-detection.md:878-901"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The local adoption commit has no available first parent, so pre-adoption evidence cannot be recovered from this checkout.",
+      "mitigation": null,
+      "evidenceReferences": ["commit 134fc10e16a282117bfb386199c1d775a0a8f288"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Any later security remediation could result from independent human or automated actions and cannot be attributed to a triage report under the current workflow contract.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/bot-detection.md:891-901"]
+    }
+  ]
+}
