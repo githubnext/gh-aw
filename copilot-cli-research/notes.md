@@ -139,3 +139,24 @@ Follow-up for next cycle:
 2. Actually standardize and record (in this file) the exact grep/awk pattern for engine.version pinning so the 38-vs-0 discrepancy can finally be resolved with one comparable number.
 3. Check copilot CLI release notes/changelog for any new flags or capabilities added since this cycle that aren't yet reflected in pkg/workflow/copilot_engine*.go.
 4. Treat copilot-sdk, engine.agent, plugins, --block-domains, and --share as settled/plateaued — only produce full write-ups for these again if a maintainer explicitly asks, or if their numbers change.
+
+## Run: 2026-09-04 (workflow-run-id: 33834358659)
+Twelfth analysis. Compared to all prior cycles (08-23 through 09-03).
+
+Key resolutions this cycle:
+- **--share flag RESOLVED**: Direct grep of pkg/workflow/copilot_engine_execution.go and every non-test pkg/workflow/*.go file found ZERO references to a --share flag. It is not implemented in gh-aw's Copilot engine argument construction at all. The only repo match for "--share" is descriptive text inside copilot-cli-deep-research.md itself (this research workflow), which is where prior cycles' "1 workflow uses --share" metric came from - a false positive from the research workflow referencing its own topic, not a real feature usage. RECOMMENDATION: permanently remove --share from the "available features" / "opportunities" list in future cycles; it is not a currently wired CLI flag for this engine.
+- **engine.version pinning discrepancy RESOLVED**: The persistent 38-vs-0 discrepancy (run7 loose pattern vs runs 10-12 strict pattern) is now explained: run7's grep matched unrelated `version:` keys elsewhere in files (e.g., `runtimes.node.version` under a different engine like codex, or completely unrelated YAML). Manual inspection of the one remaining match this cycle (smoke-test-tools.md) confirmed it's a codex engine's runtimes.node.version, not a copilot engine.version. True count: 0/298 workflows pin engine.version for the copilot engine. Standard pattern recorded: `grep -A5 '^engine:' file.md | grep 'version:'` then manually verify the matched block actually is engine: copilot with a version field, not a false positive from a differently-indented/nested key.
+
+Steady-state metrics (unchanged, no new write-up needed):
+- copilot_workflows: 108 (standard combined grep, within normal 104-111 range across cycles)
+- copilot-sdk: true: 61, flat for 10th consecutive cycle - fully settled.
+- engine.agent: 7 named workflows (archie, contribution-check, daily-file-diet, glossary-maintainer, hourly-ci-cleaner, technical-doc-writer, workflow-generator), unchanged for 8 cycles - genuinely stalled.
+- plugins: 0/299, flat for 12th consecutive cycle - still requires an explicit maintainer decision (promote feature or deprecate tracking).
+- --block-domains: 0/299, flat for 7th consecutive cycle, vs network.allowed at 183/299 (61%) - recommend docs deprioritize this flag.
+- shared/copilot-defaults.md: STILL not created, now 10 cycles since origin (run2, 08-24). This is the final cycle this item will be repeated in full; if absent next cycle, will be omitted from the report body entirely (link only, if a standalone tracking issue exists).
+
+Follow-up for next cycle:
+1. Do NOT re-investigate --share or engine.version pinning discrepancy again - both resolved definitively this cycle with code-level evidence.
+2. Confirm whether a standalone tracking issue for shared/copilot-defaults.md exists; if not, this recurring report should stop repeating the ask and instead note it was deprioritized/ignored for 10 cycles.
+3. Check for any new Copilot CLI flags added to copilot_engine_execution.go since this cycle (diff against this cycle's flag list: --disable-builtin-mcps, --no-ask-user, --agent, --autopilot/--max-autopilot-continues, --add-dir, --allow-all-paths, --no-custom-instructions, --log-level, --log-dir, --headless, --no-auto-update, --host, --port).
+4. plugins at 12 cycles flat - if a maintainer response still hasn't come by next cycle, downgrade this to a single-line mention rather than a full opportunity write-up.
