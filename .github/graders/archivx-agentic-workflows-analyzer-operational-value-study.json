@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "archivx-agentic-workflows-analyzer",
+  "recordedAt": "2026-09-04T14:14:27Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "No direct operational metric is defensible because the workflow's sole repository actions are generating an SVG diagram, creating a draft pull request, and creating a discussion. Under the operational value framework, safe-output creation, output volume, activity counts, and agent execution quality are explicitly excluded as primary operational attainment metrics.",
+  "classification": {
+    "domain": "workflow-visualization",
+    "subdomain": null,
+    "taskArchetype": "diagram-generation",
+    "interventionType": "visual-reporting",
+    "outcomeType": "draft-pr-creation",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Generate weekly SVG diagram summary of agentic workflow health and create a draft PR and discussion",
+      "alternatives": ["Directly fix failing workflows", "Enforce repository quality thresholds"],
+      "rationale": "Adoption-time workflow markdown (.github/workflows/archivx-agentic-workflows-analyzer.md at commit 134fc10e16a282117bfb386199c1d775a0a8f288) defines the mission as creating an SVG diagram using glowmotion, submitting a draft PR, and posting a discussion.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:72-84", "commit:134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Weekly scheduled execution on Monday around 09:00 UTC or workflow dispatch trigger",
+      "alternatives": ["Per-failing-workflow issue event", "On pull request creation"],
+      "rationale": "The workflow frontmatter defines schedule trigger (weekly on Monday around 09:00) and workflow_dispatch, processing the past 7 days of agentic workflow logs.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:16-18"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Bind scheduled run ID and 7-day log window to weekly visualization task",
+      "alternatives": ["Bind to specific workflow run failures", "Bind to repository release tags"],
+      "rationale": "Each run operates on the previous 7 days of workflow execution logs downloaded via gh-aw logs.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:50-52"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Reject output artifacts (SVG diagram files, draft PRs, discussions) as valid operational evidence",
+      "alternatives": ["Use pull request creation as repository evidence", "Use SVG diagram file creation as evidence", "Use discussion post creation as evidence"],
+      "rationale": "The operational value framework explicitly forbids using safe-output creation, activity counts, or output volume as operational value evidence.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:14-16"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not applicable for blocked design outcome",
+      "alternatives": ["7 days post-run", "30 days draft PR expiration"],
+      "rationale": "Because no direct operational metric is defensible, no maturation window is defined.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:27-36"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Mark design outcome as blocked due to lack of defensible direct operational metric",
+      "alternatives": ["Binary PR creation metric", "Diagram checker pass rate metric", "Discussion creation metric"],
+      "rationale": "All candidate metrics substitute safe-output creation, output volume, or execution quality for direct repository outcomes, violating operational value design rules.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:14-16,45-47"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Null baseline for blocked design outcome",
+      "alternatives": ["Pre-adoption diagram generation rate"],
+      "rationale": "No pre-adoption baseline can be scored without a valid primary metric.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:46-47"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostic metrics defined for blocked design outcome",
+      "alternatives": ["Track PR creation rate", "Track discussion creation rate", "Track SVG check_diagram violation count"],
+      "rationale": "Diagnostics are omitted when the primary operational value design is blocked.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:45-47"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "Informational and reporting workflows produce safe-outputs (draft PRs, SVG diagrams, discussions) rather than direct operational changes to repository health or code state.",
+      "mitigation": "Classify as blocked under the operational value framework and evaluate reporting quality via execution-quality or trace graders instead.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:21-37", ".github/skills/operational-value-designer/SKILL.md:14-16"]
+    },
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "Any proposed metric based on draft PR creation, SVG rendering success, or discussion posting measures agent activity or safe-output creation rather than repository outcome attainment.",
+      "mitigation": "Do not define a pseudo-metric for activity; enforce the rule against substituting activity for operational value.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md:14-16"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Even if draft PRs with diagrams are eventually merged by human maintainers, merging reflects human review preferences rather than an automated operational state change.",
+      "mitigation": "Avoid using PR merge status as a proxy for automated operational value.",
+      "evidenceReferences": [".github/workflows/archivx-agentic-workflows-analyzer.md:32-35"]
+    }
+  ]
+}
