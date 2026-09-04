@@ -132,7 +132,7 @@ reconstruct_case() {
                 | select(.event == "assigned" and .actor.login == $actor
                     and (.created_at >= $start and .created_at <= $end)
                     and (.assignee.login | type == "string"))
-                | {number: $issue, assignee: .assignee.login, assignedAt: .created_at}]') 
+                | {number: $issue, assignee: .assignee.login, assignedAt: .created_at}]')
     done < <(jq -r '.[]' <<<"$candidates")
 
     jq -cn --argjson assignments "$assignments" '
