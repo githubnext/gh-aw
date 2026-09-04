@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-centralization-optimizer",
+  "recordedAt": "2026-09-04T14:59:05Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's sole repository effect is an advisory create-issue report (title prefix \"[copilot-centralization] \", labels report,ai-optimization, 30d expiry, close-older-issues) that recommends where repeated cross-user Copilot Agent Task prompting should be centralized (continuous workflow, shared prompt/ChatOps, reusable tool/deterministic step, or left ad hoc). Per the adoption PR (github/gh-aw#39394), the intended operational outcome is that a specific recommended centralization opportunity is actually implemented, reducing redundant ad-hoc prompting. The workflow itself never implements, merges, or labels-as-done anything; a companion, separately triggered workflow (copilot-centralization-drilldown) or a human may or may not act on the recommendation later, in an unrelated PR/issue/workflow file with no required backlink to the originating run or opportunityKey. Verifying that a run's specific natural-language recommendation was actually attained therefore requires either (a) semantically matching free-text recommendation content (sample_prompt, intent_bucket, recommendation_kind) against later-created workflow/tool/prompt files or issues, which is agent judgment, not deterministic evidence matching, or (b) treating a later reduction in the same intent bucket's task_count/distinct_users/centralization_score as attainment, which conflates centralization with mere reduced activity or output volume (both explicitly excluded substitutes). No accepted, direct, repository-verifiable signal exists that a specific run's recommended centralization opportunity was adopted: searching github/gh-aw for issues with label ai-optimization (open and closed) returns zero results, so there is not even indirect closure/acceptance evidence to anchor a maturation window or zero rule on. Because no direct primary attainment metric in [0,1] can be defended without agent judgment, activity-volume proxies, or unverifiable evidence, this design is blocked rather than accepted or rejected outright.",
+  "classification": {
+    "domain": "developer-workflow-standardization",
+    "subdomain": null,
+    "taskArchetype": "recommendation-report",
+    "interventionType": "advisory-issue-report",
+    "outcomeType": "adopted-centralization",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "implicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Recover intent from the adoption PR: github/gh-aw#39394 states the pipeline exists to reduce redundant ad-hoc AI credit usage by standardizing repeated cross-user Copilot Agent Task prompts into workflows, shared prompts, or playbooks.",
+      "alternatives": ["Infer intent solely from current workflow markdown Goal/Task sections without adoption-time PR context"],
+      "rationale": "The adoption PR body is the only adoption-time artifact stating the intended downstream effect (implementation of recommendations), which the current workflow markdown alone does not make explicit as a measurable outcome.",
+      "evidenceReferences": ["github/gh-aw#39394", ".github/workflows/copilot-centralization-optimizer.md@e6f1181698dbc9e80403bb3fd084ce6f8492a3f0"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Considered the per-run identified top workflow_opportunities/intent_bucket candidate as the operational case.",
+      "alternatives": ["Treat the issue's mere existence/creation as the case (output volume, excluded)", "Treat AI credit usage before/after the run as the case (activity proxy, excluded)"],
+      "rationale": "Only the specific recommended opportunity reflects the workflow's stated intent; issue creation and credit usage are explicitly disallowed substitutes for attainment.",
+      "evidenceReferences": [".github/workflows/copilot-centralization-optimizer.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No deterministic, non-ambiguous assignment rule exists linking a run's top opportunity to a single later verifiable artifact.",
+      "alternatives": ["Fuzzy/semantic text matching of sample_prompt or intent_bucket against later workflow/tool/prompt file additions", "Match by explicit opportunityKey backlink in a later PR/issue"],
+      "rationale": "Fuzzy text matching requires agent judgment to decide whether a later artifact addresses a given recommendation; no backlink convention exists between this workflow's issues and any later implementation PR, so assignment is ambiguous by construction.",
+      "evidenceReferences": [".github/workflows/copilot-centralization-optimizer.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Searched for accepted evidence of adoption (closed/labelled issues) and found none.",
+      "alternatives": ["Assume a labeling convention (e.g., issue closed = implemented) without verifying it exists"],
+      "rationale": "A search of github/gh-aw issues with label ai-optimization returned zero open and zero closed results, so there is no observed acceptance signal (such as issue closure semantics) to freeze as accepted evidence.",
+      "evidenceReferences": ["github/gh-aw issues label:ai-optimization (0 open, 0 closed as of 2026-09-04)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No direct primary metric in [0,1] is defensible; blocked per skill guidance rather than substituting activity, output volume, traces, or agent judgment.",
+      "alternatives": [
+        "Binary metric: recommended opportunity later matched via free-text similarity to a new workflow/tool/prompt file (agent judgment, excluded)",
+        "Reduction in the recommended intent bucket's task_count/distinct_users/centralization_score in a later run (activity/output-volume proxy, excluded)",
+        "AI credit or session-count reduction after the report (activity proxy, excluded)",
+        "Issue engagement (comments, reactions) on the created report (activity proxy, excluded)"
+      ],
+      "rationale": "Every candidate metric collapses into a disallowed substitute (agent judgment for text-to-artifact matching, or activity/output-volume proxies for usage-reduction signals); none is direct, deterministic, evidence-accepted attainment of the stated intent.",
+      "evidenceReferences": ["github/gh-aw#39394", ".github/workflows/copilot-centralization-optimizer.md"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "There is no deterministic rule for binding a run's recommended opportunity to a single later implementation artifact; multiple candidates per run and no cross-referencing convention make assignment ambiguous.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-centralization-optimizer.md"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "No historical issues with the workflow's labels (report, ai-optimization) exist in github/gh-aw to observe what, if anything, counts as accepted implementation evidence.",
+      "mitigation": null,
+      "evidenceReferences": ["github/gh-aw issues label:ai-optimization"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Even if a later workflow/tool/prompt addressing the same repeated prompting pattern were found, attributing its creation to this workflow's recommendation (versus independent human initiative) cannot be established deterministically.",
+      "mitigation": null,
+      "evidenceReferences": ["github/gh-aw#39394"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "medium",
+      "description": "The workflow's output is inherently advisory (a report), unlike workflows that themselves directly modify repository state (e.g., file line counts); this class of advisory-only workflow may not fit the direct-attainment metric model without a future acceptance/backlink convention.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-centralization-optimizer.md"]
+    }
+  ]
+}
