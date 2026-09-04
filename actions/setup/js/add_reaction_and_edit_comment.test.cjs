@@ -472,6 +472,21 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction"));
     });
 
+    it("should warn and continue for rate limit 403 errors", async () => {
+      const rateLimitError = new Error("API rate limit exceeded for installation");
+      /** @type {any} */ rateLimitError.status = 403;
+      process.env.GH_AW_REACTION = "eyes";
+      global.context.eventName = "issues";
+      global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } };
+      mockGithub.request.mockRejectedValueOnce(rateLimitError);
+
+      const { main } = await loadModule();
+      await main();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GitHub API rate limiting"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
     it("should fail for other non-403 errors", async () => {
       const serverError = new Error("Internal server error");
       /** @type {any} */ serverError.status = 500;
