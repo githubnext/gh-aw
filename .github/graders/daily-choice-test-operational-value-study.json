@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-choice-test",
+  "recordedAt": "2026-09-04T15:38:24.628Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow requests a test-environment choice and only records the safe-output configuration; it does not produce repository evidence of a deployment or test result, so no direct operational attainment metric can be defended without substituting activity or output evidence.",
+  "classification": {
+    "domain": "deployment testing",
+    "subdomain": null,
+    "taskArchetype": "choice-based test configuration",
+    "interventionType": "scheduled test selection",
+    "outcomeType": "test deployment result",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the stated weekday-to-environment/test-type mapping as the adoption-time intent.",
+      "alternatives": ["Treat the agent's explanatory paragraph as the intended outcome."],
+      "rationale": "The task explicitly specifies the two weekday mappings and asks for a configuration choice.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:78-88", "262a0aed48953d16fdadcafbd7b52e61ce9b2b56"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One scheduled or manually dispatched run's requested test configuration.",
+      "alternatives": ["A repository deployment or test issue created by the workflow."],
+      "rationale": "The workflow defines a safe-output job with environment and test_type choices, but no durable deployment or test artifact.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:36-52"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Bind a run to its run ID and derive the expected choice from its weekday.",
+      "alternatives": ["Assign a run to a deployment record or test result."],
+      "rationale": "The weekday rule is explicit and deterministic, while no external operational case is declared.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:84-87"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted evidence contract.",
+      "alternatives": ["Use safe-output invocation or the generated step summary as evidence."],
+      "rationale": "The job displays the selected values and says a test would be executed; neither demonstrates that a deployment or test completed.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:54-66"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window.",
+      "alternatives": ["Use an immediate cutoff after the run.", "Use a delayed cutoff for external test completion."],
+      "rationale": "Without accepted operational evidence, a stable maturation horizon cannot make attainment observable.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:34-66"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric.",
+      "alternatives": ["Score whether the selected choices match the weekday rule.", "Score whether the safe-output job was invoked."],
+      "rationale": "Choice correctness and invocation are activity or configuration checks, not direct evidence that the intended test deployment outcome was attained.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:80-88"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Use pre-adoption choice activity as a baseline."],
+      "rationale": "The workflow was introduced in the recorded adoption commit, and no comparable pre-adoption operational outcome is available in the checkout.",
+      "evidenceReferences": ["262a0aed48953d16fdadcafbd7b52e61ce9b2b56"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostics.",
+      "alternatives": ["Report choice-match rate or safe-output invocation count."],
+      "rationale": "Those measures would describe activity or configuration compliance and cannot repair the absence of a direct operational metric.",
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:80-92"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The workflow contains no repository-local deployment or test-result evidence that can demonstrate attainment.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:34-66"]
+    },
+    {
+      "type": "temporal",
+      "level": "medium",
+      "description": "The shallow checkout does not include the parent commit needed to inspect pre-adoption history directly.",
+      "mitigation": null,
+      "evidenceReferences": ["262a0aed48953d16fdadcafbd7b52e61ce9b2b56"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is a choice-type functionality test rather than an operational deployment workflow, so configuration correctness is not a defensible operational outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-choice-test.md:74-88"]
+    }
+  ]
+}
