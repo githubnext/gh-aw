@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "commit-changes-analyzer",
+  "recordedAt": "2026-09-04T14:54:31Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "repository change reporting",
+    "subdomain": null,
+    "taskArchetype": "change-range analysis",
+    "interventionType": "automated developer report",
+    "outcomeType": "complete report delivery",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Attain a developer discussion containing the workflow's nine mandated report sections for the requested commit range.",
+      "alternatives": ["Count discussion creation alone."],
+      "rationale": "The adoption workflow explicitly requires a comprehensive report and names each required section; creation alone does not demonstrate the requested deliverable.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:54-70", ".github/workflows/commit-changes-analyzer.md:176-250"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The commit URL supplied to workflow_dispatch.",
+      "alternatives": ["The workflow run itself as the opportunity."],
+      "rationale": "The input defines the requested change range, while a run is only the subject that serves it.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:7-11", ".github/workflows/commit-changes-analyzer.md:72-95"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use the supplied base commit; for null case and event, reconstruct the closest eligible post-run discussion title and resolve its short SHA.",
+      "alternatives": ["Use run ID as the opportunity key.", "Treat historical null assignment as zero."],
+      "rationale": "The commit is the stable requested subject. The historical fallback preserves assignment when the original input is unavailable without converting unavailable evidence into failure.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:72-95", ".github/graders/commit-changes-analyzer-operational-value.sh"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Same-repository development discussion title, timestamp, resolved base commit, and all nine required section headings.",
+      "alternatives": ["Agent evals.", "Safe-output count.", "Discussion existence only."],
+      "rationale": "Discussion content is the declared repository outcome; evals, activity, and output counts do not establish attainment of the requested report contract.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:44-49", ".github/workflows/commit-changes-analyzer.md:227-239"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation with evidence cutoff capped at maturity.",
+      "alternatives": ["Immediate observation only."],
+      "rationale": "The report is expected immediately, but the stable cap provides a fixed historical horizon for replay and late evidence.",
+      "evidenceReferences": [".github/graders/commit-changes-analyzer-operational-value.sh"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary direct attainment: complete required report contract is 1, incomplete is 0, unavailable is null.",
+      "alternatives": ["Proportion of changed files mentioned.", "Discussion body length."],
+      "rationale": "The workflow specifies required sections but not a deterministic semantic similarity or file-coverage threshold; a binary contract avoids proxy scoring.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:176-250"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Baseline from pre-adoption developer discussions."],
+      "rationale": "The workflow was first introduced at the adoption commit and no pre-adoption run contract or comparable frozen report series exists; unrelated manual discussions would not be comparable evidence.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", "134fc10e16a282117bfb386199c1d775a0a8f288^"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Expose report-contract completeness as a separate boolean-normalized diagnostic.",
+      "alternatives": ["Combine section completeness with value.", "Report activity or trace counts."],
+      "rationale": "The diagnostic mirrors the accepted evidence and remains separate from the single authoritative value.",
+      "evidenceReferences": [".github/graders/commit-changes-analyzer-operational-value.sh"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "Historical runs with null case and event require matching a post-run discussion title to reconstruct the requested base commit.",
+      "mitigation": "Use a deterministic timestamp window, exact title prefix, resolved commit SHA, and preserve repeated opportunity keys.",
+      "evidenceReferences": [".github/graders/commit-changes-analyzer-operational-value.sh"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub discussion history or commit resolution can be unavailable to the evaluator.",
+      "mitigation": "Return null rather than zero and declare discussions:read explicitly.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:14-18"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "medium",
+      "description": "Required headings demonstrate the declared report contract but cannot prove semantic correctness of every statement.",
+      "mitigation": "Keep the metric limited to the explicit workflow contract and do not use agent judgment or activity proxies.",
+      "evidenceReferences": [".github/workflows/commit-changes-analyzer.md:241-250"]
+    }
+  ]
+}

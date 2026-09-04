@@ -13,8 +13,12 @@ on:
 max-daily-ai-credits: 10000
 permissions:
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
+graders:
+  operational-value:
+    run: .github/graders/commit-changes-analyzer-operational-value.sh
 max-turns: 100
 model: openai/gpt-5.4
 engine:
