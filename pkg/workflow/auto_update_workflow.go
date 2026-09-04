@@ -205,7 +205,7 @@ The weekly schedule is deterministically scattered based on the repository slug.
 		if err != nil {
 			return "", fmt.Errorf("failed to encode auto-upgrade options: %w", err)
 		}
-		upgradeOptionsEnv = "\n          GH_AW_UPGRADE_OPTIONS: '" + string(encodedOptions) + "'"
+		upgradeOptionsEnv = "\n          GH_AW_UPGRADE_OPTIONS: '" + escapeYAMLSingleQuoted(string(encodedOptions)) + "'"
 	}
 
 	yaml := header + `name: Agentic Auto-Upgrade
