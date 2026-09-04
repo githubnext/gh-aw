@@ -283,6 +283,15 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 		t.Fatal("expected unsupported enclave GitHub tool to be rejected")
 	}
 
+	invalidRepoScope := toolsShape
+	invalidRepoScope["enclaves"].([]any)[0].(map[string]any)["agent"].(map[string]any)["tools"].(map[string]any)["github"] = map[string]any{
+		"allowed":       []any{"list_issues"},
+		"allowed-repos": "all",
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidRepoScope, "workflow.md"); err == nil {
+		t.Fatal("expected scalar enclave GitHub repository scope to be rejected")
+	}
+
 	scriptGitHub := map[string]any{
 		"on":     "workflow_dispatch",
 		"engine": "copilot",

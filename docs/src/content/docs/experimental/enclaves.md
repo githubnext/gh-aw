@@ -59,7 +59,7 @@ enclaves:
 - `allowed-repos` is optional. If omitted, the enclave identity inherits the enclave's `repos` list. If set, every entry must also appear in that list.
 - `min-integrity` is optional and defaults to `approved`.
 - GraphQL, search, writes, and every other GitHub tool remain denied.
-- The minimum supported versions are AWF `v0.28.13` (or `v0.28.14` when using `trusted`) and mcpg `v0.4.15`.
+- The minimum supported versions are AWF `v0.28.9` (or `v0.28.14` when using `trusted`) and mcpg `v0.4.15`.
 
 ## Deprecated `issues-read-v1` profile
 

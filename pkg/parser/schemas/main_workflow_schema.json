@@ -3671,23 +3671,14 @@
                             "minItems": 1
                           },
                           "allowed-repos": {
-                            "description": "Guard policy: repository access configuration for the enclave GitHub identity. Supports the same scalar or array forms as 'tools.github.allowed-repos', but entries must also be declared in the enclosing enclave 'repos' list.",
-                            "oneOf": [
-                              {
-                                "type": "string",
-                                "enum": ["all", "public", "${{ github.repository }}"],
-                                "description": "Allow access to all repositories ('all'), only public repositories ('public'), or the current repository ('${{ github.repository }}')"
-                              },
-                              {
-                                "type": "array",
-                                "description": "Allow access to specific repositories using patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*')",
-                                "items": {
-                                  "type": "string",
-                                  "description": "Repository pattern in the format 'owner/repo', 'owner/*' (all repos under owner), or 'owner/prefix*' (repos with name prefix)"
-                                },
-                                "minItems": 1
-                              }
-                            ]
+                            "type": "array",
+                            "description": "Guard policy: explicit owner/repository slugs declared in the enclosing enclave 'repos' list.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                              "description": "Repository slug in owner/repository format."
+                            },
+                            "minItems": 1
                           },
                           "min-integrity": {
                             "type": "string",

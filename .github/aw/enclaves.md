@@ -73,7 +73,7 @@ enclaves:
 - `min-integrity` is optional and defaults to `approved`.
 - Unsupported tools and out-of-scope repositories fail closed at compile time.
 - GraphQL, search, writes, and all other GitHub tools remain denied.
-- Minimum versions are AWF `v0.28.13` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
 
 ## Deprecated legacy profile
 

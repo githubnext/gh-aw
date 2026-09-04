@@ -63,7 +63,7 @@ func enclaveGitHubToolsWorkflowData() *WorkflowData {
 			MinIntegrity: GitHubIntegrityNone,
 		},
 	}
-	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveAgentToolsMinVersion)
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveGitHubIssuesMinVersion)
 	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
 		Container: constants.DefaultMCPGatewayContainer,
 		Version:   string(constants.MCPGEnclaveAgentToolsMinVersion),
@@ -247,13 +247,8 @@ func TestBuildAWFConfigJSONEnclaveGitHubTools(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
 	enclaves := config["enclaves"].([]any)
 	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
-	assert.Equal(t, map[string]any{
-		"github": map[string]any{
-			"allowed":      []any{"list_issues", "issue_read"},
-			"allowedRepos": []any{"octo-org/private-service"},
-			"minIntegrity": "none",
-		},
-	}, agent["tools"])
+	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+	assert.NotContains(t, agent, "tools")
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
