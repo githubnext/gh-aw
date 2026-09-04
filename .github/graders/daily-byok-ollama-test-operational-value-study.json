@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-byok-ollama-test",
+  "recordedAt": "2026-09-04T15:31:49.000Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow is an infrastructure canary that verifies the Copilot BYOK proxy can reach a local Ollama endpoint. Its only observable result is whether the run reached the point of composing a haiku and filing a status issue, which is a restatement of the run's own execution success or failure. There is no intended repository state, consumer, or downstream outcome for the created issue to attain beyond reporting that test result, so any metric would substitute execution quality or output activity for operational value.",
+  "classification": {
+    "domain": "infrastructure monitoring",
+    "subdomain": null,
+    "taskArchetype": "connectivity canary",
+    "interventionType": "scheduled smoke test",
+    "outcomeType": "blocked operational outcome",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Test that the Copilot BYOK provider endpoint, backed by a local Ollama instance, can serve a chat completion, then report PASS/FAIL status in a created issue with a haiku as proof of a live agent turn.",
+      "alternatives": ["Treat the haiku's literary quality as the intended outcome.", "Treat the number of setup steps that ran (Ollama install, model pull, warm-up) as the intended outcome."],
+      "rationale": "The markdown states the agent's only task is to compose a haiku and report the result, and the description frames the entire workflow as a daily test of BYOK connectivity via Ollama, not a content or maintenance workflow.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:4", ".github/workflows/daily-byok-ollama-test.md:201-208"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No defensible operational opportunity can be frozen because the workflow does not define a repository state, consumer, or artifact that must exist after the connectivity check beyond a status report of the check itself.",
+      "alternatives": ["One opportunity per scheduled run", "One opportunity per created status issue"],
+      "rationale": "Both alternatives bind the opportunity to the run's own execution rather than to a specified repository need; the workflow has no backlog of connectivity issues to resolve, only a recurring self-test.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:5-6", ".github/workflows/daily-byok-ollama-test.md:177-186"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked; no stable opportunityKey or non-overlapping case assignment is available beyond the GitHub run ID, which measures execution rather than a repository outcome.",
+      "alternatives": ["Use the GitHub run ID as the opportunity key", "Use the created issue as the opportunity key"],
+      "rationale": "The run ID and the issue it produces are both artifacts of the test's own execution; using either as an opportunity key would score whether the job ran, not whether an intended repository outcome was attained.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:208", ".github/workflows/daily-byok-ollama-test.md:213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted evidence contract; the created issue's PASS status is a restatement that the run reached the reporting step, not proof of a downstream operational outcome.",
+      "alternatives": ["Parse the issue body's Status field as PASS/FAIL", "Use the run-success versus run-failure message as attainment", "Use presence of a non-expired issue as attainment"],
+      "rationale": "The issue body only ever states PASS in the markdown template; a failed BYOK call fails the job before the agent step runs, so the issue's existence and content are downstream of, and identical to, the run's own execution success.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:107-135", ".github/workflows/daily-byok-ollama-test.md:211-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not defined because no accepted outcome or stable evidence horizon exists beyond the run's own completion.",
+      "alternatives": ["Use the 24h issue expiration as the maturation window", "Use immediate evidence at run completion"],
+      "rationale": "The 24h expiration governs safe-output issue lifecycle for the next day's close-older-issues sweep, not a maturation window for an operational outcome; inventing one would not be grounded in a repository state that changes after the run.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:178-180"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric; design blocked rather than substituting execution success, output volume, or agent judgment of haiku quality for operational value.",
+      "alternatives": ["Binary PASS/FAIL parsed from the issue body", "Whether a haiku was produced", "Whether the run completed without error"],
+      "rationale": "Each alternative measures whether the test's own steps executed successfully, which is explicitly excluded from operational value by the grader design definition.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:201-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline; the workflow was introduced already as a BYOK connectivity test and pre-adoption repository state has no equivalent test to compare against.",
+      "alternatives": ["Use pre-adoption BYOK-related issues or incidents as a baseline", "Use manual verification history as a baseline"],
+      "rationale": "The adoption commit introduced this workflow as the repository's first automated BYOK/Ollama connectivity check; no prior repository evidence establishes a comparable frozen attainment measure.",
+      "evidenceReferences": ["3cf7c20d93971a0881f88432ee52b1f6d91c97bb"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostics; activity and output-volume measures are explicitly excluded from this blocked design.",
+      "alternatives": ["Report whether an issue was created", "Report haiku length", "Report elapsed setup time before the agent step"],
+      "rationale": "Adding diagnostics would not cure the absence of a defensible direct operational metric and could misrepresent test execution activity as operational value.",
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:20-106"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is a self-test of infrastructure connectivity, not a task that produces a judged repository outcome, so operational-value grading as defined by this design procedure does not apply.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:4", ".github/workflows/daily-byok-ollama-test.md:201-208"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The only repository artifact (the created status issue) is generated solely when the run has already succeeded, so it carries no attainment information independent of run success.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:211-213"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Scheduled runs recur daily on weekdays with no distinguishing operational case beyond the run itself, so opportunity keys would collapse to run identity.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:5-6"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "The workflow was introduced at commit 3cf7c20d93971a0881f88432ee52b1f6d91c97bb with no prior equivalent connectivity test in the repository to serve as a comparable baseline.",
+      "mitigation": null,
+      "evidenceReferences": ["3cf7c20d93971a0881f88432ee52b1f6d91c97bb"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Even if a metric were defined, external Ollama/BYOK infrastructure availability, not repository content, would drive the result, so no causal claim about repository outcomes could be supported.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-byok-ollama-test.md:12-18"]
+    }
+  ]
+}
