@@ -57,6 +57,9 @@ evals:
     question: Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?
   - id: compatibility_report_created
     question: Was a report created identifying compatibility gaps or was the cache updated with results?
+graders:
+  operational-value:
+    run: .github/graders/daily-aw-cross-repo-compile-check-operational-value.sh
 ---
 
 # Daily AW Cross-Repo Compilation Agent

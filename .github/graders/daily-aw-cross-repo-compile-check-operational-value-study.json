@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-aw-cross-repo-compile-check",
+  "recordedAt": "2026-09-04T15:22:39Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "workflow compatibility",
+    "subdomain": null,
+    "taskArchetype": "cross-repository validation",
+    "interventionType": "compile and upgrade",
+    "outcomeType": "compatible workflow state",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "cross-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Improve compatibility of popular repositories using gh-aw.",
+      "alternatives": ["Count repositories inspected", "Count issues created"],
+      "rationale": "The adoption workflow explicitly requires compile, fix, and recompile checks and identifies compatibility gaps.",
+      "evidenceReferences": ["PR #26802", "596c5c8aa2cf4866b7a6e85964ade809d17a45f8"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One selected public repository per repeated repository key.",
+      "alternatives": ["One aggregate value for all 20 repositories"],
+      "rationale": "Per-repository assignment preserves the operational unit and permits duplicate-key clustering.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:68-75"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use supplied result; reconstruct the first valid lock-file search result when case and event are null.",
+      "alternatives": ["Use agent-selected cache files", "Infer from activity volume"],
+      "rationale": "The workflow defines lock-file search as its selection mechanism; cache and activity are not attainment evidence.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:118-139"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Explicit post-fix compile success or failure for the assigned repository.",
+      "alternatives": ["Issue creation", "Trace or report volume"],
+      "rationale": "Compile status is direct evidence of the intended compatibility outcome.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:167-183"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation.",
+      "alternatives": ["No maturation window", "Thirty days"],
+      "rationale": "A stable one-week horizon allows post-fix evidence to settle while keeping daily observations comparable.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:140-187"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary post-fix compile attainment in [0,1].",
+      "alternatives": ["Compile error count", "Repositories attempted"],
+      "rationale": "A successful compile is the directly observable target; unavailable evidence remains null.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:189-206"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Pre-adoption compile rate"],
+      "rationale": "The pre-adoption record describes the workflow proposal but provides no comparable frozen compile-result dataset.",
+      "evidenceReferences": ["PR #26802", "596c5c8aa2cf4866b7a6e85964ade809d17a45f8"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "Historical code-search ordering may change when the original selected-repository result is unavailable.",
+      "mitigation": "Preserve supplied cases and use API order only for null historical cases.",
+      "evidenceReferences": [".github/workflows/daily-aw-cross-repo-compile-check.md:122-129"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "No comparable pre-adoption compile-result dataset was found.",
+      "mitigation": null,
+      "evidenceReferences": ["PR #26802"]
+    }
+  ]
+}
