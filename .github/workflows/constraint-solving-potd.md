@@ -8,6 +8,7 @@ max-daily-ai-credits: 10000
 timeout-minutes: 30
 
 permissions:
+  discussions: read
   models: read
 
 model: claude-haiku-4.5
@@ -43,6 +44,9 @@ evals:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+graders:
+  operational-value:
+    run: .github/graders/constraint-solving-potd-operational-value.sh
 ---
 
 # Constraint Solving — Problem of the Day

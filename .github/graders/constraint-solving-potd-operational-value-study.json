@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "constraint-solving-potd",
+  "recordedAt": "2026-09-04T14:54:21Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "constraint-solving education",
+    "subdomain": null,
+    "taskArchetype": "daily educational publication",
+    "interventionType": "automated discussion publishing",
+    "outcomeType": "qualifying discussion publication",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure publication of the workflow's requested daily constraint-solving discussion.",
+      "alternatives": ["Measure discussion quality or educational usefulness."],
+      "rationale": "The adoption-time workflow explicitly instructs the agent to publish a daily Discussion and defines its title prefix and category.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/constraint-solving-potd.md:48-50,77-137"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One UTC calendar-date publication opportunity per run.",
+      "alternatives": ["One opportunity per problem category", "One opportunity per Discussion number."],
+      "rationale": "The schedule is daily, while the workflow permits dispatches and does not provide a stable problem identifier before execution.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:4-6,54-67"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use case.date when present, otherwise the UTC date from run.createdAt; preserve duplicate date keys and rerun subjects.",
+      "alternatives": ["Assign by a generated problem name", "Assign only when an event payload is present."],
+      "rationale": "The date is available for every run and supports deterministic historical reconstruction when case and event are null.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:54-67"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Same-repository Discussions API records matching Announcements, the frozen title prefix, assigned UTC date, and cutoff.",
+      "alternatives": ["Agent evals", "OTLP traces", "Discussion body length or output volume."],
+      "rationale": "A created Discussion is the direct repository artifact requested by the workflow; evals, traces, and volume do not establish publication.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:24-33,141-157"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation, with cutoff capped at maturity.",
+      "alternatives": ["Immediate observation", "Thirty-day maturation."],
+      "rationale": "The workflow's publication is expected daily and the configured discussion lifecycle is seven days; a fixed seven-day horizon makes late evidence stable.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:28-33"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary direct attainment: 1 when at least one qualifying Discussion exists, otherwise 0; unavailable evidence is null.",
+      "alternatives": ["Discussion count as the primary metric", "A quality score based on body sections."],
+      "rationale": "Publication is the single directly observable operational outcome; count is retained only as a diagnostic and quality is not a frozen repository outcome.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:141-157"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Baseline from pre-adoption Discussions", "Baseline from eval pass rates."],
+      "rationale": "The first available workflow commit establishes intent but no comparable pre-adoption workflow opportunity or frozen contract exists; activity and evals are not valid substitutes.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Report qualifying discussion count separately with latest aggregation.",
+      "alternatives": ["Combine count with publication into an index", "Report agent output and trace counts."],
+      "rationale": "Count provides context without changing the single authoritative attainment value and avoids treating volume as operational value.",
+      "evidenceReferences": [".github/workflows/constraint-solving-potd.md:77-137"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "The Discussions API may be unavailable or may omit historical records at evaluation time.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "temporal",
+      "level": "medium",
+      "description": "A qualifying Discussion can be deleted or its category changed after collection.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "low",
+      "description": "The observation does not establish that the workflow caused a Discussion matching the contract.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
