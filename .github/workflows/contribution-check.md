@@ -13,6 +13,10 @@ permissions:
   issues: read
   pull-requests: read
 
+graders:
+  operational-value:
+    run: .github/graders/contribution-check-operational-value.sh
+
 env:
   TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
 

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "contribution-check",
+  "recordedAt": "2026-09-04T14:53:56Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "repository contributions",
+    "subdomain": null,
+    "taskArchetype": "contribution review",
+    "interventionType": "automated review report",
+    "outcomeType": "repository-visible report",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure whether each run produces its contribution-check report issue.",
+      "alternatives": ["Measure PR comments, labels, or agent verdict volume."],
+      "rationale": "The workflow explicitly compiles a report issue and treats report creation as a completion gate; comments and labels are secondary outputs.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:201-230"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One report-producing opportunity per workflow run.",
+      "alternatives": ["One opportunity per PR in the filtered batch."],
+      "rationale": "The workflow's atomic repository outcome is one consolidated report issue, while the batch size is capped and may be empty.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:134-147", ".github/workflows/contribution-check.md:209-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use run ID as the stable opportunity key and reconstruct the case from run subject fields when case and event are null.",
+      "alternatives": ["Reconstruct the historical PR batch from current PR state."],
+      "rationale": "Run ID identifies reruns as the same subject and avoids treating mutable current PR state as historical assignment evidence.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:130-146"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Same-repository issue with the frozen title prefix and exact run URL in its body, created by cutoff.",
+      "alternatives": ["Safe-output traces or agent evaluation results."],
+      "rationale": "The report issue is the accepted repository outcome; traces and activity do not demonstrate operational attainment.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:209-213", ".github/workflows/contribution-check.md:247-272"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Twenty-four hours after run creation with cutoff capped at maturity.",
+      "alternatives": ["Immediate-only observation or an open-ended horizon."],
+      "rationale": "The report is expected during the run, while a fixed day allows delayed safe-output completion and makes mature observations stable.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:201-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary report-issue attainment: 1 found, 0 absent, null unavailable.",
+      "alternatives": ["Proportion of PRs evaluated or number of comments and labels."],
+      "rationale": "A binary direct metric matches the singular intended report outcome without substituting output volume or agent judgment.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:118-121", ".github/workflows/contribution-check.md:209-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Baseline-comparable pre-adoption report attainment."],
+      "rationale": "The workflow was introduced at adoption and no comparable pre-adoption report contract exists in the recovered history.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Expose reportFound only as a separate diagnostic.",
+      "alternatives": ["Combine reportFound with comments, labels, or PR counts."],
+      "rationale": "No diagnostic is needed for the primary score; the boolean context remains separate and never contributes to value.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:215-232"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub issue listing can be unavailable or truncated by permissions or API failure.",
+      "mitigation": "Return null rather than zero and retry during historical replay.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:11-14"]
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "The report may be created after the run but before the fixed maturity horizon.",
+      "mitigation": "Use a 24-hour maturation window and cap evidenceCutoff.",
+      "evidenceReferences": [".github/workflows/contribution-check.md:201-213"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "The observation does not establish that the workflow caused the report issue.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
