@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-pr-merged-report",
+  "recordedAt": "2026-09-04T15:09:13Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "copilot-pr-merged-report is a pure analytics/reporting workflow: at adoption (commit 0d53b1fcfa831bbe0da078b9729b33bbb3221064, PR #5569, 2025-12-04) and unchanged today, its only action is to summarize Copilot PRs that already merged autonomously in the prior 24 hours and publish that summary as a discussion. The workflow does not create, resolve, or own any repository opportunity (no issue/PR is opened, fixed, reviewed, or otherwise changed by the run), so there is no attained repository outcome to bind a run to. The only observable signals are whether a report discussion was published, how many PRs/lines/test files it tallied, and how accurately it restated numbers already present in the PR/API data it read. Each of these is activity, output volume, or a re-derivation of already-computed data rather than a direct operational outcome, and the operational-value contract explicitly excludes activity, output volume, traces, and agent judgment as substitutes for attainment. No comparable pre-adoption evidence or opportunity exists either, since the workflow itself is the sole reporting mechanism being evaluated. Because no direct, defensible primary metric in [0,1] can be constructed without substituting one of these excluded proxies, this design is blocked rather than accepted or rejected on a specific formula.",
+  "classification": {
+    "domain": "engineering analytics reporting",
+    "subdomain": null,
+    "taskArchetype": "scheduled summary report",
+    "interventionType": "none (read-only reporting)",
+    "outcomeType": "discussion report publication",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time intent recovered from PR #5569 (commit 0d53b1fcfa831bbe0da078b9729b33bbb3221064): generate a daily summary of Copilot PRs merged in the prior 24 hours (merged-PR count, lines added/deleted, test files touched, workflow run timing) and publish it as an 'audits' discussion. No corrective, remediation, or acceptance action is specified for the run itself.",
+      "alternatives": [
+        "Treat the workflow as accountable for the code/test quality of the Copilot PRs it summarizes",
+        "Treat the workflow as responsible for triggering follow-up remediation on flagged PRs"
+      ],
+      "rationale": "The adoption PR title/body ('Add daily report generation for copilot pull requests') and the workflow's unchanged Mission section describe only report generation; no follow-up action, gate, or state change on the summarized PRs is ever performed by this workflow.",
+      "evidenceReferences": [
+        "commit 0d53b1fcfa831bbe0da078b9729b33bbb3221064 (PR #5569)",
+        ".github/workflows/copilot-pr-merged-report.md#Mission"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No repository opportunity (issue, PR, or otherwise) is created, resolved, or owned by a run; the run's only artifact is a discussion summarizing PRs that already merged before the run started.",
+      "alternatives": [
+        "Bind each run to the set of Copilot PRs merged in the preceding 24 hours and score attainment of a per-PR outcome such as continued PR mergeability",
+        "Bind each run to its scheduled reporting slot and score whether a report discussion appears for that period"
+      ],
+      "rationale": "The PRs being summarized are already merged and closed by the time the run executes, so the run cannot influence their outcome; treating 'a report exists for the period' as the opportunity reduces to scoring output volume, which the contract excludes.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-merged-report.md#Phase-1-Find-Merged-Copilot-PRs"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted repository evidence exists beyond the discussion the workflow itself creates and the already-merged PR data it reads; both are activity/output produced by or for the run rather than an outcome attained on an external opportunity.",
+      "alternatives": [
+        "Score discussion-creation success (a report was published) as accepted evidence",
+        "Score numeric accuracy of the report's line/test counts by re-querying the same PR API data the workflow already read"
+      ],
+      "rationale": "Discussion-creation success is output volume (a safe-output side effect), and re-deriving the same PR statistics to check accuracy only restates activity the workflow already performed; neither constitutes independent evidence of a repository outcome.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-merged-report.md#Phase-4-Create-Discussion"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No direct primary metric in [0,1] is defensible for this workflow; every candidate signal available (report published, PR/line/test counts tallied, report numeric accuracy, discussion engagement) is activity, output volume, a restatement of already-computed data, or an agent-judgment proxy, all of which the operational-value contract excludes.",
+      "alternatives": [
+        "Binary metric: did the run publish a report discussion",
+        "Accuracy metric: recomputed PR statistics compared to the report's stated numbers",
+        "Engagement metric: views/comments on the published discussion as a proxy for usefulness"
+      ],
+      "rationale": "Report-published and PR/line/test counts are output volume; recomputed accuracy re-derives the same activity rather than measuring an attained repository outcome; engagement metrics are indirect popularity/agent-perception proxies, not direct attainment evidence. No formulation avoids these exclusions.",
+      "evidenceReferences": [
+        ".github/workflows/copilot-pr-merged-report.md#Mission",
+        ".github/skills/operational-value-designer/SKILL.md"
+      ],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's stated deliverable is a scheduled analytics report; it never intervenes on repository state, so no repository outcome is attributable to a run beyond its own reporting activity.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-merged-report.md#Mission"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Even accuracy or engagement metrics on the published report would reflect reporting quality or audience reaction, not a repository outcome caused by the workflow's run.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Because the PRs summarized are already merged before the run starts, there is no deterministic way to bind a run to a single opportunity it could still influence, making assignment ambiguous rather than a design choice that could be frozen.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-pr-merged-report.md#Phase-1-Find-Merged-Copilot-PRs"]
+    }
+  ]
+}
