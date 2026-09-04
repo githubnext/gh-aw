@@ -389,7 +389,7 @@ func ensureGitAttributes() (bool, error) {
 		return false, err
 	}
 
-	modified := ensureRequiredGitAttributesEntry(lines)
+	lines, modified := ensureRequiredGitAttributesEntry(lines)
 	if !modified {
 		gitLog.Print(".gitattributes already contains required entries")
 		return false, nil
@@ -412,10 +412,13 @@ func readGitAttributesFile(path string) ([]string, error) {
 		return lines, nil
 	}
 	gitLog.Print("No existing .gitattributes file found")
-	return nil, nil
+	return []string{}, nil
 }
 
-func ensureRequiredGitAttributesEntry(lines []string) bool {
+func ensureRequiredGitAttributesEntry(lines []string) ([]string, bool) {
+	if lines == nil {
+		lines = []string{}
+	}
 	lockYmlEntry := constants.WorkflowsLockYmlGitAttributesEntry
 	requiredEntries := []string{lockYmlEntry}
 	modified := false
@@ -444,7 +447,7 @@ func ensureRequiredGitAttributesEntry(lines []string) bool {
 			modified = true
 		}
 	}
-	return modified
+	return lines, modified
 }
 
 // stageGitAttributesIfChanged stages .gitattributes if it was modified
