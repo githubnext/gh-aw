@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "cli-consistency-checker",
+  "recordedAt": "2026-09-04T14:31:43Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's intended outcome is finding and reporting CLI inconsistencies, but its only accepted run artifact is an agent-authored issue. Issue creation, finding counts, command counts, traces, and issue closure do not directly demonstrate that a CLI inconsistency was corrected. The repository has no frozen, machine-verifiable post-run evidence contract that binds a finding to a corrected CLI behavior, so any proposed numeric metric would substitute activity, output volume, or agent judgment for operational attainment.",
+  "classification": {
+    "domain": "CLI quality",
+    "subdomain": null,
+    "taskArchetype": "consistency audit",
+    "interventionType": "automated inspection",
+    "outcomeType": "defect correction",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the intended outcome as improved CLI consistency and documentation correctness, not inspection activity or issue production.",
+      "alternatives": ["Treat a successful inspection or created issue as attainment"],
+      "rationale": "The adoption workflow explicitly asks the agent to inspect help output and create a consolidated issue only when findings exist; those are means and outputs rather than correction evidence.",
+      "evidenceReferences": ["16164e95bef9de098ea023b5e663fcaa2eb67a3c:.github/workflows/cli-consistency-checker.md", ".github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One CLI consistency audit for the repository state at the run commit.",
+      "alternatives": ["One issue or finding per run", "One command inspected per run"],
+      "rationale": "The workflow describes a repository-wide audit, while issue and command counts are output and activity dimensions that cannot serve as operational value.",
+      "evidenceReferences": ["16164e95bef9de098ea023b5e663fcaa2eb67a3c:.github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Bind a run to its repository and commit SHA, retaining the same key for reruns of that subject.",
+      "alternatives": ["Bind a run to the created issue number", "Bind a run to the number of findings"],
+      "rationale": "Repository and commit identity are deterministic from the run subject; safe-output issue creation is optional and therefore cannot be the assignment key.",
+      "evidenceReferences": [".github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Require immutable repository evidence showing that an identified CLI inconsistency was corrected after the audit.",
+      "alternatives": ["Use the safe-output issue body as the outcome", "Use evaluator parsing of agent text or traces"],
+      "rationale": "The workflow freezes help output as an inspection source, but does not define a structured finding identifier, correction link, or accepted post-run repository state. The pre-adoption issue search found adjacent documentation work but no frozen correction protocol.",
+      "evidenceReferences": ["16164e95bef9de098ea023b5e663fcaa2eb67a3c:.github/workflows/cli-consistency-checker.md", "github/gh-aw#2445"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window is frozen because no accepted direct evidence can be collected at its end.",
+      "alternatives": ["Use the issue expiration period as maturation", "Use a fixed five-day correction window"],
+      "rationale": "An issue expiration or elapsed time does not make issue creation or closure evidence of a corrected CLI behavior.",
+      "evidenceReferences": [".github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric; design blocked.",
+      "alternatives": ["Issue-created binary", "1 minus normalized finding count", "Fraction of commands inspected"],
+      "rationale": "Each alternative measures activity, output volume, or an agent-authored classification rather than direct operational attainment, violating the direct-metric requirement.",
+      "evidenceReferences": [".github/skills/operational-value-designer/SKILL.md", ".github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline; the design is blocked before a comparable metric exists.",
+      "alternatives": ["Use pre-adoption issue volume as a baseline", "Use pre-adoption documentation activity as a baseline"],
+      "rationale": "Pre-adoption issue and documentation activity are not the same direct operational metric and must not be promoted to a baseline.",
+      "evidenceReferences": ["github/gh-aw#2445", "16164e95bef9de098ea023b5e663fcaa2eb67a3c"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Do not add diagnostics because the available diagnostics are the same prohibited activity and output measures.",
+      "alternatives": ["Report commands inspected", "Report findings or issue counts"],
+      "rationale": "Keeping those measures separate would not make them operational attainment; the study records the limitation instead.",
+      "evidenceReferences": [".github/workflows/cli-consistency-checker.md"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow audits and reports possible defects but does not itself define a machine-verifiable correction outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-consistency-checker.md"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "Run evidence consists of pre-collected help output and optional agent-authored issue text; no structured finding-to-fix evidence is archived.",
+      "mitigation": null,
+      "evidenceReferences": ["16164e95bef9de098ea023b5e663fcaa2eb67a3c:.github/workflows/cli-consistency-checker.md"]
+    },
+    {
+      "type": "assignment",
+      "level": "low",
+      "description": "Repository and run commit identity are deterministic, but they cannot make an unstructured finding-to-fix relationship observable.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-consistency-checker.md"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "unknown",
+      "description": "Later repository fixes cannot be attributed to this audit without a frozen finding identifier and correction protocol.",
+      "mitigation": null,
+      "evidenceReferences": ["github/gh-aw#2445"]
+    }
+  ]
+}
