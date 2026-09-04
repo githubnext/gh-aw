@@ -13609,6 +13609,7 @@
           "required": ["target"],
           "properties": {
             "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "status": { "type": "boolean", "default": false },
             "title": { "type": "boolean", "default": false },
             "body": { "type": "boolean", "default": false },
             "markdown-body": { "type": "boolean", "default": false },
