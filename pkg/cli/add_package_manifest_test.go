@@ -330,7 +330,7 @@ files:
 on: pull_request
 graders:
   operational-value:
-    run: .github/workflows/graders/shared-operational-value.sh
+    run: .github/graders/shared-operational-value.sh
 ---
 # Review
 `), nil
@@ -355,8 +355,8 @@ graders:
 			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 			require.NoError(t, err)
 			require.Len(t, pkg.ResourceFiles, 2)
-			assert.Equal(t, "packages/repo-assist/workflows/graders/shared-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
-			assert.Equal(t, ".github/workflows/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
+			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
+			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
 			assert.Equal(t, "packages/repo-assist/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].SourcePath)
 			assert.Equal(t, ".github/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].DestinationPath)
 			assert.True(t, isPackageResourceDestination(pkg.ResourceFiles[1].DestinationPath))

@@ -156,7 +156,7 @@ func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref
 			if !entry.isGraderEvaluator {
 				continue
 			}
-			resource := packageGraderEvaluatorResource(installable, entry.path, packagePath)
+			resource := packageGraderEvaluatorResource(installable, entry.path)
 			key := packageResourceDestinationKey(resource.DestinationPath)
 			if previousSource, exists := seen[key]; exists {
 				if previousSource != resource.SourcePath {
@@ -171,19 +171,15 @@ func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref
 	return resourceFiles, nil
 }
 
-func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath, packagePath string) resolvedPackageResource {
+func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath string) resolvedPackageResource {
 	if localPath, ok := strings.CutPrefix(runPath, "./"); ok {
 		return resolvedPackageResource{
 			SourcePath:      path.Join(path.Dir(installable.SourcePath), localPath),
 			DestinationPath: path.Join(path.Dir(installable.DestinationPath), localPath),
 		}
 	}
-	sourcePath := joinRepositoryPackagePath(packagePath, runPath)
-	if localWorkflowsPath, ok := strings.CutPrefix(runPath, constants.WorkflowsDirSlash); ok {
-		sourcePath = path.Join(path.Dir(installable.SourcePath), localWorkflowsPath)
-	}
 	return resolvedPackageResource{
-		SourcePath:      sourcePath,
+		SourcePath:      runPath,
 		DestinationPath: runPath,
 	}
 }
