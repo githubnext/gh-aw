@@ -213,6 +213,9 @@ const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.15"
 
 // MCPGEnclaveAgentToolsMinVersion is the first MCPG version whose distinct
 // enclave identity supports agent.tools.github allowlists and guard policies.
+// Currently identical to MCPGEnclaveGitHubIssuesMinVersion because both
+// enclave GitHub shapes share the same distinct-identity implementation;
+// kept as a separate constant so the two gates can diverge independently.
 const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
