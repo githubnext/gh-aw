@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "artifacts-summary",
+  "recordedAt": "2026-09-04T14:14:57Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow is an informational inventory that creates a discussion report, but it does not specify or directly evidence a repository outcome such as an artifact-retention change or storage reduction. Artifact counts, report completeness, safe-output creation, and agent evaluations are activity or output measures, so no defensible direct attainment metric exists without inventing an intervention or outcome.",
+  "classification": {
+    "domain": "repository artifact governance",
+    "subdomain": null,
+    "taskArchetype": "artifact inventory",
+    "interventionType": "informational reporting",
+    "outcomeType": "artifact usage visibility",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "index",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the stated intent as producing a repository-wide artifact-usage summary for recent workflow runs.",
+      "alternatives": ["Treat recommendations in the report as an artifact-retention intervention."],
+      "rationale": "The workflow asks for workflow and artifact statistics, a markdown table, and insights/recommendations, but does not direct any repository change.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:62-92", "134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A scheduled or manually requested repository artifact-inventory opportunity.",
+      "alternatives": ["A per-workflow artifact-retention optimization opportunity."],
+      "rationale": "The workflow is triggered weekly or manually and reviews all workflows, while no retention or cleanup action is part of its contract.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:5-7", ".github/workflows/artifacts-summary.md:64-75"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Bind each run to its repository and run ID, preserving duplicate runs as repeated observations.",
+      "alternatives": ["Bind a run to each workflow that appears in the report."],
+      "rationale": "The run subject is deterministic, but neither assignment yields an operational case with an observable post-run outcome.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:5-7", ".github/workflows/artifacts-summary.md:80-87"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Use repository Actions metadata and the created discussion only as diagnostic evidence.",
+      "alternatives": ["Use report row counts or discussion existence as attainment evidence."],
+      "rationale": "The requested API data and discussion are direct evidence of analysis/output, not evidence that an operational artifact policy or storage outcome was attained.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:80-108"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric.",
+      "alternatives": ["Fraction of workflows represented in the report.", "Change in artifact storage after recommendations."],
+      "rationale": "The first is report completeness, and the second is not specified or attributable to this workflow; neither is a frozen direct attainment measure.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:62-75", ".github/workflows/artifacts-summary.md:94-108"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window.",
+      "alternatives": ["Use seven days to observe storage after recommendations."],
+      "rationale": "Maturation cannot make an unspecified operational outcome observable; adding a window would invent an intervention contract.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:64-75", ".github/workflows/artifacts-summary.md:110-116"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Use pre-adoption artifact counts or storage as a baseline."],
+      "rationale": "Historical artifact activity would be a proxy and cannot serve as a baseline for an operational outcome the workflow does not define.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:64-75", "134fc10e16a282117bfb386199c1d775a0a8f288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Do not publish diagnostics because no direct primary metric is defensible.",
+      "alternatives": ["Publish artifact count, total size, or report-production status as diagnostics."],
+      "rationale": "Those values remain useful to the report but are activity/output measures and would obscure the blocked design rather than clarify operational attainment.",
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:66-92", ".github/workflows/artifacts-summary.md:110-116"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow may inform a later human retention decision, but that downstream decision is outside the workflow contract and cannot be attributed or observed here.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:87-92"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The adoption commit is the available workflow introduction point in this checkout; no pre-adoption operational outcome or intervention evidence is defined.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/artifacts-summary.md:1-116"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Any later storage change could result from unrelated workflow edits or retention policies rather than this informational report.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/artifacts-summary.md:110-116"]
+    }
+  ]
+}
