@@ -33,6 +33,8 @@ func TestIsSafeGitRevisionArg(t *testing.T) {
 		{"empty", "", false},
 		{"leading dash", "-oops", false},
 		{"leading double dash", "--upload-pack=evil", false},
+		{"newline", "origin/main\n--help", false},
+		{"unicode control character", "origin/main\u202e", false},
 		{"plain branch", "main", true},
 		{"remote branch", "origin/main", true},
 		{"contains dash not leading", "feature-branch", true},

@@ -20,10 +20,11 @@ import (
 var gitLog = logger.New("cli:git")
 
 // isSafeGitRevisionArg reports whether ref cannot be misinterpreted as a git
-// CLI flag by rejecting empty strings and values starting with "-". It does
-// not validate that ref is a well-formed git revision.
+// CLI flag or terminal input by rejecting empty strings, values starting with
+// "-", and control characters. It does not validate that ref is a well-formed
+// git revision.
 func isSafeGitRevisionArg(ref string) bool {
-	return ref != "" && !strings.HasPrefix(ref, "-")
+	return ref != "" && !strings.HasPrefix(ref, "-") && !containsControlCharacters(ref)
 }
 
 // validateRelPathForGit rejects relative paths that could be misinterpreted as
@@ -732,10 +733,11 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 		return status, fmt.Errorf("unexpected upstream ref %q", upstream)
 	}
 
-	// Check if there are commits in the current branch that affect this file and aren't in upstream
+	// Check if there are commits in the current branch that affect this file and aren't in upstream.
+	// Pass upstream as a standalone revision argument instead of composing a revision expression.
 	// #nosec G204 -- upstream is validated above by isSafeGitRevisionArg and relPath was
 	// validated by validateRelPathForGit; "--" separates revision args from the path.
-	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
+	cmd = exec.Command("git", "-C", gitRoot, "log", "--oneline", "HEAD", "--not", upstream, "--", relPath)
 	output, err = cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to check unpushed commits: %v", err)
