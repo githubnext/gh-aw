@@ -953,7 +953,7 @@
                     },
                     "sensitivity": {
                       "type": "string",
-                      "enum": ["public", "internal", "confidential", "sealed"]
+                      "enum": ["public", "trusted", "internal", "confidential", "sealed"]
                     }
                   }
                 }
@@ -1081,7 +1081,7 @@
                     },
                     "sensitivity": {
                       "type": "string",
-                      "enum": ["public", "internal", "confidential", "sealed"]
+                      "enum": ["public", "trusted", "internal", "confidential", "sealed"]
                     }
                   }
                 }
@@ -1152,7 +1152,7 @@
         },
         "privateRepos": {
           "type": "array",
-          "description": "Private repositories a bounded agent may reason about, each with a trusted confidentiality category that fixes its per-run information budget (`public` unmetered, `internal` 64 bits/run, `confidential` 8 bits/run, `sealed` 0 bits/run — never launches an enclave). Each `repo` must be a bare `owner/repo` slug — no scheme, host, credentials, path traversal, query string, fragment, or wildcard. Repository names must be unique case-insensitively. Bounded agents keep a ledger separate from bounded queries.",
+          "description": "Repositories a bounded agent may reason about, each with a trusted confidentiality category that fixes its per-run information budget (`public` and `trusted` unmetered, `internal` 64 bits/run, `confidential` 8 bits/run, `sealed` 0 bits/run — never launches an enclave). Trusted enclave responses may contain free-form strings only inside strict structured schemas. Each `repo` must be a bare `owner/repo` slug — no scheme, host, credentials, path traversal, query string, fragment, or wildcard. Repository names must be unique case-insensitively. Bounded agents keep a ledger separate from bounded queries.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -1165,7 +1165,7 @@
               },
               "sensitivity": {
                 "type": "string",
-                "enum": ["public", "internal", "confidential", "sealed"],
+                "enum": ["public", "trusted", "internal", "confidential", "sealed"],
                 "description": "Confidentiality category, which fixes this repository's immutable per-run information budget. Cannot be increased by configuration."
               }
             }
