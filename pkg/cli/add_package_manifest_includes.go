@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -380,7 +381,75 @@ func isSupportedAgentFilePath(p string) bool {
 }
 
 func isSupportedManifestIncludePath(p string) bool {
+	if strings.Contains(filepath.ToSlash(p), "*") {
+		parent, ok := manifestIncludeWildcardParent(p)
+		return ok && isSupportedManifestWildcardParent(parent)
+	}
 	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p)
+}
+
+// isManifestIncludeWildcard reports whether p uses the supported wildcard form: a
+// single trailing path segment named "*".
+func isManifestIncludeWildcard(p string) bool {
+	_, ok := manifestIncludeWildcardParent(p)
+	return ok
+}
+
+func manifestIncludeWildcardParent(p string) (string, bool) {
+	slashed := filepath.ToSlash(p)
+	if !strings.HasSuffix(slashed, "/*") || strings.Count(slashed, "*") != 1 {
+		return "", false
+	}
+	parent := strings.TrimSuffix(slashed, "/*")
+	if parent == "" {
+		return "", false
+	}
+	cleaned, err := cleanManifestRelativePath(parent)
+	if err != nil || cleaned != parent {
+		return "", false
+	}
+	return parent, true
+}
+
+func isSupportedManifestWildcardParent(parent string) bool {
+	switch parent {
+	case "workflows", "agentic-workflows", constants.WorkflowsDir,
+		"skills", "agents", constants.GithubDir + packageSkillsDirectory,
+		constants.GithubDir + packageAgentsDirectory:
+		return true
+	default:
+		return false
+	}
+}
+
+func expandManifestWildcardMatches(parent string, candidates []string, isSupported func(string) bool) []repositoryPackageInclude {
+	sort.Strings(candidates)
+	matches := make([]repositoryPackageInclude, 0, len(candidates))
+	for _, candidate := range candidates {
+		candidate = filepath.ToSlash(candidate)
+		relative := strings.TrimPrefix(candidate, parent+"/")
+		if relative == candidate || relative == "" || strings.Contains(relative, "/") {
+			continue
+		}
+		source := path.Join(parent, relative)
+		if isSupported(source) {
+			matches = append(matches, repositoryPackageInclude{Source: source})
+		}
+	}
+	return matches
+}
+
+func deduplicateManifestIncludes(includes []repositoryPackageInclude) []repositoryPackageInclude {
+	deduplicated := make([]repositoryPackageInclude, 0, len(includes))
+	seen := make(map[repositoryPackageInclude]struct{}, len(includes))
+	for _, include := range includes {
+		if _, exists := seen[include]; exists {
+			continue
+		}
+		seen[include] = struct{}{}
+		deduplicated = append(deduplicated, include)
+	}
+	return deduplicated
 }
 
 func isSupportedSkillDirectoryPrefix(cleaned string) bool {
