@@ -4,7 +4,7 @@ set -euo pipefail
 
 REPOSITORY=github/gh-aw
 WORKFLOW_NAME="Daily Cache Strategy Analyzer"
-MATURATION_SECONDS=2592000
+MATURATION_SECONDS=604800
 
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/daily-cache-strategy-operational-value.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
@@ -15,19 +15,19 @@ definition() {
   "schemaVersion": 4, "grader": "operational-value",
   "repository": "github/gh-aw", "workflowName": "Daily Cache Strategy Analyzer",
   "sourcePath": ".github/workflows/daily-cache-strategy-analyzer.md",
-  "adoption": {"commit": "0b31555f2cb0c44c6096b05df65a10fef57a64dc", "adoptedAt": "2026-09-04T15:25:17Z"},
-  "operationalValue": "Resolve the cache-strategy findings assigned to the run.",
+  "adoption": {"commit": "d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062", "adoptedAt": "2026-04-25T11:37:21Z"},
+  "operationalValue": "Resolve the cache-strategy findings assigned to the run with merged workflow changes.",
   "evidence": {
     "opportunity": "One or more cache-strategy issues created from the run's detected cache-memory findings.",
-    "assignment": "Issues whose title starts [cache-strategy] and whose body contains the run's GitHub Actions URL. Key: cache-findings:<sorted issue numbers>; repeated keys are retained.",
-    "accepted": "The linked issue is closed with state_reason completed by the evidence cutoff; issue creation, discussion reports, traces, and agent judgments are excluded.",
+    "assignment": "Issues whose title starts [cache-strategy] and whose body contains the run's GitHub Actions URL. Key: cache-strategy-findings:<run ID>; reruns and repeated keys are retained.",
+    "accepted": "The linked issue is closed with state_reason completed and has a timeline-linked PR, merged by the cutoff, that changes .github/workflows/. Issue creation, discussion reports, traces, and agent judgments are excluded.",
     "repositories": ["github/gh-aw"],
-    "collection": "With issues:read, GitHub issue search reconstructs linked issues and the Issues API supplies each issue's state and state_reason.",
-    "maturation": "Thirty days after run creation: the workflow permits seven days for safe issue output, followed by a fixed remediation observation window.",
-    "zeroRule": "A linked issue that remains open or closes for a reason other than completed scores 0.",
+    "collection": "With issues:read and pull-requests:read, GitHub APIs reconstruct linked issues, their timelines, and linked PR merge/file evidence.",
+    "maturation": "Seven days after run creation, matching the adoption-time safe issue-output expiry and cache-hit threshold.",
+    "zeroRule": "A linked issue without a qualifying merged workflow-file fix scores 0.",
     "missingRule": "Unavailable search or issue evidence, an invalid case, and runs with no linked remediation issue score null, never 0."
   },
-  "primaryMetric": {"id": "cache-finding-remediation", "formula": "completedLinkedIssues / linkedIssues, where completed means state=closed and state_reason=completed at the capped cutoff.", "direction": "higher_is_better"},
+  "primaryMetric": {"id": "cache-finding-remediation", "formula": "resolvedLinkedIssues / linkedIssues, where resolved means closed completed plus a timeline-linked PR merged by the capped cutoff that changes .github/workflows/.", "direction": "higher_is_better"},
   "baseline": {"mode": "attainment-only", "value": null, "evidenceCutoff": null, "provenance": []},
   "validationExamples": {
     "targetAttained": {"valid":true,"linkedIssues":2,"completedIssues":2},
@@ -100,9 +100,34 @@ reconstruct_case() {
     jq -cn --argjson issues "$issues" '{issues:$issues}'
 }
 
+issue_has_merged_workflow_fix() {
+    local repository=$1 issue_number=$2 cutoff=$3 timeline pr_numbers pr_number pr files
+    timeline=$(gh api -H "Accept: application/vnd.github+json" \
+        "repos/$repository/issues/$issue_number/timeline" 2>"$tmp_dir/timeline-error") || return 1
+    pr_numbers=$(printf '%s\n' "$timeline" | jq -r '
+        [.[]? | .source.issue? | select(.pull_request != null) | .number] | unique[]') || return 1
+    while IFS= read -r pr_number; do
+        [[ -n $pr_number ]] || continue
+        pr=$(gh api "repos/$repository/pulls/$pr_number" 2>"$tmp_dir/pull-error") || return 1
+        if [[ $(printf '%s\n' "$pr" | jq -r --arg cutoff "$cutoff" \
+            '.merged_at != null and .merged_at <= $cutoff') != true ]]; then
+            continue
+        fi
+        files=$(gh api --paginate "repos/$repository/pulls/$pr_number/files?per_page=100" \
+            2>"$tmp_dir/pull-files-error") || return 1
+        if printf '%s\n' "$files" | jq -se 'flatten | any(.[]; (.filename | startswith(".github/workflows/")))' \
+            >/dev/null; then
+            return 0
+        fi
+    done <<EOF
+$pr_numbers
+EOF
+    return 2
+}
+
 grade_run() {
     local request repository workflow run_id created_at evidence_at matures_at cutoff
-    local case_json issue_numbers issue_number issue completed=0 issue_count=0 evidence value key reconstruction_status
+    local case_json issue_numbers issue_number issue completed=0 issue_count=0 evidence value key reconstruction_status fix_status
 
     request=$(cat)
     if ! printf '%s\n' "$request" | jq -e '
@@ -163,7 +188,15 @@ grade_run() {
         fi
         if [[ $(printf '%s\n' "$issue" | jq -r --arg cutoff "$cutoff" \
             '.state == "closed" and .state_reason == "completed" and .closed_at != null and .closed_at <= $cutoff') == true ]]; then
-            completed=$((completed + 1))
+            if issue_has_merged_workflow_fix "$repository" "$issue_number" "$cutoff"; then
+                completed=$((completed + 1))
+            else
+                fix_status=$?
+                if [[ $fix_status -ne 2 ]]; then
+                    emit_null "run:$run_id" "$case_json" "$cutoff" "$matures_at" "pull request evidence unavailable"
+                    return
+                fi
+            fi
         fi
         issue_count=$((issue_count + 1))
     done <<EOF
@@ -172,7 +205,7 @@ EOF
     evidence=$(jq -cn --argjson linkedIssues "$issue_count" --argjson completedIssues "$completed" \
         '{valid:true,linkedIssues:$linkedIssues,completedIssues:$completedIssues}')
     value=$(printf '%s\n' "$evidence" | metric)
-    key="cache-findings:$(printf '%s\n' "$case_json" | jq -r '.issues | sort | join(",")')"
+    key="cache-strategy-findings:$run_id"
     jq -cn --argjson value "$value" --arg opportunityKey "$key" --argjson case "$case_json" \
         --arg evidenceCutoff "$cutoff" --arg maturesAt "$matures_at" --arg repository "$repository" \
         '{value:$value,opportunityKey:$opportunityKey,case:$case,evidenceCutoff:$evidenceCutoff,

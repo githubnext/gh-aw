@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "repository": "github/gh-aw",
   "workflowId": "daily-cache-strategy-analyzer",
-  "recordedAt": "2026-09-04T15:29:39Z",
+  "recordedAt": "2026-09-04T15:43:00Z",
   "recorder": "copilot-coding-agent",
   "designOutcome": "accepted",
   "rejectionReason": null,
@@ -25,10 +25,10 @@
   "decisions": [
     {
       "type": "intent",
-      "selected": "Measure remediation of cache-strategy findings rather than workflow activity.",
+      "selected": "Measure cache-strategy findings resolved by merged workflow changes rather than workflow activity.",
       "alternatives": ["Count issues or discussions created"],
-      "rationale": "The adoption-time mission is to identify repeated cache problems and raise actionable issues; creation alone is not repository attainment.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L84-L88"],
+      "rationale": "The adoption-time mission is to identify repeated cache problems and raise actionable issues; creation and issue closure alone do not demonstrate the cache strategy changed.",
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L45-L51"],
       "changedDuringReview": false
     },
     {
@@ -36,39 +36,39 @@
       "selected": "Assign the linked [cache-strategy] issues whose bodies name the workflow run URL.",
       "alternatives": ["Assign every cache-memory workflow examined that day"],
       "rationale": "The issue template embeds the producing run URL, which provides a stable, reconstructable ownership key without relying on agent logs.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L326-L365"],
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L280-L280"],
       "changedDuringReview": false
     },
     {
       "type": "evidence",
-      "selected": "Accept a linked issue closed as completed.",
-      "alternatives": ["Agent log cache-hit signals", "Issue creation"],
-      "rationale": "Completed issue state is durable repository evidence of the assigned remediation; logs and output creation are activity evidence.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"],
+      "selected": "Accept a completed linked issue only when a timeline-linked PR merged a workflow-file change.",
+      "alternatives": ["Agent log cache-hit signals", "Issue creation", "Completed issue without a merged workflow change"],
+      "rationale": "The issue and merged workflow change are durable repository evidence of an assigned remediation; logs and output creation are activity evidence.",
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L185-L198"],
       "changedDuringReview": false
     },
     {
       "type": "metric",
-      "selected": "Use completed linked issues divided by linked issues.",
+      "selected": "Use linked issues resolved with qualifying merged workflow changes divided by linked issues.",
       "alternatives": ["Binary any-issue-completed score", "Cache-hit rate from logs"],
       "rationale": "The proportion measures full attainment for all findings assigned to one run without combining operational attainment with diagnostics.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"],
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L185-L198"],
       "changedDuringReview": false
     },
     {
       "type": "maturation",
-      "selected": "Thirty days after the run.",
-      "alternatives": ["Immediate scoring", "Seven-day scoring"],
-      "rationale": "The workflow allows seven days for safe issue output, so a fixed thirty-day horizon preserves a post-output remediation window and stable observations.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L50-L56"],
+      "selected": "Seven days after the run.",
+      "alternatives": ["Immediate scoring", "Thirty-day scoring"],
+      "rationale": "The adoption-time workflow uses a seven-day issue-output expiry and a seven-day cache-hit threshold, providing a frozen, workflow-specific horizon.",
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L27-L33", "d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L185-L198"],
       "changedDuringReview": false
     },
     {
       "type": "baseline",
       "selected": "attainment-only with null baseline",
       "alternatives": ["Pre-adoption comparable baseline"],
-      "rationale": "The workflow was introduced in its adoption commit and no pre-adoption workflow cases exist to score under this contract.",
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc", "36b5fa159d2f09a0b187a01e275ec984491e1145"],
+      "rationale": "The [cache-strategy] assignment prefix was introduced in the adoption commit, so no pre-adoption cases are comparable under this contract.",
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062", "d57a99d1bd2d3c0950d6e8898eab1caedc7bf2fa"],
       "changedDuringReview": false
     }
   ],
@@ -85,7 +85,7 @@
       "level": "high",
       "description": "A completed issue does not establish that this workflow caused the remediation.",
       "mitigation": null,
-      "evidenceReferences": ["0b31555f2cb0c44c6096b05df65a10fef57a64dc:.github/workflows/daily-cache-strategy-analyzer.md#L250-L257"]
+      "evidenceReferences": ["d2cbe62b12c10fc9cd60ab8b00a50a87c6b9a062:.github/workflows/daily-cache-strategy-analyzer.md#L185-L198"]
     }
   ]
 }
