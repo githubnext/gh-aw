@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "agent-performance-analyzer",
+  "recordedAt": "2026-09-04T11:50:31.802Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "agentic workflow operations",
+    "subdomain": null,
+    "taskArchetype": "performance analysis",
+    "interventionType": "recommendation escalation",
+    "outcomeType": "recommendation implementation",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure implementation of the workflow's improvement recommendations.",
+      "alternatives": ["Use workflow execution quality scores", "Count reports, issues, or safe outputs"],
+      "rationale": "The adoption-time workflow explicitly names recommendation implementation as a success metric and directs creation of improvement issues; execution scores and output counts are not repository outcomes.",
+      "evidenceReferences": [".github/workflows/agent-performance-analyzer.md@1d2348547791a4aa269c8c3341c905de444146e0", "commit 1d2348547791a4aa269c8c3341c905de444146e0"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The run's marker-attributed improvement issues created before the evidence cutoff.",
+      "alternatives": ["Every analyzed workflow", "The weekly performance discussion"],
+      "rationale": "The adoption-time instructions make improvement issues the concrete escalation for critical and systemic findings, while the discussion is a report rather than the recommended change.",
+      "evidenceReferences": [".github/workflows/agent-performance-analyzer.md@1d2348547791a4aa269c8c3341c905de444146e0", "issue #35219"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Match the immutable gh-aw workflow marker for the GitHub run ID and workflow ID.",
+      "alternatives": ["Match issue titles", "Assign by calendar day"],
+      "rationale": "The generated issue marker contains both the producing run ID and workflow ID, which prevents nearby runs or similarly titled issues from sharing ownership and permits historical reconstruction.",
+      "evidenceReferences": ["issue #35219", "issue #51073"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "A linked pull request merged by the cutoff implements an assigned recommendation.",
+      "alternatives": ["Issue closed state alone", "Reactions or comments on the issue"],
+      "rationale": "A merged linked pull request is immutable repository evidence of a delivered change; closure, discussion, and engagement alone do not establish implementation.",
+      "evidenceReferences": ["issue #35219", "pull request #35233"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Thirty days after the run creation time.",
+      "alternatives": ["Workflow completion time", "No fixed horizon"],
+      "rationale": "Implementation is delayed and the adoption-time workflow explicitly evaluates inactive agents over a 30-day window; a fixed creation-time horizon makes mature observations reproducible.",
+      "evidenceReferences": [".github/workflows/agent-performance-analyzer.md@1d2348547791a4aa269c8c3341c905de444146e0"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "The proportion of assigned improvement issues with at least one linked pull request merged by the cutoff.",
+      "alternatives": ["Change in agent quality score", "Number of recommendations adopted"],
+      "rationale": "The proportion is one direct, bounded attainment measure. Quality scores are workflow-generated assessments, and an unnormalized count is activity volume.",
+      "evidenceReferences": [".github/workflows/agent-performance-analyzer.md@1d2348547791a4aa269c8c3341c905de444146e0", "issue #35219"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with a null baseline.",
+      "alternatives": ["Pre-adoption implementation-rate baseline"],
+      "rationale": "The workflow was introduced in its adoption commit and its first parent contains no workflow or marker-attributed recommendation issues, so no equivalent pre-adoption population exists.",
+      "evidenceReferences": ["commit 1d2348547791a4aa269c8c3341c905de444146e0", "commit fb834ae6248f2dc4faa4bf3e8dd10a6b07d414ab"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "The evaluator returns null when GitHub search or pull-request linkage evidence cannot be retrieved; it never treats that failure as an unimplemented recommendation.",
+      "mitigation": null,
+      "evidenceReferences": ["issue #35219"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "A merged linked pull request demonstrates implementation of a recommendation but does not demonstrate that the analyzer caused the merge or improved ecosystem performance.",
+      "mitigation": null,
+      "evidenceReferences": ["issue #35219", "pull request #35233"]
+    }
+  ]
+}

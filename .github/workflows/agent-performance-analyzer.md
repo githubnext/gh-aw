@@ -75,6 +75,9 @@ evals:
     question: Did the agent analyze AI agent performance and quality metrics across the repository?
   - id: report_produced
     question: Was a report or discussion produced summarizing agent effectiveness findings?
+graders:
+  operational-value:
+    run: .github/graders/agent-performance-analyzer-operational-value.sh
 
 ---
 
