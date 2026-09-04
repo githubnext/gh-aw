@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 type resolvedRepositoryPackageAssets struct {
@@ -50,6 +51,10 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 	warnings = append(warnings, assets.warnings...)
+	projectFile, err := resolveRepositoryPackageProjectFile(ctx, owner, repo, packagePath, ref, host)
+	if err != nil {
+		return nil, err
+	}
 	if err := validateUniqueResolvedPackageFiles(assets.installationSources, assets.resourceFiles, assets.extensionFiles.skillFiles, assets.extensionFiles.agentFiles, manifestPath); err != nil {
 		return nil, err
 	}
@@ -61,10 +66,26 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not contain any installable workflows, resources, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', resources in aw.yml, skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	if len(assets.installationSources) == 0 && len(assets.resourceFiles) == 0 && len(assets.extensionFiles.skillFiles) == 0 && len(assets.extensionFiles.agentFiles) == 0 && projectFile == nil {
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, resources, skills, agents, or aw.json project settings (either explicitly declared or auto-discovered). Add workflows under 'workflows/', resources in aw.yml, skills under 'skills/', agents under 'agents/', or an aw.json file", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
-	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, assets.installationSources, assets.resourceFiles, assets.extensionFiles, warnings), nil
+	pkg := newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, assets.installationSources, assets.resourceFiles, assets.extensionFiles, warnings)
+	pkg.ProjectFile = projectFile
+	return pkg, nil
+}
+
+func resolveRepositoryPackageProjectFile(ctx context.Context, owner, repo, packagePath, ref, host string) (*resolvedPackageResource, error) {
+	sourcePath := joinRepositoryPackagePath(packagePath, workflow.RepoConfigFileName)
+	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, sourcePath, ref, host); err != nil {
+		if isRepositoryFileNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read package project file %q: %w", sourcePath, err)
+	}
+	return &resolvedPackageResource{
+		SourcePath:      sourcePath,
+		DestinationPath: workflow.RepoConfigFileName,
+	}, nil
 }
 
 func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref, host, repoSlug string, nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
