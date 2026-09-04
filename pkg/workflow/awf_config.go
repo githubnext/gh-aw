@@ -228,7 +228,8 @@ type AWFModelFallbackConfig struct {
 // AWFAPITargetConfig is a single API proxy target entry.
 // Maps to: --<provider>-api-target <host>
 type AWFAPITargetConfig struct {
-	// Host is the hostname (and optional port) of the API endpoint.
+	// Host is the hostname (and optional port) of the API endpoint, or an
+	// explicit http:// URL when the effective AWF version supports HTTP targets.
 	Host string `json:"host,omitempty"`
 
 	// AuthHeader is the custom authentication header name sent with API requests.
