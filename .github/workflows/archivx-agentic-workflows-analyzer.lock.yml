@@ -1437,7 +1437,8 @@ jobs:
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true' ||
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true' ||
-      needs.activation.outputs.skill_install_failure_count != '0' || needs.activation.outputs.steering_issue_number != '')
+      needs.activation.outputs.skill_install_failure_count != '' && needs.activation.outputs.skill_install_failure_count != '0' ||
+      needs.activation.outputs.steering_issue_number != '')
     runs-on: ubuntu-slim
     permissions:
       actions: read
