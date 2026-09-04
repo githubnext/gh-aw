@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "claude-code-user-docs-review",
+  "recordedAt": "2026-09-04T14:31:23.765Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The adoption-time workflow defines an open-ended documentation review and a discussion report, but no deterministic, repository-observable definition of a Claude Code user's successful documentation adoption or of a finding's resolution. The available run artifacts would measure agent findings or discussion creation rather than the intended user outcome.",
+  "classification": {
+    "domain": "developer documentation",
+    "subdomain": null,
+    "taskArchetype": "documentation accessibility review",
+    "interventionType": "daily discussion audit",
+    "outcomeType": "successful Claude Code adoption",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Assess documentation blockers that would prevent a Claude Code user who does not use Copilot from understanding and adopting gh-aw.",
+      "alternatives": ["Measure production of a documentation review discussion"],
+      "rationale": "The adoption-time workflow states this mission and separately requires a discussion report; the report is not the user-adoption outcome.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:61-68", "134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:114-129"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No per-run operational opportunity was selected.",
+      "alternatives": ["Assign the documentation snapshot at the run SHA", "Assign a discussion created by the run"],
+      "rationale": "The workflow asks for an open-ended review of multiple documentation areas and does not define a bounded gap, target audience action, or ownership rule that could bind one run to one outcome.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:68-74", "134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:77-139"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No direct accepted evidence was selected.",
+      "alternatives": ["Discussion creation and contents", "Agent severity findings", "Documentation-file changes after a report"],
+      "rationale": "Discussion and agent findings are workflow output or judgment, while later file changes alone do not deterministically demonstrate that an identified Claude Code user blocker was resolved.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:84-104", "134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:114-139"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Blocked without a primary operational-value metric.",
+      "alternatives": ["Count reported documentation gaps", "Score whether a discussion was created", "Score post-report documentation edits"],
+      "rationale": "Each alternative measures activity, output volume, or agent judgment rather than direct attainment of successful Claude Code user adoption.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:116-137", "08ec132134a38e1af1a3da57d68cbc6a922980c6:docs/src/content/docs/engines/claude.md:8-81"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow's stated adoption outcome is user behavior external to the repository, but the workflow declares only repository documentation and GitHub discussion inputs.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:61-75", "134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:114-139"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "No adoption-time rule chooses one documentation gap or one user task for a run, so historical runs with null case and event cannot reconstruct an outcome subject.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:77-108"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Repository documentation edits following a review cannot be attributed to the workflow or verified as resolving an agent-identified blocker without agent judgment.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288:.github/workflows/claude-code-user-docs-review.md:114-139"]
+    }
+  ]
+}
