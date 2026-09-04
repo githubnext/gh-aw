@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "ab-testing-advisor",
+  "recordedAt": "2026-09-04T11:52:24Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "workflow experimentation",
+    "subdomain": null,
+    "taskArchetype": "campaign adoption",
+    "interventionType": "experiment proposal",
+    "outcomeType": "configuration adoption",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure adoption of the issue-linked proposed experiment and required paired eval in the selected workflow.",
+      "alternatives": ["Measure campaign issue creation", "Measure experiment run volume"],
+      "rationale": "The workflow creates an implementation issue that explicitly requires both an experiments block and a paired eval; creation and run volume are not operational attainment.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:171-181", ".github/workflows/ab-testing-advisor.md:212-240"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One campaign issue and its target workflow.",
+      "alternatives": ["All workflows lacking experiments", "A daily advisor run"],
+      "rationale": "The issue records the selected workflow and the concrete configuration to be adopted.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:187-240"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Advisor run ID embedded in the campaign issue, with issue number, workflow, experiment ID, and eval ID parsed from that issue.",
+      "alternatives": ["Creation-time matching", "Randomly selected workflow name only"],
+      "rationale": "The durable run ID gives one deterministic historical reconstruction path when case and event are null.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:195-201"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Target workflow source at the cutoff commit contains the campaign issue-linked experiment and paired eval.",
+      "alternatives": ["Issue checklist state", "Agent output or trace"],
+      "rationale": "Repository configuration is direct evidence that the proposed experiment was adopted.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:214-240"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Fourteen days after run creation.",
+      "alternatives": ["Immediate observation", "Issue closure time"],
+      "rationale": "This matches the workflow's campaign issue expiry and caps later observations at a stable cutoff.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:22-27"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary 1 only for both the issue-linked experiment and paired eval; 0 for available evidence of either absent; null for unavailable evidence.",
+      "alternatives": ["Partial configuration completeness", "Issue creation success"],
+      "rationale": "Both additions are explicitly required for the campaign and form one direct attainment target.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:181", ".github/workflows/ab-testing-advisor.md:268-273"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Pre-adoption adoption rate"],
+      "rationale": "Before adoption there was no advisor-assigned campaign issue with the required durable run binding, so the same metric has no comparable pre-adoption subjects.",
+      "evidenceReferences": ["git:82239c030d6a1ef6ec8b87a80a1346eeef211f8d"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Historical runs before the durable Advisor run ID is present in campaign issues cannot be assigned.",
+      "mitigation": "Return null assignment-unavailable; do not infer by issue timing or score zero.",
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:195-201"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "An adopted configuration can be implemented by a human or another agent after the campaign issue.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ab-testing-advisor.md:268-276"]
+    }
+  ]
+}

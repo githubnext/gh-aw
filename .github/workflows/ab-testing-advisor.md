@@ -60,6 +60,9 @@ evals:
     question: Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?
   - id: workflow_targeted
     question: Did the agent identify and target a workflow that lacks an experiments section?
+graders:
+  operational-value:
+    run: .github/graders/ab-testing-advisor-operational-value.sh
 
 ---
 
@@ -198,6 +201,7 @@ Create a GitHub issue with:
 **Workflow file**: `.github/workflows/<workflow-name>.md`
 **Selected dimension**: <dimension>
 **Triggered by**: `ab-testing-advisor` on <date>
+**Advisor run ID**: `${{ github.run_id }}`
 
 ---
 
