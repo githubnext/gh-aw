@@ -57,6 +57,9 @@ evals:
     question: Did the agent generate an ACE editor session link in response to the /ace command?
   - id: comment_posted
     question: Was a comment posted to the pull request with the ACE editor link?
+graders:
+  operational-value:
+    run: .github/graders/ace-editor-operational-value.sh
 
 ---
 

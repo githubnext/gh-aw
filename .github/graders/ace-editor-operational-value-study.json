@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "ace-editor",
+  "recordedAt": "2026-09-04T11:48:05Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "collaborative code editing",
+    "subdomain": null,
+    "taskArchetype": "session-link request",
+    "interventionType": "comment automation",
+    "outcomeType": "session link delivered",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Deliver an ACE session link in a pull-request comment after /ace.",
+      "alternatives": ["Count workflow runs or generated text."],
+      "rationale": "The workflow description, action step, and evals explicitly require a session link and posted comment.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:5-10", ".github/workflows/ace-editor.md:30-59"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One pull-request comment containing /ace.",
+      "alternatives": ["One workflow run", "One repository-wide daily window."],
+      "rationale": "The slash command is the explicit user request and identifies the pull request.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:5-10"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use archived case/event PR number, then reconstruct from the latest qualifying /ace comment before run creation.",
+      "alternatives": ["Use only the run ID", "Guess from the default branch."],
+      "rationale": "The primary binding is deterministic when archived metadata exists; the fallback preserves historical runs with null case and event.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:8-10"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Same-repository pull-request issue comment containing the exact generated ACE URL by cutoff.",
+      "alternatives": ["Eval answers", "Agent traces", "Comment count."],
+      "rationale": "The workflow's GitHub Script creates the operational artifact directly; repository comments are observable and auditable.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:41-46"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Twenty-four hours after run creation, with cutoff capped at maturity.",
+      "alternatives": ["No maturity cap", "Seven-day maturation."],
+      "rationale": "The intended comment is immediate, while a fixed one-day window allows delayed delivery and produces stable post-maturity observations.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:30-46"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary direct attainment: matching link comment is 1, otherwise 0; unavailable evidence is null.",
+      "alternatives": ["Link-text similarity score", "Comment latency", "Activity volume."],
+      "rationale": "A posted link is the exact intended repository outcome and supports one authoritative value in [0,1].",
+      "evidenceReferences": [".github/workflows/ace-editor.md:41-46"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Pre-adoption comparable baseline", "Workflow-run success baseline."],
+      "rationale": "The workflow's first commit has no parent and no pre-adoption workflow or accepted outcome evidence is available in the repository.",
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d", ".github/workflows/ace-editor.md:1-64"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Expose only missing-reason and run identity diagnostics; never combine them with value.",
+      "alternatives": ["Add activity or trace-derived diagnostics."],
+      "rationale": "Diagnostics support data-quality review without treating execution activity as operational attainment.",
+      "evidenceReferences": [".github/workflows/ace-editor.md:41-46"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "Historical runs without archived case and event can have multiple qualifying /ace comments near run creation.",
+      "mitigation": "Use the latest qualifying comment before creation and retain bounded-ambiguity classification.",
+      "evidenceReferences": []
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub comment history may be unavailable to the evaluator or truncated by API access.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "No comparable pre-adoption evidence exists because the adoption commit is the repository root.",
+      "mitigation": null,
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d"]
+    }
+  ]
+}
