@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "copilot-centralization-drilldown",
+  "recordedAt": "2026-09-04T14:54:57.653Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow does not retain a canonical candidate identity or run marker in its draft issue, so historical runs with null case and event cannot be assigned to a unique opportunity and no direct attainment metric can be replayed deterministically.",
+  "classification": {
+    "domain": "workflow centralization",
+    "subdomain": null,
+    "taskArchetype": "draft design",
+    "interventionType": "reviewable draft",
+    "outcomeType": "centralization adoption",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Assess adoption of the centralized workflow, shared prompt, or playbook proposed for one mined candidate.",
+      "alternatives": ["Count creation of a draft issue", "Score agent evaluations or AI-credit estimates"],
+      "rationale": "The adoption workflow asks for a concrete reviewable draft to reduce repeated prompting; an issue or evaluation is an output or activity, not the intended repository outcome.",
+      "evidenceReferences": ["e6f1181698dbc9e80403bb3fd084ce6f8492a3f0", ".github/workflows/copilot-centralization-drilldown.md:187-215"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One canonical mined centralization candidate.",
+      "alternatives": ["The dispatch run ID", "The draft issue number"],
+      "rationale": "The candidate is the unit for which a centralized artifact could be adopted, but the workflow does not persist a canonical candidate identifier.",
+      "evidenceReferences": [".github/workflows/copilot-centralization-drilldown.md:7-27", ".github/workflows/copilot-centralization-drilldown.md:122-162"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked: null case and event cannot reconstruct a unique candidate.",
+      "alternatives": ["Derive a key from candidate_title", "Match issue titles by the configured prefix"],
+      "rationale": "Candidate titles are normalized only in temporary runner files, and draft issue titles have no required candidate or run marker; either alternative can match multiple opportunities.",
+      "evidenceReferences": [".github/workflows/copilot-centralization-drilldown.md:76-95", ".github/workflows/copilot-centralization-drilldown.md:197-215"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Reject issue creation as the primary evidence.",
+      "alternatives": ["A merged centralized artifact linked to the canonical candidate", "A durable candidate-to-artifact record"],
+      "rationale": "The workflow only creates a draft issue and does not define a repository record that links a candidate to later adoption evidence.",
+      "evidenceReferences": [".github/workflows/copilot-centralization-drilldown.md:197-223"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No frozen baseline.",
+      "alternatives": ["Comparable pre-adoption attainment baseline"],
+      "rationale": "The workflow was added in its adoption commit and its first parent contains no comparable drilldown outcome record.",
+      "evidenceReferences": ["e6f1181698dbc9e80403bb3fd084ce6f8492a3f0", "cb89a18cc061f65dcc0e8781f39d6b8a78f687ad"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Historical replay provides null case and event, while dispatch inputs and normalized candidate data exist only in temporary runner files.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-centralization-drilldown.md:47-162"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The created issue does not require a canonical candidate identifier or a link to subsequent artifact adoption.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/copilot-centralization-drilldown.md:197-223"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "No pre-adoption workflow or equivalent outcome record exists for comparable scoring.",
+      "mitigation": null,
+      "evidenceReferences": ["e6f1181698dbc9e80403bb3fd084ce6f8492a3f0", "cb89a18cc061f65dcc0e8781f39d6b8a78f687ad"]
+    }
+  ]
+}
