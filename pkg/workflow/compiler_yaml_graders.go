@@ -246,6 +246,7 @@ func (c *Compiler) generateGraderRedactionStep(yaml *strings.Builder, yamlConten
 func collectGraderArtifactPaths(graders *GradersConfig) []string {
 	paths := []string{
 		constants.GradersDirSlash + constants.GraderManifestFilename.String(),
+		constants.GradersDirSlash + constants.GraderPayloadFilename.String(),
 		constants.GradersDirSlash + constants.GraderResultsFilename.String(),
 	}
 	if graders != nil {

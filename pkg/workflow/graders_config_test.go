@@ -721,16 +721,19 @@ func TestCollectGraderArtifactPaths(t *testing.T) {
 	paths := collectGraderArtifactPaths(&GradersConfig{
 		Graders: map[string]*GraderDefinition{"operational-value": grader},
 	})
-	if len(paths) != 3 {
-		t.Fatalf("expected 3 paths, got %d", len(paths))
+	if len(paths) != 4 {
+		t.Fatalf("expected 4 paths, got %d", len(paths))
 	}
 	if !strings.Contains(paths[0], "grader_manifest.json") {
 		t.Fatal("expected grader_manifest.json in paths")
 	}
-	if !strings.Contains(paths[1], "grader_results.json") {
+	if !strings.Contains(paths[1], "grader_payload.json") {
+		t.Fatal("expected grader_payload.json in paths")
+	}
+	if !strings.Contains(paths[2], "grader_results.json") {
 		t.Fatal("expected grader_results.json in paths")
 	}
-	if !strings.Contains(paths[2], "operational_value_evaluator.sh") {
+	if !strings.Contains(paths[3], "operational_value_evaluator.sh") {
 		t.Fatal("expected operational_value_evaluator.sh in paths")
 	}
 }
@@ -739,8 +742,8 @@ func TestCollectGraderArtifactPathsWithoutOperationalValue(t *testing.T) {
 	paths := collectGraderArtifactPaths(&GradersConfig{
 		Graders: map[string]*GraderDefinition{"retries": {ID: "retries"}},
 	})
-	if len(paths) != 2 {
-		t.Fatalf("expected manifest and results paths, got %v", paths)
+	if len(paths) != 3 {
+		t.Fatalf("expected manifest, payload, and results paths, got %v", paths)
 	}
 }
 

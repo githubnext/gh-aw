@@ -1193,6 +1193,7 @@ jobs:
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent/graders/grader_manifest.json
+            /tmp/gh-aw/agent/graders/grader_payload.json
             /tmp/gh-aw/agent/graders/grader_results.json
           if-no-files-found: ignore
       - name: Upload agent artifacts
@@ -1214,6 +1215,7 @@ jobs:
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/otlp-export-errors.jsonl
             /tmp/gh-aw/agent/graders/grader_manifest.json
+            /tmp/gh-aw/agent/graders/grader_payload.json
             /tmp/gh-aw/agent/graders/grader_results.json
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
