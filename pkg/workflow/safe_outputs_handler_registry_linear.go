@@ -9,6 +9,7 @@ var linearHandlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("team_id", c.TeamID).
+			AddIfNotEmpty("project_id", c.ProjectID).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
