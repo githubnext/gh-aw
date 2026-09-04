@@ -579,7 +579,19 @@ func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifes
 		if err != nil {
 			return nil, err
 		}
-		if len(nodeInstallables) == 0 && len(node.Manifest.Imports) == 0 {
+		hasExplicitWorkflowSelector := len(node.Manifest.Files) > 0
+		for _, include := range node.Manifest.Includes {
+			if include.isMapping() || isSupportedPackageInstallablePath(include.Source) {
+				hasExplicitWorkflowSelector = true
+				break
+			}
+			if parent, wildcard := manifestIncludeWildcardParent(include.Source); wildcard &&
+				(parent == "workflows" || parent == "agentic-workflows" || parent == constants.WorkflowsDir) {
+				hasExplicitWorkflowSelector = true
+				break
+			}
+		}
+		if len(nodeInstallables) == 0 && !hasExplicitWorkflowSelector && len(node.Manifest.Imports) == 0 {
 			scanned, err := scanLocalRepositoryPackageInstallablePaths(node.PackagePath)
 			if err != nil {
 				return nil, err
@@ -594,14 +606,14 @@ func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifes
 		}
 		assets.resourceFiles = append(assets.resourceFiles, nodeResources...)
 
-		nodeSkillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(node.PackagePath, append(append([]string{}, node.Manifest.Skills...), includeSkillDirs...))
+		nodeSkillFiles, skillWarnings, err := resolveLocalPackageSkillFiles(node.PackagePath, packageRoot, append(append([]string{}, node.Manifest.Skills...), includeSkillDirs...))
 		if err != nil {
 			return nil, err
 		}
 		assets.extensionFiles.skillFiles = append(assets.extensionFiles.skillFiles, nodeSkillFiles...)
 		assets.warnings = append(assets.warnings, skillWarnings...)
 
-		nodeAgentFiles, agentWarnings, err := resolveLocalPackageAgentFiles(node.PackagePath, append(append([]string{}, node.Manifest.Agents...), includeAgentFiles...))
+		nodeAgentFiles, agentWarnings, err := resolveLocalPackageAgentFiles(node.PackagePath, packageRoot, append(append([]string{}, node.Manifest.Agents...), includeAgentFiles...))
 		if err != nil {
 			return nil, err
 		}
@@ -624,7 +636,23 @@ func expandLocalPackageWildcardIncludes(includes []repositoryPackageInclude, pac
 		if strings.HasPrefix(parent, constants.GithubDir) {
 			sourceDir = packageRoot
 		}
-		entries, err := os.ReadDir(filepath.Join(sourceDir, filepath.FromSlash(parent)))
+		wildcardDir := filepath.Join(sourceDir, filepath.FromSlash(parent))
+		resolvedWildcardDir, err := filepath.EvalSymlinks(wildcardDir)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to resolve includes wildcard %q in %q: %w", include.Source, packageDir, err)
+		}
+		resolvedSourceDir, err := filepath.EvalSymlinks(sourceDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve package directory %q: %w", sourceDir, err)
+		}
+		relativeToRoot, err := filepath.Rel(resolvedSourceDir, resolvedWildcardDir)
+		if err != nil || relativeToRoot == ".." || strings.HasPrefix(relativeToRoot, ".."+string(os.PathSeparator)) {
+			return nil, fmt.Errorf("includes wildcard %q resolves outside package directory %q", include.Source, sourceDir)
+		}
+		entries, err := os.ReadDir(resolvedWildcardDir)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
@@ -802,7 +830,7 @@ func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg 
 	return parsedSpecs
 }
 
-func resolveLocalPackageSkillFiles(packageDir string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+func resolveLocalPackageSkillFiles(packageDir, packageRoot string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
 	seenSkillDirs := make(map[string]struct{})
 	var warnings []string
 
@@ -817,7 +845,11 @@ func resolveLocalPackageSkillFiles(packageDir string, explicitSkillDirs []string
 	}
 
 	for _, dir := range explicitSkillDirs {
-		appendIfNew(filepath.Join(packageDir, filepath.FromSlash(dir)))
+		baseDir := packageDir
+		if strings.HasPrefix(filepath.ToSlash(dir), constants.GithubDir) {
+			baseDir = packageRoot
+		}
+		appendIfNew(filepath.Join(baseDir, filepath.FromSlash(dir)))
 	}
 	autoScanned, err := scanLocalPackageSkillDirs(packageDir)
 	if err != nil {
@@ -832,7 +864,11 @@ func resolveLocalPackageSkillFiles(packageDir string, explicitSkillDirs []string
 
 	manifestSkillDirSet := make(map[string]struct{}, len(explicitSkillDirs))
 	for _, dir := range explicitSkillDirs {
-		manifestSkillDirSet[filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(dir)))] = struct{}{}
+		baseDir := packageDir
+		if strings.HasPrefix(filepath.ToSlash(dir), constants.GithubDir) {
+			baseDir = packageRoot
+		}
+		manifestSkillDirSet[filepath.Clean(filepath.Join(baseDir, filepath.FromSlash(dir)))] = struct{}{}
 	}
 
 	var skillFiles []resolvedPackageSkillFile
@@ -873,11 +909,15 @@ func collectLocalPackageSkillDirFiles(skillDir string) ([]resolvedPackageSkillFi
 	return skillFiles, err
 }
 
-func resolveLocalPackageAgentFiles(packageDir string, explicitAgentFiles []string) ([]string, []string, error) {
+func resolveLocalPackageAgentFiles(packageDir, packageRoot string, explicitAgentFiles []string) ([]string, []string, error) {
 	if len(explicitAgentFiles) > 0 {
 		agentFiles := make([]string, 0, len(explicitAgentFiles))
 		for _, sourcePath := range explicitAgentFiles {
-			agentFiles = append(agentFiles, filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(sourcePath))))
+			baseDir := packageDir
+			if strings.HasPrefix(filepath.ToSlash(sourcePath), constants.GithubDir) {
+				baseDir = packageRoot
+			}
+			agentFiles = append(agentFiles, filepath.Clean(filepath.Join(baseDir, filepath.FromSlash(sourcePath))))
 		}
 		return agentFiles, nil, nil
 	}

@@ -225,9 +225,21 @@ func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, 
 	}
 	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(expandedIncludes)
 	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
+	hasExplicitWorkflowSelector := len(manifest.Files) > 0
+	for _, include := range manifest.Includes {
+		if include.isMapping() || isSupportedPackageInstallablePath(include.Source) {
+			hasExplicitWorkflowSelector = true
+			break
+		}
+		if parent, wildcard := manifestIncludeWildcardParent(include.Source); wildcard &&
+			(parent == "workflows" || parent == "agentic-workflows" || parent == constants.WorkflowsDir) {
+			hasExplicitWorkflowSelector = true
+			break
+		}
+	}
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
-	if len(installationSources) == 0 && len(manifest.Imports) == 0 {
+	if len(installationSources) == 0 && !hasExplicitWorkflowSelector && len(manifest.Imports) == 0 {
 		addPackageManifestLog.Print("No explicit installable paths in manifest, scanning repository for installables")
 		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
@@ -255,6 +267,7 @@ func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, p
 		}
 
 		remoteParent := parent
+		rootRelative := strings.HasPrefix(parent, constants.GithubDir)
 		if packagePath != "" && !strings.HasPrefix(parent, constants.GithubDir) {
 			remoteParent = joinRepositoryPackagePath(packagePath, parent)
 		}
@@ -270,7 +283,7 @@ func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, p
 		fileCandidates := make([]string, 0, len(files))
 		for _, candidate := range files {
 			candidate = filepath.ToSlash(candidate)
-			if packagePath != "" && !strings.HasPrefix(parent, constants.GithubDir) {
+			if packagePath != "" && !rootRelative {
 				candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
 			}
 			fileCandidates = append(fileCandidates, candidate)
@@ -282,7 +295,7 @@ func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, p
 		dirCandidates := make([]string, 0, len(dirs))
 		for _, candidate := range dirs {
 			candidate = filepath.ToSlash(candidate)
-			if packagePath != "" && !strings.HasPrefix(parent, constants.GithubDir) {
+			if packagePath != "" && !rootRelative {
 				candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
 			}
 			dirCandidates = append(dirCandidates, candidate)

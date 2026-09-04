@@ -382,7 +382,8 @@ func isSupportedAgentFilePath(p string) bool {
 
 func isSupportedManifestIncludePath(p string) bool {
 	if strings.Contains(filepath.ToSlash(p), "*") {
-		return isManifestIncludeWildcard(p)
+		parent, ok := manifestIncludeWildcardParent(p)
+		return ok && isSupportedManifestWildcardParent(parent)
 	}
 	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p)
 }
@@ -408,6 +409,17 @@ func manifestIncludeWildcardParent(p string) (string, bool) {
 		return "", false
 	}
 	return parent, true
+}
+
+func isSupportedManifestWildcardParent(parent string) bool {
+	switch parent {
+	case "workflows", "agentic-workflows", constants.WorkflowsDir,
+		"skills", "agents", constants.GithubDir + packageSkillsDirectory,
+		constants.GithubDir + packageAgentsDirectory:
+		return true
+	default:
+		return false
+	}
 }
 
 func expandManifestWildcardMatches(parent string, candidates []string, isSupported func(string) bool) []repositoryPackageInclude {
