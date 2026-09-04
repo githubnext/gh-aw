@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "cloclo",
+  "recordedAt": "2026-09-04T14:34:36Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "No direct operational attainment metric is defensible from the adoption-time contract. Cloclo handles ad-hoc requests whose requested actions and repository outcomes vary by conversation; the workflow specifies a summary comment and possible safe outputs, but no stable repository state target or deterministic accepted evidence for all trigger types.",
+  "classification": {
+    "domain": "repository assistance",
+    "subdomain": null,
+    "taskArchetype": "ad-hoc request handling",
+    "interventionType": "agent-mediated response",
+    "outcomeType": "conversation-specific repository action",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "mixed",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "immediate",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Treat the adoption-time intent as analyzing the supplied conversation content, executing its requested action, and adding a summary comment.",
+      "alternatives": ["Treat the workflow as a code-change automation workflow.", "Treat the workflow as a repository-health intervention."],
+      "rationale": "The mission explicitly says to analyze comment content and determine the requested action, while the workflow description requires a summary comment on the original thread.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/cloclo.md:71-73", ".github/workflows/cloclo.md:129-149"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The conversation-triggered request is the opportunity, but its desired operational outcome remains request-specific.",
+      "alternatives": ["Use every workflow run as a repository-level opportunity.", "Use creation of a pull request as the universal opportunity."],
+      "rationale": "Triggers include issue, pull request, and discussion content plus issue labels, and the mission delegates the requested action to the conversation content rather than naming one common outcome.",
+      "evidenceReferences": [".github/workflows/cloclo.md:75-82", ".github/workflows/cloclo.md:94-116", ".github/workflows/cloclo.md:131"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Do not freeze an operational case assignment.",
+      "alternatives": ["Bind each run to its triggering issue, pull request, or discussion.", "Bind each run to the run ID and score summary-comment presence."],
+      "rationale": "The source exposes several trigger surfaces and request types, while historical replay with null case and event would require evidence that identifies both the originating conversation and the requested outcome. A run ID alone would collapse assignment into activity.",
+      "evidenceReferences": [".github/workflows/cloclo.md:4-11", ".github/workflows/cloclo.md:77-82", "docs/adr/55155-operational-value-grader.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted evidence contract.",
+      "alternatives": ["Use the workflow's summary comment as direct evidence.", "Use pull requests, comments, or safe-output records as outcome evidence."],
+      "rationale": "A summary comment proves workflow output, and safe-output records prove activity, but neither proves that an arbitrary conversation-specific requested action attained its operational outcome. The alternatives also do not cover all supported trigger types consistently.",
+      "evidenceReferences": [".github/workflows/cloclo.md:73", ".github/workflows/cloclo.md:133-149", ".github/workflows/cloclo.md:152-168"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window.",
+      "alternatives": ["Use a fixed seven-day post-run window.", "Use the first summary comment after the run."],
+      "rationale": "Without a defensible operational outcome and accepted evidence, a time window cannot make attainment stable; the alternatives would measure delayed activity or output rather than operational value.",
+      "evidenceReferences": ["docs/adr/55155-operational-value-grader.md", ".github/workflows/cloclo.md:73", ".github/workflows/cloclo.md:131"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric.",
+      "alternatives": ["Binary summary-comment presence.", "Pull-request or comment creation rate.", "Agent judgment of whether the request was fulfilled."],
+      "rationale": "These candidates measure activity, output volume, or agent judgment and cannot be converted into one direct repository outcome shared by all cloclo opportunities. Per the study requirement, no proxy is substituted.",
+      "evidenceReferences": [".github/workflows/cloclo.md:73", ".github/workflows/cloclo.md:131-149"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Use pre-adoption comment or pull-request activity as a baseline.", "Use a baseline of zero completed actions."],
+      "rationale": "Pre-adoption evidence does not define a comparable operational outcome for this newly adopted, ad-hoc workflow. Activity and output counts are not valid substitutes for a direct metric.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", "docs/adr/55155-operational-value-grader.md:3-4"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "The requested action can differ for every conversation, so no common direct outcome scale is specified.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cloclo.md:131"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Runs may originate from issue, pull request, discussion, or label triggers, and historical requests do not provide a frozen case contract.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cloclo.md:77-82"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "Summary comments and safe outputs are observable, but they do not establish attainment of the requested operational outcome.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cloclo.md:73", ".github/workflows/cloclo.md:133-149"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "The workflow is a general-purpose assistant rather than a workflow with a single stable repository-health or lifecycle target.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cloclo.md:71-73", ".github/workflows/cloclo.md:129-149"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "unknown",
+      "description": "No direct metric or accepted outcome evidence exists from which to make an operational attribution comparison.",
+      "mitigation": null,
+      "evidenceReferences": ["docs/adr/55155-operational-value-grader.md"]
+    }
+  ]
+}
