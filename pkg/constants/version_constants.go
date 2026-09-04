@@ -162,6 +162,10 @@ const AWFCloudHypervisorFilesystemAllowWriteMinVersion Version = "v0.28.6"
 // config schema accepts enclaves[].agent.github.cli = "issues-read-v1".
 const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
+// AWFEnclaveAgentToolsMinVersion is the first AWF version whose
+// config schema accepts enclaves[].agent.tools.github.
+const AWFEnclaveAgentToolsMinVersion Version = "v0.28.13"
+
 // AWFEnclaveTrustedSensitivityMinVersion is the first AWF version whose
 // enclave response schema permits free-form string values for trusted repositories.
 const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
@@ -206,6 +210,10 @@ const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 // MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
 // concurrent per-agent isolation for the issues-read-v1 enclave capability.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.15"
+
+// MCPGEnclaveAgentToolsMinVersion is the first MCPG version whose distinct
+// enclave identity supports agent.tools.github allowlists and guard policies.
+const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.

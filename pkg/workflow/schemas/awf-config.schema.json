@@ -1063,6 +1063,45 @@
                         "enum": ["issues-read-v1"]
                       }
                     }
+                  },
+                  "tools": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "github": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["list_issues", "issue_read"]
+                            },
+                            "minItems": 1
+                          },
+                          "allowedRepos": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": ["all", "public", "${{ github.repository }}"]
+                              },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "minItems": 1
+                              }
+                            ]
+                          },
+                          "minIntegrity": {
+                            "type": "string",
+                            "enum": ["none", "unapproved", "approved", "merged"]
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               },

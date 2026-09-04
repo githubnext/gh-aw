@@ -14,19 +14,55 @@ import (
 )
 
 func TestEnclaveGitHubMCPAgentPolicy(t *testing.T) {
-	data := enclaveGitHubIssuesWorkflowData()
-	data.Enclaves[0].Repos = []*EnclaveRepository{
-		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
-		{Repo: "octo-org/public-docs", Sensitivity: "public"},
+	tests := []struct {
+		name             string
+		data             *WorkflowData
+		wantTools        []string
+		wantRepos        []string
+		wantMinIntegrity string
+	}{
+		{
+			name: "legacy profile defaults",
+			data: func() *WorkflowData {
+				data := enclaveGitHubIssuesWorkflowData()
+				data.Enclaves[0].Repos = []*EnclaveRepository{
+					{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
+					{Repo: "octo-org/public-docs", Sensitivity: "public"},
+				}
+				return data
+			}(),
+			wantTools:        []string{"list_issues", "issue_read"},
+			wantRepos:        []string{"octo-org/trusted-service", "octo-org/public-docs"},
+			wantMinIntegrity: "approved",
+		},
+		{
+			name: "agent tools config overrides defaults",
+			data: func() *WorkflowData {
+				data := enclaveGitHubToolsWorkflowData()
+				data.Enclaves[0].Repos = []*EnclaveRepository{
+					{Repo: "octo-org/private-service", Sensitivity: "confidential"},
+					{Repo: "octo-org/public-docs", Sensitivity: "public"},
+				}
+				data.Enclaves[0].Agent.Tools.GitHub.AllowedRepos = GitHubReposScope{"octo-org/public-docs"}
+				return data
+			}(),
+			wantTools:        []string{"list_issues", "issue_read"},
+			wantRepos:        []string{"octo-org/public-docs"},
+			wantMinIntegrity: "none",
+		},
 	}
 
-	policy := enclaveGitHubMCPAgentPolicy(data)
-	assert.Equal(t, []string{"github"}, policy.Servers)
-	assert.Equal(t, map[string][]string{"github": {"list_issues", "issue_read"}}, policy.Tools)
-	assert.Equal(t, map[string]any{
-		"repos":         []string{"octo-org/trusted-service", "octo-org/public-docs"},
-		"min-integrity": "approved",
-	}, policy.AllowOnly)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			policy := enclaveGitHubMCPAgentPolicy(tt.data)
+			assert.Equal(t, []string{"github"}, policy.Servers)
+			assert.Equal(t, map[string][]string{"github": tt.wantTools}, policy.Tools)
+			assert.Equal(t, map[string]any{
+				"repos":         tt.wantRepos,
+				"min-integrity": tt.wantMinIntegrity,
+			}, policy.AllowOnly)
+		})
+	}
 }
 
 func TestEnclaveGitHubMCPGatewayConfiguration(t *testing.T) {
@@ -129,4 +165,21 @@ func TestEnclaveGitHubMCPVersionGates(t *testing.T) {
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), string(constants.MCPGEnclaveGitHubIssuesMinVersion))
+}
+
+func TestEnclaveGitHubToolsVersionGates(t *testing.T) {
+	data := enclaveGitHubToolsWorkflowData()
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveAgentToolsMinVersion)
+	require.NoError(t, validateEnclavesConfig(data))
+
+	data.NetworkPermissions.Firewall.Version = "v0.28.12"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), string(constants.AWFEnclaveAgentToolsMinVersion))
+
+	data = enclaveGitHubToolsWorkflowData()
+	data.SandboxConfig.MCP.Version = "v0.4.14"
+	err = validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), string(constants.MCPGEnclaveAgentToolsMinVersion))
 }
