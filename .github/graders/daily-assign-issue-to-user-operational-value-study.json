@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-assign-issue-to-user",
+  "recordedAt": "2026-09-04T15:19:55Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "issue triage",
+    "subdomain": null,
+    "taskArchetype": "ownership assignment",
+    "interventionType": "automated assignment",
+    "outcomeType": "retained ownership",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "proportion",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "exact",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Retain ownership of issues assigned to a relevant recent contributor.",
+      "alternatives": ["Issue closure after assignment"],
+      "rationale": "The adoption workflow explicitly directs assignment to a relevant contributor; it does not require issue completion.",
+      "evidenceReferences": ["commit 4e2c72975191a91f5e9cb8ac4a06cc12d3a03575"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Issues with github-actions[bot] assignment events in the one-day run window.",
+      "alternatives": ["All open unassigned issues", "Issue comments"],
+      "rationale": "Assignment events identify the concrete issues selected by a run without relying on traces or comments.",
+      "evidenceReferences": ["commit 4e2c72975191a91f5e9cb8ac4a06cc12d3a03575"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Reconstruct the complete batch from issue events when case and event are null.",
+      "alternatives": ["Require archived workflow output"],
+      "rationale": "Issue-event history is same-repository evidence available for historical runs and preserves duplicate run keys.",
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:54-76"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Issue assignment and unassignment events only.",
+      "alternatives": ["Agent evaluations", "Assignment comments", "Workflow traces"],
+      "rationale": "Events directly establish whether assigned ownership remains, while excluded sources only describe activity or judgment.",
+      "evidenceReferences": ["commit 4e2c72975191a91f5e9cb8ac4a06cc12d3a03575"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "One day after run creation.",
+      "alternatives": ["Immediate observation", "Issue closure horizon"],
+      "rationale": "A one-day horizon aligns with the daily schedule and gives a stable observation window for the assignment action.",
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:7"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Retained assignments divided by assigned issues.",
+      "alternatives": ["Assignment count", "Issue closure rate"],
+      "rationale": "The proportion directly measures sustained ownership for the batch and is bounded in [0,1].",
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:72-74"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["Manual pre-adoption assignment baseline"],
+      "rationale": "No comparable pre-adoption automated run subject and assignment window exists to score under the same contract.",
+      "evidenceReferences": ["commit 4e2c72975191a91f5e9cb8ac4a06cc12d3a03575"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Assignment batch capacity is reported separately.",
+      "alternatives": ["Include batch size in the primary value"],
+      "rationale": "Batch size is context and does not establish retained ownership.",
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:61"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "measurement",
+      "level": "medium",
+      "description": "Retained assignment demonstrates ownership continuity but cannot establish contributor relevance or future work.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:63-70"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "Historical reconstruction is unavailable when GitHub search or issue-event pagination is incomplete.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/daily-assign-issue-to-user-operational-value.sh"]
+    },
+    {
+      "type": "temporal",
+      "level": "low",
+      "description": "The daily cadence supports a one-day observation horizon, but it does not prove a causal effect.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-assign-issue-to-user.md:7"]
+    }
+  ]
+}

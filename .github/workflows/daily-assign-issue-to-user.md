@@ -45,6 +45,9 @@ evals:
     question: Does the agent output show that a relevant contributor was selected from recent merged PRs?
   - id: comment-posted
     question: Did the agent post a comment explaining the assignment decision?
+graders:
+  operational-value:
+    run: .github/graders/daily-assign-issue-to-user-operational-value.sh
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
