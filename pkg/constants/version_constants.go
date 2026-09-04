@@ -160,7 +160,7 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 
 // AWFEnclaveTrustedSensitivityMinVersion is the first AWF version whose
 // enclave response schema permits free-form string values for trusted repositories.
-const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.13"
+const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
