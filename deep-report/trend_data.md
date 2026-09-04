@@ -369,3 +369,10 @@ Next cycle checks: (a) does the codex fleet-wide fix land and restore the 10 aff
 - Firewall (daily-firewall-report #57824, 24h/232 runs/84 workflows): 3.12% block rate (471/15076), 8 unique blocked domains — proxy.golang.org (138x, CI Optimization Coach/Design Decision Gate/Matt Pocock), sentry ingest (121x), ab.chatgpt.com (89x), github.com (73x), api.anthropic.com (34x).
 - Fleet spot-check (40 runs, ~4.1h 01:00-05:17Z): 90% raw success; failures concentrated in already-tracked chronic PR-review-bot cluster (#57438) and AI Moderator (#57437).
 - Schema Consistency Checker: 4 findings this run (2 already tracked via #57377, 2 newly filed).
+
+### 2026-09-04 ~12:39Z snapshot
+- Weekly issues (500 sampled): 169 open / 331 closed. 0 open >7 days. 58 unlabeled (57 chronic WIP auto-stub + 1 known spam #57934). Top labels: agentic-workflows (268), automation (93), cookie (59), cascade-suspected (56), improvement (33).
+- Prompt Clustering (58447, 1000 PRs/30d): overall merge 84.5% (up 3.4pt from 09-03's 81.1%, best of last 6 runs). No outlier cluster (max gap 6.9pt, below 10pt/15-PR bar). Cluster 4 (general workflow/infra, largest at 38.4%) continues trending healthier: 6.9pt gap vs 9.8pt (09-03) vs prior misses.
+- Copilot Session Insights (58425, 50 sessions, 1h window): completion 10.0% (down sharply from 42% on 09-03), avg duration 2.03min. Review-bot/advisory-workflow cluster collapsed 100%→0% day-over-day (8 workflows) — single-day so far, watch for recurrence. Conversation-transcript logs empty for 14th consecutive day.
+- GitHub MCP Structural Analysis (58483, 8-day/80-record window): icon `_meta.serverInfo` overhead + list_issues redaction now recurring 8/8 days, avg usefulness 3.6/5 stable.
+- `agenticworkflows logs` timed out (count=40, ~50s) — no fresh fleet-wide success-rate snapshot this cycle, 3rd+ occurrence of this timeout pattern recently.
