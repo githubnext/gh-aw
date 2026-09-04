@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-awf-spec-compiler-surfacing",
+  "recordedAt": "2026-09-04T15:24:59.503Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's only durable repository output is an issue or noop. Issue creation, review completion, and traces are activity/output evidence; later surfacing remediation is not deterministically assigned to a run or directly evidenced by the workflow's contract.",
+  "classification": {
+    "domain": "workflow feature surfacing",
+    "subdomain": null,
+    "taskArchetype": "daily review",
+    "interventionType": "issue triage",
+    "outcomeType": "surfacing remediation",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Review AWF specification and compiler evolution for user-facing capabilities not yet surfaced in gh-aw.",
+      "alternatives": ["Measure whether the agent completed its review procedure", "Measure issue creation or noop output"],
+      "rationale": "The adoption-time workflow explicitly defines its mission as deciding whether new AWF capabilities need surfacing in UX, docs, commands, templates, or migration guidance.",
+      "evidenceReferences": [".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:56-58"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "Blocked: no immutable, run-owned surfacing-remediation opportunity.",
+      "alternatives": ["Schema/compiler changes in the rolling diff window", "An issue created by the workflow"],
+      "rationale": "The candidate window depends on mutable repo-memory state and a seven-day fallback; the resulting issue is a report of a gap, not the remediation outcome.",
+      "evidenceReferences": [
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:72-89",
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:124-136"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked: historical case reconstruction cannot bind a completed remediation to one daily run.",
+      "alternatives": ["Reconstruct a case from repo-memory progress.json", "Match an issue by the workflow title prefix"],
+      "rationale": "Repo-memory is mutable cross-run state, while the title-prefix match identifies a workflow output but not a uniquely owned remediation; duplicate runs may inspect overlapping change windows.",
+      "evidenceReferences": [
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:72-92",
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:126-150"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Blocked: issue/noop evidence is excluded from a direct attainment metric.",
+      "alternatives": ["Use issue creation as binary success", "Use review evals or agent traces"],
+      "rationale": "The workflow requires an issue for an actionable gap or noop otherwise, and its declared evals assess review/output behavior rather than a completed repository surfacing outcome.",
+      "evidenceReferences": [
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:45-49",
+        ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:124-150"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Blocked: no direct primary attainment metric.",
+      "alternatives": ["Binary issue-created metric", "Binary issue-closed metric"],
+      "rationale": "Creating an issue is output activity, and later closure is neither direct evidence of the specified surfacing change nor uniquely attributable to the run that reported the gap.",
+      "evidenceReferences": [".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:126-136"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline because no valid primary metric exists.",
+      "alternatives": ["Pre-adoption issue-output rate", "Pre-adoption review activity count"],
+      "rationale": "The workflow did not exist before its adoption commit, and the listed alternatives are not direct attainment measures.",
+      "evidenceReferences": ["ac8a532d6112ae547521eef1a490c5cf32b7faef^:.github/workflows/daily-awf-spec-compiler-surfacing.md (absent)", "ac8a532d6112ae547521eef1a490c5cf32b7faef"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The rolling change window and shared repo-memory state permit overlapping inspections and do not persist an immutable remediation case.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:72-103"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Subsequent documentation, UX, command, template, or migration changes cannot be uniquely attributed to the daily review that may have reported a gap.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:56-69", ".github/workflows/daily-awf-spec-compiler-surfacing.md@ac8a532d6112ae547521eef1a490c5cf32b7faef:124-136"]
+    },
+    {
+      "type": "baseline",
+      "level": "low",
+      "description": "Pre-adoption workflow evidence is absent because the workflow was added at the adoption commit.",
+      "mitigation": null,
+      "evidenceReferences": ["ac8a532d6112ae547521eef1a490c5cf32b7faef^:.github/workflows/daily-awf-spec-compiler-surfacing.md (absent)", "ac8a532d6112ae547521eef1a490c5cf32b7faef"]
+    }
+  ]
+}
