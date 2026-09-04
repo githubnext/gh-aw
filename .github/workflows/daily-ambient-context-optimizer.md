@@ -169,6 +169,9 @@ evals:
     question: Did the agent sample recent agentic workflow runs and inspect their ambient context?
   - id: recommendations_produced
     question: Were recommendations produced for prompt, skill, and agent changes to reduce ambient context size?
+graders:
+  operational-value:
+    run: .github/graders/daily-ambient-context-optimizer-operational-value.sh
 ---
 
 # Daily Ambient Context Optimizer

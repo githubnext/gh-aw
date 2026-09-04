@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-ambient-context-optimizer",
+  "recordedAt": "2026-09-04T15:27:39Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "agentic workflow cost engineering",
+    "subdomain": "prompt/ambient-context bloat",
+    "taskArchetype": "scheduled recommendation report",
+    "interventionType": "recommendation issue (no direct fix)",
+    "outcomeType": "workflow markdown size reduction",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "distance-to-target",
+    "assignmentDeterminism": "deterministic",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Adoption-time intent recovered from commit 89383a71adbad150ef5b80ebe4b1342370bdf91b (PR #36642, 2026-06-03): sample recent agentic workflow runs, inspect the first DLLM request, and 'recommend the highest-leverage improvements to workflow .md files, skill usage, and the set of agents/sub-agents' by publishing exactly one issue. The workflow never edits a file itself; the intended repository outcome is that a workflow markdown file the report calls out actually shrinks afterward.",
+      "alternatives": [
+        "Treat 'an issue was published' as the outcome",
+        "Treat the sub-agent/deep-dive opportunity list inside the issue body as the outcome"
+      ],
+      "rationale": "The adoption Goals section ends at 'create exactly one detailed issue report' but the stated purpose ('shrink the first request') is only realized when a subsequent commit reduces a workflow's ambient-context markdown, matching how the repo's own changelog records these fixes (e.g. PR #36992 explicitly attributes its trims to 'The Daily Ambient Context Optimizer identified token waste').",
+      "evidenceReferences": [
+        "commit 89383a71adbad150ef5b80ebe4b1342370bdf91b (PR #36642)",
+        ".github/workflows/daily-ambient-context-optimizer.md#Goals",
+        "PR #36992"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "The largest top-level .github/workflows/*.md file (excluding this optimizer and shared/ fragments) at the run commit is the assigned opportunity, mirroring the existing daily-file-diet contract's 'largest oversized Go file' pattern for a sibling recommend-only workflow.",
+      "alternatives": [
+        "Parse the created issue's free-text 'affected workflow(s)' recommendation fields to pick a target file",
+        "Bind to every workflow file mentioned anywhere in the issue body"
+      ],
+      "rationale": "Recommendation targets in the issue body are free prose (no frozen machine-readable schema is required by the contract), so parsing them would make assignment ambiguous and non-reproducible for historical runs. Picking the single largest markdown file at the run commit is fully deterministic from git alone, requires no dependency on the agent's own output, and matches the precedent already accepted for daily-file-diet (a same-pattern 'recommend, don't fix' workflow) and architecture-guardian.",
+      "evidenceReferences": [
+        ".github/graders/daily-file-diet-operational-value.sh",
+        ".github/workflows/daily-file-diet.md#Analysis-Process"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Greatest wc -c over the .md file's frontmatter+body among top-level .github/workflows/*.md files, reverse-lexical tie-break; duplicates repeat across days until the file shrinks below target or is removed.",
+      "alternatives": [
+        "Assign by compiled .lock.yml prompt size (via re-running gh aw compile at each evidence check)",
+        "Assign by live first-DLLM-request bytes recorded in a run's own artifacts"
+      ],
+      "rationale": "Compiling at arbitrary historical commits would couple the score to compiler-version drift rather than only markdown content, breaking a frozen contract; live first-request bytes are not retained indefinitely and are unavailable for historical/backfilled runs. Raw source character count is deterministic, git-only, and empirically tracks the same metric the team already reports in its own changelogs (see evidence below).",
+      "evidenceReferences": [
+        "docs/src/content/docs/blog/2026-07-06-weekly-update.md (PR #43619: 'reduce copilot-agent-analysis first-request size by ~28%')",
+        "git show 927a689cee~1:.github/workflows/copilot-agent-analysis.md | wc -c => 16546; git show 927a689cee:... => 11876 (28.2% cut, matching the changelog's stated percentage)"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Accepted evidence is the assigned path's character count in the git blob at the evidence-cutoff commit (0 when the path no longer exists, treated as full attainment); the created issue and any downstream branch/PR identity are not consulted.",
+      "alternatives": [
+        "Require the reducing PR to reference the recommending issue (e.g. via 'Closes #N') before counting evidence",
+        "Score whether any optimizer-pattern branch (copilot/ambient-context*, copilot/daily-ambient-context*) merged in the window"
+      ],
+      "rationale": "PR #36992 (a verified same-day implementation of this workflow's recommendation) touched 23 files across multiple workflows in one PR with no explicit issue-closing keyword, so requiring an explicit link would make evidence brittle and non-reproducible. Scoring 'any optimizer PR merged' would be output-volume/activity, which the operational-value contract excludes; measuring the assigned file's own size is the direct outcome.",
+      "evidenceReferences": ["PR #36992 (head ref copilot/daily-ambient-context-optimizer-another-one, no linked issue keyword in body)"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Three days from run creation.",
+      "alternatives": ["One day", "Seven days (matching the create-issue expires window)"],
+      "rationale": "PR #36992 was created 2026-06-04T20:43Z and merged 2026-06-04T22:33Z (under 2 hours) implementing the first post-adoption recommendation issue; subsequent trims (#43619, #43910, #40874, #171847) also landed within roughly a day of their prompting analysis. Three days gives margin for review latency without waiting out the full 7-day issue-expiry window, which would understate the true turnaround.",
+      "evidenceReferences": [
+        "PR #36992 created_at 2026-06-04T20:43:06Z, merged_at 2026-06-04T22:33:31Z",
+        "commit 927a689cee (#43619) 2026-07-05; commit 1170fc4849 (#43910) 2026-07-06"
+      ],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "assigned-workflow-md-shrink: initialChars < 20000 => 1 (already healthy); else clamp((initialChars-currentChars)/(initialChars-10000), 0, 1); a proven-absent path scores full attainment.",
+      "alternatives": [
+        "Binary metric: did the assigned file drop below the threshold at all",
+        "Ratio metric: currentChars / initialChars (unbounded direction, does not reward exceeding target)"
+      ],
+      "rationale": "A distance-to-target formulation (same shape as daily-file-diet's accepted contract) rewards partial progress toward a healthy size instead of only full-threshold crossings, and staying in [0,1] with higher-is-better keeps it comparable across differently-sized initial offenders.",
+      "evidenceReferences": [".github/graders/daily-file-diet-operational-value.sh#metric"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "attainment-only; no frozen baseline value.",
+      "alternatives": ["Score the pre-adoption largest-workflow-md size as a frozen baseline"],
+      "rationale": "The workflow's own existence is what identifies oversized workflow markdown in the first place; there is no independent pre-adoption process that was already shrinking ambient context to serve as a comparable baseline, so attainment-only mirrors daily-file-diet's own baseline mode.",
+      "evidenceReferences": [".github/graders/daily-file-diet-operational-value.sh#baseline"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "largest-workflow-health (min(1, 19999/initialChars)) and compliant-char-mass-share (compliantChars/totalChars) reported as separate, non-primary diagnostics.",
+      "alternatives": ["Fold repository-wide health directly into the primary metric"],
+      "rationale": "Repository-wide health context is useful but is not the run's own attained outcome on its assigned opportunity, so it is kept out of the primary value per the contract's separation of diagnostics from attainment.",
+      "evidenceReferences": [".github/graders/daily-file-diet-operational-value.sh#case_diagnostics"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "The deterministic 'largest .md file in the repo' assignment may not match the specific workflow(s) the run's own heuristic sampling (last 24h, cost-ranked) actually surfaced and recommended that day, since sampling depends on runtime execution data unavailable for historical replay.",
+      "mitigation": null,
+      "evidenceReferences": []
+    },
+    {
+      "type": "causal-attribution",
+      "level": "high",
+      "description": "Reductions in the assigned file are usually made by a separate downstream PR/agent days after the recommending run, so a mature non-zero score observes correlation with the recommendation, not proof the run caused the specific edit.",
+      "mitigation": null,
+      "evidenceReferences": ["PR #36992"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "medium",
+      "description": "Raw workflow-markdown character count is a proxy for the actual first-DLLM-request size (which also depends on imported/fused skill content and runtime-injected context); the two are correlated in observed fixes but not identical.",
+      "mitigation": null,
+      "evidenceReferences": ["git show 927a689cee~1:.github/workflows/copilot-agent-analysis.md | wc -c (16546->11876, 28.2%) vs blog's stated ~28% first-request reduction"]
+    },
+    {
+      "type": "measurement",
+      "level": "low",
+      "description": "Threshold (20000) and target (10000) characters are frozen from the adoption-time repository-wide size distribution (p90≈19450, median≈9181 across 239 top-level workflow files) rather than from an explicit numeric target stated in the workflow markdown itself.",
+      "mitigation": null,
+      "evidenceReferences": ["adoption commit 89383a71adbad150ef5b80ebe4b1342370bdf91b workflow .md size distribution"]
+    }
+  ]
+}
