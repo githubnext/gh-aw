@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "daily-action-setup-security-audit",
+  "recordedAt": "2026-09-04T15:16:41.187Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow emits free-form security issue recommendations or no-op outputs, but neither provides a deterministic, repository-evidenced binding from an assigned finding to a verified remediation outcome.",
+  "classification": {
+    "domain": "repository security",
+    "subdomain": null,
+    "taskArchetype": "security finding triage",
+    "interventionType": "issue recommendation",
+    "outcomeType": "verified vulnerability remediation",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "mixed",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Verified remediation of a setup-action security finding",
+      "alternatives": ["Creation of an actionable security issue", "Completion of the scheduled audit"],
+      "rationale": "The workflow asks for actionable issue recommendations for significant findings; issue creation and audit completion are outputs or activity, not the security outcome.",
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:46-48", ".github/workflows/daily-action-setup-security-audit.md:190-192"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A specific security finding reported for actions/setup/",
+      "alternatives": ["All files scanned in a run", "All selected security aspects"],
+      "rationale": "A finding is the smallest unit for which remediation could be attained; files and aspects measure audit coverage rather than remediation.",
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:106-180", ".github/workflows/daily-action-setup-security-audit.md:182-192"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked: no stable finding identifier or structured finding-to-run binding exists",
+      "alternatives": ["Issue title prefix and creation time", "Safe-output event payload"],
+      "rationale": "The required [setup-security] title prefix identifies a reporting channel but not a distinct finding, and historical replay must reconstruct assignments when case and event are null.",
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:25-29", ".github/workflows/daily-action-setup-security-audit.md:182-189", "issue:55582", "issue:54696"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Blocked: no deterministic accepted evidence proves that a reported finding was remediated",
+      "alternatives": ["Issue closed state", "Merged pull request mentioning the issue"],
+      "rationale": "Issue closure and textual references do not establish that the reported vulnerability was fixed; the workflow does not require a machine-readable finding fingerprint or remediation acceptance rule.",
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:193-228", "issue:55582", "issue:54696"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline selected",
+      "alternatives": ["Pre-adoption setup-security issue closure rate", "Attainment-only baseline"],
+      "rationale": "The adoption commit adds the workflow, while pre-adoption repository evidence has no frozen, comparable finding assignment and direct remediation contract.",
+      "evidenceReferences": ["commit:36b5fa159d2f09a0b187a01e275ec984491e1145", "PR:50783"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "A run may create up to three issues, while no structured finding ID is required in issue titles or bodies for historical reconstruction.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:25-29", ".github/workflows/daily-action-setup-security-audit.md:182-192"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The workflow defines recommendation content but no repository state that deterministically verifies a finding's remediation.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/daily-action-setup-security-audit.md:193-228"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "The local first-adoption commit has no available parent, and existing setup-security issues cannot be scored under a direct remediation contract.",
+      "mitigation": null,
+      "evidenceReferences": ["commit:36b5fa159d2f09a0b187a01e275ec984491e1145", "issue:55582", "issue:54696"]
+    }
+  ]
+}
