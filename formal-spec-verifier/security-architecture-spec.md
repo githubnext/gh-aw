@@ -1,37 +1,42 @@
 # Formal Notes: security-architecture-spec.md
 
-**Last formalized**: 2026-08-05-16-10-21
-**Notation**: TLA+ (gate sequence) / Z3-style guard conjunction (config predicates)
+**Last formalized**: 2026-09-04-15-31-28
+**Notation**: TLA+-style predicate logic
 **Issue**: pending (see workflow run)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| CC01 | `ConcurrencyGroupAlwaysConfigured` | Every workflow (issue/PR/push/dispatch) emits a non-empty `concurrency:` block with a `group:` key (RS-16, RS-17) |
-| CC02 | `ConcurrencyGroupIncludesWorkflowIdentity` | Distinct workflow names produce distinct concurrency groups (RS-18) |
-| CC03 | `CommandTriggerNeverCancelsInProgress` | `isCommandTrigger=true` forces `cancel-in-progress` off regardless of `on:` shape |
-| CC04 | `PullRequestWorkflowEnablesCancelInProgress` | PR-triggered, non-command workflows enable `cancel-in-progress: true` (RS-21) |
-| CC05 | `NonPRNonCommandOmitsCancelInProgress` | Schedule/push/dispatch workflows omit `cancel-in-progress` (RS-22) |
-| CC06 | `BotSelfCancelRiskDetection` | `issue_comment`-triggered workflows are flagged as bot-self-cancel risk; push is not |
-| CC07 | `ConcurrencyGateIsFirstInSequence` | Concurrency gate precedes freshness/repo-trust/actor-auth/credential/network/output/termination gates (Section 11.9) |
-| CC08 | `GeneratedConcurrencyYAMLShape` | Generated YAML is well-formed: `concurrency:` header, non-empty `group:` value, conditional `cancel-in-progress:` line |
+| TD01 | `TD01_AutomatedDetectionRequired` | Unconfigured threat-detection key still yields a non-nil, runnable default config |
+| TD02/TD03 | `TD02_TD03_DisableSemantics` | `true` enables; `false` / `enabled:false` disable (nil config) |
+| TD04 | `TD04_DetectionCategoriesComplete` | Three mandatory categories (prompt_injection, secret_leak, malicious_patch) |
+| TD08 | `TD08_StructuredOutputShape` | Detection output has the 4 required JSON keys, reasons always present |
+| TD09 | `TD09_AnyThreatBlocksSafeOutputs` | Threat detected + not continue-on-error => safe outputs blocked |
+| TD10 | `TD10_ReasonsExplainDetectedThreats` | reasons populated when any threat flag true |
+| TD12 | `TD12_CustomPromptAppendsNotReplaces` | Custom prompt stored verbatim, additive to default prompt |
+| TD13/TD14 | `TD13_TD14_EngineOverride` | String engine override and full engine object override |
+| TD15 | `TD15_EngineFalseKeepsCustomSteps` | engine:false + custom steps keeps job runnable |
+| PM12 | `PM12_FailedRoleCheckAnalogue` | Fail-closed gate analogy between pre_activation role check and threat-detection gate |
 
 ## Key Invariants
 
-- Concurrency control is mandatory for every workflow shape (never absent).
-- `cancel-in-progress` is a three-way decision: forced-off for command triggers, forced-on for PR workflows, off-by-default otherwise.
-- The runtime enforcement sequence (Section 11.9) is strictly ordered; concurrency gate setup (item 1) must run before freshness (item 2) and all downstream gates, terminating in the fail-closed audit gate (item 8).
-- Bot self-cancel risk (`hasBotSelfCancelRisk`) is a documented mitigation for issue_comment-triggered workflows that post their own comments back, which could otherwise re-trigger and cancel the original run under a shared, cancel-enabled group.
+- Threat detection is auto-enabled whenever safe-outputs is configured; only explicit `false` (top-level or `enabled: false`) disables it.
+- Detection output is always a 4-key structured object; `reasons` is never nil, non-empty exactly when a threat flag is true.
+- Blocking of safe outputs is a two-factor gate: threat detected AND NOT continue-on-error (default continue-on-error is true, i.e. warn-only by default).
+- Custom prompts are additive-only; the parser never truncates or replaces baseline instructions.
+- `engine: false` disables only the AI engine, not custom `steps`; runnability depends on whether any steps remain.
+- Expression-controlled `enabled` (e.g. `${{ inputs.x }}`) forces the detection job to always compile (`IsConditional()` true), deferring the true enable/disable decision to runtime.
 
 ## Edge Cases Identified
 
-- Command-triggered workflow with a PR `on:` trigger — cancel-in-progress must still be disabled (command carve-out wins over PR default).
-- Mixed/dispatch-only workflows still require a concurrency group (no "opt out" path).
-- issue_comment trigger vs. push trigger for bot-self-cancel-risk detection (true vs false).
+- `engine: false` with zero custom `steps` — job has nothing to run, `HasRunnableDetection()` must be false.
+- `enabled` given as a GitHub Actions expression string rather than a literal bool — `EnabledExpr` is set and the job always compiles.
+- `threat-detection` given as a non-expression, non-boolean plain string — invalid per JSON schema; parser ignores it and falls through to default (enabled) config rather than erroring.
 
 ## Notes for Future Runs
 
-- This spec (`specs/security-architecture-spec.md`) already has 3 companion formal test files covering P1-P10 (`security_architecture_formal_test.go`), PM10/AppG (`security_architecture_pm10_formal_test.go`), and SG01-07/CS/RS (`security_architecture_sg_formal_test.go`). This run added a 4th file covering the previously-uncovered Concurrency Control section (11.8) and Runtime Enforcement Operations Sequence (11.9).
-- Remaining under-covered areas for future runs: Section 9 (Threat Detection Layer detection methods/output schema), Section 10.6-10.8 (Action Pinning, Deprecated Features, Compile-Time vs Runtime tradeoffs), and Section 7.6 (Role-Based Access Control) — none of these appear to have dedicated formal predicate coverage yet based on a scan of existing `*_formal_test.go` files.
-- `replace-label-spec.md` was skipped in favor of this spec because it already has comprehensive formal coverage (`replace_label_formal_test.go` + `replace_label_transitions_formal_test.go`, 887 lines, P1-P15 plus transition gates) — low marginal value to duplicate.
+- This run added `pkg/workflow/threat_detection_formal_test.go` covering Section 9 (TD-01..TD-15) of `specs/security-architecture-spec.md`, the layer previously flagged as uncovered by the 2026-08-05 run.
+- Remaining under-covered areas per the prior run's assessment: Section 10.6-10.8 (Action Pinning, Deprecated Features, Compile-Time vs Runtime tradeoffs) and Section 7.6 pre_activation pattern (PM-10a/b/c/d) still lack dedicated formal predicate test files — good candidates for a future run.
+- The detection *output* JSON schema (TD-08) has no exported Go type yet; tests use a local `stubDetectionOutput` struct. If/when the codebase adds an exported detection-output type, replace the stub and re-point TD08/TD09/TD10 tests at it.
+- Because `parseThreatDetectionConfig` is unexported, the new test file lives in `package workflow` (not `workflow_test`), consistent with existing `threat_detection_config_test.go`.

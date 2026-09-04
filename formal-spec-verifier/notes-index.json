@@ -93,9 +93,9 @@
     },
     "specs/security-architecture-spec.md": {
       "slug": "security-architecture-spec",
-      "last_formalized": "2026-08-05-16-10-21",
-      "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 8,
+      "last_formalized": "2026-09-04-15-31-28",
+      "notation": "TLA+-style predicate logic",
+      "predicate_count": 10,
       "issue_number": null
     },
     "specs/replace-label-spec.md": {
