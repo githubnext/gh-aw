@@ -546,7 +546,7 @@ describe("add_reaction", () => {
 
     it("should warn and continue for rate limit 403 errors", async () => {
       const rateLimitError = new Error("API rate limit exceeded for installation");
-      rateLimitError.status = 403;
+      /** @type {any} */ rateLimitError.status = 403;
       mockGithub.request.mockRejectedValueOnce(rateLimitError);
 
       await runScript();
