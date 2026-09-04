@@ -641,6 +641,12 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	if err := os.WriteFile(fakeNpm, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	// Workflow with npm dependencies
 	workflows := []*WorkflowData{
@@ -649,7 +655,6 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 		},
 	}
 
-	// Note: This will fail npm install, but we can test the package.json generation
 	_ = compiler.GenerateDependabotManifests(workflows, workflowDir, false)
 
 	// In non-strict mode, npm failure is just a warning
@@ -683,6 +688,12 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	if err := os.WriteFile(fakeNpm, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	// Workflow with npm dependencies
 	workflows := []*WorkflowData{
@@ -691,17 +702,9 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 		},
 	}
 
-	// In strict mode, npm failure should cause an error
 	strictErr := compiler.GenerateDependabotManifests(workflows, workflowDir, false)
-
-	// We expect an error in strict mode when npm install fails
-	// (unless npm is installed and the package is available)
-	// The test validates that strict mode propagates errors correctly
-	if strictErr != nil {
-		// This is expected if npm is not available
-		if _, lookupErr := os.Stat("/usr/bin/npm"); os.IsNotExist(lookupErr) {
-			t.Logf("npm not available, strict mode error expected: %v", strictErr)
-		}
+	if strictErr == nil {
+		t.Fatal("expected strict mode to return npm install error")
 	}
 }
 
