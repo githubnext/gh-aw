@@ -75,6 +75,10 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 // v0.25.17 must not emit CLI proxy flags or the run will fail.
 const AWFCliProxyMinVersion Version = "v0.25.17"
 
+// AWFCliProxyGHListMinVersion is the minimum AWF version whose CLI proxy supports
+// `gh issue list` and `gh pr list` without misclassifying github.com as GHES.
+const AWFCliProxyGHListMinVersion Version = "v0.28.13"
+
 // AWFAllowHostPortsMinVersion is the minimum AWF version that supports the
 // --allow-host-ports flag. Workflows pinning an older AWF version must not emit
 // --allow-host-ports or the run will fail at startup with an unknown flag error.
