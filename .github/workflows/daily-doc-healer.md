@@ -88,6 +88,9 @@ evals:
     question: Did the workflow identify at least one confirmed documentation gap to fix, or correctly conclude that no actionable gap remained?
   - id: pr-issue-or-noop
     question: Was a documentation pull request or issue created for confirmed gaps, or was noop used appropriately when nothing required action?
+graders:
+  operational-value:
+    run: .github/graders/daily-doc-healer-operational-value.sh
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
