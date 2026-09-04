@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "ci-coach",
+  "recordedAt": "2026-09-04T14:25:05Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow defines an open-ended search for CI efficiency improvements, but adoption-time content and pre-adoption evidence specify only proposal activity and token/output proxies. They do not define a stable assigned CI outcome, target, or accepted repository evidence that can support one direct attainment metric without substituting activity, output volume, traces, or agent judgment.",
+  "classification": {
+    "domain": "CI operations",
+    "subdomain": null,
+    "taskArchetype": "CI optimization",
+    "interventionType": "agent-proposed CI change",
+    "outcomeType": "CI efficiency improvement",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "ratio",
+    "metricForm": "rate",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Improve repository CI efficiency, cost, duration, and correctness by analyzing recent CI data and proposing focused changes.",
+      "alternatives": ["Treat PR creation or noop selection as the operational outcome."],
+      "rationale": "The mission and priority order name CI efficiency, cost, duration, and repair outcomes, while PR creation/noop is described as the workflow action rather than the repository outcome.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:75-86", "github/gh-aw#32335"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "A run-specific CI defect or optimization opportunity with a measurable repository-level target.",
+      "alternatives": ["Any run that produces a pull request", "Any run that emits a report or calls noop"],
+      "rationale": "The workflow permits many unrelated optimization targets and does not encode a stable target, threshold, or opportunity identifier in its adoption-time contract.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:81-86", ".github/workflows/ci-coach.md:189-213"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "No deterministic assignment can be frozen from the run subject alone.",
+      "alternatives": ["Assign by run ID", "Assign by the first pull request created after a run"],
+      "rationale": "A run ID identifies execution activity, not the open-ended CI opportunity selected by the agent; inferring a later PR would conflate temporal proximity with assignment.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:88-113", ".github/workflows/ci-coach.md:214-247"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted direct evidence set.",
+      "alternatives": ["PR merge state", "CI run duration or cost", "workflow output and eval results"],
+      "rationale": "Merge state and output/eval results measure activity or proposal quality; CI duration/cost lacks a frozen opportunity target and counterfactual-safe assignment in the adoption-time contract.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:43-61", "github/gh-aw#32335", "github/gh-aw#32339"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "No maturation window.",
+      "alternatives": ["Use the two-day PR expiration window", "Use a fixed seven-day post-run window"],
+      "rationale": "Without an assigned operational case and accepted direct evidence, a time window would create false precision rather than stabilize an attainment observation.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:32-36", ".github/workflows/ci-coach.md:214-247"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary operational metric.",
+      "alternatives": ["Merged CI-change PR rate", "CI duration reduction rate", "Token count or output word count"],
+      "rationale": "The first is activity, the second is not assignable to a frozen target under the current workflow, and the third is an experiment/output proxy. None is a defensible direct attainment measure for this contract.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:43-61", "github/gh-aw#32335"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline.",
+      "alternatives": ["Use pre-adoption PR merge rate", "Use pre-adoption CI duration"],
+      "rationale": "The pre-adoption experiment issue specifies proposal-quality and token/output measures, not the same direct operational metric required for a comparable baseline.",
+      "evidenceReferences": ["github/gh-aw#32335", "github/gh-aw#32339"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "Do not define diagnostics because no direct primary metric is available.",
+      "alternatives": ["Report token count, PR rate, duration, and output word count as operational diagnostics"],
+      "rationale": "Those measures are explicitly experiment secondary or guardrail metrics and would not repair the missing direct operational outcome.",
+      "evidenceReferences": [".github/workflows/ci-coach.md:46-55", "github/gh-aw#32335"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "The workflow's open-ended analysis can select different CI targets on each run and does not emit a stable operational case.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ci-coach.md:81-86", ".github/workflows/ci-coach.md:189-213"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "Adoption-time inputs include precomputed CI data and artifacts, but no frozen repository evidence contract for verifying a selected optimization after the run.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ci-coach.md:97-113"]
+    },
+    {
+      "type": "measurement",
+      "level": "high",
+      "description": "The configured experiment measures tokens, PR creation, duration, output volume, and run health; these are proxies or activity measures rather than direct attainment.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ci-coach.md:43-61", "github/gh-aw#32335"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Even a later CI improvement would not establish that the workflow caused the change or its effect.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ci-coach.md:214-247", "github/gh-aw#32339"]
+    }
+  ]
+}
