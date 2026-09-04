@@ -27,7 +27,7 @@ const npmInstallTimeout = 60 * time.Second
 
 // generateNpmManifests generates package.json and package-lock.json for npm dependencies
 // detected in the workflows. It returns true if npm dependencies were found.
-func (c *Compiler) generateNpmManifests(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool) (bool, error) {
+func (c *Compiler) generateNpmManifests(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool) (bool, error) {
 	npmDeps := c.collectNpmDependencies(workflowDataList)
 	if len(npmDeps) == 0 {
 		return false, nil
@@ -43,7 +43,7 @@ func (c *Compiler) generateNpmManifests(workflowDataList []*WorkflowData, workfl
 		return true, c.handleManifestGenerationError("package.json", err)
 	}
 
-	if err := c.generatePackageLock(workflowDir); err != nil {
+	if err := c.generatePackageLock(ctx, workflowDir); err != nil {
 		return true, c.handleManifestGenerationError("package-lock.json", err)
 	}
 
@@ -249,7 +249,7 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 }
 
 // generatePackageLock runs npm install --package-lock-only to create package-lock.json
-func (c *Compiler) generatePackageLock(workflowDir string) error {
+func (c *Compiler) generatePackageLock(ctx context.Context, workflowDir string) error {
 	dependabotLog.Printf("Generating package-lock.json in %s", workflowDir)
 
 	if strings.TrimSpace(workflowDir) == "" {
@@ -281,7 +281,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running npm install --package-lock-only..."))
 	}
 
-	if err := runNpmInstallPackageLockOnly(npmPath, absWorkflowDir); err != nil {
+	if err := runNpmInstallPackageLockOnly(ctx, npmPath, absWorkflowDir); err != nil {
 		return err
 	}
 
@@ -304,24 +304,30 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 }
 
 // runNpmInstallPackageLockOnly runs "npm install --package-lock-only --ignore-scripts"
-// in workflowDir, bounded by npmInstallTimeout so a slow or unreachable npm registry
-// cannot hang the compiler (or tests) indefinitely.
-func runNpmInstallPackageLockOnly(npmPath, workflowDir string) error {
+// in workflowDir. The provided ctx is derived from the upstream caller (so cancellation,
+// e.g. from a CLI interrupt, propagates) and is further bounded by npmInstallTimeout so
+// a slow or unreachable npm registry cannot hang the compiler (or tests) indefinitely.
+func runNpmInstallPackageLockOnly(ctx context.Context, npmPath, workflowDir string) error {
 	// Run npm install --package-lock-only without lifecycle scripts.
 	// The generated package.json can be influenced by workflow content, so explicitly
 	// disable script execution to avoid running untrusted hooks while generating lockfiles.
-	ctx, cancel := context.WithTimeout(context.Background(), npmInstallTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, npmInstallTimeout)
 	defer cancel()
 	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
 	// the fixed arguments contain no user-controlled data.
-	cmd := exec.CommandContext(ctx, npmPath, "install", "--package-lock-only", "--ignore-scripts")
+	cmd := exec.CommandContext(timeoutCtx, npmPath, "install", "--package-lock-only", "--ignore-scripts")
 	cmd.Dir = workflowDir
 	cmd.Env = append(os.Environ(), "NPM_CONFIG_IGNORE_SCRIPTS=true")
 
 	// Capture output for error reporting
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if ctx.Err() != nil {
+			// The parent context was cancelled or reached its own deadline; report that
+			// rather than misattributing it to the npm-specific timeout below.
+			return fmt.Errorf("npm install --package-lock-only cancelled: %w\nOutput: %s", ctx.Err(), string(output))
+		}
+		if timeoutCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("npm install --package-lock-only timed out after %s: %w\nOutput: %s", npmInstallTimeout, err, string(output))
 		}
 		return fmt.Errorf("npm install --package-lock-only failed: %w\nOutput: %s", err, string(output))
