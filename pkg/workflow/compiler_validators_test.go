@@ -16,6 +16,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateGitHubCLIProxyVersion(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{"mode": "gh-proxy"},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	require.NoError(t, validateGitHubCLIProxyVersion(workflowData))
+
+	workflowData.NetworkPermissions.Firewall.Version = "v0.28.12"
+	err := validateGitHubCLIProxyVersion(workflowData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tools.github.mode: gh-proxy requires AWF v0.28.13 or newer")
+	assert.Contains(t, err.Error(), "gh issue list or gh pr list")
+
+	workflowData.NetworkPermissions.Firewall.Version = "v0.28.13"
+	require.NoError(t, validateGitHubCLIProxyVersion(workflowData))
+}
+
 // TestValidateExpressions tests expression safety and runtime-import validation.
 func TestValidateExpressions(t *testing.T) {
 	tests := []struct {
