@@ -384,7 +384,7 @@ func isSupportedManifestIncludePath(p string) bool {
 	if strings.Contains(filepath.ToSlash(p), "*") {
 		return isManifestIncludeWildcard(p)
 	}
-	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p) || isManifestIncludeWildcard(p)
+	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p)
 }
 
 // isManifestIncludeWildcard reports whether p uses the supported wildcard form: a
