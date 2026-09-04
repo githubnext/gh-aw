@@ -140,6 +140,8 @@ If present, `includes` MUST be an array whose entries are either strings or mapp
 
 **String entries** follow the same rules as `files` (§4.10), with one special case that MUST be preserved for backward compatibility: a string entry beginning with `.github/` is resolved relative to the **consuming repository root**, not relative to the package root, even for nested packages. All other string entries (for example `workflows/review.md`) are resolved relative to the package root.
 
+String entries MAY use one wildcard as their final path segment (for example, `workflows/*`). The wildcard MUST be exactly `*`, MUST be preceded by `/`, and MUST NOT appear elsewhere in the path. It matches supported direct children of the named directory and MUST NOT recurse into nested directories. Implementations MUST apply the same workflow, skill, and agent path validation used for explicit string entries to every match, MUST ignore unsupported matches, and MUST preserve deterministic lexical ordering. A `.github/` wildcard retains the repository-root-relative behavior described above.
+
 **Mapping entries** declare an explicit source-to-destination install mapping and MUST contain:
 
 | Key | Type | Required | Meaning |

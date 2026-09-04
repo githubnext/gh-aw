@@ -569,7 +569,11 @@ func newResolvedLocalRepositoryPackage(manifestPath, packageDir string, manifest
 func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifestNode, packageRoot string) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
 	for _, node := range nodes {
-		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(node.Manifest.Includes)
+		expandedIncludes, err := expandLocalPackageWildcardIncludes(node.Manifest.Includes, node.PackagePath, packageRoot)
+		if err != nil {
+			return nil, err
+		}
+		includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(expandedIncludes)
 		includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(node.Manifest.Files)...)
 		nodeInstallables, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, node.PackagePath, packageRoot)
 		if err != nil {
@@ -605,6 +609,47 @@ func resolveLocalRepositoryPackageManifestNodes(nodes []repositoryPackageManifes
 		assets.warnings = append(assets.warnings, agentWarnings...)
 	}
 	return assets, nil
+}
+
+func expandLocalPackageWildcardIncludes(includes []repositoryPackageInclude, packageDir, packageRoot string) ([]repositoryPackageInclude, error) {
+	expanded := make([]repositoryPackageInclude, 0, len(includes))
+	for _, include := range includes {
+		parent, wildcard := manifestIncludeWildcardParent(include.Source)
+		if !wildcard {
+			expanded = append(expanded, include)
+			continue
+		}
+
+		sourceDir := packageDir
+		if strings.HasPrefix(parent, constants.GithubDir) {
+			sourceDir = packageRoot
+		}
+		entries, err := os.ReadDir(filepath.Join(sourceDir, filepath.FromSlash(parent)))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to expand includes wildcard %q in %q: %w", include.Source, packageDir, err)
+		}
+		fileCandidates := make([]string, 0, len(entries))
+		dirCandidates := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			if entry.Type()&os.ModeSymlink != 0 {
+				continue
+			}
+			candidate := path.Join(parent, entry.Name())
+			if entry.IsDir() {
+				dirCandidates = append(dirCandidates, candidate)
+			} else {
+				fileCandidates = append(fileCandidates, candidate)
+			}
+		}
+		expanded = append(expanded, expandManifestWildcardMatches(parent, fileCandidates, func(source string) bool {
+			return isSupportedPackageInstallablePath(source) || isSupportedAgentFilePath(source)
+		})...)
+		expanded = append(expanded, expandManifestWildcardMatches(parent, dirCandidates, isSupportedSkillDirPath)...)
+	}
+	return deduplicateManifestIncludes(expanded), nil
 }
 
 func localRepositoryPackageManifest(source string) (string, string, error) {
