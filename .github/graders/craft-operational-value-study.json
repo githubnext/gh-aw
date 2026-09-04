@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "craft",
+  "recordedAt": "2026-09-04T15:07:03Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "Craft has no deterministic, persisted link between a command invocation and a repository-published workflow outcome. Counting output files, safe outputs, traces, or agent judgments would not directly measure the requested workflow's acceptance.",
+  "classification": {
+    "domain": "workflow automation",
+    "subdomain": null,
+    "taskArchetype": "workflow authoring",
+    "interventionType": "command-requested generation",
+    "outcomeType": "published requested workflow",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "immediate",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "A Craft invocation is intended to create one new repository-agnostic agentic workflow markdown file from the request.",
+      "alternatives": ["Measure agent execution or output volume"],
+      "rationale": "The adoption workflow explicitly directs the agent to create a new .github/workflows markdown file based on the request.",
+      "evidenceReferences": ["719777d8211278008308bfeb6f9dfc9fe93ee04b", ".github/workflows/craft.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One slash-command request for a new workflow.",
+      "alternatives": ["One workflow run", "One generated file"],
+      "rationale": "The user request is the intended recipient of the operational outcome; runs and files are implementation artifacts.",
+      "evidenceReferences": ["719777d8211278008308bfeb6f9dfc9fe93ee04b"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked because historical run subjects with null case and event cannot deterministically recover the invoking command request.",
+      "alternatives": ["Use the GitHub Actions run ID as the opportunity key", "Infer the request from workflow output"],
+      "rationale": "Neither the frozen workflow contract nor its repository evidence persists a request-to-run mapping for replay when case and event are null.",
+      "evidenceReferences": [".github/workflows/craft.md", ".github/workflows/craft.lock.yml"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "A future direct metric would require a persisted request identifier, workflow path, and published commit, then inspect that commit's tree.",
+      "alternatives": ["Count generated files", "Use safe-output records", "Use traces or an agent assessment"],
+      "rationale": "A committed workflow at a recorded path is repository evidence, but the present workflow does not persist the required linkage; the alternatives are activity or proxy evidence.",
+      "evidenceReferences": ["719777d8211278008308bfeb6f9dfc9fe93ee04b", ".github/workflows/craft.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric is defined.",
+      "alternatives": ["Binary published-workflow attainment"],
+      "rationale": "Binary publication could be direct only after the missing assignment and evidence linkage is persisted; defining it now would produce unsupported results.",
+      "evidenceReferences": [".github/workflows/craft.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline is defined.",
+      "alternatives": ["Attainment-only null baseline"],
+      "rationale": "Pre-adoption evidence provides no comparable, persisted request-to-published-workflow observations.",
+      "evidenceReferences": ["719777d8211278008308bfeb6f9dfc9fe93ee04b"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Historical replay supplies null case and event, while the workflow does not persist a stable command-request identity in repository evidence.",
+      "mitigation": "Persist a request identifier with the published workflow path and commit in a future workflow contract.",
+      "evidenceReferences": [".github/workflows/craft.md", ".github/workflows/craft.lock.yml"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The workflow's configured safe output does not establish a durable, queryable link from a request to a published workflow commit.",
+      "mitigation": "Record the accepted publication commit and path as structured repository evidence before adopting a grader.",
+      "evidenceReferences": [".github/workflows/craft.md"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Even a future publication observation would show attainment, not that Craft alone caused acceptance.",
+      "mitigation": null,
+      "evidenceReferences": []
+    }
+  ]
+}
