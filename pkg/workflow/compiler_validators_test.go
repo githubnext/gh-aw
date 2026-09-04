@@ -274,6 +274,59 @@ func TestEmitGeneralToolWarningsCloudHypervisorReviewTrigger(t *testing.T) {
 	assert.Equal(t, 1, compiler.GetWarningCount())
 }
 
+func TestEmitGeneralToolWarningsDeprecatedSandboxOptions(t *testing.T) {
+	tests := []struct {
+		name            string
+		agent           *AgentSandboxConfig
+		expectedMessage string
+	}{
+		{
+			name:            "gvisor runtime",
+			agent:           &AgentSandboxConfig{Runtime: AgentRuntimeGVisor},
+			expectedMessage: "sandbox.agent.runtime: gvisor is deprecated and will be removed in a future release",
+		},
+		{
+			name:            "docker-sbx runtime",
+			agent:           &AgentSandboxConfig{Runtime: AgentRuntimeDockerSbx},
+			expectedMessage: "sandbox.agent.runtime: docker-sbx is deprecated and will be removed in a future release",
+		},
+		{
+			name:            "disabled AWF",
+			agent:           &AgentSandboxConfig{Disabled: true},
+			expectedMessage: "Disabling AWF with sandbox.agent: false is deprecated and will be removed in a future release",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				SandboxConfig: &SandboxConfig{Agent: tt.agent},
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = r.Close()
+			})
+
+			compiler.emitGeneralToolWarnings(workflowData, "test.md")
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			assert.Contains(t, buf.String(), tt.expectedMessage)
+			assert.Equal(t, 1, compiler.GetWarningCount())
+		})
+	}
+}
+
 func TestEmitGeneralToolWarningsIgnoredFilesystemAllowWrite(t *testing.T) {
 	tests := []struct {
 		name          string
