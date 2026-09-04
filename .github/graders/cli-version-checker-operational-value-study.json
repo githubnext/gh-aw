@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "cli-version-checker",
+  "recordedAt": "2026-09-04T14:31:48.436Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow specifies version and digest checks followed by issue creation or noop, but it does not specify a downstream repository outcome that can be measured without treating activity or output volume as operational value. External release state is mutable and no stable opportunity, accepted outcome, or comparable pre-adoption outcome can be reconstructed from the repository evidence.",
+  "classification": {
+    "domain": "dependency maintenance",
+    "subdomain": null,
+    "taskArchetype": "version surveillance",
+    "interventionType": "scheduled change detection",
+    "outcomeType": "blocked operational outcome",
+    "evidenceDirectness": "activity",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "comparative-not-causal"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Detect newer CLI or Docker image versions/digests and create a follow-up issue for each detected change; otherwise emit noop.",
+      "alternatives": ["Treat the agent's research narrative or safe-output count as the intended outcome."],
+      "rationale": "The workflow explicitly requires checking current constants against external versions and mandates issue creation when any change is detected, while allowing noop when none is found.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:62-67", ".github/workflows/cli-version-checker.md:160-167", ".github/workflows/cli-version-checker.md:199-231"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "No defensible operational opportunity can be frozen from a scheduled scan because the workflow does not define a repository state that must result after detection.",
+      "alternatives": ["One opportunity per run", "One opportunity per changed CLI or image", "One opportunity per created issue"],
+      "rationale": "Those alternatives respectively bind to execution, mutable external observations, or workflow output rather than a specified operational need with a measurable repository target.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:54-72", ".github/workflows/cli-version-checker.md:313-320"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked; no stable opportunityKey or non-overlapping case assignment is available.",
+      "alternatives": ["Use the GitHub run ID as the opportunity key", "Use each external package or image reference as the opportunity key"],
+      "rationale": "Run IDs measure executions, while external package and image references do not establish whether a repository update was required or completed.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:5-7", ".github/workflows/cli-version-checker.md:74-102"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "No accepted evidence contract; issue creation and noop are outputs, not proof of a downstream operational outcome.",
+      "alternatives": ["Count issues created", "Use issue body quality or release-note coverage", "Use version and digest comparisons as attainment"],
+      "rationale": "The markdown requires an issue for detected changes but does not require the issue to be resolved, a version update to be merged, or any other repository state to be reached.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:65-67", ".github/workflows/cli-version-checker.md:168-174", ".github/workflows/cli-version-checker.md:292-304"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Not defined because no accepted outcome or stable evidence horizon exists.",
+      "alternatives": ["Use the two-day issue expiration", "Use a fixed seven-day post-run window"],
+      "rationale": "The two-day expiration governs safe-output handling and is not an operational maturation rule; inventing another horizon would not be grounded in adoption-time evidence.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:35-40"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "No primary metric; design blocked rather than substituting activity, output volume, traces, or agent judgment.",
+      "alternatives": ["Issue-created binary", "Number of updates detected", "Fraction of tools checked"],
+      "rationale": "Each alternative measures execution or output activity and cannot answer whether an intended repository outcome was attained.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:44-50", ".github/workflows/cli-version-checker.md:65-67"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No baseline; pre-adoption evidence does not define a comparable outcome for this newly introduced workflow.",
+      "alternatives": ["Use the repository's pre-adoption version constants as a baseline", "Use prior issue volume for dependency updates as a baseline"],
+      "rationale": "Constants and historical issue volume do not provide the same frozen operational metric because the workflow does not define a downstream attainment target.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/cli-version-checker.md:54-67"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostics; activity and output-volume measures are explicitly excluded from this blocked design.",
+      "alternatives": ["Report issue count", "Report tools checked", "Report research sections completed"],
+      "rationale": "Adding diagnostics would not cure the absence of a defensible direct operational metric and could misrepresent activity as value.",
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:105-110", ".github/workflows/cli-version-checker.md:168-174"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "The workflow's external release observations and any follow-up issue history are not a frozen repository outcome contract.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:74-102", ".github/workflows/cli-version-checker.md:199-231"]
+    },
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "Scheduled and manually dispatched runs can scan the same mutable set of tools, but the workflow does not define ownership or deduplication for an operational case.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:5-7", ".github/workflows/cli-version-checker.md:62-67"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "The workflow was introduced at commit 134fc10e16a282117bfb386199c1d775a0a8f288, and the pre-adoption repository state supplies no equivalent workflow-defined attainment measure.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"]
+    },
+    {
+      "type": "domain-fit",
+      "level": "high",
+      "description": "Version surveillance may support maintenance work, but the markdown stops at detection and issue reporting rather than specifying the maintenance result to score.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:160-167", ".github/workflows/cli-version-checker.md:283-304"]
+    },
+    {
+      "type": "causal-attribution",
+      "level": "medium",
+      "description": "Even a future update or issue outcome would be affected by external release timing and human follow-up, so it would not support a causal claim from this workflow alone.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/cli-version-checker.md:105-110", ".github/workflows/cli-version-checker.md:313-320"]
+    }
+  ]
+}
