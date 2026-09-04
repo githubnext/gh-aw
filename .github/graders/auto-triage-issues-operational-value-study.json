@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "auto-triage-issues",
+  "recordedAt": "2026-09-04T14:15:24Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "accepted",
+  "rejectionReason": null,
+  "classification": {
+    "domain": "issue triage",
+    "subdomain": null,
+    "taskArchetype": "issue labeling",
+    "interventionType": "automated triage",
+    "outcomeType": "label coverage",
+    "evidenceDirectness": "direct",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "bounded-ambiguity",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "bounded",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Measure whether the assigned issue leaves the unlabeled state.",
+      "alternatives": ["Measure label accuracy or maintainer corrections."],
+      "rationale": "The workflow explicitly targets reducing the unlabeled issue percentage; accuracy requires a human judgment contract that the workflow does not freeze.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:98"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One issue needing triage per run.",
+      "alternatives": ["A run-level count of labels applied.", "A discussion report."],
+      "rationale": "An issue is the repository outcome named by the objective, while counts and reports measure activity or output volume.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:119-124"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Use issue event or case issue; otherwise oldest open unlabeled issue at run creation.",
+      "alternatives": ["Assign by run ID modulo all issues."],
+      "rationale": "Event and archived case data are strongest; the deterministic historical fallback preserves an issue opportunity without treating run identity as value.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:104-109", ".github/graders/auto-triage-issues-operational-value.sh"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Issue labels reconstructed at the evidence cutoff from the issue snapshot and label events.",
+      "alternatives": ["Current labels only."],
+      "rationale": "Reversing post-cutoff label events provides an as-of state and keeps unavailable API evidence null.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:98", ".github/graders/auto-triage-issues-operational-value.sh"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Seven days after run creation.",
+      "alternatives": ["Immediate scoring."],
+      "rationale": "Scheduled runs recur every six hours and maintainers may correct labels after automation; a fixed horizon makes observations stable.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:8-10"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "metric",
+      "selected": "Binary value: one or more labels is 1, zero labels is 0.",
+      "alternatives": ["Label count.", "Agent eval success."],
+      "rationale": "The binary metric directly measures removal from the unlabeled state and excludes activity volume and agent judgment.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:98", ".github/graders/auto-triage-issues-operational-value.sh"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "Attainment-only with null baseline.",
+      "alternatives": ["A pre-adoption label-rate baseline."],
+      "rationale": "The workflow was first introduced in the adoption commit, and the checkout contains no independently frozen pre-adoption issue-label snapshots under the same evidence contract.",
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288", ".github/workflows/auto-triage-issues.md"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "diagnostic",
+      "selected": "No diagnostic metrics.",
+      "alternatives": ["Label-count or activity-rate diagnostics."],
+      "rationale": "A single direct attainment metric is sufficient; additional counts would risk confusing activity with operational value.",
+      "evidenceReferences": [".github/graders/auto-triage-issues-operational-value.sh"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "medium",
+      "description": "Scheduled and manual runs may have multiple eligible issues when archived case and event fields are absent.",
+      "mitigation": "Use the oldest eligible issue at run creation and preserve repeated opportunity keys.",
+      "evidenceReferences": [".github/workflows/auto-triage-issues.md:117-124"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "medium",
+      "description": "GitHub issue events can be unavailable or paginated beyond the collected page.",
+      "mitigation": null,
+      "evidenceReferences": [".github/graders/auto-triage-issues-operational-value.sh"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "No comparable pre-adoption baseline is frozen.",
+      "mitigation": null,
+      "evidenceReferences": ["134fc10e16a282117bfb386199c1d775a0a8f288"]
+    }
+  ]
+}

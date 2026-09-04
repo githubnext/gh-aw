@@ -86,6 +86,9 @@ evals:
     question: If a report discussion was created, was its title exactly "Auto-Triage Issues Report" (ignoring the automatic "[Auto-Triage] " prefix)?
   - id: human-bug-labeled
     question: Did the agent label a non-report issue describing unexpected behavior, expected versus actual results, or a reproducible failure with `bug` and the relevant component label (or `needs-triage` if no component is clear)?
+graders:
+  operational-value:
+    run: .github/graders/auto-triage-issues-operational-value.sh
 
 ---
 
