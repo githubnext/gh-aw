@@ -397,7 +397,12 @@ func (c *Compiler) shouldEmitPiThreatDetectionAuthWarning(workflowData *Workflow
 	}
 
 	effectiveEnv := mergeThreatDetectionEngineEnv(workflowData, detectionEnv)
-	return strings.TrimSpace(effectiveEnv[constants.CopilotGitHubToken]) == ""
+	if strings.TrimSpace(effectiveEnv[constants.CopilotGitHubToken]) != "" {
+		return false
+	}
+	return strings.TrimSpace(effectiveEnv[constants.CopilotProviderBaseURL]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderAPIKey]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderBearerToken]) == ""
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {

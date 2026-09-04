@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -755,6 +756,27 @@ func TestEmitGeneralToolWarnings_PiThreatDetectionAuthWarning(t *testing.T) {
 				Permissions: "permissions:\n  contents: read\n",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "does not warn with Copilot BYOK credentials",
+			data: &WorkflowData{
+				AI: "pi",
+				EngineConfig: &EngineConfig{
+					ID: "pi",
+				},
+				Permissions: "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							Env: map[string]string{
+								constants.CopilotProviderBaseURL:     "https://provider.example.com/v1",
+								constants.CopilotProviderAPIKey:      "${{ secrets.PROVIDER_API_KEY }}",
+								constants.CopilotProviderBearerToken: "",
+							},
+						},
+					},
 				},
 			},
 		},
