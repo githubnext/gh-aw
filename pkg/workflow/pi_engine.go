@@ -194,8 +194,8 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 	piLog.Printf("Generating installation steps for Pi engine: workflow=%s", workflowData.Name)
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		piLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+		piLog.Printf("Skipping Pi CLI installation: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 	}
 
 	version := string(constants.DefaultPiVersion)

@@ -118,8 +118,8 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		geminiLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+		geminiLog.Printf("Skipping Gemini CLI installation: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 	}
 
 	// Normalize engine config version when not explicitly set, so downstream consumers
