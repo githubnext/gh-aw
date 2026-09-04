@@ -230,7 +230,7 @@ emit_null() {
 }
 
 grade_run() {
-    local request run_id repository workflow run_sha created_at evidence_at
+    local request run_id repository workflow created_at evidence_at
     local matures_at evidence_cutoff evidence_epoch matures_epoch
     local case_json opportunity_key evidence value diagnostics
     local pr_number pr_json merged merge_commit_sha cutoff_commit
@@ -254,7 +254,6 @@ grade_run() {
     run_id=$(printf '%s\n' "$request" | jq -r '.run.id')
     repository=$(printf '%s\n' "$request" | jq -r '.run.repository')
     workflow=$(printf '%s\n' "$request" | jq -r '.run.workflow')
-    run_sha=$(printf '%s\n' "$request" | jq -r '.run.sha')
     created_at=$(printf '%s\n' "$request" | jq -r '.run.createdAt')
     evidence_at=$(printf '%s\n' "$request" | jq -r '.evidenceAt')
 
