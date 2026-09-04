@@ -70,6 +70,9 @@ evals:
     question: Did the agent generate a daily 'Agent of the Day' blog entry with narrative content and SEO metadata?
   - id: entry_published
     question: Was the blog entry published as a discussion or committed to the repository?
+graders:
+  operational-value:
+    run: .github/graders/daily-agent-of-the-day-blog-writer-operational-value.sh
 ---
 
 ### Daily Agent of the Day Blog Writer
