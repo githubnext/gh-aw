@@ -51,6 +51,21 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
 }
 
 /**
+ * @param {string | undefined} filePath
+ * @param {string} key
+ * @param {string} value
+ */
+function writeEnvValue(filePath, key, value) {
+  if (!filePath) return;
+  try {
+    appendFileSync(filePath, `${key}=${value}\n`);
+    core.info(`[otlp] ${key} written to GITHUB_ENV`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * @param {string} headers
  * @returns {boolean}
  */
@@ -92,6 +107,21 @@ function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
 }
 
 /**
+ * @param {string} endpointsRaw
+ * @returns {{ url: string, headers: string } | null}
+ */
+function getPrimaryOTLPEndpoint(endpointsRaw) {
+  try {
+    const endpoints = JSON.parse(endpointsRaw);
+    const primary = Array.isArray(endpoints) ? endpoints[0] : null;
+    if (!primary || typeof primary.url !== "string") return null;
+    return { url: primary.url, headers: typeof primary.headers === "string" ? primary.headers : "" };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
  * GITHUB_ENV.  Non-fatal: all errors are silently swallowed.
  *
@@ -101,9 +131,7 @@ function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
  * @returns {Promise<void>}
  */
 async function run() {
-  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
-
-  const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require("./send_otlp_span.cjs");
+  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints } = require("./send_otlp_span.cjs");
 
   const rawStartMs = process.env.SETUP_START_MS;
   const parsedMs = /^\d+$/.test(rawStartMs ?? "") ? Number(rawStartMs) : NaN;
@@ -150,8 +178,30 @@ async function run() {
     }
   }
 
+  const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
+  const parsedEndpoints = parseOTLPEndpoints();
+  if (endpoints) {
+    const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
+    const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+    const currentHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+    if (primaryEndpoint && currentEndpoint === primaryEndpoint.url && currentHeaders === primaryEndpoint.headers) {
+      const endpoint = parsedEndpoints[0]?.url || "";
+      const headers = parsedEndpoints[0]?.headers || "";
+      if (endpoint !== currentEndpoint) {
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
+        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+      }
+      if (headers !== currentHeaders) {
+        process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+      }
+    }
+  }
+
   if (!endpoints) {
     core.info("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
+  } else if (parsedEndpoints.length === 0) {
+    core.info("[otlp] no OTLP endpoints have usable credentials, skipping setup span");
   } else {
     core.info(`[otlp] sending setup span to configured endpoints`);
   }
@@ -164,7 +214,7 @@ async function run() {
 
   core.info(`[otlp] resolved trace-id=${traceId}`);
 
-  if (endpoints) {
+  if (parsedEndpoints.length > 0) {
     core.info(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
   }
 
