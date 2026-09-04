@@ -12,7 +12,9 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-
+graders:
+  operational-value:
+    run: .github/graders/duplicate-code-detector-operational-value.sh
 
 engine: codex
 model: copilot/auto
