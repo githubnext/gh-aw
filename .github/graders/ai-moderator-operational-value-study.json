@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "repository": "github/gh-aw",
+  "workflowId": "ai-moderator",
+  "recordedAt": "2026-09-04T11:53:29.099Z",
+  "recorder": "copilot-coding-agent",
+  "designOutcome": "blocked",
+  "rejectionReason": "The workflow's labels and hidden comments are its own outputs, and the repository contains no independent, deterministic ground truth establishing whether a submission is spam or AI-generated. A direct moderation-attainment metric cannot be recovered or scored from repository evidence.",
+  "classification": {
+    "domain": "repository moderation",
+    "subdomain": null,
+    "taskArchetype": "content classification",
+    "interventionType": "label or hide",
+    "outcomeType": "correct moderation",
+    "evidenceDirectness": "proxy",
+    "evidenceLocality": "same-repository",
+    "measurementLevel": "nominal",
+    "metricForm": "binary",
+    "assignmentDeterminism": "ambiguous",
+    "intentExplicitness": "explicit",
+    "markdownSpecificity": "open-ended",
+    "outcomeObservability": "delayed",
+    "causalClaim": "observational"
+  },
+  "decisions": [
+    {
+      "type": "intent",
+      "selected": "Moderate newly opened issues, comments, and pull requests by detecting spam, link spam, and AI-generated content.",
+      "alternatives": ["Measure whether the workflow emitted a safe output", "Measure moderation activity volume"],
+      "rationale": "The adoption-time workflow explicitly instructs the agent to detect these content categories and apply labels or hide spam comments.",
+      "evidenceReferences": [".github/workflows/ai-moderator.md:136-138", ".github/workflows/ai-moderator.md:211-237", "82239c030d6a1ef6ec8b87a80a1346eeef211f8d"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "opportunity",
+      "selected": "One newly opened issue, comment, or pull request submitted by an eligible external author.",
+      "alternatives": ["A daily repository-wide count of moderation events"],
+      "rationale": "The triggers are item events with contributor and bot exclusions, but the operational-value request provides neither an event identifier nor a persisted case.",
+      "evidenceReferences": [".github/workflows/ai-moderator.md:6-22", ".github/workflows/ai-moderator.md:27-29"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "assignment",
+      "selected": "Blocked: no deterministic historical reconstruction from a run subject when case and event are null.",
+      "alternatives": ["Infer the item from labels or hidden-comment state near the run time", "Use workflow logs or safe-output traces"],
+      "rationale": "Multiple events can target the same item, and inferred post-run state or execution traces would not be a stable, independently assigned operational case.",
+      "evidenceReferences": [".github/workflows/ai-moderator.md:10-19", ".github/workflows/ai-moderator.md:27-29"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "evidence",
+      "selected": "Blocked: an independently verified correct moderation disposition.",
+      "alternatives": ["Presence of spam, link-spam, ai-generated, or ai-inspected labels", "A hidden comment", "Agent rationale or evaluation traces"],
+      "rationale": "The alternatives are workflow outputs or agent assessments, not independent evidence that the content classification and resulting moderation were correct.",
+      "evidenceReferences": [".github/workflows/ai-moderator.md:126-132", ".github/workflows/ai-moderator.md:215-237", ".github/workflows/ai-moderator.md:280-288"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "maturation",
+      "selected": "Blocked: no evidence horizon is defined without accepted independent evidence.",
+      "alternatives": ["Use the one-day spam-log retention period", "Use a fixed post-run label persistence window"],
+      "rationale": "The cache retention concerns internal tracking, and label persistence remains a proxy for the workflow's own action rather than correct moderation.",
+      "evidenceReferences": [".github/workflows/ai-moderator.md:42-45", ".github/workflows/ai-moderator.md:239-278"],
+      "changedDuringReview": false
+    },
+    {
+      "type": "baseline",
+      "selected": "No pre-adoption baseline.",
+      "alternatives": ["Score prior repository labels with a reconstructed rule"],
+      "rationale": "The adoption commit added the workflow and has no first parent, so no pre-adoption workflow content or comparable evidence is available.",
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d"],
+      "changedDuringReview": false
+    }
+  ],
+  "uncertainties": [
+    {
+      "type": "assignment",
+      "level": "high",
+      "description": "A historical run subject alone does not contain a stable issue, pull request, or comment identifier.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ai-moderator.md:6-19"]
+    },
+    {
+      "type": "evidence-availability",
+      "level": "high",
+      "description": "No independent repository evidence defines a correct spam, link-spam, or AI-generated classification for an assigned submission.",
+      "mitigation": null,
+      "evidenceReferences": [".github/workflows/ai-moderator.md:168-208", ".github/workflows/ai-moderator.md:280-287"]
+    },
+    {
+      "type": "baseline",
+      "level": "high",
+      "description": "The workflow was introduced in a root commit, leaving no pre-adoption parent from which to freeze comparable evidence.",
+      "mitigation": null,
+      "evidenceReferences": ["82239c030d6a1ef6ec8b87a80a1346eeef211f8d"]
+    }
+  ]
+}
