@@ -18,6 +18,12 @@ import (
 // embedded in the workflow's markdown content. It is the first validator called in
 // validateWorkflowData and guards against unsafe GitHub Actions expressions.
 func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath string) error {
+	if envMap := parseEnvYAMLSection(workflowData.Env); len(envMap) > 0 {
+		if err := validateTopLevelEnvExpressions(envMap); err != nil {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
+		}
+	}
+
 	// Check for secrets serialization expressions FIRST — before the general allowlist —
 	// to provide a specific, actionable error/warning message.
 	// In strict mode this returns an error that stops further validation.
@@ -693,4 +699,18 @@ func (c *Compiler) emitSamplesCoverageWarnings(workflowData *WorkflowData, markd
 			"Add a `samples:` list under each safe output to replay it deterministically.",
 			strings.Join(missing, ", "))))
 	c.IncrementWarningCount()
+}
+
+func parseEnvYAMLSection(envYAML string) map[string]any {
+	if strings.TrimSpace(envYAML) == "" {
+		return nil
+	}
+	var raw map[string]any
+	if err := yaml.Unmarshal([]byte(envYAML), &raw); err != nil {
+		return nil
+	}
+	if envMap, ok := raw["env"].(map[string]any); ok {
+		return envMap
+	}
+	return raw
 }
