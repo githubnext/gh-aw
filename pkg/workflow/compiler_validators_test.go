@@ -275,7 +275,7 @@ func TestEmitGeneralToolWarningsCloudHypervisorReviewTrigger(t *testing.T) {
 	assert.Equal(t, 1, compiler.GetWarningCount())
 }
 
-func TestEmitGeneralToolWarningsDeprecatedSandboxOptions(t *testing.T) {
+func TestEmitGeneralToolWarningsDeprecatedSandboxRuntimes(t *testing.T) {
 	tests := []struct {
 		name            string
 		agent           *AgentSandboxConfig
@@ -290,11 +290,6 @@ func TestEmitGeneralToolWarningsDeprecatedSandboxOptions(t *testing.T) {
 			name:            "docker-sbx runtime",
 			agent:           &AgentSandboxConfig{Runtime: AgentRuntimeDockerSbx},
 			expectedMessage: "sandbox.agent.runtime: docker-sbx is deprecated and will be removed in a future release",
-		},
-		{
-			name:            "disabled AWF",
-			agent:           &AgentSandboxConfig{Disabled: true},
-			expectedMessage: "sandbox.agent: false is deprecated and will be removed in a future release",
 		},
 	}
 
@@ -938,7 +933,7 @@ func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
 	}
 }
 
-func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError(t *testing.T) {
+func TestValidateToolConfiguration_DoesNotWarnForDisabledSandbox(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tool-warning-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 
@@ -948,7 +943,7 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	workflowData := &WorkflowData{
 		Name: "Test",
 		Features: map[string]any{
-			"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+			"dangerously-disable-sandbox": true,
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{Disabled: true},
@@ -966,8 +961,8 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 
 	require.Error(t, validateErr)
 	require.ErrorContains(t, validateErr, "threat detection requires sandbox.agent")
-	assert.Contains(t, stderr, "sandbox.agent: false is deprecated and will be removed in a future release")
-	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
+	assert.NotContains(t, stderr, "sandbox.agent: false")
+	assert.Equal(t, initialWarnings, compiler.GetWarningCount())
 }
 
 // TestWarnPromptTmpPaths tests the /tmp path heuristic used by the compiler.

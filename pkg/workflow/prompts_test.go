@@ -860,7 +860,7 @@ tools:
   playwright:
     mode: cli
 features:
-  dangerously-disable-sandbox-agent: "unit test verifying prompt gating logic"
+  dangerously-disable-sandbox: true
 sandbox:
   agent: false
 strict: false
