@@ -51,7 +51,8 @@ config:
     color: 1f6feb
 ```
 
-The `name` and `description` must be non-empty. `color` must be a six-character
+The `name` must be non-empty and at most 50 characters. The `description` must
+be non-empty and at most 100 characters. `color` must be a six-character
 hexadecimal value without a leading `#`.
 
 ## Imported manifests

@@ -147,19 +147,42 @@ func upsertBootstrapRepoLabel(_ context.Context, repo, name, description, color 
 	return upsertBootstrapRepoLabelWithClient(client, owner, repoName, name, description, color)
 }
 
+func repoLabelNeedsMutation(_ context.Context, repo, name, description, color string) (bool, error) {
+	owner, repoName, err := repoutil.SplitRepoSlug(repo)
+	if err != nil {
+		return false, err
+	}
+	client, err := api.NewRESTClient(secretSetClientOptions(""))
+	if err != nil {
+		return false, fmt.Errorf("failed to create GitHub API client for repository label %q: %w", name, err)
+	}
+	return repoLabelNeedsMutationWithClient(client, owner, repoName, name, description, color)
+}
+
 type bootstrapLabelRESTClient interface {
 	Get(path string, response any) error
 	Post(path string, body io.Reader, response any) error
 	Patch(path string, body io.Reader, response any) error
 }
 
+func repoLabelNeedsMutationWithClient(client bootstrapLabelRESTClient, owner, repoName, name, description, color string) (bool, error) {
+	repo := path.Join(owner, repoName)
+	existing, found, err := getBootstrapRepoLabelWithClient(client, owner, repoName, name)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
+	}
+	return !found || !bootstrapRepoLabelMatches(existing, name, description, color), nil
+}
+
 func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, repoName, name, description, color string) error {
 	repo := path.Join(owner, repoName)
-	labelPath := fmt.Sprintf("repos/%s/labels/%s", repo, url.PathEscape(name))
-	var existing bootstrapRepositoryLabel
-	err := client.Get(labelPath, &existing)
-	if err == nil {
-		if existing.Name == name && existing.Description == description && strings.EqualFold(existing.Color, color) {
+	labelPath := bootstrapRepoLabelPath(owner, repoName, name)
+	existing, found, err := getBootstrapRepoLabelWithClient(client, owner, repoName, name)
+	if err != nil {
+		return fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
+	}
+	if found {
+		if bootstrapRepoLabelMatches(existing, name, description, color) {
 			return nil
 		}
 		body, marshalErr := json.Marshal(map[string]string{
@@ -175,10 +198,6 @@ func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, 
 		}
 		return nil
 	}
-	var httpErr *api.HTTPError
-	if !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
-	}
 
 	body, err := json.Marshal(bootstrapRepositoryLabel{
 		Name:        name,
@@ -192,4 +211,51 @@ func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, 
 		return fmt.Errorf("failed to create repository label %q in %s: %w", name, repo, err)
 	}
 	return nil
+}
+
+func getBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, repoName, name string) (bootstrapRepositoryLabel, bool, error) {
+	var existing bootstrapRepositoryLabel
+	err := client.Get(bootstrapRepoLabelPath(owner, repoName, name), &existing)
+	if err == nil {
+		return existing, true, nil
+	}
+	if bootstrapHTTPStatusMatches(err, http.StatusNotFound) {
+		return bootstrapRepositoryLabel{}, false, nil
+	}
+	return bootstrapRepositoryLabel{}, false, err
+}
+
+func bootstrapRepoLabelPath(owner, repoName, name string) string {
+	return fmt.Sprintf("repos/%s/labels/%s", path.Join(owner, repoName), url.PathEscape(name))
+}
+
+func bootstrapRepoLabelMatches(existing bootstrapRepositoryLabel, name, description, color string) bool {
+	return strings.EqualFold(existing.Name, name) && existing.Description == description && strings.EqualFold(existing.Color, color)
+}
+
+type bootstrapHTTPStatusCoder interface {
+	HTTPStatusCode() int
+}
+
+type bootstrapStatusCoder interface {
+	StatusCode() int
+}
+
+func bootstrapHTTPStatusMatches(err error, status int) bool {
+	var httpErr *api.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode == status
+	}
+
+	var httpStatusErr bootstrapHTTPStatusCoder
+	if errors.As(err, &httpStatusErr) {
+		return httpStatusErr.HTTPStatusCode() == status
+	}
+
+	var statusErr bootstrapStatusCoder
+	if errors.As(err, &statusErr) {
+		return statusErr.StatusCode() == status
+	}
+
+	return false
 }

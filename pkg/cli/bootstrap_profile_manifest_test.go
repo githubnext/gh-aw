@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -156,6 +157,26 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 				"color":       "#1f6feb",
 			},
 			wantErrMsg: "config[0].color must be a 6-character hexadecimal color",
+		},
+		{
+			name:       "repo-label name too long",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":        strings.Repeat("a", bootstrapLabelNameMaxLength+1),
+				"description": "Managed by automation",
+				"color":       "1f6feb",
+			},
+			wantErrMsg: "config[0].name must be at most 50 characters",
+		},
+		{
+			name:       "repo-label description too long",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":        "automation",
+				"description": strings.Repeat("a", bootstrapLabelDescriptionMaxLength+1),
+				"color":       "1f6feb",
+			},
+			wantErrMsg: "config[0].description must be at most 100 characters",
 		},
 		{
 			name:       "github-app defaults app name from name and mode",

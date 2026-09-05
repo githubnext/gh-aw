@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/url"
 	"slices"
@@ -16,13 +17,17 @@ import (
 )
 
 type bootstrapLabelRESTClientStub struct {
-	existing *bootstrapRepositoryLabel
-	getErr   error
-	posts    [][]byte
-	patches  [][]byte
+	existing   *bootstrapRepositoryLabel
+	getErr     error
+	getPaths   []string
+	postPaths  []string
+	patchPaths []string
+	posts      [][]byte
+	patches    [][]byte
 }
 
-func (s *bootstrapLabelRESTClientStub) Get(_ string, response any) error {
+func (s *bootstrapLabelRESTClientStub) Get(path string, response any) error {
+	s.getPaths = append(s.getPaths, path)
 	if s.getErr != nil {
 		return s.getErr
 	}
@@ -30,16 +35,30 @@ func (s *bootstrapLabelRESTClientStub) Get(_ string, response any) error {
 	return nil
 }
 
-func (s *bootstrapLabelRESTClientStub) Post(_ string, body io.Reader, _ any) error {
+func (s *bootstrapLabelRESTClientStub) Post(path string, body io.Reader, _ any) error {
 	content, _ := io.ReadAll(body)
+	s.postPaths = append(s.postPaths, path)
 	s.posts = append(s.posts, content)
 	return nil
 }
 
-func (s *bootstrapLabelRESTClientStub) Patch(_ string, body io.Reader, _ any) error {
+func (s *bootstrapLabelRESTClientStub) Patch(path string, body io.Reader, _ any) error {
 	content, _ := io.ReadAll(body)
+	s.patchPaths = append(s.patchPaths, path)
 	s.patches = append(s.patches, content)
 	return nil
+}
+
+type bootstrapLabelStatusError struct {
+	status int
+}
+
+func (e bootstrapLabelStatusError) Error() string {
+	return "label lookup failed"
+}
+
+func (e bootstrapLabelStatusError) StatusCode() int {
+	return e.status
 }
 
 func TestListBootstrapRepoNamesPaginate(t *testing.T) {
@@ -183,7 +202,7 @@ func TestRunBootstrapCopilotAuthAction(t *testing.T) {
 func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
 	t.Run("skips matching label", func(t *testing.T) {
 		client := &bootstrapLabelRESTClientStub{
-			existing: &bootstrapRepositoryLabel{Name: "automation", Description: "Managed by automation", Color: "1F6FEB"},
+			existing: &bootstrapRepositoryLabel{Name: "Automation", Description: "Managed by automation", Color: "1F6FEB"},
 		}
 		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
 		if err != nil {
@@ -216,7 +235,7 @@ func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
 
 	t.Run("creates missing label", func(t *testing.T) {
 		client := &bootstrapLabelRESTClientStub{
-			getErr: &api.HTTPError{StatusCode: 404, RequestURL: &url.URL{}},
+			getErr: fmt.Errorf("lookup failed: %w", bootstrapLabelStatusError{status: 404}),
 		}
 		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
 		if err != nil {
@@ -234,6 +253,22 @@ func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
 		}
 	})
 
+	t.Run("escapes label name in lookup path", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			getErr: &api.HTTPError{StatusCode: 404, RequestURL: &url.URL{}},
+		}
+		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "needs/review α", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("upsertBootstrapRepoLabelWithClient returned error: %v", err)
+		}
+		if len(client.getPaths) != 1 || client.getPaths[0] != "repos/octo/platform-ops/labels/needs%2Freview%20%CE%B1" {
+			t.Fatalf("unexpected lookup paths: %#v", client.getPaths)
+		}
+		if len(client.postPaths) != 1 || client.postPaths[0] != "repos/octo/platform-ops/labels" {
+			t.Fatalf("unexpected create paths: %#v", client.postPaths)
+		}
+	})
+
 	t.Run("returns non-not-found lookup errors", func(t *testing.T) {
 		client := &bootstrapLabelRESTClientStub{
 			getErr: &api.HTTPError{StatusCode: 500, RequestURL: &url.URL{}},
@@ -244,6 +279,47 @@ func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
 		}
 		if len(client.posts) != 0 || len(client.patches) != 0 {
 			t.Fatal("expected lookup failure not to mutate the label")
+		}
+	})
+}
+
+func TestRepoLabelNeedsMutationWithClient(t *testing.T) {
+	t.Run("matching label does not need mutation", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			existing: &bootstrapRepositoryLabel{Name: "Automation", Description: "Managed by automation", Color: "1F6FEB"},
+		}
+		got, err := repoLabelNeedsMutationWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("repoLabelNeedsMutationWithClient returned error: %v", err)
+		}
+		if got {
+			t.Fatal("expected matching label not to need mutation")
+		}
+	})
+
+	t.Run("missing label needs mutation", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			getErr: &api.HTTPError{StatusCode: 404, RequestURL: &url.URL{}},
+		}
+		got, err := repoLabelNeedsMutationWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("repoLabelNeedsMutationWithClient returned error: %v", err)
+		}
+		if !got {
+			t.Fatal("expected missing label to need mutation")
+		}
+	})
+
+	t.Run("differing label needs mutation", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			existing: &bootstrapRepositoryLabel{Name: "automation", Description: "Old description", Color: "ffffff"},
+		}
+		got, err := repoLabelNeedsMutationWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("repoLabelNeedsMutationWithClient returned error: %v", err)
+		}
+		if !got {
+			t.Fatal("expected differing label to need mutation")
 		}
 	})
 }

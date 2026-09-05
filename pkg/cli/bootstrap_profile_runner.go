@@ -34,6 +34,7 @@ var (
 		return setBootstrapRepoSecret(repo, name, value)
 	}
 	bootstrapUpsertLabel            = upsertBootstrapRepoLabel
+	bootstrapLabelNeedsMutation     = repoLabelNeedsMutation
 	bootstrapCreateGitHubApp        = createBootstrapGitHubApp
 	bootstrapCheckOwnerType         = checkSetupRepositoryOwnerType
 	bootstrapExchangeGitHubAppCode  = bootstrapExchangeGitHubAppCodeImpl
@@ -260,7 +261,7 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 		_, exists := state.secrets[action.Name]
 		return !exists, nil
 	case "repo-label":
-		return true, nil
+		return bootstrapLabelNeedsMutation(ctx, repo, action.Name, action.Description, action.Color)
 	case "github-app":
 		_, hasVar := state.variables[action.AppIDVariable]
 		_, hasSecret := state.secrets[action.PrivateKeySecret]

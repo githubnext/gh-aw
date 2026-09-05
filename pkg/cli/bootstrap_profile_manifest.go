@@ -12,6 +12,11 @@ import (
 
 const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, repo-label, github-app, copilot-auth, commit-and-push, or handoff"
 
+const (
+	bootstrapLabelNameMaxLength        = 50
+	bootstrapLabelDescriptionMaxLength = 100
+)
+
 var bootstrapLabelColorPattern = regexp.MustCompile(`^[0-9A-Fa-f]{6}$`)
 
 type repositoryPackageBootstrap struct {
@@ -141,18 +146,7 @@ func validateManifestBootstrapAction(action repositoryPackageBootstrapAction, ma
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].prompt is required when type=repo-secret. Example: { type: repo-secret, name: EXAMPLE_SECRET, prompt: Enter a secret }", manifestPath, index)
 		}
 	case "repo-label":
-		if action.Name == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].name is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
-		}
-		if action.Description == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].description is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
-		}
-		if action.Color == "" {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
-		}
-		if !bootstrapLabelColorPattern.MatchString(action.Color) {
-			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color must be a 6-character hexadecimal color without '#'. Example: color: 1f6feb", manifestPath, index)
-		}
+		return validateRepoLabelBootstrapAction(action, manifestPath, index)
 	case "github-app":
 		return validateGitHubAppBootstrapAction(action, manifestPath, index)
 	case "copilot-auth":
@@ -177,6 +171,28 @@ func validateManifestBootstrapAction(action repositoryPackageBootstrapAction, ma
 		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].type %q is not supported. Example: use one of %s", manifestPath, index, action.Type, bootstrapActionTypeExample)
 	}
 
+	return action, nil
+}
+
+func validateRepoLabelBootstrapAction(action repositoryPackageBootstrapAction, manifestPath string, index int) (repositoryPackageBootstrapAction, error) {
+	if action.Name == "" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].name is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
+	}
+	if len(action.Name) > bootstrapLabelNameMaxLength {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].name must be at most %d characters when type=repo-label. Example: name: automation", manifestPath, index, bootstrapLabelNameMaxLength)
+	}
+	if action.Description == "" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].description is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
+	}
+	if len(action.Description) > bootstrapLabelDescriptionMaxLength {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].description must be at most %d characters when type=repo-label. Example: description: Managed by automation", manifestPath, index, bootstrapLabelDescriptionMaxLength)
+	}
+	if action.Color == "" {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
+	}
+	if !bootstrapLabelColorPattern.MatchString(action.Color) {
+		return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color must be a 6-character hexadecimal color without '#'. Example: color: 1f6feb", manifestPath, index)
+	}
 	return action, nil
 }
 

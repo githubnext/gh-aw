@@ -193,8 +193,9 @@ For each package installation, implementations MUST record package-scoped owners
 ### 4.13 `config`
 
 The experimental `config` field MAY contain `repo-label` actions. A `repo-label`
-action MUST contain non-empty `name` and `description` strings and a `color`
-matching exactly six hexadecimal characters without a leading `#`.
+action MUST contain a non-empty `name` string of at most 50 characters, a
+non-empty `description` string of at most 100 characters, and a `color` matching
+exactly six hexadecimal characters without a leading `#`.
 
 When applied, the installer MUST create a missing label. If a label with the
 same name already exists, the installer MUST update its description or color
