@@ -7660,7 +7660,7 @@
             "team-id": {
               "type": "string",
               "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-              "description": "Trusted Linear team model UUID."
+              "description": "Optional trusted Linear team model UUID. Defaults to the LINEAR_TEAM_ID repository or organization variable."
             },
             "project-id": {
               "type": "string",
@@ -7682,7 +7682,6 @@
               ]
             }
           },
-          "required": ["team-id"],
           "additionalProperties": false
         },
         "linear-add-comment": {

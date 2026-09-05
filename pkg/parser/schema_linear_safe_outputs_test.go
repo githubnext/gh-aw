@@ -26,6 +26,7 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 			},
 		},
 	}
+
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "/tmp/linear-valid.md"); err != nil {
 		t.Fatalf("expected valid Linear safe outputs configuration: %v", err)
 	}
@@ -34,13 +35,6 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		name        string
 		safeOutputs map[string]any
 	}{
-		{
-			name: "missing team ID",
-			safeOutputs: map[string]any{
-				"linear-token":        "${{ secrets.LINEAR_API_KEY }}",
-				"linear-create-issue": map[string]any{},
-			},
-		},
 		{
 			name: "malformed project ID",
 			safeOutputs: map[string]any{
@@ -88,5 +82,21 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 				t.Fatal("expected schema validation to reject malformed Linear safe outputs configuration")
 			}
 		})
+	}
+}
+
+func TestLinearCreateIssueUsesDefaultTeamID(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"linear-create-issue": map[string]any{},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/linear-default-team.md"); err != nil {
+		t.Fatalf("expected LINEAR_TEAM_ID-backed configuration to be valid: %v", err)
 	}
 }

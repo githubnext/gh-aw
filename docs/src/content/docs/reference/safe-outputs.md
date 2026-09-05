@@ -129,7 +129,6 @@ Linear Safe Outputs use Linear's public GraphQL API from the isolated `safe_outp
 safe-outputs:
   linear-token: ${{ secrets.LINEAR_API_KEY }}
   linear-create-issue:
-    team-id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"
     project-id: "810f57a7e383"
     max: 1
   linear-add-comment:
@@ -140,7 +139,7 @@ safe-outputs:
     body: true
 ```
 
-`team-id` is the Linear team model UUID, available through Linear's model UUID tooling or API. Optional `project-id` fixes new issues to a trusted project and accepts either the 12-character identifier from a Linear project URL or its model UUID. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
+The compiler loads `LINEAR_TEAM_ID` from the same-named repository or organization variable. An optional `team-id` overrides it with a trusted Linear team model UUID, available through Linear's model UUID tooling or API. Optional `project-id` fixes new issues to a trusted project and accepts either the 12-character identifier from a Linear project URL or its model UUID. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
 
 ### System Types (Auto-Enabled)
 

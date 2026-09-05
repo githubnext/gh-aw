@@ -221,6 +221,9 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 			if hasAnyJiraSafeOutputEnabled(data.SafeOutputs) && jiraSafeOutputDefaultEnv[key] != "" {
 				continue
 			}
+			if data.SafeOutputs.LinearCreateIssue != nil && key == "LINEAR_TEAM_ID" {
+				continue
+			}
 			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, data.SafeOutputs.Env[key]))
 		}
 	}
