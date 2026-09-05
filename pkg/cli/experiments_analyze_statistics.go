@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"os"
 	"strconv"
@@ -238,14 +237,21 @@ func computeExperimentAnalysisWithObservationBundle(
 	variantCounts := experimentVariantCounts(exp, cfg, graderObservations != nil)
 	variantNames := sliceutil.SortedKeys(variantCounts)
 	expectedPcts := expectedProportions(variantNames, cfg)
-	a.Variants = buildVariantAnalyses(exp.Total, variantCounts, variantNames, expectedPcts, a.MinSamples, graderObservations)
+	// When cfg declares a variant list, variantCounts has already been reconciled
+	// against it (stale variant keys dropped); recompute the total from the
+	// reconciled counts so it stays consistent with the chi-square inputs below.
+	total := exp.Total
+	if cfg != nil && len(cfg.Variants) > 0 {
+		total = sumVariantCounts(variantCounts)
+	}
+	a.Variants = buildVariantAnalyses(total, variantCounts, variantNames, expectedPcts, a.MinSamples, graderObservations)
 	if graderObservations != nil {
 		a.UsesMetricObservations = true
 		a.MetricType = graderObservationMetricType(cfg, graderObservations)
 		a.MetricDirection = normalizeMetricDirection(graderObservations.Direction)
 		a.Comparisons = computeGraderMetricComparisons(cfg, graderObservations, variantNames, a.MetricType)
 	}
-	applyExperimentBalance(&a, exp.Name, exp.Total, cfg, variantCounts, variantNames, expectedPcts)
+	applyExperimentBalance(&a, exp.Name, total, cfg, variantCounts, variantNames, expectedPcts)
 	applyExperimentReadiness(&a, graderObservations != nil)
 	applyExperimentGuardrails(&a, guardrailObservations)
 	a.ExperimentDecisionResult = DecideExperiment(a)
@@ -425,18 +431,45 @@ func findEvalQuestion(evals *workflow.EvalsConfig, evalID string) string {
 	return ""
 }
 
+// experimentVariantCounts returns the observed run counts for a named experiment,
+// reconciled against the workflow's currently-declared variants: list. Persisted
+// state.Counts entries are keyed by whatever variant label a run recorded, and never
+// reconciled against the workflow's current variant list; when a workflow renames or
+// removes variants, stale labels from earlier runs stay in the branch's state forever
+// and would otherwise skew balance/selection statistics. When cfg declares a variant
+// list, counts for variants no longer present in it are dropped. When includeDeclared
+// is true, declared variants with no observed runs are included with a zero count.
 func experimentVariantCounts(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig, includeDeclared bool) map[string]int {
-	if !includeDeclared || cfg == nil {
+	if cfg == nil || len(cfg.Variants) == 0 {
 		return exp.Variants
 	}
-	counts := make(map[string]int, typeutil.SafeAllocationCapacity(len(exp.Variants), len(cfg.Variants)))
-	maps.Copy(counts, exp.Variants)
+	declared := make(map[string]bool, len(cfg.Variants))
 	for _, name := range cfg.Variants {
-		if _, ok := counts[name]; !ok {
-			counts[name] = 0
+		declared[name] = true
+	}
+	counts := make(map[string]int, typeutil.SafeAllocationCapacity(len(exp.Variants), len(cfg.Variants)))
+	for name, count := range exp.Variants {
+		if declared[name] {
+			counts[name] = count
+		}
+	}
+	if includeDeclared {
+		for _, name := range cfg.Variants {
+			if _, ok := counts[name]; !ok {
+				counts[name] = 0
+			}
 		}
 	}
 	return counts
+}
+
+// sumVariantCounts returns the sum of all values in a variant→count map.
+func sumVariantCounts(counts map[string]int) int {
+	total := 0
+	for _, c := range counts {
+		total += c
+	}
+	return total
 }
 
 func buildVariantAnalyses(

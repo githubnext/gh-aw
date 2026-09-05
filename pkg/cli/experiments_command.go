@@ -239,10 +239,44 @@ func loadExperimentAnalysisInputs(
 		return frontmatter, nil, nil, err
 	}
 	experimentsLog.Printf("Loaded %d experiment config(s) for %s", len(frontmatter.ExperimentConfigs), config.ExperimentName)
+	reconcileExperimentDetailsWithConfigs(details, frontmatter.ExperimentConfigs)
 	if config.RepoOverride != "" {
 		return frontmatter, details, loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID), nil
 	}
 	return frontmatter, details, loadLocalMetricEvalResults(details.WorkflowID), nil
+}
+
+// reconcileExperimentDetailsWithConfigs filters each experiment's persisted variant counts
+// down to the variant labels currently declared in the workflow's frontmatter (variants:
+// list). Variant keys are never removed from state.Counts once written, so a workflow that
+// renames or removes variants otherwise leaves stale labels (e.g. from an earlier model
+// name) mixed in with current ones forever; those stale counts would skew the chi-square
+// balance test and the max-count "last selected variant" heuristic. When an experiment has
+// no matching config (or the config declares no variants), its counts are left untouched.
+func reconcileExperimentDetailsWithConfigs(details *ExperimentDetails, configs map[string]*workflow.ExperimentConfig) {
+	if details == nil || len(configs) == 0 {
+		return
+	}
+	for i, exp := range details.Experiments {
+		cfg := configs[exp.Name]
+		if cfg == nil || len(cfg.Variants) == 0 {
+			continue
+		}
+		declared := make(map[string]bool, len(cfg.Variants))
+		for _, name := range cfg.Variants {
+			declared[name] = true
+		}
+		filtered := make(map[string]int, len(exp.Variants))
+		for name, count := range exp.Variants {
+			if declared[name] {
+				filtered[name] = count
+			} else {
+				experimentsLog.Printf("Experiment %q: dropping stale variant %q (not in declared variants %v)", exp.Name, name, cfg.Variants)
+			}
+		}
+		details.Experiments[i].Variants = filtered
+		details.Experiments[i].Total = sumVariantCounts(filtered)
+	}
 }
 
 // loadMetricObservationSetsForAnalysis resolves grader-backed and eval-backed experiment
