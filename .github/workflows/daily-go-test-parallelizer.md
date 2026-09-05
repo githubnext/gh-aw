@@ -14,7 +14,7 @@ permissions:
 engine:
   id: codex
   model-provider: github
-model: copilot/gpt-5.3-codex
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 30
 network:
@@ -22,9 +22,6 @@ network:
     - defaults
     - go
     - node
-sandbox:
-  agent:
-    runtime: cloud-hypervisor
 tools:
   cache-memory:
     retention-days: 30
