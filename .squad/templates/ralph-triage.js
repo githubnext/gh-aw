@@ -356,29 +356,24 @@ function findBestRuleMatch(issueText, rules) {
   return best;
 }
 
+// Each rule pairs role-name keywords with issue-text keywords; the first
+// roster member whose role matches a rule that also matches the issue text wins.
+const ROLE_KEYWORD_RULES = [
+  { roleKeywords: ['frontend', 'ui'], textKeywords: ['ui', 'frontend', 'css'], reason: 'Matched frontend/UI role keywords' },
+  { roleKeywords: ['backend', 'api', 'server'], textKeywords: ['api', 'backend', 'database'], reason: 'Matched backend/API role keywords' },
+  { roleKeywords: ['test', 'qa'], textKeywords: ['test', 'bug', 'fix'], reason: 'Matched testing/QA role keywords' },
+];
+
 function findRoleKeywordMatch(issueText, roster) {
   for (const member of roster) {
     const role = member.role.toLowerCase();
 
-    if (
-      (role.includes('frontend') || role.includes('ui')) &&
-      (issueText.includes('ui') || issueText.includes('frontend') || issueText.includes('css'))
-    ) {
-      return { agent: member, reason: 'Matched frontend/UI role keywords' };
-    }
-
-    if (
-      (role.includes('backend') || role.includes('api') || role.includes('server')) &&
-      (issueText.includes('api') || issueText.includes('backend') || issueText.includes('database'))
-    ) {
-      return { agent: member, reason: 'Matched backend/API role keywords' };
-    }
-
-    if (
-      (role.includes('test') || role.includes('qa')) &&
-      (issueText.includes('test') || issueText.includes('bug') || issueText.includes('fix'))
-    ) {
-      return { agent: member, reason: 'Matched testing/QA role keywords' };
+    for (const { roleKeywords, textKeywords, reason } of ROLE_KEYWORD_RULES) {
+      const roleMatches = roleKeywords.some((keyword) => role.includes(keyword));
+      const textMatches = textKeywords.some((keyword) => issueText.includes(keyword));
+      if (roleMatches && textMatches) {
+        return { agent: member, reason };
+      }
     }
   }
 
