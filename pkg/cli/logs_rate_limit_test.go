@@ -3,10 +3,12 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	stderrors "errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +50,8 @@ func TestRateLimitResponseUnmarshal(t *testing.T) {
 // sensible values so a future edit that accidentally zeroes them will be caught.
 func TestRateLimitThresholdConstants(t *testing.T) {
 	assert.Positive(t, RateLimitThreshold, "RateLimitThreshold must be positive")
+	assert.Positive(t, RateLimitWarningThresholdPercent, "RateLimitWarningThresholdPercent must be positive")
+	assert.Less(t, RateLimitWarningThresholdPercent, 100, "RateLimitWarningThresholdPercent must be below 100")
 	assert.Positive(t, int64(APICallCooldown), "APICallCooldown must be positive")
 	assert.Positive(t, int64(rateLimitResetBuffer), "rateLimitResetBuffer must be positive")
 }
@@ -79,6 +83,114 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 				"remaining=%d vs threshold=%d: wait mismatch", tt.remaining, RateLimitThreshold)
 		})
 	}
+}
+
+func TestGitHubAPIRateLimitReportJSON(t *testing.T) {
+	report := &GitHubAPIRateLimitReport{
+		Host:  "github.com",
+		Start: &rateLimitResource{Limit: 5000, Remaining: 100, Used: 4900, Reset: 123},
+		End:   &rateLimitResource{Limit: 5000, Remaining: 80, Used: 4920, Reset: 123},
+	}
+	data, err := json.Marshal(LogsData{GitHubAPIRateLimit: report})
+	require.NoError(t, err)
+
+	var output map[string]any
+	require.NoError(t, json.Unmarshal(data, &output))
+	rateLimit, ok := output["github_api_rate_limit"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "github.com", rateLimit["host"])
+	assert.InDelta(t, 100, rateLimit["start"].(map[string]any)["remaining"], 0)
+	assert.InDelta(t, 80, rateLimit["end"].(map[string]any)["remaining"], 0)
+}
+
+func TestGitHubAPIRateLimitReportUsesRequestedHost(t *testing.T) {
+	oldFetchRateLimitForHostFunc := fetchRateLimitForHostFunc
+	var hosts []string
+	fetchRateLimitForHostFunc = func(_ context.Context, host string) (rateLimitResource, error) {
+		hosts = append(hosts, host)
+		return rateLimitResource{Limit: 5000, Remaining: 4000, Used: 1000}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitForHostFunc = oldFetchRateLimitForHostFunc })
+
+	report := startGitHubAPIRateLimitReport(context.Background(), "github.example.com")
+	finishGitHubAPIRateLimitReport(context.Background(), report, true)
+
+	assert.Equal(t, "github.example.com", report.Host)
+	assert.Equal(t, []string{"github.example.com", "github.example.com"}, hosts)
+}
+
+func TestLogsTargetRateLimitHostsDeduplicatesHosts(t *testing.T) {
+	hosts := logsTargetRateLimitHosts([]logsWorkflowTarget{
+		{repoOverride: "owner/repo"},
+		{repoOverride: "github.example.com/owner/repo"},
+		{repoOverride: "github.example.com/other/repo"},
+		{repoOverride: "another.example.com/owner/repo"},
+	})
+
+	assert.Equal(t, []string{"github.com", "github.example.com", "another.example.com"}, hosts)
+}
+
+func TestIsGitHubAPIRateLimitLow(t *testing.T) {
+	tests := []struct {
+		name  string
+		state rateLimitResource
+		want  bool
+	}{
+		{name: "at threshold", state: rateLimitResource{Limit: 5000, Remaining: 1000}, want: true},
+		{name: "below threshold", state: rateLimitResource{Limit: 5000, Remaining: 999}, want: true},
+		{name: "above threshold", state: rateLimitResource{Limit: 5000, Remaining: 1001}, want: false},
+		{name: "missing limit", state: rateLimitResource{Remaining: 0}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isGitHubAPIRateLimitLow(tt.state))
+		})
+	}
+}
+
+func TestFinishGitHubAPIRateLimitReportWarnsNearLimit(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
+		return rateLimitResource{
+			Limit:     5000,
+			Remaining: 1000,
+			Used:      4000,
+			Reset:     time.Now().Add(time.Hour).Unix(),
+		}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	var output bytes.Buffer
+	finishGitHubAPIRateLimitReportToWriter(context.Background(), &GitHubAPIRateLimitReport{}, false, &output)
+	assert.Contains(t, output.String(), "GitHub API rate limit for github.com is running low")
+	assert.Contains(t, output.String(), "20.00%")
+}
+
+func TestFinishGitHubAPIRateLimitReportSuppressesWarningForJSON(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 0, Used: 5000}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	report := &GitHubAPIRateLimitReport{}
+	var output bytes.Buffer
+	finishGitHubAPIRateLimitReportToWriter(context.Background(), report, true, &output)
+	assert.Empty(t, strings.TrimSpace(output.String()))
+	require.NotNil(t, report.End)
+	assert.Zero(t, report.End.Remaining)
+}
+
+func TestGitHubAPIRateLimitReportOmitsUnavailableSnapshots(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
+		return rateLimitResource{}, stderrors.New("unavailable")
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	report := startGitHubAPIRateLimitReport(context.Background(), "")
+	finishGitHubAPIRateLimitReport(context.Background(), report, true)
+	assert.Nil(t, populatedGitHubAPIRateLimitReport(report))
 }
 
 func TestResolveMaxGitHubAPIRateLimit(t *testing.T) {

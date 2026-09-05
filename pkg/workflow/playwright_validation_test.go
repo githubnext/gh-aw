@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -212,7 +213,7 @@ func TestValidatePlaywrightModeNilWorkflow(t *testing.T) {
 func TestValidatePlaywrightBrowsers(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
-		"playwright": map[string]any{"browsers": []any{"chrome", "firefox"}},
+		"playwright": map[string]any{"browsers": []any{"chrome", "chrome-for-testing", "firefox"}},
 	}})
 	require.NoError(t, err)
 
@@ -220,4 +221,142 @@ func TestValidatePlaywrightBrowsers(t *testing.T) {
 		"playwright": map[string]any{"browsers": []any{"safari"}},
 	}})
 	require.Error(t, err)
+}
+
+func TestEmitPlaywrightBrowserInstallWarning(t *testing.T) {
+	tests := []struct {
+		name          string
+		tools         map[string]any
+		preSteps      string
+		customSteps   string
+		preAgentSteps string
+		postSteps     string
+		wantWarning   bool
+	}{
+		{
+			name:  "npm exec browser install",
+			tools: map[string]any{"playwright": nil},
+			customSteps: `steps:
+- name: Install Playwright Chromium
+  run: npm exec playwright install --with-deps chromium
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "npx browser install",
+			tools: map[string]any{"playwright": nil},
+			customSteps: `steps:
+- run: npx --yes playwright@latest install firefox
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "browser install after another command",
+			tools: map[string]any{"playwright": nil},
+			customSteps: `steps:
+- run: npm ci && pnpm exec playwright install webkit
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "bare browser install in pre-steps",
+			tools: map[string]any{"playwright": nil},
+			preSteps: `pre-steps:
+- run: playwright install chromium
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "browser install in pre-agent steps",
+			tools: map[string]any{"playwright": nil},
+			preAgentSteps: `pre-agent-steps:
+- run: bunx playwright install chromium
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "browser install in post-steps",
+			tools: map[string]any{"playwright": nil},
+			postSteps: `post-steps:
+- run: yarn exec playwright install webkit
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "skills install is not a browser install",
+			tools: map[string]any{"playwright": nil},
+			customSteps: `steps:
+- run: playwright-cli install --skills
+`,
+		},
+		{
+			name:  "package install is not a browser install",
+			tools: map[string]any{"playwright": nil},
+			customSteps: `steps:
+- run: npm install playwright
+`,
+		},
+		{
+			name:  "disabled Playwright tool",
+			tools: map[string]any{"playwright": false},
+			customSteps: `steps:
+- run: npx playwright install chromium
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			output := testutil.CaptureStderr(t, func() {
+				compiler.emitPlaywrightBrowserInstallWarning(&WorkflowData{
+					Tools:         tt.tools,
+					PreSteps:      tt.preSteps,
+					CustomSteps:   tt.customSteps,
+					PreAgentSteps: tt.preAgentSteps,
+					PostSteps:     tt.postSteps,
+				}, "test.md")
+			})
+
+			if tt.wantWarning {
+				assert.Contains(t, output, "use `tools.playwright.browsers` instead")
+				assert.Equal(t, 1, compiler.GetWarningCount())
+			} else {
+				assert.Empty(t, output)
+				assert.Zero(t, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
+func TestCompileWorkflowWarnsAboutPlaywrightBrowserInstallStep(t *testing.T) {
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+tools:
+  playwright:
+    browsers: [chrome-for-testing]
+steps:
+  - name: Install Playwright Chromium
+    run: npm exec playwright install --with-deps chromium
+---
+
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0o644))
+
+	compiler := NewCompiler()
+	output := testutil.CaptureStderr(t, func() {
+		require.NoError(t, compiler.CompileWorkflow(mdPath))
+	})
+
+	assert.Contains(t, output, "use `tools.playwright.browsers` instead")
+	assert.Equal(t, 1, compiler.GetWarningCount())
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), `install_playwright_browsers.sh" chromium`)
 }
