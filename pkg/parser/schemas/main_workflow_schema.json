@@ -3629,7 +3629,11 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["agent", "repos"],
+            "required": ["agent"],
+            "oneOf": [
+              { "required": ["repos"], "not": { "required": ["dynamic"] } },
+              { "required": ["dynamic"], "not": { "required": ["repos"] } }
+            ],
             "properties": {
               "agent": {
                 "type": "object",
@@ -3692,6 +3696,7 @@
                 }
               },
               "repos": { "$ref": "#/$defs/enclave-repos" },
+              "dynamic": { "$ref": "#/$defs/enclave-dynamic-policy" },
               "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
               "image": { "type": "string", "minLength": 1, "maxLength": 500 },
               "timeout": { "type": "integer", "minimum": 1, "maximum": 4740, "default": 120 },
@@ -13820,6 +13825,67 @@
             "type": "string",
             "enum": ["public", "trusted", "internal", "confidential", "sealed"]
           }
+        }
+      }
+    },
+    "enclave-dynamic-policy": {
+      "type": "object",
+      "description": "Dynamic agent repository admission policy. The compiler passes this closed envelope to AWF; runtime callers may only supply canonical owner/repository selectors within these bounds.",
+      "additionalProperties": false,
+      "required": ["sensitivity", "github-policy", "max-repositories", "quotas", "audit-labels", "expires-at"],
+      "anyOf": [{ "required": ["allowed-owners"] }, { "required": ["allowed-repositories"] }],
+      "properties": {
+        "allowed-owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38})$"
+          }
+        },
+        "allowed-repositories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38})/[a-z0-9._-]{1,100}$"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": ["public", "trusted", "internal", "confidential", "sealed"]
+        },
+        "github-policy": {
+          "type": "string",
+          "enum": ["github-repository-read-v1"]
+        },
+        "max-repositories": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "quotas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max-invocations", "max-output-bytes", "max-execution-seconds"],
+          "properties": {
+            "max-invocations": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+            "max-execution-seconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+          }
+        },
+        "audit-labels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+          }
+        },
+        "expires-at": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

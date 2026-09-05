@@ -207,7 +207,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		OTLPEndpoint: workflowData.OTLPEndpoint,
 		OTLPHeaders:  workflowData.OTLPHeaders,
 	}
-	if enclaveGitHubIssuesEnabled(workflowData) {
+	if enclaveGitHubDelegationEnabled(workflowData) {
 		manifestServers := collectMCPServersForManifest(workflowData)
 		primaryServers := make([]string, 0, len(manifestServers))
 		for _, server := range manifestServers {
@@ -227,15 +227,30 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		}
 		sort.Strings(primaryServers)
 		config.AgentID = ""
-		config.AgentIDs = []string{"${MCP_GATEWAY_AGENT_ID}", "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"}
+		config.AgentIDs = []string{"${MCP_GATEWAY_AGENT_ID}"}
 		config.AgentPolicies = map[string]MCPGatewayAgentPolicy{
-			"${MCP_GATEWAY_AGENT_ID}":            {Servers: primaryServers},
-			"${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}": enclaveGitHubMCPAgentPolicy(workflowData),
+			"${MCP_GATEWAY_AGENT_ID}": {Servers: primaryServers},
+		}
+		if enclaveGitHubIssuesEnabled(workflowData) {
+			config.AgentIDs = append(config.AgentIDs, "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}")
+			config.AgentPolicies["${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}"] = enclaveGitHubMCPAgentPolicy(workflowData)
 		}
 		if primaryGitHubEnabled {
 			config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"] = MCPGatewayAgentPolicy{
 				Servers: primaryServers,
 				Tools:   map[string][]string{"github": collectGitHubMCPManifestTools(workflowData.Tools["github"])},
+			}
+		}
+		if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
+			config.DelegationControllers = map[string]MCPGatewayDelegationController{
+				enclaveDynamicController: {
+					Server: "github",
+					Policy: map[string]any{
+						"version": enclaveDynamicGitHubPolicy,
+						"tools":   enclaveAgentGitHubDefaultTools,
+					},
+					ControlCapability: "${" + enclaveGitHubDelegationEnv + "}",
+				},
 			}
 		}
 	}
