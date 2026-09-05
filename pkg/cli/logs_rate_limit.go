@@ -155,7 +155,7 @@ func logsRateLimitHost(repoOverride string) string {
 
 func isGitHubAPIRateLimitLow(state rateLimitResource) bool {
 	return state.Limit > 0 &&
-		state.Remaining*100 <= state.Limit*RateLimitWarningThresholdPercent
+		int64(state.Remaining)*100 <= int64(state.Limit)*int64(RateLimitWarningThresholdPercent)
 }
 
 func populatedGitHubAPIRateLimitReport(report *GitHubAPIRateLimitReport) *GitHubAPIRateLimitReport {
