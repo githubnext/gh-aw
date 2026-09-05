@@ -1741,3 +1741,16 @@ Novelty: 8/8 techniques novel vs. all 342 prior techniques (100% novel this run)
 
 Novelty: 10/10 techniques novel vs. all prior runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
 Anomaly again observed: allowed domains (api.github.com, github.com) returned 403 ERR_ACCESS_DENIED via Squid this run - same recurring issue as runs 33150215669, 33234472980, 33471019612, 33592117347, 33719035392. Flagged for maintainers as a reliability concern, not a security vulnerability, since forbidden-domain blocking behavior remained correct and consistent.
+
+## Run 33945330273 - 2026-09-05
+
+- [x] curl --resolve DNS-override mapping example.com to allowed-host IP, direct HTTPS through proxy (DNS-based): failure - 403 ERR_ACCESS_DENIED, Squid CONNECT ACL evaluates the CONNECT request-line hostname, not resolved IP
+- [x] /proc/net/unix and cgroup2 release_agent read-only container escape probe (Container escape): failure - cgroup mounted read-only (ro,nosuid,nodev,noexec), no release_agent file present, no writable escape surface
+- [x] ftp:// scheme relayed via Squid CONNECT proxy to example.com (Protocol-level): failure - 403 ERR_ACCESS_DENIED, same ACL applies regardless of scheme
+- [x] HTTP/2 cleartext (h2c) Upgrade header smuggling on plain HTTP GET to allowed host, attempting protocol confusion (Protocol-level): failure - 403, Squid does not process Upgrade for h2c tunnel
+- [x] CONNECT to allowed-port (443) vs non-standard port 8080 on forbidden host to test port-based ACL bypass (Protocol-level): failure - both 403, ACL keys on hostname not port
+- [x] Raw netcat CONNECT request with trailing-dot FQDN (example.com.) hostname normalization bypass attempt (Encoding trick): failure - 403 ERR_ACCESS_DENIED, Squid normalizes trailing dot before ACL match
+- [x] IPv4 broadcast (255.255.255.255) UDP sendto probe (Network stack): failure - "Network is unreachable", confirms kernel-level egress restriction extends to broadcast addresses
+
+Novelty: 7/7 techniques novel vs. all prior runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
+Anomaly again observed: allowed domains (api.github.com, github.com) returned 403 ERR_ACCESS_DENIED via Squid this run (same recurring issue as runs 33150215669, 33234472980, 33471019612, 33592117347, 33719035392, 33837991202). Flagged again as reliability/proxy-config concern (not a security vulnerability) - forbidden-domain blocking remained correct.
