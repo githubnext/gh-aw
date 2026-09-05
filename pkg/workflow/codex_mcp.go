@@ -65,6 +65,15 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	mcpConfigContent.WriteString("          [history]\n")
 	mcpConfigContent.WriteString("          persistence = \"none\"\n")
 
+	// Codex defaults metrics_exporter to a built-in Statsig OTLP exporter that phones
+	// home to https://ab.chatgpt.com regardless of model-provider (see
+	// codex-rs/config/src/types.rs OtelConfig::default). This is unrelated to model
+	// inference routing (which correctly targets the AWF gateway for BYOK/GitHub
+	// providers) and would otherwise require allow-listing an OpenAI telemetry domain
+	// even for workflows that never talk to OpenAI directly. Disable it explicitly.
+	mcpConfigContent.WriteString("          [otel]\n")
+	mcpConfigContent.WriteString("          metrics_exporter = \"none\"\n")
+
 	// Add shell environment policy to control which environment variables are passed through
 	// This is a security feature to prevent accidental exposure of secrets
 	e.renderShellEnvironmentPolicy(&mcpConfigContent, tools, mcpTools)

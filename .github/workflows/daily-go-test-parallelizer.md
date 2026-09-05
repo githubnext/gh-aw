@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[test-parallel]"'
 permissions:
+  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read
 engine:
   id: codex
-  model-provider: openai
-model: openai/gpt-5.3-codex
+  model-provider: github
+model: copilot/mai-code-1-flash-picker
 strict: true
 timeout-minutes: 30
 network:
@@ -21,9 +22,6 @@ network:
     - defaults
     - go
     - node
-sandbox:
-  agent:
-    runtime: cloud-hypervisor
 tools:
   cache-memory:
     retention-days: 30
@@ -73,11 +71,11 @@ Analyze up to twenty-five Go test files per run and add `t.Parallel()` only wher
 
 Add `t.Parallel()` at the start of eligible top-level tests. Also add it to eligible table-driven subtests.
 For Go 1.22+ semantics, do not add redundant loop-variable rebinding (`tt := tt`, `cmd := cmd`) unless a case truly needs an additional local copy for correctness.
-Read the `parallel-safety-rules` skill before assessing eligibility.
+Apply the safety exclusions below before assessing eligibility.
 
 ## Batched analysis agent (small context)
 
-1. Call `parallel-safety-batch-checker` exactly once with the selected path list and direct it to read the `parallel-safety-rules` skill.
+1. Analyze the selected path list as one batch.
 2. Do not create one sub-agent per file; keep the repeated static rules in this single batch call.
 3. Require compact JSON output:
    `{"files":[{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}]}`.
@@ -99,21 +97,6 @@ After editing the selected batch:
 Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the last path from the selected batch to `state.json`, even when no edit is safe, so the next daily run advances round-robin.
 
 If validation succeeds with a change, create one draft pull request describing the safety analysis and test results. Otherwise use `noop` with the selected path and a short reason.
-
-## agent: `parallel-safety-batch-checker`
----
-description: Review a small batch of Go test files for safe t.Parallel additions with minimal repeated context
-model: gpt-5-mini
----
-Given up to 25 `*_test.go` file paths, read only those files and apply this workflow's safety rules.
-Return compact JSON only in this exact shape:
-`{"files":[{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}]}`.
-Set `safe` to false when uncertain.
-
-## skill: `parallel-safety-rules`
----
-description: Safety exclusions for adding t.Parallel to Go tests.
----
 
 Do not parallelize tests that use or may conflict through:
 
