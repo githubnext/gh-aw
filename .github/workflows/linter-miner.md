@@ -26,7 +26,7 @@ network:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, discussions, issues, repos]
   cache-memory:
     key: linter-miner-state-${{ github.workflow }}
@@ -80,7 +80,7 @@ timeout-minutes: 120
 max-turns: 1000
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 # Linter Miner

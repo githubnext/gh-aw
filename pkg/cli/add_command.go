@@ -37,6 +37,8 @@ The -n flag allows you to specify a custom name for the workflow file (not allow
 The --dir flag allows you to specify the workflow directory (default: .github/workflows).
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
+When a package contains .github/workflows/aw.json, its project settings are
+merged into the target repository and the added package settings take precedence.
 
 Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
       For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.

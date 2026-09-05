@@ -33,6 +33,9 @@ func addNonWorkflowResourceWithTracking(resolved *ResolvedWorkflow, tracker *Fil
 	}
 	// Package resources are copied as-is to their declared repository-relative destinations.
 	if resolved.IsPackageResourceFile {
+		if resolved.IsPackageProjectFile {
+			return true, mergeProjectFileWithTracking(resolved, tracker, gitRoot)
+		}
 		return true, addResourceFileWithTracking(resolved, tracker, opts, gitRoot)
 	}
 	return false, nil

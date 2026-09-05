@@ -656,7 +656,7 @@ Each runtime takes a required `version` string, plus optional `action-repo` and 
 
 | Runtime | Default Version | Default Setup Action |
 |---------|----------------|---------------------|
-| `node` | 24 | `actions/setup-node@v6` |
+| `node` | 24 | `actions/setup-node@v7` |
 | `python` | 3.12 | `actions/setup-python@v5` |
 | `go` | 1.25 | `actions/setup-go@v5` |
 | `uv` | latest | `astral-sh/setup-uv@v5` |

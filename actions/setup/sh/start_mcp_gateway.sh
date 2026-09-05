@@ -159,8 +159,23 @@ if ! echo "$MCP_CONFIG" | jq -e '.gateway.domain' >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! echo "$MCP_CONFIG" | jq -e '.gateway.agentId' >/dev/null 2>&1; then
-  echo "ERROR: Gateway configuration is missing required 'agentId' field"
+AGENT_IDENTIFIER_ERROR=$(echo "$MCP_CONFIG" | jq -r '
+  if ((.gateway | has("agentId")) == (.gateway | has("agentIds"))) then
+    "ERROR: Gateway configuration must specify exactly one of '\''agentId'\'' or '\''agentIds'\''"
+  elif (.gateway | has("agentId")) then
+    if (.gateway.agentId | type == "string" and length > 0) then
+      ""
+    else
+      "ERROR: Gateway '\''agentId'\'' must be a non-empty string"
+    end
+  elif (.gateway.agentIds | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) then
+    ""
+  else
+    "ERROR: Gateway '\''agentIds'\'' must be a non-empty array of non-empty strings"
+  end
+')
+if [ -n "$AGENT_IDENTIFIER_ERROR" ]; then
+  echo "$AGENT_IDENTIFIER_ERROR"
   exit 1
 fi
 
@@ -509,5 +524,6 @@ echo ""
   echo "gateway-pid=$GATEWAY_PID"
   echo "gateway-port=${MCP_GATEWAY_PORT}"
   echo "gateway-agent-id=${MCP_GATEWAY_AGENT_ID}"
+  echo "gateway-api-key=${MCP_GATEWAY_AGENT_ID}"
   echo "gateway-domain=${MCP_GATEWAY_DOMAIN}"
 } >> "$GITHUB_OUTPUT"

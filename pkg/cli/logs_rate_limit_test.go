@@ -81,6 +81,34 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 	}
 }
 
+func TestResolveMaxGitHubAPIRateLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		configuredMax int
+		apiLimit      int
+		want          int
+		wantErr       bool
+	}{
+		{name: "default preserves built-in reserve", configuredMax: 0, apiLimit: 5000, want: 4990},
+		{name: "absolute maximum", configuredMax: 12000, apiLimit: 15000, want: 12000},
+		{name: "relative reserve", configuredMax: -2000, apiLimit: 15000, want: 13000},
+		{name: "absolute maximum exceeds limit", configuredMax: 15001, apiLimit: 15000, wantErr: true},
+		{name: "relative reserve consumes whole limit", configuredMax: -15000, apiLimit: 15000, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveMaxGitHubAPIRateLimit(tt.configuredMax, tt.apiLimit)
+			if tt.wantErr {
+				require.ErrorIs(t, err, errInvalidMaxGitHubAPIRateLimit)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // jsonInt is a helper that converts an int64 to its JSON number representation.
 func jsonInt(n int64) string {
 	return strconv.FormatInt(n, 10)
@@ -98,6 +126,19 @@ func TestSleepWithContextCancellation(t *testing.T) {
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Less(t, elapsed, time.Second, "sleepWithContext should return quickly when context is already cancelled")
+}
+
+func TestSharedRateLimitGateRespectsCancellation(t *testing.T) {
+	logsRateLimitGate <- struct{}{}
+	t.Cleanup(func() { <-logsRateLimitGate })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	err := checkAndWaitForRateLimitShared(ctx, false, 0, 1)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, time.Since(start), time.Second, "waiting for the shared rate-limit gate should be cancellable")
 }
 
 // TestSleepWithContextDeadlineExceeded verifies that sleepWithContext respects a
@@ -146,30 +187,71 @@ func TestSleepWithContextAlreadyCanceled(t *testing.T) {
 
 func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
-	fetchRateLimitFunc = func() (rateLimitResource, error) {
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
 		return rateLimitResource{
 			Limit:     5000,
 			Remaining: 0,
 			Reset:     time.Now().Add(10 * time.Minute).Unix(),
+			Used:      5000,
 		}, nil
 	}
+
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	start := time.Now()
-	err := checkAndWaitForRateLimit(ctx, false)
+	err := checkAndWaitForRateLimit(ctx, false, 0, 1)
 	elapsed := time.Since(start)
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Less(t, elapsed, 100*time.Millisecond, "cancelled context should interrupt rate-limit wait promptly")
 }
 
+func TestConfiguredRateLimitWaitRespectsDeadline(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
+		return rateLimitResource{
+			Limit:     15000,
+			Remaining: 3000,
+			Reset:     time.Now().Add(10 * time.Minute).Unix(),
+			Used:      12000,
+		}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	err := checkAndWaitForRateLimit(ctx, false, 12000, 1)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestConfiguredRateLimitRunsWithoutCooldownBelowCeiling(t *testing.T) {
+	oldFetchRateLimitFunc := fetchRateLimitFunc
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
+		return rateLimitResource{
+			Limit:     15000,
+			Remaining: 10000,
+			Reset:     time.Now().Add(10 * time.Minute).Unix(),
+			Used:      5000,
+		}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
+
+	start := time.Now()
+	err := checkAndWaitForRateLimit(context.Background(), false, -2000, 1)
+
+	require.NoError(t, err)
+	assert.Less(t, time.Since(start), 100*time.Millisecond)
+}
+
 func TestCheckAndWaitForRateLimitFetchErrorAndContextDone(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
 	expectedFetchErr := stderrors.New("fetch failure")
-	fetchRateLimitFunc = func() (rateLimitResource, error) {
+	fetchRateLimitFunc = func(context.Context) (rateLimitResource, error) {
 		return rateLimitResource{}, expectedFetchErr
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
@@ -177,7 +259,7 @@ func TestCheckAndWaitForRateLimitFetchErrorAndContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := checkAndWaitForRateLimit(ctx, false)
+	err := checkAndWaitForRateLimit(ctx, false, 0, 1)
 	require.Error(t, err)
 	require.ErrorIs(t, err, expectedFetchErr)
 	require.ErrorIs(t, err, context.Canceled)

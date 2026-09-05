@@ -192,6 +192,7 @@ func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, l
 	if workflowData == nil {
 		return
 	}
+	applyPlaywrightBrowserEnv(env, workflowData)
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
@@ -201,6 +202,13 @@ func applyEngineAndAgentEnv(env map[string]string, workflowData *WorkflowData, l
 		if log != nil {
 			log.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 		}
+	}
+
+}
+
+func applyPlaywrightBrowserEnv(env map[string]string, workflowData *WorkflowData) {
+	if isPlaywrightCLIMode(workflowData.Tools) {
+		env["PLAYWRIGHT_BROWSERS_PATH"] = playwrightBrowsersPath
 	}
 }
 

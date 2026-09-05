@@ -11,7 +11,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // BuildAWFCommand builds a complete AWF command with all arguments.
@@ -94,7 +93,7 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:ro" --mount "%s:/host%s:ro"`, ghAwDir, ghAwDir, ghAwDir, ghAwDir)
 	}
 	expandableArgs, arcDindDockerHostProbe = appendArcDindMountSettings(expandableArgs, arcDindDockerHostProbe, isArcDind)
-	if !isCloudHypervisor && config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
+	if !isCloudHypervisor && config.WorkflowData != nil && usesSafeOutputsArtifactStaging(config.WorkflowData.SafeOutputs) {
 		stagingDir := SafeOutputsUploadArtifactsDir
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
@@ -287,21 +286,11 @@ func buildMaxAICreditsExport(config AWFCommandConfig, awfConfigJSON string) (str
 		}
 	}
 	awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
-	if config.ResolveMaxAICreditsFromEnv {
-		awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
-		return fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits), awfConfigJSON
-	}
-	expr := compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
-	if config.WorkflowData != nil {
-		switch {
-		case config.WorkflowData.IsEvalsRun:
-			expr = compilerenv.BuildDefaultEvalsMaxAICreditsExpression(defaultMaxAICredits)
-		case config.WorkflowData.IsDetectionRun:
-			expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
-		}
-	}
 	awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
-	return fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr), awfConfigJSON
+	return fmt.Sprintf(`%s="${%s:-%s}"
+if [[ ! "$%s" =~ ^[0-9]+$ ]]; then
+  %s="%s"
+fi`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits), awfConfigJSON
 }
 
 func buildAWFConfigPrintfArg(awfConfigJSON string, hasMaxAICreditsExport bool) string {
@@ -664,7 +653,7 @@ func joinPorts(ports []int) string {
 //
 // Returns:
 //   - string: The AWF command to use (e.g., "sudo --preserve-env awf",
-//     "sudo -E awf", "awf", or custom command)
+//     "sudo -E /usr/bin/env PATH=\"$PATH\" /usr/local/bin/awf", "awf", or custom command)
 func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && agentConfig.Command != "" {

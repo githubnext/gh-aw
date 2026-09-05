@@ -505,6 +505,13 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 		if mode, ok := configMap["mode"].(string); ok {
 			config.Mode = mode
 		}
+		if browsers, ok := configMap["browsers"].([]any); ok {
+			for _, browser := range browsers {
+				if name, ok := browser.(string); ok {
+					config.Browsers = append(config.Browsers, name)
+				}
+			}
+		}
 
 		return config
 	}

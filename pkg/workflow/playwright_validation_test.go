@@ -97,8 +97,46 @@ tools:
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "built-in Playwright MCP support has been removed")
+	assert.Contains(t, err.Error(), "Remove `mode: mcp`")
+	assert.NotContains(t, err.Error(), "mode: cli")
 	assert.Contains(t, err.Error(), "playwright-cli <command>")
 	assert.Contains(t, err.Error(), "mcp-servers")
+}
+
+func TestPiEngineAcceptsPlaywrightWithImplicitCLIMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	content := `---
+name: pi-playwright-cli
+on: push
+engine: pi
+permissions:
+  contents: read
+  issues: read
+
+tools:
+  github:
+    mode: gh-proxy
+  cli-proxy: true
+  playwright:
+---
+
+# Test Workflow
+`
+	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(mdPath))
+
+	lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, "@playwright/cli")
+	assert.Contains(t, lockStr, "playwright-cli install --skills")
+	assert.NotContains(t, lockStr, "@playwright/mcp")
+	assert.NotContains(t, lockStr, "mode: cli")
 }
 
 // TestCompileWorkflowRejectsLegacyPlaywrightMCPModeWithArgs ensures that a legacy
@@ -169,4 +207,17 @@ func TestValidatePlaywrightModeNilWorkflow(t *testing.T) {
 
 	err = compiler.validatePlaywrightMode(&WorkflowData{Tools: nil})
 	require.NoError(t, err, "nil tools should not return error")
+}
+
+func TestValidatePlaywrightBrowsers(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
+		"playwright": map[string]any{"browsers": []any{"chrome", "firefox"}},
+	}})
+	require.NoError(t, err)
+
+	err = compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
+		"playwright": map[string]any{"browsers": []any{"safari"}},
+	}})
+	require.Error(t, err)
 }

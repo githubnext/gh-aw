@@ -861,12 +861,28 @@ function parseOTLPHeaders(raw) {
   for (const pair of raw.split(",")) {
     const eqIdx = pair.indexOf("=");
     if (eqIdx <= 0) continue; // skip malformed pairs (no =) or empty keys (= at start)
-    // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
-    const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
-    const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
-    if (key) result[key] = value;
+    try {
+      // Decode before trimming so percent-encoded whitespace (%20) at edges is preserved correctly.
+      const key = decodeURIComponent(pair.slice(0, eqIdx)).trim();
+      const value = decodeURIComponent(pair.slice(eqIdx + 1)).trim();
+      if (key) result[key] = value;
+    } catch {
+      // Ignore only the malformed pair so other configured headers remain usable.
+    }
   }
   return result;
+}
+
+/**
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function hasEmptyOTLPAuthorizationHeader(raw) {
+  const headers = parseOTLPHeaders(raw);
+  return Object.entries(headers).some(([key, value]) => {
+    const normalizedKey = key.toLowerCase();
+    return (normalizedKey === "authorization" || normalizedKey === "x-sentry-auth") && value === "";
+  });
 }
 
 /**
@@ -1126,6 +1142,9 @@ function parseOTLPEndpoints() {
         .filter(e => e && typeof e.url === "string" && e.url.trim() !== "")
         .filter(e => {
           const hasHeaders = typeof e.headers === "string" && e.headers !== "";
+          if (hasHeaders && hasEmptyOTLPAuthorizationHeader(e.headers)) {
+            return false;
+          }
           if (ignoreMissingCredentials && !hasHeaders) {
             // Enterprise-default endpoint configured without matching credentials:
             // treat as unconfigured instead of exporting unauthenticated telemetry.
@@ -2249,6 +2268,23 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // setup action post-step emits this run-level span.
   if (jobName === "conclusion") {
     const usageActivity = readJSONIfExists("/tmp/gh-aw/usage/activity/summary.json");
+    for (const [attributeName, sectionName, fieldName] of [
+      ["gh-aw.integrity.filtered_events", "integrity", "total_filtered"],
+      ["gh-aw.firewall.requests", "firewall", "total_requests"],
+      ["gh-aw.firewall.allowed_requests", "firewall", "allowed_requests"],
+      ["gh-aw.firewall.blocked_requests", "firewall", "blocked_requests"],
+      ["gh-aw.mcp.tool_calls", "gateway", "total_calls"],
+      ["gh-aw.mcp.failed_tool_calls", "gateway", "failed_calls"],
+      ["gh-aw.mcp.input_bytes", "gateway", "total_input_size"],
+      ["gh-aw.mcp.max_input_bytes", "gateway", "max_input_size"],
+      ["gh-aw.mcp.output_bytes", "gateway", "total_output_size"],
+      ["gh-aw.mcp.max_output_bytes", "gateway", "max_output_size"],
+    ]) {
+      const value = usageActivity?.[sectionName]?.[fieldName];
+      if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+        attributes.push(buildAttr(attributeName, value));
+      }
+    }
     const workingSet = usageActivity?.working_set;
     const measurementState = workingSet?.measurement_state;
     if (measurementState === "measured" || measurementState === "partial" || measurementState === "unavailable") {

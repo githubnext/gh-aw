@@ -129,7 +129,6 @@ func getLaterCodemods() []Codemod {
 		getCLIProxyBashDisabledCodemod(),                           // Set tools.cli-proxy: false when tools.bash is disabled
 		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)
-		getSandboxAgentFalseRemovalCodemod(),                       // Remove deprecated sandbox.agent: false (rejected in strict mode)
 		getSandboxRuntimeProfileCodemod(),                          // Migrate sandbox.agent.sudo / legacy-security to sandbox.agent.runtime profiles
 		getInferToDisableModelInvocationCodemod(),                  // Migrate deprecated 'infer' to 'disable-model-invocation'
 		getRunInstallScriptsToRuntimesNodeCodemod(),                // Move top-level run-install-scripts under runtimes.node

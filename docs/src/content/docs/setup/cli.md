@@ -363,9 +363,11 @@ If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-p
 
 Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `--fix`.
 
-**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--force-refresh-container-pins`, `--gh-aw-ref`, `--ghes`, `--grant`, `--grype`, `--json/-j`, `--logical-repo/-l`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--shellcheck`, `--show-all`, `--staged`, `--stats`, `--strict`, `--syft`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--yamllint`, `--zizmor`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--force-refresh-container-pins`, `--gh-aw-ref`, `--ghes`, `--grant`, `--grype`, `--json/-j`, `--logical-repo/-l`, `--models`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--shellcheck`, `--show-all`, `--staged`, `--stats`, `--strict`, `--syft`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--yamllint`, `--zizmor`
 
 **`--gh-aw-ref` flag:** Convenience alias for `--action-mode release --action-tag <ref>`. Accepts a branch name, tag, or commit SHA targeting the `github/gh-aw` repository. Branch and tag names are resolved to their full commit SHA at compile time, so the baked-in reference is immutable and reproducible. Useful for E2E-testing workflows compiled against a specific gh-aw revision.
+
+**`--models` flag:** Refreshes the observed model inventory using the same data sources as `gh aw models`, then warns when `models.allowed`, `models.blocked`, or `engine.models` references an unknown model. Built-in and workflow model aliases are accepted. If no observed model data is available, the check is skipped.
 
 **`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* â€” any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
@@ -615,9 +617,15 @@ The diff output shows: new or removed network domains, status changes (allowed â
 
 #### `graders`
 
-Inspect and replay workflow graders. `graders operational-value` regrades the operational-value observation from a completed workflow run at an explicit evidence cutoff. It verifies and executes the evaluator archived by the run without modifying the original artifact.
+Inspect and replay workflow graders. `graders run` runs one grader declared by a
+local workflow against a saved run payload or JSON from standard input.
+`graders operational-value` regrades the operational-value observation from a
+completed workflow run at an explicit evidence cutoff. It verifies and executes
+the evaluator archived by the run without modifying the original artifact.
 
 ```bash wrap
+gh aw graders run weekly-research loops 123456789
+cat payload.json | gh aw graders run weekly-research loops
 gh aw graders operational-value 123456789 \
   --evidence-at 2026-08-30T12:00:00.000Z --json
 ```

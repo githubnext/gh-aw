@@ -131,6 +131,10 @@ type AWFNetworkConfig struct {
 	// Maps to: --network-isolation
 	Isolation bool `json:"isolation,omitempty"`
 
+	// VerifySbxEgress enables fail-closed direct-egress verification for Docker sbx.
+	// Maps to: --verify-sbx-egress
+	VerifySbxEgress bool `json:"verifySbxEgress,omitempty"`
+
 	// TopologyAttach lists container names AWF should attach to awf-net.
 	// Maps to: --topology-attach <name> (repeatable)
 	TopologyAttach []string `json:"topologyAttach,omitempty"`
@@ -224,7 +228,10 @@ type AWFModelFallbackConfig struct {
 // AWFAPITargetConfig is a single API proxy target entry.
 // Maps to: --<provider>-api-target <host>
 type AWFAPITargetConfig struct {
-	// Host is the hostname (and optional port) of the API endpoint.
+	// Host is the hostname (and optional port) of the API endpoint, or an
+	// explicit http:// URL when the effective AWF version supports HTTP targets.
+	// AWF currently normalizes explicit target ports to the scheme default, so
+	// custom ports are not supported for these targets.
 	Host string `json:"host,omitempty"`
 
 	// AuthHeader is the custom authentication header name sent with API requests.
