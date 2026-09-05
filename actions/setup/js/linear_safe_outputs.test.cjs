@@ -88,6 +88,10 @@ describe("Linear safe outputs", () => {
     await expect(createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "not-a-project" })).rejects.toThrow("valid configured project ID");
   });
 
+  it("identifies the required team ID configuration", async () => {
+    await expect(createIssue({})).rejects.toThrow("safe-outputs.linear-create-issue.team-id");
+  });
+
   it("rejects HTTP, malformed JSON, GraphQL, and unsuccessful mutation responses", async () => {
     fetch.mockResolvedValueOnce(response({}, 429));
     await expect(linearGraphQL("query Fixed { viewer { id } }", {})).rejects.toThrow("rate limit exceeded");
