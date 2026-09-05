@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -334,6 +335,20 @@ func parseGitHubReposScope(value any) (GitHubReposScope, error) {
 func (s *GitHubReposScope) UnmarshalYAML(unmarshal func(any) error) error {
 	var value any
 	if err := unmarshal(&value); err != nil {
+		return err
+	}
+	scope, err := parseGitHubReposScope(value)
+	if err != nil {
+		return err
+	}
+	*s = scope
+	return nil
+}
+
+// UnmarshalJSON normalizes scalar and array repository scopes to a string slice.
+func (s *GitHubReposScope) UnmarshalJSON(data []byte) error {
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
 	scope, err := parseGitHubReposScope(value)
