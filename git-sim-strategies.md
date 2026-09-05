@@ -874,3 +874,15 @@ available). No steering issue number given. next_index unchanged at 216. Called 
 only. 15 consecutive identical halts (08-16 through 09-03) — this is well past the
 point of a human needing to pause/redesign this workflow rather than have it keep
 re-running daily for the same result.
+
+## HALTED 2026-09-05 (16th consecutive run)
+
+Same policy conflict, independently reconfirmed, no change: real create_pull_request/
+push_to_pull_request_branch/create_issue calls against github/gh-aw filled with
+synthetic probe content is forbidden by the outer safe-outputs policy ("no probing /
+placeholder-content / let-me-see-if-this-works experiments"). config-simulator
+subagent still unregistered (only claude/Explore/general-purpose/Plan/statusline-setup
+available). No steering issue number given. next_index unchanged at 216. Called noop
+only. 16 consecutive identical halts (08-16 through 09-05) — a human maintainer should
+pause/retire/redesign this workflow rather than have it keep re-running daily for the
+same result.
