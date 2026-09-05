@@ -209,6 +209,7 @@ func (s *MCPToolSummary) syncBaseFromFields() {
 
 // MCPToolCall represents a single MCP tool call with full details
 type MCPToolCall struct {
+	ToolCallID          string `json:"tool_call_id,omitempty"`
 	Timestamp           string `json:"timestamp"`
 	ServerName          string `json:"server_name"`
 	ToolName            string `json:"tool_name"`

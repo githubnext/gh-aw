@@ -79,6 +79,15 @@ type usageActivityGateway struct {
 	MaxOutputSize   int                          `json:"max_output_size"`
 	Servers         []usageActivityGatewayServer `json:"servers,omitempty"`
 	Tools           []usageActivityGatewayTool   `json:"tools,omitempty"`
+	ToolCalls       []usageActivityGatewayCall   `json:"tool_calls,omitempty"`
+}
+
+type usageActivityGatewayCall struct {
+	ToolCallID   string  `json:"tool_call_id"`
+	RequestSize  int     `json:"request_size"`
+	ResponseSize int     `json:"response_size"`
+	DurationMS   float64 `json:"duration_ms"`
+	Outcome      string  `json:"outcome"`
 }
 
 type usageActivityGatewayServer struct {
@@ -239,7 +248,7 @@ func applyUsageActivityMCPSummary(gateway *usageActivityGateway, integritySummar
 	}
 	result.MCPToolUsage = &MCPToolUsageData{
 		Summary:   tools,
-		ToolCalls: []MCPToolCall{},
+		ToolCalls: buildUsageActivityToolCalls(gateway),
 		Servers:   servers,
 		Integrity: integrity,
 	}
@@ -247,6 +256,9 @@ func applyUsageActivityMCPSummary(gateway *usageActivityGateway, integritySummar
 
 func backfillUsageActivityMCPMetrics(gateway *usageActivityGateway, integritySummary *IntegrityFilterSummary, usage *MCPToolUsageData) {
 	if gateway != nil {
+		if len(usage.ToolCalls) == 0 {
+			usage.ToolCalls = buildUsageActivityToolCalls(gateway)
+		}
 		activityTools := make(map[string]usageActivityGatewayTool, len(gateway.Tools))
 		for _, tool := range gateway.Tools {
 			activityTools[tool.ServerName+":"+tool.ToolName] = tool
@@ -281,6 +293,23 @@ func backfillUsageActivityMCPMetrics(gateway *usageActivityGateway, integritySum
 	if usage.Integrity == nil && len(usage.FilteredEvents) == 0 && integritySummary != nil {
 		usage.Integrity = cloneIntegrityFilterSummary(integritySummary)
 	}
+}
+
+func buildUsageActivityToolCalls(gateway *usageActivityGateway) []MCPToolCall {
+	if gateway == nil {
+		return nil
+	}
+	calls := make([]MCPToolCall, 0, len(gateway.ToolCalls))
+	for _, call := range gateway.ToolCalls {
+		calls = append(calls, MCPToolCall{
+			ToolCallID: call.ToolCallID,
+			InputSize:  call.RequestSize,
+			OutputSize: call.ResponseSize,
+			Duration:   formatActivityDuration(call.DurationMS),
+			Status:     call.Outcome,
+		})
+	}
+	return calls
 }
 
 func backfillUsageActivityToolMetrics(tool *MCPToolSummary, activity usageActivityGatewayTool) {

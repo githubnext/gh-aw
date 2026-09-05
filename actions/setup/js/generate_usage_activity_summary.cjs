@@ -420,6 +420,14 @@ function getGatewayTool(gateway, serverName, toolName) {
 function recordGatewayToolCall(gateway, serverName, toolName, inputSize) {
   const server = getGatewayServer(gateway, serverName);
   const tool = getGatewayTool(gateway, serverName, toolName);
+  const call = {
+    tool_call_id: `call-${gateway.tool_calls.length + 1}`,
+    request_size: inputSize,
+    response_size: 0,
+    duration_ms: 0,
+    outcome: "incomplete",
+  };
+  gateway.tool_calls.push(call);
   gateway.total_calls += 1;
   gateway.total_input_size += inputSize;
   gateway.max_input_size = Math.max(gateway.max_input_size, inputSize);
@@ -429,6 +437,7 @@ function recordGatewayToolCall(gateway, serverName, toolName, inputSize) {
   tool.call_count += 1;
   tool.total_input_size += inputSize;
   tool.max_input_size = Math.max(tool.max_input_size, inputSize);
+  return call;
 }
 
 /**
@@ -436,8 +445,9 @@ function recordGatewayToolCall(gateway, serverName, toolName, inputSize) {
  * @param {string} serverName
  * @param {string} toolName
  * @param {{failed: boolean, outputSize: number, durationMs: number}} result
+ * @param {{response_size: number, duration_ms: number, outcome: string}} call
  */
-function recordGatewayToolResult(gateway, serverName, toolName, result) {
+function recordGatewayToolResult(gateway, serverName, toolName, result, call) {
   const server = getGatewayServer(gateway, serverName);
   const tool = getGatewayTool(gateway, serverName, toolName);
   if (result.failed) {
@@ -455,6 +465,9 @@ function recordGatewayToolResult(gateway, serverName, toolName, result) {
   tool.max_output_size = Math.max(tool.max_output_size, result.outputSize);
   tool.total_duration_ms += result.durationMs;
   tool.max_duration_ms = Math.max(tool.max_duration_ms, result.durationMs);
+  call.response_size = result.outputSize;
+  call.duration_ms = result.durationMs;
+  call.outcome = result.failed ? "failure" : "success";
 }
 
 /**
@@ -526,8 +539,8 @@ function parseGatewayJSONL(activity, content) {
         .trim()
         .toLowerCase();
       const failed = status === "error" || String(entry.error || "").trim() !== "" || level === "error";
-      recordGatewayToolCall(activity.gateway, serverName, toolName, inputSize);
-      recordGatewayToolResult(activity.gateway, serverName, toolName, { failed, outputSize, durationMs });
+      const call = recordGatewayToolCall(activity.gateway, serverName, toolName, inputSize);
+      recordGatewayToolResult(activity.gateway, serverName, toolName, { failed, outputSize, durationMs }, call);
     } catch {
       continue;
     }
@@ -566,13 +579,14 @@ function parseRPCMessagesJSONL(activity, content) {
           continue;
         }
         const inputSize = jsonByteLength(payload.params?.arguments ?? payload.params);
-        recordGatewayToolCall(activity.gateway, serverName, toolName, inputSize);
+        const call = recordGatewayToolCall(activity.gateway, serverName, toolName, inputSize);
         if (payload.id !== null && payload.id !== undefined) {
           const key = JSON.stringify([serverName, payload.id]);
           pending.set(key, {
             serverName,
             toolName,
             timestampMs: Date.parse(entry.timestamp),
+            call,
           });
         }
         continue;
@@ -591,7 +605,7 @@ function parseRPCMessagesJSONL(activity, content) {
       const hasRPCError = payload.error !== null && payload.error !== undefined;
       const failed = hasRPCError || payload.result?.isError === true;
       const outputSize = jsonByteLength(hasRPCError ? payload.error : payload.result);
-      recordGatewayToolResult(activity.gateway, request.serverName, request.toolName, { failed, outputSize, durationMs });
+      recordGatewayToolResult(activity.gateway, request.serverName, request.toolName, { failed, outputSize, durationMs }, request.call);
     } catch {
       continue;
     }
@@ -614,6 +628,7 @@ function parseGatewayActivity(logRoots = ["/tmp/gh-aw", "/tmp/gh-aw/threat-detec
       max_duration_ms: 0,
       servers: new Map(),
       tools: new Map(),
+      tool_calls: [],
     },
     integrity: {
       total_filtered: 0,
@@ -653,6 +668,7 @@ function parseGatewayActivity(logRoots = ["/tmp/gh-aw", "/tmp/gh-aw/threat-detec
           max_output_size: activity.gateway.max_output_size,
           total_duration_ms: activity.gateway.total_duration_ms,
           max_duration_ms: activity.gateway.max_duration_ms,
+          tool_calls: activity.gateway.tool_calls,
           servers: Array.from(activity.gateway.servers.values())
             .sort((left, right) => left.server_name.localeCompare(right.server_name))
             .map(server => ({
