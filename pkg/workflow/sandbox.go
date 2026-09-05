@@ -88,7 +88,6 @@ type AgentSandboxConfig struct {
 	Runtime        AgentRuntime                          `yaml:"runtime,omitempty"`         // Sandbox runtime profile for the agent container (see sandbox_runtime_profile.go)
 	AllowHostPorts []int                                 `yaml:"-"`                         // Additional host TCP ports the agent may connect to (docker-sudo-iptables only).
 	Disabled       bool                                  `yaml:"-"`                         // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	DisableReason  string                                `yaml:"-"`                         // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
 	Config         *SandboxRuntimeConfig                 `yaml:"config,omitempty"`          // Custom SRT config (optional)
 	Command        string                                `yaml:"command,omitempty"`         // Custom command to replace AWF or SRT installation
 	Args           []string                              `yaml:"args,omitempty"`            // Additional arguments to append to the command

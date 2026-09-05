@@ -28,7 +28,7 @@ func TestPullRequestTargetValidation(t *testing.T) {
 		// ---- non-strict mode ----
 
 		{
-			name: "pull_request_target with checkout disabled - non-strict - sandbox warning only",
+			name: "pull_request_target with checkout disabled - non-strict - no warning",
 			frontmatter: `---
 strict: false
 on:
@@ -37,7 +37,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 checkout: false
@@ -48,8 +48,8 @@ Test workflow content.`,
 			filename:      "prt-checkout-false-non-strict.md",
 			strictMode:    false,
 			expectError:   false,
-			expectWarning: true,
-			warningCount:  1, // sandbox.agent: false
+			expectWarning: false,
+			warningCount:  0,
 		},
 		{
 			name: "pull_request_target with no checkout key - non-strict - insecure checkout warning",
@@ -61,7 +61,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -72,7 +72,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  2, // sandbox.agent: false warning + insecure-checkout warning (non-strict mode)
+			warningCount:  1, // insecure-checkout warning (non-strict mode)
 		},
 		{
 			name: "pull_request_target with trusted checkout - non-strict - no warnings no error",
@@ -108,7 +108,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -118,8 +118,8 @@ Test workflow content.`,
 			filename:      "pr-non-strict.md",
 			strictMode:    false,
 			expectError:   false,
-			expectWarning: true,
-			warningCount:  1, // sandbox.agent: false only
+			expectWarning: false,
+			warningCount:  0,
 		},
 		{
 			name: "push trigger - non-strict - no diagnostic",
@@ -131,7 +131,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -141,8 +141,8 @@ Test workflow content.`,
 			filename:      "push-non-strict.md",
 			strictMode:    false,
 			expectError:   false,
-			expectWarning: true,
-			warningCount:  1, // sandbox.agent: false only
+			expectWarning: false,
+			warningCount:  0,
 		},
 
 		// ---- strict mode ----
