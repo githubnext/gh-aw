@@ -143,10 +143,10 @@ func resolveDefaultShell(defaults map[string]any) string {
 	return shell
 }
 
-// extractRunStepsFromLockFile parses a compiled lock file and returns all
-// run: steps whose effective shell is lintable by shellcheck.
-//
-// The effective shell for a step is resolved in priority order:
+// extractRunStepsFromJob returns all run: steps in a single job whose
+// effective shell is lintable by shellcheck. jobDefaultShell is the shell
+// resolved from the job's (or workflow's) defaults.run.shell, used when a
+// step does not set its own "shell" field.
 func extractRunStepsFromJob(job map[string]any, jobDefaultShell, lockFile string) []runStepInfo {
 	var steps []runStepInfo
 	rawSteps, ok := job["steps"].([]any)

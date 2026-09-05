@@ -127,10 +127,25 @@ steps:
       echo "Verifying all static analysis tools executed and produced output..."
       COMPILE_LOG="/tmp/gh-aw/agent/compile-output.txt"
 
+      # Each tool has a unique, scanner-specific invocation marker so this check cannot
+      # be satisfied by another tool's log output (e.g. actionlint's summary mentions
+      # "shellcheck/pyflakes" but never emits the dedicated shellcheck marker below).
+      declare -A TOOL_MARKERS=(
+        [zizmor]="Running zizmor"
+        [poutine]="Running poutine security scanner"
+        [actionlint]="Running actionlint ("
+        [runner-guard]="Running runner-guard taint analysis"
+        [syft]="Running syft"
+        [grype]="Running grype"
+        [yamllint]="Running yamllint"
+        [shellcheck]="Running shellcheck on"
+      )
+
       MISSING_TOOLS=0
       for tool in zizmor poutine actionlint runner-guard syft grype yamllint shellcheck; do
-        if ! grep -qi "$tool" "$COMPILE_LOG"; then
-          echo "Error: Static analysis tool '$tool' produced zero output in $COMPILE_LOG"
+        marker="${TOOL_MARKERS[$tool]}"
+        if ! grep -qF "$marker" "$COMPILE_LOG"; then
+          echo "Error: Static analysis tool '$tool' produced zero output (missing marker: \"$marker\") in $COMPILE_LOG"
           MISSING_TOOLS=$((MISSING_TOOLS + 1))
         fi
       done

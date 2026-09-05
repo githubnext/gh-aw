@@ -40,7 +40,22 @@ import (
 )
 
 var compileOrchestrationLog = logger.New("cli:compile_pipeline")
-var runBatchYamllintOnFiles = RunYamllintOnFiles
+
+// Batch tool entry points are exposed as package-level function variables so
+// tests can override them to verify the batch pipeline invokes every enabled
+// scanner in order, without short-circuiting, and without depending on the
+// underlying external tool binaries/Docker images being available.
+var (
+	runBatchActionlintOnFiles                 = RunActionlintOnFiles
+	runBatchZizmorOnFiles                     = RunZizmorOnFiles
+	runBatchPoutineOnDirectory                = RunPoutineOnDirectory
+	runBatchRunnerGuardOnDirectory            = RunRunnerGuardOnDirectory
+	runBatchSyftOnLockFiles                   = RunSyftOnLockFiles
+	runBatchGrypeOnLockFiles                  = RunGrypeOnLockFiles
+	runBatchGrantOnLockFiles                  = RunGrantOnLockFiles
+	runBatchYamllintOnFiles                   = RunYamllintOnFiles
+	runBatchShellcheckOnLockFilesAndResources = RunShellcheckOnLockFilesAndResources
+)
 
 const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
@@ -500,22 +515,22 @@ type batchToolsOptions struct {
 func runBatchLinters(ctx context.Context, config CompileConfig, opts batchToolsOptions) error {
 	var firstErr error
 
-	if config.Actionlint && !config.NoEmit && len(opts.lockFilesForActionlint) > 0 {
+	if config.Actionlint && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := RunActionlintOnFiles(ctx, opts.lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchActionlintOnFiles(ctx, opts.lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
 			}
 		}
 	}
 
-	if config.Zizmor && !config.NoEmit && len(opts.lockFilesForZizmor) > 0 {
+	if config.Zizmor && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := RunZizmorOnFiles(opts.lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchZizmorOnFiles(opts.lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -528,7 +543,7 @@ func runBatchLinters(ctx context.Context, config CompileConfig, opts batchToolsO
 func runBatchDirScanners(ctx context.Context, config CompileConfig, opts batchToolsOptions) error {
 	var firstErr error
 
-	if config.Poutine && !config.NoEmit && len(opts.lockFilesForDirTools) > 0 {
+	if config.Poutine && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -536,14 +551,14 @@ func runBatchDirScanners(ctx context.Context, config CompileConfig, opts batchTo
 		if workflowDir == "" && len(opts.lockFilesForDirTools) > 0 {
 			workflowDir = filepath.Dir(opts.lockFilesForDirTools[0])
 		}
-		if err := runBatchDirectoryTool("poutine", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunPoutineOnDirectory); err != nil {
+		if err := runBatchDirectoryTool("poutine", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, runBatchPoutineOnDirectory); err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
 			}
 		}
 	}
 
-	if config.RunnerGuard && !config.NoEmit && len(opts.lockFilesForDirTools) > 0 {
+	if config.RunnerGuard && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -551,7 +566,7 @@ func runBatchDirScanners(ctx context.Context, config CompileConfig, opts batchTo
 		if workflowDir == "" && len(opts.lockFilesForDirTools) > 0 {
 			workflowDir = filepath.Dir(opts.lockFilesForDirTools[0])
 		}
-		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, runBatchRunnerGuardOnDirectory); err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
 			}
@@ -568,33 +583,33 @@ func runBatchContainerScanners(
 	stats *CompilationStats,
 	validationResults *[]ValidationResult,
 ) (strictGrantErr error, containerErr error) {
-	if config.Syft && !config.NoEmit && len(opts.lockFilesForSyft) > 0 {
+	if config.Syft && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if err := RunSyftOnLockFiles(opts.lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchSyftOnLockFiles(opts.lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict && containerErr == nil {
 				containerErr = err
 			}
 		}
 	}
 
-	if config.Grype && !config.NoEmit && len(opts.lockFilesForGrype) > 0 {
+	if config.Grype && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if err := RunGrypeOnLockFiles(opts.lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchGrypeOnLockFiles(opts.lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict && containerErr == nil {
 				containerErr = err
 			}
 		}
 	}
 
-	if config.Grant && !config.NoEmit && len(opts.lockFilesForGrant) > 0 {
+	if config.Grant && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if err := RunGrantOnLockFiles(opts.lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchGrantOnLockFiles(opts.lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				stats.Errors++
 				*validationResults = append(*validationResults, ValidationResult{
@@ -618,7 +633,7 @@ func runBatchContainerScanners(
 func runBatchScriptLinters(ctx context.Context, config CompileConfig, opts batchToolsOptions) error {
 	var firstErr error
 
-	if config.Yamllint && !config.NoEmit && len(opts.lockFilesForYamllint) > 0 {
+	if config.Yamllint && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -629,11 +644,11 @@ func runBatchScriptLinters(ctx context.Context, config CompileConfig, opts batch
 		}
 	}
 
-	if config.shellcheckEnabled() && !config.NoEmit && (len(opts.lockFilesForShellcheck) > 0 || len(opts.shellcheckResources) > 0) {
+	if config.shellcheckEnabled() && !config.NoEmit {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := RunShellcheckOnLockFilesAndResources(ctx, opts.lockFilesForShellcheck, opts.shellcheckResources, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchShellcheckOnLockFilesAndResources(ctx, opts.lockFilesForShellcheck, opts.shellcheckResources, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
 			}
