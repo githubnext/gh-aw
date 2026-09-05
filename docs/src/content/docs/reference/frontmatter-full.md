@@ -1073,7 +1073,7 @@ on:
   # Format 2: List of label names; the workflow fires when the triggering label
   # matches any entry.
   labels: []
-    # Array items: undefined
+    # Array items: A non-empty string value.
 
   # Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a
   # checkbox-menu comment as a GitHub App bot and a human maintainer edits it to
@@ -2511,7 +2511,7 @@ steps:
   {}
 
 # Format 2: array
-steps: []
+steps: [{"prompt":"Analyze the issue and create a plan"}]
   # Array items: undefined
 
 # Custom workflow steps to run at the very beginning of the agent job, before
@@ -2527,7 +2527,7 @@ pre-steps:
   {}
 
 # Format 2: array
-pre-steps: []
+pre-steps: [{"name":"Mint short-lived token","id":"mint","uses":"some-org/token-minting-action@v1","with":{"scope":"target-org/target-repo"}}]
   # Array items: undefined
 
 # Custom workflow steps to run immediately before AI execution, after all
@@ -2540,7 +2540,7 @@ pre-agent-steps:
   {}
 
 # Format 2: array
-pre-agent-steps: []
+pre-agent-steps: [{"name":"Prepare final context","run":"echo \"ready\""}]
   # Array items: undefined
 
 # Custom workflow steps to run after AI execution
@@ -2552,7 +2552,7 @@ post-steps:
   {}
 
 # Format 2: array
-post-steps: []
+post-steps: [{"name":"Verify Post-Steps Execution","run":"echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"},{"name":"Upload Test Results","if":"always()","uses":"actions/upload-artifact@v4","with":{"name":"post-steps-test-results","path":"/tmp/gh-aw/","retention-days":1,"if-no-files-found":"ignore"}}]
   # Array items: undefined
 
 # AI engine configuration that specifies which AI processor interprets and
@@ -3696,7 +3696,8 @@ tools:
     # Format 2: Array of GitHub MCP server toolset names to enable specific groups of
     # GitHub API functionalities
     toolsets: []
-      # Array items: undefined
+      # Array items: A GitHub MCP server toolset name that enables a specific group of
+      # GitHub API functionalities.
 
     # Volume mounts for the containerized GitHub MCP server (format:
     # 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write).
@@ -4036,6 +4037,84 @@ tools:
     # (optional)
     features: "example-value"
 
+  # Linear tools provided by Linear's official hosted MCP server
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Enable Linear using the well-known LINEAR_API_KEY secret
+  linear: null
+
+  # Format 2: object
+  linear:
+    # Optional Linear API key or OAuth access token secret reference. Defaults to ${{
+    # secrets.LINEAR_API_KEY }}.
+    # (optional)
+    token: "${{ secrets.LINEAR_API_KEY }}"
+
+    # Linear MCP toolset name(s) to enable. Toolsets are expanded to gateway-enforced
+    # allowed tools.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: A Linear MCP toolset name that enables a related group of read-only
+    # Linear tools.
+    toolsets: "all"
+
+    # Format 2: Array of Linear MCP toolset names
+    toolsets: ["issues","projects"]
+      # Array items: A Linear MCP toolset name that enables a related group of read-only
+      # Linear tools.
+
+    # List of allowed Linear MCP tool names or wildcard patterns. When toolsets are
+    # set, every pattern must match a tool in those toolsets.
+    # (optional)
+    allowed: ["*"]
+      # Array of strings
+
+    # Whether failure to connect to Linear should fail MCP gateway startup. Defaults
+    # to true.
+    # (optional)
+    required: true
+  # Jira tools provided by Atlassian's remote Rovo MCP service. This integration
+  # supports non-interactive CI/CD authentication only.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Disable the Jira integration, including a Jira configuration inherited
+  # from an import.
+  jira: false
+
+  # Format 2: object
+  jira:
+    # Atlassian Rovo MCP endpoint. Defaults to the official hosted endpoint.
+    # (optional)
+    url: "example-value"
+
+    # Approved read-only Jira MCP tools the agent may call. Required; all-tools access
+    # and write-capable tools are not supported.
+    allowed: []
+      # Array of strings
+
+    # Non-interactive authentication for GitHub Actions.
+    # Accepted formats:
+
+    # Format 1: object
+    auth:
+      type: null
+
+      # Atlassian service account API key, sent with the HTTP bearer scheme.
+      token: "example-value"
+
+    # Format 2: object
+    auth:
+      type: null
+
+      # Atlassian account email stored as a GitHub Actions secret.
+      email: "example-value"
+
+      # Atlassian API token stored as a GitHub Actions secret.
+      token: "example-value"
+
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
   # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
@@ -4109,6 +4188,13 @@ tools:
     # (optional)
     version: null
 
+    # Removed: legacy MCP-mode argument list. Accepted here only so the compiler can
+    # reject 'mode: mcp' configurations with actionable migration guidance instead of
+    # an unhelpful schema error.
+    # (optional)
+    args: []
+      # Array of strings
+
     # Integration mode. Only 'cli' is supported. The compiler rejects the removed
     # 'mcp' value with migration guidance. Must be a literal value; GitHub Actions
     # expressions are rejected.
@@ -4121,6 +4207,12 @@ tools:
     # Format 2: Not allowed at runtime: mode must be the literal 'cli' value, not a
     # GitHub Actions expression.
     mode: "example-value"
+
+    # Browsers to provision before the agent starts. Defaults to Chromium. Chrome is
+    # accepted as an alias for Chromium.
+    # (optional)
+    browsers: []
+      # Array of strings
 
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and
@@ -4190,7 +4282,7 @@ tools:
       timeout-minutes: 1
 
   # Format 4: Array of cache-memory configurations for multiple caches
-  cache-memory: []
+  cache-memory: [{"id":"default","key":"memory-default"},{"id":"session","key":"memory-session"}]
     # Array items: object
 
   # Private-preview GitHub Drives configuration. Do not configure unless GitHub has
@@ -4459,7 +4551,7 @@ tools:
       timeout-minutes: 1
 
   # Format 4: Array of repo-memory configurations for multiple memory locations
-  repo-memory: []
+  repo-memory: [{"id":"default","branch-name":"memory/default"},{"id":"session","branch-name":"memory/session"}]
     # Array items: object
 
 # ⚠️ Experimental. Top-level Language Server Protocol (LSP) configuration for
@@ -8503,6 +8595,250 @@ safe-outputs:
 
   # Format 2: Enable workflow run approval with default configuration
   approve-workflow-run: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for creating Jira Cloud issues through the privileged
+  # safe-output execution path.
+  jira-create-issue:
+    # Maximum number of Jira issues to create (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira issue creation without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira issue creation with default configuration.
+  jira-create-issue: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for updating Jira Cloud issue summaries or descriptions
+  # through the privileged safe-output execution path.
+  jira-update-issue:
+    # Maximum number of Jira issues to update (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira issue updates without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira issue updates with default configuration.
+  jira-update-issue: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for commenting on Jira Cloud issues through the
+  # privileged safe-output execution path.
+  jira-add-comment:
+    # Maximum number of Jira comments to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira comments without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira comments with default configuration.
+  jira-add-comment: null
+
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for adding labels to Jira Cloud issues through the
+  # privileged safe-output execution path.
+  jira-add-label:
+    # Maximum number of Jira labels to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # Preview Jira label additions without sending an HTTP mutation.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: string
+    staged: "example-value"
+
+  # Format 2: Enable Jira label additions with default configuration.
+  jira-add-label: null
+
+  # Experimental. Create Linear issues through the isolated safe_outputs job.
+  # (optional)
+  linear-create-issue:
+    # Trusted Linear team model UUID.
+    team-id: "example-value"
+
+    # Optional trusted Linear project identifier from a project URL or model UUID.
+    # (optional)
+    project-id: "example-value"
+
+    # Maximum number of Linear issues to create (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+  # Experimental. Add comments to one trusted Linear issue through the isolated
+  # safe_outputs job.
+  # (optional)
+  linear-add-comment:
+    # Trusted Linear issue UUID or shorthand identifier such as ENG-123.
+    target: "example-value"
+
+    # Maximum number of Linear comments to add (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+  # Experimental. Update explicitly enabled fields on one trusted Linear issue
+  # through the isolated safe_outputs job.
+  # (optional)
+  linear-update-issue:
+    # Trusted Linear issue UUID or shorthand identifier such as ENG-123.
+    target: "example-value"
+
+    # Allow the agent to update the Linear issue title.
+    # (optional)
+    title: null
+
+    # Allow the agent to replace the Linear issue description.
+    # (optional)
+    body: null
+
+    # Maximum number of updates to apply (default: 1).
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: string
+    max: "example-value"
+
+    # A boolean value that may also be specified as a GitHub Actions expression string
+    # that resolves to a boolean at runtime (e.g. '${{ inputs.my-flag }}').
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
 
   # Enable AI agents to add comments to GitHub issues, pull requests, or
   # discussions. Supports templating, cross-repository commenting, and automatic
@@ -19810,6 +20146,10 @@ safe-outputs:
   # (optional)
   github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+  # Linear personal API key expression used only by the trusted safe_outputs job.
+  # (optional)
+  linear-token: "example-value"
+
   # GitHub App credentials for minting installation access tokens. When configured,
   # a token will be generated using the app credentials and used for all safe output
   # operations.
@@ -22651,7 +22991,7 @@ checkout:
 
 # Format 2: Multiple checkout configurations
 checkout: []
-  # Array items: undefined
+  # Array items: Configuration for a single actions/checkout step
 
 # Format 3: Set to false to disable the default checkout step. The agent job will
 # not check out any repository (dev-mode checkouts are unaffected).

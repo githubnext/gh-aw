@@ -17,7 +17,7 @@ tools:
   cache-memory:
     key: feature-grower
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [issues, repos]
 steps:
   - name: Find crops ready to grow
@@ -112,7 +112,7 @@ safe-outputs:
 timeout-minutes: 20
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 engine:
   id: codex
   model-provider: github

@@ -44,6 +44,33 @@ func enclaveTestRepos() []*EnclaveRepository {
 	}}
 }
 
+func enclaveGitHubIssuesWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+	return data
+}
+
+func enclaveGitHubToolsWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Agent.Tools = &AgentEnclaveToolsConfig{
+		GitHub: &AgentEnclaveGitHubToolConfig{
+			Allowed:      []string{"list_issues", "issue_read"},
+			AllowedRepos: GitHubReposScope{"octo-org/private-service"},
+			MinIntegrity: GitHubIntegrityNone,
+		},
+	}
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveGitHubIssuesMinVersion)
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGEnclaveAgentToolsMinVersion),
+	}
+	return data
+}
+
 func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -127,6 +154,36 @@ func TestParseTopLevelKeyedEnclaves(t *testing.T) {
 	require.Len(t, config.Enclaves[0].Repos, 1)
 }
 
+func TestParseTopLevelKeyedEnclavesAgentGitHubTools(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{
+					"model": "gpt-5",
+					"tools": map[string]any{
+						"github": map[string]any{
+							"allowed":       []any{"list_issues", "issue_read"},
+							"allowed-repos": []any{"octo-org/private-service"},
+							"min-integrity": "none",
+						},
+					},
+				},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, config.Enclaves, 1)
+	require.NotNil(t, config.Enclaves[0].Agent)
+	require.NotNil(t, config.Enclaves[0].Agent.Tools)
+	require.NotNil(t, config.Enclaves[0].Agent.Tools.GitHub)
+	assert.Equal(t, []string{"list_issues", "issue_read"}, config.Enclaves[0].Agent.Tools.GitHub.Allowed)
+	assert.Equal(t, GitHubReposScope{"octo-org/private-service"}, config.Enclaves[0].Agent.Tools.GitHub.AllowedRepos)
+	assert.Equal(t, GitHubIntegrityNone, config.Enclaves[0].Agent.Tools.GitHub.MinIntegrity)
+}
+
 func TestEnclaveConfigRejectsAmbiguousDiscriminator(t *testing.T) {
 	data := enclaveWorkflowData(false, false, 0, 0)
 	data.Enclaves = EnclavesConfig{{
@@ -179,6 +236,21 @@ func TestBuildAWFConfigJSONEnclaveGitHubIssues(t *testing.T) {
 	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
 }
 
+func TestBuildAWFConfigJSONEnclaveGitHubTools(t *testing.T) {
+	data := enclaveGitHubToolsWorkflowData()
+	configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+		EngineName: "copilot", WorkflowData: data,
+	})
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	enclaves := config["enclaves"].([]any)
+	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
+	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+	assert.NotContains(t, agent, "tools")
+}
+
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 	data := enclaveGitHubIssuesWorkflowData()
 	data.Enclaves[0].Repos = append(data.Enclaves[0].Repos, &EnclaveRepository{
@@ -189,6 +261,28 @@ func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
 	assert.Contains(t, err.Error(), "supports at most one non-public repository")
 
 	data.Enclaves[0].Repos[1].Sensitivity = "public"
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveGitHubIssuesRepositoryLimitTreatsTrustedAsPublic(t *testing.T) {
+	data := enclaveGitHubIssuesWorkflowData()
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
+	data.Enclaves[0].Repos = []*EnclaveRepository{
+		{Repo: "octo-org/trusted-service", Sensitivity: "trusted"},
+		{Repo: "octo-org/public-service", Sensitivity: "public"},
+	}
+	require.NoError(t, validateEnclavesConfig(data))
+}
+
+func TestValidateEnclaveTrustedSensitivityRequiresAWFVersion(t *testing.T) {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Repos[0].Sensitivity = "trusted"
+	data.NetworkPermissions.Firewall.Version = "v0.28.13"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires AWF v0.28.14 or newer")
+
+	data.NetworkPermissions.Firewall.Version = "v0.28.14"
 	require.NoError(t, validateEnclavesConfig(data))
 }
 
@@ -215,6 +309,48 @@ func TestValidateEnclaveGitHubIssuesMode(t *testing.T) {
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `must be "issues-read-v1"`)
+}
+
+func TestValidateEnclaveGitHubTools(t *testing.T) {
+	tests := []struct {
+		name        string
+		mutate      func(*WorkflowData)
+		errContains string
+	}{
+		{
+			name: "unsupported tool",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.Tools.GitHub.Allowed = []string{"search_issues"}
+			},
+			errContains: "contains unsupported tool",
+		},
+		{
+			name: "repo outside enclave list",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.Tools.GitHub.AllowedRepos = GitHubReposScope{"octo-org/other-repo"}
+			},
+			errContains: "must be declared in enclaves[0].repos",
+		},
+		{
+			name: "legacy and new configs are mutually exclusive",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+			},
+			errContains: "cannot both be set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := enclaveGitHubToolsWorkflowData()
+			tt.mutate(data)
+			err := validateEnclavesConfig(data)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+
+	require.NoError(t, validateEnclavesConfig(enclaveGitHubToolsWorkflowData()))
 }
 
 func TestGenerateEnclaveGatewayContract(t *testing.T) {

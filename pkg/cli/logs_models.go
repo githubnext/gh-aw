@@ -37,8 +37,7 @@ const (
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
 	// APICallCooldown is the minimum pause between successive batch-fetch iterations to
-	// avoid hitting the GitHub API rate limit when processing many runs in a single
-	// invocation.  checkAndWaitForRateLimit always sleeps at least this long.
+	// avoid hitting the GitHub API rate limit when no explicit usage ceiling is configured.
 	APICallCooldown = 500 * time.Millisecond
 	// RateLimitThreshold is the minimum number of GitHub API core requests that must
 	// remain before the rate-limit helper considers the budget healthy.  When the
@@ -232,10 +231,11 @@ type MissingDataSummary struct {
 
 // MCPToolUsageSummary aggregates MCP tool usage across all runs
 type MCPToolUsageSummary struct {
-	Summary        []MCPToolSummary    `json:"summary" console:"title:Tool Statistics"`             // Aggregated statistics per tool
-	Servers        []MCPServerStats    `json:"servers,omitempty" console:"title:Server Statistics"` // Server-level statistics
-	ToolCalls      []MCPToolCall       `json:"tool_calls" console:"-"`                              // Individual tool call records (excluded from console)
-	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty" console:"-"`               // DIFC filtered events (excluded from console display)
+	Summary        []MCPToolSummary        `json:"summary" console:"title:Tool Statistics"`             // Aggregated statistics per tool
+	Servers        []MCPServerStats        `json:"servers,omitempty" console:"title:Server Statistics"` // Server-level statistics
+	ToolCalls      []MCPToolCall           `json:"tool_calls" console:"-"`                              // Individual tool call records (excluded from console)
+	FilteredEvents []DifcFilteredEvent     `json:"filtered_events,omitempty" console:"-"`               // DIFC filtered events (excluded from console display)
+	Integrity      *IntegrityFilterSummary `json:"integrity,omitempty" console:"-"`                     // Aggregate DIFC integrity-filter activity
 }
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts

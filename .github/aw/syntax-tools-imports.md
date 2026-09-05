@@ -125,7 +125,6 @@ The `tools:` field configures which tools the coding agent may use.
   ```yaml
   tools:
     playwright:
-      mode: cli          # recommended: token-efficient CLI mode
       version: "0.1.11"  # optional: @playwright/cli npm package version
   ```
 - `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression, default: 60 s for all engines).

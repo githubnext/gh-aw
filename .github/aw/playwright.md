@@ -18,8 +18,11 @@ tools:
 ```
 
 The compiler installs the pinned default `@playwright/cli` package and its agent
-skills. Do not add installation steps to the workflow. Pin `version` only when
-reproducible browser output is required, such as for visual baselines:
+skills. It also provisions Chromium, Firefox, and WebKit before the agent starts;
+the default `open` session uses Chromium. Do not add installation steps to the
+workflow: runtime installation of packages or browsers is prohibited. Pin
+`version` only when reproducible browser output is required, such as for visual
+baselines:
 
 ```yaml
 tools:
@@ -27,14 +30,18 @@ tools:
     version: "0.1.18"
 ```
 
-`mode: cli` is accepted but unnecessary. `mode: mcp` is not supported by the
-built-in tool. If MCP is required, configure and pin `@playwright/mcp` explicitly
-under `mcp-servers` and allow only the required tools.
+Omit `mode`; the built-in Playwright integration is CLI-only by default. The
+explicit `mode: cli` setting remains accepted for compatibility, but it is not
+needed and should be removed from workflows that still carry it. `mode: mcp` is
+not supported by the built-in tool. If MCP is required, configure and pin
+`@playwright/mcp` explicitly under `mcp-servers` and allow only the required
+tools.
 
 ## Configure network access
 
-Playwright can reach `localhost` and `127.0.0.1` by default. Add only the
-ecosystems and external domains the browser needs:
+Playwright can reach `localhost` and `127.0.0.1` by default; do not add `local`
+for a server started in the same AWF sandbox. Add only the ecosystems and
+external domains the browser needs:
 
 ```yaml
 network:
@@ -50,11 +57,16 @@ avoid broad wildcard domains.
 
 ## Use Playwright CLI
 
-Run `playwright-cli` through bash. Start with a snapshot and use its element refs
-for later actions:
+Run `playwright-cli` through bash. With a restricted Bash allowlist, the compiler
+automatically allows `playwright-cli:*`; list only supporting lifecycle commands
+such as `npm`, `curl`, and `kill`. Before opening a browser, inspect package
+scripts, Playwright configuration, and test filenames to determine whether the
+task is likely to run Playwright Test. If it is, use `--browser=chromium`, which
+selects Playwright's Chrome for Testing engine. Start with a snapshot and use its
+element refs for later actions:
 
 ```bash
-playwright-cli open "https://docs.example.com"
+playwright-cli open --browser=chromium "https://docs.example.com"
 playwright-cli snapshot
 playwright-cli click e15
 playwright-cli fill e22 "search text" --submit
@@ -66,7 +78,7 @@ Useful commands include:
 
 | Goal | Command |
 |---|---|
-| Open a browser and URL | `playwright-cli open <url>` |
+| Open a browser and URL | `playwright-cli open --browser=<browser> <url>` |
 | Navigate the open page | `playwright-cli goto <url>` |
 | Inspect the page and get refs | `playwright-cli snapshot` |
 | Limit snapshot size | `playwright-cli snapshot --depth=4` |
@@ -79,6 +91,18 @@ Useful commands include:
 Prefer refs from the latest snapshot over brittle CSS selectors. Use `--raw`
 when piping a result or comparing snapshots so page status output does not
 pollute the data.
+
+Use `playwright-cli open --browser=chromium` for Chrome for Testing.
+Use `playwright-cli open --browser=firefox` or
+`playwright-cli open --browser=webkit` for the other provisioned browsers.
+Use named sessions when independent cookies or storage are useful:
+
+```bash
+playwright-cli -s=authenticated open --browser=chromium "https://app.example.com/login"
+playwright-cli -s=public open --browser=chromium "https://app.example.com/"
+playwright-cli -s=authenticated close
+playwright-cli -s=public close
+```
 
 ## Run against a local application
 
@@ -101,7 +125,6 @@ tools:
 network:
   allowed:
     - defaults
-    - local
     - playwright
 ```
 
@@ -118,7 +141,7 @@ npm run dev -- --host 127.0.0.1 > /tmp/web-server.log 2>&1 &
 server_pid=$!
 curl --fail --silent --show-error --retry 10 --retry-connrefused \
   --retry-all-errors --retry-max-time 30 http://127.0.0.1:4321/ >/dev/null
-playwright-cli open "http://127.0.0.1:4321/"
+playwright-cli open --browser=chromium "http://127.0.0.1:4321/"
 playwright-cli resize 1440 900
 playwright-cli screenshot --filename=/tmp/home.png
 playwright-cli close
@@ -128,6 +151,25 @@ kill "$server_pid"
 If commands run in separate shell calls, write the PID to a file under `/tmp`
 and read it back for cleanup. Redirect server logs to `/tmp` so they do not
 consume the agent context; inspect only the relevant tail when startup fails.
+
+## Publish screenshots
+
+Files under `/tmp`, including screenshots, disappear when the run sandbox ends.
+Declare `upload-artifact` and instruct the agent to publish files users need to
+retrieve:
+
+```markdown
+---
+safe-outputs:
+  upload-artifact:
+    allowed-paths: ["/tmp/*.png"]
+    max-uploads: 1
+    retention-days: 7
+---
+
+Capture `/tmp/home.png`, then call `upload_artifact` with
+`name: "home-screenshot"` and `path: "/tmp/home.png"`.
+```
 
 ## Follow the AWF sandbox policy
 
@@ -145,6 +187,19 @@ These rules differ from using the standalone `awf` command to wrap a host-side
 Playwright test. Standalone AWF uses `--allow-domains localhost` to expose
 selected host ports to its container. In a gh-aw agent sandbox, start the server
 inside the sandbox and keep it on loopback instead.
+
+## Accessibility and troubleshooting
+
+Snapshots enable structural and manual inspection of headings, labels,
+alternative text, and keyboard flows. Comprehensive WCAG testing (for example,
+axe-core or programmatic contrast analysis) needs dependencies prepared in
+workflow steps before the agent runs; the AWF sandbox prohibits runtime installs.
+
+For failures, inspect `playwright-cli console` and `playwright-cli requests`;
+use `playwright-cli request <index>` for a request's details. Surround a failing
+flow with `playwright-cli tracing-start` and `playwright-cli tracing-stop`, and
+inspect the relevant tail of redirected local-server logs (for example,
+`tail -n 100 /tmp/web-server.log`).
 
 ## Sample workflow
 
@@ -178,8 +233,9 @@ safe-outputs:
 
 # Accessibility review
 
-Open https://docs.example.com with `playwright-cli`. Inspect the page snapshot,
-keyboard navigation, form labels, image alternatives, and heading structure.
+Open https://docs.example.com with `playwright-cli open --browser=chromium`.
+Inspect the page snapshot, keyboard navigation, form labels, image alternatives,
+and heading structure.
 Create focused issues for actionable findings. If there are none, call `noop`.
 Always close the browser before finishing.
 ```

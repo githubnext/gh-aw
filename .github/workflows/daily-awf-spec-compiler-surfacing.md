@@ -13,16 +13,16 @@ permissions:
 tracker-id: daily-awf-spec-compiler-surfacing
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, issues, pull_requests]
   repo-memory:
     branch-name: memory/awf-feature-surfacing

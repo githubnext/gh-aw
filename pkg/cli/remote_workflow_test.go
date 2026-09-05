@@ -1893,6 +1893,43 @@ graders:
 	assert.Equal(t, evaluatorContent, restored)
 }
 
+// TestFetchAndSaveRemoteResources_InstallsRepoRootGraderEvaluatorFromNestedPackage verifies that
+// a repository-root anchored grader evaluator (not under ".github/workflows") is fetched from
+// its exact repository-root path even when the declaring workflow belongs to a nested package,
+// instead of being incorrectly prefixed with the package's own directory.
+func TestFetchAndSaveRemoteResources_InstallsRepoRootGraderEvaluatorFromNestedPackage(t *testing.T) {
+	tmpDir := t.TempDir()
+	setupMinimalGitRepo(t, tmpDir)
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+
+	const evaluatorPath = ".github/graders/shared-operational-value.sh"
+	content := `---
+on: workflow_dispatch
+graders:
+  operational-value:
+    run: .github/graders/shared-operational-value.sh
+---
+
+# Workflow
+`
+	evaluatorContent := []byte("#!/usr/bin/env bash\necho shared\n")
+	download := func(_ context.Context, owner, repo, filePath, ref string) ([]byte, error) {
+		assert.Equal(t, evaluatorPath, filePath)
+		return evaluatorContent, nil
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "owner/repo", Version: "main", PackagePath: "packages/repo-assist"},
+		WorkflowPath: "packages/repo-assist/workflows/graded.md",
+	}
+	require.NoError(t, fetchAndSaveRemoteResourcesWithDownloader(t.Context(), content, spec, workflowsDir, false, false, nil, download))
+
+	installed, err := os.ReadFile(filepath.Join(tmpDir, filepath.FromSlash(evaluatorPath)))
+	require.NoError(t, err)
+	assert.Equal(t, evaluatorContent, installed)
+}
+
 func TestFetchAndSaveRemoteResources_InstallsLocalDotGraderEvaluator(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupMinimalGitRepo(t, tmpDir)

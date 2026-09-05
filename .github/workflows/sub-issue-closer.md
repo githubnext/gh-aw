@@ -21,7 +21,7 @@ imports:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
       - issues
 safe-outputs:
@@ -41,7 +41,7 @@ evals:
 
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 # Sub-Issue Closer 🔒

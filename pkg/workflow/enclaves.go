@@ -20,6 +20,7 @@ const (
 	enclaveMCPGatewayContainerEnv = "AWF_ENCLAVE_MCP_GATEWAY_CONTAINER"
 	enclaveMCPGatewayEndpointEnv  = "AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT"
 	enclaveMCPGatewayIdentityEnv  = "AWF_ENCLAVE_MCP_GATEWAY_IDENTITY"
+	enclaveGitHubMCPAgentIDEnv    = "AWF_ENCLAVE_GITHUB_MCP_AGENT_ID"
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
 	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
@@ -30,6 +31,43 @@ const (
 	maxEnclaveTimingBucketSeconds = 4800
 	enclaveMCPTransportAllowance  = 60
 )
+
+var enclaveAgentGitHubSupportedTools = map[string]struct{}{
+	"list_issues": {},
+	"issue_read":  {},
+}
+
+var enclaveAgentGitHubDefaultTools = []string{"list_issues", "issue_read"}
+
+var enclaveAgentGitHubValidIntegrityLevels = map[GitHubIntegrityLevel]struct{}{
+	GitHubIntegrityNone:       {},
+	GitHubIntegrityUnapproved: {},
+	GitHubIntegrityApproved:   {},
+	GitHubIntegrityMerged:     {},
+}
+
+func enclaveGitHubMCPAgentPolicy(workflowData *WorkflowData) MCPGatewayAgentPolicy {
+	repos := make([]string, 0)
+	tools := append([]string(nil), enclaveAgentGitHubDefaultTools...)
+	minIntegrity := string(GitHubIntegrityApproved)
+	if enclave := enclaveGitHubAgentConfig(workflowData); enclave != nil {
+		repos = enclaveGitHubAllowedRepos(enclave)
+		if github := enclaveGitHubToolsConfig(enclave); github != nil {
+			tools = append([]string(nil), github.Allowed...)
+			if github.MinIntegrity != "" {
+				minIntegrity = string(github.MinIntegrity)
+			}
+		}
+	}
+	return MCPGatewayAgentPolicy{
+		Servers: []string{"github"},
+		Tools:   map[string][]string{"github": tools},
+		AllowOnly: map[string]any{
+			"repos":         repos,
+			"min-integrity": minIntegrity,
+		},
+	}
+}
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
 
@@ -69,10 +107,21 @@ type AgentEnclaveConfig struct {
 	MaxModelRequests int                       `json:"max-model-requests,omitempty"`
 	MaxModelTokens   int                       `json:"max-model-tokens,omitempty"`
 	GitHub           *AgentEnclaveGitHubConfig `json:"github,omitempty"`
+	Tools            *AgentEnclaveToolsConfig  `json:"tools,omitempty"`
 }
 
 type AgentEnclaveGitHubConfig struct {
 	CLI string `json:"cli"`
+}
+
+type AgentEnclaveToolsConfig struct {
+	GitHub *AgentEnclaveGitHubToolConfig `json:"github,omitempty"`
+}
+
+type AgentEnclaveGitHubToolConfig struct {
+	Allowed      []string             `json:"allowed,omitempty"`
+	AllowedRepos GitHubReposScope     `json:"allowed-repos,omitempty"`
+	MinIntegrity GitHubIntegrityLevel `json:"min-integrity,omitempty"`
 }
 
 // UnmarshalJSON preserves the explicit null marker produced by YAML `script:`.
@@ -98,22 +147,46 @@ func enclavesEnabled(workflowData *WorkflowData) bool {
 }
 
 func enclaveGitHubIssuesEnabled(workflowData *WorkflowData) bool {
-	return enclaveGitHubIssuesConfig(workflowData) != nil
+	return enclaveGitHubAgentConfig(workflowData) != nil
 }
 
-func enclaveGitHubIssuesConfig(workflowData *WorkflowData) *EnclaveConfig {
+func enclaveGitHubAgentConfig(workflowData *WorkflowData) *EnclaveConfig {
 	if workflowData == nil {
 		return nil
 	}
 	for _, enclave := range workflowData.Enclaves {
-		if enclave != nil &&
-			enclave.Agent != nil &&
-			enclave.Agent.GitHub != nil &&
-			enclave.Agent.GitHub.CLI == enclaveGitHubIssuesProfile {
+		if enclave == nil || enclave.Agent == nil {
+			continue
+		}
+		if enclave.Agent.GitHub != nil && enclave.Agent.GitHub.CLI == enclaveGitHubIssuesProfile {
+			return enclave
+		}
+		if enclaveGitHubToolsConfig(enclave) != nil {
 			return enclave
 		}
 	}
 	return nil
+}
+
+func enclaveGitHubToolsConfig(enclave *EnclaveConfig) *AgentEnclaveGitHubToolConfig {
+	if enclave == nil || enclave.Agent == nil || enclave.Agent.Tools == nil {
+		return nil
+	}
+	return enclave.Agent.Tools.GitHub
+}
+
+func enclaveGitHubAllowedRepos(enclave *EnclaveConfig) []string {
+	github := enclaveGitHubToolsConfig(enclave)
+	if github != nil && len(github.AllowedRepos) > 0 {
+		return append([]string(nil), github.AllowedRepos...)
+	}
+	repos := make([]string, 0, len(enclave.Repos))
+	for _, repo := range enclave.Repos {
+		if repo != nil {
+			repos = append(repos, repo.Repo)
+		}
+	}
+	return repos
 }
 
 func enabledEnclaveTools(workflowData *WorkflowData) []string {
@@ -155,6 +228,9 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 			return err
 		}
 	}
+	if err := validateEnclaveTrustedSensitivityVersion(workflowData); err != nil {
+		return err
+	}
 	if err := validateEnclaveGitHubIssuesVersions(workflowData); err != nil {
 		return err
 	}
@@ -176,15 +252,58 @@ func validateEnclaveEntry(index int, enclave *EnclaveConfig, seenTypes map[strin
 	if enclaveType == "agent" && enclave.Agent.Model == "" {
 		return fmt.Errorf("enclaves[%d].agent.model is required. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
 	}
-	if enclaveType == "agent" && enclave.Agent.GitHub != nil && enclave.Agent.GitHub.CLI != enclaveGitHubIssuesProfile {
+	if enclaveType == "agent" && enclave.Agent.GitHub != nil && enclaveGitHubToolsConfig(enclave) != nil {
+		return fmt.Errorf("enclaves[%d].agent.github and enclaves[%d].agent.tools.github cannot both be set. Use only one enclave GitHub configuration shape. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues]\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, index)
+	}
+	if enclaveType == "agent" && enclave.Agent.GitHub != nil && enclave.Agent.GitHub.CLI != "" && enclave.Agent.GitHub.CLI != enclaveGitHubIssuesProfile {
 		return fmt.Errorf("enclaves[%d].agent.github.cli must be %q", index, enclaveGitHubIssuesProfile)
 	}
 	nonPublicRepositories, err := validateEnclaveRepositories(index, enclave, repositorySensitivities)
 	if err != nil {
 		return err
 	}
-	if enclaveType == "agent" && enclave.Agent.GitHub != nil && nonPublicRepositories > 1 {
+	if enclaveType == "agent" && enclaveGitHubToolsConfig(enclave) != nil {
+		if err := validateEnclaveGitHubTools(index, enclave); err != nil {
+			return err
+		}
+	}
+	if enclaveType == "agent" && enclave.Agent.GitHub != nil && enclave.Agent.GitHub.CLI == enclaveGitHubIssuesProfile && nonPublicRepositories > 1 {
 		return fmt.Errorf("enclaves[%d].agent.github.cli %q supports at most one non-public repository, but %d were configured", index, enclaveGitHubIssuesProfile, nonPublicRepositories)
+	}
+	return nil
+}
+
+func validateEnclaveGitHubTools(index int, enclave *EnclaveConfig) error {
+	github := enclaveGitHubToolsConfig(enclave)
+	if github == nil {
+		return nil
+	}
+	if len(github.Allowed) == 0 {
+		return fmt.Errorf("enclaves[%d].agent.tools.github.allowed must contain at least one supported tool. Supported values: list_issues, issue_read. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues]\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+	}
+	for _, tool := range github.Allowed {
+		if _, ok := enclaveAgentGitHubSupportedTools[tool]; !ok {
+			return fmt.Errorf("enclaves[%d].agent.tools.github.allowed contains unsupported tool %q. Supported values: list_issues, issue_read. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues, issue_read]\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, tool)
+		}
+	}
+	if github.MinIntegrity != "" {
+		if _, ok := enclaveAgentGitHubValidIntegrityLevels[github.MinIntegrity]; !ok {
+			return fmt.Errorf("enclaves[%d].agent.tools.github.min-integrity must be one of: none, unapproved, approved, merged. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues]\n          min-integrity: approved\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index)
+		}
+	}
+	if len(github.AllowedRepos) == 0 {
+		return nil
+	}
+	allowedRepos := make(map[string]struct{}, len(enclave.Repos))
+	for _, repo := range enclave.Repos {
+		if repo != nil {
+			allowedRepos[strings.ToLower(repo.Repo)] = struct{}{}
+		}
+	}
+	for _, repo := range github.AllowedRepos {
+		if _, ok := allowedRepos[strings.ToLower(repo)]; !ok {
+			return fmt.Errorf("enclaves[%d].agent.tools.github.allowed-repos entry %q must be declared in enclaves[%d].repos. Example:\n\nenclaves:\n  - agent:\n      model: gpt-5\n      tools:\n        github:\n          allowed: [list_issues]\n          allowed-repos: [org/my-repo]\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repo, index)
+		}
 	}
 	return nil
 }
@@ -209,11 +328,11 @@ func validateEnclaveRepositories(index int, enclave *EnclaveConfig, repositorySe
 		}
 		seenInEnclave[key] = struct{}{}
 		switch repo.Sensitivity {
-		case "public", "internal", "confidential", "sealed":
+		case "public", "trusted", "internal", "confidential", "sealed":
 		default:
-			return 0, fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
+			return 0, fmt.Errorf("enclaves[%d].repos[%d].sensitivity must be public, trusted, internal, confidential, or sealed. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential", index, repoIndex)
 		}
-		if repo.Sensitivity != "public" {
+		if repo.Sensitivity != "public" && repo.Sensitivity != "trusted" {
 			nonPublicRepositories++
 		}
 		if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
@@ -225,17 +344,25 @@ func validateEnclaveRepositories(index int, enclave *EnclaveConfig, repositorySe
 }
 
 func validateEnclaveGitHubIssuesVersions(workflowData *WorkflowData) error {
-	if !enclaveGitHubIssuesEnabled(workflowData) {
+	enclave := enclaveGitHubAgentConfig(workflowData)
+	if enclave == nil {
 		return nil
+	}
+	awfMinVersion := constants.AWFEnclaveGitHubIssuesMinVersion
+	mcpgMinVersion := constants.MCPGEnclaveGitHubIssuesMinVersion
+	fieldPath := fmt.Sprintf("enclaves[].agent.github.cli %q", enclaveGitHubIssuesProfile)
+	if enclaveGitHubToolsConfig(enclave) != nil {
+		mcpgMinVersion = constants.MCPGEnclaveAgentToolsMinVersion
+		fieldPath = "enclaves[].agent.tools.github"
 	}
 
 	firewallConfig := getFirewallConfig(workflowData)
-	if !awfVersionAtLeast(firewallConfig, constants.AWFEnclaveGitHubIssuesMinVersion) {
+	if !awfVersionAtLeast(firewallConfig, awfMinVersion) {
 		effectiveVersion := string(constants.DefaultFirewallVersion)
 		if firewallConfig != nil && firewallConfig.Version != "" {
 			effectiveVersion = firewallConfig.Version
 		}
-		return fmt.Errorf("enclaves[].agent.github.cli %q requires AWF %s or newer, but the effective version is %s", enclaveGitHubIssuesProfile, constants.AWFEnclaveGitHubIssuesMinVersion, effectiveVersion)
+		return fmt.Errorf("%s requires AWF %s or newer, but the effective version is %s", fieldPath, awfMinVersion, effectiveVersion)
 	}
 
 	effectiveVersion := string(constants.DefaultMCPGatewayVersion)
@@ -244,8 +371,30 @@ func validateEnclaveGitHubIssuesVersions(workflowData *WorkflowData) error {
 		workflowData.SandboxConfig.MCP.Version != "" {
 		effectiveVersion = workflowData.SandboxConfig.MCP.Version
 	}
-	if !versionAtLeast(effectiveVersion, string(constants.DefaultMCPGatewayVersion), string(constants.MCPGEnclaveGitHubIssuesMinVersion)) {
-		return fmt.Errorf("enclaves[].agent.github.cli %q requires MCPG %s or newer, but the effective version is %s; set sandbox.mcp.version to %s or newer", enclaveGitHubIssuesProfile, constants.MCPGEnclaveGitHubIssuesMinVersion, effectiveVersion, constants.MCPGEnclaveGitHubIssuesMinVersion)
+	if !versionAtLeast(effectiveVersion, string(constants.DefaultMCPGatewayVersion), string(mcpgMinVersion)) {
+		return fmt.Errorf("%s requires MCPG %s or newer, but the effective version is %s; set sandbox.mcp.version to %s or newer", fieldPath, mcpgMinVersion, effectiveVersion, mcpgMinVersion)
+	}
+	return nil
+}
+
+func validateEnclaveTrustedSensitivityVersion(workflowData *WorkflowData) error {
+	for _, enclave := range workflowData.Enclaves {
+		if enclave == nil {
+			continue
+		}
+		for _, repo := range enclave.Repos {
+			if repo != nil && repo.Sensitivity == "trusted" {
+				firewallConfig := getFirewallConfig(workflowData)
+				if !awfVersionAtLeast(firewallConfig, constants.AWFEnclaveTrustedSensitivityMinVersion) {
+					effectiveVersion := string(constants.DefaultFirewallVersion)
+					if firewallConfig != nil && firewallConfig.Version != "" {
+						effectiveVersion = firewallConfig.Version
+					}
+					return fmt.Errorf("enclaves[].repos sensitivity %q requires AWF %s or newer, but the effective version is %s", "trusted", constants.AWFEnclaveTrustedSensitivityMinVersion, effectiveVersion)
+				}
+				return nil
+			}
+		}
 	}
 	return nil
 }
@@ -299,6 +448,9 @@ func buildAWFEnclavesConfig(config EnclavesConfig) []map[string]any {
 			addEnclaveInt(agent, "maxModelTokens", enclave.Agent.MaxModelTokens)
 			if enclave.Agent.GitHub != nil {
 				agent["github"] = map[string]any{"cli": enclave.Agent.GitHub.CLI}
+			}
+			if enclaveGitHubToolsConfig(enclave) != nil {
+				agent["github"] = map[string]any{"cli": enclaveGitHubIssuesProfile}
 			}
 			values["agent"] = agent
 		}

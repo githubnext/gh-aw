@@ -66,8 +66,23 @@ This workflow tests the agentic output collection functionality.
 	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"`) {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set via 'Set runtime paths' step using $GITHUB_OUTPUT")
 	}
-	if !strings.Contains(lockContent, `echo "RUNNER_TOOL_CACHE=${{ runner.tool_cache }}" >> "$GITHUB_ENV"`) {
+	if !strings.Contains(lockContent, `echo "RUNNER_TOOL_CACHE=${GH_AW_RUNNER_TOOL_CACHE}" >> "$GITHUB_ENV"`) {
 		t.Error("Expected RUNNER_TOOL_CACHE to be exported via 'Set runtime paths' for later MCP gateway and agent steps")
+	}
+	if !strings.Contains(lockContent, "GH_AW_RUNNER_TOOL_CACHE: ${{ runner.tool_cache }}") {
+		t.Error("Expected runner.tool_cache to be passed through the step environment")
+	}
+	runStart := strings.Index(lockContent, "        run: |\n")
+	if runStart < 0 {
+		t.Fatal("Expected 'Set runtime paths' step to contain a run script")
+	}
+	runEnd := strings.Index(lockContent[runStart:], "\n      - ")
+	if runEnd < 0 {
+		t.Fatal("Expected generated run script to be followed by another step")
+	}
+	runScript := lockContent[runStart : runStart+runEnd]
+	if strings.Contains(runScript, "${{ runner.tool_cache }}") {
+		t.Error("runner.tool_cache must not be interpolated directly in the shell script")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {

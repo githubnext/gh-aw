@@ -43,6 +43,8 @@ cache:
       prompt-clustering-cache-
 
 tools:
+  github:
+    mode: local
   cache-memory: true
   bash: ["*"]
 
@@ -109,7 +111,7 @@ features:
 
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 # Copilot Agent Prompt Clustering Analysis

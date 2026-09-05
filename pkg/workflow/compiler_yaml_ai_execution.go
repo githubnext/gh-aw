@@ -504,7 +504,6 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 
 	// Stop CLI proxy after AWF execution (always runs to ensure cleanup)
 	c.generateStopCliProxyStep(yaml, data)
-	c.generateStopEnclaveGitHubProxyStep(yaml, data)
 
 	// Detect agent errors on the host runner immediately after the AWF container exits.
 	// GITHUB_OUTPUT is not accessible inside the AWF sandbox, so this step must run here

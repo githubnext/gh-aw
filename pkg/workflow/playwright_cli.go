@@ -22,24 +22,28 @@ package workflow
 //
 //	tools:
 //	  playwright:
-//	    mode: cli
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var playwrightCLILog = logger.New("workflow:playwright_cli")
 
-// isPlaywrightCLIMode returns true when the Playwright tool is enabled in the
-// supported CLI mode.
+const playwrightBrowsersPath = "${RUNNER_TEMP}/gh-aw/playwright-browsers"
+
+// isPlaywrightCLIMode returns true when the built-in Playwright tool is enabled.
+// The built-in integration is CLI-only, so all valid built-in configurations use
+// this mode regardless of whether mode is omitted.
 func isPlaywrightCLIMode(tools map[string]any) bool {
 	playwrightTool, ok := tools["playwright"]
 	if !ok || playwrightTool == false {
 		return false
 	}
 	config := parsePlaywrightTool(playwrightTool)
-	return config != nil && config.IsCLIMode()
+	return config != nil
 }
 
 // generatePlaywrightCLIInstallSteps returns npm install steps for @playwright/cli
@@ -48,7 +52,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 // Node.js setup is intentionally omitted here because all supported engines
 // (copilot, claude, codex, gemini) include a Node.js setup step in their own
 // installation steps, which run before this function is called.
-func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
+func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep { //nolint:largefunc // Keeps Playwright setup steps in generated execution order.
 	if !isPlaywrightCLIMode(workflowData.Tools) {
 		return nil
 	}
@@ -90,14 +94,43 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		}
 	}
 
+	config := parsePlaywrightTool(workflowData.Tools["playwright"])
+	browsers := []string{"chromium"}
+	if config != nil && len(config.Browsers) > 0 {
+		browsers = make([]string, 0, len(config.Browsers))
+		seen := make(map[string]struct{})
+		for _, browser := range config.Browsers {
+			normalized := normalizePlaywrightBrowser(browser)
+			if normalized != "" {
+				if _, ok := seen[normalized]; ok {
+					continue
+				}
+				browsers = append(browsers, normalized)
+				seen[normalized] = struct{}{}
+			}
+		}
+	}
+
+	// Install the requested browser binaries before the agent starts. Browser downloads
+	// are prohibited during agent execution.
+	steps = append(steps,
+		GitHubActionStep{
+			"      - name: Install Playwright browsers",
+			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_playwright_browsers.sh\" " + strings.Join(browsers, " "),
+			"        env:",
+			"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
+			"        timeout-minutes: 10",
+		},
+	)
+
 	// Install playwright-cli skills so the coding agent can discover available commands.
-	// PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD keeps this step focused on skills installation;
-	// browser binaries can still be installed lazily when the agent runs browser commands.
+	// This step only installs skills; browser binaries are provisioned above.
 	installSkillsStep := GitHubActionStep{
 		"      - name: Install Playwright CLI skills",
 		"        run: playwright-cli install --skills",
 		"        env:",
 		"          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'",
+		"          PLAYWRIGHT_BROWSERS_PATH: " + playwrightBrowsersPath,
 		"        timeout-minutes: 10",
 	}
 	steps = append(steps, installSkillsStep)

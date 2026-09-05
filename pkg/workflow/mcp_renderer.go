@@ -45,6 +45,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -191,7 +192,22 @@ func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON
 		// Port as unquoted variable - shell expands to integer (e.g., 8080) for valid JSON
 		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
-		fmt.Fprintf(&configBuilder, "              \"agentId\": \"%s\"", options.GatewayConfig.AgentID)
+		if len(options.GatewayConfig.AgentIDs) > 0 {
+			agentIDs, err := json.Marshal(options.GatewayConfig.AgentIDs)
+			if err != nil {
+				return fmt.Errorf("failed to marshal gateway agent IDs: %w", err)
+			}
+			fmt.Fprintf(&configBuilder, "              \"agentIds\": %s", agentIDs)
+			if len(options.GatewayConfig.AgentPolicies) > 0 {
+				agentPolicies, err := json.Marshal(options.GatewayConfig.AgentPolicies)
+				if err != nil {
+					return fmt.Errorf("failed to marshal gateway agent policies: %w", err)
+				}
+				fmt.Fprintf(&configBuilder, ",\n              \"agentPolicies\": %s", agentPolicies)
+			}
+		} else {
+			fmt.Fprintf(&configBuilder, "              \"agentId\": \"%s\"", options.GatewayConfig.AgentID)
+		}
 
 		// Add optional fields if specified (agentId always precedes them without a trailing comma)
 		if options.GatewayConfig.PayloadDir != "" {
