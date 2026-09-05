@@ -637,10 +637,10 @@ func TestDailyCLIPerformanceUsesCodexCompatibleModel(t *testing.T) {
 	}
 
 	workflow := string(content)
-	if !strings.Contains(workflow, "id: codex") {
+	if !strings.Contains(workflow, "engine:\n  id: codex\n") {
 		t.Fatal("Expected daily-cli-performance workflow to use the Codex engine")
 	}
-	if !strings.Contains(workflow, "model: openai/gpt-5.3-codex") {
+	if !strings.Contains(workflow, "\nmodel: openai/gpt-5.3-codex\n") {
 		t.Fatal("Expected daily-cli-performance workflow to use a Codex-compatible OpenAI model")
 	}
 }
