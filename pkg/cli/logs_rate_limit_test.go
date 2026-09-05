@@ -202,12 +202,12 @@ func captureRateLimitStderr(t *testing.T, fn func()) string {
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
 	original := os.Stderr
-	os.Stderr = writer
-	t.Cleanup(func() { os.Stderr = original })
-
-	fn()
+	func() {
+		os.Stderr = writer
+		defer func() { os.Stderr = original }()
+		fn()
+	}()
 	require.NoError(t, writer.Close())
-	os.Stderr = original
 
 	var output bytes.Buffer
 	_, err = io.Copy(&output, reader)
