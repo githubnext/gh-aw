@@ -112,27 +112,26 @@ func (c *Compiler) emitPlaywrightBrowserInstallWarning(workflowData *WorkflowDat
 }
 
 func hasPlaywrightBrowserInstallStep(workflowData *WorkflowData) bool {
-	sections := []struct {
-		name    string
-		content string
-	}{
-		{name: "pre-steps", content: workflowData.PreSteps},
-		{name: "steps", content: workflowData.CustomSteps},
-		{name: "pre-agent-steps", content: workflowData.PreAgentSteps},
-		{name: "post-steps", content: workflowData.PostSteps},
+	sections := []string{
+		workflowData.PreSteps,
+		workflowData.CustomSteps,
+		workflowData.PreAgentSteps,
+		workflowData.PostSteps,
 	}
 
 	for _, section := range sections {
-		if section.content == "" {
+		if section == "" {
 			continue
 		}
 		var wrapper map[string][]WorkflowStep
-		if err := yaml.Unmarshal([]byte(section.content), &wrapper); err != nil {
+		if err := yaml.Unmarshal([]byte(section), &wrapper); err != nil {
 			continue
 		}
-		for _, step := range wrapper[section.name] {
-			if playwrightBrowserInstallPattern.MatchString(step.Run) {
-				return true
+		for _, steps := range wrapper {
+			for _, step := range steps {
+				if playwrightBrowserInstallPattern.MatchString(step.Run) {
+					return true
+				}
 			}
 		}
 	}

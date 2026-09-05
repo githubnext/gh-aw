@@ -225,10 +225,11 @@ func TestValidatePlaywrightBrowsers(t *testing.T) {
 
 func TestEmitPlaywrightBrowserInstallWarning(t *testing.T) {
 	tests := []struct {
-		name        string
-		tools       map[string]any
-		customSteps string
-		wantWarning bool
+		name          string
+		tools         map[string]any
+		customSteps   string
+		preAgentSteps string
+		wantWarning   bool
 	}{
 		{
 			name:  "npm exec browser install",
@@ -252,6 +253,14 @@ func TestEmitPlaywrightBrowserInstallWarning(t *testing.T) {
 			tools: map[string]any{"playwright": nil},
 			customSteps: `steps:
 - run: npm ci && pnpm exec playwright install webkit
+`,
+			wantWarning: true,
+		},
+		{
+			name:  "browser install in pre-agent steps",
+			tools: map[string]any{"playwright": nil},
+			preAgentSteps: `pre-agent-steps:
+- run: bunx playwright install chromium
 `,
 			wantWarning: true,
 		},
@@ -283,8 +292,9 @@ func TestEmitPlaywrightBrowserInstallWarning(t *testing.T) {
 			compiler := NewCompiler()
 			output := testutil.CaptureStderr(t, func() {
 				compiler.emitPlaywrightBrowserInstallWarning(&WorkflowData{
-					Tools:       tt.tools,
-					CustomSteps: tt.customSteps,
+					Tools:         tt.tools,
+					CustomSteps:   tt.customSteps,
+					PreAgentSteps: tt.preAgentSteps,
 				}, "test.md")
 			})
 
