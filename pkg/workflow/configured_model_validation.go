@@ -15,10 +15,15 @@ func (c *Compiler) warnCodexCopilotModelCompatibility(data *WorkflowData, markdo
 		return
 	}
 
-	model := strings.ToLower(strings.TrimSpace(data.Model))
-	if !strings.HasPrefix(model, "copilot/") ||
-		strings.Contains(model, "${{") ||
-		strings.Contains(strings.SplitN(model, "?", 2)[0], "codex") {
+	model := strings.TrimSpace(data.Model)
+	if model == "" || strings.Contains(model, "${{") {
+		return
+	}
+	model = strings.ToLower(model)
+	baseModel := strings.SplitN(model, "?", 2)[0]
+	usesGitHubInference := strings.HasPrefix(baseModel, "copilot/") ||
+		NewCodexEngine().ResolveLLMProvider(data) == LLMProviderGitHub
+	if !usesGitHubInference || strings.Contains(baseModel, "codex") {
 		return
 	}
 

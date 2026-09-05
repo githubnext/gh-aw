@@ -68,6 +68,17 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 			wantWarning: true,
 		},
 		{
+			name: "explicit GitHub provider",
+			data: &WorkflowData{
+				Model: "gpt-5.4",
+				EngineConfig: &EngineConfig{
+					ID:          "codex",
+					LLMProvider: LLMProviderGitHub,
+				},
+			},
+			wantWarning: true,
+		},
+		{
 			name: "Codex Copilot model",
 			data: &WorkflowData{
 				Model:        "copilot/gpt-5.3-codex?effort=high",
