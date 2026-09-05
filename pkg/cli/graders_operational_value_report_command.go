@@ -116,7 +116,7 @@ func runOperationalValueReportForAllWorkflows(ctx context.Context, config Operat
 	}
 	succeeded := len(workflowIDs) - len(failed)
 	summary := fmt.Sprintf("Built operational-value reports for %d/%d graded workflow(s)", succeeded, len(workflowIDs))
-	if succeeded == 0 {
+	if len(failed) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(summary))
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(summary))
