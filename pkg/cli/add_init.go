@@ -92,14 +92,6 @@ func applyAddRepositoryInitialization(plan addRepositoryInitializationPlan, engi
 	return ensureAddRepositoryInitializedFromPlan(plan.files, engineOverride, verbose, noGitattributes)
 }
 
-func confirmAndInitializeAddRepository(ctx context.Context, engineOverride string, verbose bool, noGitattributes bool) ([]addInitializedFile, error) {
-	plan, err := confirmAddRepositoryInitialization(ctx, engineOverride, noGitattributes)
-	if err != nil {
-		return nil, err
-	}
-	return applyAddRepositoryInitialization(plan, engineOverride, verbose, noGitattributes)
-}
-
 func ensureAddRepositoryInitializedFromPlan(markers []string, engineOverride string, verbose bool, noGitattributes bool) ([]addInitializedFile, error) {
 	gitRoot, err := addFindGitRoot()
 	if err != nil {

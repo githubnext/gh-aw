@@ -624,6 +624,27 @@ func TestDailyGoTestParallelizerUsesCodexCompatibleModel(t *testing.T) {
 	}
 }
 
+func TestDailyCLIPerformanceUsesCodexCompatibleModel(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-cli-performance.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "engine:\n  id: codex\n") {
+		t.Fatal("Expected daily-cli-performance workflow to use the Codex engine")
+	}
+	if !strings.Contains(workflow, "\nmodel: openai/gpt-5.3-codex\n") {
+		t.Fatal("Expected daily-cli-performance workflow to use a Codex-compatible OpenAI model")
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================

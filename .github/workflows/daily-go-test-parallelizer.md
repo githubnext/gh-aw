@@ -14,7 +14,7 @@ permissions:
 engine:
   id: codex
   model-provider: github
-model: openai/gpt-5.3-codex
+model: copilot/gpt-5.3-codex
 strict: true
 timeout-minutes: 30
 network:
