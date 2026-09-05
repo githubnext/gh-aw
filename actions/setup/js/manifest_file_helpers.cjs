@@ -3,6 +3,14 @@
 /** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
 const { extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 
+/**
+ * Shared reasonCode for handler results that are skipped because a policy-driven
+ * file-protection check (allowed-files allowlist or protected-files policy) denied
+ * the operation. Used by push_to_pull_request_branch.cjs and approve_workflow_run.cjs
+ * so that these declines are surfaced consistently as skips, not hard failures.
+ */
+const POLICY_FILE_PROTECTION_DENIED_REASON_CODE = "POLICY_FILE_PROTECTION_DENIED";
+
 function normalizeDotFolderExcludes(excludes) {
   return new Set((Array.isArray(excludes) ? excludes : []).map(exclude => String(exclude || "").replace(/\/+$/, "")).filter(Boolean));
 }
@@ -340,4 +348,15 @@ function checkFileProtectionPostApply(actualFiles, config) {
   return { action: "deny", source: "protected", files: allProtected };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection, checkFileProtectionPostApply };
+module.exports = {
+  extractFilenamesFromPatch,
+  extractPathsFromPatch,
+  checkForManifestFiles,
+  checkForProtectedPaths,
+  checkForTopLevelDotFolders,
+  checkAllowedFiles,
+  checkExcludedFiles,
+  checkFileProtection,
+  checkFileProtectionPostApply,
+  POLICY_FILE_PROTECTION_DENIED_REASON_CODE,
+};
