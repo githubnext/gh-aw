@@ -47,6 +47,9 @@ async function linearGraphQL(query, variables, token = process.env.GH_AW_LINEAR_
   }
   if (Array.isArray(payload.errors) && payload.errors.length > 0) {
     const message = redactToken(payload.errors[0]?.message || "unknown GraphQL error", token).slice(0, 500);
+    if (message.toLowerCase().includes("entity not found: team")) {
+      throw new Error(`${ERR_CONFIG}: Linear could not access the configured team. Verify safe-outputs.linear-create-issue.team-id references a team in the workspace authorized by LINEAR_API_KEY`);
+    }
     throw new Error(`${ERR_API}: Linear GraphQL operation failed: ${message}`);
   }
 

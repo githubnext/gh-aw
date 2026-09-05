@@ -98,6 +98,9 @@ describe("Linear safe outputs", () => {
     fetch.mockResolvedValueOnce(response({ errors: [{ message: "denied linear-secret" }] }));
     await expect(linearGraphQL("query Fixed { viewer { id } }", {})).rejects.not.toThrow("linear-secret");
 
+    fetch.mockResolvedValueOnce(response({ errors: [{ message: "Entity not found: Team" }] }));
+    await expect(linearGraphQL(LINEAR_CREATE_ISSUE, {})).rejects.toThrow("Verify safe-outputs.linear-create-issue.team-id references a team in the workspace authorized by LINEAR_API_KEY");
+
     fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: false, issue: null } } }));
     const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
     await expect(handler({ title: "Title", body: "Body with enough detail" })).rejects.toThrow("did not return a successful issue");

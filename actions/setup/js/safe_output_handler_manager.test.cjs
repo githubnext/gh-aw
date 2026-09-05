@@ -841,6 +841,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results[0].error).toContain("No handler loaded for type 'my_script'");
       expect(result.results[0].error).toContain("Cannot find module");
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("The handler was configured but failed to load"));
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("safe output type is not configured"));
     });
   });
 
