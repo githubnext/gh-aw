@@ -26,8 +26,14 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"regexp"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
+
+var playwrightBrowserInstallPattern = regexp.MustCompile(`(?im)(?:^|&&|\|\||;)[ \t]*(?:(?:npx|npm[ \t]+(?:exec|x)|pnpm[ \t]+(?:exec|dlx)|yarn(?:[ \t]+dlx)?|bunx)[ \t]+(?:(?:--yes|--no-install|--)[ \t]+)*)?playwright(?:@[^\s;&|]+)?[ \t]+install(?:[ \t]|$)`)
 
 func normalizePlaywrightBrowser(browser string) string {
 	switch strings.ToLower(strings.TrimSpace(browser)) {
@@ -93,4 +99,42 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 		}
 	}
 	return nil
+}
+
+func (c *Compiler) emitPlaywrightBrowserInstallWarning(workflowData *WorkflowData, markdownPath string) {
+	if workflowData == nil || !isPlaywrightCLIMode(workflowData.Tools) || !hasPlaywrightBrowserInstallStep(workflowData) {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+		"custom steps install Playwright browser engines. Remove those installation commands and use `tools.playwright.browsers` instead; the compiler provisions the selected browsers before the agent starts."))
+	c.IncrementWarningCount()
+}
+
+func hasPlaywrightBrowserInstallStep(workflowData *WorkflowData) bool {
+	sections := []struct {
+		name    string
+		content string
+	}{
+		{name: "pre-steps", content: workflowData.PreSteps},
+		{name: "steps", content: workflowData.CustomSteps},
+		{name: "pre-agent-steps", content: workflowData.PreAgentSteps},
+		{name: "post-steps", content: workflowData.PostSteps},
+	}
+
+	for _, section := range sections {
+		if section.content == "" {
+			continue
+		}
+		var wrapper map[string][]WorkflowStep
+		if err := yaml.Unmarshal([]byte(section.content), &wrapper); err != nil {
+			continue
+		}
+		for _, step := range wrapper[section.name] {
+			if playwrightBrowserInstallPattern.MatchString(step.Run) {
+				return true
+			}
+		}
+	}
+	return false
 }
