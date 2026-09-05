@@ -19,6 +19,9 @@ permissions:
 features:
   gh-aw-detection: true
 
+network:
+  allowed: [defaults, go]
+
 model: claude-sonnet-5
 engine:
   id: copilot

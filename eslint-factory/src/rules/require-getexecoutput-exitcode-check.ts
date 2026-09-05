@@ -8,10 +8,20 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
  * `execApi`, `this.exec`, etc.) since the module is imported under different local aliases
  * across actions/setup/js.
  */
-function isGetExecOutputCall(node: TSESTree.Expression): node is TSESTree.CallExpression {
-  if (node.type !== AST_NODE_TYPES.CallExpression) return false;
+function isGetExecOutputCall(node: TSESTree.CallExpression): boolean {
   const callee = node.callee;
   return callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "getExecOutput";
+}
+
+/**
+ * Returns true when the call expression is `<obj>.exec(...)` — the `@actions/exec` sibling
+ * helper that resolves to the numeric exit code directly (`Promise<number>`), rather than an
+ * `{ exitCode, stdout, stderr }` object. Matches any receiver name for the same reason as
+ * `isGetExecOutputCall`.
+ */
+function isExecCall(node: TSESTree.CallExpression): boolean {
+  const callee = node.callee;
+  return callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "exec";
 }
 
 /**
@@ -138,10 +148,10 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
     type: "problem",
     docs: {
       description:
-        "Require the exitCode from @actions/exec getExecOutput() to be read (destructured or accessed) when the call passes { ignoreReturnCode: true }. " +
+        "Require the exitCode from @actions/exec getExecOutput()/exec() to be read (destructured, accessed, or captured) when the call passes { ignoreReturnCode: true }. " +
         "ignoreReturnCode: true suppresses the automatic throw-on-nonzero-exit behavior, so the caller becomes solely responsible for detecting failure; " +
-        "discarding exitCode (e.g. only destructuring { stdout }) silently swallows command failures and proceeds with empty or stale output. " +
-        "Scope: this rule only inspects the immediate destructuring pattern or member-expression access on the awaited/returned call result; " +
+        "discarding exitCode (e.g. only destructuring { stdout }, or a bare `await exec.exec(...)` whose returned exit code is never captured) silently swallows command failures and proceeds with empty or stale output. " +
+        "Scope: this rule only inspects the immediate destructuring pattern, member-expression access, or captured-variable usage on the awaited/returned call result; " +
         "results forwarded to a helper function that checks exitCode internally are out of scope and will not satisfy the rule.",
     },
     schema: [],
@@ -150,6 +160,10 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
         "getExecOutput() is called with ignoreReturnCode: true but its exitCode is never read. " +
         "Without the default throw-on-failure behavior, a non-zero exit code is silently ignored. " +
         "Destructure exitCode and check it (e.g. `const { stdout, exitCode } = await exec.getExecOutput(...); if (exitCode !== 0) { ... }`).",
+      missingExecExitCodeCheck:
+        "exec() is called with ignoreReturnCode: true but its returned exit code is never captured and checked. " +
+        "Without the default throw-on-failure behavior, exec()'s resolved number is the only signal of a non-zero exit; a bare `await exec.exec(...)` statement (or an assigned-but-unread result) silently discards it. " +
+        "Capture the result and check it (e.g. `const exitCode = await exec.exec(...); if (exitCode !== 0) { ... }`).",
     },
   },
   defaultOptions: [],
@@ -241,15 +255,71 @@ export const requireGetExecOutputExitCodeCheckRule = createRule({
       }
     }
 
+    /**
+     * Reports the `exec()` call (numeric-return variant) when its resolved exit code is
+     * discarded: a bare awaited statement, an assigned-but-never-read variable, or any usage
+     * shape that isn't a captured-and-read binding. Unlike `getExecOutput()`, there is no
+     * destructuring shape to inspect — the entire resolved value IS the exit code.
+     */
+    function reportIfExecResultMissing(call: TSESTree.CallExpression, resultNode: TSESTree.Node) {
+      const parent = resultNode.parent;
+
+      // Bare `await exec.exec(...);` as an expression statement — the exit code is
+      // discarded entirely.
+      if (!parent || parent.type === AST_NODE_TYPES.ExpressionStatement) {
+        context.report({ node: call, messageId: "missingExecExitCodeCheck" });
+        return;
+      }
+
+      // const exitCode = await exec.exec(...);  /  let exitCode; exitCode = await exec.exec(...);
+      const isDeclInit = parent.type === AST_NODE_TYPES.VariableDeclarator && parent.init === resultNode && parent.id.type === AST_NODE_TYPES.Identifier;
+      const isAssignInit = parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === resultNode && parent.left.type === AST_NODE_TYPES.Identifier;
+      if (isDeclInit || isAssignInit) {
+        const bindingName = isDeclInit ? (parent as TSESTree.VariableDeclarator).id : (parent as TSESTree.AssignmentExpression).left;
+        const name = (bindingName as TSESTree.Identifier).name;
+        const variable = findInUpperScopes(context.sourceCode.getScope(parent), name);
+        // Any read reference other than the initializing write itself counts as "checked" —
+        // we can't statically verify a comparison against 0, but requiring at least one read
+        // keeps the rule from flagging genuinely-checked patterns like `run_validate_workflows.cjs`.
+        const hasRead = variable?.references.some(ref => ref.isRead());
+        const escapesViaReturn = variable?.references.some(ref => isReturnedFromFunctionExpression(ref.identifier));
+        if (!hasRead) {
+          if (escapesViaReturn) return;
+          context.report({ node: call, messageId: "missingExecExitCodeCheck" });
+        }
+        return;
+      }
+
+      // Direct use in a comparison/condition/return, e.g. `if ((await exec.exec(...)) !== 0)`,
+      // `return await exec.exec(...);` — the value is consumed inline, not discarded.
+      if (isReturnedFromFunctionExpression(resultNode)) return;
+      if (parent.type === AST_NODE_TYPES.AwaitExpression) return;
+
+      // Anything else that consumes the value directly (binary comparisons, arguments, etc.)
+      // is treated as read.
+    }
+
     return {
       CallExpression(node: TSESTree.CallExpression) {
-        if (!isGetExecOutputCall(node)) return;
-        if (!hasIgnoreReturnCodeTrue(node, context.sourceCode.getScope(node))) return;
+        const scope = context.sourceCode.getScope(node);
 
-        // Walk up through an optional AwaitExpression wrapper to find the real usage site.
-        const usageNode: TSESTree.Node = node.parent && node.parent.type === AST_NODE_TYPES.AwaitExpression && node.parent.argument === node ? node.parent : node;
+        if (isGetExecOutputCall(node)) {
+          if (!hasIgnoreReturnCodeTrue(node, scope)) return;
 
-        reportIfMissing(node, usageNode);
+          // Walk up through an optional AwaitExpression wrapper to find the real usage site.
+          const usageNode: TSESTree.Node = node.parent && node.parent.type === AST_NODE_TYPES.AwaitExpression && node.parent.argument === node ? node.parent : node;
+
+          reportIfMissing(node, usageNode);
+          return;
+        }
+
+        if (isExecCall(node)) {
+          if (!hasIgnoreReturnCodeTrue(node, scope)) return;
+
+          const usageNode: TSESTree.Node = node.parent && node.parent.type === AST_NODE_TYPES.AwaitExpression && node.parent.argument === node ? node.parent : node;
+
+          reportIfExecResultMissing(node, usageNode);
+        }
       },
     };
   },
