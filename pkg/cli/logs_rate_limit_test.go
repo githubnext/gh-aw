@@ -7,8 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
-	"io"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -162,11 +160,10 @@ func TestFinishGitHubAPIRateLimitReportWarnsNearLimit(t *testing.T) {
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
-	output := captureRateLimitStderr(t, func() {
-		finishGitHubAPIRateLimitReport(context.Background(), &GitHubAPIRateLimitReport{}, false)
-	})
-	assert.Contains(t, output, "GitHub API rate limit for github.com is running low")
-	assert.Contains(t, output, "20.00%")
+	var output bytes.Buffer
+	finishGitHubAPIRateLimitReportToWriter(context.Background(), &GitHubAPIRateLimitReport{}, false, &output)
+	assert.Contains(t, output.String(), "GitHub API rate limit for github.com is running low")
+	assert.Contains(t, output.String(), "20.00%")
 }
 
 func TestFinishGitHubAPIRateLimitReportSuppressesWarningForJSON(t *testing.T) {
@@ -177,10 +174,9 @@ func TestFinishGitHubAPIRateLimitReportSuppressesWarningForJSON(t *testing.T) {
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
 	report := &GitHubAPIRateLimitReport{}
-	output := captureRateLimitStderr(t, func() {
-		finishGitHubAPIRateLimitReport(context.Background(), report, true)
-	})
-	assert.Empty(t, strings.TrimSpace(output))
+	var output bytes.Buffer
+	finishGitHubAPIRateLimitReportToWriter(context.Background(), report, true, &output)
+	assert.Empty(t, strings.TrimSpace(output.String()))
 	require.NotNil(t, report.End)
 	assert.Zero(t, report.End.Remaining)
 }
@@ -195,25 +191,6 @@ func TestGitHubAPIRateLimitReportOmitsUnavailableSnapshots(t *testing.T) {
 	report := startGitHubAPIRateLimitReport(context.Background(), "")
 	finishGitHubAPIRateLimitReport(context.Background(), report, true)
 	assert.Nil(t, populatedGitHubAPIRateLimitReport(report))
-}
-
-func captureRateLimitStderr(t *testing.T, fn func()) string {
-	t.Helper()
-	reader, writer, err := os.Pipe()
-	require.NoError(t, err)
-	original := os.Stderr
-	func() {
-		os.Stderr = writer
-		defer func() { os.Stderr = original }()
-		fn()
-	}()
-	require.NoError(t, writer.Close())
-
-	var output bytes.Buffer
-	_, err = io.Copy(&output, reader)
-	require.NoError(t, err)
-	require.NoError(t, reader.Close())
-	return output.String()
 }
 
 func TestResolveMaxGitHubAPIRateLimit(t *testing.T) {

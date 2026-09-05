@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -108,6 +109,10 @@ func startGitHubAPIRateLimitReports(ctx context.Context, hosts []string) []*GitH
 }
 
 func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLimitReport, jsonOutput bool) {
+	finishGitHubAPIRateLimitReportToWriter(ctx, report, jsonOutput, os.Stderr)
+}
+
+func finishGitHubAPIRateLimitReportToWriter(ctx context.Context, report *GitHubAPIRateLimitReport, jsonOutput bool, warningWriter io.Writer) {
 	if report == nil {
 		return
 	}
@@ -120,7 +125,7 @@ func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLi
 	report.End = &state
 	if !jsonOutput && isGitHubAPIRateLimitLow(state) {
 		percentRemaining := float64(state.Remaining) * 100 / float64(state.Limit)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+		fmt.Fprintln(warningWriter, console.FormatWarningMessage(fmt.Sprintf(
 			"GitHub API rate limit for %s is running low: %d of %d core requests remain (%.2f%%); resets at %s",
 			report.Host, state.Remaining, state.Limit, percentRemaining, time.Unix(state.Reset, 0).UTC().Format(time.RFC3339),
 		)))
