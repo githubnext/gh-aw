@@ -52,6 +52,18 @@ func TestLoadUsageActivitySummary(t *testing.T) {
 	assert.Equal(t, 5, summary.Gateway.TotalCalls, "gateway total_calls should be parsed from JSON")
 	require.Len(t, summary.Gateway.ToolCalls, 1, "gateway tool_calls should be parsed from JSON")
 	assert.Equal(t, usageActivityGatewayCall{ToolCallID: "call-1", RequestSize: 100, ResponseSize: 200, DurationMS: 25, Outcome: "success"}, summary.Gateway.ToolCalls[0])
+
+	var result DownloadResult
+	applyUsageActivitySummaryToResult(summary, &result, true)
+	require.NotNil(t, result.MCPToolUsage, "loaded gateway summary should populate MCP usage")
+	require.Len(t, result.MCPToolUsage.ToolCalls, 1, "loaded gateway summary should populate MCP call records")
+	assert.Equal(t, MCPToolCall{
+		ToolCallID: "call-1",
+		InputSize:  100,
+		OutputSize: 200,
+		Duration:   "25ms",
+		Status:     "success",
+	}, result.MCPToolUsage.ToolCalls[0])
 }
 
 func TestApplyUsageActivitySummaryToResult(t *testing.T) {
@@ -85,6 +97,9 @@ func TestApplyUsageActivitySummaryToResult(t *testing.T) {
 			Tools: []usageActivityGatewayTool{
 				{ServerName: "github", ToolName: "issue_read", CallCount: 5, FailedCalls: 2, TotalInputSize: 100, TotalOutputSize: 200, MaxInputSize: 70, MaxOutputSize: 140, AvgDurationMS: 12, MaxDurationMS: 30},
 			},
+			ToolCalls: []usageActivityGatewayCall{
+				{ToolCallID: "call-1", RequestSize: 100, ResponseSize: 200, DurationMS: 25, Outcome: "success"},
+			},
 		},
 		Integrity: &IntegrityFilterSummary{
 			TotalFiltered:        2,
@@ -105,7 +120,12 @@ func TestApplyUsageActivitySummaryToResult(t *testing.T) {
 	assert.Equal(t, []string{"blocked.example.com:443"}, result.FirewallAnalysis.BlockedDomains, "blocked domains should be backfilled from the summary")
 	assert.Equal(t, DomainRequestStats{Allowed: 9, Blocked: 0}, result.FirewallAnalysis.RequestsByDomain["api.github.com:443"], "per-domain stats should be backfilled from the summary")
 	require.NotNil(t, result.MCPToolUsage, "gateway summary should be backfilled")
-	assert.Empty(t, result.MCPToolUsage.ToolCalls, "usage-summary backfill should preserve empty tool call rows instead of null")
+	require.Len(t, result.MCPToolUsage.ToolCalls, 1, "usage-summary backfill should include tool call rows")
+	assert.Equal(t, "call-1", result.MCPToolUsage.ToolCalls[0].ToolCallID, "opaque tool call ID should be preserved")
+	assert.Equal(t, 100, result.MCPToolUsage.ToolCalls[0].InputSize, "request size should be mapped to input size")
+	assert.Equal(t, 200, result.MCPToolUsage.ToolCalls[0].OutputSize, "response size should be mapped to output size")
+	assert.Equal(t, "25ms", result.MCPToolUsage.ToolCalls[0].Duration, "duration should be formatted")
+	assert.Equal(t, "success", result.MCPToolUsage.ToolCalls[0].Status, "outcome should be mapped to status")
 	require.Len(t, result.MCPToolUsage.Servers, 2, "gateway servers should be copied from the summary")
 	assert.Equal(t, "github", result.MCPToolUsage.Servers[0].ServerName, "server names should be preserved")
 	assert.Equal(t, 5, result.MCPToolUsage.Servers[0].RequestCount, "request counts should be preserved")
