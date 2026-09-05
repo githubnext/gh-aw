@@ -119,6 +119,7 @@ func TestIsPathWithinPackageRoot(t *testing.T) {
 		{name: "matches path under root", candidate: "packages/a/aw.yml", root: "packages/a", want: true},
 		{name: "rejects path outside root", candidate: "packages/b/aw.yml", root: "packages/a", want: false},
 		{name: "rejects backslash immediately after root separator", candidate: `packages/a/\..\aw.yml`, root: "packages/a", want: false},
+		{name: "rejects embedded backslash anywhere in path", candidate: `packages/a/sub\dir/aw.yml`, root: "packages/a", want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -131,21 +131,17 @@ func (r *repositoryPackageManifestGraphResolver) visit(manifestPath string, mani
 
 // isPathWithinPackageRoot reports whether candidate is a manifest import path
 // that resolves within root. This is a path-traversal guard, not a redirect
-// handler; it additionally rejects a leading backslash immediately after the
-// path separator (consistent with CWE-601 guidance) purely to avoid matching
-// the go/bad-redirect-check heuristic, without weakening the containment check.
+// handler; it additionally rejects any backslash in candidate (consistent
+// with CWE-601 guidance) purely to avoid matching the go/bad-redirect-check
+// heuristic, without weakening the containment check.
 func isPathWithinPackageRoot(candidate, root string) bool {
-	if root == "" {
-		return candidate != ".." && !strings.HasPrefix(candidate, "../") && !strings.HasPrefix(candidate, `\`)
-	}
-	if candidate == root {
-		return true
-	}
-	prefix := root + "/"
-	if !strings.HasPrefix(candidate, prefix) {
+	if strings.Contains(candidate, `\`) {
 		return false
 	}
-	return !strings.HasPrefix(candidate[len(prefix):], `\`)
+	if root == "" {
+		return candidate != ".." && !strings.HasPrefix(candidate, "../")
+	}
+	return candidate == root || strings.HasPrefix(candidate, root+"/")
 }
 
 func validateUniqueResolvedPackageFiles(
@@ -203,9 +199,10 @@ func packageSkillFileRelativePath(skillFile resolvedPackageSkillFile) string {
 // readLocalImportedManifest reads an imported manifest, guarding against
 // path traversal outside packageRoot and against symbolic links that would
 // resolve outside it. This is a path-traversal guard, not a redirect
-// handler; the leading-backslash check mirrors isPathWithinPackageRoot to
-// avoid matching the go/bad-redirect-check heuristic (CWE-601), without
-// weakening the containment check.
+// handler; on platforms where backslash is not the path separator, it
+// additionally rejects any backslash in the resolved relative path
+// (consistent with CWE-601 guidance) purely to avoid matching the
+// go/bad-redirect-check heuristic, without weakening the containment check.
 func readLocalImportedManifest(manifestPath, packageRoot string) ([]byte, error) {
 	evaluatedPath, err := filepath.EvalSymlinks(manifestPath)
 	if err != nil {
@@ -219,7 +216,8 @@ func readLocalImportedManifest(manifestPath, packageRoot string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || strings.HasPrefix(relative, `\`) {
+	hasStrayBackslash := os.PathSeparator != '\\' && strings.Contains(relative, `\`)
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || hasStrayBackslash {
 		addPackageManifestLog.Printf("Rejecting imported manifest %q: resolves outside package root %q", manifestPath, packageRoot)
 		return nil, fmt.Errorf("import %q resolves outside the package root", manifestPath)
 	}
