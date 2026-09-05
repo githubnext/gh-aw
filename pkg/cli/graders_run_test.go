@@ -106,6 +106,7 @@ case "${1:-}" in
   printf '%s\n' '{"schemaVersion":4,"grader":"operational-value","repository":"example/repo","workflowName":"Test","sourcePath":".github/workflows/test.md","adoption":{"commit":"abc","adoptedAt":"2026-01-01T00:00:00Z"},"operationalValue":"Test direct script execution.","evidence":{"opportunity":"test","assignment":"payload","accepted":"stdin","repositories":["example/repo"],"collection":"test","maturation":"immediate","zeroRule":"none","missingRule":"null"},"primaryMetric":{"id":"score","formula":"payload score","direction":"higher_is_better"},"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]},"validationExamples":{"sample":{"valid":true}}}'
   ;;
 --grade-run)
+  [[ "${GH_HOST:-}" == "ghe.example" ]]
   payload=$(cat)
   [[ "$payload" == '{"score":0.8}' ]]
   printf '%s\n' '{"value":0.8,"source":"script-file"}'
@@ -118,6 +119,7 @@ esac
 	err := runGrader(context.Background(), graderRunConfig{
 		Workflow: workflowID,
 		GraderID: "operational-value",
+		Repo:     "ghe.example/example/repo",
 		Input:    bytes.NewBufferString(`{"score":0.8}`),
 		Output:   &output,
 	})

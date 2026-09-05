@@ -16,6 +16,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -58,7 +60,15 @@ func runGrader(ctx context.Context, config graderRunConfig) error {
 		return err
 	}
 	if grader.Source == "operational-value" {
-		return runOperationalValuePayload(ctx, config.Workflow, payload, config.Output)
+		evaluatorHost := getGitHubHostForRepo("")
+		if config.Repo != "" {
+			ownerRepo, host := repoutil.NormalizeRepoForAPI(config.Repo)
+			evaluatorHost = getGitHubHostForRepo(ownerRepo)
+			if host != "" {
+				evaluatorHost = stringutil.NormalizeGitHubHostURL(host)
+			}
+		}
+		return runOperationalValuePayload(ctx, config.Workflow, payload, config.Output, evaluatorHost)
 	}
 	return runJavaScriptGrader(ctx, grader, payload, config.Output)
 }
@@ -219,14 +229,14 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 	return nil
 }
 
-func runOperationalValuePayload(ctx context.Context, workflowArg string, payload json.RawMessage, output io.Writer) error {
-	evaluator, err := loadOperationalValueReportEvaluator(ctx, workflowArg, getGitHubHostForRepo(""))
+func runOperationalValuePayload(ctx context.Context, workflowArg string, payload json.RawMessage, output io.Writer, evaluatorHost string) error {
+	evaluator, err := loadOperationalValueReportEvaluator(ctx, workflowArg, evaluatorHost)
 	if err != nil {
 		return err
 	}
 	defer evaluator.cleanup()
 	result, err := runOperationalValueEvaluatorBash(ctx, "/bin/bash", evaluator.EvaluatorPath,
-		[]string{evaluator.EvaluatorPath, "--grade-run"}, payload, operationalValueEvaluatorTimeout, getGitHubHostForRepo(""))
+		[]string{evaluator.EvaluatorPath, "--grade-run"}, payload, operationalValueEvaluatorTimeout, evaluatorHost)
 	if err != nil {
 		return fmt.Errorf("operational-value evaluator --grade-run failed: %w", err)
 	}
