@@ -377,7 +377,7 @@ outputContent := filesRegex.ReplaceAllString(
 - Eliminates need to rebuild binary for every change
 
 **Trade-offs**:
-- Slightly slower execution (compilation overhead)
+- Increased execution time (compilation overhead)
 - Requires Go toolchain
 
 **Implementation**: Makefile uses `@go run ./cmd/gh-aw actions-build` pattern.

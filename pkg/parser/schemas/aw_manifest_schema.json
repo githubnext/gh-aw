@@ -475,6 +475,32 @@
             }
           },
           {
+            "description": "repo-label: create or update a repository label",
+            "type": "object",
+            "required": ["type", "name", "description", "color"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "repo-label"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^[0-9A-Fa-f]{6}$"
+              }
+            }
+          },
+          {
             "description": "github-app: configure GitHub App credentials",
             "type": "object",
             "required": ["type", "app-id-variable", "private-key-secret"],
