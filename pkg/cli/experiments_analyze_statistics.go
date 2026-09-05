@@ -439,6 +439,10 @@ func findEvalQuestion(evals *workflow.EvalsConfig, evalID string) string {
 // and would otherwise skew balance/selection statistics. When cfg declares a variant
 // list, counts for variants no longer present in it are dropped. When includeDeclared
 // is true, declared variants with no observed runs are included with a zero count.
+// When cfg is nil or declares no variants (e.g. the workflow's frontmatter could not be
+// loaded), the raw, unreconciled counts are returned as-is; callers that can load the
+// frontmatter should do so via reconcileExperimentDetailsWithConfigs, which applies the
+// same filtering upstream so downstream stats always see reconciled counts when possible.
 func experimentVariantCounts(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig, includeDeclared bool) map[string]int {
 	if cfg == nil || len(cfg.Variants) == 0 {
 		return exp.Variants
