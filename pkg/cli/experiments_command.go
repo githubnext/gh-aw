@@ -262,20 +262,8 @@ func reconcileExperimentDetailsWithConfigs(details *ExperimentDetails, configs m
 		if cfg == nil || len(cfg.Variants) == 0 {
 			continue
 		}
-		declared := make(map[string]bool, len(cfg.Variants))
-		for _, name := range cfg.Variants {
-			declared[name] = true
-		}
-		filtered := make(map[string]int, len(exp.Variants))
-		var stale []string
-		for name, count := range exp.Variants {
-			if declared[name] {
-				filtered[name] = count
-			} else {
-				stale = append(stale, name)
-			}
-		}
-		if len(stale) > 0 {
+		filtered := filterDeclaredVariantCounts(exp.Variants, cfg.Variants)
+		if stale := staleVariantNames(exp.Variants, filtered); len(stale) > 0 {
 			experimentsLog.Printf("Experiment %q: dropping %d stale variant(s) %v (not in declared variants %v)", exp.Name, len(stale), stale, cfg.Variants)
 		}
 		details.Experiments[i].Variants = filtered

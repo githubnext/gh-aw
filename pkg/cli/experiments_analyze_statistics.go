@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -440,23 +441,16 @@ func findEvalQuestion(evals *workflow.EvalsConfig, evalID string) string {
 // list, counts for variants no longer present in it are dropped. When includeDeclared
 // is true, declared variants with no observed runs are included with a zero count.
 // When cfg is nil or declares no variants (e.g. the workflow's frontmatter could not be
-// loaded), the raw, unreconciled counts are returned as-is; callers that can load the
-// frontmatter should do so via reconcileExperimentDetailsWithConfigs, which applies the
-// same filtering upstream so downstream stats always see reconciled counts when possible.
+// loaded), the raw, unreconciled counts are returned as-is. Note: reconcileExperimentDetailsWithConfigs
+// (pkg/cli/experiments_command.go) applies the same stale-key filtering upstream in
+// RunExperimentsAnalyze, so by the time exp.Variants reaches here it is typically already
+// reconciled; this function re-applies the filter defensively for callers that build
+// ExperimentVariantStats directly (e.g. tests, or future call sites).
 func experimentVariantCounts(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig, includeDeclared bool) map[string]int {
 	if cfg == nil || len(cfg.Variants) == 0 {
 		return exp.Variants
 	}
-	declared := make(map[string]bool, len(cfg.Variants))
-	for _, name := range cfg.Variants {
-		declared[name] = true
-	}
-	counts := make(map[string]int, typeutil.SafeAllocationCapacity(len(exp.Variants), len(cfg.Variants)))
-	for name, count := range exp.Variants {
-		if declared[name] {
-			counts[name] = count
-		}
-	}
+	counts := filterDeclaredVariantCounts(exp.Variants, cfg.Variants)
 	if includeDeclared {
 		for _, name := range cfg.Variants {
 			if _, ok := counts[name]; !ok {
@@ -465,6 +459,37 @@ func experimentVariantCounts(exp ExperimentVariantStats, cfg *workflow.Experimen
 		}
 	}
 	return counts
+}
+
+// filterDeclaredVariantCounts returns a copy of counts containing only the keys present in
+// declaredVariants, dropping any stale variant labels left over from a renamed or removed
+// variant. Shared by experimentVariantCounts and reconcileExperimentDetailsWithConfigs so
+// the two callers apply identical reconciliation semantics.
+func filterDeclaredVariantCounts(counts map[string]int, declaredVariants []string) map[string]int {
+	declared := make(map[string]bool, len(declaredVariants))
+	for _, name := range declaredVariants {
+		declared[name] = true
+	}
+	filtered := make(map[string]int, typeutil.SafeAllocationCapacity(len(counts), len(declaredVariants)))
+	for name, count := range counts {
+		if declared[name] {
+			filtered[name] = count
+		}
+	}
+	return filtered
+}
+
+// staleVariantNames returns the sorted names present in original but absent from filtered,
+// used to log which stale variant labels a reconciliation step dropped.
+func staleVariantNames(original, filtered map[string]int) []string {
+	var stale []string
+	for name := range original {
+		if _, ok := filtered[name]; !ok {
+			stale = append(stale, name)
+		}
+	}
+	slices.Sort(stale)
+	return stale
 }
 
 // sumVariantCounts returns the sum of all values in a variant→count map.
