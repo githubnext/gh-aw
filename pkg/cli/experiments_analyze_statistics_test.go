@@ -203,6 +203,32 @@ func TestExperimentVariantCounts(t *testing.T) {
 		assert.Equal(t, exp.Variants, got)
 	})
 
+	t.Run("drops stale variant keys no longer declared", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Variants: map[string]int{"control": 3, "candidate": 5, "legacy-variant": 1},
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"control", "candidate"},
+		}
+
+		got := experimentVariantCounts(exp, cfg, false)
+
+		assert.Equal(t, map[string]int{"control": 3, "candidate": 5}, got, "stale variant no longer in cfg.Variants should be dropped")
+	})
+
+	t.Run("drops stale variant keys and adds missing declared variants with zero counts", func(t *testing.T) {
+		exp := ExperimentVariantStats{
+			Variants: map[string]int{"control": 3, "legacy-variant": 1},
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"control", "candidate"},
+		}
+
+		got := experimentVariantCounts(exp, cfg, true)
+
+		assert.Equal(t, map[string]int{"control": 3, "candidate": 0}, got)
+	})
+
 	t.Run("returns observed variants when config is nil", func(t *testing.T) {
 		exp := ExperimentVariantStats{
 			Variants: map[string]int{"control": 3},
@@ -327,6 +353,28 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 		a := computeExperimentAnalysis(exp, nil, nil, nil)
 		assert.False(t, a.IsBalanced, "extreme imbalance should not be balanced")
 		assert.Less(t, a.PValue, balanceSignificanceThreshold, "p < 0.05 for extreme imbalance")
+	})
+
+	t.Run("stale variant labels excluded from balance test when reconciled against config", func(t *testing.T) {
+		// Regression test for github/gh-aw#58489: legacy variant labels left over from a
+		// renamed variant set (e.g. "small-agent"/"agent") must not be counted toward the
+		// chi-square balance test once the workflow's frontmatter no longer declares them.
+		exp := ExperimentVariantStats{
+			Name:     "model_size",
+			Variants: map[string]int{"gpt-5.4": 28, "gpt-5.4-mini": 18, "small-agent": 1, "agent": 1},
+			Total:    48,
+		}
+		cfg := &workflow.ExperimentConfig{
+			Variants: []string{"gpt-5.4", "gpt-5.4-mini"},
+		}
+		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		assert.True(t, a.IsBalanced, "28/18 split should be balanced once stale labels are excluded")
+		assert.GreaterOrEqual(t, a.PValue, balanceSignificanceThreshold)
+		require.Len(t, a.Variants, 2, "stale variant keys should not appear in the analysis")
+		for _, v := range a.Variants {
+			assert.NotEqual(t, "small-agent", v.Name)
+			assert.NotEqual(t, "agent", v.Name)
+		}
 	})
 
 	t.Run("empty experiment returns EXTEND with zero total", func(t *testing.T) {
