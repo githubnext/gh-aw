@@ -168,11 +168,14 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 		var remoteFilePath string
 		isRepoRootAnchoredGraderEvaluator := resource.isGraderEvaluator && !strings.HasPrefix(resourcePath, "./")
 		if isRepoRootAnchoredGraderEvaluator {
+			// Repository-root anchored evaluators are resolved from the repository root,
+			// not the declaring package's directory: the ".github/workflows" convention
+			// still maps onto the workflow's own directory (which may itself live under a
+			// package), but any other repository-root path (e.g. ".github/graders/...")
+			// must be fetched from the true repository root regardless of package nesting.
 			remoteFilePath = resourcePath
 			if strings.HasPrefix(remoteFilePath, constants.WorkflowsDirSlash) && workflowBaseDir != "" {
 				remoteFilePath = path.Join(workflowBaseDir, strings.TrimPrefix(remoteFilePath, constants.WorkflowsDirSlash))
-			} else if spec.PackagePath != "" {
-				remoteFilePath = joinRepositoryPackagePath(spec.PackagePath, remoteFilePath)
 			}
 		} else if rest, ok := strings.CutPrefix(resourcePath, "/"); ok {
 			remoteFilePath = rest
