@@ -36,6 +36,23 @@ The package root is the folder that contains `aw.yml`.
 | `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
 | `includes` | array | No | Installable entries, or paths to other `aw.yml` manifests whose installable files are included recursively. Each entry is either a path string (same rules as `files`, plus skill and agent paths), a path ending in `/*` that matches supported direct children, or a source-to-destination mapping. |
 | `resources` | array | No | Repository assets copied from package-relative `source` paths to allowlisted repository-relative `destination` paths. |
+| `config` | array | No | Experimental ordered repository setup actions applied by `gh aw add-wizard`. |
+
+### Repository labels
+
+Use a `repo-label` config action to create a repository label or reconcile an
+existing label's description and color:
+
+```yaml
+config:
+  - type: repo-label
+    name: automation
+    description: Managed by an agentic workflow
+    color: 1f6feb
+```
+
+The `name` and `description` must be non-empty. `color` must be a six-character
+hexadecimal value without a leading `#`.
 
 ## Imported manifests
 

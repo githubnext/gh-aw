@@ -1,9 +1,17 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
@@ -119,4 +127,69 @@ func setBootstrapRepoSecret(repo, name, value string) error {
 		return err
 	}
 	return setRepoSecret(client, owner, repoName, name, value)
+}
+
+type bootstrapRepositoryLabel struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+}
+
+func upsertBootstrapRepoLabel(_ context.Context, repo, name, description, color string) error {
+	owner, repoName, err := repoutil.SplitRepoSlug(repo)
+	if err != nil {
+		return err
+	}
+	client, err := api.NewRESTClient(secretSetClientOptions(""))
+	if err != nil {
+		return fmt.Errorf("failed to create GitHub API client for repository label %q: %w", name, err)
+	}
+	return upsertBootstrapRepoLabelWithClient(client, owner, repoName, name, description, color)
+}
+
+type bootstrapLabelRESTClient interface {
+	Get(path string, response any) error
+	Post(path string, body io.Reader, response any) error
+	Patch(path string, body io.Reader, response any) error
+}
+
+func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, repoName, name, description, color string) error {
+	repo := path.Join(owner, repoName)
+	labelPath := fmt.Sprintf("repos/%s/labels/%s", repo, url.PathEscape(name))
+	var existing bootstrapRepositoryLabel
+	if err := client.Get(labelPath, &existing); err == nil {
+		if existing.Name == name && existing.Description == description && strings.EqualFold(existing.Color, color) {
+			return nil
+		}
+		body, marshalErr := json.Marshal(map[string]string{
+			"new_name":    name,
+			"description": description,
+			"color":       color,
+		})
+		if marshalErr != nil {
+			return fmt.Errorf("failed to encode repository label %q: %w", name, marshalErr)
+		}
+		if err := client.Patch(labelPath, bytes.NewReader(body), nil); err != nil {
+			return fmt.Errorf("failed to update repository label %q in %s: %w", name, repo, err)
+		}
+		return nil
+	} else {
+		var httpErr *api.HTTPError
+		if !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusNotFound {
+			return fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
+		}
+	}
+
+	body, err := json.Marshal(bootstrapRepositoryLabel{
+		Name:        name,
+		Description: description,
+		Color:       color,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode repository label %q: %w", name, err)
+	}
+	if err := client.Post(fmt.Sprintf("repos/%s/labels", repo), bytes.NewReader(body), nil); err != nil {
+		return fmt.Errorf("failed to create repository label %q in %s: %w", name, repo, err)
+	}
+	return nil
 }

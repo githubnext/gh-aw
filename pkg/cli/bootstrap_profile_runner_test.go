@@ -30,6 +30,7 @@ func TestBootstrapActionNeedsMutation(t *testing.T) {
 		{name: "repo variable existing", action: repositoryPackageBootstrapAction{Type: "repo-variable", Name: "EXISTING_VAR"}, want: false},
 		{name: "repo secret missing", action: repositoryPackageBootstrapAction{Type: "repo-secret", Name: "NEW_SECRET"}, want: true},
 		{name: "repo secret existing", action: repositoryPackageBootstrapAction{Type: "repo-secret", Name: "EXISTING_SECRET"}, want: false},
+		{name: "repo label reconciled", action: repositoryPackageBootstrapAction{Type: "repo-label", Name: "automation"}, want: true},
 		{name: "github app partial", action: repositoryPackageBootstrapAction{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_PRIVATE_KEY"}, want: true},
 		{name: "copilot auth with actions token", action: repositoryPackageBootstrapAction{Type: "copilot-auth", Secret: "COPILOT_TOKEN"}, usesActionsToken: true, want: false},
 		{name: "commit push always pending", action: repositoryPackageBootstrapAction{Type: "commit-and-push"}, want: true},
@@ -94,6 +95,7 @@ func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 				{Type: "repo-variable", Name: "MY_VAR"},
 				{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_KEY"},
 				{Type: "repo-secret", Name: "MY_SECRET"},
+				{Type: "repo-label", Name: "automation", Color: "1f6feb"},
 				{Type: "commit-and-push", Message: "commit changes"},
 				{Type: "handoff", Message: "all done"},
 			},
@@ -111,6 +113,7 @@ func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 		"MY_VAR",         // repo-variable
 		"APP_ID",         // github-app
 		"MY_SECRET",      // repo-secret
+		"automation",     // repo-label
 		"commit changes", // commit-and-push
 		"all done",       // handoff
 	} {
@@ -126,6 +129,7 @@ func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 		strings.Index(output, "MY_VAR"),
 		strings.Index(output, "APP_ID"),
 		strings.Index(output, "MY_SECRET"),
+		strings.Index(output, "automation"),
 		strings.Index(output, "commit changes"),
 		strings.Index(output, "all done"),
 	}

@@ -54,6 +54,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `files` | array of strings | No | Deprecated. Explicit installable workflow file list. Use `includes` instead. |
 | `includes` | array of strings or mappings | No | Explicit installable package entries. String entries use path conventions; mapping entries declare an explicit source-to-destination install path. |
 | `resources` | array of mappings | No | Declarative repository assets copied as-is to allowlisted destinations. |
+| `config` | array of mappings | No | Ordered repository setup actions applied by the interactive installer. |
 
 ### 4.2 `manifest-version`
 
@@ -188,6 +189,17 @@ Resource destinations are restricted to non-hook repository asset namespaces:
 Implementations MUST reject duplicate or case-insensitive duplicate resource destinations before writing files. Resources are copied as inert content from the selected package ref; installers MUST NOT execute package-provided scripts or expose configured secrets to package content during installation.
 
 For each package installation, implementations MUST record package-scoped ownership metadata under `.github/aw/packages/`. The record MUST identify the package source, resolved immutable commit/ref, installed destination paths, source paths, and SHA-256 content digests. Implementations MUST refuse to overwrite existing resource files unless they are unchanged files owned by the same package, or unless the user explicitly passes `--force`.
+
+### 4.13 `config`
+
+The experimental `config` field MAY contain `repo-label` actions. A `repo-label`
+action MUST contain non-empty `name` and `description` strings and a `color`
+matching exactly six hexadecimal characters without a leading `#`.
+
+When applied, the installer MUST create a missing label. If a label with the
+same name already exists, the installer MUST update its description or color
+when either differs. If all declared values already match, the action MUST have
+no effect.
 
 ## 5. Installable file resolution
 

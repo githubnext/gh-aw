@@ -3,11 +3,44 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/cli/go-gh/v2/pkg/api"
 )
+
+type bootstrapLabelRESTClientStub struct {
+	existing *bootstrapRepositoryLabel
+	getErr   error
+	posts    [][]byte
+	patches  [][]byte
+}
+
+func (s *bootstrapLabelRESTClientStub) Get(_ string, response any) error {
+	if s.getErr != nil {
+		return s.getErr
+	}
+	*response.(*bootstrapRepositoryLabel) = *s.existing
+	return nil
+}
+
+func (s *bootstrapLabelRESTClientStub) Post(_ string, body io.Reader, _ any) error {
+	content, _ := io.ReadAll(body)
+	s.posts = append(s.posts, content)
+	return nil
+}
+
+func (s *bootstrapLabelRESTClientStub) Patch(_ string, body io.Reader, _ any) error {
+	content, _ := io.ReadAll(body)
+	s.patches = append(s.patches, content)
+	return nil
+}
 
 func TestListBootstrapRepoNamesPaginate(t *testing.T) {
 	originalRunGH := runBootstrapGHContext
@@ -147,11 +180,69 @@ func TestRunBootstrapCopilotAuthAction(t *testing.T) {
 	})
 }
 
+func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
+	t.Run("skips matching label", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			existing: &bootstrapRepositoryLabel{Name: "automation", Description: "Managed by automation", Color: "1F6FEB"},
+		}
+		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("upsertBootstrapRepoLabelWithClient returned error: %v", err)
+		}
+		if len(client.posts) != 0 || len(client.patches) != 0 {
+			t.Fatal("expected matching label not to be mutated")
+		}
+	})
+
+	t.Run("updates differing label", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			existing: &bootstrapRepositoryLabel{Name: "automation", Description: "Old description", Color: "ffffff"},
+		}
+		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("upsertBootstrapRepoLabelWithClient returned error: %v", err)
+		}
+		if len(client.patches) != 1 {
+			t.Fatalf("expected one label update, got %d", len(client.patches))
+		}
+		var body map[string]string
+		if err := json.NewDecoder(bytes.NewReader(client.patches[0])).Decode(&body); err != nil {
+			t.Fatalf("failed to decode update body: %v", err)
+		}
+		if body["new_name"] != "automation" || body["description"] != "Managed by automation" || body["color"] != "1f6feb" {
+			t.Fatalf("unexpected update body: %#v", body)
+		}
+	})
+
+	t.Run("creates missing label", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			getErr: &api.HTTPError{StatusCode: 404, RequestURL: &url.URL{}},
+		}
+		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err != nil {
+			t.Fatalf("upsertBootstrapRepoLabelWithClient returned error: %v", err)
+		}
+		if len(client.posts) != 1 {
+			t.Fatalf("expected one label creation, got %d", len(client.posts))
+		}
+		var body bootstrapRepositoryLabel
+		if err := json.NewDecoder(bytes.NewReader(client.posts[0])).Decode(&body); err != nil {
+			t.Fatalf("failed to decode create body: %v", err)
+		}
+		if body.Name != "automation" || body.Description != "Managed by automation" || body.Color != "1f6feb" {
+			t.Fatalf("unexpected create body: %#v", body)
+		}
+	})
+}
+
 func TestBootstrapRepoMutationHelpers_RejectInvalidRepo(t *testing.T) {
 	if err := upsertBootstrapRepoVariable("not-a-repo", "NAME", "value"); err == nil {
 		t.Fatal("expected invalid repo slug error for variable upsert")
 	}
 	if err := setBootstrapRepoSecret("not-a-repo", "NAME", "value"); err == nil {
 		t.Fatal("expected invalid repo slug error for secret set")
+	}
+	if err := upsertBootstrapRepoLabel(context.Background(), "not-a-repo", "automation", "Managed by automation", "1f6feb"); err == nil {
+		t.Fatal("expected invalid repo slug error for label upsert")
 	}
 }

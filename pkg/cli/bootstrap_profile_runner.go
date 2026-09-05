@@ -33,6 +33,7 @@ var (
 	bootstrapSetSecret = func(_ context.Context, repo, name, value string) error {
 		return setBootstrapRepoSecret(repo, name, value)
 	}
+	bootstrapUpsertLabel            = upsertBootstrapRepoLabel
 	bootstrapCreateGitHubApp        = createBootstrapGitHubApp
 	bootstrapCheckOwnerType         = checkSetupRepositoryOwnerType
 	bootstrapExchangeGitHubAppCode  = bootstrapExchangeGitHubAppCodeImpl
@@ -181,6 +182,10 @@ func applyBootstrapAction(ctx context.Context, config bootstrapProfileRunConfig,
 		if applied {
 			state.secrets[action.Name] = struct{}{}
 		}
+	case "repo-label":
+		if err := bootstrapUpsertLabel(ctx, config.Repo, action.Name, action.Description, action.Color); err != nil {
+			return err
+		}
 	case "github-app":
 		_, err := runBootstrapGitHubAppAction(ctx, config.Repo, action, state)
 		if err != nil {
@@ -254,6 +259,8 @@ func bootstrapActionNeedsMutation(ctx context.Context, repo string, action repos
 	case "repo-secret":
 		_, exists := state.secrets[action.Name]
 		return !exists, nil
+	case "repo-label":
+		return true, nil
 	case "github-app":
 		_, hasVar := state.variables[action.AppIDVariable]
 		_, hasSecret := state.secrets[action.PrivateKeySecret]

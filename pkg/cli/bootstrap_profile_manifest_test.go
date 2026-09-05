@@ -106,6 +106,49 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 			wantErrMsg: "config[0].prompt is required when type=repo-secret",
 		},
 		{
+			name:       "repo-label happy path",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":        "automation",
+				"description": "Managed by automation",
+				"color":       "1f6feb",
+			},
+			wantAction: repositoryPackageBootstrapAction{
+				Type:        "repo-label",
+				Name:        "automation",
+				Description: "Managed by automation",
+				Color:       "1f6feb",
+			},
+		},
+		{
+			name:       "repo-label missing name",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"description": "Managed by automation",
+				"color":       "1f6feb",
+			},
+			wantErrMsg: "config[0].name is required when type=repo-label",
+		},
+		{
+			name:       "repo-label missing description",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":  "automation",
+				"color": "1f6feb",
+			},
+			wantErrMsg: "config[0].description is required when type=repo-label",
+		},
+		{
+			name:       "repo-label invalid color",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":        "automation",
+				"description": "Managed by automation",
+				"color":       "#1f6feb",
+			},
+			wantErrMsg: "config[0].color must be a 6-character hexadecimal color",
+		},
+		{
 			name:       "github-app defaults app name from name and mode",
 			actionType: "github-app",
 			actionMap: map[string]any{
