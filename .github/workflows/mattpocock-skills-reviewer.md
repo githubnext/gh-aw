@@ -11,6 +11,10 @@ engine:
   max-continuations: 6
 features:
   gh-aw-detection: true
+
+network:
+  allowed: [defaults, go]
+
 imports:
 - uses: shared/pr-review-base.md
   with:
