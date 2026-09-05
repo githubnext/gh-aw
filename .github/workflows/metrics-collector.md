@@ -21,6 +21,8 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
+  github:
+    mode: local
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**"
@@ -31,7 +33,7 @@ safe-outputs:
 
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -18,7 +18,7 @@ permissions:
   copilot-requests: write
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 network:
@@ -34,7 +34,7 @@ imports:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
       - issues
     min-integrity: approved
@@ -76,7 +76,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 evals:
   - id: labels-applied
     question: Did the agent apply at least one label to an unlabeled issue, or correctly call noop when no unlabeled issues were found?
