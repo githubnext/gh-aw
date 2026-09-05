@@ -1002,6 +1002,8 @@ gh aw completion powershell | Out-String | Invoke-Expression
 <details>
 <summary><strong>GitHub Enterprise Server support</strong></summary>
 
+### GitHub Enterprise Server support
+
 For GitHub Enterprise Server deployments:
 
 ```bash wrap
