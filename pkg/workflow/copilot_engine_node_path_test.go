@@ -51,35 +51,35 @@ func TestNodePathSetupCommandWithoutNpmBinary(t *testing.T) {
 	}
 }
 
-// TestNodePathSetupCommandPrefersNpmRootWhenAvailable verifies that nodePathSetupCommand
-// still prefers `npm root -g` when npm is present on PATH, preserving prior behavior for
-// sandboxes/runners that do mount or install npm.
-func TestNodePathSetupCommandPrefersNpmRootWhenAvailable(t *testing.T) {
+// TestNodePathSetupCommandDoesNotInvokeNpm verifies that nodePathSetupCommand does not
+// depend on npm even when an npm binary is present on PATH.
+func TestNodePathSetupCommandDoesNotInvokeNpm(t *testing.T) {
 	root := t.TempDir()
 	binDir := filepath.Join(root, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
-	npmGlobalRoot := filepath.Join(root, "npm-root", "node_modules")
-	if err := os.MkdirAll(npmGlobalRoot, 0o755); err != nil {
-		t.Fatalf("failed to create npm global root dir: %v", err)
+	globalNodeModules := filepath.Join(root, "lib", "node_modules")
+	if err := os.MkdirAll(globalNodeModules, 0o755); err != nil {
+		t.Fatalf("failed to create global node_modules dir: %v", err)
 	}
 	fakeNpm := filepath.Join(binDir, "npm")
-	fakeNpmScript := "#!/bin/sh\nif [ \"$1 $2\" = \"root -g\" ]; then printf '%s' " + shellQuote(npmGlobalRoot) + "; fi\n"
+	fakeNpmScript := "#!/bin/sh\nprintf '%s' 'npm must not be invoked' >&2\nexit 1\n"
 	if err := os.WriteFile(fakeNpm, []byte(fakeNpmScript), 0o755); err != nil {
 		t.Fatalf("failed to create fake npm binary: %v", err)
 	}
 
-	// A fallback node path that must NOT be used when npm resolves successfully; it is
-	// intentionally left non-existent to prove the fallback branch was skipped.
-	unusedFallback := filepath.Join(root, "should-not-be-used", "bin", "node")
+	nodeBin := filepath.Join(root, "bin", "node")
+	if err := os.WriteFile(nodeBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("failed to create fake node binary: %v", err)
+	}
 
 	script := nodePathSetupCommand + `; printf '%s' "$NODE_PATH"`
 	cmd := exec.Command("bash", "-c", script)
 	cmd.Env = []string{
 		"PATH=" + binDir + ":/usr/bin:/bin",
-		"GH_AW_NODE_EXEC=" + unusedFallback,
+		"GH_AW_NODE_EXEC=" + nodeBin,
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -87,13 +87,7 @@ func TestNodePathSetupCommandPrefersNpmRootWhenAvailable(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(out))
-	if got != npmGlobalRoot {
-		t.Errorf("expected NODE_PATH to use `npm root -g` output %q when npm is available, got %q", npmGlobalRoot, got)
+	if got != globalNodeModules {
+		t.Errorf("expected NODE_PATH to use the node-derived global root %q, got %q", globalNodeModules, got)
 	}
-}
-
-// shellQuote wraps s in single quotes for embedding as a literal argument inside a
-// generated shell script, escaping any embedded single quotes.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

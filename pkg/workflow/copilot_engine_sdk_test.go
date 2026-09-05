@@ -50,8 +50,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !containsEnvValue(stepContent, "GH_AW_TIMEOUT_MINUTES", defaultTimeoutMinutes) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedTimeoutEnv, stepContent)
 	}
-	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
-		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, `/lib/node_modules`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
+		t.Fatalf("Expected SDK mode command to configure NODE_PATH from the node-derived global root, got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, `${GITHUB_WORKSPACE:-$PWD}/node_modules`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from workspace node_modules, got:\n%s", stepContent)
