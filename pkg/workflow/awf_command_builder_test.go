@@ -3,11 +3,15 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildAWFArgsAuditDir(t *testing.T) {
@@ -635,6 +639,18 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
 		assert.Equal(t, constants.AWFLegacySecurityCommand, cmd)
+	})
+
+	t.Run("matches the non-rootless AWF installer path", func(t *testing.T) {
+		installerPath := filepath.Join("..", "..", "actions", "setup", "sh", "install_awf_binary.sh")
+		installer, err := os.ReadFile(installerPath)
+		require.NoError(t, err)
+
+		installDir := regexp.MustCompile(`(?m)^AWF_INSTALL_DIR="([^"]+)"$`).FindSubmatch(installer)
+		installName := regexp.MustCompile(`(?m)^AWF_INSTALL_NAME="([^"]+)"$`).FindSubmatch(installer)
+		if assert.Len(t, installDir, 2) && assert.Len(t, installName, 2) {
+			assert.Contains(t, constants.AWFLegacySecurityCommand, filepath.Join(string(installDir[1]), string(installName[1])))
+		}
 	})
 
 	t.Run("custom command takes precedence over the runtime profile", func(t *testing.T) {
