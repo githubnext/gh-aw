@@ -97,7 +97,7 @@ func (c *Compiler) parseLinearUpdateIssueConfig(outputMap map[string]any) *Linea
 	return parseLinearConfig[LinearUpdateIssueConfig](outputMap, "linear-update-issue")
 }
 
-func injectLinearTokenIntoProcessorStep(steps []string, config *SafeOutputsConfig) []string {
+func injectLinearCredentialsIntoProcessorStep(steps []string, config *SafeOutputsConfig) []string {
 	if config == nil ||
 		(config.LinearCreateIssue == nil && config.LinearAddComment == nil && config.LinearUpdateIssue == nil) {
 		return steps
@@ -107,7 +107,17 @@ func injectLinearTokenIntoProcessorStep(steps []string, config *SafeOutputsConfi
 	if token == "" {
 		token = constants.LinearMCPDefaultTokenExpr
 	}
-	return injectProcessorStepEnv(steps, map[string]string{"GH_AW_LINEAR_TOKEN": token})
+	env := map[string]string{"GH_AW_LINEAR_TOKEN": token}
+	if config.LinearCreateIssue != nil {
+		env["LINEAR_TEAM_ID"] = constants.LinearTeamIDExpr
+		env["LINEAR_PROJECT_ID"] = constants.LinearProjectIDExpr
+		for _, name := range []string{"LINEAR_TEAM_ID", "LINEAR_PROJECT_ID"} {
+			if value := config.Env[name]; value != "" {
+				env[name] = value
+			}
+		}
+	}
+	return injectProcessorStepEnv(steps, env)
 }
 
 func defaultReportIncompleteCreateIssue(config *SafeOutputsConfig) string {
