@@ -19,8 +19,9 @@ tools:
 
 The compiler installs the pinned default `@playwright/cli` package, its agent
 skills, and Chromium before the agent starts. The default `open` session uses
-Chromium. To use other browser engines, list them in `browsers`; `chrome` is an
-alias for `chromium`:
+Chromium. To use other browser engines, list them in `browsers`. Playwright's
+`chromium` download is the Chrome for Testing distribution; `chrome` and
+`chrome-for-testing` are accepted aliases:
 
 ```yaml
 tools:
@@ -28,11 +29,13 @@ tools:
     browsers: [chromium, firefox, webkit]
 ```
 
-Supported values are `chrome`, `chromium`, `firefox`, and `webkit`. Do not add
-steps such as `npx playwright install` or `npm exec playwright install`; the
-compiler provisions the selected engines, and browser installation during agent
-execution is prohibited. Pin `version` only when reproducible browser output is
-required, such as for visual baselines:
+Supported values are `chrome`, `chrome-for-testing`, `chromium`, `firefox`, and
+`webkit`. The broader Playwright install-target list also contains system browser
+channels and platform-specific tools, but those are not portable browser engines
+for this field. Do not add steps such as `npx playwright install` or
+`npm exec playwright install`; the compiler provisions the selected engines, and
+browser installation during agent execution is prohibited. Pin `version` only
+when reproducible browser output is required, such as for visual baselines:
 
 ```yaml
 tools:

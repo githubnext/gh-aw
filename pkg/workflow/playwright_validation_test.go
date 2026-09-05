@@ -213,7 +213,7 @@ func TestValidatePlaywrightModeNilWorkflow(t *testing.T) {
 func TestValidatePlaywrightBrowsers(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validatePlaywrightMode(&WorkflowData{Tools: map[string]any{
-		"playwright": map[string]any{"browsers": []any{"chrome", "firefox"}},
+		"playwright": map[string]any{"browsers": []any{"chrome", "chrome-for-testing", "firefox"}},
 	}})
 	require.NoError(t, err)
 
@@ -339,7 +339,7 @@ permissions:
 engine: copilot
 tools:
   playwright:
-    browsers: [chromium]
+    browsers: [chrome-for-testing]
 steps:
   - name: Install Playwright Chromium
     run: npm exec playwright install --with-deps chromium
@@ -356,4 +356,7 @@ steps:
 
 	assert.Contains(t, output, "use `tools.playwright.browsers` instead")
 	assert.Equal(t, 1, compiler.GetWarningCount())
+	lockContent, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(lockContent), `install_playwright_browsers.sh" chromium`)
 }

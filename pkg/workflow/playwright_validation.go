@@ -37,7 +37,7 @@ var playwrightBrowserInstallPattern = regexp.MustCompile(`(?im)(?:^|&&|\|\||;)[ 
 
 func normalizePlaywrightBrowser(browser string) string {
 	switch strings.ToLower(strings.TrimSpace(browser)) {
-	case "chrome", "chromium":
+	case "chrome", "chrome-for-testing", "chromium":
 		return "chromium"
 	case "firefox":
 		return "firefox"
@@ -91,7 +91,7 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 					return NewValidationError(
 						"tools.playwright.browsers",
 						fmt.Sprint(browser),
-						"unsupported browser; choose chrome, chromium, firefox, or webkit",
+						"unsupported browser; choose chrome, chrome-for-testing, chromium, firefox, or webkit",
 						"Set browsers to a list containing supported Playwright browser names",
 					)
 				}

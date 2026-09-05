@@ -18,8 +18,9 @@ tools:
 
 The compiler installs `@playwright/cli` as a global npm package, its skills, and
 Chromium before the agent runs. The default `open` browser is Chromium. Select
-additional browsers with `browsers`; `chrome` is accepted as an alias for
-`chromium`:
+additional browsers with `browsers`. Playwright's `chromium` download is the
+Chrome for Testing distribution; `chrome` and `chrome-for-testing` are accepted
+aliases:
 
 ```yaml wrap
 tools:
@@ -27,7 +28,8 @@ tools:
     browsers: [chrome, firefox]
 ```
 
-The supported values are `chrome`, `chromium`, `firefox`, and `webkit`.
+The supported values are `chrome`, `chrome-for-testing`, `chromium`, `firefox`,
+and `webkit`.
 Requested browsers are downloaded with retries before the agent starts; package
 and browser installation during agent execution is prohibited. The agent
 invokes `playwright-cli <command>` from bash:
