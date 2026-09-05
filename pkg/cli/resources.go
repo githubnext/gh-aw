@@ -88,19 +88,6 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 	return unique, nil
 }
 
-// extractResources returns the extracted resource paths in declaration order.
-func extractResources(content string) ([]string, error) {
-	entries, err := extractResourceEntries(content)
-	if err != nil {
-		return nil, err
-	}
-	paths := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		paths = append(paths, entry.path)
-	}
-	return paths, nil
-}
-
 // fetchAndSaveRemoteResources fetches files listed in the top-level "resources" frontmatter
 // field from the same remote repository and saves them locally. Resources are resolved as
 // relative paths from the same directory as the source workflow in the remote repo.

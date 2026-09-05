@@ -485,6 +485,7 @@ func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existi
 		return err
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
+	ensureRepoMemoryWritePaths(workflowData.SandboxConfig, repoMemoryConfig)
 
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized, workflowData.CommandPlaceholder = c.extractCommandConfig(frontmatter)
