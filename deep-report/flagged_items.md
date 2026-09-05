@@ -1,3 +1,15 @@
+## Flagged Items (2026-09-05, ~18:00Z cycle, baseline #58812, window since 12:45:58Z, 6 new discussions: 58814,58818,58823,58824,58836,58840)
+
+- **[new, filed]** Daily Go Test Parallelizer — 75% of fleet-wide firewall blocks (235/314 `api.github.com`) this week, likely bypassing GitHub MCP proxy for direct API calls; also chronic low success rate — Daily Security Observability #58836 + Agent Performance Report #58814.
+- **[new, filed]** `metrics-collector` 4+ day stale snapshot (0 executed runs in its own data) bundled with `cgo`/`content-moderation` AR-vs-executed count aggregation bug — Agent Performance Report #58814; blocks 3 downstream meta-orchestrators.
+- **[new, filed]** `docs/src/content/docs/reference/editors.mdx` missing contextual intro paragraph — Delight #58824 Task 1, live-verified.
+- **[new, filed]** `pkg/workflow/mcp_scripts_dependencies_validation_wasm.go` missing doc comment explaining WASM no-op rationale — Delight #58824 Task 2, live-verified.
+- **[declined, chronic]** WIP-auto-label-at-creation suggestion (Daily Issues Report #58823) — already closed `not_planned` as #56107.
+- **[declined, chronic, no new evidence]** `ab.chatgpt.com` firewall blocks + DIFC `unknown`-author (1,071 events) gap (#58836) — same standing watch items, no degradation evidence yet.
+- **[declined, insufficient specificity]** 2 DIFC `secrecy_violation` events (#58836) — no run ID provided to investigate.
+- **[declined, watch-only per source report]** `lint-monster`/`daily-firewall-report` single-sample 0/1 failures (#58814) — report itself recommends waiting for a 2nd occurrence.
+- **[process note]** repo-memory `last_analysis_timestamp.md` had a one-cycle gap — briefing #58812 (12:45:58Z) was never logged by its own cycle; this cycle re-derived the correct baseline via a live discussions.json timestamp query. See [[known_patterns]].
+
 ## Flagged Items (2026-09-02, ~18:34Z cycle, baseline #57810→#57883, window since 06:46Z, 21 new discussions read in full)
 
 - **[new, filed]** Copilot PR Conversation NLP Analysis — PR comment/review pre-fetch returned empty for all 169 PRs, total pipeline failure (not partial) — #57912.

@@ -1,3 +1,8 @@
+## DeepReport Memory (2026-09-05, ~18:00Z cycle, baseline #58812)
+
+### Recurring pattern: repo-memory `last_analysis_timestamp.md` can silently skip logging a cycle (2nd+ occurrence)
+This cycle found discussion #58812 ("DeepReport Intelligence Briefing - 2026-09-05", created 12:45:58Z) existed but was never logged in `last_analysis_timestamp.md` — the file's last entry described an earlier cycle ending ~01:00Z the same day. Per the repo-memory tool's own "last write wins" merge strategy, a concurrent or overlapping write likely clobbered that cycle's append. Same class of issue as the 2026-08-28 cycle's "memory had gone stale to #56555 again" note. **Lesson: never trust `last_analysis_timestamp.md`'s last entry as the true baseline without cross-checking it against a live `discussions.json` query for the most recent "DeepReport Intelligence Briefing" title — if a newer one exists than what memory shows, use that as the real baseline and note the gap.**
+
 ## DeepReport Memory (2026-09-02, ~18:34Z cycle, baseline #57810→#57883)
 
 ### New pattern: a small fleet spot-check (~40 runs, ~1h window) can read as healthy purely by which chronic-failure workflows happened to run in that hour — always treat it as provisional until a fuller sample confirms
