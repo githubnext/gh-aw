@@ -19,6 +19,7 @@ const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKey
 const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
+const { getBodyFooterMessage } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
@@ -1673,6 +1674,13 @@ async function main(config = {}) {
         footerParts.push(footer);
       }
 
+      const bodyFooter = getBodyFooterMessage(config.body_footer, { workflowName, runUrl });
+      if (bodyFooter) {
+        const renderedBodyFooter = bodyFooter.trimEnd();
+        bodyLines.push(``, renderedBodyFooter);
+        footerParts.push(renderedBodyFooter);
+      }
+
       // Add standalone workflow-id marker for searchability (consistent with comments)
       // Always add XML markers even when footer is disabled
       if (workflowId) {
@@ -1701,6 +1709,7 @@ async function main(config = {}) {
       const issueSafeBody = neutralizeClosingKeywordsForIssueBody(body);
       // Footer section (footer + workflow-id marker) used when ordering protected-files notices
       const footerContent = footerParts.join("\n\n");
+      const issueSafeFooterContent = neutralizeClosingKeywordsForIssueBody(footerContent);
 
       // Build labels array - merge config labels with message labels
       let labels = [...envLabels];
@@ -2462,7 +2471,7 @@ ${patchPreview}`;
           const pushFailedTemplatePath = getPromptPath("manifest_protection_push_failed_fallback.md");
           fallbackBody = renderTemplateFromFile(pushFailedTemplatePath, {
             main_body: issueSafeMainBodyContent,
-            footer: footerContent,
+            footer: issueSafeFooterContent,
             files: fileList,
             apply_instructions: applyInstructions,
             branch_name: branchName,
@@ -2473,7 +2482,7 @@ ${patchPreview}`;
         } else {
           // Normal case — push succeeded, provide compare URL.
           const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, undefined, getPullRequestHeadRef(branchName));
-          fallbackBody = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
+          fallbackBody = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, issueSafeFooterContent, fileList, createPrUrl);
         }
 
         try {
@@ -2484,7 +2493,7 @@ ${patchPreview}`;
           if (!manifestProtectionPushFailedError) {
             try {
               const createPrUrl = buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, issue.number, getPullRequestHeadRef(branchName));
-              const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, footerContent, fileList, createPrUrl);
+              const fallbackBodyWithCloseKeyword = renderManifestProtectionFallbackBody(issueSafeMainBodyContent, issueSafeFooterContent, fileList, createPrUrl);
 
               await withRetry(
                 () =>

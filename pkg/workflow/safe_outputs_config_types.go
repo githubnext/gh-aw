@@ -25,6 +25,7 @@ type BaseSafeOutputConfig struct {
 	GitHubApp                *GitHubAppConfig `yaml:"github-app,omitempty"`                 // GitHub App credentials for minting a per-handler installation access token
 	Staged                   *TemplatableBool `yaml:"staged,omitempty"`                     // Templatable preview-only mode for this specific output type
 	Footer                   *string          `yaml:"footer,omitempty"`                     // Controls AI-generated footer behavior. Values vary by handler; false omits the visible footer but keeps XML markers.
+	BodyFooter               string           `yaml:"body-footer,omitempty"`                // Deterministic template appended after agent-generated body content by supported handlers.
 	IssueIntent              *bool            `yaml:"issue-intent,omitempty"`               // When true, enable issue-intent rationale/confidence guidance and schema requirements for this output type.
 	NormalizeClosingKeywords *bool            `yaml:"normalize-closing-keywords,omitempty"` // When true for this output type, strip backticks from recognized issue-closing keywords in body fields.
 	// Samples carries deterministic replay samples for the hidden
