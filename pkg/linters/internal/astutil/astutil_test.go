@@ -1109,19 +1109,16 @@ func TestResolveFormatString(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name:   "concatenation with a leading non-literal identifier",
+			name:   "concatenation with a leading non-literal identifier returns ok=false",
 			expr:   concat(ast.NewIdent("message"), strLit(`"\n\nOriginal error: %v"`)),
-			want:   "\x00\n\nOriginal error: %v",
-			wantOK: true,
+			want:   "",
+			wantOK: false,
 		},
 		{
-			// A literal ending in '%' followed by an opaque operand followed
-			// by a literal starting with 'v' must not merge into a
-			// fabricated "%v" verb across the dropped operand's boundary.
-			name:   "opaque operand between a trailing percent and a verb letter does not fabricate a verb",
+			name:   "opaque operand between literal segments returns ok=false",
 			expr:   concat(strLit(`"abc%"`), ast.NewIdent("errStr"), strLit(`"v..."`)),
-			want:   "abc%\x00v...",
-			wantOK: true,
+			want:   "",
+			wantOK: false,
 		},
 		{
 			name:   "concatenation of only non-literal identifiers",

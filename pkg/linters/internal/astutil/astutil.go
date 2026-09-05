@@ -708,35 +708,13 @@ func StringLitValue(expr ast.Expr) (string, bool) {
 
 // ResolveFormatString resolves a fmt.Errorf-style format-string argument
 // expression into its literal text content. It handles plain string literals
-// as well as string concatenation via the `+` operator (e.g.
-// `message + "...\n" + "..."`), which is common when a format string is built
-// from a caller-supplied prefix followed by literal boilerplate.
+// as well as string concatenation via the `+` operator where all operands
+// are string literals (e.g. `"header\n" + "body %w"`).
 //
-// Non-literal operands (identifiers, calls, etc.) are treated as opaque and
-// their unknowable runtime content is never counted as a %-verb: they are
-// replaced with formatOpaquePlaceholder rather than dropped outright, so a
-// literal segment ending in '%' can never merge across an opaque boundary
-// with the next literal segment's leading character to fabricate a spurious
-// verb (e.g. `"abc%" + errStr + "v..."` cannot be mistaken for `"abc%v..."`).
-// Verbs that occur entirely within a single literal segment are unaffected
-// and keep their relative order, so they still line up positionally with the
-// call's trailing (fmt) arguments.
-//
-// Each returned literal segment is unquoted independently (via
-// StringLitValue), so the result is equivalent to unquoting every literal
-// operand and concatenating them (with opaque placeholders in between) — not
-// to unquoting the full original expression as a single token. This only
-// matters for callers that care about raw escape-sequence boundaries.
-//
-// ok is false unless expr resolves to at least one string literal, so a bare
-// non-literal expression (e.g. a lone identifier) is correctly rejected
-// rather than treated as an empty, verb-free format string.
-//
-// Recursion depth tracks the nesting of `+` operands in expr, which for
-// realistic source code (a chain of concatenated string operands) is
-// bounded by the number of operands and shallow in practice; it is not
-// guarded against pathological or generated expressions with extreme
-// nesting depth.
+// If any operand in a concatenated expression is not a string literal (e.g.
+// an identifier or function call), the format string cannot be fully resolved
+// at compile time (its format verbs and argument counts are unprovable), so ok
+// is false.
 func ResolveFormatString(expr ast.Expr) (value string, ok bool) {
 	if s, litOK := StringLitValue(expr); litOK {
 		return s, true
@@ -746,25 +724,15 @@ func ResolveFormatString(expr ast.Expr) (value string, ok bool) {
 		return "", false
 	}
 	left, leftOK := ResolveFormatString(bin.X)
-	right, rightOK := ResolveFormatString(bin.Y)
-	if !leftOK && !rightOK {
+	if !leftOK {
 		return "", false
 	}
-	if !leftOK {
-		left = formatOpaquePlaceholder
-	}
+	right, rightOK := ResolveFormatString(bin.Y)
 	if !rightOK {
-		right = formatOpaquePlaceholder
+		return "", false
 	}
 	return left + right, true
 }
-
-// formatOpaquePlaceholder stands in for a non-literal (opaque) operand of a
-// concatenated format-string expression in ResolveFormatString. It is a
-// single character that is neither '%' nor a recognized format verb letter,
-// so it can never combine with an adjacent literal segment to fabricate a
-// spurious %-verb sequence across the boundary of a dropped operand.
-const formatOpaquePlaceholder = "\x00"
 
 // IsInInitFunction reports whether cur is inside a top-level init() function.
 // Only top-level (no receiver) init functions are recognized; methods named

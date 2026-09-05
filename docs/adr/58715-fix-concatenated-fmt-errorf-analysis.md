@@ -12,7 +12,11 @@ The `cacheRecoveryError` helper in the audit pipeline built its `fmt.Errorf` for
 
 ## Decision
 
-We will add a shared AST utility, `astutil.ResolveFormatString`, that resolves `fmt.Errorf`-style format-string expressions from string literals and `+`-concatenated fragments while preserving opaque non-literal boundaries with a placeholder byte. We will update `errorfwrapv` and `fmterrorfnoverbs` to analyze the resolved format string instead of requiring a single `*ast.BasicLit`, and we will change `cacheRecoveryError` to wrap its causal error with `%w`. For concatenated no-verb cases, `fmterrorfnoverbs` will emit a generic `errors.New` suggestion instead of synthesizing a replacement literal that did not exist in source.
+We will refactor `cacheRecoveryError` to use a literal format string with `%s` for its message argument and `%w` for its error argument (`fmt.Errorf("%s\n\n...", message, runID, runOutputDir, err)`), avoiding format string concatenation in production while wrapping the causal error with `%w`.
+
+We will add a shared AST utility, `astutil.ResolveFormatString`, that resolves `fmt.Errorf`-style format-string expressions built from string literals and `+`-concatenated literal trees. When an expression contains non-literal (opaque) operands, `ResolveFormatString` returns `ok = false` because format verbs and positional argument indices cannot be proven at compile time.
+
+We will update `errorfwrapv` and `fmterrorfnoverbs` to analyze format strings resolved by `astutil.ResolveFormatString`. This allows detecting mistakes in multi-line or concatenated string literal format strings without risking false positives or incorrect argument indexing when opaque operands are present.
 
 ## Alternatives Considered
 
@@ -37,12 +41,11 @@ A more aggressive option would be to resolve identifiers, function calls, or con
 
 ### Negative
 
-- The shared AST utility adds more nuanced format-string reconstruction logic, which increases maintenance burden and requires careful regression coverage.
-- Placeholder-based reconstruction produces conservative generic diagnostics for some concatenated expressions, so the linter cannot always suggest an exact source replacement.
+- The shared AST utility adds concatenation tree traversal, which requires test coverage for nested `+` literal expressions.
 
 ### Neutral
 
-- The new analysis intentionally treats non-literal operands as opaque boundaries rather than attempting full expression evaluation.
+- The new analysis intentionally skips format strings with non-literal (opaque) operands, choosing safety over unprovable expression evaluation.
 - Additional unit and testdata coverage is required to lock in behavior around concatenation, verb detection, and false-positive prevention.
 
 ---

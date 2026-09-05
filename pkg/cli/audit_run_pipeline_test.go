@@ -131,8 +131,8 @@ func TestCacheRecoveryError(t *testing.T) {
 	assert.Contains(t, msg, "1234")
 	assert.Contains(t, msg, "/tmp/run-1234")
 	assert.Contains(t, msg, "boom")
-	assert.ErrorIs(t, err, sentinel, "cacheRecoveryError must wrap its cause with %%w so errors.Is can match it")
-	assert.True(t, errors.Unwrap(err) != nil, "cacheRecoveryError result must be unwrappable")
+	require.ErrorIs(t, err, sentinel, "cacheRecoveryError must wrap its cause with %%w so errors.Is can match it")
+	require.Error(t, errors.Unwrap(err), "cacheRecoveryError result must be unwrappable")
 }
 
 func TestPrepareRunForAnalysis(t *testing.T) {
