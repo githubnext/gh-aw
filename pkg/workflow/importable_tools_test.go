@@ -727,7 +727,7 @@ permissions:
 tools:
   bash: true
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 imports:
@@ -818,7 +818,7 @@ permissions:
   contents: read
   issues: read
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 imports:
@@ -892,7 +892,7 @@ permissions:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 imports:

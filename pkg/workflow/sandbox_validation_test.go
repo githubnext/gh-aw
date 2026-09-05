@@ -94,7 +94,7 @@ func TestValidateSandboxConfigTrustBoundaryMessage(t *testing.T) {
 
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "trust boundary", "diagnostic must say the sandbox removal removes a trust boundary")
-	assert.Contains(t, errMsg, "dangerously-disable-sandbox", "diagnostic must name the required feature flag")
+	assert.Contains(t, errMsg, "dangerously-disable-sandbox-agent", "diagnostic must name the required feature flag")
 }
 
 func TestValidateSandboxConfigMCPEnvironmentVariableNames(t *testing.T) {
@@ -155,7 +155,7 @@ func TestValidateSandboxConfigRejectsCodexCopilotWithoutAgentSandbox(t *testing.
 		Model:        "copilot/auto",
 		EngineConfig: &EngineConfig{ID: "codex"},
 		Features: map[string]any{
-			"dangerously-disable-sandbox": true,
+			"dangerously-disable-sandbox-agent": true,
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{Disabled: true},

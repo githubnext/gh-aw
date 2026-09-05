@@ -943,7 +943,7 @@ func TestValidateToolConfiguration_DoesNotWarnForDisabledSandbox(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test",
 		Features: map[string]any{
-			"dangerously-disable-sandbox": true,
+			"dangerously-disable-sandbox-agent": true,
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{Disabled: true},

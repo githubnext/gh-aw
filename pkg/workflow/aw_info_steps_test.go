@@ -48,7 +48,7 @@ permissions:
   pull-requests: read
 engine: copilot
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

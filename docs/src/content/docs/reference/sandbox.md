@@ -24,7 +24,7 @@ sandbox:
 
 # Disable coding agent sandbox - requires an explicit feature flag
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 
@@ -39,11 +39,11 @@ If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: a
 
 Setting `sandbox.agent: false` disables the agent firewall while keeping the MCP gateway enabled. This removes a trust boundary and is only supported when `strict: false`.
 
-To disable the agent sandbox, you **must** set `features.dangerously-disable-sandbox: true`. Missing, false, and non-boolean values are rejected by the compiler.
+To disable the agent sandbox, you **must** set `features.dangerously-disable-sandbox-agent: true`. Missing, false, and non-boolean values are rejected by the compiler.
 
 ```yaml wrap
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

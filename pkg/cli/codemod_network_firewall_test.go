@@ -85,7 +85,7 @@ permissions:
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
 	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
 	assert.Contains(t, result, "agent: false", "Should convert firewall false to sandbox.agent: false")
-	assert.NotContains(t, result, "dangerously-disable-sandbox", "Codemod must not silently enable the sandbox opt-out; operator must provide it")
+	assert.NotContains(t, result, "dangerously-disable-sandbox-agent", "Codemod must not silently enable the sandbox opt-out; operator must provide it")
 }
 
 func TestNetworkFirewallCodemod_NoNetworkField(t *testing.T) {
@@ -216,7 +216,7 @@ sandbox:
 	assert.Contains(t, result, "sandbox:", "Should preserve existing sandbox block")
 	assert.Contains(t, result, "mcp: true", "Should preserve existing sandbox settings")
 	assert.Contains(t, result, "agent: false", "Should migrate firewall false to sandbox.agent: false")
-	assert.NotContains(t, result, "dangerously-disable-sandbox", "Codemod must not silently enable the sandbox opt-out; operator must provide it")
+	assert.NotContains(t, result, "dangerously-disable-sandbox-agent", "Codemod must not silently enable the sandbox opt-out; operator must provide it")
 }
 
 func TestNetworkFirewallCodemod_PreservesExistingSandboxDisableFeature(t *testing.T) {
@@ -228,7 +228,7 @@ on: workflow_dispatch
 network:
   firewall: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   mcp: true
 ---
@@ -241,7 +241,7 @@ sandbox:
 			"firewall": false,
 		},
 		"features": map[string]any{
-			"dangerously-disable-sandbox": true,
+			"dangerously-disable-sandbox-agent": true,
 		},
 		"sandbox": map[string]any{
 			"mcp": true,
@@ -252,7 +252,7 @@ sandbox:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "dangerously-disable-sandbox: true")
+	assert.Contains(t, result, "dangerously-disable-sandbox-agent: true")
 }
 
 func TestNetworkFirewallCodemod_MigratesFirewallVersionIntoExistingSandbox(t *testing.T) {

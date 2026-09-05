@@ -75,7 +75,7 @@ func TestSandboxAgentFalse(t *testing.T) {
 		markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
@@ -132,7 +132,7 @@ Test workflow with agent sandbox disabled.
 		markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: true
@@ -162,7 +162,7 @@ Test workflow with agent sandbox disabled in strict mode.
 		markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
@@ -199,7 +199,7 @@ func TestSandboxAgentFalseWithTools(t *testing.T) {
 	markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

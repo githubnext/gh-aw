@@ -2,13 +2,13 @@
 "gh-aw": major
 ---
 
-Restore `sandbox.agent: false` as a supported non-strict mode and require `features.dangerously-disable-sandbox: true` to enable it.
+Restore `sandbox.agent: false` as a supported non-strict mode and require `features.dangerously-disable-sandbox-agent: true` to enable it.
 
-**Breaking change:** Replace the previous `features.dangerously-disable-sandbox-agent` justification with the new boolean feature flag:
+The existing `features.dangerously-disable-sandbox-agent` flag now accepts the required boolean value:
 
 ```yaml
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

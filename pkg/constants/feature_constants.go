@@ -76,7 +76,7 @@ const (
 	//	features:
 	//	  group-concurrency-queue: false
 	GroupConcurrencyQueueFeatureFlag FeatureFlag = "group-concurrency-queue"
-	// DangerouslyDisableSandboxFeatureFlag is required to allow sandbox.agent: false.
+	// DangerouslyDisableSandboxAgentFeatureFlag is required to allow sandbox.agent: false.
 	// Without this flag, setting sandbox.agent to false raises a validation error.
 	// This flag is intentionally named with "dangerously" to make the security
 	// implications explicit and visible in the workflow frontmatter.
@@ -84,8 +84,8 @@ const (
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  dangerously-disable-sandbox: true
-	DangerouslyDisableSandboxFeatureFlag FeatureFlag = "dangerously-disable-sandbox"
+	//	  dangerously-disable-sandbox-agent: true
+	DangerouslyDisableSandboxAgentFeatureFlag FeatureFlag = "dangerously-disable-sandbox-agent"
 	// GHAWDetectionFeatureFlag controls the external threat-detect binary detection path.
 	// The external detector is enabled by default. Set this flag to false to use
 	// the legacy inline engine execution path.

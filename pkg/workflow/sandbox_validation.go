@@ -86,9 +86,9 @@ func validateSandboxConfig(workflowData *WorkflowData) error { //nolint:largefun
 	sandboxConfig := workflowData.SandboxConfig
 
 	// Check if sandbox.agent: false was specified
-	// This requires the "dangerously-disable-sandbox" feature to be explicitly enabled.
+	// This requires the "dangerously-disable-sandbox-agent" feature to be explicitly enabled.
 	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		flag := string(constants.DangerouslyDisableSandboxFeatureFlag)
+		flag := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
 		value, found := getFeatureValueCaseInsensitive(workflowData.Features, flag)
 		enabled, isBoolean := value.(bool)
 		if !found || !isBoolean || !enabled {

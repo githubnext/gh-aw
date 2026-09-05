@@ -67,7 +67,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "sandbox.agent false with feature enabled",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox": true,
+					"dangerously-disable-sandbox-agent": true,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -86,13 +86,13 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "dangerously-disable-sandbox",
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 		{
 			name: "sandbox.agent false with feature disabled",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox": false,
+					"dangerously-disable-sandbox-agent": false,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -101,13 +101,13 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "dangerously-disable-sandbox",
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 		{
 			name: "sandbox.agent false with legacy feature",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox-agent": true,
+					"dangerously-disable-sandbox": true,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -116,13 +116,13 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "dangerously-disable-sandbox",
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 		{
 			name: "sandbox.agent false with non-boolean feature",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox": "true",
+					"dangerously-disable-sandbox-agent": "true",
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -131,7 +131,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "dangerously-disable-sandbox",
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 	}
 

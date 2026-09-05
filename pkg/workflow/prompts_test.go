@@ -860,7 +860,7 @@ tools:
   playwright:
     mode: cli
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

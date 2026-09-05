@@ -21,7 +21,7 @@ network:
     - defaults
     - github.com
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
@@ -190,8 +190,8 @@ Test workflow to verify sandbox.agent: false is rejected without the feature fla
 		if err == nil {
 			t.Fatal("Expected compilation to fail when sandbox.agent: false without feature flag, but got nil error")
 		}
-		if !strings.Contains(err.Error(), "dangerously-disable-sandbox") {
-			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox', got: %v", err)
+		if !strings.Contains(err.Error(), "dangerously-disable-sandbox-agent") {
+			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox-agent', got: %v", err)
 		}
 	})
 
@@ -205,7 +205,7 @@ network:
     - defaults
     - github.com
 features:
-  dangerously-disable-sandbox: false
+  dangerously-disable-sandbox-agent: false
 sandbox:
   agent: false
 strict: false
@@ -226,8 +226,8 @@ Test workflow to verify sandbox.agent: false is rejected when the feature is fal
 		if err == nil {
 			t.Fatal("Expected compilation to fail when the feature is false, but got nil error")
 		}
-		if !strings.Contains(err.Error(), "dangerously-disable-sandbox") {
-			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox', got: %v", err)
+		if !strings.Contains(err.Error(), "dangerously-disable-sandbox-agent") {
+			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox-agent', got: %v", err)
 		}
 	})
 
@@ -241,7 +241,7 @@ network:
     - defaults
     - github.com
 features:
-  dangerously-disable-sandbox: "true"
+  dangerously-disable-sandbox-agent: "true"
 sandbox:
   agent: false
 strict: false
@@ -262,8 +262,8 @@ Test workflow to verify sandbox.agent: false is rejected when the feature is not
 		if err == nil {
 			t.Fatal("Expected compilation to fail when the feature is a string, but got nil error")
 		}
-		if !strings.Contains(err.Error(), "dangerously-disable-sandbox") {
-			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox', got: %v", err)
+		if !strings.Contains(err.Error(), "dangerously-disable-sandbox-agent") {
+			t.Fatalf("Expected error to reference 'dangerously-disable-sandbox-agent', got: %v", err)
 		}
 	})
 }

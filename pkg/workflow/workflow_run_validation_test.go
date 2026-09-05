@@ -37,7 +37,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -84,7 +84,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -242,7 +242,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -268,7 +268,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -293,7 +293,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -365,7 +365,7 @@ on: push
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---
@@ -387,7 +387,7 @@ on:
 tools:
   github: false
 features:
-  dangerously-disable-sandbox: true
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 ---

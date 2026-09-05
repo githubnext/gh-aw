@@ -61,7 +61,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure read-only `gh` CLI access without exposing `GITHUB_TOKEN` (requires AWF v0.26.0+). Prerequisite for `integrity-reactions`; the compiler enables it automatically when `integrity-reactions: true` is set.
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none.
-    - `dangerously-disable-sandbox: true` - Required when `sandbox.agent: false` is set. This opt-out is rejected in strict mode.
+    - `dangerously-disable-sandbox-agent: true` - Required when `sandbox.agent: false` is set. This opt-out is rejected in strict mode.
 
 - **`experiments:`** - A/B testing experiments for balanced variant selection (object)
   - Maps experiment names to variant lists (bare array) or full config objects
@@ -333,7 +333,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
     ```yaml
     features:
-      dangerously-disable-sandbox: true
+      dangerously-disable-sandbox-agent: true
     sandbox:
       agent: false
     strict: false

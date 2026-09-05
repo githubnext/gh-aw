@@ -105,7 +105,7 @@ Before attempting to compile, apply automatic codemods:
    - Replacing `network.firewall: false` with `sandbox.agent: false`. To keep the sandbox disabled, explicitly add:
      ```yaml
      features:
-       dangerously-disable-sandbox: true
+       dangerously-disable-sandbox-agent: true
      sandbox:
        agent: false
      strict: false
