@@ -30,6 +30,7 @@ const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const MAX_GITHUB_BODY_LENGTH = 65536;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -1193,6 +1194,9 @@ async function main(config = {}) {
     }
 
     try {
+      if (body.length > MAX_GITHUB_BODY_LENGTH) {
+        throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
+      }
       const { data: issue } = await withRetry(
         () =>
           githubClient.rest.issues.create({

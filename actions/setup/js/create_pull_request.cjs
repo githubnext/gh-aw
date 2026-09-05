@@ -65,6 +65,8 @@ const {
 } = require("./create_pull_request_helpers.cjs");
 const { isStackedEnabled, parseStackMetadata, hasCircularStackDependency, buildStackMetadataLines, stackedDisabledError, circularStackError, verifyStackBaseBranchExists, createStackTracker } = require("./stacked_pull_requests.cjs");
 
+const MAX_GITHUB_BODY_LENGTH = 65536;
+
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
@@ -450,6 +452,10 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
  * @returns {Promise<{data: any, issueRepoParts: {owner: string, repo: string}}>}
  */
 async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees) {
+  if (body.length > MAX_GITHUB_BODY_LENGTH) {
+    throw new Error(`Fallback issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
+  }
+
   const payload = {
     owner: repoParts.owner,
     repo: repoParts.repo,
@@ -1710,6 +1716,8 @@ async function main(config = {}) {
       // Footer section (footer + workflow-id marker) used when ordering protected-files notices
       const footerContent = footerParts.join("\n\n");
       const issueSafeFooterContent = neutralizeClosingKeywordsForIssueBody(footerContent);
+      const hiddenFallbackMetadata = [callerWorkflowId && generateWorkflowCallIdMarker(callerWorkflowId), closeOlderKey && generateCloseKeyMarker(closeOlderKey)].filter(Boolean).join("\n");
+      const issueSafeFallbackFooter = [issueSafeFooterContent, hiddenFallbackMetadata].filter(Boolean).join("\n");
 
       // Build labels array - merge config labels with message labels
       let labels = [...envLabels];
@@ -1912,7 +1920,7 @@ async function main(config = {}) {
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
-                const fallbackBody = `${issueSafeBody}
+                const fallbackBody = `${issueSafeMainBodyContent}
 
 ---
 
@@ -1938,7 +1946,9 @@ git push ${shellQuote(pushRemoteUrl || "origin")} ${shellQuote(branchName)}
 gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --head ${shellQuote(getPullRequestHeadRef(branchName))} --repo ${shellQuote(`${repoParts.owner}/${repoParts.repo}`)}
 \`\`\`
 
-</details>`;
+</details>
+
+${issueSafeFallbackFooter}`;
 
                 try {
                   const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
@@ -2281,7 +2291,7 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
                   .replace(/\s+/g, " ")
                   .trim();
                 const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
-                const fallbackBody = `${issueSafeBody}
+                const fallbackBody = `${issueSafeMainBodyContent}
 
 ---
 
@@ -2308,7 +2318,9 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
 \`\`\`
 
 </details>
-${patchPreview}`;
+${patchPreview}
+
+${issueSafeFallbackFooter}`;
 
                 try {
                   const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
@@ -2533,6 +2545,9 @@ ${patchPreview}`;
 
       // Try to create the pull request, with fallback to issue creation
       try {
+        if (body.length > MAX_GITHUB_BODY_LENGTH) {
+          throw new Error(`Pull request body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
+        }
         const { data: pullRequest } = await createOrUpdatePullRequest({
           githubClient,
           repoParts,
@@ -2804,7 +2819,8 @@ ${patchPreview}`;
 
           const fallbackTemplatePath = getPromptPath("pr_permission_denied_fallback.md");
           const fallbackBody = renderTemplateFromFile(fallbackTemplatePath, {
-            body: issueSafeBody,
+            body: issueSafeMainBodyContent,
+            footer: issueSafeFallbackFooter,
             branch_name: branchName,
             create_pr_url: createPrUrl,
             faq_url: FAQ_CREATE_PR_PERMISSIONS_URL,
@@ -2867,7 +2883,7 @@ ${patchPreview}`;
           patchPreview = generatePatchPreview(patchContent);
         }
 
-        const fallbackBody = `${issueSafeBody}
+        const fallbackBody = `${issueSafeMainBodyContent}
 
 ---
 
@@ -2881,7 +2897,9 @@ To create the pull request manually:
 \`\`\`sh
 gh pr create --title "${title}" --base ${baseBranch} --head ${getPullRequestHeadRef(branchName)} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\`
-${patchPreview}`;
+${patchPreview}
+
+${issueSafeFallbackFooter}`;
 
         try {
           const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
