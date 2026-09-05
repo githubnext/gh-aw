@@ -4966,10 +4966,10 @@
                 },
                 "browsers": {
                   "type": "array",
-                  "description": "Browsers to provision before the agent starts. Defaults to Chromium. Chrome is accepted as an alias for Chromium.",
+                  "description": "Browsers to provision before the agent starts. Defaults to Chromium. Chrome and Chrome for Testing are accepted as aliases for Chromium.",
                   "items": {
                     "type": "string",
-                    "enum": ["chrome", "chromium", "firefox", "webkit"]
+                    "enum": ["chrome", "chrome-for-testing", "chromium", "firefox", "webkit"]
                   },
                   "minItems": 1,
                   "uniqueItems": true

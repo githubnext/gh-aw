@@ -440,6 +440,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
 	c.emitPiThreatDetectionAuthWarning(workflowData, markdownPath)
+	c.emitPlaywrightBrowserInstallWarning(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
