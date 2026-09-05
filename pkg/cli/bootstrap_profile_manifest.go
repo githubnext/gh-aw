@@ -12,6 +12,8 @@ import (
 
 const bootstrapActionTypeExample = "require-owner-type, repo-variable, repo-secret, repo-label, github-app, copilot-auth, commit-and-push, or handoff"
 
+var bootstrapLabelColorPattern = regexp.MustCompile(`^[0-9A-Fa-f]{6}$`)
+
 type repositoryPackageBootstrap struct {
 	Config []repositoryPackageBootstrapAction
 }
@@ -145,7 +147,7 @@ func validateManifestBootstrapAction(action repositoryPackageBootstrapAction, ma
 		if action.Description == "" {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].description is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
 		}
-		if matched, _ := regexp.MatchString(`^[0-9A-Fa-f]{6}$`, action.Color); !matched {
+		if !bootstrapLabelColorPattern.MatchString(action.Color) {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color must be a 6-character hexadecimal color without '#'. Example: color: 1f6feb", manifestPath, index)
 		}
 	case "github-app":

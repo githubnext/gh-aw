@@ -157,7 +157,8 @@ func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, 
 	repo := path.Join(owner, repoName)
 	labelPath := fmt.Sprintf("repos/%s/labels/%s", repo, url.PathEscape(name))
 	var existing bootstrapRepositoryLabel
-	if err := client.Get(labelPath, &existing); err == nil {
+	err := client.Get(labelPath, &existing)
+	if err == nil {
 		if existing.Name == name && existing.Description == description && strings.EqualFold(existing.Color, color) {
 			return nil
 		}
@@ -173,11 +174,10 @@ func upsertBootstrapRepoLabelWithClient(client bootstrapLabelRESTClient, owner, 
 			return fmt.Errorf("failed to update repository label %q in %s: %w", name, repo, err)
 		}
 		return nil
-	} else {
-		var httpErr *api.HTTPError
-		if !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusNotFound {
-			return fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
-		}
+	}
+	var httpErr *api.HTTPError
+	if !errors.As(err, &httpErr) || httpErr.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("failed to inspect repository label %q in %s: %w", name, repo, err)
 	}
 
 	body, err := json.Marshal(bootstrapRepositoryLabel{
