@@ -44,16 +44,21 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		t.Fatalf("expected expression-valued Linear team ID to be valid: %v", err)
 	}
 
+	globalFallback := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"linear-create-issue": map[string]any{},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(globalFallback, "/tmp/linear-global-fallback.md"); err != nil {
+		t.Fatalf("expected global Linear ID fallback configuration to be valid: %v", err)
+	}
+
 	tests := []struct {
 		name        string
 		safeOutputs map[string]any
 	}{
-		{
-			name: "missing team ID",
-			safeOutputs: map[string]any{
-				"linear-create-issue": map[string]any{},
-			},
-		},
 		{
 			name: "malformed team ID",
 			safeOutputs: map[string]any{

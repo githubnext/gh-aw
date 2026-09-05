@@ -7668,7 +7668,7 @@
                   "pattern": "^\\$\\{\\{.*\\}\\}$"
                 }
               ],
-              "description": "Trusted Linear team model UUID or GitHub Actions expression."
+              "description": "Optional trusted Linear team model UUID or GitHub Actions expression. Defaults to LINEAR_TEAM_ID."
             },
             "project-id": {
               "type": "string",
@@ -7690,7 +7690,6 @@
               ]
             }
           },
-          "required": ["team-id"],
           "additionalProperties": false
         },
         "linear-add-comment": {
