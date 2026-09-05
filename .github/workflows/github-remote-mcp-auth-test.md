@@ -22,10 +22,6 @@ tools:
     mode: remote
     toolsets: [repos, issues, discussions]
     allowed: [list_issues, issue_read]
-network:
-  allowed:
-    - "defaults"
-    - "ab.chatgpt.com"
 timeout-minutes: 5
 strict: true
 imports:
