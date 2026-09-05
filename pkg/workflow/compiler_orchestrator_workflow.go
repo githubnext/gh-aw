@@ -402,12 +402,18 @@ func applyMergedRawObservability(
 func (c *Compiler) mergeWorkflowEnv(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	topEnv := ExtractMapField(frontmatter, "env")
 	if importsResult.MergedEnv == "" {
+		if err := validateTopLevelEnvExpressions(topEnv); err != nil {
+			return err
+		}
 		setMainWorkflowEnvSources(workflowData, topEnv)
 		return nil
 	}
 	mergedEnvMap, err := mergeEnv(topEnv, importsResult.MergedEnv)
 	if err != nil {
 		return fmt.Errorf("failed to merge env from imports: %w", err)
+	}
+	if err := validateTopLevelEnvExpressions(mergedEnvMap); err != nil {
+		return err
 	}
 	if len(mergedEnvMap) == 0 {
 		return nil
