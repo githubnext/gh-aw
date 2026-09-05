@@ -5,6 +5,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -85,6 +86,47 @@ func TestValidateTopLevelEnvExpressions(t *testing.T) {
 				"VALUE": "${{ github.event.runner }}",
 			},
 		},
+		{
+			name: "scans expressions past string literals containing closing braces",
+			env: map[string]any{
+				"PATH_VAR": "${{ format('}}', runner.temp) }}",
+			},
+			errorContains: []string{
+				"Validation failed for field 'env.PATH_VAR'",
+				"unavailable outside jobs: runner",
+			},
+		},
+		{
+			name: "detects contexts case-insensitively",
+			env: map[string]any{
+				"VALUE": "${{ RUNNER.temp || Matrix.os }}",
+			},
+			errorContains: []string{
+				"unavailable outside jobs: matrix, runner",
+			},
+		},
+		{
+			name: "provides specific diagnostic for jobs context alone",
+			env: map[string]any{
+				"OUTPUT": "${{ jobs.build.outputs.x }}",
+			},
+			errorContains: []string{
+				"Validation failed for field 'env.OUTPUT'",
+				"'jobs' context, which is only available in reusable workflow outputs",
+				"on.workflow_call.outputs",
+			},
+		},
+		{
+			name: "provides specific diagnostic for jobs context with other contexts",
+			env: map[string]any{
+				"OUTPUT": "${{ jobs.build.outputs.x || runner.os }}",
+			},
+			errorContains: []string{
+				"Validation failed for field 'env.OUTPUT'",
+				"unavailable context(s): jobs, runner",
+				"only available in reusable workflow outputs",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -119,6 +161,32 @@ env:
 	require.NoError(t, err)
 
 	_, err = compiler.CompileToYAML(workflowData, "test.md")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "env.PLAYWRIGHT_BROWSERS_PATH")
+	assert.Contains(t, err.Error(), "unavailable outside jobs: runner")
+}
+
+func TestMergeWorkflowEnvValidatesUnresolvableImportedEnv(t *testing.T) {
+	compiler := NewCompiler(WithNoEmit(true))
+	workflowData := &WorkflowData{}
+	importsResult := &parser.ImportsResult{
+		MergedEnv: `{"A":"${{ env.UNDEFINED }}"}`,
+	}
+
+	err := compiler.mergeWorkflowEnv(map[string]any{}, workflowData, importsResult)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "env.A")
+	assert.Contains(t, err.Error(), "unavailable outside jobs: env")
+}
+
+func TestMergeWorkflowEnvValidatesRawImportedRunnerContext(t *testing.T) {
+	compiler := NewCompiler(WithNoEmit(true))
+	workflowData := &WorkflowData{}
+	importsResult := &parser.ImportsResult{
+		MergedEnv: `{"PLAYWRIGHT_BROWSERS_PATH":"${{ runner.temp }}/browsers"}`,
+	}
+
+	err := compiler.mergeWorkflowEnv(map[string]any{}, workflowData, importsResult)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "env.PLAYWRIGHT_BROWSERS_PATH")
 	assert.Contains(t, err.Error(), "unavailable outside jobs: runner")
