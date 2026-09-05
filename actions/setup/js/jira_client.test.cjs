@@ -117,7 +117,19 @@ describe("jira client", () => {
 
   it("reports missing configuration without values", () => {
     expect(() => createJiraClient({})).toThrow("JIRA_BASE_URL");
-    expect(() => createJiraClient({ JIRA_BASE_URL: "https://example.atlassian.net" })).toThrow("JIRA_USER_EMAIL and JIRA_API_TOKEN");
+    expect(() => createJiraClient({ JIRA_BASE_URL: "https://example.atlassian.net" })).toThrow("missing required GitHub Actions secrets: JIRA_USER_EMAIL, JIRA_API_TOKEN");
+    expect(() =>
+      createJiraClient({
+        JIRA_BASE_URL: "https://example.atlassian.net",
+        JIRA_USER_EMAIL: "jira@example.com",
+      })
+    ).toThrow("missing required GitHub Actions secret: JIRA_API_TOKEN");
+    expect(() =>
+      createJiraClient({
+        JIRA_BASE_URL: "https://example.atlassian.net",
+        JIRA_API_TOKEN: "secret-token",
+      })
+    ).toThrow("missing required GitHub Actions secret: JIRA_USER_EMAIL");
   });
 
   it("formats field and global errors", () => {
