@@ -233,6 +233,19 @@ func TestUpsertBootstrapRepoLabelWithClient(t *testing.T) {
 			t.Fatalf("unexpected create body: %#v", body)
 		}
 	})
+
+	t.Run("returns non-not-found lookup errors", func(t *testing.T) {
+		client := &bootstrapLabelRESTClientStub{
+			getErr: &api.HTTPError{StatusCode: 500, RequestURL: &url.URL{}},
+		}
+		err := upsertBootstrapRepoLabelWithClient(client, "octo", "platform-ops", "automation", "Managed by automation", "1f6feb")
+		if err == nil || !strings.Contains(err.Error(), "failed to inspect repository label") {
+			t.Fatalf("expected label lookup error, got %v", err)
+		}
+		if len(client.posts) != 0 || len(client.patches) != 0 {
+			t.Fatal("expected lookup failure not to mutate the label")
+		}
+	})
 }
 
 func TestBootstrapRepoMutationHelpers_RejectInvalidRepo(t *testing.T) {
