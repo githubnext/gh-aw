@@ -104,6 +104,29 @@ func TestReadLocalImportedManifestSymlinks(t *testing.T) {
 	require.ErrorContains(t, err, "outside the package root")
 }
 
+func TestIsPathWithinPackageRoot(t *testing.T) {
+	tests := []struct {
+		name      string
+		candidate string
+		root      string
+		want      bool
+	}{
+		{name: "empty root allows sibling path", candidate: "activity/aw.yml", root: "", want: true},
+		{name: "empty root rejects parent traversal", candidate: "..", root: "", want: false},
+		{name: "empty root rejects parent-prefixed path", candidate: "../aw.yml", root: "", want: false},
+		{name: "empty root rejects leading backslash", candidate: `\aw.yml`, root: "", want: false},
+		{name: "matches root exactly", candidate: "packages/a", root: "packages/a", want: true},
+		{name: "matches path under root", candidate: "packages/a/aw.yml", root: "packages/a", want: true},
+		{name: "rejects path outside root", candidate: "packages/b/aw.yml", root: "packages/a", want: false},
+		{name: "rejects backslash immediately after root separator", candidate: `packages/a/\..\aw.yml`, root: "packages/a", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isPathWithinPackageRoot(tt.candidate, tt.root))
+		})
+	}
+}
+
 func TestResolveLocalRepositoryPackageImports(t *testing.T) {
 	packageDir := t.TempDir()
 	writePackageTestFile(t, packageDir, "README.md", "# Bundle\n")
