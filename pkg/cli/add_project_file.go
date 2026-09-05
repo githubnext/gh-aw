@@ -19,10 +19,12 @@ func mergeProjectFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTrack
 	destFile := filepath.Join(gitRoot, workflow.RepoConfigFileName)
 	existing := []byte("{}")
 	fileExists := fileutil.FileExists(destFile)
+	addLog.Printf("Merging package project file: dest=%s, exists=%t", destFile, fileExists)
 	if err := fileutil.ValidatePathWithinBase(gitRoot, destFile); err != nil {
 		return fmt.Errorf("failed to validate project file destination %q: %w", workflow.RepoConfigFileName, err)
 	}
 	if info, err := os.Lstat(destFile); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		addLog.Printf("Refusing to merge project file %q: destination is a symbolic link", destFile)
 		return fmt.Errorf("project file destination %q is a symbolic link, which is not allowed", workflow.RepoConfigFileName)
 	}
 	if fileExists {
@@ -61,6 +63,7 @@ func mergeProjectFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTrack
 	if err := os.WriteFile(destFile, merged, constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write project file %q: %w", workflow.RepoConfigFileName, err)
 	}
+	addLog.Printf("Wrote merged project file: dest=%s, size=%d bytes", destFile, len(merged))
 	return nil
 }
 

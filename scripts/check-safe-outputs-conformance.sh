@@ -478,7 +478,15 @@ def yaml_fields(struct_name):
 
 
 def properties(node):
-    result = dict(node.get("properties", {}))
+    result = {}
+    ref = node.get("$ref", "")
+    defs_prefix = "#/$defs/"
+    if ref.startswith(defs_prefix):
+        result.update(properties(schema["$defs"][ref[len(defs_prefix):]]))
+    for name, definition in node.get("properties", {}).items():
+        if name in result and result[name] != definition:
+            raise ValueError(f"conflicting schema definitions for property: {name}")
+        result[name] = definition
     for alternative in ("allOf", "anyOf", "oneOf"):
         for child in node.get(alternative, []):
             for name, definition in properties(child).items():

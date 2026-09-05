@@ -348,6 +348,16 @@ func validateWorkflowConcurrency(workflowData *WorkflowData, markdownPath string
 // emitSandboxRuntimeWarnings warns about sandbox runtime choices that need human
 // review or whose configuration the compiler cannot honour.
 func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdownPath string) {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil {
+		switch agentConfig.Runtime {
+		case AgentRuntimeGVisor, AgentRuntimeDockerSbx:
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+				fmt.Sprintf("sandbox.agent.runtime: %s is deprecated and will be removed in a future release. "+
+					"Use sandbox.agent.runtime: docker instead.", agentConfig.Runtime)))
+			c.IncrementWarningCount()
+		}
+	}
 	if isCloudHypervisorRuntime(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
@@ -362,6 +372,47 @@ func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdo
 				"to read-only, and docker-sbx rejects the policy outright."))
 		c.IncrementWarningCount()
 	}
+}
+
+func (c *Compiler) emitPiThreatDetectionAuthWarning(workflowData *WorkflowData, markdownPath string) {
+	if !c.shouldEmitPiThreatDetectionAuthWarning(workflowData) {
+		return
+	}
+	message := `Threat detection for engine: pi runs on the GitHub Copilot CLI. This workflow does not grant permissions.copilot-requests: write, so detection requires a COPILOT_GITHUB_TOKEN secret. Without that secret, threat detection will fail with "No authentication information found".`
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+	c.IncrementWarningCount()
+}
+
+func (c *Compiler) shouldEmitPiThreatDetectionAuthWarning(workflowData *WorkflowData) bool {
+	if workflowData == nil || hasCopilotRequestsWritePermission(workflowData) ||
+		!IsDetectionJobEnabled(workflowData.SafeOutputs) {
+		return false
+	}
+
+	threatDetection := workflowData.SafeOutputs.ThreatDetection
+	if threatDetection.EngineDisabled {
+		return false
+	}
+
+	configuredEngineID := ResolveEngineID(workflowData)
+	var detectionEnv map[string]string
+	if threatDetection.EngineConfig != nil {
+		if threatDetection.EngineConfig.ID != "" {
+			configuredEngineID = threatDetection.EngineConfig.ID
+		}
+		detectionEnv = threatDetection.EngineConfig.Env
+	}
+	if configuredEngineID != "pi" || c.getThreatDetectionEngineID(workflowData) != "copilot" {
+		return false
+	}
+
+	effectiveEnv := mergeThreatDetectionEngineEnv(workflowData, detectionEnv)
+	if strings.TrimSpace(effectiveEnv[constants.CopilotGitHubToken]) != "" {
+		return false
+	}
+	return strings.TrimSpace(effectiveEnv[constants.CopilotProviderBaseURL]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderAPIKey]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderBearerToken]) == ""
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
@@ -381,15 +432,8 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"See: https://gh.io/gh-aw/reference/concurrency for details."))
 		c.IncrementWarningCount()
 	}
-	if isAgentSandboxDisabled(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. "+
-				"The AI agent will have direct network access without firewall filtering. "+
-				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
-				"environments where you trust the AI agent completely."))
-		c.IncrementWarningCount()
-	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
+	c.emitPiThreatDetectionAuthWarning(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(

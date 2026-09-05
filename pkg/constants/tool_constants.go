@@ -3,7 +3,7 @@ package constants
 const (
 	LinearMCPReadOnlyURL      = "https://mcp.linear.app/mcp/readonly"
 	LinearMCPDefaultTokenExpr = "${{ secrets.LINEAR_API_KEY }}"
-	JiraBaseURLExpr           = "${{ vars.JIRA_BASE_URL }}"
+	JiraBaseURLExpr           = "https://pelidehalleux.atlassian.net"
 	JiraUserEmailExpr         = "${{ secrets.JIRA_USER_EMAIL }}"
 	JiraAPITokenExpr          = "${{ secrets.JIRA_API_TOKEN }}"
 )

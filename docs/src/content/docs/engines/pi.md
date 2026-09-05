@@ -48,6 +48,10 @@ To authenticate, provide a [`CODEX_API_KEY`](/gh-aw/reference/auth/#openai_api_k
 
 Pi routes `openai/` and `codex/` models through OpenAI's [Responses API](https://developers.openai.com/api/docs/guides/responses-vs-chat-completions) rather than Chat Completions, since OpenAI rejects function tool calls on Chat Completions whenever reasoning is enabled. This matches Pi's own OpenAI model catalog and requires no additional configuration. The Copilot and Anthropic backends are unaffected and keep using their existing wire protocols.
 
+## Authenticating threat detection
+
+By default, threat detection for Pi workflows runs on the GitHub Copilot CLI, regardless of Pi's model provider. Grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret for detection. This credential is separate from the OpenAI or Anthropic key used by the Pi agent.
+
 For any provider, recompile the workflow with `gh aw compile` and commit the changes to the repository.
 
 ## Example: scheduled repository report

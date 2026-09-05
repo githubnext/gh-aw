@@ -64,10 +64,10 @@ func TestValidateSandboxConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "sandbox.agent false with valid justification",
+			name: "sandbox.agent false with feature enabled",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+					"dangerously-disable-sandbox-agent": true,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -77,7 +77,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "sandbox.agent false without justification",
+			name: "sandbox.agent false without feature",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -89,10 +89,10 @@ func TestValidateSandboxConfig(t *testing.T) {
 			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 		{
-			name: "sandbox.agent false with short justification",
+			name: "sandbox.agent false with feature disabled",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox-agent": "too short",
+					"dangerously-disable-sandbox-agent": false,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -101,13 +101,13 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "at least 20 characters",
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 		{
-			name: "sandbox.agent false with expression justification",
+			name: "sandbox.agent false with legacy feature",
 			data: &WorkflowData{
 				Features: map[string]any{
-					"dangerously-disable-sandbox-agent": "${{ inputs.reason }}",
+					"dangerously-disable-sandbox": true,
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
@@ -116,7 +116,22 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "expressions",
+			errorMsg:    "dangerously-disable-sandbox-agent",
+		},
+		{
+			name: "sandbox.agent false with non-boolean feature",
+			data: &WorkflowData{
+				Features: map[string]any{
+					"dangerously-disable-sandbox-agent": "true",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Disabled: true,
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "dangerously-disable-sandbox-agent",
 		},
 	}
 

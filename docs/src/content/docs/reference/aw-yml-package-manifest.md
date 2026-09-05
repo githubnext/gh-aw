@@ -34,7 +34,7 @@ The package root is the folder that contains `aw.yml`.
 | `private` | boolean | No | Marks the package as unavailable for installation. Defaults to `false`; `gh aw add` refuses packages set to `true`. |
 | `experimental` | boolean | No | Marks the package as experimental. Defaults to `false`; `gh aw add` displays a warning when set to `true`. |
 | `files` | array of strings | No | Deprecated; use `includes`. Package-root-relative paths. Agentic markdown workflows under `workflows/` or `.github/workflows/`; raw GitHub Actions YAML (`.yml`) is also accepted as direct children of `.github/workflows/`. |
-| `includes` | array | No | Installable entries, or paths to other `aw.yml` manifests whose installable files are included recursively. Each entry is either a path string (same rules as `files`, plus skill and agent paths) or a source-to-destination mapping. |
+| `includes` | array | No | Installable entries, or paths to other `aw.yml` manifests whose installable files are included recursively. Each entry is either a path string (same rules as `files`, plus skill and agent paths), a path ending in `/*` that matches supported direct children, or a source-to-destination mapping. |
 | `resources` | array | No | Repository assets copied from package-relative `source` paths to allowlisted repository-relative `destination` paths. |
 
 ## Imported manifests
@@ -69,6 +69,7 @@ If `files` is present, valid entries become the install bundle. Two entry kinds 
 
 - A **string entry** that starts with `.github/` is resolved relative to the **consuming repository root**, even inside a nested package. For example, `.github/workflows/nightly.md` in `factory/aw.yml` refers to the repository-root file, not to `factory/.github/workflows/nightly.md`.
 - Every other string entry (such as `workflows/review.md`) is resolved relative to the package root.
+- A string entry may end in a single `/*` wildcard (such as `workflows/*`) to include supported direct children of that directory. The wildcard does not recurse, and `*` is not supported in any other position. Matches are filtered by the same workflow, skill, and agent path rules as explicit entries.
 - A **mapping entry** always resolves `source` relative to the package root and `destination` relative to the consuming repository root.
 
 ### Source-to-destination mappings
