@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,5 +101,5 @@ func TestJiraCredentialsUseDefaultBaseURL(t *testing.T) {
 	}
 
 	rendered := strings.Join(injectJiraCredentialsIntoProcessorStep(steps, config), "")
-	assert.Contains(t, rendered, "JIRA_BASE_URL: https://pelidehalleux.atlassian.net")
+	assert.Contains(t, rendered, "JIRA_BASE_URL: "+constants.JiraBaseURLExpr)
 }
