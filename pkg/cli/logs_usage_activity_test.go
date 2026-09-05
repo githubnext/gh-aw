@@ -31,7 +31,11 @@ func TestLoadUsageActivitySummary(t *testing.T) {
 			}
 		},
 		"session":{"turns":7},
-		"gateway":{"total_calls":5,"failed_calls":1}
+		"gateway":{
+			"total_calls":5,
+			"failed_calls":1,
+			"tool_calls":[{"tool_call_id":"call-1","request_size":100,"response_size":200,"duration_ms":25,"outcome":"success"}]
+		}
 	}`), 0o644), "should write usage activity summary")
 
 	summary, err := loadUsageActivitySummary(runDir)
@@ -46,6 +50,8 @@ func TestLoadUsageActivitySummary(t *testing.T) {
 	assert.Equal(t, 7, summary.Session.Turns, "session turns should be parsed from JSON")
 	require.NotNil(t, summary.Gateway, "gateway section should be present")
 	assert.Equal(t, 5, summary.Gateway.TotalCalls, "gateway total_calls should be parsed from JSON")
+	require.Len(t, summary.Gateway.ToolCalls, 1, "gateway tool_calls should be parsed from JSON")
+	assert.Equal(t, usageActivityGatewayCall{ToolCallID: "call-1", RequestSize: 100, ResponseSize: 200, DurationMS: 25, Outcome: "success"}, summary.Gateway.ToolCalls[0])
 }
 
 func TestApplyUsageActivitySummaryToResult(t *testing.T) {

@@ -79,6 +79,15 @@ type usageActivityGateway struct {
 	MaxOutputSize   int                          `json:"max_output_size"`
 	Servers         []usageActivityGatewayServer `json:"servers,omitempty"`
 	Tools           []usageActivityGatewayTool   `json:"tools,omitempty"`
+	ToolCalls       []usageActivityGatewayCall   `json:"tool_calls,omitempty"`
+}
+
+type usageActivityGatewayCall struct {
+	ToolCallID   string  `json:"tool_call_id"`
+	RequestSize  int     `json:"request_size"`
+	ResponseSize int     `json:"response_size"`
+	DurationMS   float64 `json:"duration_ms"`
+	Outcome      string  `json:"outcome"`
 }
 
 type usageActivityGatewayServer struct {
