@@ -138,8 +138,8 @@ describe("pi_models_json.cjs", () => {
       expect(piModelsJson.resolvePiApiForProvider("github")).toBe("openai-completions");
     });
 
-    it("keeps the anthropic provider on openai-completions (AWF gateway's normalized wire protocol, distinct from native anthropic-messages)", () => {
-      expect(piModelsJson.resolvePiApiForProvider("anthropic")).toBe("openai-completions");
+    it("routes the anthropic provider through its native Messages API", () => {
+      expect(piModelsJson.resolvePiApiForProvider("anthropic")).toBe("anthropic-messages");
     });
   });
 
@@ -186,7 +186,7 @@ describe("pi_models_json.cjs", () => {
 
       const written = JSON.parse(fs.readFileSync(path.join(tmpDir, "models.json"), "utf8"));
       expect(written.providers["aw-gateway"].baseUrl).toBe("http://api-proxy:10001");
-      expect(written.providers["aw-gateway"].api).toBe("openai-completions");
+      expect(written.providers["aw-gateway"].api).toBe("anthropic-messages");
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 

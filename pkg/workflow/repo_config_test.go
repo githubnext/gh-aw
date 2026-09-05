@@ -517,6 +517,23 @@ func TestLoadRepoConfig_AutoUpgradeCron(t *testing.T) {
 		assert.Empty(t, cfg.AutoUpgradeCron, "AutoUpgradeCron should be empty when cron is omitted")
 	})
 
+	t.Run("object form loads upgrade options", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"options": ["--pre-releases"]}}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"--pre-releases"}, cfg.AutoUpgradeOptions)
+	})
+
+	t.Run("rejects unsupported upgrade options", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"options": ["--unknown"]}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "unsupported auto-upgrade options should return an error")
+	})
+
 	t.Run("boolean true has no cron", func(t *testing.T) {
 		dir := t.TempDir()
 		writeAWJSON(t, dir, `{"auto_upgrade": true}`)

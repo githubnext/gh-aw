@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var jiraSafeOutputsLog = logger.New("workflow:jira_safe_outputs")
 
@@ -34,4 +37,25 @@ func hasAnyJiraSafeOutputEnabled(config *SafeOutputsConfig) bool {
 		config.JiraUpdateIssue != nil ||
 		config.JiraAddComment != nil ||
 		config.JiraAddLabel != nil
+}
+
+var jiraSafeOutputDefaultEnv = map[string]string{
+	"JIRA_BASE_URL":   constants.JiraBaseURLExpr,
+	"JIRA_USER_EMAIL": constants.JiraUserEmailExpr,
+	"JIRA_API_TOKEN":  constants.JiraAPITokenExpr,
+}
+
+func injectJiraCredentialsIntoProcessorStep(steps []string, config *SafeOutputsConfig) []string {
+	if config == nil || !hasAnyJiraSafeOutputEnabled(config) {
+		return steps
+	}
+
+	env := make(map[string]string, len(jiraSafeOutputDefaultEnv))
+	for name, defaultValue := range jiraSafeOutputDefaultEnv {
+		env[name] = defaultValue
+		if value := config.Env[name]; value != "" {
+			env[name] = value
+		}
+	}
+	return injectProcessorStepEnv(steps, env)
 }

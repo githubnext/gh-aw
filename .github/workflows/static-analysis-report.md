@@ -15,6 +15,8 @@ engine: claude
 network:
   allowed: [defaults, go]
 tools:
+  github:
+    mode: local
   cache-memory: true
   timeout: 600
 safe-outputs:
@@ -122,7 +124,7 @@ steps:
 
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 # Static Analysis Report

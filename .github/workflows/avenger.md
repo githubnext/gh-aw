@@ -29,14 +29,14 @@ network:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default]
   bash: ["*"]
   edit:
 sandbox:
   agent:
     id: awf
-    runtime: gvisor
+    runtime: cloud-hypervisor
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
       - "/usr/local/bin/node:/usr/local/bin/node:ro"

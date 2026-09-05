@@ -16,7 +16,7 @@ permissions:
   issues: read
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 safe-outputs:
@@ -45,7 +45,7 @@ network:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
   bash:
     - "*"
   edit:
@@ -58,7 +58,7 @@ imports:
   - shared/graders.md
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 evals:
   - id: changeset-created
     question: Did the agent create a valid changeset file for the labeled pull request?

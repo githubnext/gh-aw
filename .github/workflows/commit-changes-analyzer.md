@@ -18,12 +18,12 @@ permissions:
 max-turns: 100
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default]
   bash:
     - "*"
@@ -48,7 +48,7 @@ evals:
     question: Was a discussion or report created summarizing the changes since the specified commit?
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 # Commit Changes Analyzer

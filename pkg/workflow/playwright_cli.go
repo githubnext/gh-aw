@@ -22,7 +22,6 @@ package workflow
 //
 //	tools:
 //	  playwright:
-//	    mode: cli
 
 import (
 	"strings"

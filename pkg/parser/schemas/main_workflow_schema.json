@@ -3644,10 +3644,49 @@
                   "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 },
                   "github": {
                     "type": "object",
+                    "description": "Deprecated. Use 'agent.tools.github' instead.",
+                    "deprecated": true,
+                    "x-deprecation-message": "'enclaves[].agent.github.cli' is deprecated. Use 'enclaves[].agent.tools.github' instead.",
                     "additionalProperties": false,
                     "required": ["cli"],
                     "properties": {
                       "cli": { "type": "string", "enum": ["issues-read-v1"] }
+                    }
+                  },
+                  "tools": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "github": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowed": {
+                            "type": "array",
+                            "description": "GitHub MCP tools exposed to the enclave agent. Only explicitly allowed tools are available.",
+                            "items": {
+                              "type": "string",
+                              "enum": ["list_issues", "issue_read"]
+                            },
+                            "minItems": 1
+                          },
+                          "allowed-repos": {
+                            "type": "array",
+                            "description": "Guard policy: explicit owner/repository slugs declared in the enclosing enclave 'repos' list.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                              "description": "Repository slug in owner/repository format."
+                            },
+                            "minItems": 1
+                          },
+                          "min-integrity": {
+                            "type": "string",
+                            "description": "Guard policy: minimum required integrity level for enclave GitHub repository access.",
+                            "enum": ["none", "unapproved", "approved", "merged"]
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -7622,6 +7661,11 @@
               "type": "string",
               "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "description": "Trusted Linear team model UUID."
+            },
+            "project-id": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-fA-F]{12}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+              "description": "Optional trusted Linear project identifier from a project URL or model UUID."
             },
             "max": {
               "oneOf": [
@@ -12650,16 +12694,6 @@
           "description": "Enable AI agents to replace one label with another on GitHub issues or pull requests in a single atomic operation. Ideal for maintaining label-based state machines (e.g. transitioning issues through workflow states)."
         }
       },
-      "allOf": [
-        {
-          "if": {
-            "anyOf": [{ "required": ["linear-create-issue"] }, { "required": ["linear-add-comment"] }, { "required": ["linear-update-issue"] }]
-          },
-          "then": {
-            "required": ["linear-token"]
-          }
-        }
-      ],
       "additionalProperties": false
     },
     "secret-masking": {
@@ -13614,6 +13648,7 @@
           "required": ["target"],
           "properties": {
             "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "status": { "type": "boolean", "default": false },
             "title": { "type": "boolean", "default": false },
             "body": { "type": "boolean", "default": false },
             "markdown-body": { "type": "boolean", "default": false },
@@ -13768,7 +13803,7 @@
           },
           "sensitivity": {
             "type": "string",
-            "enum": ["public", "internal", "confidential", "sealed"]
+            "enum": ["public", "trusted", "internal", "confidential", "sealed"]
           }
         }
       }

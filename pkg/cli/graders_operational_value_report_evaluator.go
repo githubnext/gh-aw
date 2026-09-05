@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -21,6 +22,39 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+// discoverOperationalValueGradedWorkflowIDs returns the sorted workflow IDs (basenames
+// without the .md extension) of every top-level workflow declaring an enabled
+// graders.operational-value.run entry. Used to support the "*" workflow argument on
+// `graders operational-value report`.
+func discoverOperationalValueGradedWorkflowIDs() ([]string, error) {
+	mdFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		return nil, err
+	}
+	var workflowIDs []string
+	for _, file := range mdFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read workflow %s: %w", file, err)
+		}
+		parsed, err := parser.ExtractFrontmatterFromContent(string(content))
+		if err != nil || parsed.Frontmatter == nil {
+			continue
+		}
+		graders, err := workflow.ParseGradersFromFrontmatter(parsed.Frontmatter)
+		if err != nil || graders == nil {
+			continue
+		}
+		grader := graders.Graders["operational-value"]
+		if grader == nil || (grader.Enabled != nil && !*grader.Enabled) || grader.Run == "" {
+			continue
+		}
+		workflowIDs = append(workflowIDs, normalizeWorkflowID(filepath.Base(file)))
+	}
+	sort.Strings(workflowIDs)
+	return workflowIDs, nil
+}
 
 func loadOperationalValueReportEvaluator(ctx context.Context, workflowArg, evaluatorHost string) (*operationalValueReportEvaluator, error) { //nolint:largefunc // Keeps evaluator validation and staged-file cleanup in one lifecycle.
 	workflowPath, err := ResolveWorkflowPath(workflowArg)

@@ -26,7 +26,7 @@ var awfConfigLog = logger.New("workflow:awf_config")
 //
 // The caller is responsible for writing the returned JSON to disk at the path expected
 // by the AWF --config flag. See BuildAWFCommand for how this is wired together.
-func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
+func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) { //nolint:largefunc // Assembles the full AWF config by section.
 	awfConfigLog.Printf("Building AWF config JSON: engine=%s, allowed_domains=%q", config.EngineName, config.AllowedDomains)
 
 	// Resolve firewall config once — used for both the schema URL and the container image tag.
@@ -86,6 +86,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
 			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
 			awfConfigLog.Printf("Network section: added %s for microVM runtime routing", hostDockerInternal)
+		}
+		if awfSupportsVerifySbxEgress(firewallConfig) {
+			awfConfig.Network.VerifySbxEgress = true
+		} else {
+			awfConfigLog.Printf("Skipping network.verifySbxEgress: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFVerifySbxEgressMinVersion)
 		}
 	}
 
@@ -186,11 +191,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	targets := map[string]*AWFAPITargetConfig{}
 
-	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
+	if openaiTarget := extractAPIProxyTargetHost(config.WorkflowData, "OPENAI_BASE_URL", firewallConfig); openaiTarget != "" {
 		targets["openai"] = &AWFAPITargetConfig{Host: openaiTarget}
 		awfConfigLog.Printf("API proxy: custom openai target=%s", openaiTarget)
 	}
-	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
+	if anthropicTarget := extractAPIProxyTargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL", firewallConfig); anthropicTarget != "" {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	}
@@ -241,7 +246,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfigLog.Printf("API proxy: copilot sessionId configured")
 		}
 	}
-	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
+	geminiTarget := extractAPIProxyTargetHost(config.WorkflowData, "GEMINI_API_BASE_URL", firewallConfig)
+	if geminiTarget == "" {
+		geminiTarget = GetGeminiAPITarget(config.WorkflowData, config.EngineName)
+	}
+	if geminiTarget != "" {
 		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
 	}

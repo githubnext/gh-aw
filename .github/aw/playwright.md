@@ -30,9 +30,12 @@ tools:
     version: "0.1.18"
 ```
 
-`mode: cli` is accepted but unnecessary. `mode: mcp` is not supported by the
-built-in tool. If MCP is required, configure and pin `@playwright/mcp` explicitly
-under `mcp-servers` and allow only the required tools.
+Omit `mode`; the built-in Playwright integration is CLI-only by default. The
+explicit `mode: cli` setting remains accepted for compatibility, but it is not
+needed and should be removed from workflows that still carry it. `mode: mcp` is
+not supported by the built-in tool. If MCP is required, configure and pin
+`@playwright/mcp` explicitly under `mcp-servers` and allow only the required
+tools.
 
 ## Configure network access
 
@@ -56,11 +59,14 @@ avoid broad wildcard domains.
 
 Run `playwright-cli` through bash. With a restricted Bash allowlist, the compiler
 automatically allows `playwright-cli:*`; list only supporting lifecycle commands
-such as `npm`, `curl`, and `kill`. Start with a snapshot and use its element refs
-for later actions:
+such as `npm`, `curl`, and `kill`. Before opening a browser, inspect package
+scripts, Playwright configuration, and test filenames to determine whether the
+task is likely to run Playwright Test. If it is, use `--browser=chromium`, which
+selects Playwright's Chrome for Testing engine. Start with a snapshot and use its
+element refs for later actions:
 
 ```bash
-playwright-cli open "https://docs.example.com"
+playwright-cli open --browser=chromium "https://docs.example.com"
 playwright-cli snapshot
 playwright-cli click e15
 playwright-cli fill e22 "search text" --submit
@@ -72,7 +78,7 @@ Useful commands include:
 
 | Goal | Command |
 |---|---|
-| Open a browser and URL | `playwright-cli open <url>` |
+| Open a browser and URL | `playwright-cli open --browser=<browser> <url>` |
 | Navigate the open page | `playwright-cli goto <url>` |
 | Inspect the page and get refs | `playwright-cli snapshot` |
 | Limit snapshot size | `playwright-cli snapshot --depth=4` |
@@ -86,13 +92,14 @@ Prefer refs from the latest snapshot over brittle CSS selectors. Use `--raw`
 when piping a result or comparing snapshots so page status output does not
 pollute the data.
 
-`open` uses Chromium by default. Use `playwright-cli open --browser=firefox` or
+Use `playwright-cli open --browser=chromium` for Chrome for Testing.
+Use `playwright-cli open --browser=firefox` or
 `playwright-cli open --browser=webkit` for the other provisioned browsers.
 Use named sessions when independent cookies or storage are useful:
 
 ```bash
-playwright-cli -s=authenticated open "https://app.example.com/login"
-playwright-cli -s=public open "https://app.example.com/"
+playwright-cli -s=authenticated open --browser=chromium "https://app.example.com/login"
+playwright-cli -s=public open --browser=chromium "https://app.example.com/"
 playwright-cli -s=authenticated close
 playwright-cli -s=public close
 ```
@@ -134,7 +141,7 @@ npm run dev -- --host 127.0.0.1 > /tmp/web-server.log 2>&1 &
 server_pid=$!
 curl --fail --silent --show-error --retry 10 --retry-connrefused \
   --retry-all-errors --retry-max-time 30 http://127.0.0.1:4321/ >/dev/null
-playwright-cli open "http://127.0.0.1:4321/"
+playwright-cli open --browser=chromium "http://127.0.0.1:4321/"
 playwright-cli resize 1440 900
 playwright-cli screenshot --filename=/tmp/home.png
 playwright-cli close
@@ -226,8 +233,9 @@ safe-outputs:
 
 # Accessibility review
 
-Open https://docs.example.com with `playwright-cli`. Inspect the page snapshot,
-keyboard navigation, form labels, image alternatives, and heading structure.
+Open https://docs.example.com with `playwright-cli open --browser=chromium`.
+Inspect the page snapshot, keyboard navigation, form labels, image alternatives,
+and heading structure.
 Create focused issues for actionable findings. If there are none, call `noop`.
 Always close the browser before finishing.
 ```

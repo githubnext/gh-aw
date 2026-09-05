@@ -3,7 +3,7 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { LINEAR_GRAPHQL_ENDPOINT, linearGraphQL } = require("./linear_graphql.cjs");
-const { LINEAR_CREATE_ISSUE, main: createIssue } = require("./linear_create_issue.cjs");
+const { LINEAR_CREATE_ISSUE, LINEAR_RESOLVE_PROJECT, main: createIssue } = require("./linear_create_issue.cjs");
 const { LINEAR_COMMENT_CREATE, main: addComment } = require("./linear_add_comment.cjs");
 const { LINEAR_UPDATE_ISSUE, main: updateIssue } = require("./linear_update_issue.cjs");
 
@@ -30,22 +30,28 @@ describe("Linear safe outputs", () => {
   });
 
   it("posts fixed GraphQL documents with variables and raw API-key authorization", async () => {
-    fetch.mockResolvedValue(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Safe title" } } } }));
-    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
+    fetch
+      .mockResolvedValueOnce(response({ data: { projects: { nodes: [{ id: "a3f91a0b-6d71-4c58-a4bb-72b925bbebc8" }] } } }))
+      .mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Safe title" } } } }));
+    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "810f57a7e383" });
     await handler({ title: "Safe title", body: "Detailed hello to @user" });
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
       LINEAR_GRAPHQL_ENDPOINT,
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "linear-secret" },
       })
     );
-    const request = JSON.parse(fetch.mock.calls[0][1].body);
+    const projectRequest = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(projectRequest).toEqual({ query: LINEAR_RESOLVE_PROJECT, variables: { slugId: "810f57a7e383" } });
+    const request = JSON.parse(fetch.mock.calls[1][1].body);
     expect(request.query).toBe(LINEAR_CREATE_ISSUE);
     expect(request.query).not.toContain("Safe title");
     expect(request.variables.input).toEqual({
       teamId: "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+      projectId: "a3f91a0b-6d71-4c58-a4bb-72b925bbebc8",
       title: "Safe title",
       description: "Detailed hello to `@user`",
     });
@@ -76,6 +82,10 @@ describe("Linear safe outputs", () => {
     const handler = await addComment({ target: "ENG-123", staged: true });
     await expect(handler({ body: "Preview" })).resolves.toMatchObject({ success: true, staged: true });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed configured project IDs", async () => {
+    await expect(createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "not-a-project" })).rejects.toThrow("valid configured project ID");
   });
 
   it("rejects HTTP, malformed JSON, GraphQL, and unsuccessful mutation responses", async () => {

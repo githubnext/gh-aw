@@ -721,16 +721,19 @@ func TestCollectGraderArtifactPaths(t *testing.T) {
 	paths := collectGraderArtifactPaths(&GradersConfig{
 		Graders: map[string]*GraderDefinition{"operational-value": grader},
 	})
-	if len(paths) != 3 {
-		t.Fatalf("expected 3 paths, got %d", len(paths))
+	if len(paths) != 4 {
+		t.Fatalf("expected 4 paths, got %d", len(paths))
 	}
 	if !strings.Contains(paths[0], "grader_manifest.json") {
 		t.Fatal("expected grader_manifest.json in paths")
 	}
-	if !strings.Contains(paths[1], "grader_results.json") {
+	if !strings.Contains(paths[1], "grader_payload.json") {
+		t.Fatal("expected grader_payload.json in paths")
+	}
+	if !strings.Contains(paths[2], "grader_results.json") {
 		t.Fatal("expected grader_results.json in paths")
 	}
-	if !strings.Contains(paths[2], "operational_value_evaluator.sh") {
+	if !strings.Contains(paths[3], "operational_value_evaluator.sh") {
 		t.Fatal("expected operational_value_evaluator.sh in paths")
 	}
 }
@@ -739,8 +742,8 @@ func TestCollectGraderArtifactPathsWithoutOperationalValue(t *testing.T) {
 	paths := collectGraderArtifactPaths(&GradersConfig{
 		Graders: map[string]*GraderDefinition{"retries": {ID: "retries"}},
 	})
-	if len(paths) != 2 {
-		t.Fatalf("expected manifest and results paths, got %v", paths)
+	if len(paths) != 3 {
+		t.Fatalf("expected manifest, payload, and results paths, got %v", paths)
 	}
 }
 
@@ -760,13 +763,12 @@ func TestCollectGraderArtifactPaths_AgentGradersDir(t *testing.T) {
 	}
 }
 
-// TestGenerateGraderRedactionStep_CustomOnly verifies that the redaction step is only emitted
-// when custom (non-builtin) grader scripts are present.
-func TestGenerateGraderRedactionStep_CustomOnly(t *testing.T) {
+// TestGenerateGraderRedactionStep verifies every grader payload is redacted before upload.
+func TestGenerateGraderRedactionStep(t *testing.T) {
 	c := &Compiler{stepOrderTracker: NewStepOrderTracker()}
 	var yaml strings.Builder
 
-	// Built-in only — no redaction step
+	// Built-in payloads also contain trace data and must be redacted.
 	data := &WorkflowData{
 		Graders: &GradersConfig{
 			Graders: map[string]*GraderDefinition{
@@ -775,11 +777,12 @@ func TestGenerateGraderRedactionStep_CustomOnly(t *testing.T) {
 		},
 	}
 	c.generateGraderRedactionStep(&yaml, "", data)
-	if yaml.Len() > 0 {
-		t.Error("expected no redaction step for built-in-only graders")
+	if !strings.Contains(yaml.String(), "Redact grader outputs") {
+		t.Error("expected redaction step for built-in grader payload")
 	}
 
 	// Custom script — should emit redaction step
+	yaml.Reset()
 	data.Graders.Graders["my-custom"] = &GraderDefinition{
 		ID:     "my-custom",
 		Script: "return {value: 1}",

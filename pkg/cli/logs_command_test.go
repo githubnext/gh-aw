@@ -94,6 +94,11 @@ func TestNewLogsCommand(t *testing.T) {
 	afterAliasFlag := flags.Lookup("after")
 	assert.NotNil(t, afterAliasFlag, "Should retain hidden 'after' alias")
 	assert.True(t, afterAliasFlag.Hidden, "'after' alias should be hidden from help output")
+
+	maxRateLimitFlag := flags.Lookup("max-github-api-rate-limit")
+	require.NotNil(t, maxRateLimitFlag, "Should have 'max-github-api-rate-limit' flag")
+	maxStorageFlag := flags.Lookup("max-storage")
+	require.NotNil(t, maxStorageFlag, "Should have 'max-storage' flag")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {
@@ -114,6 +119,8 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"before-run-id", "0"},
 		{"repo", ""},
 		{"artifacts", "[usage]"},
+		{"max-github-api-rate-limit", "0"},
+		{"max-storage", "0"},
 	}
 
 	for _, tt := range tests {
@@ -123,6 +130,38 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 			assert.Equal(t, tt.defaultValue, flag.DefValue, "Default value should match for flag: %s", tt.flagName)
 		})
 	}
+}
+
+func TestLogsCommandResourceBudgetFlags(t *testing.T) {
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("max-github-api-rate-limit", "-2000"))
+	require.NoError(t, cmd.Flags().Set("max-storage", "10240"))
+
+	opts, err := loadCommonLogsOptions(cmd)
+
+	require.NoError(t, err)
+	assert.Equal(t, -2000, opts.MaxGitHubAPIRateLimit)
+	assert.Equal(t, 10240, opts.MaxStorageMB)
+}
+
+func TestLogsCommandRejectsNegativeMaxStorage(t *testing.T) {
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("max-storage", "-1"))
+
+	_, err := loadCommonLogsOptions(cmd)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected a non-negative number of MB")
+}
+
+func TestLogsCommandRejectsRateLimitWithStdin(t *testing.T) {
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("max-github-api-rate-limit", "12000"))
+
+	err := runLogsCommandFromStdin(cmd, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires discovery mode")
 }
 
 func TestLogsCommandBooleanFlags(t *testing.T) {
