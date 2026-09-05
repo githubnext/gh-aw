@@ -42,12 +42,7 @@ func DownloadWorkflowLogsForTargets(
 		return err
 	}
 
-	apiRateLimits := startGitHubAPIRateLimitReports(ctx, logsTargetRateLimitHosts(targets))
-	var apiRateLimit *GitHubAPIRateLimitReport
-	if len(apiRateLimits) == 1 {
-		apiRateLimit = apiRateLimits[0]
-		apiRateLimits = nil
-	}
+	allAPIRateLimits := startGitHubAPIRateLimitReports(ctx, logsTargetRateLimitHosts(targets))
 	results := collectLogsTargets(ctx, opts, targets)
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {
@@ -56,10 +51,13 @@ func DownloadWorkflowLogsForTargets(
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}
-	if apiRateLimit != nil {
-		finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
+	finishGitHubAPIRateLimitReports(ctx, allAPIRateLimits, opts.JSONOutput)
+	var apiRateLimit *GitHubAPIRateLimitReport
+	var apiRateLimits []*GitHubAPIRateLimitReport
+	if len(allAPIRateLimits) == 1 {
+		apiRateLimit = allAPIRateLimits[0]
 	} else {
-		finishGitHubAPIRateLimitReports(ctx, apiRateLimits, opts.JSONOutput)
+		apiRateLimits = allAPIRateLimits
 	}
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
