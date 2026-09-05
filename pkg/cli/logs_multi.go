@@ -55,9 +55,9 @@ func DownloadWorkflowLogsForTargets(
 	var apiRateLimit *GitHubAPIRateLimitReport
 	var apiRateLimits []*GitHubAPIRateLimitReport
 	if len(allAPIRateLimits) == 1 {
-		apiRateLimit = allAPIRateLimits[0]
+		apiRateLimit = populatedGitHubAPIRateLimitReport(allAPIRateLimits[0])
 	} else {
-		apiRateLimits = allAPIRateLimits
+		apiRateLimits = populatedGitHubAPIRateLimitReports(allAPIRateLimits)
 	}
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
