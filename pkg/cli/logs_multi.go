@@ -52,13 +52,7 @@ func DownloadWorkflowLogsForTargets(
 		return context.Cause(ctx)
 	}
 	finishGitHubAPIRateLimitReports(ctx, allAPIRateLimits, opts.JSONOutput)
-	var apiRateLimit *GitHubAPIRateLimitReport
-	var apiRateLimits []*GitHubAPIRateLimitReport
-	if len(allAPIRateLimits) == 1 {
-		apiRateLimit = populatedGitHubAPIRateLimitReport(allAPIRateLimits[0])
-	} else {
-		apiRateLimits = populatedGitHubAPIRateLimitReports(allAPIRateLimits)
-	}
+	apiRateLimit, apiRateLimits := partitionGitHubAPIRateLimitReports(allAPIRateLimits)
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)

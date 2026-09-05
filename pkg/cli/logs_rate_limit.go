@@ -154,7 +154,7 @@ func logsRateLimitHost(repoOverride string) string {
 }
 
 func isGitHubAPIRateLimitLow(state rateLimitResource) bool {
-	return state.Limit > 0 &&
+	return state.Limit > 0 && state.Remaining >= 0 &&
 		int64(state.Remaining)*100 <= int64(state.Limit)*int64(RateLimitWarningThresholdPercent)
 }
 
@@ -173,6 +173,14 @@ func populatedGitHubAPIRateLimitReports(reports []*GitHubAPIRateLimitReport) []*
 		}
 	}
 	return populated
+}
+
+func partitionGitHubAPIRateLimitReports(reports []*GitHubAPIRateLimitReport) (*GitHubAPIRateLimitReport, []*GitHubAPIRateLimitReport) {
+	populated := populatedGitHubAPIRateLimitReports(reports)
+	if len(populated) == 1 {
+		return populated[0], nil
+	}
+	return nil, populated
 }
 
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit
