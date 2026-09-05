@@ -75,6 +75,10 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 // v0.25.17 must not emit CLI proxy flags or the run will fail.
 const AWFCliProxyMinVersion Version = "v0.25.17"
 
+// AWFCliProxyGHListMinVersion is the minimum AWF version whose CLI proxy supports
+// `gh issue list` and `gh pr list` without misclassifying github.com as GHES.
+const AWFCliProxyGHListMinVersion Version = "v0.28.13"
+
 // AWFAllowHostPortsMinVersion is the minimum AWF version that supports the
 // --allow-host-ports flag. Workflows pinning an older AWF version must not emit
 // --allow-host-ports or the run will fail at startup with an unknown flag error.
@@ -172,6 +176,10 @@ const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
 // network.verifySbxEgress for fail-closed Docker sbx egress verification.
 const AWFVerifySbxEgressMinVersion Version = "v0.28.13"
 
+// AWFHTTPAPITargetMinVersion is the minimum AWF version that supports explicit
+// http:// schemes in apiProxy target hosts.
+const AWFHTTPAPITargetMinVersion Version = "v0.28.13"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for
@@ -202,6 +210,13 @@ const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 // MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
 // concurrent per-agent isolation for the issues-read-v1 enclave capability.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.15"
+
+// MCPGEnclaveAgentToolsMinVersion is the first MCPG version whose distinct
+// enclave identity supports agent.tools.github allowlists and guard policies.
+// Currently identical to MCPGEnclaveGitHubIssuesMinVersion because both
+// enclave GitHub shapes share the same distinct-identity implementation;
+// kept as a separate constant so the two gates can diverge independently.
+const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.

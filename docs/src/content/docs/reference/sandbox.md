@@ -37,7 +37,7 @@ If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: a
 
 **Disabling Coding Agent Sandbox**
 
-Setting `sandbox.agent: false` disables the agent firewall while keeping the MCP gateway enabled. This removes a trust boundary and should only be used when strictly necessary.
+Setting `sandbox.agent: false` is deprecated and will be removed in a future release. It disables the agent firewall while keeping the MCP gateway enabled, removing a trust boundary, and should only be used when strictly necessary.
 
 To disable the agent sandbox, you **must** add `features.dangerously-disable-sandbox-agent` with a literal justification string of at least 20 characters. The justification must explain why the trust boundary is being removed and is stored for diagnostics and audit. The following values are rejected by the compiler:
 
@@ -63,11 +63,11 @@ sandbox:
 | --- | --- |
 | `docker` (default) | Default Docker runtime, rootless AWF, network isolation |
 | `docker-sudo-iptables` | Docker with privileged AWF, legacy `iptables` networking, and host/service access |
-| `gvisor` | gVisor with strict network isolation |
-| `docker-sbx` | KVM microVM; the compiler handles the required privileged setup |
+| `gvisor` | **Deprecated:** gVisor with strict network isolation |
+| `docker-sbx` | **Deprecated:** KVM microVM; the compiler handles the required privileged setup |
 | `cloud-hypervisor` | Preview KVM runtime with its required privileged launcher |
 
-Omitting `runtime` is equivalent to `runtime: docker`, which keeps the secure default.
+Omitting `runtime` is equivalent to `runtime: docker`, which keeps the secure default. Prefer `docker`; `gvisor` and `docker-sbx` are deprecated and will be removed in a future release.
 
 ```yaml wrap
 sandbox:

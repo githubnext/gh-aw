@@ -653,7 +653,7 @@ func joinPorts(ports []int) string {
 //
 // Returns:
 //   - string: The AWF command to use (e.g., "sudo --preserve-env awf",
-//     "sudo -E awf", "awf", or custom command)
+//     "sudo -E /usr/bin/env PATH=\"$PATH\" /usr/local/bin/awf", "awf", or custom command)
 func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && agentConfig.Command != "" {

@@ -202,6 +202,14 @@ func TestAddResolvedWorkflows(t *testing.T) {
 							WorkflowName: "test-workflow",
 							WorkflowPath: "test.md",
 						},
+						Content: []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+
+# Test workflow
+`),
 					},
 				},
 			}

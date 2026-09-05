@@ -25,7 +25,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   | `jira-add-comment` | `jira_add_comment` | `issue_key`, `body` |
   | `jira-add-label` | `jira_add_label` | `issue_key`, `label` |
 
-  Use the Jira-prefixed tool whenever the target is Jira. Unprefixed issue, comment, and label tools target GitHub. The compiler supplies `JIRA_BASE_URL` from `vars.JIRA_BASE_URL` and `JIRA_USER_EMAIL` and `JIRA_API_TOKEN` from same-named secrets; `safe-outputs.env` may override them. Description and comment strings are converted to ADF internally. Label addition is additive and preserves existing labels. Each Jira output supports `max` and `staged`; staged mode sends no HTTP request and does not require credentials.
+  Use the Jira-prefixed tool whenever the target is Jira. Unprefixed issue, comment, and label tools target GitHub. The compiler supplies `JIRA_BASE_URL` and supplies `JIRA_USER_EMAIL` and `JIRA_API_TOKEN` from same-named secrets; `safe-outputs.env` may override them. Description and comment strings are converted to ADF internally. Label addition is additive and preserves existing labels. Each Jira output supports `max` and `staged`; staged mode sends no HTTP request and does not require credentials.
 
   Jira update, comment, and label operations require a known issue key. Same-run references to an issue created by `jira_create_issue` are not supported. The initial integration does not provide transitions, assignments, custom fields, label removal, JQL, bulk operations, or arbitrary REST calls.
 
