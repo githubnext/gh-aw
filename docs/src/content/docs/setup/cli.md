@@ -24,7 +24,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
 
 > [!TIP]
-> New to `gh aw`? Start with the [day-one commands](#day-one-commands). The advanced and enterprise setup is separated below and can be skipped for most users.
+> New to `gh aw`? Start with the [day-one commands](#day-one-commands). The advanced and enterprise setup is further down the page and can be skipped for most users.
 
 ## Installation
 
