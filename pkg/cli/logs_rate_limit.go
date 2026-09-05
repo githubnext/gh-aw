@@ -99,10 +99,19 @@ func startGitHubAPIRateLimitReport(ctx context.Context, host string) *GitHubAPIR
 	return &GitHubAPIRateLimitReport{Host: host, Start: &state}
 }
 
+func startGitHubAPIRateLimitReports(ctx context.Context, hosts []string) []*GitHubAPIRateLimitReport {
+	reports := make([]*GitHubAPIRateLimitReport, 0, len(hosts))
+	for _, host := range hosts {
+		reports = append(reports, startGitHubAPIRateLimitReport(ctx, host))
+	}
+	return reports
+}
+
 func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLimitReport, jsonOutput bool) {
 	if report == nil {
 		return
 	}
+	report.Host = normalizedGitHubAPIHost(report.Host)
 	state, err := fetchRateLimitForHostFunc(ctx, report.Host)
 	if err != nil {
 		logsRateLimitLog.Printf("Could not record ending API rate limit: %v", err)
@@ -110,11 +119,17 @@ func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLi
 	}
 	report.End = &state
 	if !jsonOutput && isGitHubAPIRateLimitLow(state) {
-		percentRemaining := state.Remaining * 100 / state.Limit
+		percentRemaining := float64(state.Remaining) * 100 / float64(state.Limit)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
-			"GitHub API rate limit is running low: %d of %d core requests remain (%d%%); resets at %s",
-			state.Remaining, state.Limit, percentRemaining, time.Unix(state.Reset, 0).UTC().Format(time.RFC3339),
+			"GitHub API rate limit for %s is running low: %d of %d core requests remain (%.2f%%); resets at %s",
+			report.Host, state.Remaining, state.Limit, percentRemaining, time.Unix(state.Reset, 0).UTC().Format(time.RFC3339),
 		)))
+	}
+}
+
+func finishGitHubAPIRateLimitReports(ctx context.Context, reports []*GitHubAPIRateLimitReport, jsonOutput bool) {
+	for _, report := range reports {
+		finishGitHubAPIRateLimitReport(ctx, report, jsonOutput)
 	}
 }
 
@@ -143,6 +158,16 @@ func populatedGitHubAPIRateLimitReport(report *GitHubAPIRateLimitReport) *GitHub
 		return nil
 	}
 	return report
+}
+
+func populatedGitHubAPIRateLimitReports(reports []*GitHubAPIRateLimitReport) []*GitHubAPIRateLimitReport {
+	populated := make([]*GitHubAPIRateLimitReport, 0, len(reports))
+	for _, report := range reports {
+		if report = populatedGitHubAPIRateLimitReport(report); report != nil {
+			populated = append(populated, report)
+		}
+	}
+	return populated
 }
 
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit

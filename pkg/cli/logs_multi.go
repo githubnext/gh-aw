@@ -42,7 +42,12 @@ func DownloadWorkflowLogsForTargets(
 		return err
 	}
 
-	apiRateLimit := startGitHubAPIRateLimitReport(ctx, logsRateLimitHost(targets[0].repoOverride))
+	apiRateLimits := startGitHubAPIRateLimitReports(ctx, logsTargetRateLimitHosts(targets))
+	var apiRateLimit *GitHubAPIRateLimitReport
+	if len(apiRateLimits) == 1 {
+		apiRateLimit = apiRateLimits[0]
+		apiRateLimits = nil
+	}
 	results := collectLogsTargets(ctx, opts, targets)
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {
@@ -51,12 +56,16 @@ func DownloadWorkflowLogsForTargets(
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}
-	finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
+	if apiRateLimit != nil {
+		finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
+	} else {
+		finishGitHubAPIRateLimitReports(ctx, apiRateLimits, opts.JSONOutput)
+	}
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
 		}
-		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations, apiRateLimit)
+		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations, apiRateLimit, apiRateLimits)
 		return err
 	}
 
@@ -84,7 +93,22 @@ func DownloadWorkflowLogsForTargets(
 		suppressRender:    opts.SuppressRender,
 		continuations:     continuations,
 		apiRateLimit:      apiRateLimit,
+		apiRateLimits:     apiRateLimits,
 	})
+}
+
+func logsTargetRateLimitHosts(targets []logsWorkflowTarget) []string {
+	hosts := make([]string, 0, len(targets))
+	seen := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		host := normalizedGitHubAPIHost(logsRateLimitHost(target.repoOverride))
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		hosts = append(hosts, host)
+	}
+	return hosts
 }
 
 func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets []logsWorkflowTarget) []logsTargetResult {

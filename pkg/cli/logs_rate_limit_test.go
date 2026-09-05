@@ -121,6 +121,17 @@ func TestGitHubAPIRateLimitReportUsesRequestedHost(t *testing.T) {
 	assert.Equal(t, []string{"github.example.com", "github.example.com"}, hosts)
 }
 
+func TestLogsTargetRateLimitHostsDeduplicatesHosts(t *testing.T) {
+	hosts := logsTargetRateLimitHosts([]logsWorkflowTarget{
+		{repoOverride: "owner/repo"},
+		{repoOverride: "github.example.com/owner/repo"},
+		{repoOverride: "github.example.com/other/repo"},
+		{repoOverride: "another.example.com/owner/repo"},
+	})
+
+	assert.Equal(t, []string{"github.com", "github.example.com", "another.example.com"}, hosts)
+}
+
 func TestIsGitHubAPIRateLimitLow(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -154,8 +165,8 @@ func TestFinishGitHubAPIRateLimitReportWarnsNearLimit(t *testing.T) {
 	output := captureRateLimitStderr(t, func() {
 		finishGitHubAPIRateLimitReport(context.Background(), &GitHubAPIRateLimitReport{}, false)
 	})
-	assert.Contains(t, output, "GitHub API rate limit is running low")
-	assert.Contains(t, output, "20%")
+	assert.Contains(t, output, "GitHub API rate limit for github.com is running low")
+	assert.Contains(t, output, "20.00%")
 }
 
 func TestFinishGitHubAPIRateLimitReportSuppressesWarningForJSON(t *testing.T) {

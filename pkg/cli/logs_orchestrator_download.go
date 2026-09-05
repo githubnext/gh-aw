@@ -624,6 +624,7 @@ func handleEmptyProcessedRuns(
 	continuation *ContinuationData,
 	continuations []WorkflowContinuation,
 	apiRateLimit *GitHubAPIRateLimitReport,
+	apiRateLimits []*GitHubAPIRateLimitReport,
 ) (bool, error) {
 	if len(processedRuns) > 0 {
 		return false, nil
@@ -632,6 +633,7 @@ func handleEmptyProcessedRuns(
 		logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, continuation)
 		logsData.Continuations = continuations
 		logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(apiRateLimit)
+		logsData.GitHubAPIRateLimits = populatedGitHubAPIRateLimitReports(apiRateLimits)
 		logsData.Message = noRunsMessage(opts.StartDate, timeoutReached, storageLimitReached)
 		if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 			return true, fmt.Errorf("failed to render JSON output: %w", err)

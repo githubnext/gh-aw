@@ -151,4 +151,5 @@ type renderLogsOutputOptions struct {
 	// written, for callers that only want the downloaded artifacts.
 	suppressRender bool
 	apiRateLimit   *GitHubAPIRateLimitReport
+	apiRateLimits  []*GitHubAPIRateLimitReport
 }

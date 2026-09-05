@@ -68,6 +68,7 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
 	logsData.Continuations = opts.continuations
 	logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(opts.apiRateLimit)
+	logsData.GitHubAPIRateLimits = populatedGitHubAPIRateLimitReports(opts.apiRateLimits)
 
 	// When no explicit start_date/end_date was requested and the newest run in the
 	// result is unexpectedly old, warn the caller so stale data is never served
@@ -125,6 +126,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	inputs := processedRunsToCrossRunInputs(processedRuns)
 	report := buildCrossRunAuditReport(inputs)
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
+	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	if opts.jsonOutput {
 		return renderCrossRunReportJSON(report)
 	}
