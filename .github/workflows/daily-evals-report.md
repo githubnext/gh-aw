@@ -18,11 +18,15 @@ tracker-id: daily-evals-report
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
     memory: 4g
 features:
   gh-aw-detection: true
 timeout-minutes: 45
+tools:
+  github:
+    mode: local
+
 imports:
   - uses: shared/meta-analysis-base.md
     with:

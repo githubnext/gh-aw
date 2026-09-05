@@ -41,7 +41,7 @@ tools:
   cli-proxy: true
   bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
   github:
-    mode: gh-proxy
+    mode: local
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests, code_security]
   edit:
@@ -61,7 +61,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 evals:
   - id: alerts_analyzed
     question: Did the agent analyze code scanning alerts and identify at least one fixable alert, or correctly skip when no fixable alerts were found?
