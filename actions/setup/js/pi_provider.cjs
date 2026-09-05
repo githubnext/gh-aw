@@ -119,8 +119,9 @@ function resolveProviderRequestTarget(model) {
     case "openai-codex-responses":
       return { api, method, url: joinApiUrl(baseUrl, "/responses") };
     case "anthropic":
-    case "anthropic-messages":
       return { api, method, url: joinApiUrl(baseUrl, "/messages") };
+    case "anthropic-messages":
+      return { api, method, url: joinApiUrl(baseUrl, "/v1/messages") };
     case "mistral-conversations":
       return { api, method, url: joinApiUrl(baseUrl, "/conversations") };
     default:
@@ -306,11 +307,14 @@ function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
   /** @type {{ api: string, method: string, url: string }|null} */
   let lastProviderRequest = null;
-  /** @type {{ status: number, responseHeaders: string }|null} */
+  /** @type {{ status: number, responseHeaders: string, succeeded: boolean }|null} */
   let lastProviderResponse = null;
+  let providerRequestCount = 0;
+  let successfulProviderResponseCount = 0;
   registerConfiguredProviders(pi, log);
 
   pi.on("before_provider_request", (_event, ctx) => {
+    providerRequestCount += 1;
     lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = null;
     const provider = ctx?.model?.provider || "(unknown provider)";
@@ -319,10 +323,15 @@ function piProviderExtension(pi) {
   });
 
   pi.on("after_provider_response", (event, ctx) => {
+    const succeeded = event.status >= 200 && event.status < 300;
+    if (succeeded) {
+      successfulProviderResponseCount += 1;
+    }
     const request = lastProviderRequest || resolveProviderRequestTarget(ctx && ctx.model);
     lastProviderResponse = {
       status: event.status,
       responseHeaders: formatResponseHeaderNames(event.headers),
+      succeeded,
     };
     const provider = ctx?.model?.provider || "(unknown provider)";
     const model = ctx?.model?.id || getConfiguredModel() || "(unknown model)";
@@ -340,7 +349,10 @@ function piProviderExtension(pi) {
     log(
       `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
     );
-    emitInfrastructureIncompleteIfNoSafeOutputs(`Pi provider request failed before safe outputs were emitted: ${message.errorMessage}`, log);
+    if (lastProviderResponse?.succeeded) {
+      successfulProviderResponseCount -= 1;
+      lastProviderResponse.succeeded = false;
+    }
   });
 
   pi.on("agent_start", async () => {
@@ -388,6 +400,11 @@ function piProviderExtension(pi) {
         logger: log,
       });
       logReflectFailure({ phase: "agent_end", provider, model, result, logger: log });
+    }
+
+    if (providerRequestCount > 0 && successfulProviderResponseCount === 0) {
+      emitInfrastructureIncompleteIfNoSafeOutputs(`All ${providerRequestCount} Pi provider requests failed before safe outputs were emitted.`, log);
+      process.exitCode = 1;
     }
   });
 }

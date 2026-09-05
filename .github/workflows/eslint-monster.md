@@ -18,14 +18,14 @@ features:
 tracker-id: eslint-monster
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 timeout-minutes: 45
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, issues, discussions]
   bash:
     - "*"
@@ -89,7 +89,7 @@ evals:
     question: Did the agent dispatch remediation for actionable findings, or use noop when the scan was clean?
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

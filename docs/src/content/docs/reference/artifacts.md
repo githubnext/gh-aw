@@ -204,6 +204,48 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
 
 ```json
 {
+  "schema": "usage-activity-summary/v1",
+  "firewall": {
+    "total_requests": 12,
+    "allowed_requests": 10,
+    "blocked_requests": 2
+  },
+  "gateway": {
+    "total_calls": 5,
+    "failed_calls": 1,
+    "total_input_size": 1000,
+    "total_output_size": 5000,
+    "max_input_size": 400,
+    "max_output_size": 3000,
+    "servers": [
+      {
+        "server_name": "github",
+        "request_count": 5,
+        "tool_call_count": 5,
+        "failed_calls": 1
+      }
+    ],
+    "tools": [
+      {
+        "server_name": "github",
+        "tool_name": "issue_read",
+        "call_count": 5,
+        "failed_calls": 1,
+        "total_input_size": 1000,
+        "total_output_size": 5000,
+        "max_input_size": 400,
+        "max_output_size": 3000,
+        "avg_duration_ms": 120,
+        "max_duration_ms": 250
+      }
+    ]
+  },
+  "integrity": {
+    "total_filtered": 2,
+    "filtered_server_counts": { "github": 2 },
+    "filtered_tool_counts": { "issue_read": 2 },
+    "filtered_reason_counts": { "integrity": 2 }
+  },
   "working_set": {
     "measurement_state": "measured",
     "rebuild_factor": 3.9017857142857144,
@@ -214,6 +256,8 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   }
 }
 ```
+
+The conclusion job derives `gateway` and `integrity` from MCP gateway logs, falling back to `rpc-messages.jsonl` when `gateway.jsonl` is unavailable. These compact aggregates let `gh aw logs --artifacts usage` report MCP call, payload-size, duration, failure, and integrity-filter metrics without downloading raw logs. Cross-run reports include `runs_with_filtered_events`; the existing logs report summary remains the source for the total number of runs.
 
 `rebuild_factor` is `cumulative_input_tokens / peak_input_tokens`, where each invocation contributes the canonical `input_tokens` value from the agent `token_usage.jsonl` record. Cache-read and cache-write fields are not added because provider normalization has already produced that logical input count. The factor is omitted when `measurement_state` is `unavailable`; `partial` means usable records were measured but malformed or unsupported records were ignored.
 

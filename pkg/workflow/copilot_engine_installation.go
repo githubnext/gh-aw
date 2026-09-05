@@ -171,7 +171,7 @@ func getCustomCopilotCommandInstallationSteps(workflowData *WorkflowData, inline
 
 	if isFirewallEnabled(workflowData) {
 		copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping AWF runtime installation because firewall is enabled", workflowData.EngineConfig.Command)
-		return appendCopilotLSPInstallSteps(BuildNpmEngineInstallStepsWithAWF(steps, workflowData), workflowData)
+		return appendCopilotLSPInstallSteps(buildNpmEngineInstallStepsWithAWF(steps, workflowData, false), workflowData)
 	}
 	if len(sdkInstallStep) > 0 {
 		copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping Copilot SDK install step", workflowData.EngineConfig.Command)

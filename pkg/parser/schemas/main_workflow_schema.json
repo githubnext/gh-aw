@@ -3644,10 +3644,49 @@
                   "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 },
                   "github": {
                     "type": "object",
+                    "description": "Deprecated. Use 'agent.tools.github' instead.",
+                    "deprecated": true,
+                    "x-deprecation-message": "'enclaves[].agent.github.cli' is deprecated. Use 'enclaves[].agent.tools.github' instead.",
                     "additionalProperties": false,
                     "required": ["cli"],
                     "properties": {
                       "cli": { "type": "string", "enum": ["issues-read-v1"] }
+                    }
+                  },
+                  "tools": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "github": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowed": {
+                            "type": "array",
+                            "description": "GitHub MCP tools exposed to the enclave agent. Only explicitly allowed tools are available.",
+                            "items": {
+                              "type": "string",
+                              "enum": ["list_issues", "issue_read"]
+                            },
+                            "minItems": 1
+                          },
+                          "allowed-repos": {
+                            "type": "array",
+                            "description": "Guard policy: explicit owner/repository slugs declared in the enclosing enclave 'repos' list.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                              "description": "Repository slug in owner/repository format."
+                            },
+                            "minItems": 1
+                          },
+                          "min-integrity": {
+                            "type": "string",
+                            "description": "Guard policy: minimum required integrity level for enclave GitHub repository access.",
+                            "enum": ["none", "unapproved", "approved", "merged"]
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -4657,6 +4696,59 @@
               "toolsets": ["repos", "issues"]
             },
             false
+          ]
+        },
+        "linear": {
+          "description": "Linear tools provided by Linear's official hosted MCP server",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Linear using the well-known LINEAR_API_KEY secret"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "description": "Optional Linear API key or OAuth access token secret reference. Defaults to ${{ secrets.LINEAR_API_KEY }}.",
+                  "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}$"
+                },
+                "toolsets": {
+                  "description": "Linear MCP toolset name(s) to enable. Toolsets are expanded to gateway-enforced allowed tools.",
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/linear_toolset_name"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Array of Linear MCP toolset names",
+                      "items": {
+                        "$ref": "#/$defs/linear_toolset_name"
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "examples": [["issues", "projects"]]
+                    }
+                  ]
+                },
+                "allowed": {
+                  "type": "array",
+                  "description": "List of allowed Linear MCP tool names or wildcard patterns. When toolsets are set, every pattern must match a tool in those toolsets.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether failure to connect to Linear should fail MCP gateway startup. Defaults to true.",
+                  "default": true
+                }
+              }
+            }
           ]
         },
         "jira": {
@@ -7569,6 +7661,11 @@
               "type": "string",
               "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "description": "Trusted Linear team model UUID."
+            },
+            "project-id": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-fA-F]{12}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+              "description": "Optional trusted Linear project identifier from a project URL or model UUID."
             },
             "max": {
               "oneOf": [
@@ -12597,16 +12694,6 @@
           "description": "Enable AI agents to replace one label with another on GitHub issues or pull requests in a single atomic operation. Ideal for maintaining label-based state machines (e.g. transitioning issues through workflow states)."
         }
       },
-      "allOf": [
-        {
-          "if": {
-            "anyOf": [{ "required": ["linear-create-issue"] }, { "required": ["linear-add-comment"] }, { "required": ["linear-update-issue"] }]
-          },
-          "then": {
-            "required": ["linear-token"]
-          }
-        }
-      ],
       "additionalProperties": false
     },
     "secret-masking": {
@@ -13561,6 +13648,7 @@
           "required": ["target"],
           "properties": {
             "target": { "$ref": "#/$defs/azure_devops_work_item_target" },
+            "status": { "type": "boolean", "default": false },
             "title": { "type": "boolean", "default": false },
             "body": { "type": "boolean", "default": false },
             "markdown-body": { "type": "boolean", "default": false },
@@ -13715,7 +13803,7 @@
           },
           "sensitivity": {
             "type": "string",
-            "enum": ["public", "internal", "confidential", "sealed"]
+            "enum": ["public", "trusted", "internal", "confidential", "sealed"]
           }
         }
       }
@@ -13781,6 +13869,11 @@
         "stargazers",
         "users"
       ]
+    },
+    "linear_toolset_name": {
+      "type": "string",
+      "description": "A Linear MCP toolset name that enables a related group of read-only Linear tools.",
+      "enum": ["all", "attachments", "comments", "customers", "cycles", "diffs", "documentation", "documents", "initiatives", "issues", "milestones", "projects", "status_updates", "teams", "users"]
     },
     "non_empty_string": {
       "type": "string",

@@ -256,6 +256,22 @@ func TestConclusionJob(t *testing.T) {
 	}
 }
 
+func TestConclusionJobRunsForSkillInstallFailures(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI:          "copilot",
+		Skills:      []string{"owner/repo/skills/example@deadbeef"},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	condition := RenderCondition(compiler.buildConclusionJobCondition(data, string(constants.AgentJobName), nil))
+
+	if !strings.Contains(condition, "needs.activation.outputs.skill_install_failure_count != ''") ||
+		!strings.Contains(condition, "needs.activation.outputs.skill_install_failure_count != '0'") {
+		t.Errorf("Expected conclusion condition to include skill installation failures, got: %q", condition)
+	}
+}
+
 func TestConclusionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
 	compiler := NewCompiler()

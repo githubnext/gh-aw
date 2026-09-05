@@ -27,7 +27,7 @@ func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
 func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *testing.T) {
 	t.Parallel()
 
-	for _, field := range []string{"version", "include"} {
+	for _, field := range []string{"version", "include", "bots"} {
 		t.Run(field, func(t *testing.T) {
 			t.Parallel()
 
@@ -202,6 +202,40 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 		t.Fatalf("expected keyed top-level enclaves to validate: %v", err)
 	}
 
+	toolsShape := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{
+					"model": "gpt-5",
+					"tools": map[string]any{
+						"github": map[string]any{
+							"allowed":       []any{"list_issues", "issue_read"},
+							"allowed-repos": []any{"octo-org/private-service"},
+							"min-integrity": "none",
+						},
+					},
+				},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(toolsShape, "workflow.md"); err != nil {
+		t.Fatalf("expected enclave agent.tools.github shape to validate: %v", err)
+	}
+
+	valid["enclaves"].([]any)[0].(map[string]any)["repos"].([]any)[0].(map[string]any)["sensitivity"] = "trusted"
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
+		t.Fatalf("expected trusted enclave sensitivity to validate: %v", err)
+	}
+	valid["enclaves"].([]any)[0].(map[string]any)["repos"].([]any)[0].(map[string]any)["sensitivity"] = "unsupported"
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err == nil {
+		t.Fatal("expected unsupported enclave sensitivity to be rejected")
+	}
+
 	legacy := map[string]any{
 		"on":     "workflow_dispatch",
 		"engine": "copilot",
@@ -239,6 +273,23 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	invalidMode["enclaves"].([]any)[1].(map[string]any)["agent"].(map[string]any)["github"] = map[string]any{"cli": "read-only"}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidMode, "workflow.md"); err == nil {
 		t.Fatal("expected generic enclave GitHub CLI mode to be rejected")
+	}
+
+	invalidTool := toolsShape
+	invalidTool["enclaves"].([]any)[0].(map[string]any)["agent"].(map[string]any)["tools"].(map[string]any)["github"] = map[string]any{
+		"allowed": []any{"search_issues"},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidTool, "workflow.md"); err == nil {
+		t.Fatal("expected unsupported enclave GitHub tool to be rejected")
+	}
+
+	invalidRepoScope := toolsShape
+	invalidRepoScope["enclaves"].([]any)[0].(map[string]any)["agent"].(map[string]any)["tools"].(map[string]any)["github"] = map[string]any{
+		"allowed":       []any{"list_issues"},
+		"allowed-repos": "all",
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidRepoScope, "workflow.md"); err == nil {
+		t.Fatal("expected scalar enclave GitHub repository scope to be rejected")
 	}
 
 	scriptGitHub := map[string]any{

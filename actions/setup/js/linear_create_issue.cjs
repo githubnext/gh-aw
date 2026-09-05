@@ -8,6 +8,9 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
+const LINEAR_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LINEAR_PROJECT_ID_PATTERN = /^(?:[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 const LINEAR_CREATE_ISSUE = `mutation LinearCreateIssue($input: IssueCreateInput!) {
   issueCreate(input: $input) {
     success
@@ -19,10 +22,22 @@ const LINEAR_CREATE_ISSUE = `mutation LinearCreateIssue($input: IssueCreateInput
   }
 }`;
 
+const LINEAR_RESOLVE_PROJECT = `query ResolveLinearProject($slugId: String!) {
+  projects(filter: { slugId: { eq: $slugId } }, first: 1) {
+    nodes {
+      id
+    }
+  }
+}`;
+
 async function main(config = {}) {
   const teamId = config.team_id;
-  if (typeof teamId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId)) {
+  if (typeof teamId !== "string" || !LINEAR_UUID_PATTERN.test(teamId)) {
     throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured team ID`);
+  }
+  const projectId = config.project_id;
+  if (projectId !== undefined && (typeof projectId !== "string" || !LINEAR_PROJECT_ID_PATTERN.test(projectId))) {
+    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured project ID`);
   }
 
   return async function handleLinearCreateIssue(item) {
@@ -47,9 +62,20 @@ async function main(config = {}) {
       return { success: true, staged: true, title };
     }
 
-    const data = await linearGraphQL(LINEAR_CREATE_ISSUE, {
-      input: { teamId, title, description },
-    });
+    const input = { teamId, title, description };
+    if (projectId) {
+      if (LINEAR_UUID_PATTERN.test(projectId)) {
+        input.projectId = projectId;
+      } else {
+        const projectData = await linearGraphQL(LINEAR_RESOLVE_PROJECT, { slugId: projectId });
+        const resolvedProjectId = projectData?.projects?.nodes?.[0]?.id;
+        if (typeof resolvedProjectId !== "string" || !LINEAR_UUID_PATTERN.test(resolvedProjectId)) {
+          throw new Error(`${ERR_CONFIG}: linear_create_issue could not resolve the configured project ID`);
+        }
+        input.projectId = resolvedProjectId;
+      }
+    }
+    const data = await linearGraphQL(LINEAR_CREATE_ISSUE, { input });
     const payload = data?.issueCreate;
     if (payload?.success !== true || !payload.issue) {
       throw new Error(`${ERR_API}: Linear issueCreate did not return a successful issue`);
@@ -63,4 +89,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { LINEAR_CREATE_ISSUE, main };
+module.exports = { LINEAR_CREATE_ISSUE, LINEAR_RESOLVE_PROJECT, main };

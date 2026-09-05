@@ -493,3 +493,20 @@ func TestAWFSupportsAPIProxyCACert(t *testing.T) {
 		})
 	}
 }
+
+func TestAWFSupportsVerifySbxEgress(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{name: "default version supports verify-sbx-egress", want: true},
+		{name: "exact minimum version supports verify-sbx-egress", firewallConfig: &FirewallConfig{Version: "v0.28.13"}, want: true},
+		{name: "older version does not support verify-sbx-egress", firewallConfig: &FirewallConfig{Version: "v0.28.12"}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, awfSupportsVerifySbxEgress(tt.firewallConfig))
+		})
+	}
+}

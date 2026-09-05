@@ -731,6 +731,31 @@ func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_DeclarativeEngineW
 	}
 }
 
+func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_ConcurrencyJobDiscriminator(t *testing.T) {
+	t.Run("allows job discriminator", func(t *testing.T) {
+		err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(map[string]any{
+			"concurrency": map[string]any{
+				"job-discriminator": "${{ github.run_id }}",
+			},
+		}, "/repo/.github/workflows/shared/concurrency.md")
+		if err != nil {
+			t.Fatalf("expected concurrency.job-discriminator to be allowed, got: %v", err)
+		}
+	})
+
+	t.Run("rejects unsupported workflow concurrency fields", func(t *testing.T) {
+		err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(map[string]any{
+			"concurrency": map[string]any{
+				"group":              "shared-group",
+				"cancel-in-progress": true,
+			},
+		}, "/repo/.github/workflows/shared/concurrency.md")
+		if err == nil || !strings.Contains(err.Error(), "unsupported key: cancel-in-progress") {
+			t.Fatalf("expected unsupported concurrency field error, got: %v", err)
+		}
+	})
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testing.T) {
 	tests := []struct {
 		name        string

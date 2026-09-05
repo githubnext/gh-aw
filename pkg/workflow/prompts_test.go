@@ -603,6 +603,27 @@ func TestDailyModelResolutionUsesCopilotEngineWithMiniSubAgentModel(t *testing.T
 	}
 }
 
+func TestDailyGoTestParallelizerUsesCodexCompatibleModel(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-go-test-parallelizer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "id: codex") {
+		t.Fatal("Expected daily-go-test-parallelizer workflow to use the Codex engine")
+	}
+	if !strings.Contains(workflow, "model: openai/gpt-5.3-codex") {
+		t.Fatal("Expected daily-go-test-parallelizer workflow to use a Codex-compatible OpenAI model")
+	}
+}
+
 // ============================================================================
 // Playwright Prompt Tests
 // ============================================================================
@@ -839,7 +860,7 @@ tools:
   playwright:
     mode: cli
 features:
-  dangerously-disable-sandbox-agent: "unit test verifying prompt gating logic"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

@@ -68,7 +68,7 @@
         },
         {
           "type": "object",
-          "description": "Enable auto-upgrade with a custom schedule. Providing an object implies enabled.",
+          "description": "Enable auto-upgrade with a custom schedule or upgrade options. Providing an object implies enabled.",
           "additionalProperties": false,
           "properties": {
             "cron": {
@@ -77,6 +77,16 @@
               "minLength": 9,
               "pattern": "^[0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+$",
               "examples": ["0 9 * * 1", "30 5 * * 1-5", "0 0 * * 0"]
+            },
+            "options": {
+              "description": "Supported command-line options passed to gh aw upgrade.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["--pre-releases"]
+              },
+              "uniqueItems": true,
+              "examples": [["--pre-releases"]]
             }
           }
         }
