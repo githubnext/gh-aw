@@ -7,7 +7,7 @@ sidebar:
 
 The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language Markdown files into GitHub Actions.
 
-## Most Common Commands
+## Day-one commands
 
 | Command | Description | When to use |
 |---------|-------------|-------------|
@@ -24,7 +24,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
 
 > [!TIP]
-> New to `gh aw`? You can stop here for day-one usage and jump to [Commands](#commands) when you're ready. The advanced enterprise setup is collapsed below and can be skipped for most users.
+> New to `gh aw`? Start with the [day-one commands](#day-one-commands). The advanced and enterprise setup is further down the page and can be skipped for most users.
 
 ## Installation
 
@@ -76,50 +76,6 @@ In GitHub Actions, use the `setup-cli` action for platform detection and checksu
 ```
 
 See the [setup-cli action README](https://github.com/github/gh-aw/blob/main/actions/setup-cli/README.md) for full details.
-
-<details>
-<summary><strong>Advanced: GitHub Enterprise Server Support</strong></summary>
-
-### GitHub Enterprise Server Support
-
-For GitHub Enterprise Server deployments:
-
-```bash wrap
-export GH_HOST="github.enterprise.com"                           # Set hostname
-gh auth login --hostname github.enterprise.com                   # Authenticate
-gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with commands
-```
-
-For GHE Cloud with data residency (`*.ghe.com`), see the dedicated [Debugging GHE Cloud guide](/gh-aw/troubleshooting/debug-ghe/).
-
-Commands that support `--create-pull-request` — including `gh aw add`, `gh aw init`, `gh aw update`, and `gh aw upgrade` — automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. `gh aw audit` and `gh aw add-wizard` do the same, so running them inside a GHES repository usually does not require setting `GH_HOST` manually.
-
-#### Configuring `gh` CLI on GHES
-
-The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts. The script reads `GITHUB_SERVER_URL` and configures `gh` for that host, so the agent can use `gh` commands on GHES without extra setup.
-
-Custom workflow jobs and the safe-outputs job also derive `GH_HOST` from `GITHUB_SERVER_URL` at startup. On github.com this is a no-op; on GHES or GHEC it ensures `gh` targets the correct instance automatically.
-
-For custom `steps:` that require additional authentication setup (for example, when running `gh` commands without a `GH_TOKEN` in scope), the helper script is available:
-
-```yaml wrap
-steps:
-  - name: Configure gh for GHE
-    run: source /opt/gh-aw/actions/configure_gh_for_ghe.sh
-
-  - name: Fetch repository data
-    env:
-      GH_TOKEN: ${{ github.token }}
-    run: |
-      gh issue list --state open --limit 500 --json number,labels
-      gh pr list --state open --limit 200 --json number,title
-```
-
-The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe.sh`. If `GH_TOKEN` is already set, the script skips `gh auth login` and only exports `GH_HOST`.
-
-> [!NOTE]
-> Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
-</details>
 
 ## Global Options
 
@@ -1040,6 +996,52 @@ gh aw completion fish > ~/.config/fish/completions/gh-aw.fish
 # PowerShell
 gh aw completion powershell | Out-String | Invoke-Expression
 ```
+
+## Advanced and enterprise setup
+
+<details>
+<summary><strong>GitHub Enterprise Server support</strong></summary>
+
+### GitHub Enterprise Server support
+
+For GitHub Enterprise Server deployments:
+
+```bash wrap
+export GH_HOST="github.enterprise.com"                           # Set hostname
+gh auth login --hostname github.enterprise.com                   # Authenticate
+gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with commands
+```
+
+For GHE Cloud with data residency (`*.ghe.com`), see the dedicated [Debugging GHE Cloud guide](/gh-aw/troubleshooting/debug-ghe/).
+
+Commands that support `--create-pull-request` — including `gh aw add`, `gh aw init`, `gh aw update`, and `gh aw upgrade` — automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. `gh aw audit` and `gh aw add-wizard` do the same, so running them inside a GHES repository usually does not require setting `GH_HOST` manually.
+
+#### Configuring `gh` CLI on GHES
+
+The compiled agent job automatically runs `configure_gh_for_ghe.sh` before the agent starts. The script reads `GITHUB_SERVER_URL` and configures `gh` for that host, so the agent can use `gh` commands on GHES without extra setup.
+
+Custom workflow jobs and the safe-outputs job also derive `GH_HOST` from `GITHUB_SERVER_URL` at startup. On github.com this is a no-op; on GHES or GHEC it ensures `gh` targets the correct instance automatically.
+
+For custom `steps:` that require additional authentication setup (for example, when running `gh` commands without a `GH_TOKEN` in scope), the helper script is available:
+
+```yaml wrap
+steps:
+  - name: Configure gh for GHE
+    run: source /opt/gh-aw/actions/configure_gh_for_ghe.sh
+
+  - name: Fetch repository data
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      gh issue list --state open --limit 500 --json number,labels
+      gh pr list --state open --limit 200 --json number,title
+```
+
+The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe.sh`. If `GH_TOKEN` is already set, the script skips `gh auth login` and only exports `GH_HOST`.
+
+> [!NOTE]
+> Custom steps run outside the agent firewall sandbox and have access to standard GitHub Actions environment variables including `GITHUB_SERVER_URL`, `GITHUB_TOKEN`, and `GH_TOKEN`.
+</details>
 
 ## Debug Logging
 
