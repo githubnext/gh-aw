@@ -106,7 +106,7 @@ Test workflow with agent sandbox disabled.
 		result := string(lockContent)
 
 		// The compiled workflow should NOT contain AWF commands
-		assert.NotContains(t, result, "sudo -E awf", "Workflow should not contain AWF command when agent sandbox is disabled")
+		assert.NotContains(t, result, "sudo -E ", "Workflow should not contain privileged AWF command when agent sandbox is disabled")
 		assert.NotContains(t, result, "awf --", "Workflow should not contain AWF wrapper when agent sandbox is disabled")
 
 		// Should contain direct copilot command instead

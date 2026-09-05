@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"58ca92ef2de55916d32c64c094e100e9134b892b46c2cfb00c5b74c90dbff888","body_hash":"1640c2486a54bb5e0ff004e586142923ad9e3ce1773fcbe128bab7a4749f8da4","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.247"}}
-# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"53b7df96c91f9c12dcc8a07bcb9ccacbed38856a","version":"v7.3.0"},{"repo":"docker/setup-buildx-action","sha":"37fe631027851001ddb9b187196cc803df7f5f0e","version":"v4.3.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.13","digest":"sha256:78aeb1eee876d1ebae5eef26402bd9f31112850d42016a240002d1da57203e15","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.13@sha256:78aeb1eee876d1ebae5eef26402bd9f31112850d42016a240002d1da57203e15"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.13","digest":"sha256:61f12dcff38eb008b645d87a5541763452f409d9040eb243718764944167b1a2","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.13@sha256:61f12dcff38eb008b645d87a5541763452f409d9040eb243718764944167b1a2"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.13","digest":"sha256:87d9acf521959e7dae24bd8e5d972b836a0dd704f39f8b072c4fb01622a1c060","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.13@sha256:87d9acf521959e7dae24bd8e5d972b836a0dd704f39f8b072c4fb01622a1c060"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.13","digest":"sha256:58a8dc5be3fbafeef7da0532c38bd9047f86bf1b3c4cfd7d9b7d8d28e80a2b56","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.13@sha256:58a8dc5be3fbafeef7da0532c38bd9047f86bf1b3c4cfd7d9b7d8d28e80a2b56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.15","digest":"sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.15@sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"agenticworkflows","tools":["*"]},{"name":"safeoutputs","tools":["create_issue","link_sub_issue","missing_data","missing_tool","noop","update_issue"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"19b2d8b6d584773abc8331b4e63ea92c7019bce4b85bae3e72e6c0e9b53b278d","body_hash":"fe34211c44fe13558ede7de5418e448ac448eaf5a6b8a5ff475e1610e20ff975","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.247"}}
+# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"53b7df96c91f9c12dcc8a07bcb9ccacbed38856a","version":"v7.3.0"},{"repo":"docker/setup-buildx-action","sha":"37fe631027851001ddb9b187196cc803df7f5f0e","version":"v4.3.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.13","digest":"sha256:78aeb1eee876d1ebae5eef26402bd9f31112850d42016a240002d1da57203e15","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.13@sha256:78aeb1eee876d1ebae5eef26402bd9f31112850d42016a240002d1da57203e15"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.13","digest":"sha256:61f12dcff38eb008b645d87a5541763452f409d9040eb243718764944167b1a2","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.13@sha256:61f12dcff38eb008b645d87a5541763452f409d9040eb243718764944167b1a2"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.13","digest":"sha256:87d9acf521959e7dae24bd8e5d972b836a0dd704f39f8b072c4fb01622a1c060","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.13@sha256:87d9acf521959e7dae24bd8e5d972b836a0dd704f39f8b072c4fb01622a1c060"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.13","digest":"sha256:58a8dc5be3fbafeef7da0532c38bd9047f86bf1b3c4cfd7d9b7d8d28e80a2b56","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.13@sha256:58a8dc5be3fbafeef7da0532c38bd9047f86bf1b3c4cfd7d9b7d8d28e80a2b56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.15","digest":"sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.15@sha256:60cd97533e93d8e7be36b979c0f08a70846189bda6190f28bbd6d427bc0d9b6e"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"agenticworkflows","tools":["*"]},{"name":"safeoutputs","tools":["close_issue","create_issue","link_sub_issue","missing_data","missing_tool","noop","update_issue"]}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,7 +23,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed
+# Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes consolidated failures as duplicates, and opens focused fix sub-issues when needed
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -305,7 +305,7 @@ jobs:
           GH_AW_EXPERIMENT_SPEC: '{"tone_variant":{"variants":["clinical","assertive","narrative"],"description":"Tests whether report tone (clinical/assertive/narrative) affects output efficiency and engineer engagement on failure investigation issues","hypothesis":"H0: no change in output_length_chars across tone variants. H1: assertive tone produces shorter, more actionable outputs than clinical or narrative, with equivalent or better sub-issue quality.","metric":"output_length_chars","secondary_metrics":["issue_creation_rate","sub_issue_link_count","run_duration_seconds"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":50,"weight":[34,33,33],"issue":36105,"start_date":"2026-05-31","analysis_type":"mann_whitney","tags":["tone","output-quality","triage"]}}'
           GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
-          GH_AW_HARNESS_VERSION: 58ca92ef2de55916d32c64c094e100e9134b892b46c2cfb00c5b74c90dbff888:1640c2486a54bb5e0ff004e586142923ad9e3ce1773fcbe128bab7a4749f8da4
+          GH_AW_HARNESS_VERSION: 19b2d8b6d584773abc8331b4e63ea92c7019bce4b85bae3e72e6c0e9b53b278d:fe34211c44fe13558ede7de5418e448ac448eaf5a6b8a5ff475e1610e20ff975
         with:
           script: |
             const path = require('path');
@@ -339,7 +339,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue(max:2), update_issue(max:10), link_sub_issue(max:10), missing_tool, missing_data, noop\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue(max:2), close_issue(max:100), update_issue(max:10), link_sub_issue(max:10), missing_tool, missing_data, noop\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_802A9F6A__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_1A3A194A__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_463A214A__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_FF1D34CE__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
@@ -681,7 +681,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"expires\":168,\"group\":true,\"labels\":[\"agentic-workflows\",\"automation\",\"cookie\"],\"max\":2,\"title_prefix\":\"[aw-failures] \"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":10,\"target\":\"*\"}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"close_issue\":{\"max\":100,\"required_labels\":[\"agentic-workflows\"],\"required_title_prefix\":\"[aw]\",\"state_reason\":\"duplicate\",\"target\":\"*\"},\"create_issue\":{\"expires\":168,\"group\":true,\"labels\":[\"agentic-workflows\",\"automation\",\"cookie\"],\"max\":2,\"title_prefix\":\"[aw-failures] \"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":10,\"target\":\"*\"}}"
         with:
           script: |
             const path = require('path');
@@ -695,6 +695,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
+                "close_issue": " CONSTRAINTS: Maximum 100 issue(s) can be closed. Target: *. Only issues with title prefix \"[aw]\" can be closed.",
                 "create_issue": " CONSTRAINTS: Maximum 2 issue(s) can be created. Title will be prefixed with \"[aw-failures] \". Labels [\"agentic-workflows\" \"automation\" \"cookie\"] will be automatically added.",
                 "link_sub_issue": " CONSTRAINTS: Maximum 10 sub-issue link(s) can be created.",
                 "update_issue": " CONSTRAINTS: Maximum 10 issue(s) can be updated. Target: *."
@@ -704,6 +705,44 @@ jobs:
             }
           GH_AW_VALIDATION_JSON: |
             {
+              "close_issue": {
+                "defaultMax": 1,
+                "fields": {
+                  "body": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "x-strip-on-error": true
+                  },
+                  "duplicate_of": {
+                    "issueOrPRNumber": true
+                  },
+                  "issue_number": {
+                    "optionalPositiveInteger": true
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 280,
+                    "x-strip-on-error": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "suggest": {
+                    "type": "boolean"
+                  }
+                }
+              },
               "create_issue": {
                 "defaultMax": 1,
                 "fields": {
@@ -1837,7 +1876,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "[aw] Failure Investigator (6h)"
-          WORKFLOW_DESCRIPTION: "Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed"
+          WORKFLOW_DESCRIPTION: "Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes consolidated failures as duplicates, and opens focused fix sub-issues when needed"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -1901,7 +1940,7 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
           WORKFLOW_NAME: "[aw] Failure Investigator (6h)"
-          WORKFLOW_DESCRIPTION: "Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed"
+          WORKFLOW_DESCRIPTION: "Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes consolidated failures as duplicates, and opens focused fix sub-issues when needed"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
@@ -2064,7 +2103,7 @@ jobs:
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EVALS_QUESTIONS: '[{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?"},{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?"}]'
+          GH_AW_EVALS_QUESTIONS: '[{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?"},{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?"},{"id":"consolidated_failures_closed","question":"When failures were consolidated into or matched against an existing issue, were all corresponding source failure issues closed as duplicates with comments referencing that issue?"}]'
           GH_AW_EVALS_MODEL: "evals"
           GH_AW_EVALS_PHASE: setup
         with:
@@ -2188,7 +2227,7 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EVALS_QUESTIONS: '[{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?"},{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?"}]'
+          GH_AW_EVALS_QUESTIONS: '[{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?"},{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?"},{"id":"consolidated_failures_closed","question":"When failures were consolidated into or matched against an existing issue, were all corresponding source failure issues closed as duplicates with comments referencing that issue?"}]'
           GH_AW_EVALS_MODEL: "evals"
           GH_AW_EVALS_PHASE: parse
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -2556,7 +2595,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.grafana.net,*.sentry.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":168,\"group\":true,\"labels\":[\"agentic-workflows\",\"automation\",\"cookie\"],\"max\":2,\"title_prefix\":\"[aw-failures] \"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":10,\"target\":\"*\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_issue\":{\"max\":100,\"required_labels\":[\"agentic-workflows\"],\"required_title_prefix\":\"[aw]\",\"state_reason\":\"duplicate\",\"target\":\"*\"},\"create_issue\":{\"expires\":168,\"group\":true,\"labels\":[\"agentic-workflows\",\"automation\",\"cookie\"],\"max\":2,\"title_prefix\":\"[aw-failures] \"},\"create_report_incomplete_issue\":{},\"link_sub_issue\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":10,\"target\":\"*\"}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
