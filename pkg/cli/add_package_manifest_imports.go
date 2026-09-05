@@ -60,6 +60,8 @@ func resolveRepositoryPackageManifestGraph(
 		rootPackagePath = ""
 	}
 
+	addPackageManifestLog.Printf("Resolving package manifest import graph: root=%s", rootPath)
+
 	resolver := &repositoryPackageManifestGraphResolver{
 		rootPackagePath: rootPackagePath,
 		readManifest:    readManifest,
@@ -68,6 +70,7 @@ func resolveRepositoryPackageManifestGraph(
 	if err := resolver.visit(rootPath, root); err != nil {
 		return nil, nil, err
 	}
+	addPackageManifestLog.Printf("Resolved package manifest import graph: %d node(s), %d warning(s)", len(resolver.nodes), len(resolver.warnings))
 	return resolver.nodes, resolver.warnings, nil
 }
 
@@ -82,6 +85,7 @@ func (r *repositoryPackageManifestGraphResolver) visit(manifestPath string, mani
 			}
 		}
 		cycle := append(append([]string{}, r.stack[cycleStart:]...), manifestPath)
+		addPackageManifestLog.Printf("Import cycle detected: %s", strings.Join(cycle, " -> "))
 		return fmt.Errorf("package manifest import cycle detected: %s", strings.Join(cycle, " -> "))
 	case 2:
 		return nil
@@ -198,6 +202,7 @@ func readLocalImportedManifest(manifestPath, packageRoot string) ([]byte, error)
 		return nil, err
 	}
 	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		addPackageManifestLog.Printf("Rejecting imported manifest %q: resolves outside package root %q", manifestPath, packageRoot)
 		return nil, fmt.Errorf("import %q resolves outside the package root", manifestPath)
 	}
 	declaredRelative, err := filepath.Rel(filepath.Clean(packageRoot), filepath.Clean(manifestPath))
