@@ -139,6 +139,15 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 			wantErrMsg: "config[0].description is required when type=repo-label",
 		},
 		{
+			name:       "repo-label missing color",
+			actionType: "repo-label",
+			actionMap: map[string]any{
+				"name":        "automation",
+				"description": "Managed by automation",
+			},
+			wantErrMsg: "config[0].color is required when type=repo-label",
+		},
+		{
 			name:       "repo-label invalid color",
 			actionType: "repo-label",
 			actionMap: map[string]any{

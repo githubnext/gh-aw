@@ -147,6 +147,9 @@ func validateManifestBootstrapAction(action repositoryPackageBootstrapAction, ma
 		if action.Description == "" {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].description is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
 		}
+		if action.Color == "" {
+			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color is required when type=repo-label. Example: { type: repo-label, name: automation, description: Managed by automation, color: 1f6feb }", manifestPath, index)
+		}
 		if !bootstrapLabelColorPattern.MatchString(action.Color) {
 			return repositoryPackageBootstrapAction{}, fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].color must be a 6-character hexadecimal color without '#'. Example: color: 1f6feb", manifestPath, index)
 		}
