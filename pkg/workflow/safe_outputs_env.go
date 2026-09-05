@@ -221,10 +221,6 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 			if hasAnyJiraSafeOutputEnabled(data.SafeOutputs) && jiraSafeOutputDefaultEnv[key] != "" {
 				continue
 			}
-			// Linear processor credentials are injected separately so overrides replace defaults without duplicate YAML keys.
-			if data.SafeOutputs.LinearCreateIssue != nil && key == "LINEAR_TEAM_ID" {
-				continue
-			}
 			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, data.SafeOutputs.Env[key]))
 		}
 	}

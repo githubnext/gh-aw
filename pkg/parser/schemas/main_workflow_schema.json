@@ -7658,9 +7658,17 @@
           "description": "Experimental. Create Linear issues through the isolated safe_outputs job.",
           "properties": {
             "team-id": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-              "description": "Optional trusted Linear team model UUID. Defaults to the LINEAR_TEAM_ID repository or organization variable."
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\$\\{\\{.*\\}\\}$"
+                }
+              ],
+              "description": "Trusted Linear team model UUID or GitHub Actions expression."
             },
             "project-id": {
               "type": "string",
@@ -7682,6 +7690,7 @@
               ]
             }
           },
+          "required": ["team-id"],
           "additionalProperties": false
         },
         "linear-add-comment": {

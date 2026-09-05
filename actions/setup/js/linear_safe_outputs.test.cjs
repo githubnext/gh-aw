@@ -26,7 +26,6 @@ describe("Linear safe outputs", () => {
 
   afterEach(() => {
     delete process.env.GH_AW_LINEAR_TOKEN;
-    delete process.env.LINEAR_TEAM_ID;
     delete global.fetch;
   });
 
@@ -89,17 +88,6 @@ describe("Linear safe outputs", () => {
     await expect(createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "not-a-project" })).rejects.toThrow("valid configured project ID");
   });
 
-  it("uses LINEAR_TEAM_ID when team_id is not configured", async () => {
-    process.env.LINEAR_TEAM_ID = "9cfb482a-81e3-4154-b5b9-2c805e70a02d";
-    fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Title" } } } }));
-
-    const handler = await createIssue({});
-    await handler({ title: "Title", body: "Body with enough detail" });
-
-    const request = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(request.variables.input.teamId).toBe(process.env.LINEAR_TEAM_ID);
-  });
-
   it("rejects HTTP, malformed JSON, GraphQL, and unsuccessful mutation responses", async () => {
     fetch.mockResolvedValueOnce(response({}, 429));
     await expect(linearGraphQL("query Fixed { viewer { id } }", {})).rejects.toThrow("rate limit exceeded");
@@ -111,7 +99,7 @@ describe("Linear safe outputs", () => {
     await expect(linearGraphQL("query Fixed { viewer { id } }", {})).rejects.not.toThrow("linear-secret");
 
     fetch.mockResolvedValueOnce(response({ errors: [{ message: "Entity not found: Team" }] }));
-    await expect(linearGraphQL(LINEAR_CREATE_ISSUE, {})).rejects.toThrow("Verify LINEAR_TEAM_ID or safe-outputs.linear-create-issue.team-id references a team in the workspace authorized by LINEAR_API_KEY");
+    await expect(linearGraphQL(LINEAR_CREATE_ISSUE, {})).rejects.toThrow("Verify safe-outputs.linear-create-issue.team-id references a team in the workspace authorized by LINEAR_API_KEY");
 
     fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: false, issue: null } } }));
     const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });

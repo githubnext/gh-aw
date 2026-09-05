@@ -49,7 +49,7 @@ func TestLinearHandlerConfigExcludesCredential(t *testing.T) {
 		LinearToken: "${{ secrets.LINEAR_API_KEY }}",
 		LinearCreateIssue: &LinearCreateIssueConfig{
 			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-			TeamID:               "9cfb482a-81e3-4154-b5b9-2c805e70a02d",
+			TeamID:               "${{ vars.LINEAR_TEAM_ID }}",
 			ProjectID:            "810f57a7e383",
 		},
 		LinearAddComment: &LinearTargetConfig{
@@ -69,6 +69,7 @@ func TestLinearHandlerConfigExcludesCredential(t *testing.T) {
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, "${{ vars.LINEAR_TEAM_ID }}", parsed["linear_create_issue"].(map[string]any)["team_id"])
 	assert.Equal(t, "810f57a7e383", parsed["linear_create_issue"].(map[string]any)["project_id"])
 	assert.Equal(t, "ENG-123", parsed["linear_add_comment"].(map[string]any)["target"])
 	assert.Equal(t, true, parsed["linear_update_issue"].(map[string]any)["allow_title"])
@@ -124,18 +125,17 @@ func TestLinearTokenOnlyAddedToTrustedProcessingStep(t *testing.T) {
 	compiler := NewCompiler()
 	steps, err := compiler.buildHandlerManagerStep(data)
 	require.NoError(t, err)
-	steps = injectLinearCredentialsIntoProcessorStep(steps, data.SafeOutputs)
+	steps = injectLinearTokenIntoProcessorStep(steps, data.SafeOutputs)
 	rendered := strings.Join(steps, "")
 
 	assert.Contains(t, rendered, "GH_AW_LINEAR_TOKEN: ${{ secrets.LINEAR_API_KEY }}")
-	assert.Contains(t, rendered, "LINEAR_TEAM_ID: ${{ vars.LINEAR_TEAM_ID }}")
 	assert.NotContains(t, rendered, "linear-token")
 	processStep := rendered[strings.Index(rendered, "- name: Process Safe Outputs"):]
 	assert.Contains(t, processStep, "env:\n          GH_AW_LINEAR_TOKEN:")
 	assert.NotContains(t, rendered[:strings.Index(rendered, "- name: Process Safe Outputs")], "GH_AW_LINEAR_TOKEN")
 }
 
-func TestLinearSafeOutputUsesDefaultCredentials(t *testing.T) {
+func TestLinearSafeOutputUsesDefaultCredential(t *testing.T) {
 	config := &SafeOutputsConfig{
 		LinearCreateIssue: &LinearCreateIssueConfig{TeamID: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"},
 	}
@@ -144,29 +144,8 @@ func TestLinearSafeOutputUsesDefaultCredentials(t *testing.T) {
 		"        env:\n",
 	}
 
-	rendered := strings.Join(injectLinearCredentialsIntoProcessorStep(steps, config), "")
+	rendered := strings.Join(injectLinearTokenIntoProcessorStep(steps, config), "")
 	assert.Contains(t, rendered, "GH_AW_LINEAR_TOKEN: ${{ secrets.LINEAR_API_KEY }}")
-	assert.Contains(t, rendered, "LINEAR_TEAM_ID: ${{ vars.LINEAR_TEAM_ID }}")
-}
-
-func TestLinearSafeOutputTeamIDEnvOverride(t *testing.T) {
-	config := &SafeOutputsConfig{
-		LinearCreateIssue: &LinearCreateIssueConfig{},
-		Env:               map[string]string{"LINEAR_TEAM_ID": "${{ vars.OTHER_LINEAR_TEAM_ID }}", "OTHER": "value"},
-	}
-	steps := []string{
-		"      - name: Process Safe Outputs\n",
-		"        env:\n",
-		"        with:\n",
-	}
-
-	injectedSteps := injectLinearCredentialsIntoProcessorStep(steps, config)
-	rendered := strings.Join(injectedSteps, "")
-	assert.Contains(t, rendered, "LINEAR_TEAM_ID: ${{ vars.OTHER_LINEAR_TEAM_ID }}")
-
-	customSteps := []string{}
-	NewCompiler().addCustomSafeOutputEnvVars(&customSteps, &WorkflowData{SafeOutputs: config})
-	assert.Equal(t, "          OTHER: value\n", strings.Join(customSteps, ""))
 }
 
 // TestLinearOnlyWorkflowSkipsGlobalGitHubAppTokenMinting ensures that a Linear-only
