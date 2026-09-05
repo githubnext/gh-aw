@@ -354,6 +354,27 @@ func ensureCacheMemoryWritePaths(sandboxConfig *SandboxConfig, cacheMemoryConfig
 	}
 }
 
+// ensureRepoMemoryWritePaths adds compiler-provisioned repo-memory (and wiki-memory)
+// directories to the Cloud Hypervisor write policy. Without these entries the
+// /tmp/gh-aw export is narrowed to read-only outside the allowlist, so the agent cannot
+// write to the cloned memory working tree (writes fail with EROFS) and the repo-memory
+// push job has nothing to commit.
+func ensureRepoMemoryWritePaths(sandboxConfig *SandboxConfig, repoMemoryConfig *RepoMemoryConfig) {
+	if repoMemoryConfig == nil || sandboxConfig == nil || sandboxConfig.Agent == nil ||
+		sandboxConfig.Agent.Runtime != AgentRuntimeCloudHypervisor {
+		return
+	}
+	if sandboxConfig.Agent.Config == nil {
+		sandboxConfig.Agent.Config = &SandboxRuntimeConfig{}
+	}
+	if sandboxConfig.Agent.Config.Filesystem == nil {
+		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
+	}
+	for _, memory := range repoMemoryConfig.Memories {
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, constants.TmpRepoMemoryDir+memory.ID)
+	}
+}
+
 // addAllowWritePathIfMissing appends path to filesystem.AllowWrite unless it is already present.
 func addAllowWritePathIfMissing(filesystem *SRTFilesystemConfig, path string) {
 	if slices.Contains(filesystem.AllowWrite, path) {

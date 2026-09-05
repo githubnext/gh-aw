@@ -393,6 +393,51 @@ func TestEnsureCacheMemoryWritePaths(t *testing.T) {
 	}, sandboxConfig.Agent.Config.Filesystem.AllowWrite)
 }
 
+func TestEnsureRepoMemoryWritePaths(t *testing.T) {
+	sandboxConfig := applySandboxDefaults(&SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type:    SandboxTypeAWF,
+			Runtime: AgentRuntimeCloudHypervisor,
+		},
+	}, &EngineConfig{ID: "claude"})
+	repoMemoryConfig := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{ID: "default"},
+			{ID: "notes"},
+		},
+	}
+
+	ensureRepoMemoryWritePaths(sandboxConfig, repoMemoryConfig)
+	ensureRepoMemoryWritePaths(sandboxConfig, repoMemoryConfig)
+
+	require.NotNil(t, sandboxConfig.Agent.Config)
+	require.NotNil(t, sandboxConfig.Agent.Config.Filesystem)
+	assert.Equal(t, []string{
+		defaultAgentWorkspaceWritePath,
+		cloudHypervisorWorkspaceWritePath,
+		cloudHypervisorAwfHomeWritePath,
+		"/tmp/gh-aw/repo-memory/default",
+		"/tmp/gh-aw/repo-memory/notes",
+	}, sandboxConfig.Agent.Config.Filesystem.AllowWrite)
+}
+
+func TestEnsureRepoMemoryWritePathsSkipsNonCloudHypervisorRuntime(t *testing.T) {
+	sandboxConfig := applySandboxDefaults(&SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			Type: SandboxTypeAWF,
+		},
+	}, &EngineConfig{ID: "claude"})
+	repoMemoryConfig := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{{ID: "default"}},
+	}
+
+	ensureRepoMemoryWritePaths(sandboxConfig, repoMemoryConfig)
+
+	if sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
+		assert.NotContains(t, sandboxConfig.Agent.Config.Filesystem.AllowWrite, "/tmp/gh-aw/repo-memory/default")
+	}
+}
+
 func TestMergeImportedSandboxAgentMounts(t *testing.T) {
 	tests := []struct {
 		name           string
