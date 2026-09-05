@@ -58,6 +58,11 @@ describe("no-misplaced-error-code-definition", () => {
           code: `module.exports.INLINE_ERROR_CODE = "INLINE";`,
           errors: [{ messageId: "misplacedErrorCode", data: { name: "INLINE_ERROR_CODE" } }],
         },
+        {
+          filename: "actions/setup/js/helper.cjs",
+          code: `module.exports = { INLINE_ERROR_CODE: "INLINE" };`,
+          errors: [{ messageId: "misplacedErrorCode", data: { name: "INLINE_ERROR_CODE" } }],
+        },
       ],
     });
   });

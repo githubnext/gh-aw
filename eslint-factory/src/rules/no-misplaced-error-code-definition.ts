@@ -26,6 +26,12 @@ function getExportedPropertyName(node: TSESTree.MemberExpression): string | null
   return null;
 }
 
+function getObjectPropertyName(node: TSESTree.Property): string | null {
+  if (!node.computed && node.key.type === AST_NODE_TYPES.Identifier) return node.key.name;
+  if (node.key.type === AST_NODE_TYPES.Literal && typeof node.key.value === "string") return node.key.value;
+  return null;
+}
+
 export const noMisplacedErrorCodeDefinitionRule = createRule({
   name: "no-misplaced-error-code-definition",
   meta: {
@@ -45,15 +51,15 @@ export const noMisplacedErrorCodeDefinitionRule = createRule({
     }
 
     const declarations = new Map<string, TSESTree.VariableDeclarator>();
-    const exportedNames = new Set<string>();
-    const directExportDefinitions: Array<{ name: string; node: TSESTree.AssignmentExpression }> = [];
+    const exportedNames = new Map<string, string>();
+    const directExportDefinitions: Array<{ name: string; node: TSESTree.Node }> = [];
 
     return {
       VariableDeclaration(node) {
         if (node.kind !== "const" || node.parent.type !== AST_NODE_TYPES.Program) return;
 
         for (const declaration of node.declarations) {
-          if (declaration.id.type === AST_NODE_TYPES.Identifier && ERROR_CODE_NAME_PATTERN.test(declaration.id.name)) {
+          if (declaration.id.type === AST_NODE_TYPES.Identifier) {
             declarations.set(declaration.id.name, declaration);
           }
         }
@@ -63,8 +69,17 @@ export const noMisplacedErrorCodeDefinitionRule = createRule({
 
         if (isModuleExports(node.left) && node.right.type === AST_NODE_TYPES.ObjectExpression) {
           for (const property of node.right.properties) {
-            if (property.type !== AST_NODE_TYPES.Property || property.value.type !== AST_NODE_TYPES.Identifier) continue;
-            if (ERROR_CODE_NAME_PATTERN.test(property.value.name)) exportedNames.add(property.value.name);
+            if (property.type !== AST_NODE_TYPES.Property) continue;
+            const propertyName = getObjectPropertyName(property);
+            const valueName = property.value.type === AST_NODE_TYPES.Identifier ? property.value.name : null;
+            const codeName = propertyName && ERROR_CODE_NAME_PATTERN.test(propertyName) ? propertyName : valueName && ERROR_CODE_NAME_PATTERN.test(valueName) ? valueName : null;
+            if (!codeName) continue;
+
+            if (valueName) {
+              exportedNames.set(valueName, codeName);
+            } else {
+              directExportDefinitions.push({ name: codeName, node: property });
+            }
           }
           return;
         }
@@ -73,16 +88,16 @@ export const noMisplacedErrorCodeDefinitionRule = createRule({
         if (!exportedPropertyName || !ERROR_CODE_NAME_PATTERN.test(exportedPropertyName)) return;
 
         if (node.right.type === AST_NODE_TYPES.Identifier) {
-          exportedNames.add(node.right.name);
+          exportedNames.set(node.right.name, exportedPropertyName);
         } else {
           directExportDefinitions.push({ name: exportedPropertyName, node });
         }
       },
       "Program:exit"() {
-        for (const name of exportedNames) {
-          const declaration = declarations.get(name);
+        for (const [localName, exportedName] of exportedNames) {
+          const declaration = declarations.get(localName);
           if (!declaration) continue;
-          context.report({ node: declaration, messageId: "misplacedErrorCode", data: { name } });
+          context.report({ node: declaration, messageId: "misplacedErrorCode", data: { name: exportedName } });
         }
 
         for (const definition of directExportDefinitions) {
