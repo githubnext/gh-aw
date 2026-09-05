@@ -89,6 +89,7 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 
 func TestGitHubAPIRateLimitReportJSON(t *testing.T) {
 	report := &GitHubAPIRateLimitReport{
+		Host:  "github.com",
 		Start: &rateLimitResource{Limit: 5000, Remaining: 100, Used: 4900, Reset: 123},
 		End:   &rateLimitResource{Limit: 5000, Remaining: 80, Used: 4920, Reset: 123},
 	}
@@ -99,8 +100,25 @@ func TestGitHubAPIRateLimitReportJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &output))
 	rateLimit, ok := output["github_api_rate_limit"].(map[string]any)
 	require.True(t, ok)
+	assert.Equal(t, "github.com", rateLimit["host"])
 	assert.InDelta(t, 100, rateLimit["start"].(map[string]any)["remaining"], 0)
 	assert.InDelta(t, 80, rateLimit["end"].(map[string]any)["remaining"], 0)
+}
+
+func TestGitHubAPIRateLimitReportUsesRequestedHost(t *testing.T) {
+	oldFetchRateLimitForHostFunc := fetchRateLimitForHostFunc
+	var hosts []string
+	fetchRateLimitForHostFunc = func(_ context.Context, host string) (rateLimitResource, error) {
+		hosts = append(hosts, host)
+		return rateLimitResource{Limit: 5000, Remaining: 4000, Used: 1000}, nil
+	}
+	t.Cleanup(func() { fetchRateLimitForHostFunc = oldFetchRateLimitForHostFunc })
+
+	report := startGitHubAPIRateLimitReport(context.Background(), "github.example.com")
+	finishGitHubAPIRateLimitReport(context.Background(), report, true)
+
+	assert.Equal(t, "github.example.com", report.Host)
+	assert.Equal(t, []string{"github.example.com", "github.example.com"}, hosts)
 }
 
 func TestIsGitHubAPIRateLimitLow(t *testing.T) {
@@ -163,7 +181,7 @@ func TestGitHubAPIRateLimitReportOmitsUnavailableSnapshots(t *testing.T) {
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })
 
-	report := startGitHubAPIRateLimitReport(context.Background())
+	report := startGitHubAPIRateLimitReport(context.Background(), "")
 	finishGitHubAPIRateLimitReport(context.Background(), report, true)
 	assert.Nil(t, populatedGitHubAPIRateLimitReport(report))
 }

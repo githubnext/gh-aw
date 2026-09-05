@@ -57,8 +57,6 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No run IDs or URLs provided on stdin"))
 		return nil
 	}
-	apiRateLimit := startGitHubAPIRateLimitReport(ctx)
-
 	// Parse owner/repo (and optional GHES host) from --repo override if provided.
 	// Accepted formats: "owner/repo" or "HOST/owner/repo".
 	var hostOverride, ownerOverride, repoNameOverride string
@@ -79,6 +77,14 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 			return fmt.Errorf("invalid repository format '%s': expected '[HOST/]owner/repo'", opts.RepoOverride)
 		}
 	}
+	rateLimitHost := hostOverride
+	for _, rawURL := range opts.RunURLs {
+		if components, err := parser.ParseRunURLExtended(rawURL); err == nil && components.Host != "" {
+			rateLimitHost = components.Host
+			break
+		}
+	}
+	apiRateLimit := startGitHubAPIRateLimitReport(ctx, rateLimitHost)
 
 	// Start timeout timer if specified.
 	var startTime time.Time
@@ -140,8 +146,10 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 	}
 
 	if len(runs) == 0 {
+		finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
 		if opts.JSONOutput {
 			logsData := buildLogsData([]ProcessedRun{}, opts.OutputDir, nil)
+			logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(apiRateLimit)
 			logsData.Message = "No runs found. No valid runs could be loaded from the provided input."
 			if err := renderLogsJSON(logsData, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to render JSON output: %w", err)

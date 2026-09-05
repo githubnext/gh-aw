@@ -42,7 +42,7 @@ func DownloadWorkflowLogsForTargets(
 		return err
 	}
 
-	apiRateLimit := startGitHubAPIRateLimitReport(ctx)
+	apiRateLimit := startGitHubAPIRateLimitReport(ctx, logsRateLimitHost(targets[0].repoOverride))
 	results := collectLogsTargets(ctx, opts, targets)
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -25,6 +26,12 @@ import (
 
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
 var fetchRateLimitFunc = fetchRateLimit
+var fetchRateLimitForHostFunc = func(ctx context.Context, host string) (rateLimitResource, error) {
+	if normalizedGitHubAPIHost(host) == "github.com" {
+		return fetchRateLimitFunc(ctx)
+	}
+	return fetchRateLimitForHost(ctx, host)
+}
 var logsRateLimitGate = make(chan struct{}, 1)
 var errInvalidMaxGitHubAPIRateLimit = errors.New("invalid maximum GitHub API rate limit")
 
@@ -77,24 +84,26 @@ type rateLimitResource = GitHubAPIRateLimitState
 
 // GitHubAPIRateLimitReport records the core API quota around a logs command.
 type GitHubAPIRateLimitReport struct {
+	Host  string                   `json:"host"`
 	Start *GitHubAPIRateLimitState `json:"start,omitempty"`
 	End   *GitHubAPIRateLimitState `json:"end,omitempty"`
 }
 
-func startGitHubAPIRateLimitReport(ctx context.Context) *GitHubAPIRateLimitReport {
-	state, err := fetchRateLimitFunc(ctx)
+func startGitHubAPIRateLimitReport(ctx context.Context, host string) *GitHubAPIRateLimitReport {
+	host = normalizedGitHubAPIHost(host)
+	state, err := fetchRateLimitForHostFunc(ctx, host)
 	if err != nil {
 		logsRateLimitLog.Printf("Could not record starting API rate limit: %v", err)
-		return &GitHubAPIRateLimitReport{}
+		return &GitHubAPIRateLimitReport{Host: host}
 	}
-	return &GitHubAPIRateLimitReport{Start: &state}
+	return &GitHubAPIRateLimitReport{Host: host, Start: &state}
 }
 
 func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLimitReport, jsonOutput bool) {
 	if report == nil {
 		return
 	}
-	state, err := fetchRateLimitFunc(ctx)
+	state, err := fetchRateLimitForHostFunc(ctx, report.Host)
 	if err != nil {
 		logsRateLimitLog.Printf("Could not record ending API rate limit: %v", err)
 		return
@@ -107,6 +116,21 @@ func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLi
 			state.Remaining, state.Limit, percentRemaining, time.Unix(state.Reset, 0).UTC().Format(time.RFC3339),
 		)))
 	}
+}
+
+func normalizedGitHubAPIHost(host string) string {
+	if host == "" {
+		return "github.com"
+	}
+	return host
+}
+
+func logsRateLimitHost(repoOverride string) string {
+	parts := strings.SplitN(repoOverride, "/", 3)
+	if len(parts) == 3 && strings.Contains(parts[0], ".") {
+		return parts[0]
+	}
+	return ""
 }
 
 func isGitHubAPIRateLimitLow(state rateLimitResource) bool {
@@ -125,9 +149,17 @@ func populatedGitHubAPIRateLimitReport(report *GitHubAPIRateLimitReport) *GitHub
 // state.  It is a thin wrapper around `gh api rate_limit` so that callers do
 // not need to know about the CLI invocation details.
 func fetchRateLimit(ctx context.Context) (rateLimitResource, error) {
+	return fetchRateLimitForHost(ctx, "")
+}
+
+func fetchRateLimitForHost(ctx context.Context, host string) (rateLimitResource, error) {
 	logsRateLimitLog.Print("Querying GitHub API rate limit")
 
-	output, err := workflow.RunGHCombinedContext(ctx, "Verifying API quota...", "api", "rate_limit")
+	args := []string{"api", "rate_limit"}
+	if host != "" && host != "github.com" {
+		args = append(args, "--hostname", host)
+	}
+	output, err := workflow.RunGHCombinedContext(ctx, "Verifying API quota...", args...)
 	if err != nil {
 		return rateLimitResource{}, fmt.Errorf("failed to query rate limit: %w", err)
 	}

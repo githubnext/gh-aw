@@ -124,6 +124,7 @@ func renderLogsOutputTSV(logsData LogsData, verbose bool) error {
 func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, opts renderLogsOutputOptions) error {
 	inputs := processedRunsToCrossRunInputs(processedRuns)
 	report := buildCrossRunAuditReport(inputs)
+	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	if opts.jsonOutput {
 		return renderCrossRunReportJSON(report)
 	}
