@@ -388,6 +388,105 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "my-proxy.internal.example.com", "should include the openai host")
 	})
 
+	t.Run("HTTP API target schemes follow the effective AWF version", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			engine       string
+			envVar       string
+			baseURL      string
+			version      string
+			provider     string
+			expectedHost string
+		}{
+			{
+				name:         "openai preserves HTTP with the default AWF version",
+				engine:       "codex",
+				envVar:       "OPENAI_BASE_URL",
+				baseURL:      "http://openai-gateway.example.com/v1",
+				provider:     "openai",
+				expectedHost: "http://openai-gateway.example.com",
+			},
+			{
+				name:         "anthropic preserves HTTP at the minimum AWF version",
+				engine:       "claude",
+				envVar:       "ANTHROPIC_BASE_URL",
+				baseURL:      "http://anthropic-gateway.example.com/v1",
+				version:      string(constants.AWFHTTPAPITargetMinVersion),
+				provider:     "anthropic",
+				expectedHost: "http://anthropic-gateway.example.com",
+			},
+			{
+				name:         "preserves an explicit HTTP port",
+				engine:       "codex",
+				envVar:       "OPENAI_BASE_URL",
+				baseURL:      "http://openai-gateway.example.com:8080/v1",
+				provider:     "openai",
+				expectedHost: "http://openai-gateway.example.com:8080",
+			},
+			{
+				name:         "gemini preserves HTTP with a newer AWF version",
+				engine:       "gemini",
+				envVar:       "GEMINI_API_BASE_URL",
+				baseURL:      "http://gemini-gateway.example.com/v1",
+				version:      "v0.28.14",
+				provider:     "gemini",
+				expectedHost: "http://gemini-gateway.example.com",
+			},
+			{
+				name:         "older AWF versions keep HTTP targets bare",
+				engine:       "codex",
+				envVar:       "OPENAI_BASE_URL",
+				baseURL:      "http://legacy-gateway.example.com/v1",
+				version:      "v0.28.12",
+				provider:     "openai",
+				expectedHost: "legacy-gateway.example.com",
+			},
+			{
+				name:         "HTTPS targets remain bare",
+				engine:       "claude",
+				envVar:       "ANTHROPIC_BASE_URL",
+				baseURL:      "https://secure-gateway.example.com/v1",
+				provider:     "anthropic",
+				expectedHost: "secure-gateway.example.com",
+			},
+			{
+				name:         "bare targets remain bare",
+				engine:       "gemini",
+				envVar:       "GEMINI_API_BASE_URL",
+				baseURL:      "bare-gateway.example.com/v1",
+				provider:     "gemini",
+				expectedHost: "bare-gateway.example.com",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				config := AWFCommandConfig{
+					EngineName:     tt.engine,
+					AllowedDomains: "github.com",
+					WorkflowData: &WorkflowData{
+						EngineConfig: &EngineConfig{
+							ID:  tt.engine,
+							Env: map[string]string{tt.envVar: tt.baseURL},
+						},
+						NetworkPermissions: &NetworkPermissions{
+							Firewall: &FirewallConfig{Enabled: true, Version: tt.version},
+						},
+					},
+				}
+
+				jsonStr, err := BuildAWFConfigJSON(config)
+				require.NoError(t, err)
+
+				var parsed AWFConfigFile
+				require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+				require.NotNil(t, parsed.APIProxy)
+				require.Contains(t, parsed.APIProxy.Targets, tt.provider)
+				assert.Equal(t, tt.expectedHost, parsed.APIProxy.Targets[tt.provider].Host)
+			})
+		}
+	})
+
 	t.Run("default max-ai-credits is enabled when frontmatter is unset", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
