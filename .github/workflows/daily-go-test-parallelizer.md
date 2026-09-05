@@ -23,6 +23,9 @@ network:
     - go
     - node
 tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
   cache-memory:
     retention-days: 30
     allowed-extensions: [".json"]
