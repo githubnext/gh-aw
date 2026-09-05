@@ -296,11 +296,13 @@ func buildContinuationIfNeeded(
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 	logsOrchestratorLog.Printf("Downloading workflow logs: workflow=%q, count=%d, outputDir=%q", opts.WorkflowName, opts.Count, opts.OutputDir)
+	apiRateLimit := startGitHubAPIRateLimitReport(ctx)
 	result, err := collectWorkflowLogs(ctx, opts)
 	if err != nil {
 		return err
 	}
-	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached, result.storageLimitReached, result.continuation, nil); handled || err != nil {
+	finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
+	if handled, err := handleEmptyProcessedRuns(result.processedRuns, opts, result.timeoutReached, result.storageLimitReached, result.continuation, nil, apiRateLimit); handled || err != nil {
 		logsOrchestratorLog.Printf("No processed runs to render (timeoutReached=%v, err=%v)", result.timeoutReached, err)
 		return err
 	}
@@ -321,6 +323,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		checkStaleness:    true,
 		countLimitReached: result.countLimitReached,
 		suppressRender:    opts.SuppressRender,
+		apiRateLimit:      apiRateLimit,
 	})
 }
 

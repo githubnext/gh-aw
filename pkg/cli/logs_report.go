@@ -22,25 +22,26 @@ var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary           LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
-	Episodes          []EpisodeData              `json:"episodes" console:"-"`
-	Edges             []EpisodeEdge              `json:"edges" console:"-"`
-	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
-	MCPToolUsage      *MCPToolUsageSummary       `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
-	Observability     []ObservabilityInsight     `json:"observability_insights,omitempty" console:"-"`
-	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
-	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
-	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
-	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"-"`
-	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
-	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
-	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
-	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
-	Continuations     []WorkflowContinuation     `json:"continuations,omitempty" console:"-"`
-	LogsLocation      string                     `json:"logs_location" console:"-"`
-	Message           string                     `json:"message,omitempty" console:"-"`
-	StaleWarning      string                     `json:"stale_warning,omitempty" console:"-"`
+	Summary            LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs               []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
+	Episodes           []EpisodeData              `json:"episodes" console:"-"`
+	Edges              []EpisodeEdge              `json:"edges" console:"-"`
+	ToolUsage          []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	MCPToolUsage       *MCPToolUsageSummary       `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
+	Observability      []ObservabilityInsight     `json:"observability_insights,omitempty" console:"-"`
+	ErrorsAndWarnings  []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools       []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MissingData        []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
+	MCPFailures        []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"-"`
+	AccessLog          *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog        *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
+	RedactedDomains    *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
+	Continuation       *ContinuationData          `json:"continuation,omitempty" console:"-"`
+	Continuations      []WorkflowContinuation     `json:"continuations,omitempty" console:"-"`
+	LogsLocation       string                     `json:"logs_location" console:"-"`
+	Message            string                     `json:"message,omitempty" console:"-"`
+	StaleWarning       string                     `json:"stale_warning,omitempty" console:"-"`
+	GitHubAPIRateLimit *GitHubAPIRateLimitReport  `json:"github_api_rate_limit,omitempty" console:"-"`
 }
 
 // ContinuationData provides parameters to continue an incomplete logs query.

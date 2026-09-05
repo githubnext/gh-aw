@@ -67,6 +67,7 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
 	logsData.Continuations = opts.continuations
+	logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(opts.apiRateLimit)
 
 	// When no explicit start_date/end_date was requested and the newest run in the
 	// result is unexpectedly old, warn the caller so stale data is never served

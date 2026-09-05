@@ -61,8 +61,8 @@ type rateLimitResponse struct {
 	} `json:"resources"`
 }
 
-// rateLimitResource holds the fields relevant to a single GitHub API rate-limit bucket.
-type rateLimitResource struct {
+// GitHubAPIRateLimitState holds the core API quota at one point in time.
+type GitHubAPIRateLimitState struct {
 	// Limit is the maximum number of requests allowed per window.
 	Limit int `json:"limit"`
 	// Remaining is the number of requests still available in the current window.
@@ -71,6 +71,54 @@ type rateLimitResource struct {
 	Reset int64 `json:"reset"`
 	// Used is the number of requests consumed so far in the current window.
 	Used int `json:"used"`
+}
+
+type rateLimitResource = GitHubAPIRateLimitState
+
+// GitHubAPIRateLimitReport records the core API quota around a logs command.
+type GitHubAPIRateLimitReport struct {
+	Start *GitHubAPIRateLimitState `json:"start,omitempty"`
+	End   *GitHubAPIRateLimitState `json:"end,omitempty"`
+}
+
+func startGitHubAPIRateLimitReport(ctx context.Context) *GitHubAPIRateLimitReport {
+	state, err := fetchRateLimitFunc(ctx)
+	if err != nil {
+		logsRateLimitLog.Printf("Could not record starting API rate limit: %v", err)
+		return &GitHubAPIRateLimitReport{}
+	}
+	return &GitHubAPIRateLimitReport{Start: &state}
+}
+
+func finishGitHubAPIRateLimitReport(ctx context.Context, report *GitHubAPIRateLimitReport, jsonOutput bool) {
+	if report == nil {
+		return
+	}
+	state, err := fetchRateLimitFunc(ctx)
+	if err != nil {
+		logsRateLimitLog.Printf("Could not record ending API rate limit: %v", err)
+		return
+	}
+	report.End = &state
+	if !jsonOutput && isGitHubAPIRateLimitLow(state) {
+		percentRemaining := state.Remaining * 100 / state.Limit
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+			"GitHub API rate limit is running low: %d of %d core requests remain (%d%%); resets at %s",
+			state.Remaining, state.Limit, percentRemaining, time.Unix(state.Reset, 0).UTC().Format(time.RFC3339),
+		)))
+	}
+}
+
+func isGitHubAPIRateLimitLow(state rateLimitResource) bool {
+	return state.Limit > 0 &&
+		state.Remaining*100 <= state.Limit*RateLimitWarningThresholdPercent
+}
+
+func populatedGitHubAPIRateLimitReport(report *GitHubAPIRateLimitReport) *GitHubAPIRateLimitReport {
+	if report == nil || (report.Start == nil && report.End == nil) {
+		return nil
+	}
+	return report
 }
 
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit

@@ -42,6 +42,7 @@ func DownloadWorkflowLogsForTargets(
 		return err
 	}
 
+	apiRateLimit := startGitHubAPIRateLimitReport(ctx)
 	results := collectLogsTargets(ctx, opts, targets)
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {
@@ -50,11 +51,12 @@ func DownloadWorkflowLogsForTargets(
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}
+	finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
 		}
-		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations)
+		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations, apiRateLimit)
 		return err
 	}
 
@@ -81,6 +83,7 @@ func DownloadWorkflowLogsForTargets(
 		countLimitReached: countLimitReached,
 		suppressRender:    opts.SuppressRender,
 		continuations:     continuations,
+		apiRateLimit:      apiRateLimit,
 	})
 }
 

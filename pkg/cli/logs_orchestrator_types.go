@@ -150,4 +150,5 @@ type renderLogsOutputOptions struct {
 	// suppressRender skips all report rendering after the summary file has been
 	// written, for callers that only want the downloaded artifacts.
 	suppressRender bool
+	apiRateLimit   *GitHubAPIRateLimitReport
 }
