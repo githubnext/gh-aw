@@ -30,7 +30,7 @@ imports:
   - shared/reporting.md
 tools:
   github:
-    mode: gh-proxy
+    mode: local
   cli-proxy: true
 
 evals:
@@ -40,7 +40,7 @@ evals:
     question: Did the agent create a daily status report with relevant project updates?
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 <!--

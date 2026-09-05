@@ -11,7 +11,7 @@ permissions:
   actions: read
   copilot-requests: write
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 model: openai/gpt-5.4
 network:
@@ -21,13 +21,13 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   edit:
   bash: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [actions, repos]
 safe-outputs:
   create-discussion:

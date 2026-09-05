@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 max-ai-credits: 1500
 tools:
@@ -19,7 +19,7 @@ tools:
   edit:
   bash: ["*"]
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
@@ -284,7 +284,7 @@ pre-agent-steps:
       fi
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 # Schema Consistency Checker
