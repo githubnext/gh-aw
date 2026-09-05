@@ -119,6 +119,26 @@ steps:
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/agent/compile-output.txt"
+  - name: Assert static analysis output completeness
+    run: |
+      set -e
+      echo "Verifying all static analysis tools executed and produced output..."
+      COMPILE_LOG="/tmp/gh-aw/agent/compile-output.txt"
+
+      MISSING_TOOLS=0
+      for tool in zizmor poutine actionlint runner-guard syft grype yamllint shellcheck; do
+        if ! grep -qi "$tool" "$COMPILE_LOG"; then
+          echo "Error: Static analysis tool '$tool' produced zero output in $COMPILE_LOG"
+          MISSING_TOOLS=$((MISSING_TOOLS + 1))
+        fi
+      done
+
+      if [ $MISSING_TOOLS -gt 0 ]; then
+        echo "Error: $MISSING_TOOLS static analysis tool(s) failed to produce execution output in pipeline"
+        exit 1
+      fi
+
+      echo "Static analysis tool output completeness check passed."
 
 sandbox:
   agent:
