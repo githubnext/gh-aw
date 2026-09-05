@@ -94,6 +94,23 @@ func GoodMixedVerbs(name string, err error) error {
 	return fmt.Errorf("operation %v failed: %w", name, err)
 }
 
+// BadConcatVWrap builds its format string via string concatenation with a
+// caller-supplied prefix, mirroring cacheRecoveryError. The trailing error
+// argument is formatted with %v instead of %w.
+func BadConcatVWrap(prefix string, err error) error {
+	return fmt.Errorf(prefix+"\n\n"+ // want `fmt\.Errorf formats an error argument with %v`
+		"context: %d\n"+
+		"Original error: %v", 42, err)
+}
+
+// GoodConcatWWrap builds its format string via string concatenation with a
+// caller-supplied prefix but correctly wraps the trailing error with %w.
+func GoodConcatWWrap(prefix string, err error) error {
+	return fmt.Errorf(prefix+"\n\n"+
+		"context: %d\n"+
+		"Original error: %w", 42, err)
+}
+
 // SuppressedByNolint is intentionally suppressed.
 func SuppressedByNolint(err error) error {
 	return fmt.Errorf("operation failed: %v", err) //nolint:errorfwrapv

@@ -321,7 +321,7 @@ func cacheRecoveryError(message string, runID int64, runOutputDir string, err er
 		"   - run_id: %d\n"+
 		"   - output_directory: %s\n\n"+
 		"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-		"Original error: %v", runID, runOutputDir, err)
+		"Original error: %w", runID, runOutputDir, err)
 }
 
 func prepareRunForAnalysis(run WorkflowRun, cfg auditRunConfig, useLocalCache bool) WorkflowRun {
