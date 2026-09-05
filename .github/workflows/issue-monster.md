@@ -510,7 +510,7 @@ permissions:
 features:
   gh-aw-detection: true
 
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 engine: codex
 imports:
   - shared/mcp-pagination.md
