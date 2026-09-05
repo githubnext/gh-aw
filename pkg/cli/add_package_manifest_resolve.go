@@ -91,6 +91,10 @@ func resolveRepositoryPackageProjectFile(ctx context.Context, owner, repo, packa
 
 func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref, host, repoSlug string, nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
+	// Shared across every manifest node so that multiple imported manifests referencing the
+	// same repository-root grader evaluator are deduplicated instead of being reported as
+	// conflicting duplicate install destinations by validateUniqueResolvedPackageFiles.
+	seenGraderEvaluators := make(map[string]string)
 	for _, node := range nodes {
 		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, repositoryPackageIdentifier(repoSlug, node.PackagePath))
 		if err != nil {
@@ -104,7 +108,7 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 		}
 		assets.installationSources = append(assets.installationSources, nodeInstallables...)
 		nodeResources := normalizePackageResourcePaths(node.Manifest.Resources, node.PackagePath)
-		nodeResources, err = appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, node.PackagePath, nodeResources, nodeInstallables)
+		nodeResources, err = appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, nodeResources, nodeInstallables, seenGraderEvaluators)
 		if err != nil {
 			return nil, err
 		}
@@ -130,8 +134,13 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 	return assets, nil
 }
 
-func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host, packagePath string, resourceFiles []resolvedPackageResource, installationSources []resolvedPackageInstallable) ([]resolvedPackageResource, error) {
-	seen := make(map[string]string, len(resourceFiles))
+// appendPackageGraderEvaluatorResources discovers grader evaluator resources referenced by the
+// given installable package workflows and appends them to resourceFiles. seen tracks previously
+// resolved evaluator destinations across the entire manifest graph (i.e. across every call for
+// every node), so that multiple manifest nodes referencing the identical repository-root
+// evaluator are deduplicated instead of tripping the later duplicate-destination validation,
+// while still rejecting genuinely conflicting sources for the same destination.
+func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host string, resourceFiles []resolvedPackageResource, installationSources []resolvedPackageInstallable, seen map[string]string) ([]resolvedPackageResource, error) {
 	for _, resource := range resourceFiles {
 		seen[packageResourceDestinationKey(resource.DestinationPath)] = resource.SourcePath
 	}
@@ -156,7 +165,7 @@ func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref
 			if !entry.isGraderEvaluator {
 				continue
 			}
-			resource := packageGraderEvaluatorResource(installable, entry.path, packagePath)
+			resource := packageGraderEvaluatorResource(installable, entry.path)
 			key := packageResourceDestinationKey(resource.DestinationPath)
 			if previousSource, exists := seen[key]; exists {
 				if previousSource != resource.SourcePath {
@@ -171,19 +180,15 @@ func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref
 	return resourceFiles, nil
 }
 
-func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath, packagePath string) resolvedPackageResource {
+func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath string) resolvedPackageResource {
 	if localPath, ok := strings.CutPrefix(runPath, "./"); ok {
 		return resolvedPackageResource{
 			SourcePath:      path.Join(path.Dir(installable.SourcePath), localPath),
 			DestinationPath: path.Join(path.Dir(installable.DestinationPath), localPath),
 		}
 	}
-	sourcePath := joinRepositoryPackagePath(packagePath, runPath)
-	if localWorkflowsPath, ok := strings.CutPrefix(runPath, constants.WorkflowsDirSlash); ok {
-		sourcePath = path.Join(path.Dir(installable.SourcePath), localWorkflowsPath)
-	}
 	return resolvedPackageResource{
-		SourcePath:      sourcePath,
+		SourcePath:      runPath,
 		DestinationPath: runPath,
 	}
 }
