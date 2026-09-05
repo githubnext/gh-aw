@@ -33,7 +33,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-var playwrightBrowserInstallPattern = regexp.MustCompile(`(?im)(?:^|&&|\|\||;)[ \t]*(?:(?:npx|npm[ \t]+(?:exec|x)|pnpm[ \t]+(?:exec|dlx)|yarn(?:[ \t]+dlx)?|bunx)[ \t]+(?:(?:--yes|--no-install|--)[ \t]+)*)?playwright(?:@[^\s;&|]+)?[ \t]+install(?:[ \t]|$)`)
+var playwrightBrowserInstallPattern = regexp.MustCompile(`(?im)(?:^|&&|\|\||;)[ \t]*(?:(?:npx|npm[ \t]+(?:exec|x)|pnpm[ \t]+(?:exec|dlx)|yarn(?:[ \t]+(?:exec|dlx))?|bunx)[ \t]+(?:(?:--yes|--no-install|--)[ \t]+)*)?playwright(?:@[^\s;&|]+)?[ \t]+install(?:[ \t]|$)`)
 
 func normalizePlaywrightBrowser(browser string) string {
 	switch strings.ToLower(strings.TrimSpace(browser)) {

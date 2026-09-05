@@ -278,7 +278,7 @@ func TestEmitPlaywrightBrowserInstallWarning(t *testing.T) {
 			name:  "browser install in post-steps",
 			tools: map[string]any{"playwright": nil},
 			postSteps: `post-steps:
-- run: yarn dlx playwright install webkit
+- run: yarn exec playwright install webkit
 `,
 			wantWarning: true,
 		},
