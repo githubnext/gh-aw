@@ -369,7 +369,7 @@ async function main(config = {}) {
         if (protection.action !== "allow") {
           const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} modifies protected files (${protection.files.join(", ")})`;
           core.warning(error);
-          return { success: false, error };
+          return { success: false, skipped: true, reasonCode: "POLICY_FILE_PROTECTION_DENIED", error };
         }
       }
 
