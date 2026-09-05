@@ -209,6 +209,12 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
     "total_requests": 12,
     "allowed_requests": 10,
     "blocked_requests": 2,
+    "allowed_domains": ["api.github.com:443"],
+    "blocked_domains": ["blocked.example.com:443"],
+    "requests_by_domain": {
+      "api.github.com:443": { "allowed": 10, "blocked": 0 },
+      "blocked.example.com:443": { "allowed": 0, "blocked": 2 }
+    },
     "domains": [
       {
         "domain": "api.github.com:443",
