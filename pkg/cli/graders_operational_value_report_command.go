@@ -112,7 +112,6 @@ func runOperationalValueReportForAllWorkflows(ctx context.Context, config Operat
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("operational-value report failed for %s: %v", workflowID, err)))
 			failed = append(failed, workflowID)
 			errs = errors.Join(errs, fmt.Errorf("%s: %w", workflowID, err))
-			continue
 		}
 	}
 	succeeded := len(workflowIDs) - len(failed)
