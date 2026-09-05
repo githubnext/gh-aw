@@ -30,9 +30,9 @@
     },
     "specs/awf-config-sources-compliance/README.md": {
       "slug": "awf-config-sources-compliance-README",
-      "last_formalized": "2026-08-20-15-39-59",
+      "last_formalized": "2026-09-05-15-38-00",
       "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 8,
+      "predicate_count": 16,
       "issue_number": null
     },
     "specs/compiler-threat-detection-spec.md": {
