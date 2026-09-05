@@ -2,7 +2,7 @@
 private: true
 emoji: "🧪"
 name: Smoke Issues
-description: Create a daily haiku issue in Linear and Jira through safe outputs
+description: Preview daily haiku issues in Linear and Jira through safe outputs
 on:
   schedule: daily
   workflow_dispatch:
@@ -11,6 +11,7 @@ permissions:
   actions: read
 engine: copilot
 safe-outputs:
+  staged: true
   linear-create-issue:
     team-id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d"
     project-id: "810f57a7e383"
@@ -24,7 +25,7 @@ timeout-minutes: 5
 
 Generate one original haiku about code, automation, or workflows using a 5-7-5 syllable pattern.
 
-Create exactly two issues containing the same haiku and the workflow run URL:
+Preview exactly two issues containing the same haiku and the workflow run URL:
 
 1. Use `linear_create_issue` to create one issue in the configured Linear project.
 2. Use `jira_create_issue` to create one `Task` in Jira project `KAN`.
