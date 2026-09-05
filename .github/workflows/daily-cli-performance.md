@@ -38,8 +38,8 @@ permissions:
 tracker-id: daily-cli-performance
 engine:
   id: codex
-  model-provider: openai
-model: openai/gpt-5.3-codex
+  model-provider: github
+model: copilot/gpt-5.3-codex
 tools:
   cli-proxy: true
   repo-memory:
