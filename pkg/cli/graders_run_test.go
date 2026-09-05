@@ -54,7 +54,7 @@ func TestRunGraderFromStdin(t *testing.T) {
 	}`, output.String())
 }
 
-func TestRunCustomGraderFromStdin(t *testing.T) {
+func TestRunInlineScriptGraderFromStdin(t *testing.T) {
 	workflowID := writeGraderRunWorkflow(t, `---
 graders:
   custom-score:
@@ -73,8 +73,56 @@ graders:
 		Output:   &output,
 	})
 	require.NoError(t, err)
-	assert.Contains(t, output.String(), `"value": 0.75`)
-	assert.Contains(t, output.String(), `"message": "computed"`)
+	assert.JSONEq(t, `{
+		"id":"custom-score",
+		"name":"custom-score",
+		"value":0.75,
+		"unit":"ratio",
+		"passed":true,
+		"status":"pass",
+		"source":"inline",
+		"implementation":{
+			"id":"gh-aw/graders",
+			"version":1,
+			"digest":"518c37ee83a83874d2added478398c3b391bdbaa7b92f6ea9567a016dd888640"
+		},
+		"message":"computed"
+	}`, output.String())
+}
+
+func TestRunScriptFileGraderFromStdin(t *testing.T) {
+	workflowID := writeGraderRunWorkflow(t, `---
+graders:
+  operational-value:
+    run: .github/graders/test-operational-value.sh
+---
+`)
+	require.NoError(t, os.Mkdir(".git", 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(".github", "graders"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(".github", "graders", "test-operational-value.sh"), []byte(`#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+--definition)
+  printf '%s\n' '{"schemaVersion":4,"grader":"operational-value","repository":"example/repo","workflowName":"Test","sourcePath":".github/workflows/test.md","adoption":{"commit":"abc","adoptedAt":"2026-01-01T00:00:00Z"},"operationalValue":"Test direct script execution.","evidence":{"opportunity":"test","assignment":"payload","accepted":"stdin","repositories":["example/repo"],"collection":"test","maturation":"immediate","zeroRule":"none","missingRule":"null"},"primaryMetric":{"id":"score","formula":"payload score","direction":"higher_is_better"},"baseline":{"mode":"attainment-only","value":null,"evidenceCutoff":null,"provenance":[]},"validationExamples":{"sample":{"valid":true}}}'
+  ;;
+--grade-run)
+  payload=$(cat)
+  [[ "$payload" == '{"score":0.8}' ]]
+  printf '%s\n' '{"value":0.8,"source":"script-file"}'
+  ;;
+*) exit 1 ;;
+esac
+`), 0o700))
+
+	var output bytes.Buffer
+	err := runGrader(context.Background(), graderRunConfig{
+		Workflow: workflowID,
+		GraderID: "operational-value",
+		Input:    bytes.NewBufferString(`{"score":0.8}`),
+		Output:   &output,
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"value":0.8,"source":"script-file"}`, output.String())
 }
 
 func TestReadGraderPayloadValidation(t *testing.T) {
