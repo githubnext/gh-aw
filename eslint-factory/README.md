@@ -74,7 +74,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
-| [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
+| [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` / returned exit code to be read after `getExecOutput()` or `exec()` with `{ ignoreReturnCode: true }` |
 | [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
 
 ### `no-empty-catch-block`
@@ -1099,14 +1099,16 @@ req.on("error", reject);
 
 ### `require-getexecoutput-exitcode-check`
 
-Require the `exitCode` returned by `@actions/exec`'s `getExecOutput()` to be read (destructured or accessed) whenever the call passes `{ ignoreReturnCode: true }`.
+Require the `exitCode` returned by `@actions/exec`'s `getExecOutput()` or the exit code returned by `exec()` to be read (destructured, accessed, or captured) whenever the call passes `{ ignoreReturnCode: true }`.
 
-Why: `getExecOutput()` throws automatically on a non-zero exit code by default. Passing `ignoreReturnCode: true` suppresses that behavior, making the caller solely responsible for detecting failure. Discarding `exitCode` (e.g. only destructuring `{ stdout }`) silently swallows command failures — the action proceeds with empty or stale output as if the command had succeeded.
+Why: `getExecOutput()` and `exec()` throw automatically on a non-zero exit code by default. Passing `ignoreReturnCode: true` suppresses that behavior, making the caller solely responsible for detecting failure. Discarding `exitCode` or the returned exit code (e.g. only destructuring `{ stdout }` from `getExecOutput()`, or a bare `await exec.exec(...)` statement whose returned exit code is never captured) silently swallows command failures — the action proceeds with empty or stale output as if the command had succeeded.
 
 **Flagged form:**
 ```js
 const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only"], { ignoreReturnCode: true });
 return stdout.split("\n");
+
+await exec.exec("git", ["diff", "--exit-code", "."], { ignoreReturnCode: true });
 ```
 
 **Safe alternative:**
@@ -1116,6 +1118,11 @@ if (exitCode !== 0) {
   throw new Error(`git diff failed with exit code ${exitCode}`);
 }
 return stdout.split("\n");
+
+const exitCode = await exec.exec("git", ["diff", "--exit-code", "."], { ignoreReturnCode: true });
+if (exitCode !== 0) {
+  throw new Error(`git diff failed with exit code ${exitCode}`);
+}
 ```
 
 **Out of scope:**
