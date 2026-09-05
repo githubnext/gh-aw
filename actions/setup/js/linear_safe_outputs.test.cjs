@@ -122,6 +122,14 @@ describe("Linear safe outputs", () => {
     expect(JSON.parse(fetch.mock.calls[1][1].body).variables.input.teamId).toBe("9cfb482a-81e3-4154-b5b9-2c805e70a02d");
   });
 
+  it("rejects invalid explicit IDs instead of using global fallbacks", async () => {
+    process.env.LINEAR_TEAM_ID = "11111111-1111-1111-1111-111111111111";
+    process.env.LINEAR_PROJECT_ID = "111111111111";
+
+    await expect(createIssue({ team_id: "" })).rejects.toThrow("safe-outputs.linear-create-issue.team-id");
+    await expect(createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d", project_id: "" })).rejects.toThrow("safe-outputs.linear-create-issue.project-id");
+  });
+
   it("rejects HTTP, malformed JSON, GraphQL, and unsuccessful mutation responses", async () => {
     fetch.mockResolvedValueOnce(response({}, 429));
     await expect(linearGraphQL("query Fixed { viewer { id } }", {})).rejects.toThrow("rate limit exceeded");

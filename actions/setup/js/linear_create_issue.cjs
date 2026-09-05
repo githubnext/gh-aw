@@ -31,11 +31,11 @@ const LINEAR_RESOLVE_PROJECT = `query ResolveLinearProject($slugId: String!) {
 }`;
 
 async function main(config = {}) {
-  const teamId = config.team_id || process.env.LINEAR_TEAM_ID;
+  const teamId = config.team_id !== undefined ? config.team_id : process.env.LINEAR_TEAM_ID;
   if (typeof teamId !== "string" || !LINEAR_UUID_PATTERN.test(teamId)) {
     throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid team ID from safe-outputs.linear-create-issue.team-id or LINEAR_TEAM_ID`);
   }
-  const projectId = config.project_id || process.env.LINEAR_PROJECT_ID || undefined;
+  const projectId = config.project_id !== undefined ? config.project_id : process.env.LINEAR_PROJECT_ID || undefined;
   if (projectId !== undefined && (typeof projectId !== "string" || !LINEAR_PROJECT_ID_PATTERN.test(projectId))) {
     throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid project ID from safe-outputs.linear-create-issue.project-id or LINEAR_PROJECT_ID`);
   }
