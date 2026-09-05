@@ -7,9 +7,12 @@ sidebar:
 
 # Conclusion Data Specification
 
-**Version**: 1.0.0  
-**Status**: Draft  
-**Latest Version**: [conclusion-data-specification](/gh-aw/specs/conclusion-data-specification/)  
+**Version**: 1.0.0
+
+**Status**: Draft
+
+**Latest Version**: [conclusion-data-specification](/gh-aw/specs/conclusion-data-specification/)
+
 **Editor**: GitHub Agentic Workflows Team
 
 ## Abstract
