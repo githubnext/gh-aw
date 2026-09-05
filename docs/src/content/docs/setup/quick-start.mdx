@@ -47,9 +47,11 @@ head:
 import Video from '../../../components/Video.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-GitHub Agentic Workflows lets developers define AI-powered repository automation in Markdown with YAML frontmatter (the configuration block between the `---` markers at the top of the file) and run AI agents through GitHub Actions. By the end of this guide, you will have a recurring agentic workflow running in your repository with GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi. The stable-engine path takes about 10 minutes and requires only the GitHub CLI.
-
 ## Adding an Automated Daily Status Workflow to Your Repo
+
+### YAML frontmatter
+
+GitHub Agentic Workflows lets developers define AI-powered repository automation in Markdown with YAML frontmatter (the configuration block between the `---` markers at the top of the file) and run AI agents through GitHub Actions. By the end of this guide, you will have a recurring agentic workflow running in your repository with GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi. The stable-engine path takes about 10 minutes and requires only the GitHub CLI.
 
 **⏱️ Estimated time: 10 minutes**
 
@@ -190,7 +192,7 @@ To customize it now:
 
 2. Edit the section "What to include" to list things you are having trouble with regularly in your repository: your issue backlog, your CI setup, your testing, the performance of your software, your roadmap. Any or all of these, or anything else you want to improve. You can also customize the style and process sections to guide the coding agent's behavior.
 
-3. If you changed the [frontmatter](/gh-aw/reference/frontmatter/) (the YAML configuration block between the `---` markers at the top of the file), regenerate the compiled workflow by running:
+3. If you changed the [frontmatter](#yaml-frontmatter) (the YAML configuration block between the `---` markers at the top of the file), regenerate the compiled workflow by running:
 
    ```text
    gh aw compile
