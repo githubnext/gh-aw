@@ -80,7 +80,10 @@ describe("generate_usage_activity_summary.cjs", () => {
     it("counts valid Squid access log entries correctly", () => {
       const logContent = [
         '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
+        '1761332530.475 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
         '1761332531.000 172.30.0.20:35289 blocked.example.com:443 1.2.3.4:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+        '1761332532.000 172.30.0.20:35290 mixed.example.com:443 1.2.3.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT mixed.example.com:443 "-"',
+        '1761332533.000 172.30.0.20:35291 mixed.example.com:443 1.2.3.5:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE mixed.example.com:443 "-"',
       ].join("\n");
 
       fs.writeFileSync(path.join(squidLogDir, "access.log"), logContent);
@@ -88,11 +91,17 @@ describe("generate_usage_activity_summary.cjs", () => {
       const result = parseFirewallLogs();
 
       expect(result).not.toBeNull();
-      expect(result.total_requests).toBe(2);
-      expect(result.allowed_requests).toBe(1);
-      expect(result.blocked_requests).toBe(1);
+      expect(result.total_requests).toBe(5);
+      expect(result.allowed_requests).toBe(3);
+      expect(result.blocked_requests).toBe(2);
       expect(result.allowed_domains).toContain("api.github.com:443");
       expect(result.blocked_domains).toContain("blocked.example.com:443");
+      expect(result.domains).toEqual([
+        { domain: "api.github.com:443", accepted: true, arity: 2 },
+        { domain: "blocked.example.com:443", accepted: false, arity: 1 },
+        { domain: "mixed.example.com:443", accepted: true, arity: 1 },
+        { domain: "mixed.example.com:443", accepted: false, arity: 1 },
+      ]);
     });
   });
 

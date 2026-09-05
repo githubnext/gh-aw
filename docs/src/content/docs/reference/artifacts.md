@@ -208,7 +208,19 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   "firewall": {
     "total_requests": 12,
     "allowed_requests": 10,
-    "blocked_requests": 2
+    "blocked_requests": 2,
+    "domains": [
+      {
+        "domain": "api.github.com:443",
+        "accepted": true,
+        "arity": 10
+      },
+      {
+        "domain": "blocked.example.com:443",
+        "accepted": false,
+        "arity": 2
+      }
+    ]
   },
   "gateway": {
     "total_calls": 5,
@@ -256,6 +268,8 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   }
 }
 ```
+
+The [Conclusion Data Specification](/gh-aw/specs/conclusion-data-specification/) defines the complete file shape and firewall-domain record semantics.
 
 The conclusion job derives `gateway` and `integrity` from MCP gateway logs, falling back to `rpc-messages.jsonl` when `gateway.jsonl` is unavailable. These compact aggregates let `gh aw logs --artifacts usage` report MCP call, payload-size, duration, failure, and integrity-filter metrics without downloading raw logs. Cross-run reports include `runs_with_filtered_events`; the existing logs report summary remains the source for the total number of runs.
 

@@ -3,7 +3,7 @@
 // This script aggregates usage activity data from various log sources and generates
 // a compact summary.json file for the usage artifact.
 // usage-activity-summary/v1 structure:
-//   firewall: total/allowed/blocked request counters
+//   firewall: total/allowed/blocked request counters and per-domain decisions
 //   session: aggregate Copilot session event counters
 //   gateway: tool-call counts, sizes, durations, and per-server/tool breakdowns
 //   integrity: aggregate DIFC filtering counts from gateway/RPC logs
@@ -244,11 +244,18 @@ function parseFirewallLogs() {
   }
 
   const requestsByDomain = {};
-  for (const [domain, stats] of Object.entries(firewall.requests_by_domain)) {
+  const domains = [];
+  for (const [domain, stats] of Object.entries(firewall.requests_by_domain).sort(([left], [right]) => left.localeCompare(right))) {
     if (!isValidDomainKey(domain)) {
       continue;
     }
     requestsByDomain[domain] = stats;
+    if (stats.allowed > 0) {
+      domains.push({ domain, accepted: true, arity: stats.allowed });
+    }
+    if (stats.blocked > 0) {
+      domains.push({ domain, accepted: false, arity: stats.blocked });
+    }
   }
 
   return {
@@ -258,6 +265,7 @@ function parseFirewallLogs() {
     allowed_domains: Array.from(firewall.allowed_domains).filter(isValidDomainKey).sort(),
     blocked_domains: Array.from(firewall.blocked_domains).filter(isValidDomainKey).sort(),
     requests_by_domain: requestsByDomain,
+    domains,
   };
 }
 
