@@ -17,7 +17,7 @@ tracker-id: daily-storify
 engine:
   id: codex
   model-provider: github
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 timeout-minutes: 45
 network:

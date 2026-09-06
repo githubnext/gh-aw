@@ -42,6 +42,7 @@ func DownloadWorkflowLogsForTargets(
 		return err
 	}
 
+	allAPIRateLimits := startGitHubAPIRateLimitReports(ctx, logsTargetRateLimitHosts(targets))
 	results := collectLogsTargets(ctx, opts, targets)
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	for _, err := range allErrors {
@@ -50,11 +51,13 @@ func DownloadWorkflowLogsForTargets(
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}
+	finishGitHubAPIRateLimitReports(ctx, allAPIRateLimits, opts.JSONOutput)
+	apiRateLimit, apiRateLimits := partitionGitHubAPIRateLimitReports(allAPIRateLimits)
 	if len(processedRuns) == 0 {
 		if len(allErrors) > 0 {
 			return errors.Join(allErrors...)
 		}
-		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations)
+		_, err := handleEmptyProcessedRuns(nil, opts, timeoutReached, storageLimitReached, nil, continuations, apiRateLimit, apiRateLimits)
 		return err
 	}
 
@@ -81,7 +84,23 @@ func DownloadWorkflowLogsForTargets(
 		countLimitReached: countLimitReached,
 		suppressRender:    opts.SuppressRender,
 		continuations:     continuations,
+		apiRateLimit:      apiRateLimit,
+		apiRateLimits:     apiRateLimits,
 	})
+}
+
+func logsTargetRateLimitHosts(targets []logsWorkflowTarget) []string {
+	hosts := make([]string, 0, len(targets))
+	seen := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		host := normalizedGitHubAPIHost(logsRateLimitHost(target.repoOverride))
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		hosts = append(hosts, host)
+	}
+	return hosts
 }
 
 func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets []logsWorkflowTarget) []logsTargetResult {

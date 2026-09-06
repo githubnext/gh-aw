@@ -83,8 +83,11 @@ function createJiraClient(env = process.env, fetchImpl = global.fetch) {
   const baseUrl = normalizeJiraBaseUrl(env.JIRA_BASE_URL);
   const email = typeof env.JIRA_USER_EMAIL === "string" ? env.JIRA_USER_EMAIL.trim() : "";
   const token = typeof env.JIRA_API_TOKEN === "string" ? env.JIRA_API_TOKEN : "";
-  if (!email || !token) {
-    throw new Error("Jira configuration requires JIRA_USER_EMAIL and JIRA_API_TOKEN");
+  const missingSecrets = [...(email ? [] : ["JIRA_USER_EMAIL"]), ...(token ? [] : ["JIRA_API_TOKEN"])];
+  if (missingSecrets.length > 0) {
+    throw new Error(
+      `Jira configuration is missing required GitHub Actions ${missingSecrets.length === 1 ? "secret" : "secrets"}: ${missingSecrets.join(", ")}. Configure ${missingSecrets.length === 1 ? "it" : "them"} as a repository or organization secret available to this workflow`
+    );
   }
   if (typeof fetchImpl !== "function") {
     throw new Error("Jira requests require the fetch API");

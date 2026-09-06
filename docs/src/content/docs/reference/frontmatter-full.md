@@ -4208,8 +4208,8 @@ tools:
     # GitHub Actions expression.
     mode: "example-value"
 
-    # Browsers to provision before the agent starts. Defaults to Chromium. Chrome is
-    # accepted as an alias for Chromium.
+    # Browsers to provision before the agent starts. Defaults to Chromium. Chrome and
+    # Chrome for Testing are accepted as aliases for Chromium.
     # (optional)
     browsers: []
       # Array of strings

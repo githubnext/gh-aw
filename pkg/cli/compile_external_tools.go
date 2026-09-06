@@ -95,6 +95,7 @@ func RunShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose b
 // from lock files and shell script resources defined in workflow frontmatter.
 func RunShellcheckOnLockFilesAndResources(ctx context.Context, lockFiles []string, resources []workflow.ShellScriptResource, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 && len(resources) == 0 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running shellcheck on run steps (0 lock files and 0 frontmatter resources found)"))
 		compileExternalToolsLog.Printf("No shell script resources to process with shellcheck")
 		return nil
 	}
@@ -109,9 +110,13 @@ func RunSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("syft", lockFiles, verbose, strict, runSyftOnLockFiles)
 }
 
-// runBatchLockFileTool runs a batch tool on lock files with uniform error handling
+// runBatchLockFileTool runs a batch tool on lock files with uniform error handling.
+// Even when there are zero lock files to process, an explicit stderr marker is
+// emitted so downstream completeness checks (e.g. static-analysis-report.md) can
+// distinguish "tool ran with zero input" from "tool was never invoked".
 func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, strict bool, runner func([]string, bool, bool) error) error {
 	if len(lockFiles) == 0 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running %s (0 lock files found)", toolName)))
 		compileExternalToolsLog.Printf("No lock files to process with %s", toolName)
 		return nil
 	}

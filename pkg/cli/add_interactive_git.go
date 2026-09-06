@@ -397,14 +397,6 @@ func (c *AddInteractiveConfig) plannedAddPathsAtRoot(gitRoot string, workflowFil
 	return planned, nil
 }
 
-func inspectAddWorkingTree(plannedPaths []string) (addWorkingTreeBlockers, error) {
-	gitRoot, err := addFindGitRoot()
-	if err != nil {
-		return addWorkingTreeBlockers{}, fmt.Errorf("failed to determine repository root for PR preflight: %w", err)
-	}
-	return inspectAddWorkingTreeAtRoot(gitRoot, plannedPaths)
-}
-
 func inspectAddWorkingTreeAtRoot(gitRoot string, plannedPaths []string) (addWorkingTreeBlockers, error) {
 	cmd := exec.Command("git", "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	cmd.Dir = gitRoot

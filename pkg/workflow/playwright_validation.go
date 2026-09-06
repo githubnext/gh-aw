@@ -26,12 +26,18 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"regexp"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
+
+var playwrightBrowserInstallPattern = regexp.MustCompile(`(?im)(?:^|&&|\|\||;)[ \t]*(?:(?:npx|npm[ \t]+(?:exec|x)|pnpm[ \t]+(?:exec|dlx)|yarn(?:[ \t]+(?:exec|dlx))?|bunx)[ \t]+(?:(?:--yes|--no-install|--)[ \t]+)*)?playwright(?:@[^\s;&|]+)?[ \t]+install(?:[ \t]|$)`)
 
 func normalizePlaywrightBrowser(browser string) string {
 	switch strings.ToLower(strings.TrimSpace(browser)) {
-	case "chrome", "chromium":
+	case "chrome", "chrome-for-testing", "chromium":
 		return "chromium"
 	case "firefox":
 		return "firefox"
@@ -85,7 +91,7 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 					return NewValidationError(
 						"tools.playwright.browsers",
 						fmt.Sprint(browser),
-						"unsupported browser; choose chrome, chromium, firefox, or webkit",
+						"unsupported browser; choose chrome, chrome-for-testing, chromium, firefox, or webkit",
 						"Set browsers to a list containing supported Playwright browser names",
 					)
 				}
@@ -93,4 +99,41 @@ func (c *Compiler) validatePlaywrightMode(workflowData *WorkflowData) error {
 		}
 	}
 	return nil
+}
+
+func (c *Compiler) emitPlaywrightBrowserInstallWarning(workflowData *WorkflowData, markdownPath string) {
+	if workflowData == nil || !isPlaywrightCLIMode(workflowData.Tools) || !hasPlaywrightBrowserInstallStep(workflowData) {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+		"custom steps install Playwright browser engines. Remove those installation commands and use `tools.playwright.browsers` instead; the compiler provisions the selected browsers before the agent starts."))
+	c.IncrementWarningCount()
+}
+
+func hasPlaywrightBrowserInstallStep(workflowData *WorkflowData) bool {
+	sections := []string{
+		workflowData.PreSteps,
+		workflowData.CustomSteps,
+		workflowData.PreAgentSteps,
+		workflowData.PostSteps,
+	}
+
+	for _, section := range sections {
+		if section == "" {
+			continue
+		}
+		var wrapper map[string][]WorkflowStep
+		if err := yaml.Unmarshal([]byte(section), &wrapper); err != nil {
+			continue
+		}
+		for _, steps := range wrapper {
+			for _, step := range steps {
+				if playwrightBrowserInstallPattern.MatchString(step.Run) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
