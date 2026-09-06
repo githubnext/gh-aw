@@ -75,7 +75,7 @@ func TestSandboxAgentFalse(t *testing.T) {
 		markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
@@ -131,6 +131,8 @@ Test workflow with agent sandbox disabled.
 
 		markdown := `---
 engine: copilot
+features:
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: true
@@ -154,13 +156,13 @@ Test workflow with agent sandbox disabled in strict mode.
 		require.ErrorContains(t, err, "sandbox.agent: false")
 	})
 
-	t.Run("sandbox.agent: false shows warning at compile time", func(t *testing.T) {
+	t.Run("sandbox.agent: false does not show a deprecation warning", func(t *testing.T) {
 		workflowsDir := t.TempDir()
 
 		markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
@@ -184,9 +186,9 @@ Test workflow.
 		err = compiler.CompileWorkflow(workflowPath)
 		require.NoError(t, err)
 
-		// Should have incremented warning count
+		// Supported non-strict usage should not increment the warning count
 		finalWarnings := compiler.GetWarningCount()
-		assert.Greater(t, finalWarnings, initialWarnings, "Expected warning to be emitted for sandbox.agent: false")
+		assert.Equal(t, initialWarnings, finalWarnings, "Expected no warning for supported sandbox.agent: false")
 	})
 }
 
@@ -197,7 +199,7 @@ func TestSandboxAgentFalseWithTools(t *testing.T) {
 	markdown := `---
 engine: copilot
 features:
-  dangerously-disable-sandbox-agent: "controlled environment with no internet access"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false

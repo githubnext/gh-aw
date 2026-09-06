@@ -32,11 +32,11 @@ experiments:
     issue: 36105
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [actions, issues, pull_requests]
   bash: ["*"]
 cache:

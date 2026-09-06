@@ -131,6 +131,7 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 	if err := c.validateWorkflowModelAliasMap(ctx); err != nil {
 		return err
 	}
+	c.warnCodexCopilotModelCompatibility(ctx.workflowData, ctx.cleanPath)
 	c.warnUnknownConfiguredModels(ctx.workflowData, ctx.cleanPath)
 	if err := c.validateWorkflowEngineSettings(ctx.cleanPath, ctx.workflowData); err != nil {
 		return err
@@ -285,7 +286,7 @@ func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext)
 	}
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
 	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
-		return err
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
 	}
 	c.injectOTLPConfig(ctx.workflowData)
 	if len(ctx.engineSetup.importsResult.MergedFeatures) == 0 {
@@ -401,19 +402,27 @@ func applyMergedRawObservability(
 
 func (c *Compiler) mergeWorkflowEnv(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	topEnv := ExtractMapField(frontmatter, "env")
-	if importsResult.MergedEnv == "" {
-		setMainWorkflowEnvSources(workflowData, topEnv)
-		return nil
+	var importedEnvJSON string
+	if importsResult != nil {
+		importedEnvJSON = importsResult.MergedEnv
 	}
-	mergedEnvMap, err := mergeEnv(topEnv, importsResult.MergedEnv)
+
+	mergedEnvMap, err := mergeEnv(topEnv, importedEnvJSON)
 	if err != nil {
 		return fmt.Errorf("failed to merge env from imports: %w", err)
+	}
+	if err := validateTopLevelEnvExpressions(mergedEnvMap); err != nil {
+		return err
 	}
 	if len(mergedEnvMap) == 0 {
 		return nil
 	}
+	if importedEnvJSON == "" {
+		setMainWorkflowEnvSources(workflowData, topEnv)
+	} else {
+		workflowData.EnvSources = buildMergedEnvSources(mergedEnvMap, topEnv, importsResult.MergedEnvSources)
+	}
 	workflowData.Env = c.extractTopLevelYAMLSection(map[string]any{"env": mergedEnvMap}, "env")
-	workflowData.EnvSources = buildMergedEnvSources(mergedEnvMap, topEnv, importsResult.MergedEnvSources)
 	return nil
 }
 
@@ -477,6 +486,7 @@ func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existi
 		return err
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
+	ensureRepoMemoryWritePaths(workflowData.SandboxConfig, repoMemoryConfig)
 
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized, workflowData.CommandPlaceholder = c.extractCommandConfig(frontmatter)

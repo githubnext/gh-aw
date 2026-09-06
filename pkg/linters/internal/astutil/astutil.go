@@ -706,6 +706,34 @@ func StringLitValue(expr ast.Expr) (string, bool) {
 	return s, true
 }
 
+// ResolveFormatString resolves a fmt.Errorf-style format-string argument
+// expression into its literal text content. It handles plain string literals
+// as well as string concatenation via the `+` operator where all operands
+// are string literals (e.g. `"header\n" + "body %w"`).
+//
+// If any operand in a concatenated expression is not a string literal (e.g.
+// an identifier or function call), the format string cannot be fully resolved
+// at compile time (its format verbs and argument counts are unprovable), so ok
+// is false.
+func ResolveFormatString(expr ast.Expr) (value string, ok bool) {
+	if s, litOK := StringLitValue(expr); litOK {
+		return s, true
+	}
+	bin, isBin := expr.(*ast.BinaryExpr)
+	if !isBin || bin.Op != token.ADD {
+		return "", false
+	}
+	left, leftOK := ResolveFormatString(bin.X)
+	if !leftOK {
+		return "", false
+	}
+	right, rightOK := ResolveFormatString(bin.Y)
+	if !rightOK {
+		return "", false
+	}
+	return left + right, true
+}
+
 // IsInInitFunction reports whether cur is inside a top-level init() function.
 // Only top-level (no receiver) init functions are recognized; methods named
 // init are ordinary methods and are not exempt. A node whose innermost

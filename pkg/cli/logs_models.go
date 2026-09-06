@@ -44,6 +44,9 @@ const (
 	// remaining count falls at or below this value the helper sleeps until the reset
 	// window so subsequent iterations are not rejected with a 403/429.
 	RateLimitThreshold = 10
+	// RateLimitWarningThresholdPercent is the core quota percentage at or below
+	// which non-JSON logs output warns that the API limit is approaching.
+	RateLimitWarningThresholdPercent = 20
 	// rateLimitResetBuffer is the extra duration added on top of the computed wait time
 	// after a rate-limit reset to avoid resuming right on the boundary.
 

@@ -1004,10 +1004,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Unknown message type - warn the user
       const loadError = handlerLoadErrorsByHandlerMap.get(messageHandlers)?.get(messageType);
-      const loadErrorSuffix = loadError ? ` The handler was configured but failed to load: ${loadError}` : "";
-      core.warning(
-        `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.${loadErrorSuffix}`
-      );
+      const warning = loadError
+        ? `No handler available for message type '${messageType}' (message ${i + 1}/${messages.length}). The handler was configured but failed to load: ${loadError}`
+        : `No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.`;
+      core.warning(warning);
       results.push({
         type: messageType,
         messageIndex: i,

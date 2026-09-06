@@ -37,9 +37,9 @@ permissions:
   copilot-requests: write
 tracker-id: daily-cli-performance
 engine:
-  id: pi
+  id: codex
   model-provider: openai
-model: openai/gpt-5.4
+model: openai/gpt-5.3-codex
 tools:
   cli-proxy: true
   repo-memory:
@@ -50,7 +50,7 @@ tools:
   bash: true
   edit:
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, issues]
 safe-outputs:
   create-issue:
@@ -81,7 +81,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 evals:
   - id: benchmarks_run
     question: Did the agent run CLI performance benchmarks and track performance trends?

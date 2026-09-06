@@ -16,7 +16,7 @@ permissions:
 tracker-id: daily-cache-strategy-analyzer
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 experiments:
@@ -41,12 +41,12 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   cache-memory: true
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
 safe-outputs:
   create-issue:
     expires: 7d

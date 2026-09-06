@@ -12,7 +12,7 @@ permissions:
 
 
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 model: openai/gpt-5.4
 strict: true
@@ -28,7 +28,7 @@ imports:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     min-integrity: approved
     toolsets:
       - issues
@@ -104,7 +104,7 @@ evals:
     question: Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 {{#if experiments.prompt_style == 'detailed'}}

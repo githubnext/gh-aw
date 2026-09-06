@@ -26,8 +26,33 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 			},
 		},
 	}
+
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "/tmp/linear-valid.md"); err != nil {
 		t.Fatalf("expected valid Linear safe outputs configuration: %v", err)
+	}
+
+	validExpression := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"linear-create-issue": map[string]any{
+				"team-id": "${{ vars.LINEAR_TEAM_ID }}",
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validExpression, "/tmp/linear-expression.md"); err != nil {
+		t.Fatalf("expected expression-valued Linear team ID to be valid: %v", err)
+	}
+
+	globalFallback := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"linear-create-issue": map[string]any{},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(globalFallback, "/tmp/linear-global-fallback.md"); err != nil {
+		t.Fatalf("expected global Linear ID fallback configuration to be valid: %v", err)
 	}
 
 	tests := []struct {
@@ -35,10 +60,11 @@ func TestMainWorkflowSchemaLinearSafeOutputs(t *testing.T) {
 		safeOutputs map[string]any
 	}{
 		{
-			name: "missing team ID",
+			name: "malformed team ID",
 			safeOutputs: map[string]any{
-				"linear-token":        "${{ secrets.LINEAR_API_KEY }}",
-				"linear-create-issue": map[string]any{},
+				"linear-create-issue": map[string]any{
+					"team-id": "not-a-team",
+				},
 			},
 		},
 		{

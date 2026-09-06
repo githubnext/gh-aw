@@ -14,6 +14,7 @@ const { executeOperationalValueEvaluator } = require("./operational_value_grader
 const TMP_GH_AW = "/tmp/gh-aw";
 const GRADERS_DIR = path.join(TMP_GH_AW, "agent", "graders");
 const MANIFEST_PATH = path.join(GRADERS_DIR, "grader_manifest.json");
+const PAYLOAD_PATH = path.join(GRADERS_DIR, "grader_payload.json");
 const RESULTS_PATH = path.join(GRADERS_DIR, "grader_results.json");
 const OPERATIONAL_VALUE_EVALUATOR_PATH = path.join(GRADERS_DIR, "operational_value_evaluator.sh");
 
@@ -764,6 +765,11 @@ async function main(manifestB64, execSpecB64) {
   // Single preprocessing pass
   core.info(`Graders: preprocessing trace files for ${enabledGraders.length} grader(s)...`);
   const trace = preprocessTrace();
+  try {
+    fs.writeFileSync(PAYLOAD_PATH, JSON.stringify(trace));
+  } catch (err) {
+    core.warning(`Graders: failed to write payload: ${getErrorMessage(err)}`);
+  }
   const runCreatedAt = process.env.GH_AW_RUN_CREATED_AT;
   const operationalValueRunMetadata = runCreatedAt ? { createdAt: runCreatedAt } : undefined;
 
@@ -869,6 +875,7 @@ module.exports = {
   IMPLEMENTATION_ID,
   GRADERS_DIR,
   MANIFEST_PATH,
+  PAYLOAD_PATH,
   RESULTS_PATH,
   OPERATIONAL_VALUE_EVALUATOR_PATH,
   archiveOperationalValueEvaluator,

@@ -709,7 +709,7 @@ A keyless authentication method for the Claude engine that uses short-lived GitH
 
 ### GitHub-hosted Inference (Codex)
 
-An OpenAI Codex engine mode that routes model calls through the GitHub inference gateway instead of a direct OpenAI provider. Enabled by prefixing the top-level `model:` with `copilot/` (for example, `model: copilot/auto`); the compiler configures Codex's BYOK provider to use the gateway and forwards the model name without the prefix. Requires the default agent sandbox and authenticates via `permissions: { copilot-requests: write }` (recommended) or `COPILOT_GITHUB_TOKEN`. See [Codex Engine](/gh-aw/engines/codex/).
+An OpenAI Codex engine mode that routes model calls through the GitHub inference gateway instead of a direct OpenAI provider. Enabled by prefixing the top-level `model:` with `copilot/`; select a Codex-capable model such as `model: copilot/gpt-5.3-codex` because general-purpose models may not support the capabilities that Codex requires. The compiler configures Codex's BYOK provider to use the gateway and forwards the model name without the prefix. Requires the default agent sandbox and authenticates via `permissions: { copilot-requests: write }` (recommended) or `COPILOT_GITHUB_TOKEN`. See [Codex Engine](/gh-aw/engines/codex/).
 
 ### Engine Auth (`engine.auth`)
 

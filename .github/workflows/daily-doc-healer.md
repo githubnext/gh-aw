@@ -73,7 +73,7 @@ tools:
   cli-proxy: true
   edit: null
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
     - default
 tracker-id: daily-doc-healer
@@ -82,7 +82,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 evals:
   - id: gaps-confirmed
     question: Did the workflow identify at least one confirmed documentation gap to fix, or correctly conclude that no actionable gap remained?

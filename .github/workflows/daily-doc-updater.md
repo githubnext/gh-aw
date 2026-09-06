@@ -38,7 +38,7 @@ description: Automatically reviews and updates documentation to ensure accuracy 
 emoji: 📝
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 name: Daily Documentation Updater
 strict: true
@@ -61,7 +61,7 @@ timeout-minutes: 45
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   bash:
   - "*"
@@ -69,8 +69,8 @@ tools:
   cli-proxy: true
   edit: null
   github:
+    mode: local
     min-integrity: approved
-    mode: gh-proxy
     toolsets:
     - default
 tracker-id: daily-doc-updater

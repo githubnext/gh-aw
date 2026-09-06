@@ -29,7 +29,7 @@ permissions:
 # AI engine configuration
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 
 # Import shared reporting guidelines
@@ -44,7 +44,7 @@ network: {}
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default]
   edit:
   bash:
@@ -159,7 +159,7 @@ evals:
     question: Does the agent output include actual poem text (lines of verse) rather than only a description?
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 # Poem Bot - A Creative Agentic Workflow

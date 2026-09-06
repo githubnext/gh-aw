@@ -19,12 +19,12 @@ Recompile the workflow with `gh aw compile` and commit the changes to your repos
 
 ## Selecting Codex + GitHub as the AI engine
 
-To select Codex as the AI engine, with inference hosted and billed through a GitHub Copilot subscription, add a `copilot/` model declaration. This configures Codex's BYOK provider to use GitHub Copilot inference. For example:
+To select Codex as the AI engine, with inference hosted and billed through a GitHub Copilot subscription, add a `copilot/` model declaration. This configures Codex's BYOK provider to use GitHub Copilot inference. Select a Codex model because the Codex runtime relies on model capabilities that general-purpose models do not provide. For example:
 
 ```yaml
 engine:
   id: codex
-  model: copilot/auto
+  model: copilot/gpt-5.3-codex
 ```
 To authenticate:
 - For organization-billed usage, grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission).

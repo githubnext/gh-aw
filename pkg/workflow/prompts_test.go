@@ -619,8 +619,29 @@ func TestDailyGoTestParallelizerUsesCodexCompatibleModel(t *testing.T) {
 	if !strings.Contains(workflow, "id: codex") {
 		t.Fatal("Expected daily-go-test-parallelizer workflow to use the Codex engine")
 	}
-	if !strings.Contains(workflow, "model: openai/gpt-5.3-codex") {
-		t.Fatal("Expected daily-go-test-parallelizer workflow to use a Codex-compatible OpenAI model")
+	if !strings.Contains(workflow, "model: copilot/gpt-5.3-codex") {
+		t.Fatal("Expected daily-go-test-parallelizer workflow to use a Codex-compatible Copilot model")
+	}
+}
+
+func TestDailyCLIPerformanceUsesCodexCompatibleModel(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-cli-performance.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	if !strings.Contains(workflow, "engine:\n  id: codex\n") {
+		t.Fatal("Expected daily-cli-performance workflow to use the Codex engine")
+	}
+	if !strings.Contains(workflow, "\nmodel: openai/gpt-5.3-codex\n") {
+		t.Fatal("Expected daily-cli-performance workflow to use a Codex-compatible OpenAI model")
 	}
 }
 
@@ -860,7 +881,7 @@ tools:
   playwright:
     mode: cli
 features:
-  dangerously-disable-sandbox-agent: "unit test verifying prompt gating logic"
+  dangerously-disable-sandbox-agent: true
 sandbox:
   agent: false
 strict: false
