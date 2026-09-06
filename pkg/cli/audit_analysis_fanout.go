@@ -44,7 +44,7 @@ func launchCoreAuditAnalyses(g *errgroup.Group, gctx context.Context, results *a
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
 	launchMetricsAnalysis(g, gctx, results, runOutputDir, verbose, run.WorkflowPath)
-	launchJobDetailsAnalysis(g, gctx, results, run.DatabaseID, verbose)
+	launchJobDetailsAnalysis(g, gctx, results, run.DatabaseID, runOutputDir, verbose)
 	runAuditAnalysis(g, gctx, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
 		results.missingTools = v
 	}, func() ([]MissingToolReport, error) {
@@ -100,12 +100,12 @@ func launchMetricsAnalysis(g *errgroup.Group, gctx context.Context, results *aud
 }
 
 // launchJobDetailsAnalysis exclusively writes results.jobDetails and results.failedJobCount.
-func launchJobDetailsAnalysis(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runID int64, verbose bool) {
+func launchJobDetailsAnalysis(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runID int64, runOutputDir string, verbose bool) {
 	g.Go(func() error {
 		if err := gctx.Err(); err != nil {
 			return err
 		}
-		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(gctx, runID, verbose)
+		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(gctx, runID, runOutputDir, verbose)
 		if err != nil {
 			if gctx.Err() != nil {
 				return gctx.Err()
