@@ -208,6 +208,13 @@ func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON
 		} else {
 			fmt.Fprintf(&configBuilder, "              \"agentId\": \"%s\"", options.GatewayConfig.AgentID)
 		}
+		if len(options.GatewayConfig.DelegationControllers) > 0 {
+			delegationControllers, err := json.Marshal(options.GatewayConfig.DelegationControllers)
+			if err != nil {
+				return fmt.Errorf("failed to marshal gateway delegation controllers: %w", err)
+			}
+			fmt.Fprintf(&configBuilder, ",\n              \"delegationControllers\": %s", delegationControllers)
+		}
 
 		// Add optional fields if specified (agentId always precedes them without a trailing comma)
 		if options.GatewayConfig.PayloadDir != "" {
