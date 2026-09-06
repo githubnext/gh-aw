@@ -33,12 +33,11 @@ type logsStorageLimit struct {
 	// shared byte counter is serialized. This means the budget can overshoot by up
 	// to the combined size of the in-flight downloads that were admitted before
 	// the limit was reached, which is an accepted trade-off for a soft cap.
-	mu          sync.Mutex
-	reached     atomic.Bool
-	initialized bool
-	initErr     error
-	usedBytes   int64
-	completed   map[string]struct{}
+	mu        sync.Mutex
+	reached   atomic.Bool
+	initErr   error
+	usedBytes int64
+	completed map[string]struct{}
 }
 
 type logsFolderSize struct {
@@ -191,12 +190,6 @@ func (l *logsStorageLimit) reserve() error {
 	if l.reached.Load() {
 		return errLogsStorageLimitReached
 	}
-	if !l.initialized {
-		if err := l.initialize(); err != nil {
-			l.initErr = err
-			return err
-		}
-	}
 	if l.usedBytes >= l.maxBytes {
 		l.markReached(l.usedBytes)
 		return errLogsStorageLimitReached
@@ -215,7 +208,6 @@ func (l *logsStorageLimit) initialize() error {
 	}
 	l.reportStartingUsage(size, folders)
 	l.usedBytes = size
-	l.initialized = true
 	for _, folder := range folders {
 		l.completed[filepath.Join(l.outputDir, folder.name)] = struct{}{}
 	}
