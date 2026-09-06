@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 max-daily-ai-credits: 3000
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 engine:
   id: codex
 tracker-id: daily-evals-report
