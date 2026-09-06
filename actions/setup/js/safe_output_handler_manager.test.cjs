@@ -1,6 +1,7 @@
 // @ts-check
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
 import {
@@ -928,23 +929,26 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results[1].success).toBe(true);
     });
 
-    it.each(["set_issue_type", "set_issue_field", "jira_add_label", "dispatch_repository", "call_workflow", "upload_artifact"])("should abort %s in detection warning mode", async messageType => {
-      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
-      const handler = vi.fn().mockResolvedValue({ success: true });
-      const handlers = new Map([[messageType, handler]]);
-      const messages = [{ type: messageType }];
+    it.each(["set_issue_type", "set_issue_field", "jira_add_label", "add_labels", "remove_labels", "replace_label", "dispatch_repository", "call_workflow", "upload_artifact"])(
+      "should abort %s in detection warning mode",
+      async messageType => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+        const handler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([[messageType, handler]]);
+        const messages = [{ type: messageType }];
 
-      const result = await processMessages(handlers, messages);
+        const result = await processMessages(handlers, messages);
 
-      expect(handler).not.toHaveBeenCalled();
-      expect(result.results[0]).toMatchObject({
-        type: messageType,
-        success: false,
-        cancelled: true,
-        threatDetected: true,
-        errorCode: "threat_detected_abort_policy",
-      });
-    });
+        expect(handler).not.toHaveBeenCalled();
+        expect(result.results[0]).toMatchObject({
+          type: messageType,
+          success: false,
+          cancelled: true,
+          threatDetected: true,
+          errorCode: "threat_detected_abort_policy",
+        });
+      }
+    );
 
     it("should log conversion requirement for push_to_pull_request_branch in detection warning mode", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
@@ -2438,6 +2442,27 @@ describe("Safe Output Handler Manager", () => {
     // HANDLER_MAP, so the collect job never loaded it and label
     // transitions silently did nothing even though the sample/agent output
     // was recorded successfully.
+    it("maps key 'replace_label' directly to './replace_label.cjs' in HANDLER_MAP", () => {
+      const managerPath = path.join(typeof __dirname !== "undefined" ? __dirname : path.dirname(new URL(import.meta.url).pathname), "safe_output_handler_manager.cjs");
+      const managerSource = fs.readFileSync(managerPath, "utf8");
+      const handlerMapBlock = managerSource.match(/const HANDLER_MAP = \{([\s\S]*?)\n\};/);
+      expect(handlerMapBlock).not.toBeNull();
+
+      const pairs = Object.fromEntries([...handlerMapBlock[1].matchAll(/(\w+):\s*["'](\.\/[^"']+\.cjs)["']/g)].map(m => [m[1], m[2]]));
+      expect(pairs["replace_label"]).toBe("./replace_label.cjs");
+    });
+
+    it("loads replace_label handler from HANDLER_MAP via loadHandlers when enabled in config", async () => {
+      global.github = {};
+      try {
+        const handlers = await loadHandlers({ replace_label: {} });
+        expect(handlers.has("replace_label")).toBe(true);
+        expect(typeof handlers.get("replace_label")).toBe("function");
+      } finally {
+        delete global.github;
+      }
+    });
+
     it("processes replace_label messages without no-handler warnings when handler is registered", async () => {
       const messages = [{ type: "replace_label", item_number: 1, label_to_remove: "old", label_to_add: "new" }];
       const mockHandler = vi.fn().mockResolvedValue({
