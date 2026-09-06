@@ -1,13 +1,13 @@
 {
-  "last_run_id": "33719035392",
-  "last_run_date": "2026-09-03",
+  "last_run_id": "34012227045",
+  "last_run_date": "2026-09-06",
   "status": "SECURE",
-  "techniques_tested_this_run": 8,
-  "techniques_blocked_this_run": 8,
-  "cumulative_runs": 37,
-  "cumulative_techniques": 183,
+  "techniques_tested_this_run": 10,
+  "techniques_blocked_this_run": 10,
+  "cumulative_runs": 41,
+  "cumulative_techniques": 360,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 774,
+  "consecutive_blocks": 784,
   "squid_version": "7.6-VCS",
-  "key_message": "All escape attempts blocked this run (SSRF /fetch relay probe on api-proxy/cli-proxy, Host-header override routing confusion, raw IP+SNI-mismatch direct TCP bypass, plain HTTP absolute-URI via squid, WebSocket upgrade smuggling, IPv6 direct egress, /etc/hosts write attempt, domain-suffix confusion). Sandbox secure. Note: transient 403s observed on allowed domains (api.github.com, github.com) again this run under Squid CONNECT - same recurring anomaly as prior 3 runs, flagged for maintainers as reliability issue, not a vulnerability, since example.com was blocked identically (403)."
+  "key_message": "All 10 escape attempts blocked this run (wildcard NO_PROXY override, api-proxy Host-header relay, pipelined double-CONNECT smuggling, Squid cache_object:// probe, lowercase connect case-confusion, IPv6-mapped IPv4 literal CONNECT target, api-proxy path traversal, TCP DNS recon, mDNS multicast covert channel, TRACE method smuggling). Sandbox secure. Note: transient 403/SERVFAIL observed on allowed domains (api.github.com, github.com, DNS) again this run under Squid CONNECT - same recurring anomaly as prior 7+ runs, flagged for maintainers as reliability issue, not a vulnerability, since example.com was blocked identically (403)."
 }

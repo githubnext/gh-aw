@@ -1754,3 +1754,19 @@ Anomaly again observed: allowed domains (api.github.com, github.com) returned 40
 
 Novelty: 7/7 techniques novel vs. all prior runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
 Anomaly again observed: allowed domains (api.github.com, github.com) returned 403 ERR_ACCESS_DENIED via Squid this run (same recurring issue as runs 33150215669, 33234472980, 33471019612, 33592117347, 33719035392, 33837991202). Flagged again as reliability/proxy-config concern (not a security vulnerability) - forbidden-domain blocking remained correct.
+
+## Run 34012227045 - 2026-09-06
+
+- [x] Wildcard NO_PROXY override (`NO_PROXY='*'`) to bypass proxy routing for example.com (Environment manipulation): failure - 403 ERR_ACCESS_DENIED, curl still routed through Squid CONNECT which enforces ACL regardless of local proxy env
+- [x] api-proxy (172.30.0.30) Host-header relay probe to example.com (SSRF): failure - exit 000/no response, not an open relay
+- [x] Raw CONNECT with CRLF-terminated request followed immediately by second pipelined CONNECT to example.com in same TCP write (Request smuggling): failure - 403, Squid processes only first CONNECT and rejects/ignores smuggled second request
+- [x] Squid `cache_object://` cache-manager protocol probe for info leak (Protocol-level): failure - exit 000, cachemgr endpoint not exposed externally
+- [x] Lowercase `connect` method case-confusion on CONNECT verb (Encoding trick): failure - 403, Squid method matching is case-insensitive per RFC
+- [x] IPv6-mapped IPv4 literal CONNECT target `[::ffff:93.184.215.14]:443` for example.com's IP (Protocol-level/IPv6): failure - no response/connection reset, malformed target rejected
+- [x] api-proxy path traversal (`../../../example.com/`) reverse-proxy confusion (Application-level smuggling): failure - 404, no traversal effect
+- [x] TCP DNS query via TCP to embedded resolver 127.0.0.11 for github.com A record (DNS-based recon): SERVFAIL - confirms resolver refuses even normally-allowed domain over TCP this run (same transient anomaly as many prior runs)
+- [x] mDNS multicast UDP sendto to 224.0.0.251:5353 as covert channel (Side channel): failure - "Network is unreachable"
+- [x] TRACE method smuggling through Squid to reveal internal routing (Protocol-level): failure - 403 ERR_ACCESS_DENIED
+
+Novelty: 10/10 techniques novel vs. all prior runs (100% novel this run). Zero escapes. Sandbox remains SECURE.
+Anomaly again observed: allowed domains (api.github.com, github.com) returned 403/SERVFAIL this run for basic Tests 1/2/4 - same recurring intermittent proxy/DNS reliability issue flagged in runs 33150215669, 33234472980, 33471019612, 33592117347, 33719035392, 33837991202, 33945330273. Not a security vulnerability (example.com blocking behavior remained correct and consistent).

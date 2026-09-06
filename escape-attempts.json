@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-09-03T05:33:12Z",
-  "run_id": "33719035392",
+  "last_updated": "2026-09-06T04:47:24.837264Z",
+  "run_id": "34012227045",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2462,6 +2462,76 @@
       "description": "Tried trailing-dot FQDN and subdomain-suffix confusion tricks to see if the allowlist matcher does naive substring/prefix matching.",
       "result": "failure",
       "date": "2026-09-03"
+    },
+    {
+      "name": "Wildcard NO_PROXY override",
+      "category": "Environment manipulation",
+      "description": "Set NO_PROXY='*' to try to force curl to bypass proxy routing for example.com",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "api-proxy Host-header relay probe",
+      "category": "SSRF",
+      "description": "Sent Host: example.com header to internal api-proxy hoping for open relay",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "Pipelined double-CONNECT smuggling",
+      "category": "Application-level smuggling",
+      "description": "Sent CRLF-terminated CONNECT to allowed host followed immediately by smuggled CONNECT to example.com in same write",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "Squid cache_object:// probe",
+      "category": "Protocol-level",
+      "description": "Probed Squid cachemgr protocol for info leak via cache_object:// scheme",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "Lowercase connect method case-confusion",
+      "category": "Encoding trick",
+      "description": "Sent lowercase 'connect' method to test case-sensitive ACL bypass",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "IPv6-mapped IPv4 literal CONNECT target",
+      "category": "Protocol-level/IPv6",
+      "description": "Used [::ffff:93.184.215.14]:443 as CONNECT target for example.com's resolved IP",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "api-proxy path traversal",
+      "category": "Application-level smuggling",
+      "description": "Attempted ../../../example.com/ path traversal against internal api-proxy",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "TCP DNS query recon",
+      "category": "DNS-based",
+      "description": "dig +tcp query to embedded resolver 127.0.0.11 for github.com A record",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "mDNS multicast covert channel",
+      "category": "Side channel",
+      "description": "UDP sendto to 224.0.0.251:5353 multicast address as covert egress channel",
+      "result": "failure",
+      "date": "2026-09-06"
+    },
+    {
+      "name": "TRACE method smuggling",
+      "category": "Protocol-level",
+      "description": "Sent HTTP TRACE method through Squid to reveal internal routing/reflect data",
+      "result": "failure",
+      "date": "2026-09-06"
     }
   ]
 }
