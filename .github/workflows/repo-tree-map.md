@@ -13,7 +13,7 @@ permissions:
 
 
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 
 tools:
   cli-proxy: true

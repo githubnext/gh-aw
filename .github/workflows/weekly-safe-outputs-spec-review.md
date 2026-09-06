@@ -15,7 +15,7 @@ permissions:
 
 tracker-id: weekly-safe-outputs-spec-review
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 
 network:
