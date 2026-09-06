@@ -241,6 +241,9 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
+	cachePath := filepath.Join(outputDir, jobsAPIResponseFileName)
+	require.NoError(t, os.WriteFile(cachePath, []byte("old cache"), 0o644))
+
 	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, outputDir, false)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
@@ -260,13 +263,54 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 	assert.Contains(t, string(argsLog), "--paginate --slurp", "should cache all pages of the jobs API response")
 	assert.NotContains(t, string(argsLog), "--jq", "should cache the complete API response without a projection")
 
-	cachedResponse, err := os.ReadFile(filepath.Join(outputDir, jobsAPIResponseFileName))
+	cachedResponse, err := os.ReadFile(cachePath)
 	require.NoError(t, err)
 	assert.Contains(t, string(cachedResponse), `"total_count":1`)
 	assert.Contains(t, string(cachedResponse), `"runner_name":"GitHub Actions 1"`)
-	cachedInfo, err := os.Stat(filepath.Join(outputDir, jobsAPIResponseFileName))
+	cachedInfo, err := os.Stat(cachePath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), cachedInfo.Mode().Perm())
+}
+
+func TestFetchJobDetailsWithCountsReturnsJobsWhenCacheWriteFails(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	fakeGHScript := "#!/bin/sh\n" +
+		"cat <<'EOF'\n" +
+		"[{\"total_count\":1,\"jobs\":[{\"name\":\"agent\",\"status\":\"completed\",\"conclusion\":\"failure\"}]}]\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	missingOutputDir := filepath.Join(t.TempDir(), "missing", "run")
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, missingOutputDir, false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to cache jobs API response")
+	require.Len(t, jobs, 1)
+	assert.Equal(t, "agent", jobs[0].Name)
+	assert.Equal(t, 1, failedJobs)
+}
+
+func TestFetchJobDetailsWithCountsSkipsMalformedJobs(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	fakeGHScript := "#!/bin/sh\n" +
+		"cat <<'EOF'\n" +
+		"[{\"total_count\":3,\"jobs\":[{\"name\":\"failed\",\"status\":\"completed\",\"conclusion\":\"failure\"},{\"name\":42,\"status\":\"completed\",\"conclusion\":\"failure\"},{\"name\":\"passed\",\"status\":\"completed\",\"conclusion\":\"success\"}]}]\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, "", false)
+
+	require.NoError(t, err)
+	require.Len(t, jobs, 2)
+	assert.Equal(t, "failed", jobs[0].Name)
+	assert.Equal(t, "passed", jobs[1].Name)
+	assert.Equal(t, 1, failedJobs)
 }
 
 // TestFetchJobDetailsWithCountsNullConclusion verifies that jobs and steps with null conclusions

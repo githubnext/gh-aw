@@ -94,25 +94,22 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 		return nil, 0, err
 	}
 
-	if outputDir != "" {
-		responsePath := filepath.Join(outputDir, jobsAPIResponseFileName)
-		if err := os.WriteFile(responsePath, output, constants.FilePermSensitive); err != nil {
-			return nil, 0, fmt.Errorf("failed to cache jobs API response: %w", err)
-		}
-		logsGitHubAPILog.Printf("Cached jobs API response: path=%s", responsePath)
-	}
-
 	var responses []struct {
-		Jobs []JobInfo `json:"jobs"`
+		Jobs []json.RawMessage `json:"jobs"`
 	}
 	if err := json.Unmarshal(output, &responses); err != nil {
 		return nil, 0, fmt.Errorf("failed to parse jobs API response: %w", err)
 	}
 
-	var jobs []JobInfoWithDuration
+	jobs := []JobInfoWithDuration{}
 	failedJobs := 0
 	for _, response := range responses {
-		for _, job := range response.Jobs {
+		for _, rawJob := range response.Jobs {
+			var job JobInfo
+			if err := json.Unmarshal(rawJob, &job); err != nil {
+				logsGitHubAPILog.Printf("Skipping malformed job in run %d: %v", runID, err)
+				continue
+			}
 			jobWithDuration := JobInfoWithDuration{JobInfo: job}
 			if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
 				jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
@@ -129,8 +126,35 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 		}
 	}
 
+	if outputDir != "" {
+		responsePath := filepath.Join(outputDir, jobsAPIResponseFileName)
+		if err := writeSensitiveFile(responsePath, output); err != nil {
+			return jobs, failedJobs, fmt.Errorf("failed to cache jobs API response: %w", err)
+		}
+		logsGitHubAPILog.Printf("Cached jobs API response: path=%s", responsePath)
+	}
+
 	logsGitHubAPILog.Printf("Job fetch complete: total=%d failed=%d", len(jobs), failedJobs)
 	return jobs, failedJobs, nil
+}
+
+func writeSensitiveFile(path string, data []byte) (err error) {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.FilePermSensitive)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+	if err := file.Chmod(constants.FilePermSensitive); err != nil {
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	return nil
 }
 
 // fetchJobDetails gets detailed job information including durations for a workflow run.
@@ -139,6 +163,9 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 func fetchJobDetails(ctx context.Context, runID int64, outputDir string, verbose bool) ([]JobInfoWithDuration, error) {
 	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, outputDir, verbose)
 	if err != nil {
+		if jobs != nil {
+			return jobs, err
+		}
 		// Don't fail the entire operation if we can't get job info
 		return nil, nil
 	}

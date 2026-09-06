@@ -20,6 +20,13 @@ func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutput
 	if includeFirewallAnalyses {
 		launchFirewallAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
 	}
+	if err := g.Wait(); err != nil {
+		return results, err
+	}
+	if ctx.Err() != nil {
+		return results, ctx.Err()
+	}
+	g, gctx = errgroup.WithContext(ctx)
 	launchSupplementalAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
 	if err := g.Wait(); err != nil {
 		return results, err

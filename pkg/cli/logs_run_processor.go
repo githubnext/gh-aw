@@ -543,7 +543,8 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, runOutputDir, verbose)
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
-	} else {
+	}
+	if jobDetails != nil {
 		result.JobDetails = jobDetails
 	}
 
