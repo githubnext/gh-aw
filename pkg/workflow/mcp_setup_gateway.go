@@ -70,7 +70,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubToolRaw, hasGitHub := tools["github"]
 	githubTool, _ := githubToolRaw.(map[string]any)
-	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
+	if err := writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
 		engine:               engine,
 		workflowData:         workflowData,
 		gatewayConfig:        gatewayConfig,
@@ -82,7 +82,9 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		payloadDir:           payloadDir,
 		payloadPathPrefix:    payloadPathPrefix,
 		payloadSizeThreshold: payloadSizeThreshold,
-	})
+	}); err != nil {
+		return err
+	}
 	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
 		engine:                  engine,
 		workflowData:            workflowData,
@@ -242,7 +244,7 @@ type writeMCPGatewayExportsOptions struct {
 	payloadSizeThreshold int
 }
 
-func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) { //nolint:largefunc // Existing export generation keeps related runtime variables together.
+func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) error { //nolint:largefunc // Existing export generation keeps related runtime variables together.
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
@@ -324,9 +326,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN=\"127.0.0.1:" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + "\"\n")
 			if dynamicEnclave := enclaveDynamicRepositoryPolicyConfig(workflowData); dynamicEnclave != nil {
 				yaml.WriteString(buildDynamicEnclaveExpiryScript(dynamicEnclave))
-				if envelopeJSON, err := json.Marshal(buildMCPGatewayDelegationEnvelope(dynamicEnclave)); err == nil {
-					yaml.WriteString("          export MCP_GATEWAY_DELEGATION_ENVELOPE=" + shellEscapeArgWithVarsPreserved(string(envelopeJSON), enclaveDelegationExpiresAtEnv, "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT") + "\n")
+				envelopeJSON, err := json.Marshal(buildMCPGatewayDelegationEnvelope(dynamicEnclave))
+				if err != nil {
+					return fmt.Errorf("failed to marshal MCP gateway delegation envelope: %w", err)
 				}
+				yaml.WriteString("          export MCP_GATEWAY_DELEGATION_ENVELOPE=" + shellEscapeArgWithVarsPreserved(string(envelopeJSON), enclaveDelegationExpiresAtEnv, "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT") + "\n")
 			}
 			// AWF-only private handoff: the control endpoint is never published to the
 			// primary-agent network, the enclave executor network, or the general MCP
@@ -377,6 +381,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
 	}
+	return nil
 }
 
 // buildMCPGatewayContainerCommandOptions holds configuration for buildMCPGatewayContainerCommand.

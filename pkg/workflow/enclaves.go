@@ -740,14 +740,18 @@ func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 // lifetime regardless of how stale a checked-in absolute timestamp has grown.
 func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) string {
 	var script strings.Builder
+	escapedExpiresAt := shellEscapeArg(enclave.Dynamic.ExpiresAt)
 	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH=$(( $(date -u +%%s) + %d ))\n", enclave.Timeout)
-	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH=$(date -u -d %s +%%s)\n", shellEscapeArg(enclave.Dynamic.ExpiresAt))
+	// date -u -d is GNU coreutils syntax (Linux runners); fall back to BSD date's
+	// -j -f for portability, matching the pattern used elsewhere in this repo for
+	// parsing RFC3339 timestamps into epoch seconds on macOS runners.
+	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH=$(date -u -d %s +%%s 2>/dev/null || date -u -j -f \"%%Y-%%m-%%dT%%H:%%M:%%SZ\" %s +%%s)\n", escapedExpiresAt, escapedExpiresAt)
 	script.WriteString("          if [ \"$GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH\" -lt \"$GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH\" ]; then\n")
 	script.WriteString("            GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH=\"$GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH\"\n")
 	script.WriteString("          else\n")
 	script.WriteString("            GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH=\"$GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH\"\n")
 	script.WriteString("          fi\n")
-	fmt.Fprintf(&script, "          %s=$(date -u -d \"@$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ)\n", enclaveDelegationExpiresAtEnv)
+	fmt.Fprintf(&script, "          %s=$(date -u -d \"@$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ 2>/dev/null || date -u -r \"$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ)\n", enclaveDelegationExpiresAtEnv)
 	fmt.Fprintf(&script, "          export %s\n", enclaveDelegationExpiresAtEnv)
 	return script.String()
 }
