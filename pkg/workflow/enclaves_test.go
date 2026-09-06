@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -379,6 +380,43 @@ func TestValidateDynamicEnclavePolicyBoundsExpiryAndCPU(t *testing.T) {
 	err = validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cpu-limit must be a positive finite value")
+}
+
+func TestBuildDynamicEnclaveExpiryScriptResolvesMinOfConfiguredAndJobExpiry(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	newEnclave := func(expiresAt string, timeoutSeconds int) *EnclaveConfig {
+		return &EnclaveConfig{
+			Timeout: timeoutSeconds,
+			Dynamic: &DynamicEnclavePolicy{ExpiresAt: expiresAt},
+		}
+	}
+
+	runScript := func(t *testing.T, enclave *EnclaveConfig) string {
+		t.Helper()
+		script := buildDynamicEnclaveExpiryScript(enclave)
+		cmd := exec.Command("bash", "-c", "set -eo pipefail\n"+script+"echo \"$MCP_GATEWAY_DELEGATION_EXPIRES_AT\"\n")
+		output, err := cmd.Output()
+		require.NoError(t, err)
+		return strings.TrimSpace(string(output))
+	}
+
+	t.Run("configured expires-at earlier than job expiry wins", func(t *testing.T) {
+		configured := time.Now().UTC().Add(30 * time.Second).Truncate(time.Second)
+		enclave := newEnclave(configured.Format(time.RFC3339), 4800)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, configured, got, time.Second)
+	})
+
+	t.Run("job-relative expiry wins when configured expires-at is far in the future", func(t *testing.T) {
+		enclave := newEnclave("2999-01-01T00:00:00Z", 30)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().UTC().Add(30*time.Second), got, 5*time.Second)
+	})
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
