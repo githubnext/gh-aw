@@ -189,6 +189,8 @@ type RunData struct {
 	TaskDomain                 *TaskDomainInfo        `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
+	AwInfo                     *AwInfo                `json:"aw_info,omitempty" console:"-"`
+	Usage                      *TokenUsageSummary     `json:"usage,omitempty" console:"-"`
 	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	GitHubAPICalls             int                    `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
@@ -491,6 +493,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		TaskDomain:                 pr.TaskDomain,
 		BehaviorFingerprint:        pr.BehaviorFingerprint,
 		AgenticAssessments:         pr.AgenticAssessments,
+		AwInfo:                     engineInfo.awInfo,
+		Usage:                      pr.TokenUsage,
 		AwContext:                  engineInfo.awContext,
 		TokenUsageSummary:          pr.TokenUsage,
 		GitHubAPICalls:             gitHubAPICalls,
@@ -644,7 +648,8 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
-// token_usage_summary, experiments, ambient_context from each run.
+// token_usage_summary, experiments, ambient_context from each run. The canonical
+// aw_info and usage payloads remain available in compact JSON output.
 // Omits episodes when all are standalone (single-run episodes add no information).
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
