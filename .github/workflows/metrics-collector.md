@@ -13,7 +13,7 @@ permissions:
 
 engine:
   id: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 imports:
   - uses: shared/meta-analysis-base.md
     with:

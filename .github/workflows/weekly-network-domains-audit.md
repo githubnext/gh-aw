@@ -8,7 +8,7 @@ permissions:
   contents: read
   issues: read
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 network: defaults
 strict: true
 tracker-id: weekly-network-domains-audit
