@@ -372,7 +372,6 @@ func invalidatePrunedArtifactMarkers(prunedPath, root string) error {
 		markerDir := filepath.Join(dir, downloadedArtifactsMarkerDir)
 		entries, err := os.ReadDir(markerDir)
 		if err == nil {
-			removed := false
 			for _, entry := range entries {
 				if entry.IsDir() || !isAgentArtifactMarker(entry.Name()) {
 					continue
@@ -380,10 +379,6 @@ func invalidatePrunedArtifactMarkers(prunedPath, root string) error {
 				if err := os.Remove(filepath.Join(markerDir, entry.Name())); err != nil && !os.IsNotExist(err) {
 					return err
 				}
-				removed = true
-			}
-			if removed {
-				return nil
 			}
 		} else if !os.IsNotExist(err) {
 			return err
