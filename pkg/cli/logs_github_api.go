@@ -96,7 +96,7 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 
 	if outputDir != "" {
 		responsePath := filepath.Join(outputDir, jobsAPIResponseFileName)
-		if err := os.WriteFile(responsePath, output, constants.FilePermPublic); err != nil {
+		if err := os.WriteFile(responsePath, output, constants.FilePermSensitive); err != nil {
 			return nil, 0, fmt.Errorf("failed to cache jobs API response: %w", err)
 		}
 		logsGitHubAPILog.Printf("Cached jobs API response: path=%s", responsePath)

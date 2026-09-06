@@ -264,6 +264,9 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(cachedResponse), `"total_count":1`)
 	assert.Contains(t, string(cachedResponse), `"runner_name":"GitHub Actions 1"`)
+	cachedInfo, err := os.Stat(filepath.Join(outputDir, jobsAPIResponseFileName))
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), cachedInfo.Mode().Perm())
 }
 
 // TestFetchJobDetailsWithCountsNullConclusion verifies that jobs and steps with null conclusions
