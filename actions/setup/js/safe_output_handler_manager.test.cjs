@@ -2371,6 +2371,7 @@ describe("Safe Output Handler Manager", () => {
 
       const handlerFiles = [...handlerMapBlock[1].matchAll(/["'](\.\/[^"']+\.cjs)["']/g)].map(match => match[1].slice(2));
       expect(handlerFiles).toContain("approve_workflow_run.cjs");
+      expect(handlerFiles).toContain("replace_label.cjs");
 
       const builtinModules = new Set(require("module").builtinModules);
       const visited = new Set();
@@ -2427,6 +2428,45 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toContain("No handler loaded for type 'call_workflow'");
+    });
+  });
+
+  describe("replace_label handler registration", () => {
+    // Regression test for the replace-label portion of
+    // https://github.com/github/gh-aw/issues/54811: replace_label had a
+    // dedicated handler module (replace_label.cjs) but was missing from
+    // HANDLER_MAP, so the collect job never loaded it and label
+    // transitions silently did nothing even though the sample/agent output
+    // was recorded successfully.
+    it("processes replace_label messages without no-handler warnings when handler is registered", async () => {
+      const messages = [{ type: "replace_label", item_number: 1, label_to_remove: "old", label_to_add: "new" }];
+      const mockHandler = vi.fn().mockResolvedValue({
+        success: true,
+        item_number: 1,
+        label_to_remove: "old",
+        label_to_add: "new",
+      });
+      const handlers = new Map([["replace_label", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].type).toBe("replace_label");
+      // Handler was invoked, so no "no handler loaded" error
+      expect(result.results[0].error).toBeUndefined();
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it("records no-handler error for replace_label when handler map is missing entry", async () => {
+      const messages = [{ type: "replace_label", item_number: 1, label_to_remove: "old", label_to_add: "new" }];
+      // Empty handler map - simulates the bug where replace_label was not in HANDLER_MAP
+      const handlers = new Map();
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toContain("No handler loaded for type 'replace_label'");
     });
   });
 
