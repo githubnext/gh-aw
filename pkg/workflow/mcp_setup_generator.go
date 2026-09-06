@@ -140,7 +140,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 }
 
 func toolsWithEnclaveGitHubIssues(tools map[string]any, workflowData *WorkflowData) map[string]any {
-	if !enclaveGitHubIssuesEnabled(workflowData) {
+	if !enclaveGitHubDelegationEnabled(workflowData) {
 		return tools
 	}
 	updated := make(map[string]any, len(tools)+1)
@@ -208,7 +208,7 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	if enclavesEnabled(workflowData) {
 		mcpTools = append(mcpTools, enclaveMCPServerName)
 	}
-	if enclaveGitHubIssuesEnabled(workflowData) && !slices.Contains(mcpTools, "github") {
+	if enclaveGitHubDelegationEnabled(workflowData) && !slices.Contains(mcpTools, "github") {
 		mcpTools = append(mcpTools, "github")
 	}
 	return mcpTools

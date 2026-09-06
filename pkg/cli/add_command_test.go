@@ -616,7 +616,7 @@ on:
 # Worker
 `), 0o644))
 
-	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	compileDispatchWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 
 	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
 	_, err := os.Stat(lockPath)
@@ -651,7 +651,7 @@ safe-outputs:
 	// Write an intentionally broken worker file (no frontmatter — compile will fail).
 	require.NoError(t, os.WriteFile(workerPath, []byte(`not valid workflow content`), 0o644))
 
-	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	err := compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 	require.Error(t, err, "worker compilation failure should propagate as an error")
 	require.ErrorContains(t, err, "worker", "error should mention the worker name")
 }
@@ -690,13 +690,13 @@ on:
 	require.NoError(t, os.WriteFile(lockPath, []byte("# stale lock"), 0o644))
 
 	// Without force: stale lock is preserved.
-	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	err := compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 	require.NoError(t, err)
 	content, _ := os.ReadFile(lockPath)
 	assert.Equal(t, "# stale lock", string(content), "without force, stale lock should not be recompiled")
 
 	// With force: stale lock gets recompiled.
-	err = compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", true, nil)
+	err = compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", true, nil)
 	require.NoError(t, err)
 	recompiled, _ := os.ReadFile(lockPath)
 	assert.NotEqual(t, "# stale lock", string(recompiled), "with force, stale lock should be recompiled")
