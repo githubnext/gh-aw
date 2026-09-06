@@ -1,10 +1,16 @@
 {
-  "timestamp": "2026-09-05T03:47:00Z",
+  "timestamp": "2026-09-06T03:47:00Z",
+  "workflow_run_id": "34009754272",
   "total_workflows": 299,
-  "copilot_workflows": 106,
-  "features_available": ["--add-dir","--disable-builtin-mcps","--agent","--autopilot/--max-autopilot-continues","--allow-all-paths","--no-custom-instructions","--no-ask-user","--log-level","--log-dir","--allow-tool","engine.args","engine.env","engine.agent (custom agent files)","plugins","repo-memory","cache-memory","drive-memory","BYOK (COPILOT_PROVIDER_*)","copilot-sdk: true","engine.harness","max-tool-denials","max-continuations"],
-  "features_used": ["max-continuations(10)","cache-memory(107)","repo-memory(38)","drive-memory(1)","copilot-sdk(61, flat 13th cycle)","engine.agent(7, flat)","network.allowed(175, 58%)","--block-domains(0, flat 8 cycles)","plugins(0, flat 13 cycles)","engine.version pinning(0/299, confirmed stable)","--share(permanently resolved: not implemented in engine code, removed from opportunity list)"],
-  "opportunities_found": 5,
-  "notes": "Thirteenth research cycle. Metrics essentially flat vs cycle 12: copilot_workflows 108->106, sdk 61->61, engine.agent 7->7, network.allowed 183->175 (61%->58%), plugins 0->0 (13 cycles), block-domains 0->0 (8 cycles). Growth signal: cache-memory 82->107, repo-memory 30->38 - only metrics showing organic increase, likely from newer workflow templates. Decision requested: plugins adoption after 13 flat cycles needs explicit maintainer go/no-go, stop re-flagging without one. shared/copilot-defaults.md still not created since cycle 2 (10+ cycles) - this cycle states it is the LAST mention in this form; next cycle should drop it unless a tracking issue exists. --share and engine.version pinning discrepancies both permanently resolved/closed in cycle 12 and reconfirmed this cycle - no further re-verification needed unless upstream Copilot CLI adds a real --share flag.",
-  "resolved_items": ["--share flag: confirmed NOT implemented in copilot engine execution code - remove from opportunity list permanently (reconfirmed cycle 13)", "engine.version pinning discrepancy: reconciled at true count 0/299, prior 38 was a grep false-positive (reconfirmed cycle 13)"]
+  "copilot_workflows": 108,
+  "copilot_pct": 36,
+  "share_flag_usage": 1,
+  "custom_agent_usage": 5,
+  "sdk_driver_usage": 61,
+  "model_override_usage": 167,
+  "version_pin_usage": 5,
+  "sandbox_usage": 230,
+  "network_config_usage": 180,
+  "safe_outputs_usage": 261,
+  "opportunities_found": 9
 }

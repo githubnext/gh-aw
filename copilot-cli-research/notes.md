@@ -160,3 +160,11 @@ Follow-up for next cycle:
 2. Confirm whether a standalone tracking issue for shared/copilot-defaults.md exists; if not, this recurring report should stop repeating the ask and instead note it was deprioritized/ignored for 10 cycles.
 3. Check for any new Copilot CLI flags added to copilot_engine_execution.go since this cycle (diff against this cycle's flag list: --disable-builtin-mcps, --no-ask-user, --agent, --autopilot/--max-autopilot-continues, --add-dir, --allow-all-paths, --no-custom-instructions, --log-level, --log-dir, --headless, --no-auto-update, --host, --port).
 4. plugins at 12 cycles flat - if a maintainer response still hasn't come by next cycle, downgrade this to a single-line mention rather than a full opportunity write-up.
+
+## Run 2026-09-06 (34009754272)
+- 108/299 workflows use copilot engine (36%), down proportionally vs prior 175/258 count (dataset grew).
+- --share flag used in only 1 workflow (copilot-cli-deep-research.md itself) - conversation sharing still underused.
+- Custom agent files (agent: field) used in only ~5 workflows out of 108 copilot workflows.
+- SDK driver (copilot-sdk) usage climbing: 61 workflows.
+- Model overrides common (167 files reference model: - includes non-copilot too, needs refinement next run).
+- Version pinning rare: only a handful of workflows pin engine version explicitly - most float on latest.
