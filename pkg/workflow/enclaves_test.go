@@ -586,7 +586,7 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	// The five required settings are bootstrapped as one atomic configuration.
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_KEY="${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}"`)
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_STATE_PATH="`)
-	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="1"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"`)
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN="127.0.0.1:8090"`)
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_ENVELOPE=`)
 	assert.Contains(t, generated, `\"version\":\"github-repository-read-v1\"`)

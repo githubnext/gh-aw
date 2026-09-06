@@ -42,19 +42,26 @@ const (
 	enclaveMCPReadinessTimeoutMS              = 120000
 	maxEnclaveTimingBucketSeconds             = 4800
 	enclaveMCPTransportAllowance              = 60
-	// enclaveDelegationControlPort is the private, host-only listener port for
-	// mcpg's github-repository-delegation-v1 control plane. It is bound
-	// separately from MCP_GATEWAY_PORT (the executor-facing data plane) and is
-	// published only to loopback so neither the primary agent nor the enclave
-	// executor network can route to it.
-	enclaveDelegationControlPort = 8090
+	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
+	// port to derive the private, host-only listener port for mcpg's
+	// github-repository-delegation-v1 control plane. Deriving it from the (per-job
+	// configurable) data-plane port, rather than a single fixed literal, avoids a
+	// port collision on self-hosted runners that execute multiple concurrent jobs
+	// with distinct gateway ports on the same host. The control port is bound
+	// separately from MCP_GATEWAY_PORT and published only to loopback so neither
+	// the primary agent nor the enclave executor network can route to it.
+	enclaveDelegationControlPortOffset = 10
 	// enclaveDelegationStateDir is the protected, persistent mount used for mcpg
 	// delegation controller state so that it survives an in-run restart.
 	enclaveDelegationStateDir = "${RUNNER_TEMP}/gh-aw/mcpg-delegation"
-	// enclaveDelegationGeneration is the monotonic policy generation for the
-	// active envelope. It is fixed for the lifetime of a single workflow run so
-	// that controller restart/recovery within the run observes a stable value.
-	enclaveDelegationGeneration = "1"
+	// enclaveDelegationGeneration is the runtime-resolved monotonic policy
+	// generation for the active envelope: "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}".
+	// Deriving it from the run identity (rather than a fixed literal) keeps it
+	// stable for the lifetime of a single workflow run, so controller
+	// restart/recovery within the run observes a stable value, while still
+	// distinguishing it from any stale generation left in a persistent state
+	// directory by a prior, unrelated run.
+	enclaveDelegationGeneration = "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 	// enclaveDelegationExpiresAtEnv holds the runtime-resolved RFC3339 envelope
 	// expiry: min(enclaves[].dynamic.expires-at, job-start + enclave.timeout).
 	// This keeps checked-in workflows valid without requiring a short-lived
