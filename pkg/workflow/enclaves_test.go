@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -86,7 +87,7 @@ func dynamicEnclaveWorkflowData() *WorkflowData {
 			MaxExecutionSeconds: 900,
 		},
 		AuditLabels: []string{"dynamic-enclave", "issues"},
-		ExpiresAt:   "2999-01-01T00:00:00Z",
+		ExpiresAt:   time.Now().UTC().Add(60 * time.Second).Format(time.RFC3339),
 	}
 	data.Enclaves[0].MemoryLimit = "512m"
 	data.Enclaves[0].CPULimit = "1"
@@ -355,7 +356,21 @@ func TestBuildAWFConfigJSONDynamicEnclavePolicy(t *testing.T) {
 		"maxOutputBytes":      float64(32768),
 	}, dynamic["quotas"])
 	assert.Equal(t, []any{"dynamic-enclave", "issues"}, dynamic["auditLabels"])
-	assert.Equal(t, "2999-01-01T00:00:00Z", dynamic["expiresAt"])
+	assert.Equal(t, data.Enclaves[0].Dynamic.ExpiresAt, dynamic["expiresAt"])
+}
+
+func TestValidateDynamicEnclavePolicyBoundsExpiryAndCPU(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Dynamic.ExpiresAt = "2999-01-01T00:00:00Z"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not exceed the enclave job lifetime")
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].CPULimit = "0"
+	err = validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cpu-limit must be a positive finite value")
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -380,14 +381,8 @@ func validateDynamicEnclavePolicy(index int, enclave *EnclaveConfig) error {
 			return fmt.Errorf("enclaves[%d].dynamic.audit-labels[%d] must match [A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", index, labelIndex)
 		}
 	}
-	if _, err := time.Parse(time.RFC3339, policy.ExpiresAt); err != nil {
-		return fmt.Errorf("enclaves[%d].dynamic.expires-at must be an absolute RFC3339 timestamp: %w", index, err)
-	}
-	if enclave.Timeout <= 0 || enclave.MemoryLimit == "" || enclave.CPULimit == "" || enclave.PIDsLimit <= 0 || enclave.TmpfsLimit == "" || enclave.MaxOutputBytes <= 0 || enclave.MaxInvocations <= 0 {
-		return fmt.Errorf("enclaves[%d] dynamic agent entries must declare finite timeout, memory-limit, cpu-limit, pids-limit, tmpfs-limit, max-output-bytes, and max-invocations", index)
-	}
-	if enclave.Agent.MaxTaskBytes <= 0 || enclave.Agent.MaxModelRequests <= 0 || enclave.Agent.MaxModelTokens <= 0 {
-		return fmt.Errorf("enclaves[%d].agent dynamic entries must declare finite max-task-bytes, max-model-requests, and max-model-tokens", index)
+	if err := validateDynamicEnclaveBounds(index, enclave, policy); err != nil {
+		return err
 	}
 	if github := enclaveGitHubToolsConfig(enclave); github != nil {
 		if len(github.AllowedRepos) > 0 || github.MinIntegrity != "" {
@@ -396,6 +391,27 @@ func validateDynamicEnclavePolicy(index int, enclave *EnclaveConfig) error {
 		if len(github.Allowed) > 0 && !sameStringSet(github.Allowed, enclaveAgentGitHubDefaultTools) {
 			return fmt.Errorf("enclaves[%d].agent.tools.github.allowed must match %s when dynamic.github-policy is %q", index, strings.Join(enclaveAgentGitHubDefaultTools, ", "), enclaveDynamicGitHubPolicy)
 		}
+	}
+	return nil
+}
+
+func validateDynamicEnclaveBounds(index int, enclave *EnclaveConfig, policy *DynamicEnclavePolicy) error {
+	expiresAt, err := time.Parse(time.RFC3339, policy.ExpiresAt)
+	if err != nil {
+		return fmt.Errorf("enclaves[%d].dynamic.expires-at must be an absolute RFC3339 timestamp: %w", index, err)
+	}
+	if expiresAt.After(time.Now().UTC().Add(time.Duration(enclave.Timeout) * time.Second)) {
+		return fmt.Errorf("enclaves[%d].dynamic.expires-at must not exceed the enclave job lifetime", index)
+	}
+	cpuLimit, err := strconv.ParseFloat(enclave.CPULimit, 64)
+	if err != nil || cpuLimit <= 0 {
+		return fmt.Errorf("enclaves[%d].cpu-limit must be a positive finite value", index)
+	}
+	if enclave.Timeout <= 0 || enclave.MemoryLimit == "" || enclave.PIDsLimit <= 0 || enclave.TmpfsLimit == "" || enclave.MaxOutputBytes <= 0 || enclave.MaxInvocations <= 0 {
+		return fmt.Errorf("enclaves[%d] dynamic agent entries must declare finite timeout, memory-limit, cpu-limit, pids-limit, tmpfs-limit, max-output-bytes, and max-invocations", index)
+	}
+	if enclave.Agent.MaxTaskBytes <= 0 || enclave.Agent.MaxModelRequests <= 0 || enclave.Agent.MaxModelTokens <= 0 {
+		return fmt.Errorf("enclaves[%d].agent dynamic entries must declare finite max-task-bytes, max-model-requests, and max-model-tokens", index)
 	}
 	return nil
 }

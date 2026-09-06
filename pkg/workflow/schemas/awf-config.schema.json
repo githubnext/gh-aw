@@ -1149,7 +1149,7 @@
                     "properties": {
                       "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 4740 },
                       "memoryLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$" },
-                      "cpuLimit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$" },
+                      "cpuLimit": { "type": "string", "pattern": "^(?:[1-9][0-9]?(?:\\.[0-9]{1,3})?|0\\.[0-9]{1,3})$" },
                       "pidsLimit": { "type": "integer", "minimum": 1, "maximum": 4096 },
                       "tmpfsLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$" },
                       "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 8192 },

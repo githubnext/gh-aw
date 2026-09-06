@@ -88,7 +88,7 @@ enclaves:
         max-output-bytes: 32768
         max-execution-seconds: 900
       audit-labels: [dynamic-enclave]
-      expires-at: "2999-01-01T00:00:00Z"
+      expires-at: "2026-09-06T00:32:00Z"
     timeout: 120
     memory-limit: 512m
     cpu-limit: "1"
@@ -102,7 +102,7 @@ enclaves:
 - An entry must declare either non-empty static `repos` or `dynamic`, never both.
 - `allowed-owners` and `allowed-repositories` use canonical lowercase ASCII selectors. Repository selectors must already match `owner/repo`; the compiler does not trim, case-fold, URL-decode, or normalize them.
 - `github-policy` must be `github-repository-read-v1`, which exposes only `list_issues` and `issue_read` through per-invocation delegated identities.
-- Dynamic entries require finite resource limits, total quotas, audit labels, absolute `expires-at`, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
+- Dynamic entries require finite resource limits, total quotas, audit labels, an absolute `expires-at` no later than the enclave job lifetime, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
 - The primary and enclave agents do not receive repository credentials or the delegation-control capability. The compiler gives AWF an AWF-only control capability so AWF can request short-lived mcpg identities for admitted repositories.
 
 ## Deprecated `issues-read-v1` profile

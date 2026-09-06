@@ -217,7 +217,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub && githubTool != false {
 			primaryGitHubEnabled = !isGitHubCLIModeEnabled(workflowData)
 		}
-		if !primaryGitHubEnabled {
+		if !primaryGitHubEnabled && !enclaveDynamicRepositoryPolicyEnabled(workflowData) {
 			for i, server := range primaryServers {
 				if server == "github" {
 					primaryServers = append(primaryServers[:i], primaryServers[i+1:]...)
