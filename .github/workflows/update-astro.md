@@ -13,16 +13,17 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-
-  copilot-requests: write
 tracker-id: update-astro
 engine:
   id: codex
-  model-provider: github
-model: copilot/gpt-5.3-codex
+  model-provider: openai
+model: openai/gpt-5.4
 strict: true
 
 timeout-minutes: 45
+runtimes:
+  node:
+    version: "24"
 
 network:
   allowed:
@@ -88,6 +89,7 @@ jobs:
 
 sandbox:
   agent:
+    id: awf
     runtime: cloud-hypervisor
 ---
 
@@ -186,7 +188,11 @@ Updates npm packages in `docs/` to their latest versions.
 
 ## Important
 
-If no action is needed after completing your work (e.g., build fails and cannot be fixed), you **MUST** call the `noop` safe-output tool with a brief explanation.
+Before finishing, you **MUST** call exactly one terminal safe-output tool:
+
+- `create_pull_request` after updating dependencies and verifying `npm run build` passes.
+- `noop` when no dependency changes are needed after inspection, or when a docs build failure cannot be fixed safely.
+- `missing_tool` when infrastructure or tooling prevents meaningful work (for example, unavailable shell commands, missing Node/npm, or inaccessible repository state).
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation]"}}
