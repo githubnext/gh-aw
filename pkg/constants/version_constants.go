@@ -211,7 +211,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.16"
+const DefaultMCPGatewayVersion Version = "v0.4.17"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
@@ -235,8 +235,8 @@ const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 // v0.4.16 advertised the controller but rejected the strict-stdin
 // "delegationControllers" config field the compiler previously emitted, never
 // started the real controller, and never handed AWF a private control
-// endpoint (gh-aw-mcpg#12604). That contract is fixed by gh-aw-mcpg#12605; this
-// constant is pinned to the first release containing that fix so dynamic
+// endpoint (gh-aw-mcpg#12604). That contract is fixed by gh-aw-mcpg#12605,
+// released in v0.4.17; this constant is pinned to that release so dynamic
 // enclave compilation/runtime setup fails closed on older MCPG builds that
 // lack the compatible owner-scoped envelope, bounded dynamic schema
 // admission, transactional reconciliation, persisted TTL binding, durability,

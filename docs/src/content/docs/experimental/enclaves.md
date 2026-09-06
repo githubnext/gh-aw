@@ -40,7 +40,7 @@ sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.16
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5

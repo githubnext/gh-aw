@@ -335,7 +335,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			// AWF-only private handoff: the control endpoint is never published to the
 			// primary-agent network, the enclave executor network, or the general MCP
 			// route, and is kept out of the primary agent's environment via --exclude-env.
-			yaml.WriteString("          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + "/control/" + enclaveDynamicController + "\"\n")
+			fmt.Fprintf(yaml, "          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:%d/control/%s\"\n", port+enclaveDelegationControlPortOffset, enclaveDynamicController)
 		}
 		if enclaveGitHubIssuesEnabled(workflowData) {
 			yaml.WriteString("          AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')\n")
