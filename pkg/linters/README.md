@@ -9,6 +9,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `appendbytestring` — reports `append(b, []byte(s)...)` calls where `b` is `[]byte` and `s` is a string, which can be simplified to `append(b, s...)`.
 - `appendoneelement` — reports `append(s, []T{x}...)` calls where a single-element slice literal is spread and can be simplified to `append(s, x)`.
 - `bytescomparestring` — reports `string(a) == string(b)` and `string(a) != string(b)` comparisons where `a` and `b` are `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=`.
+- `bytesindexcontains` — reports `bytes.Index(s, substr)` comparisons with `-1` or `0` (e.g. `!= -1`, `>= 0`, `> -1`, `== -1`, `< 0`, `<= -1`) and their yoda-order variants that should use `bytes.Contains(s, substr)` or `!bytes.Contains(s, substr)` instead.
 - `bytesbufferstring` — reports `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value receiver, suggesting `buf.String()` instead.
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
@@ -104,6 +105,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `appendbytestring` | Custom `go/analysis` analyzer that flags `append(b, []byte(s)...)` calls where `s` is a string that can be simplified to `append(b, s...)` |
 | `appendoneelement` | Custom `go/analysis` analyzer that flags `append(s, []T{x}...)` calls where a single-element slice literal is spread and can be simplified to `append(s, x)` |
 | `bytescomparestring` | Custom `go/analysis` analyzer that flags `string(a) == string(b)` / `!=` comparisons on `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=` |
+| `bytesindexcontains` | Custom `go/analysis` analyzer that flags `bytes.Index(s, substr)` comparisons with `-1` or `0` that should use `bytes.Contains` or `!bytes.Contains` |
 | `bytesbufferstring` | Custom `go/analysis` analyzer that flags `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value and suggests `buf.String()` instead |
 | `contextcancelnotdeferred` | Custom `go/analysis` analyzer that flags context cancel functions called directly instead of deferred |
 | `ctxbackground` | Custom `go/analysis` analyzer that flags `context.Background()` calls inside functions that already receive a context parameter |
@@ -246,6 +248,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/appendbytestring` — append-byte-string analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/appendoneelement` — append-one-element analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/bytescomparestring` — bytes-compare-string analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/bytesindexcontains` — bytes-index-contains analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/bytesbufferstring` — bytes-buffer-string analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred` — context-cancel-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ctxbackground` — context-background analyzer subpackage

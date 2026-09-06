@@ -23,6 +23,7 @@ var (
 )
 
 var notYetEnforced = map[string]string{
+	"bytesindexcontains":          "has not yet completed an enforcement-readiness audit",
 	"errorfwrapv":                 "requires an enforcement audit after the recent false-positive fix (#51928)",
 	"errormessage":                "dedicated lint-error-messages CI job is intentionally advisory (continue-on-error per #54800)",
 	"excessivefuncparams":         "existing production violations need remediation before enforcement; nolint suppression already works",
