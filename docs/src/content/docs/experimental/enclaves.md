@@ -71,7 +71,7 @@ sandbox:
     id: awf
     version: v0.28.14
   mcp:
-    version: v0.4.16
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5
@@ -102,8 +102,8 @@ enclaves:
 - An entry must declare either non-empty static `repos` or `dynamic`, never both.
 - `allowed-owners` and `allowed-repositories` use canonical lowercase ASCII selectors. Repository selectors must already match `owner/repo`; the compiler does not trim, case-fold, URL-decode, or normalize them.
 - `github-policy` must be `github-repository-read-v1`, which exposes only `list_issues` and `issue_read` through per-invocation delegated identities.
-- Dynamic entries require finite resource limits, total quotas, audit labels, an absolute `expires-at` no later than the enclave job lifetime, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
-- The primary and enclave agents do not receive repository credentials or the delegation-control capability. The compiler gives AWF an AWF-only control capability so AWF can request short-lived mcpg identities for admitted repositories.
+- Dynamic entries require finite resource limits, total quotas, audit labels, an absolute `expires-at` timestamp, AWF `v0.28.14` or newer, and mcpg `v0.4.17` or newer (the first mcpg release that accepts the delegation controller's atomic bootstrap configuration; see `github/gh-aw-mcpg#12605`). `expires-at` is an upper bound checked into the workflow file; the compiler resolves the effective envelope expiry at workflow setup time as `min(expires-at, job-start + enclave timeout)`, so a fixed, checked-in timestamp never needs to be a short-lived compile-time value.
+- The primary and enclave agents do not receive repository credentials or the delegation-control capability. The compiler starts mcpg's `github-repository-delegation-v1` controller with five settings as one atomic configuration (`MCP_GATEWAY_DELEGATION_ENVELOPE`, `MCP_GATEWAY_DELEGATION_CONTROL_KEY`, `MCP_GATEWAY_DELEGATION_STATE_PATH`, `MCP_GATEWAY_DELEGATION_GENERATION`, `MCP_GATEWAY_DELEGATION_CONTROL_LISTEN`) and hands AWF an explicit, host-private control endpoint (`AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT`) and capability so AWF can request short-lived mcpg identities for admitted repositories. That endpoint is distinct from the executor-facing `AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT` data plane and is excluded from the primary agent's environment.
 
 ## Deprecated `issues-read-v1` profile
 

@@ -360,11 +360,19 @@ func TestBuildAWFConfigJSONDynamicEnclavePolicy(t *testing.T) {
 }
 
 func TestValidateDynamicEnclavePolicyBoundsExpiryAndCPU(t *testing.T) {
+	// expires-at is a checked-in upper bound; it must remain valid even after
+	// it has grown "stale" relative to compile time, since the runtime/job-
+	// relative expiry contract (not compile-time comparison) clamps the
+	// effective envelope expiry at workflow setup time.
 	data := dynamicEnclaveWorkflowData()
 	data.Enclaves[0].Dynamic.ExpiresAt = "2999-01-01T00:00:00Z"
+	require.NoError(t, validateEnclavesConfig(data))
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Dynamic.ExpiresAt = "not-a-timestamp"
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must not exceed the enclave job lifetime")
+	assert.Contains(t, err.Error(), "must be an absolute RFC3339 timestamp")
 
 	data = dynamicEnclaveWorkflowData()
 	data.Enclaves[0].CPULimit = "0"
@@ -542,9 +550,9 @@ func TestValidateDynamicEnclavePolicy(t *testing.T) {
 		{
 			name: "rejects old mcpg version",
 			mutate: func(data *WorkflowData) {
-				data.SandboxConfig.MCP.Version = "v0.4.15"
+				data.SandboxConfig.MCP.Version = "v0.4.16"
 			},
-			errContains: "requires MCPG v0.4.16 or newer",
+			errContains: "requires MCPG v0.4.17 or newer",
 		},
 	}
 
@@ -566,30 +574,36 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	require.NotNil(t, gateway)
 	assert.Equal(t, []string{"${MCP_GATEWAY_AGENT_ID}"}, gateway.AgentIDs)
 	assert.NotContains(t, gateway.AgentPolicies, "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}")
-	controller := gateway.DelegationControllers[enclaveDynamicController]
-	assert.Equal(t, "github", controller.Server)
-	assert.Equal(t, map[string]any{
-		"version": enclaveDynamicGitHubPolicy,
-		"tools":   []string{"list_issues", "issue_read"},
-	}, controller.Policy)
-	assert.Equal(t, "${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}", controller.ControlCapability)
 
 	var output strings.Builder
 	require.NoError(t, generateMCPGatewaySetup(
 		&output, data.Tools, []string{enclaveMCPServerName}, NewCopilotEngine(), data, false, nil,
 	))
 	generated := output.String()
-	assert.Contains(t, generated, `"delegationControllers": {"github-repository-delegation-v1"`)
-	assert.Contains(t, generated, `"version":"github-repository-read-v1"`)
-	assert.Contains(t, generated, `"tools":["list_issues","issue_read"]`)
+	// The gateway's strict-stdin config schema does not accept a
+	// "delegationControllers" field; the compiler must not emit one.
+	assert.NotContains(t, generated, `"delegationControllers"`)
+	// The five required settings are bootstrapped as one atomic configuration.
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_KEY="${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_STATE_PATH="`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="1"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN="127.0.0.1:8090"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_ENVELOPE=`)
+	assert.Contains(t, generated, `\"version\":\"github-repository-read-v1\"`)
+	assert.Contains(t, generated, `\"tools\":[\"list_issues\",\"issue_read\"]`)
+	assert.Contains(t, generated, `\"expiresAt\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
+	// The private control endpoint is distinct from the executor-facing data plane.
+	assert.Contains(t, generated, `export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT="http://127.0.0.1:8090/control/github-repository-delegation-v1"`)
 	assert.Contains(t, generated, `AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY=$(openssl rand -hex 32)`)
 	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}`)
 	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY"`)
+	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT"`)
 	assert.NotContains(t, generated, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand`)
 
 	excluded := ComputeAWFExcludeEnvVarNames(data, nil)
 	assert.Contains(t, excluded, enclaveGitHubDelegationEnv)
 	assert.Contains(t, excluded, enclaveMCPCapabilityEnv)
+	assert.Contains(t, excluded, enclaveGitHubDelegationControlEndpointEnv)
 }
 
 func TestGenerateEnclaveGatewayContract(t *testing.T) {
