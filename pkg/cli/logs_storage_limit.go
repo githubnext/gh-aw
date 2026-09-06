@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -37,6 +38,7 @@ type logsStorageLimit struct {
 	initialized bool
 	initErr     error
 	usedBytes   int64
+	completed   map[string]struct{}
 }
 
 type logsFolderSize struct {
@@ -82,6 +84,7 @@ func newLogsStorageLimit(outputDir string, maxStorageMB int) *logsStorageLimit {
 	limit := &logsStorageLimit{
 		outputDir: outputDir,
 		maxBytes:  int64(maxStorageMB) * bytesPerMegabyte,
+		completed: make(map[string]struct{}),
 	}
 	limit.initErr = limit.initialize()
 	return limit
@@ -213,8 +216,11 @@ func (l *logsStorageLimit) initialize() error {
 	l.reportStartingUsage(size, folders)
 	l.usedBytes = size
 	l.initialized = true
+	for _, folder := range folders {
+		l.completed[filepath.Join(l.outputDir, folder.name)] = struct{}{}
+	}
 	if l.usedBytes >= l.maxBytes {
-		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1)
+		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1, nil)
 		if err != nil {
 			return fmt.Errorf("failed to prune logs cache: %w", err)
 		}
@@ -233,8 +239,9 @@ func (l *logsStorageLimit) recordUsage(storagePath string, delta int64) error {
 	defer l.mu.Unlock()
 
 	l.usedBytes += delta
+	l.completed[filepath.Clean(storagePath)] = struct{}{}
 	if l.usedBytes >= l.maxBytes {
-		freed, err := pruneLogsCache(storagePath, l.usedBytes-l.maxBytes+1)
+		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1, l.completed)
 		if err != nil {
 			return fmt.Errorf("failed to prune logs cache: %w", err)
 		}
@@ -278,7 +285,7 @@ func (l *logsStorageLimit) recordPrunedUsage(freed int64) {
 	logsOrchestratorLog.Printf("Pruned non-essential logs cache data: freed=%d remaining=%d", freed, l.usedBytes)
 }
 
-func pruneLogsCache(path string, bytesToFree int64) (int64, error) {
+func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]struct{}) (int64, error) {
 	if bytesToFree <= 0 {
 		return 0, nil
 	}
@@ -292,6 +299,9 @@ func pruneLogsCache(path string, bytesToFree int64) (int64, error) {
 			return walkErr
 		}
 		if info == nil || !info.Mode().IsRegular() {
+			return nil
+		}
+		if !isInCompletedLogsCachePath(candidatePath, completedPaths) {
 			return nil
 		}
 		relativePath, err := filepath.Rel(path, candidatePath)
@@ -336,6 +346,20 @@ func pruneLogsCache(path string, bytesToFree int64) (int64, error) {
 	return freed, nil
 }
 
+func isInCompletedLogsCachePath(path string, completedPaths map[string]struct{}) bool {
+	if len(completedPaths) == 0 {
+		return true
+	}
+	for completedPath := range completedPaths {
+		relativePath, err := filepath.Rel(completedPath, path)
+		if err == nil && relativePath != ".." && !filepath.IsAbs(relativePath) &&
+			!strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 func isPrunableLogsCacheFile(relativePath string) bool {
 	base := filepath.Base(relativePath)
 	if _, essential := essentialLogsCacheFiles[base]; essential {
@@ -356,6 +380,7 @@ func invalidatePrunedArtifactMarkers(prunedPath, root string) error {
 		markerDir := filepath.Join(dir, downloadedArtifactsMarkerDir)
 		entries, err := os.ReadDir(markerDir)
 		if err == nil {
+			removed := false
 			for _, entry := range entries {
 				if entry.IsDir() || !isAgentArtifactMarker(entry.Name()) {
 					continue
@@ -363,10 +388,12 @@ func invalidatePrunedArtifactMarkers(prunedPath, root string) error {
 				if err := os.Remove(filepath.Join(markerDir, entry.Name())); err != nil && !os.IsNotExist(err) {
 					return err
 				}
+				removed = true
 			}
-			return nil
-		}
-		if !os.IsNotExist(err) {
+			if removed {
+				return nil
+			}
+		} else if !os.IsNotExist(err) {
 			return err
 		}
 		if dir == root || dir == "." || dir == filepath.Dir(dir) {

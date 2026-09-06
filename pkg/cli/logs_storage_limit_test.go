@@ -57,6 +57,7 @@ func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
 	outputDir := t.TempDir()
 	runDir := filepath.Join(outputDir, "run-1")
 	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "sandbox", "agent", "logs"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "sandbox", "agent", "logs", downloadedArtifactsMarkerDir), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "usage"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(runDir, "sandbox", "agent", "logs", "events.jsonl"), make([]byte, bytesPerMegabyte), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(runDir, jobsAPIResponseFileName), []byte("{}"), 0o600))
@@ -84,6 +85,26 @@ func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, string(ArtifactSetAll)))
 	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, constants.AgentArtifactName.String()))
 	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, constants.AgentOutputFallbackArtifactName.String()))
+	assert.False(t, limit.isReached())
+}
+
+func TestLogsStorageLimitPrunesEarlierCompletedRuns(t *testing.T) {
+	outputDir := t.TempDir()
+	firstRunDir := filepath.Join(outputDir, "run-1")
+	require.NoError(t, os.MkdirAll(filepath.Join(firstRunDir, "sandbox", "agent", "logs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(firstRunDir, "sandbox", "agent", "logs", "events.jsonl"), make([]byte, 3*bytesPerMegabyte/4), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(firstRunDir, runSummaryFileName), []byte("{}"), 0o600))
+
+	limit := newLogsStorageLimit(outputDir, 1)
+	secondRunDir := filepath.Join(outputDir, "run-2")
+	err := limit.runDownload(context.Background(), secondRunDir, func() error {
+		require.NoError(t, os.MkdirAll(secondRunDir, 0o755))
+		return os.WriteFile(filepath.Join(secondRunDir, runSummaryFileName), make([]byte, bytesPerMegabyte/2), 0o600)
+	})
+
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(firstRunDir, "sandbox", "agent", "logs", "events.jsonl"))
+	assert.FileExists(t, filepath.Join(secondRunDir, runSummaryFileName))
 	assert.False(t, limit.isReached())
 }
 
