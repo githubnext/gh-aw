@@ -20,7 +20,7 @@ import (
 var addWorkflowCompilationLog = logger.New("cli:add_workflow_compilation")
 
 // compileWorkflow compiles a workflow file without refreshing stop time.
-// This is a convenience wrapper around compileWorkflowWithRefresh.
+// This is a convenience wrapper around compileWorkflowWithActionRef.
 func compileWorkflow(ctx context.Context, filePath string, verbose bool, quiet bool, engineOverride string) error {
 	return compileWorkflowWithActionRef(ctx, filePath, verbose, quiet, engineOverride, "")
 }
@@ -143,7 +143,7 @@ func compileDispatchWorkflowDependenciesWithActionRef(ctx context.Context, workf
 	})
 }
 
-// compileCallWorkflowDependencies compiles any call-workflow .md worker dependencies of
+// compileCallWorkflowDependenciesWithActionRef compiles any call-workflow .md worker dependencies of
 // workflowFile that are present locally but lack a corresponding .lock.yml. This must be
 // called before compiling the main workflow, because the call-workflow validator requires
 // every referenced .md worker to have an up-to-date .lock.yml.

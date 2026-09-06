@@ -83,6 +83,14 @@ func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("yamllint", lockFiles, verbose, strict, runYamllintOnFiles)
 }
 
+// RunShellcheckOnLockFiles runs shellcheck on the run: step scripts extracted
+// from the provided lock files. Shellcheck must be installed as a system binary;
+// unlike other tools it does not use Docker. When shellcheck is not available
+// the function returns nil (callers are responsible for warning the user).
+func RunShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
+	return RunShellcheckOnLockFilesAndResources(ctx, lockFiles, nil, verbose, strict)
+}
+
 // RunShellcheckOnLockFilesAndResources runs shellcheck on run steps extracted
 // from lock files and shell script resources defined in workflow frontmatter.
 func RunShellcheckOnLockFilesAndResources(ctx context.Context, lockFiles []string, resources []workflow.ShellScriptResource, verbose bool, strict bool) error {

@@ -3,9 +3,11 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -246,6 +248,104 @@ func TestFileTracker_RollbackAllFiles(t *testing.T) {
 	if string(currentContent) != originalContent {
 		t.Errorf("Existing file should be restored to original %q, got %q", originalContent, string(currentContent))
 	}
+}
+
+func TestCompileWorkflowWithTracking_SharedActions(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "shared-actions-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Initialize git repository in temp directory
+	gitCmd := []string{"git", "init"}
+	if err := runCommandInDir(gitCmd, tempDir); err != nil {
+		t.Skipf("Skipping test - git not available or failed to init: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Test 1: Workflow WITH reaction should create shared action
+	workflowWithReaction := `---
+name: Test Workflow With Reaction
+on: 
+  push:
+    branches: [main]
+  reaction: heart
+---
+
+This is a test workflow.
+
+## Job: test
+
+This uses reaction.
+`
+
+	workflowFileWithReaction := filepath.Join(tempDir, "test-workflow-with-reaction.md")
+	if err := os.WriteFile(workflowFileWithReaction, []byte(workflowWithReaction), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+
+	// Create file tracker
+	tracker := NewFileTracker()
+
+	// Compile the workflow with tracking
+	if err := compileWorkflowWithTrackingAndActionRef(context.Background(), workflowFileWithReaction, false, false, "", "", tracker); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Check that shared action files are tracked
+	allFiles := append(tracker.CreatedFiles, tracker.ModifiedFiles...)
+
+	// Should track the lock file
+	lockFile := filepath.Join(tempDir, "test-workflow-with-reaction.lock.yml")
+	found := slices.Contains(allFiles, lockFile)
+	if !found {
+		t.Errorf("Lock file %s should be tracked", lockFile)
+	}
+
+	// Note: The reaction feature now uses inline GitHub Scripts instead of separate action files
+	// so we don't expect a separate reaction action file to be created
+
+	// Test 2: Workflow WITHOUT ai-reaction should NOT create shared action
+	workflowWithoutReaction := `---
+name: Test Workflow Without Reaction
+on: push
+---
+
+This is a test workflow.
+
+## Job: test
+
+This does NOT use ai-reaction.
+`
+
+	workflowFileWithoutReaction := filepath.Join(tempDir, "test-workflow-without-reaction.md")
+	if err := os.WriteFile(workflowFileWithoutReaction, []byte(workflowWithoutReaction), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+
+	// Create new file tracker for second test
+	tracker2 := NewFileTracker()
+
+	// Remove the existing reaction action to test it's not created again
+	// (Note: Since reaction is now inline, this removal step is no longer needed)
+
+	// Compile the workflow with tracking
+	if err := compileWorkflowWithTrackingAndActionRef(context.Background(), workflowFileWithoutReaction, false, false, "", "", tracker2); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Note: Since reaction feature now uses inline GitHub Scripts instead of separate action files,
+	// we don't expect any reaction action files to be created or tracked
 }
 
 func TestFileTracker_StageAllFiles_NonGitRepo(t *testing.T) {
