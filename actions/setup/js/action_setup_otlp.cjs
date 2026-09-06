@@ -33,7 +33,7 @@ const { maskSecret } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
- * if the file path is set and the value is truthy.
+ * if the file path is set.
  * @param {string | undefined} filePath - Path to the output/env file
  * @param {string} key - The variable name
  * @param {string} value - The value to write
@@ -41,25 +41,10 @@ const { maskSecret } = require("./actions_secret_masking.cjs");
  * @param {string} fileLabel - Human-readable file name for the log (e.g. "GITHUB_OUTPUT")
  */
 function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
-  if (!filePath || !value) return;
-  try {
-    appendFileSync(filePath, `${key}=${value}\n`);
-    core.info(`[otlp] ${logLabel} written to ${fileLabel}`);
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
- * @param {string | undefined} filePath
- * @param {string} key
- * @param {string} value
- */
-function writeEnvValue(filePath, key, value) {
   if (!filePath) return;
   try {
     appendFileSync(filePath, `${key}=${value}\n`);
-    core.info(`[otlp] ${key} written to GITHUB_ENV`);
+    core.info(`[otlp] ${logLabel} written to ${fileLabel}`);
   } catch {
     /* ignore */
   }
@@ -189,11 +174,11 @@ async function run() {
       const headers = parsedEndpoints[0]?.headers || "";
       if (endpoint !== currentEndpoint) {
         process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
-        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+        writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint, "OTEL_EXPORTER_OTLP_ENDPOINT", "GITHUB_ENV");
       }
       if (headers !== currentHeaders) {
         process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
-        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+        writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers, "OTEL_EXPORTER_OTLP_HEADERS", "GITHUB_ENV");
       }
     }
   }
