@@ -50,7 +50,7 @@ func TestGeneratePlaywrightCLIInstallSteps_ModeOmitted(t *testing.T) {
 func TestGeneratePlaywrightCLIInstallSteps_SelectedBrowsers(t *testing.T) {
 	steps := generatePlaywrightCLIInstallSteps(&WorkflowData{
 		Tools: map[string]any{"playwright": map[string]any{
-			"browsers": []any{"chrome", "Firefox", "webkit", "chrome"},
+			"browsers": []any{"chrome", "Firefox", "webkit", "chrome-for-testing", "chrome"},
 		}},
 	})
 

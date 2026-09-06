@@ -31,16 +31,85 @@ The generated gateway upstream uses a fresh masked capability for each workflow 
 
 This compiler contract depends on the unified enclave implementation from `github/gh-aw-firewall#6992`. Until that change is available in an AWF release, pinning an older AWF version will not provide the enclave server.
 
-## GitHub Issues access from agent enclaves
+## GitHub tool access from agent enclaves
 
-Agent enclaves can opt into the closed `issues-read-v1` profile:
+Prefer `agent.tools.github` for new workflows:
 
 ```yaml
 sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.15
+    version: v0.4.16
+enclaves:
+  - agent:
+      model: gpt-5
+      tools:
+        github:
+          allowed: [list_issues, issue_read]
+          allowed-repos: [octo-org/private-service]
+          min-integrity: none
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+    timeout: 180
+```
+
+- `allowed` is required and currently accepts only `list_issues` and `issue_read`.
+- `allowed-repos` is optional. If omitted, the enclave identity inherits the enclave's `repos` list. If set, every entry must also appear in that list.
+- `min-integrity` is optional and defaults to `approved`.
+- GraphQL, search, writes, and every other GitHub tool remain denied.
+- The minimum supported versions are AWF `v0.28.9` (or `v0.28.14` when using `trusted`) and mcpg `v0.4.15`.
+
+## Dynamic agent repository policies
+
+Agent enclaves can admit one repository per invocation at runtime without listing every repository in frontmatter. Dynamic entries use the same `awf-enclave` MCP backend, but replace static `repos` with a closed compiler-owned policy envelope:
+
+```yaml
+sandbox:
+  agent:
+    id: awf
+    version: v0.28.14
+  mcp:
+    version: v0.4.16
+enclaves:
+  - agent:
+      model: gpt-5
+      max-task-bytes: 4096
+      max-model-requests: 8
+      max-model-tokens: 1024
+    dynamic:
+      allowed-owners: [octo-org]
+      sensitivity: confidential
+      github-policy: github-repository-read-v1
+      max-repositories: 4
+      quotas:
+        max-invocations: 8
+        max-output-bytes: 32768
+        max-execution-seconds: 900
+      audit-labels: [dynamic-enclave]
+      expires-at: "2026-09-06T00:32:00Z"
+    timeout: 120
+    memory-limit: 512m
+    cpu-limit: "1"
+    pids-limit: 128
+    tmpfs-limit: 64m
+    max-output-bytes: 8192
+    max-invocations: 8
+```
+
+- Dynamic mode is supported only for `agent` entries. `script` entries must use static `repos`.
+- An entry must declare either non-empty static `repos` or `dynamic`, never both.
+- `allowed-owners` and `allowed-repositories` use canonical lowercase ASCII selectors. Repository selectors must already match `owner/repo`; the compiler does not trim, case-fold, URL-decode, or normalize them.
+- `github-policy` must be `github-repository-read-v1`, which exposes only `list_issues` and `issue_read` through per-invocation delegated identities.
+- Dynamic entries require finite resource limits, total quotas, audit labels, an absolute `expires-at` no later than the enclave job lifetime, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
+- The primary and enclave agents do not receive repository credentials or the delegation-control capability. The compiler gives AWF an AWF-only control capability so AWF can request short-lived mcpg identities for admitted repositories.
+
+## Deprecated `issues-read-v1` profile
+
+Agent enclaves can still opt into the legacy profile during migration:
+
+```yaml
 enclaves:
   - agent:
       model: gpt-5
@@ -52,8 +121,7 @@ enclaves:
     timeout: 180
 ```
 
-`issues-read-v1` is the only accepted `agent.github.cli` value. Script
-enclaves cannot configure `github`. The first profile version accepts at most one repository whose sensitivity is neither `public` nor `trusted`; additional assigned repositories may declare `sensitivity: public` or `trusted`.
+`issues-read-v1` is the only accepted `agent.github.cli` value, and it is deprecated in favor of `agent.tools.github`. Script enclaves cannot configure `github`. The first profile version accepts at most one repository whose sensitivity is neither `public` nor `trusted`; additional assigned repositories may declare `sensitivity: public` or `trusted`.
 
 The profile permits only `list_issues` and `issue_read` through the GitHub MCP
 server. GraphQL, search, writes, and every other GitHub tool are denied.

@@ -256,9 +256,9 @@ const (
 	DefaultCloudHypervisorMemoryMiB = 4096
 )
 
-// AWFLegacySecurityCommand is the AWF command prefix for legacy security mode.
-// Used by the docker-sudo-iptables runtime profile.
-const AWFLegacySecurityCommand = "sudo -E awf"
+// AWFLegacySecurityCommand runs the trusted system AWF binary with the runner's
+// PATH restored after sudo applies secure_path.
+const AWFLegacySecurityCommand = `sudo -E /usr/bin/env PATH="$PATH" /usr/local/bin/awf`
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs
 const AWFProxyLogsDir FilePath = "/tmp/gh-aw/sandbox/firewall/logs"

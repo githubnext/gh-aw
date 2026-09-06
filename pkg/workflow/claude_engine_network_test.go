@@ -69,7 +69,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify AWF is not used without network permissions
-		if strings.Contains(stepYAML, "sudo -E awf") {
+		if strings.Contains(stepYAML, "sudo -E ") {
 			t.Error("AWF should not be used without network permissions")
 		}
 

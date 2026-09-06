@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -272,6 +273,54 @@ func TestEmitGeneralToolWarningsCloudHypervisorReviewTrigger(t *testing.T) {
 	assert.Contains(t, stderrOutput, "sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path")
 	assert.Contains(t, stderrOutput, "Require a human security review before merge or rollout")
 	assert.Equal(t, 1, compiler.GetWarningCount())
+}
+
+func TestEmitGeneralToolWarningsDeprecatedSandboxRuntimes(t *testing.T) {
+	tests := []struct {
+		name            string
+		agent           *AgentSandboxConfig
+		expectedMessage string
+	}{
+		{
+			name:            "gvisor runtime",
+			agent:           &AgentSandboxConfig{Runtime: AgentRuntimeGVisor},
+			expectedMessage: "sandbox.agent.runtime: gvisor is deprecated and will be removed in a future release",
+		},
+		{
+			name:            "docker-sbx runtime",
+			agent:           &AgentSandboxConfig{Runtime: AgentRuntimeDockerSbx},
+			expectedMessage: "sandbox.agent.runtime: docker-sbx is deprecated and will be removed in a future release",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				SandboxConfig: &SandboxConfig{Agent: tt.agent},
+			}
+
+			oldStderr := os.Stderr
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = w
+			t.Cleanup(func() {
+				os.Stderr = oldStderr
+				_ = r.Close()
+			})
+
+			compiler.emitGeneralToolWarnings(workflowData, "test.md")
+
+			require.NoError(t, w.Close())
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			require.NoError(t, err)
+			assert.Contains(t, buf.String(), tt.expectedMessage)
+			assert.Equal(t, 1, compiler.GetWarningCount())
+		})
+	}
 }
 
 func TestEmitGeneralToolWarningsIgnoredFilesystemAllowWrite(t *testing.T) {
@@ -713,6 +762,114 @@ func TestValidatePermissions_QuietSuppressesCopilotRequestsTip(t *testing.T) {
 	assert.NotContains(t, stderr, "Tip: set permissions.copilot-requests: write")
 }
 
+func TestEmitGeneralToolWarnings_PiThreatDetectionAuthWarning(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        *WorkflowData
+		wantWarning bool
+	}{
+		{
+			name: "warns without Copilot authentication",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			wantWarning: true,
+		},
+		{
+			name: "does not warn with copilot requests permission",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n  copilot-requests: write\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "does not warn with explicit Copilot token",
+			data: &WorkflowData{
+				AI: "pi",
+				EngineConfig: &EngineConfig{
+					ID: "pi",
+					Env: map[string]string{
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.DETECTION_COPILOT_TOKEN }}",
+					},
+				},
+				Permissions: "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "does not warn with Copilot BYOK credentials",
+			data: &WorkflowData{
+				AI: "pi",
+				EngineConfig: &EngineConfig{
+					ID: "pi",
+				},
+				Permissions: "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							Env: map[string]string{
+								constants.CopilotProviderBaseURL:     "https://provider.example.com/v1",
+								constants.CopilotProviderAPIKey:      "${{ secrets.PROVIDER_API_KEY }}",
+								constants.CopilotProviderBearerToken: "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "does not warn when threat detection is disabled",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+			},
+		},
+		{
+			name: "does not warn for a non-Copilot detection override",
+			data: &WorkflowData{
+				AI:           "pi",
+				EngineConfig: &EngineConfig{ID: "pi"},
+				Permissions:  "permissions:\n  contents: read\n",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{ID: "codex"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			stderr := testutil.CaptureStderr(t, func() {
+				compiler.emitGeneralToolWarnings(tt.data, "test.md")
+			})
+
+			const warning = "Threat detection for engine: pi runs on the GitHub Copilot CLI."
+			if tt.wantWarning {
+				assert.Contains(t, stderr, warning)
+				assert.Equal(t, 1, compiler.GetWarningCount())
+			} else {
+				assert.NotContains(t, stderr, warning)
+				assert.Zero(t, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -776,7 +933,7 @@ func TestShouldEmitCopilotRequestsEnableTip(t *testing.T) {
 	}
 }
 
-func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError(t *testing.T) {
+func TestValidateToolConfiguration_DoesNotWarnForDisabledSandbox(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tool-warning-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 
@@ -786,7 +943,7 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	workflowData := &WorkflowData{
 		Name: "Test",
 		Features: map[string]any{
-			"dangerously-disable-sandbox-agent": "controlled environment with no internet access",
+			"dangerously-disable-sandbox-agent": true,
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{Disabled: true},
@@ -804,8 +961,8 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 
 	require.Error(t, validateErr)
 	require.ErrorContains(t, validateErr, "threat detection requires sandbox.agent")
-	assert.Contains(t, stderr, "Agent sandbox disabled (sandbox.agent: false)")
-	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
+	assert.NotContains(t, stderr, "sandbox.agent: false")
+	assert.Equal(t, initialWarnings, compiler.GetWarningCount())
 }
 
 // TestWarnPromptTmpPaths tests the /tmp path heuristic used by the compiler.

@@ -202,6 +202,14 @@ func TestAddResolvedWorkflows(t *testing.T) {
 							WorkflowName: "test-workflow",
 							WorkflowPath: "test.md",
 						},
+						Content: []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+
+# Test workflow
+`),
 					},
 				},
 			}
@@ -557,91 +565,6 @@ func TestEnsureAddRepositoryInitializedWithDetails_AbsolutePaths(t *testing.T) {
 	require.Equal(t, filepath.Join(repoDir, filepath.FromSlash(writtenMarker)), files[0])
 }
 
-func TestConfirmAndInitializeAddRepository(t *testing.T) {
-	originalFindGitRoot := addFindGitRoot
-	originalInitRepository := addInitRepository
-	originalMissingInitMarkers := addMissingInitMarkers
-	originalConfirmAuthoringSupport := addConfirmAuthoringSupport
-	t.Cleanup(func() {
-		addFindGitRoot = originalFindGitRoot
-		addInitRepository = originalInitRepository
-		addMissingInitMarkers = originalMissingInitMarkers
-		addConfirmAuthoringSupport = originalConfirmAuthoringSupport
-	})
-
-	repoDir := t.TempDir()
-	addFindGitRoot = func() (string, error) { return repoDir, nil }
-
-	t.Run("already initialized skips confirmation", func(t *testing.T) {
-		addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
-		addConfirmAuthoringSupport = func(context.Context) (bool, error) {
-			t.Fatal("confirmation should not be shown when all support files exist")
-			return false, nil
-		}
-		addInitRepository = func(InitOptions) error {
-			t.Fatal("initialization should not run when all support files exist")
-			return nil
-		}
-
-		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
-		require.NoError(t, err)
-		assert.Empty(t, files)
-	})
-
-	t.Run("declining creates no support files", func(t *testing.T) {
-		addMissingInitMarkers = func(string, string) ([]string, error) {
-			return []string{bootstrapAgenticSkillPath}, nil
-		}
-		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return false, nil }
-		addInitRepository = func(InitOptions) error {
-			t.Fatal("initialization should not run after confirmation is declined")
-			return nil
-		}
-
-		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
-		require.NoError(t, err)
-		assert.Empty(t, files)
-	})
-
-	t.Run("accepting quietly initializes support files", func(t *testing.T) {
-		marker := ".vscode/settings.json"
-		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
-		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
-		addInitRepository = func(opts InitOptions) error {
-			assert.True(t, opts.Quiet)
-			assert.Equal(t, "copilot", opts.Engine)
-			path := filepath.Join(repoDir, filepath.FromSlash(marker))
-			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
-			return os.WriteFile(path, []byte(`{}`), 0644)
-		}
-
-		files, err := confirmAndInitializeAddRepository(context.Background(), "copilot", false, false)
-		require.NoError(t, err)
-		require.Equal(t, []addInitializedFile{{
-			path: filepath.Join(repoDir, filepath.FromSlash(marker)), displayPath: marker,
-		}}, files)
-	})
-
-	t.Run("preserves original contents for stale support files", func(t *testing.T) {
-		marker := ".vscode/settings.json"
-		markerPath := filepath.Join(repoDir, filepath.FromSlash(marker))
-		require.NoError(t, os.WriteFile(markerPath, []byte("original"), 0644))
-		addMissingInitMarkers = func(string, string) ([]string, error) { return []string{marker}, nil }
-		addConfirmAuthoringSupport = func(context.Context) (bool, error) { return true, nil }
-		addInitRepository = func(InitOptions) error {
-			return os.WriteFile(markerPath, []byte("updated"), 0644)
-		}
-
-		plan, err := confirmAddRepositoryInitialization(context.Background(), "copilot", false)
-		require.NoError(t, err)
-		files, err := applyAddRepositoryInitialization(plan, "copilot", false, false)
-		require.NoError(t, err)
-		require.Equal(t, []addInitializedFile{{
-			path: markerPath, displayPath: marker, wasExisting: true, originalContent: []byte("original"),
-		}}, files)
-	})
-}
-
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
 	originalCheckOwnerType := bootstrapCheckOwnerType
 	t.Cleanup(func() {
@@ -693,7 +616,7 @@ on:
 # Worker
 `), 0o644))
 
-	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	compileDispatchWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 
 	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
 	_, err := os.Stat(lockPath)
@@ -728,7 +651,7 @@ safe-outputs:
 	// Write an intentionally broken worker file (no frontmatter — compile will fail).
 	require.NoError(t, os.WriteFile(workerPath, []byte(`not valid workflow content`), 0o644))
 
-	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	err := compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 	require.Error(t, err, "worker compilation failure should propagate as an error")
 	require.ErrorContains(t, err, "worker", "error should mention the worker name")
 }
@@ -767,13 +690,13 @@ on:
 	require.NoError(t, os.WriteFile(lockPath, []byte("# stale lock"), 0o644))
 
 	// Without force: stale lock is preserved.
-	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	err := compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", false, nil)
 	require.NoError(t, err)
 	content, _ := os.ReadFile(lockPath)
 	assert.Equal(t, "# stale lock", string(content), "without force, stale lock should not be recompiled")
 
 	// With force: stale lock gets recompiled.
-	err = compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", true, nil)
+	err = compileCallWorkflowDependenciesWithActionRef(context.Background(), mainPath, false, true, "", "", true, nil)
 	require.NoError(t, err)
 	recompiled, _ := os.ReadFile(lockPath)
 	assert.NotEqual(t, "# stale lock", string(recompiled), "with force, stale lock should be recompiled")

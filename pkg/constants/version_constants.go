@@ -166,6 +166,11 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 // enclave response schema permits free-form string values for trusted repositories.
 const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 
+// AWFDynamicRepositoryEnclaveMinVersion is the first AWF version that accepts
+// dynamic agent enclave repository policy envelopes and performs per-invocation
+// repository admission through MCPG's github-repository-delegation-v1 controller.
+const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.14"
+
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
 // sandbox.agent.ca-cert). Older AWF versions reject the unknown property
@@ -175,6 +180,10 @@ const AWFAPIProxyCACertMinVersion Version = "v0.28.10"
 // AWFVerifySbxEgressMinVersion is the minimum AWF version that supports
 // network.verifySbxEgress for fail-closed Docker sbx egress verification.
 const AWFVerifySbxEgressMinVersion Version = "v0.28.13"
+
+// AWFHTTPAPITargetMinVersion is the minimum AWF version that supports explicit
+// http:// schemes in apiProxy target hosts.
+const AWFHTTPAPITargetMinVersion Version = "v0.28.13"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
@@ -197,7 +206,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.15"
+const DefaultMCPGatewayVersion Version = "v0.4.16"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
@@ -206,6 +215,18 @@ const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 // MCPGEnclaveGitHubIssuesMinVersion is the first MCPG version with
 // concurrent per-agent isolation for the issues-read-v1 enclave capability.
 const MCPGEnclaveGitHubIssuesMinVersion Version = "v0.4.15"
+
+// MCPGEnclaveAgentToolsMinVersion is the first MCPG version whose distinct
+// enclave identity supports agent.tools.github allowlists and guard policies.
+// Currently identical to MCPGEnclaveGitHubIssuesMinVersion because both
+// enclave GitHub shapes share the same distinct-identity implementation;
+// kept as a separate constant so the two gates can diverge independently.
+const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
+
+// MCPGDynamicRepositoryDelegationMinVersion is the first MCPG version that
+// advertises the github-repository-delegation-v1 dynamic repository delegation
+// controller required by dynamic agent enclave admission.
+const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.16"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.

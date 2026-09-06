@@ -18,6 +18,12 @@ import (
 // embedded in the workflow's markdown content. It is the first validator called in
 // validateWorkflowData and guards against unsafe GitHub Actions expressions.
 func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath string) error {
+	if envMap := parseEnvYAMLSection(workflowData.Env); len(envMap) > 0 {
+		if err := validateTopLevelEnvExpressions(envMap); err != nil {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
+		}
+	}
+
 	// Check for secrets serialization expressions FIRST — before the general allowlist —
 	// to provide a specific, actionable error/warning message.
 	// In strict mode this returns an error that stops further validation.
@@ -348,6 +354,16 @@ func validateWorkflowConcurrency(workflowData *WorkflowData, markdownPath string
 // emitSandboxRuntimeWarnings warns about sandbox runtime choices that need human
 // review or whose configuration the compiler cannot honour.
 func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdownPath string) {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil {
+		switch agentConfig.Runtime {
+		case AgentRuntimeGVisor, AgentRuntimeDockerSbx:
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+				fmt.Sprintf("sandbox.agent.runtime: %s is deprecated and will be removed in a future release. "+
+					"Use sandbox.agent.runtime: docker instead.", agentConfig.Runtime)))
+			c.IncrementWarningCount()
+		}
+	}
 	if isCloudHypervisorRuntime(workflowData) {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
@@ -362,6 +378,47 @@ func (c *Compiler) emitSandboxRuntimeWarnings(workflowData *WorkflowData, markdo
 				"to read-only, and docker-sbx rejects the policy outright."))
 		c.IncrementWarningCount()
 	}
+}
+
+func (c *Compiler) emitPiThreatDetectionAuthWarning(workflowData *WorkflowData, markdownPath string) {
+	if !c.shouldEmitPiThreatDetectionAuthWarning(workflowData) {
+		return
+	}
+	message := `Threat detection for engine: pi runs on the GitHub Copilot CLI. This workflow does not grant permissions.copilot-requests: write, so detection requires a COPILOT_GITHUB_TOKEN secret. Without that secret, threat detection will fail with "No authentication information found".`
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+	c.IncrementWarningCount()
+}
+
+func (c *Compiler) shouldEmitPiThreatDetectionAuthWarning(workflowData *WorkflowData) bool {
+	if workflowData == nil || hasCopilotRequestsWritePermission(workflowData) ||
+		!IsDetectionJobEnabled(workflowData.SafeOutputs) {
+		return false
+	}
+
+	threatDetection := workflowData.SafeOutputs.ThreatDetection
+	if threatDetection.EngineDisabled {
+		return false
+	}
+
+	configuredEngineID := ResolveEngineID(workflowData)
+	var detectionEnv map[string]string
+	if threatDetection.EngineConfig != nil {
+		if threatDetection.EngineConfig.ID != "" {
+			configuredEngineID = threatDetection.EngineConfig.ID
+		}
+		detectionEnv = threatDetection.EngineConfig.Env
+	}
+	if configuredEngineID != "pi" || c.getThreatDetectionEngineID(workflowData) != "copilot" {
+		return false
+	}
+
+	effectiveEnv := mergeThreatDetectionEngineEnv(workflowData, detectionEnv)
+	if strings.TrimSpace(effectiveEnv[constants.CopilotGitHubToken]) != "" {
+		return false
+	}
+	return strings.TrimSpace(effectiveEnv[constants.CopilotProviderBaseURL]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderAPIKey]) == "" &&
+		strings.TrimSpace(effectiveEnv[constants.CopilotProviderBearerToken]) == ""
 }
 
 func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownPath string) {
@@ -381,15 +438,9 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"See: https://gh.io/gh-aw/reference/concurrency for details."))
 		c.IncrementWarningCount()
 	}
-	if isAgentSandboxDisabled(workflowData) {
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
-			"Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. "+
-				"The AI agent will have direct network access without firewall filtering. "+
-				"The MCP gateway remains enabled. Only use this for testing or in controlled "+
-				"environments where you trust the AI agent completely."))
-		c.IncrementWarningCount()
-	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
+	c.emitPiThreatDetectionAuthWarning(workflowData, markdownPath)
+	c.emitPlaywrightBrowserInstallWarning(workflowData, markdownPath)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
@@ -649,4 +700,18 @@ func (c *Compiler) emitSamplesCoverageWarnings(workflowData *WorkflowData, markd
 			"Add a `samples:` list under each safe output to replay it deterministically.",
 			strings.Join(missing, ", "))))
 	c.IncrementWarningCount()
+}
+
+func parseEnvYAMLSection(envYAML string) map[string]any {
+	if strings.TrimSpace(envYAML) == "" {
+		return nil
+	}
+	var raw map[string]any
+	if err := yaml.Unmarshal([]byte(envYAML), &raw); err != nil {
+		return nil
+	}
+	if envMap, ok := raw["env"].(map[string]any); ok {
+		return envMap
+	}
+	return raw
 }

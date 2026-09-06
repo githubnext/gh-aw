@@ -28,7 +28,7 @@ imports:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
       - default
   edit:
@@ -48,7 +48,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 evals:
   - id: mermaid_diagram_generated
     question: Did the agent generate a Mermaid diagram visualizing issue and pull request relationships?

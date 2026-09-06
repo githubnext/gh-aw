@@ -44,7 +44,7 @@ tools:
     retention-days: 1
     allowed-extensions: [".json"]
   github:
-    mode: gh-proxy
+    mode: local
     read-only: true
     toolsets: [default]
     min-integrity: none
@@ -66,7 +66,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 pre-agent-steps:
   - name: Pre-fetch moderation context
     env:

@@ -52,6 +52,7 @@ const HANDLER_MAP = {
   close_discussion: "./close_discussion.cjs",
   add_labels: "./add_labels.cjs",
   remove_labels: "./remove_labels.cjs",
+  replace_label: "./replace_label.cjs",
   update_issue: "./update_issue.cjs",
   update_discussion: "./update_discussion.cjs",
   link_sub_issue: "./link_sub_issue.cjs",
@@ -198,6 +199,7 @@ const THREAT_WARNING_ABORT_TYPES = new Set([
   "add_labels",
   "jira_add_label",
   "remove_labels",
+  "replace_label",
   "add_reviewer",
   "assign_milestone",
   "assign_to_agent",
@@ -1004,10 +1006,10 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Unknown message type - warn the user
       const loadError = handlerLoadErrorsByHandlerMap.get(messageHandlers)?.get(messageType);
-      const loadErrorSuffix = loadError ? ` The handler was configured but failed to load: ${loadError}` : "";
-      core.warning(
-        `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.${loadErrorSuffix}`
-      );
+      const warning = loadError
+        ? `No handler available for message type '${messageType}' (message ${i + 1}/${messages.length}). The handler was configured but failed to load: ${loadError}`
+        : `No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.`;
+      core.warning(warning);
       results.push({
         type: messageType,
         messageIndex: i,

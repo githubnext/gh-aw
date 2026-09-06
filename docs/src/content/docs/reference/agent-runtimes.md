@@ -5,7 +5,7 @@ sidebar:
   order: 1340
 ---
 
-Agentic workflows use AWF (Agent Workflow Firewall) to run the agent in an isolated environment. The environment can use the runner's standard Docker runtime, gVisor, Docker sbx, or preview Cloud Hypervisor mode. ARC DinD is a runner topology that changes how the standard Docker environment is reached; it is not another value of `sandbox.agent.runtime`.
+Agentic workflows use AWF (Agent Workflow Firewall) to run the agent in an isolated environment. The environment can use the runner's standard Docker runtime, gVisor, Docker sbx, or preview Cloud Hypervisor mode. ARC DinD is a runner topology that changes how the standard Docker environment is reached; it is not another value of `sandbox.agent.runtime`. The `gvisor` and `docker-sbx` runtimes are deprecated and will be removed in a future release; use `docker` instead.
 
 Use this page when selecting a runtime, writing workflow frontmatter, provisioning a runner, or diagnosing a runtime setup failure.
 
@@ -15,7 +15,7 @@ These similarly named fields control different layers:
 
 | Field | Purpose | Values covered here |
 | --- | --- | --- |
-| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
+| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor` (deprecated), `docker-sbx` (deprecated), `cloud-hypervisor`, or omitted for Docker |
 | `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor or Docker sbx | `true` by default; `false` for a pre-provisioned runner |
 | `runner.topology` | Describes how the runner reaches Docker | `arc-dind`, or omitted for a local Docker daemon |
 | `runtimes` | Installs language toolchains such as Node.js, Python, and Go | Unrelated to agent isolation |

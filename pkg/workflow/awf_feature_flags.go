@@ -109,6 +109,12 @@ func awfSupportsVerifySbxEgress(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFVerifySbxEgressMinVersion)
 }
 
+// awfSupportsHTTPAPITargets returns true when the effective AWF version supports
+// explicit http:// schemes in apiProxy target hosts.
+func awfSupportsHTTPAPITargets(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFHTTPAPITargetMinVersion)
+}
+
 // awfEmitsFilesystemAllowWrite reports whether the compiler may emit the
 // filesystem section of awf-config.json for this workflow.
 //

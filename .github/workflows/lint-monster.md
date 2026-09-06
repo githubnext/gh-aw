@@ -16,14 +16,14 @@ permissions:
 tracker-id: lint-monster
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 timeout-minutes: 45
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, issues, discussions]
   bash:
     - "*"
@@ -83,7 +83,7 @@ imports:
   - shared/reporting.md
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

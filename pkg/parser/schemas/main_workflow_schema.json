@@ -3619,7 +3619,7 @@
               "image": { "type": "string", "minLength": 1, "maxLength": 500 },
               "timeout": { "type": "integer", "minimum": 1, "maximum": 4740, "default": 30 },
               "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
-              "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+              "cpu-limit": { "type": "string", "pattern": "^(?:[1-9][0-9]?(?:\\.[0-9]{1,3})?|0\\.[0-9]{1,3})$", "default": "1" },
               "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
               "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
               "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
@@ -3629,7 +3629,11 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["agent", "repos"],
+            "required": ["agent"],
+            "oneOf": [
+              { "required": ["repos"], "not": { "required": ["dynamic"] } },
+              { "required": ["dynamic"], "not": { "required": ["repos"] } }
+            ],
             "properties": {
               "agent": {
                 "type": "object",
@@ -3644,20 +3648,60 @@
                   "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 },
                   "github": {
                     "type": "object",
+                    "description": "Deprecated. Use 'agent.tools.github' instead.",
+                    "deprecated": true,
+                    "x-deprecation-message": "'enclaves[].agent.github.cli' is deprecated. Use 'enclaves[].agent.tools.github' instead.",
                     "additionalProperties": false,
                     "required": ["cli"],
                     "properties": {
                       "cli": { "type": "string", "enum": ["issues-read-v1"] }
                     }
+                  },
+                  "tools": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "github": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "allowed": {
+                            "type": "array",
+                            "description": "GitHub MCP tools exposed to the enclave agent. Only explicitly allowed tools are available.",
+                            "items": {
+                              "type": "string",
+                              "enum": ["list_issues", "issue_read"]
+                            },
+                            "minItems": 1
+                          },
+                          "allowed-repos": {
+                            "type": "array",
+                            "description": "Guard policy: explicit owner/repository slugs declared in the enclosing enclave 'repos' list.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                              "description": "Repository slug in owner/repository format."
+                            },
+                            "minItems": 1
+                          },
+                          "min-integrity": {
+                            "type": "string",
+                            "description": "Guard policy: minimum required integrity level for enclave GitHub repository access.",
+                            "enum": ["none", "unapproved", "approved", "merged"]
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               },
               "repos": { "$ref": "#/$defs/enclave-repos" },
+              "dynamic": { "$ref": "#/$defs/enclave-dynamic-policy" },
               "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
               "image": { "type": "string", "minLength": 1, "maxLength": 500 },
               "timeout": { "type": "integer", "minimum": 1, "maximum": 4740, "default": 120 },
               "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
-              "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+              "cpu-limit": { "type": "string", "pattern": "^(?:[1-9][0-9]?(?:\\.[0-9]{1,3})?|0\\.[0-9]{1,3})$", "default": "1" },
               "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
               "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
               "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
@@ -4927,10 +4971,10 @@
                 },
                 "browsers": {
                   "type": "array",
-                  "description": "Browsers to provision before the agent starts. Defaults to Chromium. Chrome is accepted as an alias for Chromium.",
+                  "description": "Browsers to provision before the agent starts. Defaults to Chromium. Chrome and Chrome for Testing are accepted as aliases for Chromium.",
                   "items": {
                     "type": "string",
-                    "enum": ["chrome", "chromium", "firefox", "webkit"]
+                    "enum": ["chrome", "chrome-for-testing", "chromium", "firefox", "webkit"]
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -5908,6 +5952,10 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix to add to the beginning of the issue title (e.g., '[ai] ' or '[analysis] ')"
+                },
+                "body-footer": {
+                  "type": "string",
+                  "description": "Deterministic template appended after the agent-generated issue body. Available placeholders: {workflow_name}, {run_url}."
                 },
                 "require-temporary-id": {
                   "type": "boolean",
@@ -7619,9 +7667,17 @@
           "description": "Experimental. Create Linear issues through the isolated safe_outputs job.",
           "properties": {
             "team-id": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-              "description": "Trusted Linear team model UUID."
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\$\\{\\{.*\\}\\}$"
+                }
+              ],
+              "description": "Optional trusted Linear team model UUID or GitHub Actions expression. Defaults to LINEAR_TEAM_ID."
             },
             "project-id": {
               "type": "string",
@@ -7643,7 +7699,6 @@
               ]
             }
           },
-          "required": ["team-id"],
           "additionalProperties": false
         },
         "linear-add-comment": {
@@ -7916,6 +7971,10 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for the pull request title"
+                },
+                "body-footer": {
+                  "type": "string",
+                  "description": "Deterministic template appended after the agent-generated pull request body. Available placeholders: {workflow_name}, {run_url}."
                 },
                 "labels": {
                   "description": "Optional list of labels to attach to the pull request. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs.labels }}').",
@@ -13766,6 +13825,67 @@
             "type": "string",
             "enum": ["public", "trusted", "internal", "confidential", "sealed"]
           }
+        }
+      }
+    },
+    "enclave-dynamic-policy": {
+      "type": "object",
+      "description": "Dynamic agent repository admission policy. The compiler passes this closed envelope to AWF; runtime callers may only supply canonical owner/repository selectors within these bounds.",
+      "additionalProperties": false,
+      "required": ["sensitivity", "github-policy", "max-repositories", "quotas", "audit-labels", "expires-at"],
+      "anyOf": [{ "required": ["allowed-owners"] }, { "required": ["allowed-repositories"] }],
+      "properties": {
+        "allowed-owners": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38})$"
+          }
+        },
+        "allowed-repositories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38})/[a-z0-9._-]{1,100}$"
+          }
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": ["public", "trusted", "internal", "confidential", "sealed"]
+        },
+        "github-policy": {
+          "type": "string",
+          "enum": ["github-repository-read-v1"]
+        },
+        "max-repositories": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "quotas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max-invocations", "max-output-bytes", "max-execution-seconds"],
+          "properties": {
+            "max-invocations": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+            "max-execution-seconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+          }
+        },
+        "audit-labels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+          }
+        },
+        "expires-at": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

@@ -12,16 +12,16 @@ permissions:
   issues: read
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
   cache-memory: true
   bash: true
 safe-outputs:

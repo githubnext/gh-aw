@@ -16,7 +16,7 @@ permissions:
 tracker-id: daily-fact-thread
 model: openai/gpt-5.4
 engine:
-  id: pi
+  id: codex
   model-provider: openai
 strict: true
 experiments:
@@ -36,7 +36,7 @@ experiments:
     start_date: "2026-05-11"
     issue: 31324
 timeout-minutes: 15
-runs-on: aw-gpu-runner-T4
+runs-on: ubuntu-latest
 runtimes:
   node:
     version: "22"
@@ -48,11 +48,11 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
       - default
       - discussions

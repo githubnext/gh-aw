@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,6 +72,7 @@ func TestJiraCredentialsAreAddedOnlyToProcessorStep(t *testing.T) {
 			"OTHER":         "value",
 		},
 	}
+
 	steps := make([]string, 3, 8)
 	copy(steps, []string{
 		"      - name: Process Safe Outputs\n",
@@ -88,4 +90,16 @@ func TestJiraCredentialsAreAddedOnlyToProcessorStep(t *testing.T) {
 	customSteps := []string{}
 	NewCompiler().addCustomSafeOutputEnvVars(&customSteps, &WorkflowData{SafeOutputs: config})
 	assert.Equal(t, "          OTHER: value\n", strings.Join(customSteps, ""))
+}
+
+func TestJiraCredentialsUseDefaultBaseURL(t *testing.T) {
+	config := &SafeOutputsConfig{JiraCreateIssue: &JiraSafeOutputConfig{}}
+	steps := []string{
+		"      - name: Process Safe Outputs\n",
+		"        env:\n",
+		"        with:\n",
+	}
+
+	rendered := strings.Join(injectJiraCredentialsIntoProcessorStep(steps, config), "")
+	assert.Contains(t, rendered, "JIRA_BASE_URL: "+constants.JiraBaseURLExpr)
 }

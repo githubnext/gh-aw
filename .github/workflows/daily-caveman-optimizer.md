@@ -58,12 +58,12 @@ safe-outputs:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default]
   edit:
   bash:

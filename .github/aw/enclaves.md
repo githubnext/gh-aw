@@ -9,7 +9,7 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 ## What it is
 
 - The top-level `enclaves:` array (1-2 entries) enables finite-disclosure access to approved private repositories through the compiler-launched MCP gateway.
-- Each entry is either a **script enclave** (`script:` + `repos:`) registering `enclave_run_script`, or an **agent enclave** (`agent:` + `repos:`) registering `enclave_run_agent`.
+- Each entry is either a **script enclave** (`script:` + `repos:`) registering `enclave_run_script`, or an **agent enclave** (`agent:` + static `repos:` or dynamic `dynamic:`) registering `enclave_run_agent`.
 - Omit `enclaves:` entirely to disable the feature — this is the default.
 - This is a preview feature gated on `github/gh-aw-firewall#6992`; an older pinned AWF version will not provide the enclave server.
 
@@ -47,14 +47,83 @@ enclaves:
 - A fresh masked capability is generated per workflow run and passed only to the MCP gateway and AWF, never to the primary agent environment.
 - `timeout:` per enclave entry is capped at 4,740 seconds (AWF reserves the final 60 seconds of its 4,800-second finite-disclosure bucket for cleanup). The gateway itself enforces a 4,860-second tool timeout (4,800s AWF bucket + 60s transport allowance) — treat this as an enforcement bound, not a wall-clock guarantee.
 
-## Agent GitHub Issues profile
+## Agent GitHub tool configuration
 
-Use only this closed opt-in:
+Prefer this configuration shape for new workflows:
 
 ```yaml
 sandbox:
   mcp:
-    version: v0.4.15
+    version: v0.4.16
+enclaves:
+  - agent:
+      model: gpt-5
+      tools:
+        github:
+          allowed: [list_issues, issue_read]
+          allowed-repos: [octo-org/private-service]
+          min-integrity: none
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+```
+
+- `allowed` is required and currently supports only `list_issues` and `issue_read`.
+- `allowed-repos` is optional. When omitted, the enclave identity inherits all repositories declared in the enclave's `repos:` list. When set, each entry must also appear in that list.
+- `min-integrity` is optional and defaults to `approved`.
+- Unsupported tools and out-of-scope repositories fail closed at compile time.
+- GraphQL, search, writes, and all other GitHub tools remain denied.
+- Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
+
+## Dynamic agent repository policies
+
+Use `dynamic:` on agent entries when the primary agent should select one admitted repository at invocation time without enumerating every repository in frontmatter:
+
+```yaml
+sandbox:
+  agent:
+    id: awf
+    version: v0.28.14
+  mcp:
+    version: v0.4.16
+enclaves:
+  - agent:
+      model: gpt-5
+      max-task-bytes: 4096
+      max-model-requests: 8
+      max-model-tokens: 1024
+    dynamic:
+      allowed-owners: [octo-org]
+      sensitivity: confidential
+      github-policy: github-repository-read-v1
+      max-repositories: 4
+      quotas:
+        max-invocations: 8
+        max-output-bytes: 32768
+        max-execution-seconds: 900
+      audit-labels: [dynamic-enclave]
+      expires-at: "2026-09-06T00:32:00Z"
+    timeout: 120
+    memory-limit: 512m
+    cpu-limit: "1"
+    pids-limit: 128
+    tmpfs-limit: 64m
+    max-output-bytes: 8192
+    max-invocations: 8
+```
+
+- Dynamic mode is agent-only; scripts remain static seed-backed and must declare `repos`.
+- Each entry declares either non-empty static `repos` or `dynamic`, never both.
+- Declare `allowed-owners` or `allowed-repositories` using the ADR 0001 canonical lowercase ASCII selector form. The compiler does not trim, case-fold, URL-decode, or otherwise normalize dynamic selectors.
+- `github-policy` must be `github-repository-read-v1`, the closed policy containing only `list_issues` and `issue_read`.
+- Dynamic entries require fixed sensitivity, finite resource limits, total quotas, audit labels, an absolute `expires-at` no later than the enclave job lifetime, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
+- The compiler emits the dynamic policy envelope and mcpg `github-repository-delegation-v1` controller. The delegation-control capability is AWF-only and is excluded from primary and enclave agent environments.
+
+## Deprecated legacy profile
+
+The legacy profile remains supported during migration:
+
+```yaml
 enclaves:
   - agent:
       model: gpt-5
@@ -65,6 +134,7 @@ enclaves:
         sensitivity: confidential
 ```
 
+- `enclaves[].agent.github.cli: issues-read-v1` is deprecated. Migrate to `enclaves[].agent.tools.github`.
 - `issues-read-v1` permits only the `list_issues` and `issue_read` GitHub MCP
   tools. GraphQL, search, writes, and all other GitHub tools fail closed.
 - V1 allows at most one repository whose sensitivity is neither `public` nor `trusted` in the agent entry; `trusted` is public-equivalent for this limit.

@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
-const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError, isRateLimitError } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION, ERR_PARSE } = require("./error_codes.cjs");
@@ -202,6 +202,10 @@ async function main() {
       return;
     }
     const errorMessage = getErrorMessage(error);
+    if (isRateLimitError(error)) {
+      core.warning(`Cannot add reaction due to GitHub API rate limiting: ${errorMessage}`);
+      return;
+    }
     core.setFailed(`${ERR_API}: Failed to process reaction and comment creation: ${errorMessage}`);
   }
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -50,6 +51,57 @@ func enclaveGitHubIssuesWorkflowData() *WorkflowData {
 	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
 		Container: constants.DefaultMCPGatewayContainer,
 		Version:   string(constants.MCPGEnclaveGitHubIssuesMinVersion),
+	}
+	return data
+}
+
+func enclaveGitHubToolsWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Agent.Tools = &AgentEnclaveToolsConfig{
+		GitHub: &AgentEnclaveGitHubToolConfig{
+			Allowed:      []string{"list_issues", "issue_read"},
+			AllowedRepos: GitHubReposScope{"octo-org/private-service"},
+			MinIntegrity: GitHubIntegrityNone,
+		},
+	}
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFEnclaveGitHubIssuesMinVersion)
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGEnclaveAgentToolsMinVersion),
+	}
+	return data
+}
+
+func dynamicEnclaveWorkflowData() *WorkflowData {
+	data := enclaveWorkflowData(false, true, 0, 120)
+	data.Enclaves[0].Repos = nil
+	data.Enclaves[0].Dynamic = &DynamicEnclavePolicy{
+		AllowedOwners:       []string{"octo-org"},
+		AllowedRepositories: []string{"octo-org/private-service"},
+		Sensitivity:         "confidential",
+		GitHubPolicy:        enclaveDynamicGitHubPolicy,
+		MaxRepositories:     4,
+		Quotas: &DynamicEnclaveQuotas{
+			MaxInvocations:      8,
+			MaxOutputBytes:      32768,
+			MaxExecutionSeconds: 900,
+		},
+		AuditLabels: []string{"dynamic-enclave", "issues"},
+		ExpiresAt:   time.Now().UTC().Add(60 * time.Second).Format(time.RFC3339),
+	}
+	data.Enclaves[0].MemoryLimit = "512m"
+	data.Enclaves[0].CPULimit = "1"
+	data.Enclaves[0].PIDsLimit = 128
+	data.Enclaves[0].TmpfsLimit = "64m"
+	data.Enclaves[0].MaxOutputBytes = 8192
+	data.Enclaves[0].MaxInvocations = 8
+	data.Enclaves[0].Agent.MaxTaskBytes = 4096
+	data.Enclaves[0].Agent.MaxModelRequests = 8
+	data.Enclaves[0].Agent.MaxModelTokens = 1024
+	data.NetworkPermissions.Firewall.Version = string(constants.AWFDynamicRepositoryEnclaveMinVersion)
+	data.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
+		Container: constants.DefaultMCPGatewayContainer,
+		Version:   string(constants.MCPGDynamicRepositoryDelegationMinVersion),
 	}
 	return data
 }
@@ -137,6 +189,78 @@ func TestParseTopLevelKeyedEnclaves(t *testing.T) {
 	require.Len(t, config.Enclaves[0].Repos, 1)
 }
 
+func TestParseTopLevelKeyedEnclavesAgentGitHubTools(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{
+					"model": "gpt-5",
+					"tools": map[string]any{
+						"github": map[string]any{
+							"allowed":       []any{"list_issues", "issue_read"},
+							"allowed-repos": []any{"octo-org/private-service"},
+							"min-integrity": "none",
+						},
+					},
+				},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, config.Enclaves, 1)
+	require.NotNil(t, config.Enclaves[0].Agent)
+	require.NotNil(t, config.Enclaves[0].Agent.Tools)
+	require.NotNil(t, config.Enclaves[0].Agent.Tools.GitHub)
+	assert.Equal(t, []string{"list_issues", "issue_read"}, config.Enclaves[0].Agent.Tools.GitHub.Allowed)
+	assert.Equal(t, GitHubReposScope{"octo-org/private-service"}, config.Enclaves[0].Agent.Tools.GitHub.AllowedRepos)
+	assert.Equal(t, GitHubIntegrityNone, config.Enclaves[0].Agent.Tools.GitHub.MinIntegrity)
+}
+
+func TestParseTopLevelKeyedEnclavesDynamicAgentPolicy(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{
+					"model":              "gpt-5",
+					"max-task-bytes":     4096,
+					"max-model-requests": 8,
+					"max-model-tokens":   1024,
+				},
+				"dynamic": map[string]any{
+					"allowed-owners":       []any{"octo-org"},
+					"allowed-repositories": []any{"octo-org/private-service"},
+					"sensitivity":          "confidential",
+					"github-policy":        "github-repository-read-v1",
+					"max-repositories":     4,
+					"quotas": map[string]any{
+						"max-invocations":       8,
+						"max-output-bytes":      32768,
+						"max-execution-seconds": 900,
+					},
+					"audit-labels": []any{"dynamic-enclave", "issues"},
+					"expires-at":   "2999-01-01T00:00:00Z",
+				},
+				"timeout":          120,
+				"memory-limit":     "512m",
+				"cpu-limit":        "1",
+				"pids-limit":       128,
+				"tmpfs-limit":      "64m",
+				"max-output-bytes": 8192,
+				"max-invocations":  8,
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, config.Enclaves, 1)
+	require.NotNil(t, config.Enclaves[0].Dynamic)
+	assert.Equal(t, []string{"octo-org"}, config.Enclaves[0].Dynamic.AllowedOwners)
+	assert.Equal(t, []string{"octo-org/private-service"}, config.Enclaves[0].Dynamic.AllowedRepositories)
+	assert.Equal(t, enclaveDynamicGitHubPolicy, config.Enclaves[0].Dynamic.GitHubPolicy)
+}
+
 func TestEnclaveConfigRejectsAmbiguousDiscriminator(t *testing.T) {
 	data := enclaveWorkflowData(false, false, 0, 0)
 	data.Enclaves = EnclavesConfig{{
@@ -187,6 +311,66 @@ func TestBuildAWFConfigJSONEnclaveGitHubIssues(t *testing.T) {
 	enclaves := config["enclaves"].([]any)
 	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
 	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+}
+
+func TestBuildAWFConfigJSONEnclaveGitHubTools(t *testing.T) {
+	data := enclaveGitHubToolsWorkflowData()
+	configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+		EngineName: "copilot", WorkflowData: data,
+	})
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	enclaves := config["enclaves"].([]any)
+	agent := enclaves[0].(map[string]any)["agent"].(map[string]any)
+	assert.Equal(t, map[string]any{"cli": enclaveGitHubIssuesProfile}, agent["github"])
+	assert.NotContains(t, agent, "tools")
+}
+
+func TestBuildAWFConfigJSONDynamicEnclavePolicy(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+		EngineName: "copilot", WorkflowData: data,
+	})
+	require.NoError(t, err)
+
+	var config map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+	enclaves := config["enclaves"].([]any)
+	entry := enclaves[0].(map[string]any)
+	assert.NotContains(t, entry, "repos")
+	dynamic := entry["dynamic"].(map[string]any)
+	assert.Equal(t, []any{"octo-org"}, dynamic["allowedOwners"])
+	assert.Equal(t, []any{"octo-org/private-service"}, dynamic["allowedRepositories"])
+	assert.Equal(t, "agent", dynamic["executor"])
+	assert.Equal(t, "confidential", dynamic["sensitivity"])
+	assert.InDelta(t, 4, dynamic["maxRepositories"], 0)
+	assert.Equal(t, map[string]any{
+		"version": enclaveDynamicGitHubPolicy,
+		"tools":   []any{"list_issues", "issue_read"},
+	}, dynamic["githubPolicy"])
+	assert.Equal(t, map[string]any{
+		"maxExecutionSeconds": float64(900),
+		"maxInvocations":      float64(8),
+		"maxOutputBytes":      float64(32768),
+	}, dynamic["quotas"])
+	assert.Equal(t, []any{"dynamic-enclave", "issues"}, dynamic["auditLabels"])
+	assert.Equal(t, data.Enclaves[0].Dynamic.ExpiresAt, dynamic["expiresAt"])
+}
+
+func TestValidateDynamicEnclavePolicyBoundsExpiryAndCPU(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Dynamic.ExpiresAt = "2999-01-01T00:00:00Z"
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not exceed the enclave job lifetime")
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].CPULimit = "0"
+	err = validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cpu-limit must be a positive finite value")
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
@@ -247,6 +431,165 @@ func TestValidateEnclaveGitHubIssuesMode(t *testing.T) {
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `must be "issues-read-v1"`)
+}
+
+func TestValidateEnclaveGitHubTools(t *testing.T) {
+	tests := []struct {
+		name        string
+		mutate      func(*WorkflowData)
+		errContains string
+	}{
+		{
+			name: "unsupported tool",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.Tools.GitHub.Allowed = []string{"search_issues"}
+			},
+			errContains: "contains unsupported tool",
+		},
+		{
+			name: "repo outside enclave list",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.Tools.GitHub.AllowedRepos = GitHubReposScope{"octo-org/other-repo"}
+			},
+			errContains: "must be declared in enclaves[0].repos",
+		},
+		{
+			name: "legacy and new configs are mutually exclusive",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.GitHub = &AgentEnclaveGitHubConfig{CLI: enclaveGitHubIssuesProfile}
+			},
+			errContains: "cannot both be set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := enclaveGitHubToolsWorkflowData()
+			tt.mutate(data)
+			err := validateEnclavesConfig(data)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+
+	require.NoError(t, validateEnclavesConfig(enclaveGitHubToolsWorkflowData()))
+}
+
+func TestValidateDynamicEnclavePolicy(t *testing.T) {
+	tests := []struct {
+		name        string
+		mutate      func(*WorkflowData)
+		errContains string
+	}{
+		{
+			name: "rejects static and dynamic in same entry",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Repos = enclaveTestRepos()
+			},
+			errContains: "either static repos or dynamic",
+		},
+		{
+			name: "rejects non canonical owner",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Dynamic.AllowedOwners = []string{"Octo-Org"}
+				data.Enclaves[0].Dynamic.AllowedRepositories = nil
+			},
+			errContains: "canonical lowercase ASCII owner",
+		},
+		{
+			name: "rejects non canonical repository selector",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Dynamic.AllowedOwners = nil
+				data.Enclaves[0].Dynamic.AllowedRepositories = []string{"octo-org/../secret"}
+			},
+			errContains: "canonical dynamic selector",
+		},
+		{
+			name: "rejects unknown policy",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Dynamic.GitHubPolicy = "github-repository-read-v2"
+			},
+			errContains: "github-policy",
+		},
+		{
+			name: "rejects missing quotas",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Dynamic.Quotas = nil
+			},
+			errContains: "dynamic.quotas",
+		},
+		{
+			name: "rejects unbounded resource limits",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].MemoryLimit = ""
+			},
+			errContains: "finite timeout",
+		},
+		{
+			name: "rejects dynamic tool narrowing",
+			mutate: func(data *WorkflowData) {
+				data.Enclaves[0].Agent.Tools = &AgentEnclaveToolsConfig{GitHub: &AgentEnclaveGitHubToolConfig{Allowed: []string{"list_issues"}}}
+			},
+			errContains: "agent.tools.github.allowed must match",
+		},
+		{
+			name: "rejects old awf version",
+			mutate: func(data *WorkflowData) {
+				data.NetworkPermissions.Firewall.Version = "v0.28.13"
+			},
+			errContains: "requires AWF v0.28.14 or newer",
+		},
+		{
+			name: "rejects old mcpg version",
+			mutate: func(data *WorkflowData) {
+				data.SandboxConfig.MCP.Version = "v0.4.15"
+			},
+			errContains: "requires MCPG v0.4.16 or newer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := dynamicEnclaveWorkflowData()
+			tt.mutate(data)
+			err := validateEnclavesConfig(data)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+	require.NoError(t, validateEnclavesConfig(dynamicEnclaveWorkflowData()))
+}
+
+func TestDynamicEnclaveGatewayContract(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	gateway := buildMCPGatewayConfig(data)
+	require.NotNil(t, gateway)
+	assert.Equal(t, []string{"${MCP_GATEWAY_AGENT_ID}"}, gateway.AgentIDs)
+	assert.NotContains(t, gateway.AgentPolicies, "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}")
+	controller := gateway.DelegationControllers[enclaveDynamicController]
+	assert.Equal(t, "github", controller.Server)
+	assert.Equal(t, map[string]any{
+		"version": enclaveDynamicGitHubPolicy,
+		"tools":   []string{"list_issues", "issue_read"},
+	}, controller.Policy)
+	assert.Equal(t, "${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}", controller.ControlCapability)
+
+	var output strings.Builder
+	require.NoError(t, generateMCPGatewaySetup(
+		&output, data.Tools, []string{enclaveMCPServerName}, NewCopilotEngine(), data, false, nil,
+	))
+	generated := output.String()
+	assert.Contains(t, generated, `"delegationControllers": {"github-repository-delegation-v1"`)
+	assert.Contains(t, generated, `"version":"github-repository-read-v1"`)
+	assert.Contains(t, generated, `"tools":["list_issues","issue_read"]`)
+	assert.Contains(t, generated, `AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY=$(openssl rand -hex 32)`)
+	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}`)
+	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY"`)
+	assert.NotContains(t, generated, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand`)
+
+	excluded := ComputeAWFExcludeEnvVarNames(data, nil)
+	assert.Contains(t, excluded, enclaveGitHubDelegationEnv)
+	assert.Contains(t, excluded, enclaveMCPCapabilityEnv)
 }
 
 func TestGenerateEnclaveGatewayContract(t *testing.T) {

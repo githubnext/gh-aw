@@ -173,6 +173,12 @@ describe("generate_usage_activity_summary.cjs", () => {
           expect.objectContaining({ server_name: "github", tool_name: "issue_read", call_count: 1, failed_calls: 1, avg_duration_ms: 40 }),
           expect.objectContaining({ server_name: "github", tool_name: "list_issues", call_count: 1, failed_calls: 0, avg_duration_ms: 25 }),
         ]);
+        expect(gateway.tool_calls).toEqual([
+          { tool_call_id: "call-1", request_size: Buffer.byteLength(JSON.stringify(firstArguments)), response_size: Buffer.byteLength(JSON.stringify(firstResult)), duration_ms: 25, outcome: "success" },
+          { tool_call_id: "call-2", request_size: Buffer.byteLength(JSON.stringify(secondArguments)), response_size: Buffer.byteLength(JSON.stringify(secondResult)), duration_ms: 40, outcome: "failure" },
+        ]);
+        expect(JSON.stringify(gateway.tool_calls)).not.toContain('"id":1');
+        expect(JSON.stringify(gateway.tool_calls)).not.toContain("is:open");
         expect(integrity).toEqual({
           total_filtered: 1,
           filtered_server_counts: { github: 1 },
@@ -188,7 +194,7 @@ describe("generate_usage_activity_summary.cjs", () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-activity-test-"));
       const logsDir = path.join(root, "mcp-logs");
       fs.mkdirSync(logsDir, { recursive: true });
-      fs.writeFileSync(path.join(logsDir, "gateway.jsonl"), JSON.stringify({ event: "tool_call", server_name: "github", tool_name: "issue_read", input_size: 10, output_size: 20, duration: 5 }));
+      fs.writeFileSync(path.join(logsDir, "gateway.jsonl"), JSON.stringify({ event: "tool_call", server_name: "github", tool_name: "issue_read", tool_call_id: "secret-tool-id", input_size: 10, output_size: 20, duration: 5 }));
       fs.writeFileSync(path.join(logsDir, "rpc-messages.jsonl"), JSON.stringify({ event: "difc_filtered", server_id: "github", tool_name: "issue_read", reason: "integrity" }));
 
       try {
@@ -196,7 +202,44 @@ describe("generate_usage_activity_summary.cjs", () => {
         expect(gateway.total_calls).toBe(1);
         expect(gateway.total_input_size).toBe(10);
         expect(gateway.total_output_size).toBe(20);
+        expect(gateway.tool_calls).toEqual([{ tool_call_id: "call-1", request_size: 10, response_size: 20, duration_ms: 5, outcome: "success" }]);
+        expect(JSON.stringify(gateway)).not.toContain("secret-tool-id");
         expect(integrity).toBeNull();
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("reports incomplete RPC calls without exposing identifiers or payloads", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-activity-test-"));
+      const logsDir = path.join(root, "mcp-logs");
+      fs.mkdirSync(logsDir, { recursive: true });
+      const secretID = "******";
+      const secretArgument = "private-value";
+      fs.writeFileSync(
+        path.join(logsDir, "rpc-messages.jsonl"),
+        JSON.stringify({
+          timestamp: "2026-08-15T23:48:42.000Z",
+          event: "rpc_request",
+          direction: "OUT",
+          server_id: "github",
+          payload: { jsonrpc: "2.0", id: secretID, method: "tools/call", params: { name: "issue_read", arguments: { token: secretArgument } } },
+        })
+      );
+
+      try {
+        const { gateway } = parseGatewayActivity([root]);
+        expect(gateway.tool_calls).toEqual([
+          {
+            tool_call_id: "call-1",
+            request_size: Buffer.byteLength(JSON.stringify({ token: secretArgument })),
+            response_size: 0,
+            duration_ms: 0,
+            outcome: "incomplete",
+          },
+        ]);
+        expect(JSON.stringify(gateway)).not.toContain(secretID);
+        expect(JSON.stringify(gateway)).not.toContain(secretArgument);
       } finally {
         fs.rmSync(root, { recursive: true, force: true });
       }

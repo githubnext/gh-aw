@@ -22,14 +22,22 @@ const LINEAR_CREATE_ISSUE = `mutation LinearCreateIssue($input: IssueCreateInput
   }
 }`;
 
-async function main(config = {}) {
-  const teamId = config.team_id;
-  if (typeof teamId !== "string" || !LINEAR_UUID_PATTERN.test(teamId)) {
-    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured team ID`);
+const LINEAR_RESOLVE_PROJECT = `query ResolveLinearProject($slugId: String!) {
+  projects(filter: { slugId: { eq: $slugId } }, first: 1) {
+    nodes {
+      id
+    }
   }
-  const projectId = config.project_id;
+}`;
+
+async function main(config = {}) {
+  const teamId = config.team_id !== undefined ? config.team_id : process.env.LINEAR_TEAM_ID;
+  if (typeof teamId !== "string" || !LINEAR_UUID_PATTERN.test(teamId)) {
+    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid team ID from safe-outputs.linear-create-issue.team-id or LINEAR_TEAM_ID`);
+  }
+  const projectId = config.project_id !== undefined ? config.project_id : process.env.LINEAR_PROJECT_ID || undefined;
   if (projectId !== undefined && (typeof projectId !== "string" || !LINEAR_PROJECT_ID_PATTERN.test(projectId))) {
-    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid configured project ID`);
+    throw new Error(`${ERR_CONFIG}: linear_create_issue requires a valid project ID from safe-outputs.linear-create-issue.project-id or LINEAR_PROJECT_ID`);
   }
 
   return async function handleLinearCreateIssue(item) {
@@ -56,7 +64,16 @@ async function main(config = {}) {
 
     const input = { teamId, title, description };
     if (projectId) {
-      input.projectId = projectId;
+      if (LINEAR_UUID_PATTERN.test(projectId)) {
+        input.projectId = projectId;
+      } else {
+        const projectData = await linearGraphQL(LINEAR_RESOLVE_PROJECT, { slugId: projectId });
+        const resolvedProjectId = projectData?.projects?.nodes?.[0]?.id;
+        if (typeof resolvedProjectId !== "string" || !LINEAR_UUID_PATTERN.test(resolvedProjectId)) {
+          throw new Error(`${ERR_CONFIG}: linear_create_issue could not resolve the configured project ID`);
+        }
+        input.projectId = resolvedProjectId;
+      }
     }
     const data = await linearGraphQL(LINEAR_CREATE_ISSUE, { input });
     const payload = data?.issueCreate;
@@ -72,4 +89,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { LINEAR_CREATE_ISSUE, main };
+module.exports = { LINEAR_CREATE_ISSUE, LINEAR_RESOLVE_PROJECT, main };

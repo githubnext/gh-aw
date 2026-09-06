@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -46,10 +47,15 @@ func newGradersOperationalValueReportCommand() *cobra.Command {
 
 The current frozen evaluator is replayed against runs that predate grader artifacts.
 Mature observations are cached in digest-scoped UTC weekly files. The command writes
-a JSON report, an SVG timeline, and a Markdown report with the frozen evidence contract.`,
+a JSON report, an SVG timeline, and a Markdown report with the frozen evidence contract.
+
+Pass "*" as <workflow> to build reports for every workflow that declares an enabled
+graders.operational-value.run entry. Failures for individual workflows are reported
+but do not stop processing of the remaining workflows.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` graders operational-value report daily-file-diet
   ` + string(constants.CLIExtensionPrefix) + ` graders operational-value report daily-file-diet --until 2026-08-31T00:00:00Z
-  ` + string(constants.CLIExtensionPrefix) + ` graders operational-value report daily-file-diet --refresh --json`,
+  ` + string(constants.CLIExtensionPrefix) + ` graders operational-value report daily-file-diet --refresh --json
+  ` + string(constants.CLIExtensionPrefix) + ` graders operational-value report "*"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			until, _ := cmd.Flags().GetString("until")
@@ -77,7 +83,48 @@ a JSON report, an SVG timeline, and a Markdown report with the frozen evidence c
 	return cmd
 }
 
-func RunOperationalValueReport(ctx context.Context, config OperationalValueReportConfig) error { //nolint:largefunc // Coordinates the report pipeline and its cleanup in one lifecycle.
+func RunOperationalValueReport(ctx context.Context, config OperationalValueReportConfig) error {
+	if config.Workflow == "*" {
+		return runOperationalValueReportForAllWorkflows(ctx, config)
+	}
+	return runOperationalValueReportForWorkflow(ctx, config)
+}
+
+// runOperationalValueReportForAllWorkflows builds an operational-value report for every
+// workflow that declares an enabled graders.operational-value.run entry. Each workflow is
+// processed independently: a failure is reported and logged but does not stop processing
+// of the remaining workflows. The aggregate error, if any, joins every per-workflow failure.
+func runOperationalValueReportForAllWorkflows(ctx context.Context, config OperationalValueReportConfig) error {
+	workflowIDs, err := discoverOperationalValueGradedWorkflowIDs()
+	if err != nil {
+		return err
+	}
+	if len(workflowIDs) == 0 {
+		return errors.New("no workflows declare an enabled graders.operational-value.run")
+	}
+	operationalValueReportLog.Printf("Building operational-value reports for %d graded workflow(s)", len(workflowIDs))
+	var failed []string
+	var errs error
+	for _, workflowID := range workflowIDs {
+		workflowConfig := config
+		workflowConfig.Workflow = workflowID
+		if err := runOperationalValueReportForWorkflow(ctx, workflowConfig); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("operational-value report failed for %s: %v", workflowID, err)))
+			failed = append(failed, workflowID)
+			errs = errors.Join(errs, fmt.Errorf("%s: %w", workflowID, err))
+		}
+	}
+	succeeded := len(workflowIDs) - len(failed)
+	summary := fmt.Sprintf("Built operational-value reports for %d/%d graded workflow(s)", succeeded, len(workflowIDs))
+	if len(failed) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(summary))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(summary))
+	}
+	return errs
+}
+
+func runOperationalValueReportForWorkflow(ctx context.Context, config OperationalValueReportConfig) error { //nolint:largefunc // Coordinates the report pipeline and its cleanup in one lifecycle.
 	evidenceAt, err := operationalValueReportEvaluatorEvidenceTime(config.Until, time.Now())
 	if err != nil {
 		return err

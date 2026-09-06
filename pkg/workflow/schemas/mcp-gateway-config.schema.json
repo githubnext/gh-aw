@@ -246,6 +246,48 @@
             "additionalProperties": false
           }
         },
+        "delegationControllers": {
+          "type": "object",
+          "description": "Dynamic identity delegation controllers keyed by versioned controller contract. Used by AWF-owned enclave admission to create short-lived delegated repository identities without exposing control capabilities to agents.",
+          "additionalProperties": false,
+          "properties": {
+            "github-repository-delegation-v1": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["server", "policy", "controlCapability"],
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "enum": ["github"]
+                },
+                "policy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["version", "tools"],
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "enum": ["github-repository-read-v1"]
+                    },
+                    "tools": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 2,
+                      "items": {
+                        "type": "string",
+                        "enum": ["list_issues", "issue_read"]
+                      }
+                    }
+                  }
+                },
+                "controlCapability": {
+                  "type": "string",
+                  "pattern": "^\\$\\{AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY\\}$"
+                }
+              }
+            }
+          }
+        },
         "domain": {
           "oneOf": [
             {

@@ -39,7 +39,7 @@ tools:
     - "*"
   edit:
   github:
-    mode: gh-proxy
+    mode: local
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default, pull_requests]
   cache-memory: true
@@ -50,7 +50,7 @@ steps:
 
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 # Dead Code Removal Agent
