@@ -51,21 +51,6 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
 }
 
 /**
- * @param {string | undefined} filePath
- * @param {string} key
- * @param {string} value
- */
-function writeEnvValue(filePath, key, value) {
-  if (!filePath) return;
-  try {
-    appendFileSync(filePath, `${key}=${value}\n`);
-    core.info(`[otlp] ${key} written to GITHUB_ENV`);
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
  * @param {string} headers
  * @returns {boolean}
  */
@@ -189,11 +174,11 @@ async function run() {
       const headers = parsedEndpoints[0]?.headers || "";
       if (endpoint !== currentEndpoint) {
         process.env.OTEL_EXPORTER_OTLP_ENDPOINT = endpoint;
-        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+        writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint, "OTEL_EXPORTER_OTLP_ENDPOINT", "GITHUB_ENV");
       }
       if (headers !== currentHeaders) {
         process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
-        writeEnvValue(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers);
+        writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", headers, "OTEL_EXPORTER_OTLP_HEADERS", "GITHUB_ENV");
       }
     }
   }
