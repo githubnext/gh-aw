@@ -437,11 +437,8 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 
 ### 1.0.30 (2026-09-06)
 
-- Daily optimizer review cycle. The specification header and Section 2 sync table had already been bumped to `1.0.30` (documenting the CTR-001 mapping addition for the status-function guard on compiler-owned prerequisites), but the corresponding Section 7.2 mapping audit entry and this change log entry were missing, leaving the specification out of sync with itself per the Section 7.3 sync protocol.
-- Added Section 7.2 Mapping Audit (2026-09-06) entry confirming the CTR-001 status-function guard (`guardIfAgainstStatusFuncBypass`, `ifExpressionContainsStatusFunc` in `pkg/workflow/compiler_builtin_job_augmentation.go`) is implemented and covered by `pkg/workflow/compiler_custom_jobs_test.go` (`TestApplyBuiltinJobNeedsAugmentations_StatusFuncAddsSuccessGuards`, `TestApplyBuiltinJobNeedsAugmentations_StatusFuncFailureAddsSuccessGuards`, `TestApplyBuiltinJobNeedsAugmentations_StatusFuncAlwaysAddsSuccessGuards`, `TestApplyBuiltinJobNeedsAugmentations_StatusFuncKeepsCustomJobUnguarded`).
-- Reviewed open code-scanning alerts (critical/high severity) via GitHub MCP; all findings affect files outside this specification's conformance targets (`pkg/cli/`, `scripts/`) or are self-scan findings from the `daily-malicious-code-scan`/`daily-semgrep-scan` workflows themselves, not compiler-generated-workflow threats. No new `CTR-*` rule required.
-- No `threat-detection-suppress` annotations were found in any live workflow source in this review window; no `SLA_BREACH` findings apply.
-- No new threat class was identified requiring a new `CTR-*` rule this cycle; this entry closes the outstanding spec-to-changelog sync gap for version `1.0.30`.
+- Reconciled the existing `1.0.30` CTR-001 status-function mapping with its missing Section 7.2 audit and Section 10 changelog entries, as required by Section 7.3.
+- Confirmed the guard implementation and tests; reviewed critical/high code-scanning alerts and live workflow sources. Findings were outside this specification's compiler targets or were self-scan findings; no new `CTR-*` rule or `SLA_BREACH` finding applies.
 
 ### 1.0.29 (2026-08-31)
 
