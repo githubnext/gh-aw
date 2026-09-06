@@ -388,13 +388,6 @@ func isSupportedManifestIncludePath(p string) bool {
 	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p)
 }
 
-// isManifestIncludeWildcard reports whether p uses the supported wildcard form: a
-// single trailing path segment named "*".
-func isManifestIncludeWildcard(p string) bool {
-	_, ok := manifestIncludeWildcardParent(p)
-	return ok
-}
-
 func manifestIncludeWildcardParent(p string) (string, bool) {
 	slashed := filepath.ToSlash(p)
 	if !strings.HasSuffix(slashed, "/*") || strings.Count(slashed, "*") != 1 {

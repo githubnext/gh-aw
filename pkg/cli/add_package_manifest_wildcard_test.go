@@ -12,32 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsManifestIncludeWildcard(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		path string
-		want bool
-	}{
-		{"workflows/*", true},
-		{"agentic-workflows/*", true},
-		{".github/workflows/*", true},
-		{"skills/*", true},
-		{"*", false},
-		{"workflows/**", false},
-		{"workflows/review*.md", false},
-		{"workflows/*/nested", false},
-		{"workflows/../agents/*", false},
-		{"/workflows/*", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, isManifestIncludeWildcard(tt.path))
-		})
-	}
-}
-
 func TestExtractManifestIncludesWithWildcard(t *testing.T) {
 	t.Parallel()
 	includes, warnings, err := extractManifestIncludes([]any{

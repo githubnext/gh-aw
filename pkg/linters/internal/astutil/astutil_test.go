@@ -1078,6 +1078,76 @@ func TestStringLitValue(t *testing.T) {
 	}
 }
 
+func TestResolveFormatString(t *testing.T) {
+	t.Parallel()
+
+	strLit := func(v string) ast.Expr { return &ast.BasicLit{Kind: token.STRING, Value: v} }
+	concat := func(exprs ...ast.Expr) ast.Expr {
+		result := exprs[0]
+		for _, e := range exprs[1:] {
+			result = &ast.BinaryExpr{X: result, Op: token.ADD, Y: e}
+		}
+		return result
+	}
+
+	tests := []struct {
+		name   string
+		expr   ast.Expr
+		want   string
+		wantOK bool
+	}{
+		{
+			name:   "plain string literal",
+			expr:   strLit(`"operation failed: %w"`),
+			want:   "operation failed: %w",
+			wantOK: true,
+		},
+		{
+			name:   "concatenation of two literals",
+			expr:   concat(strLit(`"a"`), strLit(`"b: %v"`)),
+			want:   "ab: %v",
+			wantOK: true,
+		},
+		{
+			name:   "concatenation with a leading non-literal identifier returns ok=false",
+			expr:   concat(ast.NewIdent("message"), strLit(`"\n\nOriginal error: %v"`)),
+			want:   "",
+			wantOK: false,
+		},
+		{
+			name:   "opaque operand between literal segments returns ok=false",
+			expr:   concat(strLit(`"abc%"`), ast.NewIdent("errStr"), strLit(`"v..."`)),
+			want:   "",
+			wantOK: false,
+		},
+		{
+			name:   "concatenation of only non-literal identifiers",
+			expr:   concat(ast.NewIdent("a"), ast.NewIdent("b")),
+			wantOK: false,
+		},
+		{
+			name:   "non-ADD binary expression",
+			expr:   &ast.BinaryExpr{X: strLit(`"a"`), Op: token.SUB, Y: strLit(`"b"`)},
+			wantOK: false,
+		},
+		{
+			name:   "bare identifier",
+			expr:   ast.NewIdent("x"),
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := ResolveFormatString(tt.expr)
+			if ok != tt.wantOK || got != tt.want {
+				t.Fatalf("ResolveFormatString() = (%q, %v), want (%q, %v)", got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
 func TestIsRegexpCompileCall(t *testing.T) {
 	t.Parallel()
 

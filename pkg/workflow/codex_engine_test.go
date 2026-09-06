@@ -416,6 +416,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				`cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_NORM_EOF`,
 				"[history]",
 				"persistence = \"none\"",
+				"[otel]",
+				"metrics_exporter = \"none\"",
 				"",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",

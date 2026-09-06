@@ -12,7 +12,7 @@ permissions:
 
 
   copilot-requests: write
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 engine:
   id: codex
   model-provider: github
