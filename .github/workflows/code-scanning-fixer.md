@@ -39,7 +39,7 @@ imports:
   - shared/graders.md
 tools:
   cli-proxy: true
-  bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
+  bash: ["cat:*", "git diff:*", "git restore:*", "git status:*", "head:*", "sed:*", wc]
   github:
     mode: local
     github-token: "${{ secrets.GITHUB_TOKEN }}"
@@ -56,7 +56,7 @@ safe-outputs:
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
     expires: "3d"
     max: 1
-timeout-minutes: 30
+timeout-minutes: 40
 features:
   gh-aw-detection: true
 sandbox:
@@ -97,7 +97,7 @@ You are a security-focused code analysis agent that automatically fixes code sca
 - Create pull request: emit a `create-pull-request` safe output after edits
 - Report a stalled prior attempt: emit a `create-issue` safe output (diagnostic only, never a fix)
 
-**Self-Assessment Checkpoint**: This workflow has a hard 20-minute timeout. A hang or timeout during the fix-attempt phase (steps 5-6) previously produced zero output and zero visibility. To avoid that:
+**Self-Assessment Checkpoint**: This workflow has a hard 40-minute timeout. A hang or timeout during the fix-attempt phase (steps 5-6) previously produced zero output and zero visibility. To avoid that:
 - Before starting the expensive analyze-and-fix work on a selected alert, immediately record an `in_progress` checkpoint in cache memory (step 3.5). This is cheap and happens before any risk of hanging.
 - On the *next* run, if a stale `in_progress` checkpoint is found for an alert with no later outcome recorded, that is evidence the previous run hung or timed out mid-fix. Report it via a diagnostic `create-issue` describing what was known about the alert, then skip that alert this run instead of silently retrying it with no visibility.
 
