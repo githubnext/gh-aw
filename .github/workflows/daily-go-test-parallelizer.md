@@ -14,7 +14,7 @@ permissions:
 engine:
   id: codex
   model-provider: github
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 timeout-minutes: 30
 network:
@@ -23,6 +23,9 @@ network:
     - go
     - node
 tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
   cache-memory:
     retention-days: 30
     allowed-extensions: [".json"]

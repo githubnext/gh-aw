@@ -31,7 +31,7 @@ permissions:
 engine:
   id: codex
   model-provider: github
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 max-ai-credits: 120
 max-daily-ai-credits: 500

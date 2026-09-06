@@ -217,6 +217,15 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
     "total_output_size": 5000,
     "max_input_size": 400,
     "max_output_size": 3000,
+    "tool_calls": [
+      {
+        "tool_call_id": "call-1",
+        "request_size": 200,
+        "response_size": 800,
+        "duration_ms": 100,
+        "outcome": "success"
+      }
+    ],
     "servers": [
       {
         "server_name": "github",
@@ -256,6 +265,10 @@ Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. Th
   }
 }
 ```
+
+MCP `tool_calls` contain quantitative metadata only. Tool-call IDs are replaced with
+run-local opaque identifiers, and request and response content is never copied into
+the usage artifact. `outcome` is `success`, `failure`, or `incomplete`.
 
 The conclusion job derives `gateway` and `integrity` from MCP gateway logs, falling back to `rpc-messages.jsonl` when `gateway.jsonl` is unavailable. These compact aggregates let `gh aw logs --artifacts usage` report MCP call, payload-size, duration, failure, and integrity-filter metrics without downloading raw logs. Cross-run reports include `runs_with_filtered_events`; the existing logs report summary remains the source for the total number of runs.
 

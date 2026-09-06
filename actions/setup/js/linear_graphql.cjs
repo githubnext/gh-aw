@@ -4,6 +4,7 @@ const { ERR_API, ERR_CONFIG, ERR_PARSE } = require("./error_codes.cjs");
 
 const LINEAR_GRAPHQL_ENDPOINT = "https://api.linear.app/graphql";
 const LINEAR_ISSUE_PATTERN = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[A-Z][A-Z0-9]{0,15}-[1-9][0-9]*)$/i;
+const LINEAR_TEAM_NOT_FOUND_MESSAGE = "entity not found: team";
 
 function redactToken(value, token) {
   const text = String(value || "");
@@ -47,6 +48,9 @@ async function linearGraphQL(query, variables, token = process.env.GH_AW_LINEAR_
   }
   if (Array.isArray(payload.errors) && payload.errors.length > 0) {
     const message = redactToken(payload.errors[0]?.message || "unknown GraphQL error", token).slice(0, 500);
+    if (message.toLowerCase().includes(LINEAR_TEAM_NOT_FOUND_MESSAGE)) {
+      throw new Error(`${ERR_CONFIG}: Linear could not access the configured team. Verify safe-outputs.linear-create-issue.team-id or LINEAR_TEAM_ID references a team in the workspace authorized by LINEAR_API_KEY`);
+    }
     throw new Error(`${ERR_API}: Linear GraphQL operation failed: ${message}`);
   }
 
