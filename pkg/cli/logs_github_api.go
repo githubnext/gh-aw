@@ -129,7 +129,7 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 	if outputDir != "" {
 		responsePath := filepath.Join(outputDir, jobsAPIResponseFileName)
 		if err := writeSensitiveFile(responsePath, output); err != nil {
-			return jobs, failedJobs, fmt.Errorf("failed to cache jobs API response: %w", err)
+			return jobs, failedJobs, &jobDetailsCacheError{err: fmt.Errorf("failed to cache jobs API response: %w", err)}
 		}
 		logsGitHubAPILog.Printf("Cached jobs API response: path=%s", responsePath)
 	}
@@ -138,20 +138,46 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 	return jobs, failedJobs, nil
 }
 
+type jobDetailsCacheError struct {
+	err error
+}
+
+func (e *jobDetailsCacheError) Error() string {
+	return e.err.Error()
+}
+
+func (e *jobDetailsCacheError) Unwrap() error {
+	return e.err
+}
+
 func writeSensitiveFile(path string, data []byte) (err error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.FilePermSensitive)
+	file, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	tempPath := file.Name()
+	closed := false
 	defer func() {
-		if closeErr := file.Close(); err == nil {
-			err = closeErr
+		if !closed {
+			if closeErr := file.Close(); err == nil {
+				err = closeErr
+			}
+		}
+		if removeErr := os.Remove(tempPath); err == nil && removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = removeErr
 		}
 	}()
 	if err := file.Chmod(constants.FilePermSensitive); err != nil {
 		return err
 	}
 	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	closed = true
+	if err := os.Rename(tempPath, path); err != nil {
 		return err
 	}
 	return nil
@@ -163,7 +189,8 @@ func writeSensitiveFile(path string, data []byte) (err error) {
 func fetchJobDetails(ctx context.Context, runID int64, outputDir string, verbose bool) ([]JobInfoWithDuration, error) {
 	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, outputDir, verbose)
 	if err != nil {
-		if jobs != nil {
+		var cacheErr *jobDetailsCacheError
+		if errors.As(err, &cacheErr) {
 			return jobs, err
 		}
 		// Don't fail the entire operation if we can't get job info
