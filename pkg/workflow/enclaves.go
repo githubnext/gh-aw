@@ -719,12 +719,16 @@ func buildAWFDynamicEnclavePolicy(enclave *EnclaveConfig) map[string]any {
 func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 	policy := enclave.Dynamic
 	return map[string]any{
-		"version":               enclaveDynamicGitHubPolicy,
-		"runId":                 "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}",
-		"backend":               "github",
-		"allowedOwners":         stringSliceOrEmpty(policy.AllowedOwners),
-		"allowedRepositories":   stringSliceOrEmpty(policy.AllowedRepositories),
-		"tools":                 append([]string(nil), enclaveAgentGitHubDefaultTools...),
+		"version":             enclaveDynamicGitHubPolicy,
+		"runId":               enclaveDelegationGeneration,
+		"backend":             "github",
+		"allowedOwners":       stringSliceOrEmpty(policy.AllowedOwners),
+		"allowedRepositories": stringSliceOrEmpty(policy.AllowedRepositories),
+		"tools":               append([]string(nil), enclaveAgentGitHubDefaultTools...),
+		// maxSchemaHashes bounds the number of distinct runtime schema hashes mcpg
+		// may admit for this envelope; it is sourced from the compiled
+		// enclaves[].dynamic.max-repositories limit (DynamicEnclavePolicy.MaxRepositories),
+		// since each admitted repository corresponds to exactly one schema hash.
 		"maxSchemaHashes":       policy.MaxRepositories,
 		"maxIdentityTTLSeconds": enclave.Timeout,
 		"expiresAt":             "${" + enclaveDelegationExpiresAtEnv + "}",
