@@ -99,6 +99,15 @@ func TestToolsWithEnclaveGitHubIssuesUnionsTypedToolsets(t *testing.T) {
 	assert.Equal(t, []string{"context"}, tools["github"].(map[string]any)["toolsets"], "original tools must remain unchanged")
 }
 
+func TestDynamicEnclaveRegistersGitHubBackend(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	config := buildMCPGatewayConfig(data)
+
+	assert.Contains(t, collectMCPTools(data), "github")
+	assert.Contains(t, config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"].Servers, "github")
+	assert.Equal(t, "github", config.DelegationControllers[enclaveDynamicController].Server)
+}
+
 func TestCompileEnclaveGitHubSharedGateway(t *testing.T) {
 	tmp := t.TempDir()
 	workflowPath := filepath.Join(tmp, "enclave-github.md")
