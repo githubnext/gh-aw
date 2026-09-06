@@ -294,6 +294,56 @@ func TestRenderLogsJSON(t *testing.T) {
 	}
 }
 
+func TestRenderLogsJSONIncludesAwInfoAndUsage(t *testing.T) {
+	t.Parallel()
+	runDir := t.TempDir()
+	writeTestAwInfo(t, runDir, map[string]any{
+		"engine_id":     "copilot",
+		"engine_name":   "GitHub Copilot CLI",
+		"model":         "gpt-5",
+		"workflow_name": "Test Workflow",
+	})
+	usage := &TokenUsageSummary{
+		TotalInputTokens:  1200,
+		TotalOutputTokens: 300,
+		TotalRequests:     2,
+	}
+	data := buildLogsData([]ProcessedRun{{
+		Run: WorkflowRun{
+			DatabaseID:   12345,
+			WorkflowName: "Test Workflow",
+			LogsPath:     runDir,
+		},
+		TokenUsage: usage,
+	}}, runDir, nil)
+
+	for _, verbose := range []bool{false, true} {
+		var output bytes.Buffer
+		if err := renderLogsJSONToWriter(&output, data, verbose); err != nil {
+			t.Fatalf("renderLogsJSONToWriter(verbose=%v) failed: %v", verbose, err)
+		}
+
+		var payload struct {
+			Runs []struct {
+				AwInfo *AwInfo            `json:"aw_info"`
+				Usage  *TokenUsageSummary `json:"usage"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(output.Bytes(), &payload); err != nil {
+			t.Fatalf("Failed to parse JSON output for verbose=%v: %v", verbose, err)
+		}
+		if len(payload.Runs) != 1 {
+			t.Fatalf("Expected one run for verbose=%v, got %d", verbose, len(payload.Runs))
+		}
+		if payload.Runs[0].AwInfo == nil || payload.Runs[0].AwInfo.EngineID != "copilot" {
+			t.Errorf("Expected aw_info data for verbose=%v, got %+v", verbose, payload.Runs[0].AwInfo)
+		}
+		if payload.Runs[0].Usage == nil || payload.Runs[0].Usage.TotalInputTokens != 1200 || payload.Runs[0].Usage.TotalOutputTokens != 300 {
+			t.Errorf("Expected usage data for verbose=%v, got %+v", verbose, payload.Runs[0].Usage)
+		}
+	}
+}
+
 func writeTestAwInfo(t *testing.T, runDir string, payload map[string]any) {
 	t.Helper()
 	if err := os.MkdirAll(runDir, 0o755); err != nil {

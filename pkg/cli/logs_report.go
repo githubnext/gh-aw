@@ -190,6 +190,8 @@ type RunData struct {
 	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
 	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	AwInfo                     *AwInfo                `json:"aw_info,omitempty" console:"-"`                                                        // Complete aw_info.json data
+	Usage                      *TokenUsageSummary     `json:"usage,omitempty" console:"-"`                                                          // Usage data from the usage artifact
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	GitHubAPICalls             int                    `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
 	AvgTimeBetweenTurns        string                 `json:"avg_time_between_turns,omitempty" console:"-"`                                         // Average time between consecutive LLM API calls (TBT)
@@ -492,6 +494,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		BehaviorFingerprint:        pr.BehaviorFingerprint,
 		AgenticAssessments:         pr.AgenticAssessments,
 		AwContext:                  engineInfo.awContext,
+		AwInfo:                     engineInfo.awInfo,
+		Usage:                      pr.TokenUsage,
 		TokenUsageSummary:          pr.TokenUsage,
 		GitHubAPICalls:             gitHubAPICalls,
 		Experiments:                extractExperimentData(run.LogsPath),
@@ -644,7 +648,8 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
-// token_usage_summary, experiments, ambient_context from each run.
+// token_usage_summary, experiments, ambient_context, and context from each run.
+// The canonical aw_info and usage payloads remain available in compact JSON.
 // Omits episodes when all are standalone (single-run episodes add no information).
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
