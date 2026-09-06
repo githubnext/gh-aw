@@ -51,7 +51,7 @@ evals:
   - id: report_with_charts_created
     question: Was a report or discussion created with trending charts and quota analysis?
 
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 ---
 
 # GitHub API Consumption Report Agent

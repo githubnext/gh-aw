@@ -15,7 +15,7 @@ permissions:
 
 
 engine: codex
-model: copilot/auto
+model: copilot/gpt-5.3-codex
 network:
   allowed:
     - defaults
