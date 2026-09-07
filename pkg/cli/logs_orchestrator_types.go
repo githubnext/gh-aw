@@ -30,8 +30,8 @@ type LogsDownloadOptions struct {
 	// be used in the current window before downloads wait for the reset. Negative
 	// values reserve that many requests from the API-reported limit.
 	MaxGitHubAPIRateLimit int
-	// MaxStorageMB stops new artifact downloads once OutputDir reaches this
-	// size. Zero disables the storage limit.
+	// MaxStorageMB prunes non-essential cache data and stops new artifact
+	// downloads when OutputDir cannot be reduced below this size.
 	MaxStorageMB      int
 	SummaryFile       string
 	SafeOutputType    string
