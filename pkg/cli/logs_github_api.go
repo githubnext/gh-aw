@@ -245,64 +245,43 @@ func parseWorkflowRunAPIResponse(data []byte) (WorkflowRun, error) {
 	}, nil
 }
 
-func applyWorkflowRunMetadata(run *WorkflowRun, metadata WorkflowRun) {
-	if metadata.DatabaseID != 0 {
-		run.DatabaseID = metadata.DatabaseID
+func applyWorkflowRunMetadata(run *WorkflowRun, metadata WorkflowRun) bool {
+	applied := applyNonZero(&run.DatabaseID, metadata.DatabaseID)
+	applied = applyNonZero(&run.Number, metadata.Number) || applied
+	applied = applyNonZero(&run.URL, metadata.URL) || applied
+	applied = applyNonZero(&run.Status, metadata.Status) || applied
+	applied = applyNonZero(&run.Conclusion, metadata.Conclusion) || applied
+	if !strings.HasPrefix(metadata.WorkflowName, constants.GithubDir) || run.WorkflowName == "" {
+		applied = applyNonZero(&run.WorkflowName, metadata.WorkflowName) || applied
 	}
-	if metadata.Number != 0 {
-		run.Number = metadata.Number
-	}
-	if metadata.URL != "" {
-		run.URL = metadata.URL
-	}
-	if metadata.Status != "" {
-		run.Status = metadata.Status
-	}
-	if metadata.Conclusion != "" {
-		run.Conclusion = metadata.Conclusion
-	}
-	if metadata.WorkflowName != "" {
-		run.WorkflowName = metadata.WorkflowName
-	}
-	if metadata.WorkflowPath != "" {
-		run.WorkflowPath = metadata.WorkflowPath
-	}
-	if !metadata.CreatedAt.IsZero() {
-		run.CreatedAt = metadata.CreatedAt
-	}
-	if !metadata.StartedAt.IsZero() {
-		run.StartedAt = metadata.StartedAt
-	}
-	if !metadata.UpdatedAt.IsZero() {
-		run.UpdatedAt = metadata.UpdatedAt
-	}
-	if metadata.Event != "" {
-		run.Event = metadata.Event
-	}
-	if metadata.HeadBranch != "" {
-		run.HeadBranch = metadata.HeadBranch
-	}
-	if metadata.HeadSha != "" {
-		run.HeadSha = metadata.HeadSha
-	}
-	if metadata.DisplayTitle != "" {
-		run.DisplayTitle = metadata.DisplayTitle
-	}
-	if metadata.Attempt != 0 {
-		run.Attempt = metadata.Attempt
-	}
-	if metadata.Repository != "" {
-		run.Repository = metadata.Repository
-	}
-	if metadata.Actor != "" {
-		run.Actor = metadata.Actor
-	}
+	applied = applyNonZero(&run.WorkflowPath, metadata.WorkflowPath) || applied
+	applied = applyNonZero(&run.CreatedAt, metadata.CreatedAt) || applied
+	applied = applyNonZero(&run.StartedAt, metadata.StartedAt) || applied
+	applied = applyNonZero(&run.UpdatedAt, metadata.UpdatedAt) || applied
+	applied = applyNonZero(&run.Event, metadata.Event) || applied
+	applied = applyNonZero(&run.HeadBranch, metadata.HeadBranch) || applied
+	applied = applyNonZero(&run.HeadSha, metadata.HeadSha) || applied
+	applied = applyNonZero(&run.DisplayTitle, metadata.DisplayTitle) || applied
+	applied = applyNonZero(&run.Attempt, metadata.Attempt) || applied
+	applied = applyNonZero(&run.Repository, metadata.Repository) || applied
+	applied = applyNonZero(&run.Actor, metadata.Actor) || applied
+	return applied
 }
 
-func fetchAndCacheWorkflowRunMetadata(ctx context.Context, runID int64, outputDir, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
+func applyNonZero[T comparable](target *T, value T) bool {
+	var zero T
+	if value == zero {
+		return false
+	}
+	changed := *target != value
+	*target = value
+	return changed
+}
+
+func fetchAndCacheWorkflowRunMetadata(ctx context.Context, currentRun WorkflowRun, outputDir, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
 	responsePath := filepath.Join(outputDir, runAPIResponseFileName)
 	if output, err := os.ReadFile(responsePath); err == nil {
-		if run, parseErr := parseWorkflowRunAPIResponse(output); parseErr == nil && run.DatabaseID == runID {
+		if run, parseErr := parseWorkflowRunAPIResponse(output); parseErr == nil && cachedWorkflowRunMetadataIsCurrent(run, currentRun, owner, repo) {
 			return run, nil
 		}
 		logsGitHubAPILog.Printf("Ignoring invalid cached workflow run API response: path=%s", responsePath)
@@ -310,13 +289,13 @@ func fetchAndCacheWorkflowRunMetadata(ctx context.Context, runID int64, outputDi
 		return WorkflowRun{}, fmt.Errorf("failed to read cached workflow run API response: %w", err)
 	}
 
-	args := buildWorkflowRunAPIArgs(runID, owner, repo, hostname)
+	args := buildWorkflowRunAPIArgs(currentRun.DatabaseID, owner, repo, hostname)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 	output, err := workflow.RunGHCombinedContext(ctx, "Fetching run metadata...", args...)
 	if err != nil {
-		return WorkflowRun{}, classifyWorkflowRunMetadataError(runID, err, output)
+		return WorkflowRun{}, classifyWorkflowRunMetadataError(currentRun.DatabaseID, err, output)
 	}
 	run, err := parseWorkflowRunAPIResponse(output)
 	if err != nil {
@@ -326,6 +305,34 @@ func fetchAndCacheWorkflowRunMetadata(ctx context.Context, runID int64, outputDi
 		return WorkflowRun{}, fmt.Errorf("failed to cache workflow run API response: %w", err)
 	}
 	return run, nil
+}
+
+func workflowRunMetadataCacheNeedsRefresh(outputDir string, currentRun WorkflowRun, owner, repo string) (bool, error) {
+	output, err := os.ReadFile(filepath.Join(outputDir, runAPIResponseFileName))
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to read cached workflow run API response: %w", err)
+	}
+	cached, err := parseWorkflowRunAPIResponse(output)
+	return err != nil || !cachedWorkflowRunMetadataIsCurrent(cached, currentRun, owner, repo), nil
+}
+
+func cachedWorkflowRunMetadataIsCurrent(cached, current WorkflowRun, owner, repo string) bool {
+	if cached.DatabaseID != current.DatabaseID {
+		return false
+	}
+	if owner != "" && repo != "" && !strings.EqualFold(cached.Repository, filepath.Join(owner, repo)) {
+		return false
+	}
+	if current.Attempt > 0 && cached.Attempt != current.Attempt {
+		return false
+	}
+	if !current.UpdatedAt.IsZero() && cached.UpdatedAt.Before(current.UpdatedAt) {
+		return false
+	}
+	return cached.Status == "completed"
 }
 
 // fetchJobDetails gets detailed job information including durations for a workflow run.

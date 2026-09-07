@@ -1025,6 +1025,23 @@ func TestBuildLogsDataUsesGitHubRunMetadataWithoutAwInfo(t *testing.T) {
 	assert.Equal(t, "schedule", run.EventName)
 }
 
+func TestApplyGitHubMetadataToRunDataPreservesExistingValues(t *testing.T) {
+	t.Parallel()
+	runData := RunData{
+		Repository: "myorg/myrepo",
+		SHA:        "abc123",
+		Actor:      "octocat",
+		EventName:  "schedule",
+	}
+
+	applyGitHubMetadataToRunData(&runData, WorkflowRun{})
+
+	assert.Equal(t, "myorg/myrepo", runData.Repository)
+	assert.Equal(t, "abc123", runData.SHA)
+	assert.Equal(t, "octocat", runData.Actor)
+	assert.Equal(t, "schedule", runData.EventName)
+}
+
 // TestInferWorkflowPathFromDisplayName verifies that display names are correctly
 // slugified into conventional lock-file paths.
 func TestInferWorkflowPathFromDisplayName(t *testing.T) {

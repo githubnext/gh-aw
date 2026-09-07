@@ -396,10 +396,18 @@ func applyAwInfoToRunData(runData *RunData, awInfo *AwInfo) {
 }
 
 func applyGitHubMetadataToRunData(runData *RunData, run WorkflowRun) {
-	runData.Repository = run.Repository
-	runData.SHA = run.HeadSha
-	runData.Actor = run.Actor
-	runData.EventName = run.Event
+	if run.Repository != "" {
+		runData.Repository = run.Repository
+	}
+	if run.HeadSha != "" {
+		runData.SHA = run.HeadSha
+	}
+	if run.Actor != "" {
+		runData.Actor = run.Actor
+	}
+	if run.Event != "" {
+		runData.EventName = run.Event
+	}
 	if run.Attempt > 0 {
 		runData.RunAttempt = strconv.Itoa(run.Attempt)
 	}

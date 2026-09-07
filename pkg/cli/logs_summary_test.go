@@ -290,6 +290,7 @@ func TestListArtifacts(t *testing.T) {
 		"workflow-logs/job-1.txt",
 		"workflow-logs/job-2.txt",
 		"agent_output/output.json",
+		"nested/" + runAPIResponseFileName,
 		jobsAPIResponseFileName,
 		runAPIResponseFileName,
 	}
@@ -318,6 +319,7 @@ func TestListArtifacts(t *testing.T) {
 		"workflow-logs/job-1.txt",
 		"workflow-logs/job-2.txt",
 		"agent_output/output.json",
+		"nested/" + runAPIResponseFileName,
 	}
 	for _, expectedFile := range expectedFiles {
 		found := slices.Contains(artifacts, expectedFile)
