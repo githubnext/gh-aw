@@ -167,14 +167,15 @@ const AWFEnclaveGitHubIssuesMinVersion Version = "v0.28.9"
 const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 
 // AWFDynamicRepositoryEnclaveMinVersion is the first AWF version that accepts
-// dynamic agent enclave repository policy envelopes and performs per-invocation
-// repository admission through MCPG's github-repository-delegation-v1 controller.
+// dynamic agent enclave repository policy envelopes and sends per-invocation
+// repository admission TTLs to MCPG's github-repository-delegation-v1
+// controller as seconds.
 //
 // This value is intentionally kept above DefaultFirewallVersion (provisional,
-// fail-closed) until the AWF implementation tracked by gh-aw-firewall#8195
-// ships. Once that release is available, raise this constant to the actual
-// compatible AWF release and update DefaultFirewallVersion accordingly.
-const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.14"
+// fail-closed) until the seconds-contract AWF implementation tracked by
+// gh-aw-firewall#8292 ships. Once that release is available, update
+// DefaultFirewallVersion accordingly.
+const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.15"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
@@ -230,18 +231,21 @@ const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 
 // MCPGDynamicRepositoryDelegationMinVersion is the first MCPG version that
 // advertises the github-repository-delegation-v1 dynamic repository delegation
-// controller required by dynamic agent enclave admission.
+// controller required by dynamic agent enclave admission and interprets TTL
+// wire values as seconds.
 //
 // v0.4.16 advertised the controller but rejected the strict-stdin
 // "delegationControllers" config field the compiler previously emitted, never
 // started the real controller, and never handed AWF a private control
 // endpoint (gh-aw-mcpg#12604). That contract is fixed by gh-aw-mcpg#12605,
-// released in v0.4.17; this constant is pinned to that release so dynamic
-// enclave compilation/runtime setup fails closed on older MCPG builds that
-// lack the compatible owner-scoped envelope, bounded dynamic schema
-// admission, transactional reconciliation, persisted TTL binding, durability,
-// DIFC isolation, and redaction behavior.
-const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.17"
+// released in v0.4.17, but that release still interprets TTL wire values as
+// nanoseconds. v0.4.18 adds the seconds-only TTL contract, so this constant is
+// pinned to that release and dynamic enclave compilation/runtime setup fails
+// closed on older MCPG builds that lack the compatible owner-scoped envelope,
+// bounded dynamic schema admission, transactional reconciliation, persisted TTL
+// binding, durability, DIFC isolation, redaction behavior, and seconds-based
+// TTL interpretation.
+const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.18"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.
