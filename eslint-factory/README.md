@@ -29,6 +29,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
+| [`no-schema-default-or-fallback`](#no-schema-default-or-fallback) | Disallow `<schema>.default \|\| fallback`, which discards falsy-but-valid schema defaults |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
@@ -196,6 +197,22 @@ module.exports = { POLICY_FILE_PROTECTION_DENIED_REASON_CODE };
 
 **Safe alternative:**
 Define and export the constant from `error_codes.cjs`, then import it where needed.
+
+### `no-schema-default-or-fallback`
+
+Disallow `<schema>.default || fallback`. When a JSON-Schema-style `default` property is read off an input/tool schema (e.g. `inputSchema.default`, `schema.default`), combining it with `||` treats any falsy default value (`0`, `false`, `""`) as if no default were configured, silently substituting the fallback instead. This is the exact regression pattern fixed in [#58291](https://github.com/github/gh-aw/pull/58291), where a numeric `0` input default was treated as missing.
+
+**Flagged form:**
+```js
+const normalizedValue = inputSchema.default || undefined;
+```
+
+**Safe alternative:**
+```js
+const normalizedValue = inputSchema.default ?? undefined;
+```
+
+`??` only falls back when the value is `null` or `undefined`, preserving intentional falsy defaults.
 
 ### `prefer-number-isnan`
 
