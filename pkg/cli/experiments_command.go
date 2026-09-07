@@ -368,18 +368,6 @@ func loadEvalObservationSetsForAnalysis(
 	return sets, guardrailSets, nil
 }
 
-// computeExperimentAnalyses computes statistical analyses for all named experiments.
-// configs maps experiment names to their configuration; values may be nil.
-// evals provides the eval definitions for resolving eval-backed metric references; may be nil.
-func computeExperimentAnalyses(
-	experiments []ExperimentVariantStats,
-	configs map[string]*workflow.ExperimentConfig,
-	evals *workflow.EvalsConfig,
-	metricEvalResults map[string]MetricEvalResults,
-) []ExperimentAnalysis {
-	return computeExperimentAnalysesWithObservations(experiments, configs, evals, metricEvalResults, nil)
-}
-
 func computeExperimentAnalysesWithObservations(
 	experiments []ExperimentVariantStats,
 	configs map[string]*workflow.ExperimentConfig,

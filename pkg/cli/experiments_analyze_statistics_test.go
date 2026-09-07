@@ -249,7 +249,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"concise": 5, "detailed": 5},
 			Total:    10,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 
 		assert.Equal(t, "style", a.ExperimentName, "experiment name")
 		assert.Equal(t, defaultMinSamples, a.MinSamples, "default min_samples")
@@ -272,7 +272,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants:   []string{"formal", "casual"},
 			MinSamples: 5,
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.Equal(t, 5, a.MinSamples, "min_samples from config")
 		assert.Equal(t, ExperimentReadinessReady, a.Readiness, "count >= min_samples → READY")
 		assert.Equal(t, "READY_FOR_ANALYSIS", a.Recommendation, "count >= min_samples → READY")
@@ -293,7 +293,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			AnalysisType: "t_test",
 			MinSamples:   20,
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.Equal(t, "H0: no change. H1: short reduces tokens by 15%.", a.Hypothesis, "hypothesis from config")
 		assert.Equal(t, "t_test", a.AnalysisType, "analysis_type from config")
 		assert.Equal(t, "READY_FOR_ANALYSIS", a.Recommendation, "count >= min_samples → READY")
@@ -312,7 +312,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				{Name: "empty_output_rate", Threshold: "==0"},
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		require.Len(t, a.Guardrails, 2, "should have two guardrails")
 		assert.Equal(t, "success_rate", a.Guardrails[0].Name, "first guardrail name")
 		assert.Equal(t, ">=0.95", a.Guardrails[0].Threshold, "first guardrail threshold")
@@ -325,7 +325,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"A": 5, "B": 5, "C": 5},
 			Total:    15,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		assert.Len(t, a.Variants, 3, "three variants")
 		// α_adjusted = 0.05 / (K − 1) = 0.05 / 2 = 0.025
 		assert.InDelta(t, 0.025, a.BonferroniAlpha, 0.0001, "Bonferroni alpha for K=3")
@@ -338,7 +338,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"A": 5, "B": 5, "C": 5, "D": 5},
 			Total:    20,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		// α_adjusted = 0.05 / (4 − 1) = 0.05 / 3 ≈ 0.0167
 		assert.InDelta(t, 0.05/3.0, a.BonferroniAlpha, 0.0001, "Bonferroni alpha for K=4")
 	})
@@ -350,7 +350,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"A": 19, "B": 1},
 			Total:    20,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		assert.False(t, a.IsBalanced, "extreme imbalance should not be balanced")
 		assert.Less(t, a.PValue, balanceSignificanceThreshold, "p < 0.05 for extreme imbalance")
 	})
@@ -367,7 +367,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 		cfg := &workflow.ExperimentConfig{
 			Variants: []string{"gpt-5.4", "gpt-5.4-mini"},
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.True(t, a.IsBalanced, "28/18 split should be balanced once stale labels are excluded")
 		assert.GreaterOrEqual(t, a.PValue, balanceSignificanceThreshold)
 		require.Len(t, a.Variants, 2, "stale variant keys should not appear in the analysis")
@@ -383,7 +383,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"A": 0, "B": 0},
 			Total:    0,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		assert.Equal(t, "EXTEND", a.Recommendation, "zero runs → EXTEND")
 		assert.True(t, a.IsBalanced, "insufficient data → default to balanced")
 		assert.InDelta(t, 0.0, a.ChiSquare, 1e-10, "no chi-square for zero total")
@@ -395,7 +395,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: map[string]int{"z_last": 3, "a_first": 7},
 			Total:    10,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		require.Len(t, a.Variants, 2, "two variants")
 		assert.Equal(t, "a_first", a.Variants[0].Name, "first variant alphabetically")
 		assert.Equal(t, "z_last", a.Variants[1].Name, "second variant alphabetically")
@@ -412,7 +412,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: []string{"control", "variant"},
 			Weight:   []int{70, 30},
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.True(t, a.IsBalanced, "70/30 split with 70/30 weights should be balanced")
 		// Expected proportions: control=0.7, variant=0.3
 		require.Len(t, a.Variants, 2, "two variants")
@@ -430,7 +430,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants:  []string{"control", "candidate"},
 			Continual: &workflow.ContinualExperimentConfig{Seed: "stable-seed", Ramp: []int{10, 25}},
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.True(t, a.IsBalanced, "changing ramp allocations should not be tested against a fixed split")
 		assert.Zero(t, a.ChiSquare)
 		assert.Zero(t, a.PValue)
@@ -446,7 +446,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: []string{"A", "B"},
 			Metric:   "effective_tokens",
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.Equal(t, "effective_tokens", a.Metric, "metric should be set")
 		assert.Empty(t, a.MetricQuestion, "MetricQuestion empty for plain metric")
 	})
@@ -467,7 +467,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				{ID: "tests", Question: "Do the tests pass?"},
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, evals, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, evals, nil, nil, nil)
 		assert.Equal(t, "evals.builds", a.Metric, "metric set to original reference")
 		assert.Equal(t, "Does the generated code compile?", a.MetricQuestion, "eval question resolved")
 	})
@@ -487,7 +487,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				{ID: "tests", Question: "Do the tests pass?"},
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, evals, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, evals, nil, nil, nil)
 		assert.Equal(t, "eval:tests", a.Metric, "metric set to original reference")
 		assert.Equal(t, "Do the tests pass?", a.MetricQuestion, "eval question resolved via eval: prefix")
 	})
@@ -517,7 +517,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				LatestRunID:  "123456",
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, evals, metricResults)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, evals, metricResults, nil, nil)
 		require.NotNil(t, a.MetricEvalResults, "eval result summary should be attached")
 		assert.Equal(t, 12, a.MetricEvalResults.Yes)
 		assert.Equal(t, 5, a.MetricEvalResults.No)
@@ -542,7 +542,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				{ID: "builds", Question: "Does the generated code compile?"},
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, evals, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, evals, nil, nil, nil)
 		assert.Equal(t, "evals.unknown_id", a.Metric, "metric preserved")
 		assert.Empty(t, a.MetricQuestion, "MetricQuestion empty when eval id not found")
 	})
@@ -557,7 +557,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 			Variants: []string{"A", "B"},
 			Metric:   "evals.builds",
 		}
-		a := computeExperimentAnalysis(exp, cfg, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 		assert.Equal(t, "evals.builds", a.Metric, "metric preserved")
 		assert.Empty(t, a.MetricQuestion, "MetricQuestion empty when evals is nil")
 	})
@@ -577,7 +577,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 				{ID: "builds", Question: "Does the generated code compile?"},
 			},
 		}
-		a := computeExperimentAnalysis(exp, cfg, evals, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, cfg, evals, nil, nil, nil)
 		assert.Equal(t, "evals.builds", a.Metric, "metric preserved for single-variant state")
 		assert.Equal(t, "Does the generated code compile?", a.MetricQuestion, "metric question resolved before degenerate return")
 		assert.Equal(t, "EXTEND", a.Recommendation, "single-variant state still extends")
@@ -588,7 +588,7 @@ func TestComputeExperimentAnalysis(t *testing.T) {
 func TestComputeExperimentAnalyses(t *testing.T) {
 	t.Parallel()
 	t.Run("empty experiments returns nil", func(t *testing.T) {
-		result := computeExperimentAnalyses(nil, nil, nil, nil)
+		result := computeExperimentAnalysesWithObservations(nil, nil, nil, nil, nil)
 		assert.Nil(t, result, "nil experiments should return nil")
 	})
 
@@ -597,7 +597,7 @@ func TestComputeExperimentAnalyses(t *testing.T) {
 			{Name: "exp1", Variants: map[string]int{"A": 5, "B": 5}, Total: 10},
 			{Name: "exp2", Variants: map[string]int{"X": 3, "Y": 7}, Total: 10},
 		}
-		analyses := computeExperimentAnalyses(experiments, nil, nil, nil)
+		analyses := computeExperimentAnalysesWithObservations(experiments, nil, nil, nil, nil)
 		require.Len(t, analyses, 2, "should produce one analysis per experiment")
 		assert.Equal(t, "exp1", analyses[0].ExperimentName, "first analysis name")
 		assert.Equal(t, "exp2", analyses[1].ExperimentName, "second analysis name")
@@ -615,7 +615,7 @@ func TestComputeExperimentAnalyses(t *testing.T) {
 				MinSamples:   20,
 			},
 		}
-		analyses := computeExperimentAnalyses(experiments, configs, nil, nil)
+		analyses := computeExperimentAnalysesWithObservations(experiments, configs, nil, nil, nil)
 		require.Len(t, analyses, 1, "one analysis")
 		assert.Equal(t, "test hypothesis", analyses[0].Hypothesis, "hypothesis from config")
 		assert.Equal(t, "proportion_test", analyses[0].AnalysisType, "analysis type from config")
@@ -641,7 +641,7 @@ func TestExperimentAnalysisJSONOutput(t *testing.T) {
 		},
 	}
 
-	a := computeExperimentAnalysis(exp, cfg, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 	jsonBytes, err := json.MarshalIndent(a, "", "  ")
 	require.NoError(t, err, "should marshal analysis to JSON")
 
@@ -676,7 +676,7 @@ func TestExperimentAnalysisBonferroniAbsent(t *testing.T) {
 		Variants: map[string]int{"yes": 10, "no": 10},
 		Total:    20,
 	}
-	a := computeExperimentAnalysis(exp, nil, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 	assert.InDelta(t, 0.0, a.BonferroniAlpha, 1e-10, "BonferroniAlpha should be zero for K=2")
 
 	jsonBytes, err := json.MarshalIndent(a, "", "  ")
@@ -696,7 +696,7 @@ func TestMinSamplesDefaultApplied(t *testing.T) {
 		Variants: map[string]int{"A": 10, "B": 10},
 		Total:    20,
 	}
-	a := computeExperimentAnalysis(exp, nil, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 	assert.Equal(t, defaultMinSamples, a.MinSamples, "default min_samples should be 20")
 }
 
@@ -736,7 +736,7 @@ func TestObservedPctSumsToHundred(t *testing.T) {
 		Variants: map[string]int{"A": 7, "B": 13},
 		Total:    20,
 	}
-	a := computeExperimentAnalysis(exp, nil, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 	total := 0.0
 	for _, v := range a.Variants {
 		total += v.ObservedPct
@@ -767,7 +767,7 @@ func TestExpectedPctSumsToHundred(t *testing.T) {
 				total += c
 			}
 			exp := ExperimentVariantStats{Name: "e", Variants: tt.variants, Total: total}
-			a := computeExperimentAnalysis(exp, tt.cfg, nil, nil)
+			a := computeExperimentAnalysisWithObservationBundle(exp, tt.cfg, nil, nil, nil, nil)
 			sum := 0.0
 			for _, v := range a.Variants {
 				sum += v.ExpectedPct
@@ -789,7 +789,7 @@ func TestReadyForAnalysisAllAboveMinSamples(t *testing.T) {
 		Variants:   []string{"X", "Y"},
 		MinSamples: 20,
 	}
-	a := computeExperimentAnalysis(exp, cfg, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 	assert.Equal(t, "READY_FOR_ANALYSIS", a.Recommendation, "all variants above min_samples → READY")
 	assert.Contains(t, a.Rationale, "min_samples", "rationale should mention min_samples")
 
@@ -810,7 +810,7 @@ func TestPartiallyBelowMinSamples(t *testing.T) {
 		Variants:   []string{"above", "below"},
 		MinSamples: 20,
 	}
-	a := computeExperimentAnalysis(exp, cfg, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, nil, nil)
 	assert.Equal(t, "EXTEND", a.Recommendation, "one variant below threshold → EXTEND")
 	assert.Contains(t, a.Rationale, "1 of 2", "rationale should count variants below threshold")
 
@@ -830,7 +830,7 @@ func TestChiSquarePerfectBalance(t *testing.T) {
 		Variants: map[string]int{"A": 10, "B": 10, "C": 10},
 		Total:    30,
 	}
-	a := computeExperimentAnalysis(exp, nil, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 	assert.InDelta(t, 0.0, a.ChiSquare, 1e-10, "chi² should be 0 for perfectly balanced sample")
 	assert.InDelta(t, 1.0, a.PValue, 1e-10, "p should be 1.0 for chi²=0")
 	assert.True(t, a.IsBalanced, "perfectly balanced → is_balanced")
@@ -918,7 +918,7 @@ func TestAnalysisWithNilConfig(t *testing.T) {
 		Variants: map[string]int{"on": 8, "off": 12},
 		Total:    20,
 	}
-	a := computeExperimentAnalysis(exp, nil, nil, nil)
+	a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 	assert.Equal(t, "no_config", a.ExperimentName, "experiment name preserved")
 	assert.Empty(t, a.Hypothesis, "no hypothesis without config")
 	assert.Empty(t, a.AnalysisType, "no analysis type without config")
@@ -940,7 +940,7 @@ func TestComputeExperimentAnalysisDegenerateVariants(t *testing.T) {
 			Variants: map[string]int{},
 			Total:    0,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		assert.Equal(t, "EXTEND", a.Recommendation, "zero variants → EXTEND")
 		assert.True(t, a.IsBalanced, "degenerate case defaults to balanced")
 		assert.Empty(t, a.Variants, "no variant entries")
@@ -953,7 +953,7 @@ func TestComputeExperimentAnalysisDegenerateVariants(t *testing.T) {
 			Variants: map[string]int{"only": 10},
 			Total:    10,
 		}
-		a := computeExperimentAnalysis(exp, nil, nil, nil)
+		a := computeExperimentAnalysisWithObservationBundle(exp, nil, nil, nil, nil, nil)
 		assert.Equal(t, "EXTEND", a.Recommendation, "single variant → EXTEND")
 		assert.True(t, a.IsBalanced, "degenerate case defaults to balanced")
 		assert.Empty(t, a.Variants, "no variant entries emitted for degenerate case")

@@ -618,78 +618,20 @@ func TestIsFinite(t *testing.T) {
 	assert.False(t, isFinite(math.Inf(-1)))
 }
 
-func TestSumAICFromUsageJSONLFiles(t *testing.T) {
-	t.Run("returns error for missing file", func(t *testing.T) {
-		_, _, err := sumAICFromUsageJSONLFiles([]string{filepath.Join(t.TempDir(), "missing.jsonl")})
-		require.Error(t, err)
-	})
+func TestParseAgentUsageFilePreservesZeroAIC(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-usage-zero-aic")
+	filePath := filepath.Join(tmpDir, "agent_usage.json")
+	require.NoError(t, os.WriteFile(
+		filePath,
+		[]byte(`{"input_tokens":19288,"output_tokens":35,"ai_credits":0,"primary_model":"gpt-4o-mini-2024-07-18"}`),
+		0o644,
+	))
 
-	t.Run("ignores malformed and non-aic records", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-empty")
-		filePath := filepath.Join(tmpDir, "usage.jsonl")
-		require.NoError(t, os.WriteFile(filePath, []byte("not-json\n{}\n"), 0o644))
-
-		total, found, err := sumAICFromUsageJSONLFiles([]string{filePath})
-		require.NoError(t, err)
-		assert.False(t, found)
-		assert.Zero(t, total)
-	})
-
-	t.Run("sums explicit and computed aic across multiple files", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-mixed")
-		fileOne := filepath.Join(tmpDir, "agent_usage.jsonl")
-		fileTwo := filepath.Join(tmpDir, "detection_usage.jsonl")
-		require.NoError(t, os.WriteFile(fileOne, []byte(`{"ai_credits":1.25}`+"\n"), 0o644))
-		require.NoError(t, os.WriteFile(fileTwo, []byte(`{"provider":"anthropic","model":"claude-sonnet-4-6","input_tokens":1000,"output_tokens":0,"cache_read_tokens":0,"cache_write_tokens":0,"reasoning_tokens":0}`+"\n"), 0o644))
-
-		total, found, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
-		require.NoError(t, err)
-		assert.True(t, found)
-		assert.Greater(t, total, 1.25)
-	})
-
-	t.Run("detects AWF token usage records by schema regardless of filename", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-awf-schema")
-		filePath := filepath.Join(tmpDir, "renamed.jsonl")
-		fixture, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "fixtures", "awf-v0.28.7-aic-token-usage.jsonl"))
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filePath, fixture, 0o644))
-
-		total, found, err := sumAICFromUsageJSONLFiles([]string{filePath})
-		require.NoError(t, err)
-		assert.True(t, found)
-		assert.InDelta(t, 1.03602, total, 1e-9)
-	})
-
-	t.Run("deduplicates mirrored AWF records across files before aggregating", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "sum-usage-jsonl-awf-cross-file-dedupe")
-		fileOne := filepath.Join(tmpDir, "token_usage.jsonl")
-		fileTwo := filepath.Join(tmpDir, "mirrored.jsonl")
-		record := `{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":"same-request","provider":"copilot","model":"gpt-4o-mini-2024-07-18","input_tokens":10,"output_tokens":1,"ai_credits_this_response":0.2,"ai_credits_total":0.2}`
-		require.NoError(t, os.WriteFile(fileOne, []byte(record+"\n"), 0o644))
-		require.NoError(t, os.WriteFile(fileTwo, []byte(record+"\n"), 0o644))
-
-		total, found, err := sumAICFromUsageJSONLFiles([]string{fileOne, fileTwo})
-		require.NoError(t, err)
-		assert.True(t, found)
-		assert.InDelta(t, 0.2, total, 1e-9)
-	})
-
-	t.Run("preserves zero ai_credits from agent_usage_json", func(t *testing.T) {
-		tmpDir := testutil.TempDir(t, "agent-usage-zero-aic")
-		filePath := filepath.Join(tmpDir, "agent_usage.json")
-		require.NoError(t, os.WriteFile(
-			filePath,
-			[]byte(`{"input_tokens":19288,"output_tokens":35,"ai_credits":0,"primary_model":"gpt-4o-mini-2024-07-18"}`),
-			0o644,
-		))
-
-		summary, err := parseAgentUsageFile(filePath)
-		require.NoError(t, err)
-		require.NotNil(t, summary)
-		assert.True(t, summary.AICFound)
-		assert.Zero(t, summary.TotalAIC)
-	})
+	summary, err := parseAgentUsageFile(filePath)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	assert.True(t, summary.AICFound)
+	assert.Zero(t, summary.TotalAIC)
 }
 
 func TestTokenUsageSummaryMethods(t *testing.T) {
