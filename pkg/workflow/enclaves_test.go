@@ -417,6 +417,20 @@ func TestBuildDynamicEnclaveExpiryScriptResolvesMinOfConfiguredAndJobExpiry(t *t
 		require.NoError(t, err)
 		assert.WithinDuration(t, time.Now().UTC().Add(30*time.Second), got, 5*time.Second)
 	})
+
+	t.Run("non-UTC offset and fractional-second expires-at is canonicalized before the BSD date fallback", func(t *testing.T) {
+		// validateEnclavesConfig accepts any RFC3339 timestamp, including a
+		// non-UTC offset and fractional seconds, but the BSD date fallback below
+		// only parses the exact whole-second UTC "...Z" form. buildDynamicEnclaveExpiryScript
+		// must canonicalize the value before embedding it so this still resolves
+		// correctly, matching GNU date's behavior for the same input.
+		configured := time.Now().UTC().Add(30 * time.Second).Truncate(time.Second)
+		zoned := configured.In(time.FixedZone("", 3600)) // +01:00, with fractional seconds
+		enclave := newEnclave(zoned.Format("2006-01-02T15:04:05.000-07:00"), 4800)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, configured, got, time.Second)
+	})
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
@@ -624,14 +638,26 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	// The five required settings are bootstrapped as one atomic configuration.
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_KEY="${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}"`)
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_STATE_PATH="`)
-	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"`)
-	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN="127.0.0.1:8090"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="${GITHUB_RUN_ATTEMPT}"`)
+	// This workflow runs under bridge-mode network isolation (MCP_GATEWAY_DOMAIN
+	// resolves to "awmg-mcpg"), so the in-container listener binds to 0.0.0.0
+	// (bridge-reachable) while the host-side -p publish below stays on 127.0.0.1.
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN="0.0.0.0:8090"`)
 	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_ENVELOPE=`)
-	assert.Contains(t, generated, `\"version\":\"github-repository-read-v1\"`)
-	assert.Contains(t, generated, `\"tools\":[\"list_issues\",\"issue_read\"]`)
-	assert.Contains(t, generated, `\"expiresAt\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
-	// The private control endpoint is distinct from the executor-facing data plane.
-	assert.Contains(t, generated, `export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT="http://127.0.0.1:8090/control/github-repository-delegation-v1"`)
+	// Envelope field names and shape match mcpg's delegation.Envelope wire contract
+	// exactly (snake_case, DisallowUnknownFields); see buildMCPGatewayDelegationEnvelope.
+	assert.Contains(t, generated, `\"run_id\":\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\"`)
+	assert.Contains(t, generated, `\"enclave_backend\":\"github\"`)
+	assert.Contains(t, generated, `\"tool_policy\":\"github-repository-read-v1\"`)
+	assert.Contains(t, generated, `\"max_dynamic_schema_hashes\":4`)
+	assert.Contains(t, generated, `\"expires_at\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
+	assert.NotContains(t, generated, `\"version\":\"github-repository-read-v1\"`)
+	assert.NotContains(t, generated, `\"tools\":[`)
+	assert.NotContains(t, generated, `\"generation\":`)
+	assert.NotContains(t, generated, `\"auditLabels\":`)
+	// The private control endpoint is distinct from the executor-facing data plane
+	// and targets the pinned mcpg build's actual control API base path.
+	assert.Contains(t, generated, `export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT="http://127.0.0.1:8090/internal/awf-enclave-mcp-control/github-repository-delegation-v1"`)
 	assert.Contains(t, generated, `AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY=$(openssl rand -hex 32)`)
 	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}`)
 	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY"`)

@@ -323,7 +323,19 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			yaml.WriteString("          chmod 700 \"" + enclaveDelegationStateDir + "\"\n")
 			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_STATE_PATH=\"" + enclaveDelegationStateDir + "/state.json\"\n")
 			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_GENERATION=\"" + enclaveDelegationGeneration + "\"\n")
-			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN=\"127.0.0.1:" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + "\"\n")
+			// The in-container listener must bind to a bridge-reachable address in
+			// bridge (network-isolation) mode: Docker's -p publish NATs the host port
+			// to the container's bridge IP, which cannot reach a listener bound to the
+			// container's own 127.0.0.1. In --network host mode the container shares
+			// the host's network namespace, so 127.0.0.1 works directly and is kept
+			// tightest-scoped. The host-side publication (see buildMCPGatewayContainerCommand)
+			// stays on 127.0.0.1 either way, so the control port is never reachable from
+			// outside the host regardless of the in-container bind address.
+			controlListenHost := "127.0.0.1"
+			if isAWFNetworkIsolationEnabled(workflowData) {
+				controlListenHost = "0.0.0.0"
+			}
+			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN=\"" + controlListenHost + ":" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + "\"\n")
 			if dynamicEnclave := enclaveDynamicRepositoryPolicyConfig(workflowData); dynamicEnclave != nil {
 				yaml.WriteString(buildDynamicEnclaveExpiryScript(dynamicEnclave))
 				envelopeJSON, err := json.Marshal(buildMCPGatewayDelegationEnvelope(dynamicEnclave))
@@ -335,7 +347,9 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			// AWF-only private handoff: the control endpoint is never published to the
 			// primary-agent network, the enclave executor network, or the general MCP
 			// route, and is kept out of the primary agent's environment via --exclude-env.
-			fmt.Fprintf(yaml, "          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:%d/control/%s\"\n", port+enclaveDelegationControlPortOffset, enclaveDynamicController)
+			// The pinned mcpg controller serves control operations under the fixed
+			// enclaveDelegationControlAPIBasePath, not a path keyed by controller name.
+			fmt.Fprintf(yaml, "          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:%d%s/%s\"\n", port+enclaveDelegationControlPortOffset, enclaveDelegationControlAPIBasePath, enclaveDynamicController)
 		}
 		if enclaveGitHubIssuesEnabled(workflowData) {
 			yaml.WriteString("          AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')\n")
@@ -440,9 +454,12 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 		}
 		if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
 			// The delegation control listener is host-private only: unlike the data
-			// plane above, it is always bound to 127.0.0.1, never 0.0.0.0, so the
-			// primary-agent network, enclave executor network, and any docker-sbx
-			// guest cannot route to it. Only the AWF host process reaches it.
+			// plane above, this -p flag always publishes to the host's 127.0.0.1, never
+			// 0.0.0.0, so the primary-agent network, enclave executor network, and any
+			// docker-sbx guest cannot route to it -- only the AWF host process reaches
+			// it. The in-container bind address (the right-hand side of MCP_GATEWAY_DELEGATION_CONTROL_LISTEN,
+			// set in writeMCPGatewayExports) is 0.0.0.0 here in bridge mode so Docker's
+			// NAT can actually reach the listener inside the container.
 			containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_DELEGATION_CONTROL_LISTEN#*:}:${MCP_GATEWAY_DELEGATION_CONTROL_LISTEN#*:}")
 		}
 	} else {
