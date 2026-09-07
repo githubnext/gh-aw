@@ -873,6 +873,27 @@ function parseOTLPHeaders(raw) {
   return result;
 }
 
+const EMPTY_OTLP_AUTHORIZATION_SCHEMES = new Set([
+  "api-key",
+  "apikey",
+  "basic",
+  "bearer",
+  "concealed",
+  "digest",
+  "dpop",
+  "dsn",
+  "gnap",
+  "hoba",
+  "mutual",
+  "negotiate",
+  "oauth",
+  "privatetoken",
+  "scram-sha-1",
+  "scram-sha-256",
+  "sentry",
+  "vapid",
+]);
+
 /**
  * @param {string} raw
  * @returns {boolean}
@@ -881,7 +902,7 @@ function hasEmptyOTLPAuthorizationHeader(raw) {
   const headers = parseOTLPHeaders(raw);
   return Object.entries(headers).some(([key, value]) => {
     const normalizedKey = key.toLowerCase();
-    return (normalizedKey === "authorization" || normalizedKey === "x-sentry-auth") && value === "";
+    return (normalizedKey === "authorization" || normalizedKey === "x-sentry-auth") && (value === "" || EMPTY_OTLP_AUTHORIZATION_SCHEMES.has(value.toLowerCase()));
   });
 }
 
