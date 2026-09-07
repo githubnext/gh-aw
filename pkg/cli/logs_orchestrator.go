@@ -315,6 +315,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		jsonOutput:        opts.JSONOutput,
 		toolGraph:         opts.ToolGraph,
 		train:             opts.Train,
+		audit:             opts.Audit,
 		continuation:      result.continuation,
 		verbose:           opts.Verbose,
 		artifactFilter:    result.artifactFilter,
