@@ -11,11 +11,6 @@ import (
 	"strings"
 )
 
-func sumAICFromUsageJSONLFiles(filePaths []string) (float64, bool, error) {
-	totalAIC, found, _, err := sumAICFromUsageJSONLFilesWithWarnings(filePaths)
-	return totalAIC, found, err
-}
-
 func sumAICFromUsageJSONLFilesWithWarnings(filePaths []string) (float64, bool, []string, error) {
 	var totalAIC float64
 	found := false
