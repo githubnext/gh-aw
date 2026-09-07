@@ -23,6 +23,8 @@ const (
 	jobsAPIResponseFileName = "jobs.json"
 	// runAPIResponseFileName is the raw GitHub Actions run API response cached for each run
 	runAPIResponseFileName = "run.json"
+	// auditFileName is the structured audit report cached for each run
+	auditFileName = "audit.json"
 	// defaultLogsOutputDir is the default directory for downloaded workflow logs
 	defaultLogsOutputDir = ".github/aw/logs"
 )

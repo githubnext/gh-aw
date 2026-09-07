@@ -46,7 +46,12 @@ const (
 	enclaveMCPConnectTimeout            = 120
 	enclaveMCPReadinessTimeoutMS        = 120000
 	maxEnclaveTimingBucketSeconds       = 4800
-	enclaveMCPTransportAllowance        = 60
+	// maxDynamicEnclaveTimeoutSeconds bounds enclaves[].timeout for dynamic
+	// enclaves. It matches gh-aw-firewall's MAX_ENCLAVE_TIMEOUT_SECONDS
+	// preflight limit and the awf-config schema, so gh-aw and AWF cannot
+	// disagree about what compiles.
+	maxDynamicEnclaveTimeoutSeconds = 4740
+	enclaveMCPTransportAllowance    = 60
 	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
 	// port to derive the private, host-only listener port for mcpg's
 	// github-repository-delegation-v1 control plane. Deriving it from the (per-job
@@ -466,6 +471,9 @@ func validateDynamicEnclaveBounds(index int, enclave *EnclaveConfig, policy *Dyn
 	if enclave.Timeout <= 0 || enclave.MemoryLimit == "" || enclave.PIDsLimit <= 0 || enclave.TmpfsLimit == "" || enclave.MaxOutputBytes <= 0 || enclave.MaxInvocations <= 0 {
 		return fmt.Errorf("enclaves[%d] dynamic agent entries must declare finite timeout, memory-limit, cpu-limit, pids-limit, tmpfs-limit, max-output-bytes, and max-invocations", index)
 	}
+	if enclave.Timeout > maxDynamicEnclaveTimeoutSeconds {
+		return fmt.Errorf("enclaves[%d].timeout must be at most %d seconds for dynamic enclaves, got %d", index, maxDynamicEnclaveTimeoutSeconds, enclave.Timeout)
+	}
 	if enclave.Agent.MaxTaskBytes <= 0 || enclave.Agent.MaxModelRequests <= 0 || enclave.Agent.MaxModelTokens <= 0 {
 		return fmt.Errorf("enclaves[%d].agent dynamic entries must declare finite max-task-bytes, max-model-requests, and max-model-tokens", index)
 	}
@@ -745,6 +753,11 @@ func buildAWFDynamicEnclavePolicy(enclave *EnclaveConfig) map[string]any {
 // snake_case set (run_id, enclave_backend, allowed_owners, allowed_repositories,
 // tool_policy, allowed_schema_hashes, max_dynamic_schema_hashes, max_identity_ttl,
 // expires_at) causes the gateway to reject the envelope at startup.
+//
+// max_identity_ttl uses seconds, matching enclaves[].timeout and the mcpg
+// delegation wire contract. The runtime envelope expiry clamp (expires_at /
+// MCP_GATEWAY_DELEGATION_EXPIRES_AT / buildDynamicEnclaveExpiryScript) also
+// derives its lifetime from enclave.Timeout in seconds.
 func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 	policy := enclave.Dynamic
 	return map[string]any{

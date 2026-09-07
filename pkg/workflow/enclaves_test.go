@@ -610,9 +610,9 @@ func TestValidateDynamicEnclavePolicy(t *testing.T) {
 		{
 			name: "rejects old mcpg version",
 			mutate: func(data *WorkflowData) {
-				data.SandboxConfig.MCP.Version = "v0.4.16"
+				data.SandboxConfig.MCP.Version = "v0.4.17"
 			},
-			errContains: "requires MCPG v0.4.17 or newer",
+			errContains: "requires MCPG v0.4.18 or newer",
 		},
 	}
 
@@ -658,6 +658,8 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `\"enclave_backend\":\"github\"`)
 	assert.Contains(t, generated, `\"tool_policy\":\"github-repository-read-v1\"`)
 	assert.Contains(t, generated, `\"max_dynamic_schema_hashes\":4`)
+	// max_identity_ttl uses seconds end to end, matching enclaves[].timeout.
+	assert.Contains(t, generated, `\"max_identity_ttl\":120`)
 	assert.Contains(t, generated, `\"expires_at\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
 	assert.NotContains(t, generated, `\"version\":\"github-repository-read-v1\"`)
 	assert.NotContains(t, generated, `\"tools\":[`)
@@ -778,4 +780,34 @@ Use the enclave script executor.
 	assert.Contains(t, lock, `\"enclaves\":[{\"repos\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"script\":{},\"timeout\":45}]`)
 	assert.NotContains(t, lock, "Start Enclave MCP")
 	assert.NotContains(t, lock, "start_enclave")
+}
+
+// TestBuildMCPGatewayDelegationEnvelopeMaxIdentityTTLSeconds pins the seconds
+// contract shared by gh-aw, gh-aw-firewall, and mcpg.
+func TestBuildMCPGatewayDelegationEnvelopeMaxIdentityTTLSeconds(t *testing.T) {
+	enclave := &EnclaveConfig{
+		Timeout: 120,
+		Dynamic: &DynamicEnclavePolicy{MaxRepositories: 4},
+	}
+	envelope := buildMCPGatewayDelegationEnvelope(enclave)
+
+	assert.Equal(t, 120, envelope["max_identity_ttl"])
+}
+
+// TestValidateDynamicEnclaveBoundsRejectsOversizedTimeout preserves fail-closed
+// validation for enclave timeouts that would otherwise be forwarded to mcpg.
+// gh-aw's compile-time bound matches gh-aw-firewall's
+// MAX_ENCLAVE_TIMEOUT_SECONDS preflight limit and the awf-config schema so the
+// three validation layers cannot disagree about what compiles.
+func TestValidateDynamicEnclaveBoundsRejectsOversizedTimeout(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Timeout = maxDynamicEnclaveTimeoutSeconds + 1
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout must be at most")
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Timeout = maxDynamicEnclaveTimeoutSeconds
+	require.NoError(t, validateEnclavesConfig(data),
+		"the AWF-compatible maximum timeout must still validate cleanly")
 }
