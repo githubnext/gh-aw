@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -128,6 +129,46 @@ func TestDownloadWorkflowLogsForTargetsReturnsErrorWhenAllFail(t *testing.T) {
 		OutputDir: filepath.Join(tempDir, "logs"),
 	}, []logsWorkflowTarget{{workflowName: "private", repoOverride: "org/repo"}}, nil)
 	require.ErrorContains(t, err, "access denied")
+}
+
+func TestCollectLogsTargetsCleansCacheBeforeCheckingStorageLimit(t *testing.T) {
+	original := collectWorkflowLogsForTarget
+	t.Cleanup(func() { collectWorkflowLogsForTarget = original })
+
+	outputDir := t.TempDir()
+	targets := []logsWorkflowTarget{
+		{workflowName: "first", repoOverride: "org/repo"},
+		{workflowName: "second", repoOverride: "org/repo"},
+	}
+	runDirs := make([]string, 0, len(targets))
+	for i, target := range targets {
+		targetDir := logsTargetOutputDir(outputDir, target)
+		runDir := makeRunDir(t, targetDir, int64(i+1), time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC), true)
+		require.NoError(t, os.WriteFile(filepath.Join(runDir, constants.AgentOutputFilename.String()), make([]byte, bytesPerMegabyte), 0o600))
+		runDirs = append(runDirs, runDir)
+	}
+
+	var storageLimits sync.Map
+	collectWorkflowLogsForTarget = func(_ context.Context, opts LogsDownloadOptions) (workflowLogsResult, error) {
+		assert.Empty(t, opts.After, "per-target cleanup must not run after the storage limit is initialized")
+		storageLimits.Store(opts.WorkflowName, opts.storageLimit)
+		return workflowLogsResult{}, nil
+	}
+
+	results := collectLogsTargets(context.Background(), LogsDownloadOptions{
+		OutputDir:    outputDir,
+		After:        "2021-01-01",
+		MaxStorageMB: 1,
+	}, targets)
+
+	require.Len(t, results, len(targets))
+	for i, target := range targets {
+		assert.NoDirExists(t, runDirs[i])
+		storageLimit, ok := storageLimits.Load(target.workflowName)
+		require.True(t, ok)
+		require.NotNil(t, storageLimit)
+		assert.False(t, storageLimit.(*logsStorageLimit).isReached(), "cleanup must free space before the storage limit measures available capacity")
+	}
 }
 
 func TestMergeLogsTargetResultsPropagatesCountLimitReached(t *testing.T) {

@@ -141,6 +141,8 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 			targetOpts.WorkflowName = target.workflowName
 			targetOpts.RepoOverride = target.repoOverride
 			targetOpts.OutputDir = logsTargetOutputDir(opts.OutputDir, target)
+			// Cleanup already ran before the shared storage limit measured the cache.
+			targetOpts.After = ""
 			targetOpts.SummaryFile = ""
 			targetOpts.Train = false
 			targetOpts.SuppressRender = true
