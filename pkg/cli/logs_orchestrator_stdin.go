@@ -274,6 +274,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		jsonOutput:     opts.JSONOutput,
 		toolGraph:      opts.ToolGraph,
 		train:          opts.Train,
+		audit:          opts.Audit,
 		message:        message,
 		verbose:        opts.Verbose,
 		artifactFilter: artifactFilter,
