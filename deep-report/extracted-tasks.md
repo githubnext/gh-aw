@@ -290,3 +290,17 @@ Not filed (verified false-positive, chronic, or too-early): Schema Consistency C
 1. Replace Tavily MCP wildcard tool allowlist (`allowed: ["*"]` in `shared/mcp/tavily.md`) with an explicit tool list — stale 2026-05-19 TODO comment, same date as the already-fixed `azure.md` precedent, affects 5 workflows (scout, mcp-inspector, daily-news, research, smoke-claude). From MCP Inspector Report #57499, live-verified.
 
 Not filed (chronic/too-diffuse/already-tracked): AI Moderator hang (already open #57437, re-confirmed via 4/4 failures in this cycle's 40-run/~1h spot-check, not re-filed); CVE-remediation prompt merge-rate lag (50% vs 84.3% this cycle, down from 65% two cycles ago — still no single attributable fix file after two prior investigations, per #57241's known_patterns lesson); Code Metrics comment-density/oversized-files (8+ prior closed-without-sticking issues on this exact ask); Daily Performance Summary's 308-open-issue/1234-closed-unmerged-PR backlog (chronic informational, no single code fix); `gateway.jsonl` telemetry gap (chronic, standing policy against re-filing without verified-merged evidence); all Smoke-* failures in the spot-check (self-filing chronic pattern, each auto-tracks its own issue).
+
+## 2026-09-07 ~06:52Z cycle (0 issues filed, baseline #59096, window #59109-59145, 5 new discussions)
+
+No new tasks extracted this cycle. Both live-verified candidates from Daily Compiler Quality Check #59109 were declined as likely-duplicate rather than filed blind:
+- `compiler_safe_outputs_builder.go` missing test file — identical task already filed 2026-08-31 (source #57324); current status unknown (GitHub search unavailable this cycle, see below).
+- `compiler_safe_outputs_job.go` 841 lines (800-line guideline) — 3rd occurrence of this exact recurring gap (#50515 auto-expired → #53612 → PR #53720 merged 2026-08-26 → regrown past the limit again). Needs live status check before re-filing, not done this cycle.
+
+Not filed (verified stale/already-fixed on direct file read): Documentation Noob Tester #59120's "Day-one commands table buried" claim (cli.md:10, already at top) and "frontmatter undefined on first use" claim (quick-start.mdx:52-54, already inline-defined) — both already resolved, contradicting the report.
+
+Not filed (already self-filed by source workflow): Sergo #59123's nolint space-prefix bug (#59122), ESLint Refiner #59145's `no-misplaced-error-code-definition` gap.
+
+Not filed (sandbox infra, ADR-covered): Firewall Escape Test #59132's docker.sock hardening suggestion (see ADR 44446).
+
+**Blocking issue**: GitHub MCP read tools (`search_issues`/`list_issues`/`get_file_contents`) were unavailable all cycle ("WASM guard 'github' is unavailable after a previous trap"), preventing the mandatory dedup-gate search for the 2 compiler-quality candidates. Per standing policy, declined to file without live verification. Flagged via `missing_tool`. Next cycle: retry GitHub search early; if recovered, verify current status of the builder-test-file and job.go-decomposition tasks before deciding whether to re-file.
