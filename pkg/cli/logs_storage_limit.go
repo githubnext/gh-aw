@@ -70,6 +70,7 @@ var essentialLogsCacheFiles = map[string]struct{}{
 	constants.GraderManifestFilename.String():   {},
 	constants.GraderResultsFilename.String():    {},
 	jobsAPIResponseFileName:                     {},
+	runAPIResponseFileName:                      {},
 	runSummaryFileName:                          {},
 	"safe-output-items.jsonl":                   {},
 	constants.SafeOutputsFilename.String():      {},
