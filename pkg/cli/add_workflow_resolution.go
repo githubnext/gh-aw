@@ -633,7 +633,7 @@ func expandLocalPackageWildcardIncludes(includes []repositoryPackageInclude, pac
 		}
 
 		sourceDir := packageDir
-		if strings.HasPrefix(parent, constants.GithubDir) {
+		if !include.isMapping() && strings.HasPrefix(parent, constants.GithubDir) {
 			sourceDir = packageRoot
 		}
 		wildcardDir := filepath.Join(sourceDir, filepath.FromSlash(parent))
@@ -672,10 +672,11 @@ func expandLocalPackageWildcardIncludes(includes []repositoryPackageInclude, pac
 				fileCandidates = append(fileCandidates, candidate)
 			}
 		}
-		expanded = append(expanded, expandManifestWildcardMatches(parent, fileCandidates, func(source string) bool {
-			return isSupportedPackageInstallablePath(source) || isSupportedAgentFilePath(source)
-		})...)
-		expanded = append(expanded, expandManifestWildcardMatches(parent, dirCandidates, isSupportedSkillDirPath)...)
+		matches, err := expandManifestWildcardCandidates(include, parent, fileCandidates, dirCandidates)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand includes wildcard %q in %q: %w", include.Source, packageDir, err)
+		}
+		expanded = append(expanded, matches...)
 	}
 	return deduplicateManifestIncludes(expanded), nil
 }
