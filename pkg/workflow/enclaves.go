@@ -49,9 +49,7 @@ const (
 	// maxDynamicEnclaveTimeoutSeconds bounds enclaves[].timeout for dynamic
 	// enclaves. It matches gh-aw-firewall's MAX_ENCLAVE_TIMEOUT_SECONDS
 	// preflight limit and the awf-config schema, so gh-aw and AWF cannot
-	// disagree about what compiles. It also keeps
-	// time.Duration(enclave.Timeout) * time.Second well within int64 for the
-	// mcpg delegation envelope's max_identity_ttl field.
+	// disagree about what compiles.
 	maxDynamicEnclaveTimeoutSeconds = 4740
 	enclaveMCPTransportAllowance    = 60
 	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
@@ -756,16 +754,10 @@ func buildAWFDynamicEnclavePolicy(enclave *EnclaveConfig) map[string]any {
 // tool_policy, allowed_schema_hashes, max_dynamic_schema_hashes, max_identity_ttl,
 // expires_at) causes the gateway to reject the envelope at startup.
 //
-// max_identity_ttl uses Go time.Duration units. mcpg decodes the field into a
-// time.Duration, whose JSON representation is an integer number of nanoseconds,
-// so a configured timeout of 120 seconds must be emitted as 120000000000. The
-// runtime envelope expiry clamp (expires_at / MCP_GATEWAY_DELEGATION_EXPIRES_AT
-// / buildDynamicEnclaveExpiryScript) is a separate contract and continues to
-// use seconds / RFC3339.
-//
-// validateDynamicEnclaveBounds guarantees 0 < enclave.Timeout <=
-// maxDynamicEnclaveTimeoutSeconds (4740), so the int64 multiplication below
-// cannot overflow.
+// max_identity_ttl uses seconds, matching enclaves[].timeout and the mcpg
+// delegation wire contract. The runtime envelope expiry clamp (expires_at /
+// MCP_GATEWAY_DELEGATION_EXPIRES_AT / buildDynamicEnclaveExpiryScript) also
+// derives its lifetime from enclave.Timeout in seconds.
 func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 	policy := enclave.Dynamic
 	return map[string]any{
@@ -783,7 +775,7 @@ func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 		// enclaves[].dynamic.max-repositories limit (DynamicEnclavePolicy.MaxRepositories),
 		// since each admitted repository corresponds to exactly one schema hash.
 		"max_dynamic_schema_hashes": policy.MaxRepositories,
-		"max_identity_ttl":          time.Duration(enclave.Timeout) * time.Second,
+		"max_identity_ttl":          enclave.Timeout,
 		"expires_at":                "${" + enclaveDelegationExpiresAtEnv + "}",
 	}
 }
