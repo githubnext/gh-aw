@@ -4,5 +4,6 @@
     "action_failure_issue_expires": 12,
     "label_triggers": true
   },
+  "strict": true,
   "utc": "-08:00"
 }
