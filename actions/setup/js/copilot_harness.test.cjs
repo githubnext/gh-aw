@@ -20,7 +20,6 @@ const {
   buildCopilotProxyAuthFailureDiagnostic,
   buildCopilotSDKChildEnv,
   envFlagEnabled,
-  buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
   detectCopilotErrors,
   emitInfrastructureIncomplete,
@@ -54,6 +53,7 @@ const {
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  resolvePromptFileInput,
   resolveRetryConfig,
   shouldRetryFailedExecution,
   isCrashSignalExitCode,
@@ -2243,12 +2243,14 @@ describe("copilot_harness.cjs", () => {
       expect(resolved).toEqual(["--add-dir", "/tmp", "-p", "small prompt body", "--allow-all-tools"]);
     });
 
-    it("uses compact fallback prompt when prompt file is larger than 100KB", () => {
+    it("streams prompt files larger than 100KB through stdin", () => {
       const promptFile = path.join(os.tmpdir(), `copilot-driver-large-${Date.now()}.txt`);
-      fs.writeFileSync(promptFile, "x".repeat(PROMPT_FILE_INLINE_THRESHOLD_BYTES + 1), "utf8");
+      const prompt = "x".repeat(PROMPT_FILE_INLINE_THRESHOLD_BYTES + 1);
+      fs.writeFileSync(promptFile, prompt, "utf8");
 
-      const resolved = resolvePromptFileArgs(["--prompt-file", promptFile, "--allow-all-tools"]);
-      expect(resolved).toEqual(["-p", buildPromptFileFallbackInstruction(promptFile), "--allow-all-tools"]);
+      const resolved = resolvePromptFileInput(["--prompt-file", promptFile, "--allow-all-tools"]);
+      expect(resolved.args).toEqual(["--allow-all-tools"]);
+      expect(resolved.stdin).toEqual(Buffer.from(prompt));
     });
 
     it("keeps --prompt-file arguments unchanged when file resolution fails", () => {

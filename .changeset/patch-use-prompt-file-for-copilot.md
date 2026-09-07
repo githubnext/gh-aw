@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Use `--prompt-file` for Copilot execution so large prompts do not exceed Linux `ARG_MAX` and fail before agent startup.
+Stream Copilot prompts over 100KB through stdin so they do not exceed Linux argument limits or rely on a lossy fallback instruction.

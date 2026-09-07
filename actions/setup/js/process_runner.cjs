@@ -4,8 +4,8 @@
  * Shared process runner utilities for agent harnesses.
  *
  * Provides a common runProcess helper used by both the Claude and Copilot
- * harnesses to spawn child processes, forward stdout/stderr (stdin is closed;
- * prompts are delivered via file/argument, not stdin), collect output for
+ * harnesses to spawn child processes, forward stdout/stderr, optionally send
+ * input through stdin, collect output for
  * retry decisions, track byte counts, and surface spawn errors.
  *
  * Each harness retains its own logging prefix and argument-redaction logic;
@@ -60,8 +60,7 @@ function sleep(ms) {
 }
 
 /**
- * Run a command with the given arguments, forwarding stdout/stderr (stdin is closed;
- * see the spawn call below for why).
+ * Run a command with the given arguments, forwarding stdout/stderr.
  * Also collects combined stdout+stderr output for error pattern detection.
  *
  * The child process is spawned with `cwd` set to `process.env.GH_AW_ENGINE_CWD` when
@@ -76,6 +75,7 @@ function sleep(ms) {
  *   log: (message: string) => void,
  *   logArgs?: string[],
  *   env?: NodeJS.ProcessEnv,
+ *   stdin?: string | Buffer,
  *   postResultWatchdog?: {
  *     shouldArm: () => boolean,
  *     inactivityTimeoutMs: number,
@@ -102,7 +102,7 @@ function sleep(ms) {
  *                 tests can use short intervals.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean, runtimeGuardFired: boolean, runtimeGuardReason: string}>}
  */
-function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog, runtimeGuard, stallWarningIntervalMs }) {
+function runProcess({ command, args, attempt, log, logArgs, env, stdin, postResultWatchdog, runtimeGuard, stallWarningIntervalMs }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
@@ -123,19 +123,23 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     const argsForLog = logArgs ?? args;
     log(`attempt ${attempt + 1}: spawning: ${command} ${argsForLog.join(" ").substring(0, 200)}`);
 
-    // stdin is closed (not inherited) rather than forwarded: every harness delivers the
-    // prompt via a file or CLI argument, so the child never needs to read from stdin.
-    // Closing it means a CLI that unexpectedly falls back to an interactive
-    // "read from stdin" mode (e.g. due to an unrecognized argument) sees immediate EOF
-    // and exits/errors quickly instead of hanging silently until the step's
-    // timeout-minutes budget is exhausted.
+    // Keep stdin closed unless the caller explicitly provides input. This ensures a CLI
+    // that unexpectedly enters interactive mode sees EOF instead of hanging until timeout.
     const child = spawn(command, args, {
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
       env: env ?? process.env,
       cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);
+    if (child.stdin) {
+      child.stdin.on("error", error => {
+        if (/** @type {NodeJS.ErrnoException} */ error.code !== "EPIPE") {
+          log(`attempt ${attempt + 1}: stdin write failed: ${error.message}`);
+        }
+      });
+      child.stdin.end(stdin);
+    }
 
     let collectedOutput = "";
     let hasOutput = false;

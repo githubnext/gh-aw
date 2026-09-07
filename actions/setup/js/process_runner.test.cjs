@@ -97,6 +97,19 @@ describe("process_runner.cjs", () => {
       expect(logs.some(l => l.includes("signal=SIGSEGV"))).toBe(true);
     });
 
+    it("sends provided input through stdin", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", 'let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => process.stdout.write(input));'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        stdin: Buffer.from("prompt from stdin"),
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("prompt from stdin");
+    });
+
     it("collects stdout output and sets hasOutput", async () => {
       const logs = [];
       const result = await runProcess({
