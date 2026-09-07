@@ -26,15 +26,70 @@ const (
 	enclaveMCPReadinessTimeoutEnv = "AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS"
 	enclaveMCPDeferredServersEnv  = "GH_AW_MCP_DEFERRED_SERVERS"
 	enclaveGitHubDelegationEnv    = "AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY"
-	enclaveMCPGatewayRunLabel     = "com.github.gh-aw.mcpg.run"
-	enclaveMCPGatewayContainer    = "awmg-mcpg"
-	enclaveGitHubIssuesProfile    = "issues-read-v1"
-	enclaveDynamicGitHubPolicy    = "github-repository-read-v1"
-	enclaveDynamicController      = "github-repository-delegation-v1"
-	enclaveMCPConnectTimeout      = 120
-	enclaveMCPReadinessTimeoutMS  = 120000
-	maxEnclaveTimingBucketSeconds = 4800
-	enclaveMCPTransportAllowance  = 60
+	// enclaveGitHubDelegationControlEndpointEnv identifies the AWF-private control
+	// endpoint for mcpg's github-repository-delegation-v1 controller. This is
+	// distinct from enclaveMCPGatewayEndpointEnv, which identifies the
+	// executor-facing /mcp/awf-enclave data plane. Only the AWF host process
+	// receives this variable; it must never reach the primary agent or the
+	// enclave executor.
+	enclaveGitHubDelegationControlEndpointEnv = "AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT"
+	enclaveMCPGatewayRunLabel                 = "com.github.gh-aw.mcpg.run"
+	enclaveMCPGatewayContainer                = "awmg-mcpg"
+	enclaveGitHubIssuesProfile                = "issues-read-v1"
+	enclaveDynamicGitHubPolicy                = "github-repository-read-v1"
+	enclaveDynamicController                  = "github-repository-delegation-v1"
+	// enclaveDelegationControlAPIBasePath is the fixed HTTP path prefix under which
+	// the pinned mcpg build serves its delegation control API, regardless of which
+	// controller (e.g. enclaveDynamicController) is being driven. It is not keyed
+	// by controller name.
+	enclaveDelegationControlAPIBasePath = "/internal/awf-enclave-mcp-control"
+	enclaveMCPConnectTimeout            = 120
+	enclaveMCPReadinessTimeoutMS        = 120000
+	maxEnclaveTimingBucketSeconds       = 4800
+	enclaveMCPTransportAllowance        = 60
+	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
+	// port to derive the private, host-only listener port for mcpg's
+	// github-repository-delegation-v1 control plane. Deriving it from the (per-job
+	// configurable) data-plane port, rather than a single fixed literal, avoids a
+	// port collision on self-hosted runners that execute multiple concurrent jobs
+	// with distinct gateway ports on the same host. The control port is bound
+	// separately from MCP_GATEWAY_PORT and published only to loopback so neither
+	// the primary agent nor the enclave executor network can route to it.
+	//
+	// Contract: this offset only avoids collisions between a single job's own
+	// data-plane and control ports. Operators running self-hosted runners with
+	// multiple concurrent jobs on the same host must still choose distinct
+	// sandbox.mcp.port values that are not exactly enclaveDelegationControlPortOffset
+	// apart (e.g. do not pair 8080 and 8090), or the second job's data port
+	// collides with the first job's control port; this cross-job collision is an
+	// operator responsibility and is not detected or rejected at compile time.
+	// validateSandboxConfig only rejects the separate, detectable failure mode of
+	// a configured port that would push the derived control port out of the
+	// valid TCP range.
+	enclaveDelegationControlPortOffset = 10
+	// enclaveDelegationStateDir is the protected, persistent mount used for mcpg
+	// delegation controller state so that it survives an in-run restart.
+	enclaveDelegationStateDir = "${RUNNER_TEMP}/gh-aw/mcpg-delegation"
+	// enclaveDelegationRunID is the runtime-resolved identifier for the active
+	// envelope's run_id field: "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}". run_id is
+	// a free-form string in mcpg's wire contract, so the hyphenated run/attempt
+	// pair is safe here; it uniquely distinguishes this envelope from any stale
+	// envelope left in a persistent state directory by a prior, unrelated run.
+	enclaveDelegationRunID = "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+	// enclaveDelegationGeneration is the runtime-resolved monotonic policy
+	// generation mcpg parses from MCP_GATEWAY_DELEGATION_GENERATION with
+	// strconv.ParseUint(..., 10, 64), so it must be a plain decimal value: a
+	// hyphenated identifier (like enclaveDelegationRunID) would fail to parse.
+	// GITHUB_RUN_ATTEMPT alone satisfies this: it is stable across an in-attempt
+	// restart/recovery within the run, and increments for reruns, giving mcpg a
+	// monotonically increasing generation for the lifetime of a persistent state
+	// directory.
+	enclaveDelegationGeneration = "${GITHUB_RUN_ATTEMPT}"
+	// enclaveDelegationExpiresAtEnv holds the runtime-resolved RFC3339 envelope
+	// expiry: min(enclaves[].dynamic.expires-at, job-start + enclave.timeout).
+	// This keeps checked-in workflows valid without requiring a short-lived
+	// absolute compile-time timestamp.
+	enclaveDelegationExpiresAtEnv = "MCP_GATEWAY_DELEGATION_EXPIRES_AT"
 )
 
 var enclaveAgentGitHubSupportedTools = map[string]struct{}{
@@ -396,13 +451,14 @@ func validateDynamicEnclavePolicy(index int, enclave *EnclaveConfig) error {
 }
 
 func validateDynamicEnclaveBounds(index int, enclave *EnclaveConfig, policy *DynamicEnclavePolicy) error {
-	expiresAt, err := time.Parse(time.RFC3339, policy.ExpiresAt)
-	if err != nil {
+	if _, err := time.Parse(time.RFC3339, policy.ExpiresAt); err != nil {
 		return fmt.Errorf("enclaves[%d].dynamic.expires-at must be an absolute RFC3339 timestamp: %w", index, err)
 	}
-	if expiresAt.After(time.Now().UTC().Add(time.Duration(enclave.Timeout) * time.Second)) {
-		return fmt.Errorf("enclaves[%d].dynamic.expires-at must not exceed the enclave job lifetime", index)
-	}
+	// expires-at is an upper bound only. Checked-in workflows may carry a
+	// fixed timestamp that grows stale between commits, so the compiler does
+	// not compare it against compile-time time.Now(); the runtime/job-relative
+	// expiry contract instead clamps the effective envelope expiry to
+	// min(expires-at, job-start + enclave.timeout) when the workflow runs.
 	cpuLimit, err := strconv.ParseFloat(enclave.CPULimit, 64)
 	if err != nil || cpuLimit <= 0 {
 		return fmt.Errorf("enclaves[%d].cpu-limit must be a positive finite value", index)
@@ -675,6 +731,78 @@ func buildAWFDynamicEnclavePolicy(enclave *EnclaveConfig) map[string]any {
 		"auditLabels": append([]string(nil), policy.AuditLabels...),
 		"expiresAt":   policy.ExpiresAt,
 	}
+}
+
+// buildMCPGatewayDelegationEnvelope produces the immutable envelope handed to mcpg's
+// github-repository-delegation-v1 controller via MCP_GATEWAY_DELEGATION_ENVELOPE.
+// The envelope represents owner-scoped runtime discovery, an optional exact repository
+// allowlist, the bounded dynamic schema-hash capacity, the exact v1 tool policy, the
+// maximum identity TTL, and the runtime expiry, without broadening authority beyond
+// what enclaves[].dynamic declares at compile time.
+//
+// Field names and shape match mcpg's delegation.Envelope wire contract exactly:
+// mcpg decodes this JSON with DisallowUnknownFields, so any key outside this exact
+// snake_case set (run_id, enclave_backend, allowed_owners, allowed_repositories,
+// tool_policy, allowed_schema_hashes, max_dynamic_schema_hashes, max_identity_ttl,
+// expires_at) causes the gateway to reject the envelope at startup.
+func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
+	policy := enclave.Dynamic
+	return map[string]any{
+		"run_id":               enclaveDelegationRunID,
+		"enclave_backend":      "github",
+		"allowed_owners":       stringSliceOrEmpty(policy.AllowedOwners),
+		"allowed_repositories": stringSliceOrEmpty(policy.AllowedRepositories),
+		"tool_policy":          enclaveDynamicGitHubPolicy,
+		// allowed_schema_hashes starts empty: mcpg's controller admits schema
+		// hashes dynamically at runtime, up to max_dynamic_schema_hashes, rather
+		// than requiring them to be pre-enumerated at compile time.
+		"allowed_schema_hashes": []string{},
+		// max_dynamic_schema_hashes bounds the number of distinct runtime schema
+		// hashes mcpg may admit for this envelope; it is sourced from the compiled
+		// enclaves[].dynamic.max-repositories limit (DynamicEnclavePolicy.MaxRepositories),
+		// since each admitted repository corresponds to exactly one schema hash.
+		"max_dynamic_schema_hashes": policy.MaxRepositories,
+		"max_identity_ttl":          enclave.Timeout,
+		"expires_at":                "${" + enclaveDelegationExpiresAtEnv + "}",
+	}
+}
+
+// buildDynamicEnclaveExpiryScript emits the shell lines that resolve the
+// runtime/job-relative envelope expiry contract: the effective expiry is the
+// earlier of the compiled enclaves[].dynamic.expires-at upper bound and
+// job-start + enclave.timeout, so it can never exceed the job or invocation
+// lifetime regardless of how stale a checked-in absolute timestamp has grown.
+func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) (string, error) {
+	var script strings.Builder
+	// Canonicalize the compiled expires-at to a UTC whole-second RFC3339 "...Z"
+	// value before embedding it: validateEnclavesConfig accepts any RFC3339
+	// timestamp (including non-UTC offsets and fractional seconds), but the BSD
+	// date fallback below only parses that exact whole-second UTC form. Doing the
+	// canonicalization here in Go (rather than widening the BSD date format
+	// string) keeps the fallback exact and covers the full accepted syntax.
+	// validateEnclavesConfig already guarantees enclave.Dynamic.ExpiresAt parses as
+	// RFC3339, so a failure here indicates an internal invariant violation, not a
+	// user error; surface it rather than silently falling back to the raw,
+	// possibly non-canonical value (which would reintroduce the BSD parsing bug).
+	parsed, err := time.Parse(time.RFC3339, enclave.Dynamic.ExpiresAt)
+	if err != nil {
+		return "", fmt.Errorf("internal error: enclaves[].dynamic.expires-at %q failed RFC3339 parsing after compile-time validation: %w", enclave.Dynamic.ExpiresAt, err)
+	}
+	expiresAt := parsed.UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
+	escapedExpiresAt := shellEscapeArg(expiresAt)
+	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH=$(( $(date -u +%%s) + %d ))\n", enclave.Timeout)
+	// date -u -d is GNU coreutils syntax (Linux runners); fall back to BSD date's
+	// -j -f for portability, matching the pattern used elsewhere in this repo for
+	// parsing RFC3339 timestamps into epoch seconds on macOS runners.
+	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH=$(date -u -d %s +%%s 2>/dev/null || date -u -j -f \"%%Y-%%m-%%dT%%H:%%M:%%SZ\" %s +%%s)\n", escapedExpiresAt, escapedExpiresAt)
+	script.WriteString("          if [ \"$GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH\" -lt \"$GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH\" ]; then\n")
+	script.WriteString("            GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH=\"$GH_AW_ENCLAVE_DYNAMIC_CONFIGURED_EXPIRES_EPOCH\"\n")
+	script.WriteString("          else\n")
+	script.WriteString("            GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH=\"$GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH\"\n")
+	script.WriteString("          fi\n")
+	fmt.Fprintf(&script, "          %s=$(date -u -d \"@$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ 2>/dev/null || date -u -r \"$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ)\n", enclaveDelegationExpiresAtEnv)
+	fmt.Fprintf(&script, "          export %s\n", enclaveDelegationExpiresAtEnv)
+	return script.String(), nil
 }
 
 func stringSliceOrEmpty(values []string) []string {
