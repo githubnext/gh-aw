@@ -330,7 +330,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			// the host's network namespace, so 127.0.0.1 works directly and is kept
 			// tightest-scoped. The host-side publication (see buildMCPGatewayContainerCommand)
 			// stays on 127.0.0.1 either way, so the control port is never reachable from
-			// outside the host regardless of the in-container bind address.
+			// outside the host regardless of the in-container bind address. Note this
+			// says nothing about container-to-container reachability: in bridge mode a
+			// peer co-attached to a network mcpg joins can dial this 0.0.0.0 listener on
+			// the container IP directly. The capability is what guards the control API;
+			// see the -p comment in buildMCPGatewayContainerCommand and github/gh-aw#59268.
 			controlListenHost := "127.0.0.1"
 			if isAWFNetworkIsolationEnabled(workflowData) {
 				controlListenHost = "0.0.0.0"
@@ -457,13 +461,28 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 			containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		}
 		if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
-			// The delegation control listener is host-private only: unlike the data
-			// plane above, this -p flag always publishes to the host's 127.0.0.1, never
-			// 0.0.0.0, so the primary-agent network, enclave executor network, and any
-			// docker-sbx guest cannot route to it -- only the AWF host process reaches
-			// it. The in-container bind address (the right-hand side of MCP_GATEWAY_DELEGATION_CONTROL_LISTEN,
-			// set in writeMCPGatewayExports) is 0.0.0.0 here in bridge mode so Docker's
-			// NAT can actually reach the listener inside the container.
+			// Unlike the data plane above, this -p flag always publishes to the host's
+			// 127.0.0.1, never 0.0.0.0, so the control port is not reachable from
+			// outside the runner and AWF reaches it over host loopback.
+			//
+			// This publication scope is deliberately NOT relied on as a
+			// container-to-container isolation boundary, and must not be described as
+			// one. The in-container bind address (the right-hand side of
+			// MCP_GATEWAY_DELEGATION_CONTROL_LISTEN, set in writeMCPGatewayExports) is
+			// 0.0.0.0 in bridge mode because Docker NATs a published port to the
+			// container's bridge IP and a container-local 127.0.0.1 bind would be
+			// unreachable. A peer co-attached to any network mcpg joins can therefore
+			// address the container IP and this port directly, without traversing the
+			// published host port -- co-attachment, not publication scope, determines
+			// container-to-container reachability.
+			//
+			// The enforced control on this listener is authentication, by design (see
+			// github/gh-aw#59268): every request must present the 256-bit AWF-only
+			// capability minted in writeMCPGatewayExports, which is never placed in any
+			// primary-agent, enclave-executor, or model-sidecar environment or mount.
+			// mcpg verifies it in constant time against a stored SHA-256 digest, before
+			// any control routing, on a handler kept separate from the executor-facing
+			// data plane, so a valid executor bearer cannot reach control operations.
 			containerCmd.WriteString(" -p 127.0.0.1:${MCP_GATEWAY_DELEGATION_CONTROL_LISTEN#*:}:${MCP_GATEWAY_DELEGATION_CONTROL_LISTEN#*:}")
 		}
 	} else {
