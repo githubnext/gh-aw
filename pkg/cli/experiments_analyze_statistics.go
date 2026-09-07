@@ -192,30 +192,6 @@ type MetricEvalResults struct {
 	LatestRunID  string `json:"latest_run_id,omitempty"`
 }
 
-// computeExperimentAnalysis computes the statistical analysis for a single named experiment.
-// cfg may be nil when no workflow frontmatter is available, in which case defaults are used.
-// evals provides the eval definitions for resolving eval-backed metric references; may be nil.
-func computeExperimentAnalysis(
-	exp ExperimentVariantStats,
-	cfg *workflow.ExperimentConfig,
-	evals *workflow.EvalsConfig,
-	metricEvalResults map[string]MetricEvalResults,
-) ExperimentAnalysis {
-	return computeExperimentAnalysisWithObservations(exp, cfg, evals, metricEvalResults, nil)
-}
-
-func computeExperimentAnalysisWithObservations(
-	exp ExperimentVariantStats,
-	cfg *workflow.ExperimentConfig,
-	evals *workflow.EvalsConfig,
-	metricEvalResults map[string]MetricEvalResults,
-	graderObservations *graderMetricObservationSet,
-) ExperimentAnalysis {
-	return computeExperimentAnalysisWithObservationBundle(
-		exp, cfg, evals, metricEvalResults, graderObservations, nil,
-	)
-}
-
 func computeExperimentAnalysisWithObservationBundle(
 	exp ExperimentVariantStats,
 	cfg *workflow.ExperimentConfig,
