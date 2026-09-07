@@ -91,6 +91,10 @@ An MCP server field that controls startup criticality. By default every configur
 
 A response pattern used by the `gh aw` MCP server's `logs` tool when a gateway timeout or token budget guardrail prevents returning a complete result set. Instead of failing the call, the tool returns the JSON data it collected so far with `partial: true` and continuation parameters (such as `after_run_id`/`before_run_id`) so the caller can request the remaining results in a follow-up call. See [`gh aw` as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/).
 
+### Logs Storage Budget (`--max-storage`)
+
+A `gh aw logs` flag that caps total on-disk storage in MB for downloaded run artifacts and cache data. When downloads approach the configured limit, the command performs selective pruning: it removes non-essential cache data (such as prunable log-cache files not needed by already-completed runs) before falling back to stopping further downloads with `errLogsStorageLimitReached`. Reserving space per download and recording pruned bytes lets long-running multi-workflow log collection stay within a fixed disk budget instead of exhausting it. See [Monitoring Costs with `gh aw logs`](/gh-aw/reference/cost-management/#monitoring-costs-with-gh-aw-logs).
+
 ### QMD Documentation Search (`qmd:`)
 
 A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/experimental/qmd/).
@@ -162,6 +166,10 @@ A built-in tool that connects agentic workflows to Atlassian's official remote R
 ### Enclaves (`enclaves:`)
 
 A top-level frontmatter array that enables finite-disclosure access to approved repositories from within a public-facing workflow. Repository sensitivities are `public`, `trusted`, `internal`, `confidential`, or `sealed`; `trusted` is unmetered and permits free-form strings only inside a declared strict structured response schema, while the other sensitivities remain finite-schema-only. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Agent enclaves may opt into `github.cli: issues-read-v1`, which uses a distinct identity on the shared compiler-owned mcpg gateway and permits only `list_issues` and `issue_read` for the configured trusted repositories. AWF privately stages this identity and connects the enclave directly to `/mcp/github`; the enclave receives neither a GitHub token nor a `gh` executable. See [Private Repository Enclaves](/gh-aw/experimental/enclaves/).
+
+### Dynamic Enclave Delegation Controller (`enclaves[].agent.dynamic`)
+
+An [Enclaves](#enclaves-enclaves) `dynamic:` mode that lets an agent enclave select one admitted repository at invocation time (via `allowed-owners`/`allowed-repositories`) instead of enumerating every repository statically in `repos:`. The compiler emits a fixed-sensitivity policy envelope with finite resource limits, total quotas, audit labels, and an absolute `expires-at` timestamp, then starts mcpg's `github-repository-delegation-v1` controller and hands AWF a host-private delegation control endpoint that is excluded from both primary and enclave agent environments. The effective envelope expiry is `min(expires-at, job-start + enclave timeout)`. Requires AWF `v0.28.14`+ and mcpg `v0.4.17`+ (the first release accepting the controller's atomic bootstrap configuration). Dynamic mode is agent-only; script enclaves remain static and must declare `repos`. See [Private Repository Enclaves](/gh-aw/experimental/enclaves/).
 
 ### MCP Scripts
 
