@@ -150,6 +150,14 @@ func logsFolderSizes(path string) ([]logsFolderSize, error) {
 }
 
 func (l *logsStorageLimit) runDownload(ctx context.Context, storagePath string, download func() error) error {
+	return l.runDownloadWithPruning(ctx, storagePath, download, true)
+}
+
+func (l *logsStorageLimit) runDownloadDeferred(ctx context.Context, storagePath string, download func() error) error {
+	return l.runDownloadWithPruning(ctx, storagePath, download, false)
+}
+
+func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePath string, download func() error, prune bool) error {
 	if l == nil {
 		return download()
 	}
@@ -173,7 +181,7 @@ func (l *logsStorageLimit) runDownload(ctx context.Context, storagePath string, 
 	if sizeErr != nil {
 		return errors.Join(downloadErr, fmt.Errorf("failed to measure logs storage: %w", sizeErr))
 	}
-	pruneErr := l.recordUsage(storagePath, sizeAfter-sizeBefore)
+	pruneErr := l.recordUsage(storagePath, sizeAfter-sizeBefore, prune)
 	return errors.Join(downloadErr, pruneErr)
 }
 
@@ -208,8 +216,21 @@ func (l *logsStorageLimit) initialize() error {
 	}
 	l.reportStartingUsage(size, folders)
 	l.usedBytes = size
-	for _, folder := range folders {
-		l.completed[filepath.Join(l.outputDir, folder.name)] = struct{}{}
+	err = filepath.Walk(l.outputDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		if info != nil && info.IsDir() && strings.HasPrefix(info.Name(), "run-") {
+			l.completed[filepath.Clean(path)] = struct{}{}
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to identify completed runs: %w", err)
 	}
 	if l.usedBytes >= l.maxBytes {
 		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1, nil)
@@ -226,12 +247,29 @@ func (l *logsStorageLimit) initialize() error {
 
 // recordUsage applies a completed download's byte delta and selectively removes
 // non-essential agent data when the cache would otherwise exceed the budget.
-func (l *logsStorageLimit) recordUsage(storagePath string, delta int64) error {
+func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, prune bool) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	l.usedBytes += delta
 	l.completed[filepath.Clean(storagePath)] = struct{}{}
+	if prune && l.usedBytes >= l.maxBytes {
+		return l.pruneLocked()
+	}
+	return nil
+}
+
+func (l *logsStorageLimit) finalizeDownload(storagePath string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.completed[filepath.Clean(storagePath)] = struct{}{}
+	if l.usedBytes < l.maxBytes {
+		return nil
+	}
+	return l.pruneLocked()
+}
+
+func (l *logsStorageLimit) pruneLocked() error {
 	if l.usedBytes >= l.maxBytes {
 		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1, l.completed)
 		if err != nil {
@@ -367,6 +405,9 @@ func isPrunableLogsCacheFile(relativePath string) bool {
 }
 
 func invalidatePrunedArtifactMarkers(prunedPath, root string) error {
+	if slices.Contains(splitLogsCachePath(prunedPath), "workflow-logs") {
+		return nil
+	}
 	root = filepath.Clean(root)
 	for dir := filepath.Dir(prunedPath); ; dir = filepath.Dir(dir) {
 		markerDir := filepath.Join(dir, downloadedArtifactsMarkerDir)

@@ -247,7 +247,7 @@ func processSingleRunDownload(
 	if !ok {
 		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
 		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
-		err := params.storageLimit.runDownload(ctx, runOutputDir, func() error {
+		err := params.storageLimit.runDownloadDeferred(ctx, runOutputDir, func() error {
 			if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit, logsRunPreflightAPIReserve); err != nil {
 				return err
 			}
