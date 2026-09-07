@@ -126,20 +126,20 @@ function runProcess({ command, args, attempt, log, logArgs, env, stdin, postResu
     // Keep stdin closed unless the caller explicitly provides input. This ensures a CLI
     // that unexpectedly enters interactive mode sees EOF instead of hanging until timeout.
     const child = spawn(command, args, {
-      stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
       env: env ?? process.env,
       cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);
-    if (child.stdin) {
-      child.stdin.on("error", error => {
-        if (/** @type {NodeJS.ErrnoException} */ error.code !== "EPIPE") {
-          log(`attempt ${attempt + 1}: stdin write failed: ${error.message}`);
-        }
-      });
-      child.stdin.end(stdin);
-    }
+    child.stdin.on("error", error => {
+      /** @type {NodeJS.ErrnoException} */
+      const stdinError = error;
+      if (stdinError.code !== "EPIPE") {
+        log(`attempt ${attempt + 1}: stdin write failed: ${error.message}`);
+      }
+    });
+    child.stdin.end(stdin);
 
     let collectedOutput = "";
     let hasOutput = false;
