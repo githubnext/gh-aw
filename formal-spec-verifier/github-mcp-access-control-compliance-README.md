@@ -1,6 +1,6 @@
 # Formal Notes: github-mcp-access-control-compliance/README.md
 
-**Last formalized**: 2026-08-14-15-39-20
+**Last formalized**: 2026-09-07-15-32-28
 **Notation**: TLA+ / Z3-style guard conjunction
 **Issue**: created via safe-output (number assigned post-processing)
 
@@ -24,6 +24,16 @@
 | EQ4 | `EQ4_DefaultIsBase` | (new, this run) no blocked/trusted/label match ⇒ effective = base |
 | MONO1 | `MONO_ElevationNeverLowers` | (new, this run) elevation via max() never lowers integrity below base |
 | DECISION1 | `DECISION_AccessDecision` | (new, this run) §4.6.3 access decision rule reproducing worked examples table |
+| R1 | `P_ExactMatch` | (new 2026-09-07) §5.1.1 exact owner/repo match |
+| R2 | `P_OwnerWildcard` | (new 2026-09-07) §5.1.2 owner/* match |
+| R3 | `P_NameWildcard` | (new 2026-09-07) §5.1.3 */repo match |
+| R4 | `P_FullWildcard` | (new 2026-09-07) §5.1.4 */* matches all, equiv. to omitted repos |
+| R5 | `P_AnyPatternMatch` | (new 2026-09-07) §5.2 OR-logic across multiple configured patterns |
+| R6 | `P_ExtractOwnerRepo` | (new 2026-09-07) §5.3.1 owner+repo param extraction |
+| R7 | `P_ExtractCombined` | (new 2026-09-07) §5.3.2 combined repository param extraction |
+| R8 | `P_WideQueryUnfiltered` | (new 2026-09-07) §5.3.3 repo-wide query tools have no single-repo param |
+| R9 | `P_CrossRepoPR` | (new 2026-09-07) §5.4.1 PR-across-forks requires both head+base match |
+| R10 | `P_CrossRepoTransfer` | (new 2026-09-07) §5.4.2 issue transfer requires both source+target match |
 
 ## Key Invariants
 
@@ -49,15 +59,17 @@
 - The repository has a complete, verified executable conformance suite at
   `pkg/workflow/github_mcp_access_control_formal_test.go` (542 lines) that is fixture-driven
   against all 11 YAML files in `specs/github-mcp-access-control-compliance/`, covering guards P1-P6.
-- **This run's gap closure**: the effective-integrity computation algorithm (§4.6.2/§4.6.3 of the
-  normative spec) governing `trusted-users` and `approval-labels` elevation was NOT previously
-  tested anywhere in the repo. Confirmed via grep that no `computeEffectiveIntegrity`-style
-  function exists in `pkg/workflow` — only parsing/env-var passthrough in
-  `compiler_github_mcp_steps.go` and `tools_parser.go`. Added a new self-contained formal test
-  file `github_mcp_effective_integrity_formal_test.go` with stub types (`contentItem`,
-  `integrityGuardConfig`) marked for replacement once a real runtime evaluator is implemented.
+- **This run's gap closure (2026-09-07)**: §5 Repository Scoping (pattern matching §5.1,
+  multi-pattern OR-logic §5.2, parameter extraction §5.3, cross-repo operations §5.4) had
+  no executable formal predicates anywhere in the repo. Added a new self-contained formal
+  test file `github_mcp_repo_scoping_formal_test.go` with stub matcher/extractor functions
+  (`matchRepoPattern`, `matchAnyPattern`, `extractRepoFromParams`, `crossRepoPRAllowed`,
+  `crossRepoTransferAllowed`) marked `// stub — replace with real implementation`, since no
+  independently testable exported unit for repo-pattern matching exists yet in `pkg/workflow`
+  (repo-scope handling is inline in compiler/gateway wiring).
 - Cross-reference: the normative spec lives at `scratchpad/github-mcp-access-control-specification.md`
-  (outside `specs/`). A future run could formalize the remaining untested areas of that document:
-  §5 (Repository Scoping), §6+ (not yet reviewed in this or prior runs), or wire the new stub
-  types to the real gateway implementation once `trusted-users`/`approval-labels` evaluation logic
-  is added to the runtime (currently only compile-time parsing exists).
+  (outside `specs/`). Remaining unformalized areas for future runs: §6 Role-Based Filtering
+  (permission verification/caching, §6.1-6.3 — only P3_RoleAllow's OR-logic is currently
+  tested, not the caching/perf model), §7 Private Repository Controls (visibility caching,
+  §7.2), §9 Security Model (threat model §9.1, defense-in-depth §9.2, lockdown override
+  §9.5), and §10 Integration with MCP Gateway (middleware architecture, schema extension).
