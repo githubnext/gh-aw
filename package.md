@@ -8,7 +8,7 @@ Configure the repository so others can install workflows from it with `gh aw add
 
 1. Standardizing package structure when needed
 2. Creating an `aw.yml` repository package manifest at the package root
-3. Listing all package workflows in `aw.yml`
+3. Including all package workflows in `aw.yml`
 4. Generating a clear package description
 5. Updating `README.md` with installation instructions for consumers
 
@@ -43,12 +43,12 @@ Create `aw.yml` in the package root using the supported manifest format:
 
 ```yaml
 manifest-version: "1"
+min-version: v0.88.5
 name: Repo Assist
 description: Reusable agentic workflows for <domain/use-case>.
 emoji: 🤖
-files:
-  - workflows/example.md
-  - .github/workflows/repo-workflow.md
+includes:
+  - workflows/*
 resources:
   - source: templates/bug.yml
     destination: .github/ISSUE_TEMPLATE/bug.yml
@@ -57,12 +57,14 @@ resources:
 Requirements:
 
 - `manifest-version`: use `"1"` (or omit and rely on default `"1"`)
+- `min-version`: use `v0.88.5` or newer when `includes` contains a trailing `/*` wildcard
 - `name`: human-readable package name
 - `description`: concise and relevant to the actual workflows
 - `emoji`: optional package emoji (string)
-- `files`: complete list of installable agentic/shared workflows in this repository
+- `includes`: installable package entries; use `workflows/*` when every supported direct child belongs in the package
 - `resources`: optional package-root-relative assets copied to allowlisted destinations such as `.github/ISSUE_TEMPLATE/*.yml`, `.github/CODEOWNERS`, or `.github/aw/**`
-- File paths must be package-root-relative and point to existing markdown workflow files under `workflows/` or `.github/workflows/`
+- Include paths must be package-root-relative. Trailing `/*` wildcards are non-recursive and are supported only for workflow, skill, and agent directories such as `workflows/*`, `skills/*`, and `agents/*`; `files/*` is not a supported include path.
+- Use `.github/workflows/*` only when every matching repository workflow is intentionally redistributable.
 
 Do not invent custom package metadata fields.
 
@@ -70,9 +72,9 @@ Do not invent custom package metadata fields.
 
 Keep package manifest simple:
 
-- Use only `manifest-version`, `name`, `description`, optional `emoji`, and `files`
+- Use only `manifest-version`, conditional `min-version`, `name`, `description`, optional `emoji`, and `includes`
 - Keep `description` short
-- Put only real installable workflow markdown files in `files`
+- Prefer `workflows/*` when all supported direct children are installable; otherwise list the intended entries explicitly in `includes`
 
 Documentation links:
 
@@ -109,6 +111,6 @@ The README instructions must be clear enough that another repository can adopt t
 Before finishing:
 
 - Verify `aw.yml` exists and is valid YAML
-- Verify every listed `files` path exists
+- Verify each explicit `includes` path exists and each wildcard selects only intended direct children
 - Confirm README instructions match the final package structure
 - Summarize what was standardized, what dependencies were cleaned up, and any remaining follow-up items
