@@ -8,8 +8,6 @@ Use this skill to run a structured interview with users who know their goal but 
 
 ## When to Use This Skill
 
-Use this before `.github/aw/create-agentic-workflow.md` when requirements are unclear or incomplete.
-
 - Use `.github/aw/designer.md` to discover and confirm requirements.
 - Use `.github/aw/create-agentic-workflow.md` once requirements are clear and ready for implementation.
 - Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
@@ -104,13 +102,9 @@ Map to:
 Ask **"Any AI engine preference?"** only when the request contains ambiguous
 engine-specific hints.
 
-If there is no engine preference or engine-specific requirement, do not suggest
-or specify an engine; omit `engine:` and let the configured default apply. If an
-explicit model requirement forces engine selection, try Copilot first and select
-another engine only when Copilot cannot satisfy that requirement.
-
-Map to `engine:` only for an explicit preference or a requirement that the
-configured default cannot satisfy.
+Omit `engine:` and let the configured default apply unless there's an explicit
+preference or a requirement the default can't satisfy — then map to `engine:`,
+trying Copilot first.
 
 ### Phase 7b: Skills, Plugins, LSP & Evals (optional)
 
@@ -257,7 +251,6 @@ Before final output, run this internal self-check:
 
 ## References (load only when needed)
 
-In-repo references:
 - `.github/aw/designer-mappings.md` (trigger, safe-output, network, tool, pattern, integration-auth, and data-strategy mapping tables)
 - `.github/aw/syntax.md` (index → `.github/aw/syntax-core.md`, `.github/aw/syntax-agentic.md`, `.github/aw/syntax-tools-imports.md`)
 - `.github/aw/safe-outputs.md` (index → `.github/aw/safe-outputs-content.md`, `.github/aw/safe-outputs-management.md`, `.github/aw/safe-outputs-automation.md`, `.github/aw/safe-outputs-runtime.md`)
@@ -272,16 +265,4 @@ In-repo references:
 - `.github/aw/evals.md`
 - `.github/aw/intent.md`
 
-Portable HTTPS references:
-- `https://github.com/github/gh-aw/blob/main/.github/aw/designer-mappings.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/syntax.md` (index → `.../syntax-core.md`, `.../syntax-agentic.md`, `.../syntax-tools-imports.md`)
-- `https://github.com/github/gh-aw/blob/main/.github/aw/safe-outputs.md` (index → `.../safe-outputs-content.md`, `.../safe-outputs-management.md`, `.../safe-outputs-automation.md`, `.../safe-outputs-runtime.md`)
-- `https://github.com/github/gh-aw/blob/main/.github/aw/network.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/patterns.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/subagents.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/create-agentic-workflow.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/skills.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/lsp.md`
-- `https://github.com/github/gh-aw/blob/main/.github/aw/evals.md`
+Outside the repo, use `https://github.com/github/gh-aw/blob/main/<path>` for any of the above.
