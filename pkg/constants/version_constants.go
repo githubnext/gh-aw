@@ -169,6 +169,11 @@ const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 // AWFDynamicRepositoryEnclaveMinVersion is the first AWF version that accepts
 // dynamic agent enclave repository policy envelopes and performs per-invocation
 // repository admission through MCPG's github-repository-delegation-v1 controller.
+//
+// This value is intentionally kept above DefaultFirewallVersion (provisional,
+// fail-closed) until the AWF implementation tracked by gh-aw-firewall#8195
+// ships. Once that release is available, raise this constant to the actual
+// compatible AWF release and update DefaultFirewallVersion accordingly.
 const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.14"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
@@ -206,7 +211,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.16"
+const DefaultMCPGatewayVersion Version = "v0.4.17"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
@@ -226,7 +231,17 @@ const MCPGEnclaveAgentToolsMinVersion Version = "v0.4.15"
 // MCPGDynamicRepositoryDelegationMinVersion is the first MCPG version that
 // advertises the github-repository-delegation-v1 dynamic repository delegation
 // controller required by dynamic agent enclave admission.
-const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.16"
+//
+// v0.4.16 advertised the controller but rejected the strict-stdin
+// "delegationControllers" config field the compiler previously emitted, never
+// started the real controller, and never handed AWF a private control
+// endpoint (gh-aw-mcpg#12604). That contract is fixed by gh-aw-mcpg#12605,
+// released in v0.4.17; this constant is pinned to that release so dynamic
+// enclave compilation/runtime setup fails closed on older MCPG builds that
+// lack the compatible owner-scoped envelope, bounded dynamic schema
+// admission, transactional reconciliation, persisted TTL binding, durability,
+// DIFC isolation, and redaction behavior.
+const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.17"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright is enabled.

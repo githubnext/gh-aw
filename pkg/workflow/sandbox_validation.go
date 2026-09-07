@@ -273,6 +273,23 @@ func validateSandboxConfig(workflowData *WorkflowData) error { //nolint:largefun
 			return err
 		}
 		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
+		// Dynamic enclave delegation derives a private control-plane port by adding
+		// enclaveDelegationControlPortOffset to this data-plane port (see
+		// buildMCPGatewayContainerCommand/writeMCPGatewayExports). Reject configured
+		// ports that would push the derived control port past the valid TCP range,
+		// rather than silently emitting an unusable MCP_GATEWAY_DELEGATION_CONTROL_LISTEN
+		// value at runtime.
+		if enclaveDynamicRepositoryPolicyEnabled(workflowData) &&
+			sandboxConfig.MCP.Port+enclaveDelegationControlPortOffset > constants.MaxNetworkPort {
+			return NewConfigurationError(
+				"sandbox.mcp.port",
+				strconv.Itoa(sandboxConfig.MCP.Port),
+				fmt.Sprintf("port must leave room for the dynamic enclave delegation control port (port+%d) within the valid TCP range (%d-%d)",
+					enclaveDelegationControlPortOffset, constants.MinNetworkPort, constants.MaxNetworkPort),
+				fmt.Sprintf("Choose a sandbox.mcp.port no greater than %d, or remove the custom port to use the default.",
+					constants.MaxNetworkPort-enclaveDelegationControlPortOffset),
+			)
+		}
 	}
 
 	if sandboxConfig.MCP != nil {

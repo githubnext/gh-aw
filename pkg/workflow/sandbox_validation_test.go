@@ -5,6 +5,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -299,5 +300,32 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		require.Error(t, err, "allow-host-ports on the default docker runtime should fail validation")
 		assert.Contains(t, err.Error(), "allow-host-ports")
 		assert.Contains(t, err.Error(), string(AgentRuntimeDockerSudoIptables))
+	})
+}
+
+func TestValidateSandboxConfigDynamicEnclaveDelegationControlPort(t *testing.T) {
+	t.Run("port leaving room for the control port passes validation", func(t *testing.T) {
+		data := dynamicEnclaveWorkflowData()
+		data.Tools = map[string]any{"github": map[string]any{"mode": "remote"}}
+		data.SandboxConfig.MCP.Port = int(constants.MaxNetworkPort) - enclaveDelegationControlPortOffset
+		require.NoError(t, validateSandboxConfig(data))
+	})
+
+	t.Run("port that overflows the derived control port fails validation", func(t *testing.T) {
+		data := dynamicEnclaveWorkflowData()
+		data.Tools = map[string]any{"github": map[string]any{"mode": "remote"}}
+		data.SandboxConfig.MCP.Port = int(constants.MaxNetworkPort) - enclaveDelegationControlPortOffset + 1
+		err := validateSandboxConfig(data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandbox.mcp.port")
+		assert.Contains(t, err.Error(), "dynamic enclave delegation control port")
+	})
+
+	t.Run("port near the max is fine without dynamic enclave delegation", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools:         map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf"}, MCP: &MCPGatewayRuntimeConfig{Port: int(constants.MaxNetworkPort) - 1}},
+		}
+		require.NoError(t, validateSandboxConfig(data))
 	})
 }
