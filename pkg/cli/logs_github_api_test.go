@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +118,73 @@ func TestBuildCreatedFilter(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestLogsWorkflowNameCandidates(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t,
+		[]string{"daily-report.lock.yml", "daily-report.yml"},
+		logsWorkflowNameCandidates("daily-report", true),
+	)
+	assert.Equal(t,
+		[]string{"daily-report.yml"},
+		logsWorkflowNameCandidates("daily-report.yml", false),
+	)
+	assert.Equal(t, []string{""}, logsWorkflowNameCandidates("", true))
+}
+
+func TestIsWorkflowResolutionError(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, isWorkflowResolutionError([]byte("could not find any workflows named daily-report.lock.yml")))
+	assert.True(t, isWorkflowResolutionError([]byte("Workflow not found")))
+	assert.True(t, isWorkflowResolutionError([]byte("workflow daily-report.lock.yml not found on the default branch")))
+	assert.False(t, isWorkflowResolutionError([]byte("HTTP 403: Resource not accessible")))
+}
+
+func TestListWorkflowRunsFallsBackToActionWorkflow(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses a shell-based fake gh executable")
+	}
+
+	binDir := t.TempDir()
+	argsFile := filepath.Join(binDir, "args")
+	fakeGH := filepath.Join(binDir, "gh")
+	script := `#!/bin/sh
+printf '%s\n' "$*" >> "$GH_AW_TEST_ARGS_FILE"
+case "$*" in
+  *daily-report.lock.yml*)
+    echo "workflow daily-report.lock.yml not found on the default branch" >&2
+    exit 1
+    ;;
+  *daily-report.yml*)
+    echo "[]"
+    exit 0
+    ;;
+esac
+exit 1
+`
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_AW_TEST_ARGS_FILE", argsFile)
+
+	runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
+		WorkflowName:             "daily-report",
+		ResolveWorkflowExtension: true,
+		Verbose:                  true,
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, runs)
+	assert.Zero(t, totalFetched)
+	args, err := os.ReadFile(argsFile)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(args)), "\n")
+	require.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "--workflow daily-report.lock.yml")
+	assert.Contains(t, lines[1], "--workflow daily-report.yml")
+	assert.NotContains(t, lines[1], "daily-report.lock.yml")
 }
 
 // TestBuildCreatedFilterStartDateAlwaysEnforced verifies that when both startDate and

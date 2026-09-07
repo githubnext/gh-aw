@@ -283,14 +283,16 @@ func resolveLogsWorkflowTarget(cmd *cobra.Command, arg string) (logsWorkflowTarg
 	repoOverride := getStringFlag(cmd, "repo")
 	if repoOverride != "" {
 		return logsWorkflowTarget{
-			workflowName: resolveLogsWorkflowNameForRepo(arg, repoOverride),
-			repoOverride: repoOverride,
+			workflowName:             resolveLogsWorkflowNameForRepo(arg, repoOverride),
+			repoOverride:             repoOverride,
+			resolveWorkflowExtension: !repoIsLocal(repoOverride) && filepath.Ext(filepath.Base(arg)) == "",
 		}, nil
 	}
 	if repo, workflowName, ok := splitCrossRepoWorkflowTarget(arg); ok {
 		return logsWorkflowTarget{
-			workflowName: normalizeWorkflowID(workflowName),
-			repoOverride: repo,
+			workflowName:             normalizeWorkflowID(workflowName),
+			repoOverride:             repo,
+			resolveWorkflowExtension: filepath.Ext(filepath.Base(workflowName)) == "",
 		}, nil
 	}
 	workflowName, err := resolveLogsWorkflowNameLocally(arg)
@@ -453,6 +455,9 @@ func resolveLogsWorkflowNameLocally(arg string) (string, error) {
 	if err == nil {
 		return resolvedName, nil
 	}
+	if resolvedName, ok := resolveLogsActionWorkflowName(arg); ok {
+		return resolvedName, nil
+	}
 	suggestions := []string{
 		fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 		"Check for typos in the workflow name",
@@ -465,6 +470,23 @@ func resolveLogsWorkflowNameLocally(arg string) (string, error) {
 		fmt.Sprintf("workflow '%s' not found", arg),
 		suggestions,
 	))
+}
+
+func resolveLogsActionWorkflowName(arg string) (string, bool) {
+	if filepath.Ext(filepath.Base(arg)) != "" {
+		return "", false
+	}
+	workflowID := normalizeWorkflowID(arg)
+	for _, suffix := range []string{".lock.yml", ".yml"} {
+		content, err := os.ReadFile(filepath.Join(constants.GetWorkflowDir(), workflowID+suffix))
+		if err != nil {
+			continue
+		}
+		if name := extractWorkflowNameFromYAML(content); name != "" {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {

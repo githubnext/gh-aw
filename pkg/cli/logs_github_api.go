@@ -225,17 +225,18 @@ func fetchJobStatuses(ctx context.Context, runID int64, verbose bool) (int, erro
 
 // ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination
 type ListWorkflowRunsOptions struct {
-	Context      context.Context
-	WorkflowName string // filter by specific workflow (if empty, fetches all agentic workflows)
-	Status       string // filter by run status/conclusion (for example: completed, success, failure)
-	Limit        int    // maximum number of runs to fetch in this API call (batch size)
-	StartDate    string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
-	EndDate      string // filter by creation date (<=); combined with StartDate into a single --created range
-	BeforeDate   string // exclusive upper bound used for pagination (<); combined with StartDate into a single --created range
-	Ref          string // filter by branch or tag name
-	BeforeRunID  int64  // filter by run database ID (< this ID)
-	AfterRunID   int64  // filter by run database ID (> this ID)
-	RepoOverride string // fetch from a specific repository instead of current
+	Context                  context.Context
+	WorkflowName             string // filter by specific workflow (if empty, fetches all agentic workflows)
+	ResolveWorkflowExtension bool   // try .lock.yml, then .yml, for an extensionless workflow target
+	Status                   string // filter by run status/conclusion (for example: completed, success, failure)
+	Limit                    int    // maximum number of runs to fetch in this API call (batch size)
+	StartDate                string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
+	EndDate                  string // filter by creation date (<=); combined with StartDate into a single --created range
+	BeforeDate               string // exclusive upper bound used for pagination (<); combined with StartDate into a single --created range
+	Ref                      string // filter by branch or tag name
+	BeforeRunID              int64  // filter by run database ID (< this ID)
+	AfterRunID               int64  // filter by run database ID (> this ID)
+	RepoOverride             string // fetch from a specific repository instead of current
 	// OldestFetchedCreatedAt, when set, is populated with the oldest run creation
 	// timestamp returned by GitHub in this batch before any workflow/conclusion filtering.
 	OldestFetchedCreatedAt *time.Time
@@ -266,9 +267,6 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
-	if opts.WorkflowName != "" {
-		args = append(args, "--workflow", opts.WorkflowName)
-	}
 	if opts.Status != "" {
 		args = append(args, "--status", opts.Status)
 	}
@@ -292,10 +290,6 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		args = append(args, "--repo", opts.RepoOverride)
 	}
 
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
-	}
-
 	// Start spinner for network operation
 	spinnerMsg := workflowRunsSpinnerMessage(opts)
 	spinner := console.NewSpinner(spinnerMsg)
@@ -307,8 +301,26 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	if cmdCtx == nil {
 		cmdCtx = context.Background()
 	}
-	cmd := workflow.ExecGHContext(cmdCtx, args...)
-	output, err := cmd.CombinedOutput()
+	workflowNames := logsWorkflowNameCandidates(opts.WorkflowName, opts.ResolveWorkflowExtension)
+	var output []byte
+	var err error
+	var executedArgs []string
+	for index, workflowName := range workflowNames {
+		attemptArgs := slices.Clone(args)
+		if workflowName != "" {
+			attemptArgs = append(attemptArgs, "--workflow", workflowName)
+		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(attemptArgs, " ")))
+		}
+		cmd := workflow.ExecGHContext(cmdCtx, attemptArgs...)
+		output, err = cmd.CombinedOutput()
+		executedArgs = attemptArgs
+		if err == nil || index == len(workflowNames)-1 || !isWorkflowResolutionError(output) {
+			break
+		}
+		logsGitHubAPILog.Printf("Workflow target %q was not found; trying %q", workflowName, workflowNames[index+1])
+	}
 
 	if err != nil {
 		// Stop spinner on error
@@ -321,10 +333,10 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
-			logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
+			logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, executedArgs)
 			logsGitHubAPILog.Printf("combined output: %s", string(output))
 		} else {
-			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
+			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, executedArgs)
 		}
 
 		// When exec.CommandContext cancels the subprocess it returns an *exec.ExitError
@@ -451,6 +463,20 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	return agenticRuns, totalFetched, nil
+}
+
+func logsWorkflowNameCandidates(workflowName string, resolveExtension bool) []string {
+	if workflowName == "" || !resolveExtension {
+		return []string{workflowName}
+	}
+	return []string{workflowName + ".lock.yml", workflowName + ".yml"}
+}
+
+func isWorkflowResolutionError(output []byte) bool {
+	lowerOutput := strings.ToLower(string(output))
+	return strings.Contains(lowerOutput, "could not find any workflows named") ||
+		strings.Contains(lowerOutput, "workflow not found") ||
+		strings.Contains(lowerOutput, "not found on the default branch")
 }
 
 func workflowRunsSpinnerMessage(opts ListWorkflowRunsOptions) string {

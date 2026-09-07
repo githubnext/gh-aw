@@ -14,8 +14,9 @@ import (
 )
 
 type logsWorkflowTarget struct {
-	workflowName string
-	repoOverride string
+	workflowName             string
+	repoOverride             string
+	resolveWorkflowExtension bool
 }
 
 type logsTargetResult struct {
@@ -140,6 +141,7 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 			targetOpts := opts
 			targetOpts.WorkflowName = target.workflowName
 			targetOpts.RepoOverride = target.repoOverride
+			targetOpts.resolveWorkflowExtension = target.resolveWorkflowExtension
 			targetOpts.OutputDir = logsTargetOutputDir(opts.OutputDir, target)
 			targetOpts.SummaryFile = ""
 			targetOpts.Train = false

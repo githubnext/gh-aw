@@ -388,20 +388,21 @@ func fetchWorkflowRunBatch(ctx context.Context, opts LogsDownloadOptions, before
 	batchSize := computeLogsBatchSize(opts.WorkflowName, opts.Count, processedCount, fetchAllInRange)
 	var oldestFetchedCreatedAt time.Time
 	runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
-		Context:                ctx,
-		WorkflowName:           opts.WorkflowName,
-		Limit:                  batchSize,
-		StartDate:              opts.StartDate,
-		EndDate:                opts.EndDate,
-		BeforeDate:             beforeDate,
-		Ref:                    opts.Ref,
-		BeforeRunID:            opts.BeforeRunID,
-		AfterRunID:             opts.AfterRunID,
-		RepoOverride:           opts.RepoOverride,
-		OldestFetchedCreatedAt: &oldestFetchedCreatedAt,
-		ProcessedCount:         processedCount,
-		TargetCount:            opts.Count,
-		Verbose:                opts.Verbose,
+		Context:                  ctx,
+		WorkflowName:             opts.WorkflowName,
+		ResolveWorkflowExtension: opts.resolveWorkflowExtension,
+		Limit:                    batchSize,
+		StartDate:                opts.StartDate,
+		EndDate:                  opts.EndDate,
+		BeforeDate:               beforeDate,
+		Ref:                      opts.Ref,
+		BeforeRunID:              opts.BeforeRunID,
+		AfterRunID:               opts.AfterRunID,
+		RepoOverride:             opts.RepoOverride,
+		OldestFetchedCreatedAt:   &oldestFetchedCreatedAt,
+		ProcessedCount:           processedCount,
+		TargetCount:              opts.Count,
+		Verbose:                  opts.Verbose,
 	})
 	return workflowRunBatch{runs: runs, totalFetched: totalFetched, batchSize: batchSize, oldestFetchedCreatedAt: oldestFetchedCreatedAt}, err
 }

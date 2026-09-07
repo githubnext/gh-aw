@@ -50,10 +50,11 @@ type LogsDownloadOptions struct {
 	SuppressRender bool
 	// Internal orchestration flags used when several workflow targets share one
 	// command invocation.
-	skipEnsureGitignore    bool
-	rateLimitFirstRequest  bool
-	maxConcurrentDownloads int
-	storageLimit           *logsStorageLimit
+	skipEnsureGitignore      bool
+	rateLimitFirstRequest    bool
+	maxConcurrentDownloads   int
+	storageLimit             *logsStorageLimit
+	resolveWorkflowExtension bool
 }
 
 type workflowLogsResult struct {

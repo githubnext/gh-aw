@@ -472,6 +472,67 @@ func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
 		"--repo should bypass local workflow name resolution and not produce a local-not-found error")
 }
 
+func TestResolveLogsWorkflowTargetResolvesExtensionlessRemoteActions(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("repo", "other-org/other-repo"))
+
+	target, err := resolveLogsWorkflowTarget(cmd, "daily-report")
+
+	require.NoError(t, err)
+	assert.Equal(t, "daily-report", target.workflowName)
+	assert.True(t, target.resolveWorkflowExtension)
+}
+
+func TestResolveLogsWorkflowTargetPreservesExplicitRemoteAction(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("repo", "other-org/other-repo"))
+
+	target, err := resolveLogsWorkflowTarget(cmd, "daily-report.yml")
+
+	require.NoError(t, err)
+	assert.Equal(t, "daily-report.yml", target.workflowName)
+	assert.False(t, target.resolveWorkflowExtension)
+}
+
+func TestResolveLogsWorkflowNameLocallyFallsBackToActionWorkflow(t *testing.T) {
+	workflowsDir := t.TempDir()
+	t.Setenv("GH_AW_WORKFLOWS_DIR", workflowsDir)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workflowsDir, "daily-report.yml"),
+		[]byte("name: Daily Report Action\non: push\n"),
+		0644,
+	))
+
+	resolved, err := resolveLogsWorkflowNameLocally("daily-report")
+
+	require.NoError(t, err)
+	assert.Equal(t, "Daily Report Action", resolved)
+}
+
+func TestResolveLogsActionWorkflowNamePrefersLockFile(t *testing.T) {
+	workflowsDir := t.TempDir()
+	t.Setenv("GH_AW_WORKFLOWS_DIR", workflowsDir)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workflowsDir, "daily-report.lock.yml"),
+		[]byte("name: Compiled Daily Report\non: push\n"),
+		0644,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workflowsDir, "daily-report.yml"),
+		[]byte("name: Daily Report Action\non: push\n"),
+		0644,
+	))
+
+	resolved, ok := resolveLogsActionWorkflowName("daily-report")
+
+	assert.True(t, ok)
+	assert.Equal(t, "Compiled Daily Report", resolved)
+}
+
 // TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists verifies that when
 // --repo is set to the current repository (the common MCP server case where
 // GITHUB_REPOSITORY is the current repo), FindWorkflowName is still called to
