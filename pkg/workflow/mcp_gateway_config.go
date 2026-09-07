@@ -217,7 +217,11 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub && githubTool != false {
 			primaryGitHubEnabled = !isGitHubCLIModeEnabled(workflowData)
 		}
-		if !primaryGitHubEnabled && !enclaveDynamicRepositoryPolicyEnabled(workflowData) {
+		// Dynamic repository delegation keeps the GitHub backend registered so
+		// mcpg-issued delegated identities can reach it, but the primary agent
+		// identity must not gain GitHub MCP access merely because a dynamic
+		// enclave is configured; it requires a separate top-level tools.github.
+		if !primaryGitHubEnabled {
 			for i, server := range primaryServers {
 				if server == "github" {
 					primaryServers = append(primaryServers[:i], primaryServers[i+1:]...)
@@ -241,18 +245,11 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 				Tools:   map[string][]string{"github": collectGitHubMCPManifestTools(workflowData.Tools["github"])},
 			}
 		}
-		if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
-			config.DelegationControllers = map[string]MCPGatewayDelegationController{
-				enclaveDynamicController: {
-					Server: "github",
-					Policy: map[string]any{
-						"version": enclaveDynamicGitHubPolicy,
-						"tools":   enclaveAgentGitHubDefaultTools,
-					},
-					ControlCapability: "${" + enclaveGitHubDelegationEnv + "}",
-				},
-			}
-		}
+		// Dynamic repository delegation is bootstrapped entirely through the five
+		// MCP_GATEWAY_DELEGATION_* environment variables set up in
+		// generateMCPGatewaySetup and forwarded via appendMCPGatewayConditionalEnvFlags.
+		// The gateway's strict-stdin config schema does not accept a
+		// "delegationControllers" field, so no value is emitted here.
 	}
 	return config
 }

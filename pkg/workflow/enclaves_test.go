@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -360,17 +361,84 @@ func TestBuildAWFConfigJSONDynamicEnclavePolicy(t *testing.T) {
 }
 
 func TestValidateDynamicEnclavePolicyBoundsExpiryAndCPU(t *testing.T) {
+	// expires-at is a checked-in upper bound; it must remain valid even after
+	// it has grown "stale" relative to compile time, since the runtime/job-
+	// relative expiry contract (not compile-time comparison) clamps the
+	// effective envelope expiry at workflow setup time.
 	data := dynamicEnclaveWorkflowData()
 	data.Enclaves[0].Dynamic.ExpiresAt = "2999-01-01T00:00:00Z"
+	require.NoError(t, validateEnclavesConfig(data))
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Dynamic.ExpiresAt = "not-a-timestamp"
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must not exceed the enclave job lifetime")
+	assert.Contains(t, err.Error(), "must be an absolute RFC3339 timestamp")
 
 	data = dynamicEnclaveWorkflowData()
 	data.Enclaves[0].CPULimit = "0"
 	err = validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cpu-limit must be a positive finite value")
+}
+
+func TestBuildDynamicEnclaveExpiryScriptResolvesMinOfConfiguredAndJobExpiry(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+
+	newEnclave := func(expiresAt string, timeoutSeconds int) *EnclaveConfig {
+		return &EnclaveConfig{
+			Timeout: timeoutSeconds,
+			Dynamic: &DynamicEnclavePolicy{ExpiresAt: expiresAt},
+		}
+	}
+
+	runScript := func(t *testing.T, enclave *EnclaveConfig) string {
+		t.Helper()
+		script, err := buildDynamicEnclaveExpiryScript(enclave)
+		require.NoError(t, err)
+		cmd := exec.Command("bash", "-c", "set -eo pipefail\n"+script+"echo \"$MCP_GATEWAY_DELEGATION_EXPIRES_AT\"\n")
+		output, err := cmd.Output()
+		require.NoError(t, err)
+		return strings.TrimSpace(string(output))
+	}
+
+	t.Run("configured expires-at earlier than job expiry wins", func(t *testing.T) {
+		configured := time.Now().UTC().Add(30 * time.Second).Truncate(time.Second)
+		enclave := newEnclave(configured.Format(time.RFC3339), 4800)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, configured, got, time.Second)
+	})
+
+	t.Run("job-relative expiry wins when configured expires-at is far in the future", func(t *testing.T) {
+		enclave := newEnclave("2999-01-01T00:00:00Z", 30)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().UTC().Add(30*time.Second), got, 5*time.Second)
+	})
+
+	t.Run("non-UTC offset and fractional-second expires-at is canonicalized before the BSD date fallback", func(t *testing.T) {
+		// validateEnclavesConfig accepts any RFC3339 timestamp, including a
+		// non-UTC offset and fractional seconds, but the BSD date fallback below
+		// only parses the exact whole-second UTC "...Z" form. buildDynamicEnclaveExpiryScript
+		// must canonicalize the value before embedding it so this still resolves
+		// correctly, matching GNU date's behavior for the same input.
+		configured := time.Now().UTC().Add(30 * time.Second).Truncate(time.Second)
+		zoned := configured.In(time.FixedZone("", 3600)) // +01:00, with fractional seconds
+		enclave := newEnclave(zoned.Format("2006-01-02T15:04:05.000-07:00"), 4800)
+		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
+		require.NoError(t, err)
+		assert.WithinDuration(t, configured, got, time.Second)
+	})
+
+	t.Run("non-RFC3339 expires-at (bypassing compile-time validation) surfaces an internal error", func(t *testing.T) {
+		enclave := newEnclave("not-a-timestamp", 30)
+		_, err := buildDynamicEnclaveExpiryScript(enclave)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "internal error")
+	})
 }
 
 func TestValidateEnclaveGitHubIssuesRepositoryLimit(t *testing.T) {
@@ -542,9 +610,9 @@ func TestValidateDynamicEnclavePolicy(t *testing.T) {
 		{
 			name: "rejects old mcpg version",
 			mutate: func(data *WorkflowData) {
-				data.SandboxConfig.MCP.Version = "v0.4.15"
+				data.SandboxConfig.MCP.Version = "v0.4.16"
 			},
-			errContains: "requires MCPG v0.4.16 or newer",
+			errContains: "requires MCPG v0.4.17 or newer",
 		},
 	}
 
@@ -566,30 +634,48 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	require.NotNil(t, gateway)
 	assert.Equal(t, []string{"${MCP_GATEWAY_AGENT_ID}"}, gateway.AgentIDs)
 	assert.NotContains(t, gateway.AgentPolicies, "${AWF_ENCLAVE_GITHUB_MCP_AGENT_ID}")
-	controller := gateway.DelegationControllers[enclaveDynamicController]
-	assert.Equal(t, "github", controller.Server)
-	assert.Equal(t, map[string]any{
-		"version": enclaveDynamicGitHubPolicy,
-		"tools":   []string{"list_issues", "issue_read"},
-	}, controller.Policy)
-	assert.Equal(t, "${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}", controller.ControlCapability)
 
 	var output strings.Builder
 	require.NoError(t, generateMCPGatewaySetup(
 		&output, data.Tools, []string{enclaveMCPServerName}, NewCopilotEngine(), data, false, nil,
 	))
 	generated := output.String()
-	assert.Contains(t, generated, `"delegationControllers": {"github-repository-delegation-v1"`)
-	assert.Contains(t, generated, `"version":"github-repository-read-v1"`)
-	assert.Contains(t, generated, `"tools":["list_issues","issue_read"]`)
+	// The gateway's strict-stdin config schema does not accept a
+	// "delegationControllers" field; the compiler must not emit one.
+	assert.NotContains(t, generated, `"delegationControllers"`)
+	// The five required settings are bootstrapped as one atomic configuration.
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_KEY="${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_STATE_PATH="`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_GENERATION="${GITHUB_RUN_ATTEMPT}"`)
+	// This workflow runs under bridge-mode network isolation (MCP_GATEWAY_DOMAIN
+	// resolves to "awmg-mcpg"), so the in-container listener binds to 0.0.0.0
+	// (bridge-reachable) while the host-side -p publish below stays on 127.0.0.1.
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN="0.0.0.0:8090"`)
+	assert.Contains(t, generated, `export MCP_GATEWAY_DELEGATION_ENVELOPE=`)
+	// Envelope field names and shape match mcpg's delegation.Envelope wire contract
+	// exactly (snake_case, DisallowUnknownFields); see buildMCPGatewayDelegationEnvelope.
+	assert.Contains(t, generated, `\"run_id\":\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\"`)
+	assert.Contains(t, generated, `\"enclave_backend\":\"github\"`)
+	assert.Contains(t, generated, `\"tool_policy\":\"github-repository-read-v1\"`)
+	assert.Contains(t, generated, `\"max_dynamic_schema_hashes\":4`)
+	assert.Contains(t, generated, `\"expires_at\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
+	assert.NotContains(t, generated, `\"version\":\"github-repository-read-v1\"`)
+	assert.NotContains(t, generated, `\"tools\":[`)
+	assert.NotContains(t, generated, `\"generation\":`)
+	assert.NotContains(t, generated, `\"auditLabels\":`)
+	// The private control endpoint is distinct from the executor-facing data plane
+	// and targets the pinned mcpg build's actual control API base path.
+	assert.Contains(t, generated, `export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT="http://127.0.0.1:8090/internal/awf-enclave-mcp-control/github-repository-delegation-v1"`)
 	assert.Contains(t, generated, `AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY=$(openssl rand -hex 32)`)
 	assert.Contains(t, generated, `::add-mask::${AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY}`)
 	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_CAPABILITY"`)
+	assert.Contains(t, generated, `printf '%s=%s\n' AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT "$AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT"`)
 	assert.NotContains(t, generated, `AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand`)
 
 	excluded := ComputeAWFExcludeEnvVarNames(data, nil)
 	assert.Contains(t, excluded, enclaveGitHubDelegationEnv)
 	assert.Contains(t, excluded, enclaveMCPCapabilityEnv)
+	assert.Contains(t, excluded, enclaveGitHubDelegationControlEndpointEnv)
 }
 
 func TestGenerateEnclaveGatewayContract(t *testing.T) {
