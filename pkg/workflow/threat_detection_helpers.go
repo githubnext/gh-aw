@@ -185,6 +185,7 @@ func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *E
 		return &EngineConfig{
 			ID:                       engineID,
 			Version:                  data.EngineConfig.Version,
+			Command:                  data.EngineConfig.Command,
 			LLMProvider:              data.EngineConfig.LLMProvider,
 			Config:                   data.EngineConfig.Config,
 			Args:                     data.EngineConfig.Args,
