@@ -603,9 +603,9 @@ func TestValidateDynamicEnclavePolicy(t *testing.T) {
 		{
 			name: "rejects old awf version",
 			mutate: func(data *WorkflowData) {
-				data.NetworkPermissions.Firewall.Version = "v0.28.14"
+				data.NetworkPermissions.Firewall.Version = "v0.28.13"
 			},
-			errContains: "requires AWF v0.28.15 or newer",
+			errContains: "requires AWF v0.28.14 or newer",
 		},
 		{
 			name: "rejects old mcpg version",

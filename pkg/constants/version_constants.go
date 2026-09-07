@@ -64,7 +64,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.11.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.13"
+const DefaultFirewallVersion Version = "v0.28.14"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -171,11 +171,9 @@ const AWFEnclaveTrustedSensitivityMinVersion Version = "v0.28.14"
 // repository admission TTLs to MCPG's github-repository-delegation-v1
 // controller as seconds.
 //
-// This value is intentionally kept above DefaultFirewallVersion (provisional,
-// fail-closed) until the seconds-contract AWF implementation tracked by
-// gh-aw-firewall#8292 ships. Once that release is available, update
-// DefaultFirewallVersion accordingly.
-const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.15"
+// v0.28.14 includes the seconds-contract AWF implementation tracked by
+// gh-aw-firewall#8292.
+const AWFDynamicRepositoryEnclaveMinVersion Version = "v0.28.14"
 
 // AWFAPIProxyCACertMinVersion is the minimum AWF version that supports
 // apiProxy.caCert in awf-config.json (mapped from frontmatter
@@ -212,7 +210,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.17"
+const DefaultMCPGatewayVersion Version = "v0.4.18"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
