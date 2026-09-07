@@ -526,17 +526,28 @@ func appendProcessedWorkflowRuns(
 			storageLimitReached = true
 		}
 		if shouldSkipProcessedWorkflowRun(result, opts.verbose) || applyRunFilters(activeCtx, result, opts.filters, opts.verbose) {
+			finalizeLogsRunDownload(opts.storageLimit, result)
 			continue
 		}
 		processedRun := buildProcessedRun(activeCtx, result, opts.verbose, true)
 		parseWorkflowRunArtifacts(result, processedRun, opts.parse, opts.verbose)
+		finalizeLogsRunDownload(opts.storageLimit, result)
+		if len(processedRuns) >= opts.count {
+			continue
+		}
 		processedRuns = append(processedRuns, processedRun)
 		batchProcessed++
-		if len(processedRuns) >= opts.count {
-			break
-		}
 	}
 	return processedRuns, batchProcessed, storageLimitReached
+}
+
+func finalizeLogsRunDownload(storageLimit *logsStorageLimit, result DownloadResult) {
+	if storageLimit == nil || result.Cached {
+		return
+	}
+	if err := storageLimit.finalizeDownload(result.LogsPath); err != nil {
+		logsOrchestratorLog.Printf("Failed to finalize cache pruning for run %d: %v", result.Run.DatabaseID, err)
+	}
 }
 
 func shouldSkipProcessedWorkflowRun(result DownloadResult, verbose bool) bool {

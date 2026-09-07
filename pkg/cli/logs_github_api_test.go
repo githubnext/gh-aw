@@ -313,6 +313,26 @@ func TestFetchJobDetailsWithCountsSkipsMalformedJobs(t *testing.T) {
 	assert.Equal(t, 1, failedJobs)
 }
 
+func TestFetchJobDetailsWithCountsSkipsMalformedPages(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	fakeGHScript := "#!/bin/sh\n" +
+		"cat <<'EOF'\n" +
+		"[{\"total_count\":1,\"jobs\":[{\"name\":\"first\",\"status\":\"completed\",\"conclusion\":\"success\"}]},{\"total_count\":1,\"jobs\":\"malformed\"},{\"total_count\":1,\"jobs\":[{\"name\":\"last\",\"status\":\"completed\",\"conclusion\":\"failure\"}]}]\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, "", false)
+
+	require.NoError(t, err)
+	require.Len(t, jobs, 2)
+	assert.Equal(t, "first", jobs[0].Name)
+	assert.Equal(t, "last", jobs[1].Name)
+	assert.Equal(t, 1, failedJobs)
+}
+
 // TestFetchJobDetailsWithCountsNullConclusion verifies that jobs and steps with null conclusions
 // (e.g. in-progress or queued jobs) are still parsed and not silently dropped. The jq projection
 // uses (.conclusion // "") to coerce null to empty string before JSON decoding.

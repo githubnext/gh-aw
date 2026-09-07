@@ -94,36 +94,9 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 		return nil, 0, err
 	}
 
-	var responses []struct {
-		Jobs []json.RawMessage `json:"jobs"`
-	}
-	if err := json.Unmarshal(output, &responses); err != nil {
-		return nil, 0, fmt.Errorf("failed to parse jobs API response: %w", err)
-	}
-
-	jobs := []JobInfoWithDuration{}
-	failedJobs := 0
-	for _, response := range responses {
-		for _, rawJob := range response.Jobs {
-			var job JobInfo
-			if err := json.Unmarshal(rawJob, &job); err != nil {
-				logsGitHubAPILog.Printf("Skipping malformed job in run %d: %v", runID, err)
-				continue
-			}
-			jobWithDuration := JobInfoWithDuration{JobInfo: job}
-			if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
-				jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
-			}
-			jobs = append(jobs, jobWithDuration)
-
-			if isFailureConclusion(job.Conclusion) {
-				failedJobs++
-				logsGitHubAPILog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
-				}
-			}
-		}
+	jobs, failedJobs, err := parseJobsAPIResponses(output, runID, verbose)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	if outputDir != "" {
@@ -135,6 +108,45 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir strin
 	}
 
 	logsGitHubAPILog.Printf("Job fetch complete: total=%d failed=%d", len(jobs), failedJobs)
+	return jobs, failedJobs, nil
+}
+
+func parseJobsAPIResponses(output []byte, runID int64, verbose bool) ([]JobInfoWithDuration, int, error) {
+	var rawResponses []json.RawMessage
+	if err := json.Unmarshal(output, &rawResponses); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse jobs API response: %w", err)
+	}
+
+	jobs := []JobInfoWithDuration{}
+	failedJobs := 0
+	for _, rawResponse := range rawResponses {
+		var response struct {
+			Jobs []json.RawMessage `json:"jobs"`
+		}
+		if err := json.Unmarshal(rawResponse, &response); err != nil {
+			logsGitHubAPILog.Printf("Skipping malformed jobs API page for run %d: %v", runID, err)
+			continue
+		}
+		for _, rawJob := range response.Jobs {
+			var job JobInfo
+			if err := json.Unmarshal(rawJob, &job); err != nil {
+				logsGitHubAPILog.Printf("Skipping malformed job in run %d: %v", runID, err)
+				continue
+			}
+			jobWithDuration := JobInfoWithDuration{JobInfo: job}
+			if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
+				jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
+			}
+			jobs = append(jobs, jobWithDuration)
+			if isFailureConclusion(job.Conclusion) {
+				failedJobs++
+				logsGitHubAPILog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
+				}
+			}
+		}
+	}
 	return jobs, failedJobs, nil
 }
 
