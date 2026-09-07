@@ -63,9 +63,7 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
 	if opts.audit {
-		if err := writeLogsAuditFiles(processedRuns, opts.verbose); err != nil {
-			return LogsData{}, fmt.Errorf("failed to write audit files: %w", err)
-		}
+		writeLogsAuditFiles(processedRuns, opts.verbose)
 	}
 
 	// Build structured logs data

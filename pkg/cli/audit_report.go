@@ -27,6 +27,7 @@ var auditReportLog = logger.New("cli:audit_report")
 
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
+	CacheSource             auditCacheSource         `json:"cache_source,omitempty"`
 	Overview                OverviewData             `json:"overview"`
 	Comparison              *AuditComparisonData     `json:"comparison,omitempty"`
 	TaskDomain              *TaskDomainInfo          `json:"task_domain,omitempty"`
