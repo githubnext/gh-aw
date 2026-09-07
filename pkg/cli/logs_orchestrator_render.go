@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"golang.org/x/sync/errgroup"
 )
 
 // renderLogsOutput finalizes processedRuns and renders them in the appropriate output
@@ -62,6 +63,11 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 		processedRuns[i].Run.MissingDataCount = len(processedRuns[i].MissingData)
 		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
+	if opts.audit {
+		if err := writeLogsAuditsAndTrain(processedRuns, opts); err != nil {
+			return LogsData{}, fmt.Errorf("audit log pattern training: %w", err)
+		}
+	}
 
 	// Build structured logs data
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
@@ -102,14 +108,26 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 		}
 	}
 
-	// Train drain3 weights if requested.
-	if opts.train {
+	// Train drain3 weights if requested, or inline with audit generation.
+	if opts.train && !opts.audit {
 		if err := TrainDrain3Weights(processedRuns, opts.outputDir, opts.verbose); err != nil {
 			return logsData, fmt.Errorf("log pattern training: %w", err)
 		}
 	}
 
 	return logsData, nil
+}
+
+func writeLogsAuditsAndTrain(processedRuns []ProcessedRun, opts renderLogsOutputOptions) error {
+	var group errgroup.Group
+	group.Go(func() error {
+		writeLogsAuditFiles(processedRuns, opts.verbose)
+		return nil
+	})
+	group.Go(func() error {
+		return TrainDrain3Weights(processedRuns, opts.outputDir, opts.verbose)
+	})
+	return group.Wait()
 }
 
 func renderLogsOutputTSV(logsData LogsData, verbose bool) error {
