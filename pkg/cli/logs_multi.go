@@ -76,6 +76,7 @@ func DownloadWorkflowLogsForTargets(
 		jsonOutput:        opts.JSONOutput,
 		toolGraph:         opts.ToolGraph,
 		train:             opts.Train,
+		audit:             opts.Audit,
 		verbose:           opts.Verbose,
 		artifactFilter:    artifactFilter,
 		startDate:         opts.StartDate,

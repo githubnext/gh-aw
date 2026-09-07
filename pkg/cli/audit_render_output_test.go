@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -19,6 +20,24 @@ func TestRenderAuditOutputConsole(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, output, "Test Workflow")
+}
+
+func TestRenderAuditReportReusesCompleteCache(t *testing.T) {
+	runDir := t.TempDir()
+	run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success", LogsPath: runDir}
+	require.NoError(t, writeAuditData(runDir, AuditData{
+		CacheSource: auditCacheSourceFull,
+		Overview:    buildAuditOverview(run, nil),
+		KeyFindings: []AuditFinding{{Title: "cache marker"}},
+	}))
+
+	stdout, _ := captureOutput(t, func() error {
+		return renderAuditReport(context.Background(), ProcessedRun{Run: run}, LogMetrics{}, nil, AuditOptions{
+			OutputDir:  runDir,
+			JSONOutput: true,
+		})
+	})
+	assert.Contains(t, stdout, "cache marker")
 }
 
 func TestRenderConsoleTokenUsageWarnings(t *testing.T) {
