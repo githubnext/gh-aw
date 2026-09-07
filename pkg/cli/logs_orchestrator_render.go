@@ -62,6 +62,11 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 		processedRuns[i].Run.MissingDataCount = len(processedRuns[i].MissingData)
 		processedRuns[i].Run.NoopCount = len(processedRuns[i].Noops)
 	}
+	if opts.audit {
+		if err := writeLogsAuditFiles(processedRuns, opts.verbose); err != nil {
+			return LogsData{}, fmt.Errorf("failed to write audit files: %w", err)
+		}
+	}
 
 	// Build structured logs data
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)

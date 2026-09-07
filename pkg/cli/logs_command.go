@@ -86,6 +86,7 @@ const logsCommandExampleTemplate = `  # Basic usage
   %[1]s logs -o ./my-logs              # Custom output directory
   %[1]s logs --tool-graph              # Generate Mermaid tool sequence graph
   %[1]s logs --parse                   # Parse logs and generate Markdown reports
+  %[1]s logs --audit                   # Generate audit.json for each downloaded run
   %[1]s logs -v                        # Verbose compact output (extra columns + sections)
   %[1]s logs --json                    # JSON format (compact by default, use -v for full)
   %[1]s logs --json -v                 # Full JSON with audit metadata
@@ -233,6 +234,7 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 		FilteredIntegrity: values.FilteredIntegrity,
 		EvalsOnly:         values.EvalsOnly,
 		GradersOnly:       values.GradersOnly,
+		Audit:             values.Audit,
 		Train:             values.Train,
 		Format:            values.Format,
 		ReportFile:        values.ReportFile,
@@ -356,6 +358,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		FilteredIntegrity:     getBoolFlag(cmd, "filtered-integrity"),
 		EvalsOnly:             getBoolFlag(cmd, "evals"),
 		GradersOnly:           getBoolFlag(cmd, "graders"),
+		Audit:                 getBoolFlag(cmd, "audit"),
 		Train:                 getBoolFlag(cmd, "train"),
 		Format:                getStringFlag(cmd, "format"),
 		ReportFile:            getStringFlag(cmd, "report-file"),
@@ -487,6 +490,7 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the usage artifact (which contains evals)")
 	logsCmd.Flags().Bool("graders", false, "Filter to runs containing deterministic grader results; automatically includes grader artifacts")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	logsCmd.Flags().Bool("audit", false, "Generate audit.json in each workflow run cache directory")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")
 	logsCmd.Flags().Int("timeout-seconds", 0, "Download timeout in seconds (0 = use --timeout)")

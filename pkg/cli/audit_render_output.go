@@ -20,7 +20,13 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	runID := processedRun.Run.DatabaseID
 	runOutputDir := opts.OutputDir
 	processedRun.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
-	auditData := buildRenderedAuditData(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
+	auditData, ok := loadCachedAuditData(runOutputDir, processedRun.Run)
+	if !ok {
+		auditData = buildRenderedAuditData(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
+		if err := writeAuditData(runOutputDir, auditData); err != nil {
+			return err
+		}
+	}
 	if err := renderAuditOutput(auditData, runOutputDir, opts.JSONOutput, opts.Verbose); err != nil {
 		return err
 	}

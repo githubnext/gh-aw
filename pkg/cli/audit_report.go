@@ -273,6 +273,14 @@ type OverviewDisplay struct {
 
 // buildAuditData creates structured audit data from workflow run information
 func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
+	auditData, createdItems := buildLocalAuditData(processedRun, metrics, mcpToolUsage)
+	addAuditOutcomeSummary(ctx, &auditData, createdItems)
+	return auditData
+}
+
+// buildLocalAuditData creates an audit exclusively from downloaded run data.
+// Callers such as logs --audit use this path to avoid additional GitHub API calls.
+func buildLocalAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) (AuditData, []CreatedItemReport) {
 	run := processedRun.Run
 	auditReportLog.Printf("Building audit data for run ID %d", run.DatabaseID)
 	expData := extractExperimentData(run.LogsPath)
@@ -305,8 +313,7 @@ func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogM
 		recommendations:       recommendations,
 		observabilityInsights: observabilityInsights,
 	})
-	addAuditOutcomeSummary(ctx, &auditData, createdItems)
-	return auditData
+	return auditData, createdItems
 }
 
 func buildAuditOverview(run WorkflowRun, expData *ExperimentData) OverviewData {
