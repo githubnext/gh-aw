@@ -540,10 +540,11 @@ func applyRunUsageMetrics(result *DownloadResult, metrics *LogMetrics, runOutput
 // RunSummary struct, and writes it to disk.  It also sets the agentic-analysis fields on
 // result directly so they are available to the caller.
 func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
-	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, verbose)
+	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, runOutputDir, verbose)
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
-	} else {
+	}
+	if jobDetails != nil {
 		result.JobDetails = jobDetails
 	}
 

@@ -105,6 +105,7 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	}
 	if enclavesEnabled(workflowData) {
 		addUnique("MCP_GATEWAY_API_KEY")
+		addUnique(enclaveGitHubDelegationEnv)
 	}
 
 	// GitHub MCP server token is always a secret when the GitHub tool is present.
@@ -168,6 +169,9 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	}
 	if enclaveGitHubIssuesEnabled(workflowData) {
 		addUnique(enclaveGitHubMCPAgentIDEnv)
+	}
+	if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
+		addUnique(enclaveGitHubDelegationControlEndpointEnv)
 	}
 
 	// Explicitly excluded env vars from the frontmatter excluded-env field.

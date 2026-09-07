@@ -9,7 +9,7 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 ## What it is
 
 - The top-level `enclaves:` array (1-2 entries) enables finite-disclosure access to approved private repositories through the compiler-launched MCP gateway.
-- Each entry is either a **script enclave** (`script:` + `repos:`) registering `enclave_run_script`, or an **agent enclave** (`agent:` + `repos:`) registering `enclave_run_agent`.
+- Each entry is either a **script enclave** (`script:` + `repos:`) registering `enclave_run_script`, or an **agent enclave** (`agent:` + static `repos:` or dynamic `dynamic:`) registering `enclave_run_agent`.
 - Omit `enclaves:` entirely to disable the feature — this is the default.
 - This is a preview feature gated on `github/gh-aw-firewall#6992`; an older pinned AWF version will not provide the enclave server.
 
@@ -54,7 +54,7 @@ Prefer this configuration shape for new workflows:
 ```yaml
 sandbox:
   mcp:
-    version: v0.4.15
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5
@@ -74,6 +74,50 @@ enclaves:
 - Unsupported tools and out-of-scope repositories fail closed at compile time.
 - GraphQL, search, writes, and all other GitHub tools remain denied.
 - Minimum versions are AWF `v0.28.9` and mcpg `v0.4.15`; trusted repositories additionally require AWF `v0.28.14`.
+
+## Dynamic agent repository policies
+
+Use `dynamic:` on agent entries when the primary agent should select one admitted repository at invocation time without enumerating every repository in frontmatter:
+
+```yaml
+sandbox:
+  agent:
+    id: awf
+    version: v0.28.14
+  mcp:
+    version: v0.4.17
+enclaves:
+  - agent:
+      model: gpt-5
+      max-task-bytes: 4096
+      max-model-requests: 8
+      max-model-tokens: 1024
+    dynamic:
+      allowed-owners: [octo-org]
+      sensitivity: confidential
+      github-policy: github-repository-read-v1
+      max-repositories: 4
+      quotas:
+        max-invocations: 8
+        max-output-bytes: 32768
+        max-execution-seconds: 900
+      audit-labels: [dynamic-enclave]
+      expires-at: "2026-09-06T00:32:00Z"
+    timeout: 120
+    memory-limit: 512m
+    cpu-limit: "1"
+    pids-limit: 128
+    tmpfs-limit: 64m
+    max-output-bytes: 8192
+    max-invocations: 8
+```
+
+- Dynamic mode is agent-only; scripts remain static seed-backed and must declare `repos`.
+- Each entry declares either non-empty static `repos` or `dynamic`, never both.
+- Declare `allowed-owners` or `allowed-repositories` using the ADR 0001 canonical lowercase ASCII selector form. The compiler does not trim, case-fold, URL-decode, or otherwise normalize dynamic selectors.
+- `github-policy` must be `github-repository-read-v1`, the closed policy containing only `list_issues` and `issue_read`.
+- Dynamic entries require fixed sensitivity, finite resource limits, total quotas, audit labels, an absolute `expires-at` timestamp, AWF `v0.28.14` or newer, and mcpg `v0.4.17` or newer (the first mcpg release that accepts the delegation controller's atomic bootstrap configuration; see `github/gh-aw-mcpg#12605`). `expires-at` is an upper bound; the compiler resolves the effective envelope expiry at workflow setup time as `min(expires-at, job-start + enclave timeout)`.
+- The compiler emits the dynamic policy envelope and starts mcpg's `github-repository-delegation-v1` controller, then hands AWF a host-private delegation control endpoint. The delegation-control capability is AWF-only and is excluded from primary and enclave agent environments.
 
 ## Deprecated legacy profile
 

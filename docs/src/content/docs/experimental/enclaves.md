@@ -40,7 +40,7 @@ sandbox:
   agent:
     id: awf
   mcp:
-    version: v0.4.15
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5
@@ -60,6 +60,50 @@ enclaves:
 - `min-integrity` is optional and defaults to `approved`.
 - GraphQL, search, writes, and every other GitHub tool remain denied.
 - The minimum supported versions are AWF `v0.28.9` (or `v0.28.14` when using `trusted`) and mcpg `v0.4.15`.
+
+## Dynamic agent repository policies
+
+Agent enclaves can admit one repository per invocation at runtime without listing every repository in frontmatter. Dynamic entries use the same `awf-enclave` MCP backend, but replace static `repos` with a closed compiler-owned policy envelope:
+
+```yaml
+sandbox:
+  agent:
+    id: awf
+    version: v0.28.14
+  mcp:
+    version: v0.4.17
+enclaves:
+  - agent:
+      model: gpt-5
+      max-task-bytes: 4096
+      max-model-requests: 8
+      max-model-tokens: 1024
+    dynamic:
+      allowed-owners: [octo-org]
+      sensitivity: confidential
+      github-policy: github-repository-read-v1
+      max-repositories: 4
+      quotas:
+        max-invocations: 8
+        max-output-bytes: 32768
+        max-execution-seconds: 900
+      audit-labels: [dynamic-enclave]
+      expires-at: "2026-09-06T00:32:00Z"
+    timeout: 120
+    memory-limit: 512m
+    cpu-limit: "1"
+    pids-limit: 128
+    tmpfs-limit: 64m
+    max-output-bytes: 8192
+    max-invocations: 8
+```
+
+- Dynamic mode is supported only for `agent` entries. `script` entries must use static `repos`.
+- An entry must declare either non-empty static `repos` or `dynamic`, never both.
+- `allowed-owners` and `allowed-repositories` use canonical lowercase ASCII selectors. Repository selectors must already match `owner/repo`; the compiler does not trim, case-fold, URL-decode, or normalize them.
+- `github-policy` must be `github-repository-read-v1`, which exposes only `list_issues` and `issue_read` through per-invocation delegated identities.
+- Dynamic entries require finite resource limits, total quotas, audit labels, an absolute `expires-at` timestamp, AWF `v0.28.14` or newer, and mcpg `v0.4.17` or newer (the first mcpg release that accepts the delegation controller's atomic bootstrap configuration; see `github/gh-aw-mcpg#12605`). `expires-at` is an upper bound checked into the workflow file; the compiler resolves the effective envelope expiry at workflow setup time as `min(expires-at, job-start + enclave timeout)`, so a fixed, checked-in timestamp never needs to be a short-lived compile-time value.
+- The primary and enclave agents do not receive repository credentials or the delegation-control capability. The compiler starts mcpg's `github-repository-delegation-v1` controller with five settings as one atomic configuration (`MCP_GATEWAY_DELEGATION_ENVELOPE`, `MCP_GATEWAY_DELEGATION_CONTROL_KEY`, `MCP_GATEWAY_DELEGATION_STATE_PATH`, `MCP_GATEWAY_DELEGATION_GENERATION`, `MCP_GATEWAY_DELEGATION_CONTROL_LISTEN`) and hands AWF an explicit, host-private control endpoint (`AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT`) and capability so AWF can request short-lived mcpg identities for admitted repositories. That endpoint is distinct from the executor-facing `AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT` data plane and is excluded from the primary agent's environment.
 
 ## Deprecated `issues-read-v1` profile
 

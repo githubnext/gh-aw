@@ -99,6 +99,26 @@ func TestToolsWithEnclaveGitHubIssuesUnionsTypedToolsets(t *testing.T) {
 	assert.Equal(t, []string{"context"}, tools["github"].(map[string]any)["toolsets"], "original tools must remain unchanged")
 }
 
+func TestDynamicEnclaveRegistersGitHubBackend(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	config := buildMCPGatewayConfig(data)
+
+	// The GitHub backend stays registered so mcpg's delegation controller can
+	// issue delegated identities for it, but the primary agent identity must
+	// not gain GitHub MCP access merely because a dynamic enclave is enabled.
+	assert.Contains(t, collectMCPTools(data), "github")
+	assert.NotContains(t, config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"].Servers, "github")
+}
+
+func TestDynamicEnclaveWithPrimaryGitHubRetainsPrimaryAccess(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	data.Tools["github"] = map[string]any{}
+	config := buildMCPGatewayConfig(data)
+
+	assert.Contains(t, config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"].Servers, "github")
+	assert.NotEmpty(t, config.AgentPolicies["${MCP_GATEWAY_AGENT_ID}"].Tools["github"])
+}
+
 func TestCompileEnclaveGitHubSharedGateway(t *testing.T) {
 	tmp := t.TempDir()
 	workflowPath := filepath.Join(tmp, "enclave-github.md")

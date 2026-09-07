@@ -227,6 +227,44 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 		t.Fatalf("expected enclave agent.tools.github shape to validate: %v", err)
 	}
 
+	dynamicShape := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{
+					"model":              "gpt-5",
+					"max-task-bytes":     4096,
+					"max-model-requests": 8,
+					"max-model-tokens":   1024,
+				},
+				"dynamic": map[string]any{
+					"allowed-repositories": []any{"octo-org/private-service"},
+					"sensitivity":          "confidential",
+					"github-policy":        "github-repository-read-v1",
+					"max-repositories":     4,
+					"quotas": map[string]any{
+						"max-invocations":       8,
+						"max-output-bytes":      32768,
+						"max-execution-seconds": 900,
+					},
+					"audit-labels": []any{"dynamic-enclave"},
+					"expires-at":   "2999-01-01T00:00:00Z",
+				},
+				"timeout":          120,
+				"memory-limit":     "512m",
+				"cpu-limit":        "1",
+				"pids-limit":       128,
+				"tmpfs-limit":      "64m",
+				"max-output-bytes": 8192,
+				"max-invocations":  8,
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(dynamicShape, "workflow.md"); err != nil {
+		t.Fatalf("expected dynamic enclave agent policy shape to validate: %v", err)
+	}
+
 	valid["enclaves"].([]any)[0].(map[string]any)["repos"].([]any)[0].(map[string]any)["sensitivity"] = "trusted"
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
 		t.Fatalf("expected trusted enclave sensitivity to validate: %v", err)
@@ -290,6 +328,39 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidRepoScope, "workflow.md"); err == nil {
 		t.Fatal("expected scalar enclave GitHub repository scope to be rejected")
+	}
+
+	dynamicScript := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"script":  nil,
+				"dynamic": dynamicShape["enclaves"].([]any)[0].(map[string]any)["dynamic"],
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(dynamicScript, "workflow.md"); err == nil {
+		t.Fatal("expected dynamic script enclave to be rejected")
+	}
+
+	staticAndDynamic := dynamicShape
+	staticAndDynamic["enclaves"].([]any)[0].(map[string]any)["repos"] = []any{
+		map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(staticAndDynamic, "workflow.md"); err == nil {
+		t.Fatal("expected static and dynamic enclave declaration to be rejected")
+	}
+
+	unknownDynamicPolicy := map[string]any{
+		"on":       "workflow_dispatch",
+		"engine":   "copilot",
+		"enclaves": dynamicShape["enclaves"],
+	}
+	delete(staticAndDynamic["enclaves"].([]any)[0].(map[string]any), "repos")
+	unknownDynamicPolicy["enclaves"].([]any)[0].(map[string]any)["dynamic"].(map[string]any)["github-policy"] = "github-repository-write-v1"
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(unknownDynamicPolicy, "workflow.md"); err == nil {
+		t.Fatal("expected unknown dynamic GitHub policy to be rejected")
 	}
 
 	scriptGitHub := map[string]any{
