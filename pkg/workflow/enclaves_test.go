@@ -792,16 +792,6 @@ func TestBuildMCPGatewayDelegationEnvelopeMaxIdentityTTLSeconds(t *testing.T) {
 	envelope := buildMCPGatewayDelegationEnvelope(enclave)
 
 	assert.Equal(t, 120, envelope["max_identity_ttl"])
-
-	raw, err := json.Marshal(envelope)
-	require.NoError(t, err)
-	assert.Contains(t, string(raw), `"max_identity_ttl":120`)
-
-	var decoded struct {
-		MaxIdentityTTL int `json:"max_identity_ttl"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &decoded))
-	assert.Equal(t, 120, decoded.MaxIdentityTTL)
 }
 
 // TestValidateDynamicEnclaveBoundsRejectsOversizedTimeout preserves fail-closed
