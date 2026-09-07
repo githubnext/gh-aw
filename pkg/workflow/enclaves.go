@@ -53,13 +53,14 @@ const (
 	maxDynamicEnclaveTimeoutSeconds = 4740
 	enclaveMCPTransportAllowance    = 60
 	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
-	// port to derive the private, host-only listener port for mcpg's
-	// github-repository-delegation-v1 control plane. Deriving it from the (per-job
-	// configurable) data-plane port, rather than a single fixed literal, avoids a
-	// port collision on self-hosted runners that execute multiple concurrent jobs
-	// with distinct gateway ports on the same host. The control port is bound
-	// separately from MCP_GATEWAY_PORT and published only to loopback so neither
-	// the primary agent nor the enclave executor network can route to it.
+	// port to derive the listener port for mcpg's github-repository-delegation-v1
+	// control plane. Deriving it from the (per-job configurable) data-plane port,
+	// rather than a single fixed literal, avoids a port collision on self-hosted
+	// runners that execute multiple concurrent jobs with distinct gateway ports on
+	// the same host. The control port is bound separately from MCP_GATEWAY_PORT and
+	// published only to host loopback; in bridge mode, co-attached containers can
+	// still reach the in-container listener directly, so capability authentication
+	// is the enforced control.
 	//
 	// Contract: this offset only avoids collisions between a single job's own
 	// data-plane and control ports. Operators running self-hosted runners with
