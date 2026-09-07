@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"golang.org/x/sync/errgroup"
 )
 
 type auditCacheSource string
@@ -64,20 +66,30 @@ func writeAuditData(runOutputDir string, auditData AuditData) error {
 }
 
 func writeLogsAuditFiles(processedRuns []ProcessedRun, verbose bool) {
+	var group errgroup.Group
+	group.SetLimit(runtime.GOMAXPROCS(0))
 	for _, processedRun := range processedRuns {
-		runOutputDir := processedRun.Run.LogsPath
-		auditData, ok := loadCachedAuditData(runOutputDir, processedRun.Run, auditCacheSourceLogs)
-		if !ok {
-			metrics := LogMetrics{}
-			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
-				metrics = summary.Metrics
-			}
-			auditData, _ = buildLocalAuditData(processedRun, metrics, processedRun.MCPToolUsage)
-			auditData.CacheSource = auditCacheSourceLogs
+		group.Go(func() error {
+			writeLogsAuditFile(processedRun, processedRuns, verbose)
+			return nil
+		})
+	}
+	_ = group.Wait()
+}
+
+func writeLogsAuditFile(processedRun ProcessedRun, processedRuns []ProcessedRun, verbose bool) {
+	runOutputDir := processedRun.Run.LogsPath
+	auditData, ok := loadCachedAuditData(runOutputDir, processedRun.Run, auditCacheSourceLogs)
+	if !ok {
+		metrics := LogMetrics{}
+		if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
+			metrics = summary.Metrics
 		}
-		auditData.Comparison = buildAuditComparisonForProcessedRuns(processedRun, processedRuns)
-		if err := writeAuditData(runOutputDir, auditData); err != nil {
-			logsOrchestratorLog.Printf("Failed to write audit file for run %d: %v", processedRun.Run.DatabaseID, err)
-		}
+		auditData, _ = buildLocalAuditData(processedRun, metrics, processedRun.MCPToolUsage)
+		auditData.CacheSource = auditCacheSourceLogs
+	}
+	auditData.Comparison = buildAuditComparisonForProcessedRuns(processedRun, processedRuns)
+	if err := writeAuditData(runOutputDir, auditData); err != nil {
+		logsOrchestratorLog.Printf("Failed to write audit file for run %d: %v", processedRun.Run.DatabaseID, err)
 	}
 }
