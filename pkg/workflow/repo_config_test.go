@@ -62,6 +62,23 @@ func TestLoadRepoConfig_EmptyObject(t *testing.T) {
 	assert.True(t, cfg.IsHelpCommandEnabled(), "help command should be enabled by default")
 }
 
+func TestLoadRepoConfig_StrictTrue(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"strict": true}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "aw.json should accept strict: true")
+	assert.True(t, cfg.Strict, "strict mode should be enforced")
+}
+
+func TestLoadRepoConfig_StrictFalseRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"strict": false}`)
+
+	_, err := LoadRepoConfig(dir)
+	assert.Error(t, err, "aw.json should reject strict: false")
+}
+
 func TestLoadRepoConfig_HelpCommandFalse(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"help_command": false}`)

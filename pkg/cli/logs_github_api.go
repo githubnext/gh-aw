@@ -195,6 +195,146 @@ func writeSensitiveFile(path string, data []byte) (err error) {
 	return nil
 }
 
+type workflowRunAPIResponse struct {
+	ID           int64     `json:"id"`
+	RunNumber    int       `json:"run_number"`
+	RunAttempt   int       `json:"run_attempt"`
+	HTMLURL      string    `json:"html_url"`
+	Status       string    `json:"status"`
+	Conclusion   string    `json:"conclusion"`
+	Name         string    `json:"name"`
+	Path         string    `json:"path"`
+	CreatedAt    time.Time `json:"created_at"`
+	RunStartedAt time.Time `json:"run_started_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Event        string    `json:"event"`
+	HeadBranch   string    `json:"head_branch"`
+	HeadSHA      string    `json:"head_sha"`
+	DisplayTitle string    `json:"display_title"`
+	Actor        struct {
+		Login string `json:"login"`
+	} `json:"actor"`
+	Repository struct {
+		FullName string `json:"full_name"`
+	} `json:"repository"`
+}
+
+func parseWorkflowRunAPIResponse(data []byte) (WorkflowRun, error) {
+	var response workflowRunAPIResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return WorkflowRun{}, fmt.Errorf("failed to parse workflow run API response: %w", err)
+	}
+	return WorkflowRun{
+		DatabaseID:   response.ID,
+		Number:       response.RunNumber,
+		URL:          response.HTMLURL,
+		Status:       response.Status,
+		Conclusion:   response.Conclusion,
+		WorkflowName: response.Name,
+		WorkflowPath: response.Path,
+		CreatedAt:    response.CreatedAt,
+		StartedAt:    response.RunStartedAt,
+		UpdatedAt:    response.UpdatedAt,
+		Event:        response.Event,
+		HeadBranch:   response.HeadBranch,
+		HeadSha:      response.HeadSHA,
+		DisplayTitle: response.DisplayTitle,
+		Attempt:      response.RunAttempt,
+		Repository:   response.Repository.FullName,
+		Actor:        response.Actor.Login,
+	}, nil
+}
+
+func applyWorkflowRunMetadata(run *WorkflowRun, metadata WorkflowRun) bool {
+	applied := applyNonZero(&run.DatabaseID, metadata.DatabaseID)
+	applied = applyNonZero(&run.Number, metadata.Number) || applied
+	applied = applyNonZero(&run.URL, metadata.URL) || applied
+	applied = applyNonZero(&run.Status, metadata.Status) || applied
+	applied = applyNonZero(&run.Conclusion, metadata.Conclusion) || applied
+	if !strings.HasPrefix(metadata.WorkflowName, constants.GithubDir) || run.WorkflowName == "" {
+		applied = applyNonZero(&run.WorkflowName, metadata.WorkflowName) || applied
+	}
+	applied = applyNonZero(&run.WorkflowPath, metadata.WorkflowPath) || applied
+	applied = applyNonZero(&run.CreatedAt, metadata.CreatedAt) || applied
+	applied = applyNonZero(&run.StartedAt, metadata.StartedAt) || applied
+	applied = applyNonZero(&run.UpdatedAt, metadata.UpdatedAt) || applied
+	applied = applyNonZero(&run.Event, metadata.Event) || applied
+	applied = applyNonZero(&run.HeadBranch, metadata.HeadBranch) || applied
+	applied = applyNonZero(&run.HeadSha, metadata.HeadSha) || applied
+	applied = applyNonZero(&run.DisplayTitle, metadata.DisplayTitle) || applied
+	applied = applyNonZero(&run.Attempt, metadata.Attempt) || applied
+	applied = applyNonZero(&run.Repository, metadata.Repository) || applied
+	applied = applyNonZero(&run.Actor, metadata.Actor) || applied
+	return applied
+}
+
+func applyNonZero[T comparable](target *T, value T) bool {
+	var zero T
+	if value == zero {
+		return false
+	}
+	changed := *target != value
+	*target = value
+	return changed
+}
+
+func fetchAndCacheWorkflowRunMetadata(ctx context.Context, currentRun WorkflowRun, outputDir, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
+	responsePath := filepath.Join(outputDir, runAPIResponseFileName)
+	if output, err := os.ReadFile(responsePath); err == nil {
+		if run, parseErr := parseWorkflowRunAPIResponse(output); parseErr == nil && cachedWorkflowRunMetadataIsCurrent(run, currentRun, owner, repo) {
+			return run, nil
+		}
+		logsGitHubAPILog.Printf("Ignoring invalid cached workflow run API response: path=%s", responsePath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return WorkflowRun{}, fmt.Errorf("failed to read cached workflow run API response: %w", err)
+	}
+
+	args := buildWorkflowRunAPIArgs(currentRun.DatabaseID, owner, repo, hostname)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
+	}
+	output, err := workflow.RunGHCombinedContext(ctx, "Fetching run metadata...", args...)
+	if err != nil {
+		return WorkflowRun{}, classifyWorkflowRunMetadataError(currentRun.DatabaseID, err, output)
+	}
+	run, err := parseWorkflowRunAPIResponse(output)
+	if err != nil {
+		return WorkflowRun{}, err
+	}
+	if err := writeSensitiveFile(responsePath, output); err != nil {
+		return WorkflowRun{}, fmt.Errorf("failed to cache workflow run API response: %w", err)
+	}
+	return run, nil
+}
+
+func workflowRunMetadataCacheNeedsRefresh(outputDir string, currentRun WorkflowRun, owner, repo string) (bool, error) {
+	output, err := os.ReadFile(filepath.Join(outputDir, runAPIResponseFileName))
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to read cached workflow run API response: %w", err)
+	}
+	cached, err := parseWorkflowRunAPIResponse(output)
+	return err != nil || !cachedWorkflowRunMetadataIsCurrent(cached, currentRun, owner, repo), nil
+}
+
+func cachedWorkflowRunMetadataIsCurrent(cached, current WorkflowRun, owner, repo string) bool {
+	if cached.DatabaseID != current.DatabaseID {
+		return false
+	}
+	if owner != "" && repo != "" && !strings.EqualFold(cached.Repository, filepath.Join(owner, repo)) {
+		return false
+	}
+	if current.Attempt > 0 && cached.Attempt != current.Attempt {
+		return false
+	}
+	if !current.UpdatedAt.IsZero() && cached.UpdatedAt.Before(current.UpdatedAt) {
+		return false
+	}
+	return cached.Status == "completed"
+}
+
 // fetchJobDetails gets detailed job information including durations for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).

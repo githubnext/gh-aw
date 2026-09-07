@@ -52,6 +52,11 @@
       "description": "Enable or disable the builtin centralized /help slash command handler. Defaults to true when omitted. Set to false to disable.",
       "type": "boolean"
     },
+    "strict": {
+      "description": "Enforce strict mode for every workflow compiled in this repository. Only true is accepted so workflows cannot opt out with frontmatter.",
+      "type": "boolean",
+      "const": true
+    },
     "utc": {
       "description": "Project home UTC offset used when rendering local times in CLI output. Must be a numeric UTC offset such as +00:00 or -08:00.",
       "type": "string",

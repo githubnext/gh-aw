@@ -229,6 +229,7 @@ func TestListArtifactsExcludesSummary(t *testing.T) {
 		"agent-stdio.log",
 		runSummaryFileName, // This should be excluded from the list
 		jobsAPIResponseFileName,
+		runAPIResponseFileName,
 	}
 
 	for _, filename := range testFiles {
@@ -251,7 +252,7 @@ func TestListArtifactsExcludesSummary(t *testing.T) {
 
 	// Verify synthesized files are not in the list
 	for _, artifact := range artifacts {
-		if artifact == runSummaryFileName || artifact == jobsAPIResponseFileName {
+		if artifact == runSummaryFileName || artifact == jobsAPIResponseFileName || artifact == runAPIResponseFileName {
 			t.Errorf("Synthesized file %s should not be in artifacts list", artifact)
 		}
 	}

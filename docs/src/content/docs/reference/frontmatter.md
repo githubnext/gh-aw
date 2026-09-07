@@ -771,6 +771,8 @@ strict: false  # Disable enhanced security validation for development/testing
 
 Workflows compiled with `strict: false` cannot run on public repositories. The workflow fails at runtime with an error message prompting recompilation with strict mode.
 
+To prevent workflows from opting out, set `"strict": true` at the top level of `.github/workflows/aw.json`. This enforces strict mode for every `gh aw compile` invocation in the repository. The repository setting only accepts `true`; `"strict": false` is invalid.
+
 See [Network Permissions - Strict Mode Validation](/gh-aw/reference/network/#strict-mode-validation) for details on network validation and [CLI Commands](/gh-aw/setup/cli/#compile) for compilation options.
 
 ## Learn More
