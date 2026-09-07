@@ -170,6 +170,9 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	if enclaveGitHubIssuesEnabled(workflowData) {
 		addUnique(enclaveGitHubMCPAgentIDEnv)
 	}
+	if enclaveDynamicRepositoryPolicyEnabled(workflowData) {
+		addUnique(enclaveGitHubDelegationControlEndpointEnv)
+	}
 
 	// Explicitly excluded env vars from the frontmatter excluded-env field.
 	// These are always excluded regardless of their value content.
