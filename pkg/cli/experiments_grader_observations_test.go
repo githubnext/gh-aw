@@ -299,7 +299,7 @@ func TestComputeGraderBackedExperimentAnalysis(t *testing.T) {
 		Total:    6,
 	}
 
-	analysis := computeExperimentAnalysisWithObservations(exp, cfg, nil, nil, set)
+	analysis := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, set, nil)
 	assert.Equal(t, "trajectory-efficiency", analysis.MetricGraderID)
 	assert.Equal(t, "continuous", analysis.MetricType)
 	assert.Equal(t, "READY_FOR_ANALYSIS", analysis.Recommendation)
@@ -364,7 +364,7 @@ func TestComputeGraderBackedExperimentDecision(t *testing.T) {
 		Total:    6,
 	}
 
-	analysis := computeExperimentAnalysisWithObservations(exp, cfg, nil, nil, set)
+	analysis := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, set, nil)
 
 	assert.Equal(t, ExperimentReadinessReady, analysis.Readiness)
 	assert.Equal(t, ExperimentDecisionPromote, analysis.Decision)
@@ -415,7 +415,7 @@ func TestGraderReadinessUsesValidObservations(t *testing.T) {
 		Total:    20,
 	}
 
-	analysis := computeExperimentAnalysisWithObservations(exp, cfg, nil, nil, set)
+	analysis := computeExperimentAnalysisWithObservationBundle(exp, cfg, nil, nil, set, nil)
 	assert.Equal(t, "EXTEND", analysis.Recommendation)
 	variants := variantsByName(analysis.Variants)
 	assert.True(t, variants["control"].BelowMinSamples)
