@@ -658,6 +658,14 @@ func TestDynamicEnclaveGatewayContract(t *testing.T) {
 	assert.Contains(t, generated, `\"enclave_backend\":\"github\"`)
 	assert.Contains(t, generated, `\"tool_policy\":\"github-repository-read-v1\"`)
 	assert.Contains(t, generated, `\"max_dynamic_schema_hashes\":4`)
+	// max_identity_ttl uses Go time.Duration units (nanoseconds). A 120-second
+	// enclave timeout must serialize as 120000000000, not 120, so that mcpg's
+	// Store.validateAgainstEnvelope does not reject every realistic AWF
+	// create-or-confirm request as exceeding a 120-nanosecond identity ceiling.
+	// The runtime envelope expiry clamp (expires_at) is a separate contract
+	// and remains in seconds/RFC3339.
+	assert.Contains(t, generated, `\"max_identity_ttl\":120000000000`)
+	assert.NotContains(t, generated, `\"max_identity_ttl\":120,`)
 	assert.Contains(t, generated, `\"expires_at\":\"${MCP_GATEWAY_DELEGATION_EXPIRES_AT}\"`)
 	assert.NotContains(t, generated, `\"version\":\"github-repository-read-v1\"`)
 	assert.NotContains(t, generated, `\"tools\":[`)
@@ -778,4 +786,69 @@ Use the enclave script executor.
 	assert.Contains(t, lock, `\"enclaves\":[{\"repos\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"script\":{},\"timeout\":45}]`)
 	assert.NotContains(t, lock, "Start Enclave MCP")
 	assert.NotContains(t, lock, "start_enclave")
+}
+
+// TestBuildMCPGatewayDelegationEnvelopeMaxIdentityTTLNanoseconds pins the
+// units contract between gh-aw and mcpg v0.4.17's delegation.Envelope. mcpg
+// decodes max_identity_ttl into a Go time.Duration, whose JSON representation
+// is an integer number of nanoseconds, so a 120-second configured timeout must
+// serialize as 120000000000 and round-trip to exactly 120 * time.Second. The
+// AWF client sends its requested TTL in the same units
+// (see gh-aw-firewall src/enclave/delegation-control-client.ts's
+// secondsToGoDurationNanos), so a 120-second requested TTL must also compare
+// as <= the envelope's MaxIdentityTTL. This is what mcpg's
+// Store.validateAgainstEnvelope enforces at runtime.
+func TestBuildMCPGatewayDelegationEnvelopeMaxIdentityTTLNanoseconds(t *testing.T) {
+	enclave := &EnclaveConfig{
+		Timeout: 120,
+		Dynamic: &DynamicEnclavePolicy{MaxRepositories: 4},
+	}
+	envelope := buildMCPGatewayDelegationEnvelope(enclave)
+
+	// The map value carries time.Duration units so encoding/json emits the
+	// integer nanosecond count that mcpg's decoder expects.
+	assert.Equal(t, 120*time.Second, envelope["max_identity_ttl"],
+		"max_identity_ttl must carry Go time.Duration units so JSON serialization emits nanoseconds")
+
+	raw, err := json.Marshal(envelope)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"max_identity_ttl":120000000000`,
+		"120-second enclave timeout must serialize to its exact nanosecond ceiling; a units regression would emit \"max_identity_ttl\":120 and cause mcpg to reject every realistic AWF request")
+
+	// Mirror mcpg v0.4.17's delegation.Envelope decode: MaxIdentityTTL is a
+	// time.Duration, which decodes from a JSON integer of nanoseconds.
+	var decoded struct {
+		MaxIdentityTTL time.Duration `json:"max_identity_ttl"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &decoded))
+	assert.Equal(t, 120*time.Second, decoded.MaxIdentityTTL)
+
+	// AWF's delegation-control-client sends requested_ttl in the same units
+	// (nanoseconds). A 120-second request must not exceed a 120-second envelope
+	// ceiling; a request one second over must exceed it. This is exactly the
+	// comparison mcpg's Store.validateAgainstEnvelope performs.
+	requestedTTL := 120 * time.Second
+	assert.LessOrEqual(t, requestedTTL, decoded.MaxIdentityTTL,
+		"an AWF-requested 120s TTL must be accepted by a 120s envelope ceiling; if this fails, gh-aw and mcpg disagree about units")
+	assert.Greater(t, 121*time.Second, decoded.MaxIdentityTTL,
+		"an AWF-requested 121s TTL must exceed a 120s envelope ceiling; if this fails, the ceiling collapsed to zero or wrapped")
+}
+
+// TestValidateDynamicEnclaveBoundsRejectsOversizedTimeout preserves fail-closed
+// validation for enclave timeouts that would otherwise be forwarded to mcpg.
+// gh-aw's compile-time bound matches gh-aw-firewall's
+// MAX_ENCLAVE_TIMEOUT_SECONDS preflight limit so the two sides cannot disagree
+// about what compiles, and it keeps
+// time.Duration(enclave.Timeout) * time.Second safely inside int64.
+func TestValidateDynamicEnclaveBoundsRejectsOversizedTimeout(t *testing.T) {
+	data := dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Timeout = maxDynamicEnclaveTimeoutSeconds + 1
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout must be at most")
+
+	data = dynamicEnclaveWorkflowData()
+	data.Enclaves[0].Timeout = maxDynamicEnclaveTimeoutSeconds
+	require.NoError(t, validateEnclavesConfig(data),
+		"the AWF-compatible maximum timeout must still validate cleanly")
 }
