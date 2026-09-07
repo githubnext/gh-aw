@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestBuildLogsData tests the structured data creation for logs
@@ -992,6 +994,35 @@ func TestBuildLogsDataOrganizationEmptyWhenNoRepository(t *testing.T) {
 	if episode.Organization != "" {
 		t.Errorf("Expected empty episode.Organization, got %q", episode.Organization)
 	}
+}
+
+func TestBuildLogsDataUsesGitHubRunMetadataWithoutAwInfo(t *testing.T) {
+	t.Parallel()
+	runDir := t.TempDir()
+	logsData := buildLogsData([]ProcessedRun{{
+		Run: WorkflowRun{
+			DatabaseID:   9003,
+			WorkflowName: "daily-report",
+			WorkflowPath: ".github/workflows/daily-report.lock.yml",
+			Status:       "completed",
+			Conclusion:   "failure",
+			Repository:   "myorg/myrepo",
+			Actor:        "octocat",
+			Attempt:      2,
+			HeadSha:      "abc123",
+			Event:        "schedule",
+			LogsPath:     runDir,
+		},
+	}}, runDir, nil)
+
+	require.Len(t, logsData.Runs, 1)
+	run := logsData.Runs[0]
+	assert.Equal(t, "myorg/myrepo", run.Repository)
+	assert.Equal(t, "myorg", run.Organization)
+	assert.Equal(t, "octocat", run.Actor)
+	assert.Equal(t, "2", run.RunAttempt)
+	assert.Equal(t, "abc123", run.SHA)
+	assert.Equal(t, "schedule", run.EventName)
 }
 
 // TestInferWorkflowPathFromDisplayName verifies that display names are correctly

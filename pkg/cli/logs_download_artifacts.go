@@ -43,7 +43,7 @@ func listArtifacts(outputDir string) ([]string, error) {
 		}
 
 		// Skip directories and synthesized cache/summary files
-		if info.IsDir() || filepath.Base(path) == runSummaryFileName || filepath.Base(path) == jobsAPIResponseFileName {
+		if info.IsDir() || filepath.Base(path) == runSummaryFileName || filepath.Base(path) == jobsAPIResponseFileName || filepath.Base(path) == runAPIResponseFileName {
 			return nil
 		}
 

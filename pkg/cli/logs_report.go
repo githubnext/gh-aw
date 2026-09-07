@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -360,18 +361,30 @@ func extractRunEngineInfo(pr ProcessedRun) runEngineInfo {
 
 // applyAwInfoToRunData copies repository/ref metadata from aw_info.json onto the run data.
 func applyAwInfoToRunData(runData *RunData, awInfo *AwInfo) {
-	runData.Repository = awInfo.Repository
 	if awInfo.Repository != "" {
+		runData.Repository = awInfo.Repository
 		if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
 			runData.Organization = parts[0]
 		}
 	}
-	runData.Ref = awInfo.Ref
-	runData.SHA = awInfo.SHA
-	runData.Actor = awInfo.Actor
-	runData.RunAttempt = awInfo.RunAttempt
-	runData.TargetRepo = awInfo.TargetRepo
-	runData.EventName = awInfo.EventName
+	if awInfo.Ref != "" {
+		runData.Ref = awInfo.Ref
+	}
+	if awInfo.SHA != "" {
+		runData.SHA = awInfo.SHA
+	}
+	if awInfo.Actor != "" {
+		runData.Actor = awInfo.Actor
+	}
+	if awInfo.RunAttempt != "" {
+		runData.RunAttempt = awInfo.RunAttempt
+	}
+	if awInfo.TargetRepo != "" {
+		runData.TargetRepo = awInfo.TargetRepo
+	}
+	if awInfo.EventName != "" {
+		runData.EventName = awInfo.EventName
+	}
 	// Fall back to inferring the workflow path from the display name when the
 	// GitHub API returned an empty path (e.g. for scheduled agentic runs).
 	// This handles both fresh runs and old cached RunSummary entries whose
@@ -379,6 +392,19 @@ func applyAwInfoToRunData(runData *RunData, awInfo *AwInfo) {
 	// logs_run_processor.go was applied.
 	if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
 		runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
+	}
+}
+
+func applyGitHubMetadataToRunData(runData *RunData, run WorkflowRun) {
+	runData.Repository = run.Repository
+	runData.SHA = run.HeadSha
+	runData.Actor = run.Actor
+	runData.EventName = run.Event
+	if run.Attempt > 0 {
+		runData.RunAttempt = strconv.Itoa(run.Attempt)
+	}
+	if parts := strings.SplitN(run.Repository, "/", 2); len(parts) == 2 {
+		runData.Organization = parts[0]
 	}
 }
 
@@ -447,7 +473,7 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		ambientContext = pr.TokenUsage.AmbientContext
 	}
 
-	return RunData{
+	runData := RunData{
 		RunID:                      run.DatabaseID,
 		Number:                     run.Number,
 		WorkflowName:               run.WorkflowName,
@@ -497,6 +523,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		Experiments:                extractExperimentData(run.LogsPath),
 		Graders:                    extractGradersData(run.LogsPath),
 	}
+	applyGitHubMetadataToRunData(&runData, run)
+	return runData
 }
 
 // buildLogsData creates structured logs data from processed runs

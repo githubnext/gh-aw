@@ -214,8 +214,8 @@ func handleArtifactDownloadError(result *DownloadResult, err error, verbose bool
 // logsRunPreflightAPIReserve conservatively estimates the number of core API
 // requests a single run's full processing pipeline can make after the
 // preflight rate-limit check: artifact listing, one or more artifact
-// downloads, an optional workflow-logs fetch, an optional evals fallback
-// download, and the jobs fetch performed later by buildProcessedRun. A single
+// downloads, the workflow-run metadata fetch, an optional workflow-logs fetch,
+// an optional evals fallback download, and the jobs fetch performed later by buildProcessedRun. A single
 // check before downloadRunArtifacts cannot bound the ceiling on its own
 // because usage is only sampled once; reserving this budget upfront prevents
 // the remaining calls from silently pushing usage past a configured ceiling
@@ -250,6 +250,14 @@ func processSingleRunDownload(
 		err := params.storageLimit.runDownloadDeferred(ctx, runOutputDir, func() error {
 			if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit, logsRunPreflightAPIReserve); err != nil {
 				return err
+			}
+			if err := os.MkdirAll(runOutputDir, constants.DirPermSensitive); err != nil {
+				return fmt.Errorf("failed to create run output directory: %w", err)
+			}
+			if metadata, err := fetchAndCacheWorkflowRunMetadata(ctx, run.DatabaseID, runOutputDir, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.verbose); err != nil {
+				logsOrchestratorLog.Printf("Failed to fetch workflow run metadata for run %d: %v", run.DatabaseID, err)
+			} else {
+				applyWorkflowRunMetadata(&result.Run, metadata)
 			}
 			if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter}); err != nil {
 				return err
@@ -349,6 +357,13 @@ func tryLoadCachedRunResult(
 		LogsPath:    runOutputDir,
 		Cached:      true,
 	}
+	runBeforeMetadata := result.Run
+	if metadata, err := fetchAndCacheWorkflowRunMetadata(ctx, run.DatabaseID, runOutputDir, params.dlOwner, params.dlRepo, params.dlHost, params.verbose); err != nil {
+		logsOrchestratorLog.Printf("Failed to refresh cached workflow run metadata for run %d: %v", run.DatabaseID, err)
+	} else {
+		applyWorkflowRunMetadata(&result.Run, metadata)
+	}
+	metadataApplied := result.Run != runBeforeMetadata
 	// Re-apply the usage activity backfill to heal stale cache entries.
 	// Capture the SafeItemsCount before backfill to detect whether the field was healed.
 	safeItemsBefore := result.Run.SafeItemsCount
@@ -357,7 +372,7 @@ func tryLoadCachedRunResult(
 	// persist the healed value back to run_summary.json so downstream readers (e.g.
 	// the api-consumption-report) see the correct count without having to fall back to
 	// usage/activity/summary.json.
-	if result.Run.SafeItemsCount != safeItemsBefore || activitySummaryApplied {
+	if result.Run.SafeItemsCount != safeItemsBefore || activitySummaryApplied || metadataApplied {
 		healed := *summary
 		healed.Run = result.Run
 		healed.Metrics = result.Metrics

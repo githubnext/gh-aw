@@ -42,6 +42,42 @@ func TestWorkflowRunUnmarshal(t *testing.T) {
 	assert.Empty(t, runs[0].WorkflowPath, "WorkflowPath should be empty when 'path' field is absent")
 }
 
+func TestFetchAndCacheWorkflowRunMetadata(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	outputDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"cat <<'EOF'\n" +
+		`{"id":42,"run_number":7,"run_attempt":3,"html_url":"https://github.com/octo/repo/actions/runs/42","status":"completed","conclusion":"success","name":"Daily report","path":".github/workflows/daily-report.lock.yml","created_at":"2026-09-01T10:00:00Z","run_started_at":"2026-09-01T10:00:01Z","updated_at":"2026-09-01T10:02:00Z","event":"schedule","head_branch":"main","head_sha":"abc123","display_title":"Daily report","actor":{"login":"octocat"},"repository":{"full_name":"octo/repo"}}` + "\n" +
+		"EOF\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	run, err := fetchAndCacheWorkflowRunMetadata(context.Background(), 42, outputDir, "octo", "repo", "", false)
+	require.NoError(t, err)
+	assert.Equal(t, int64(42), run.DatabaseID)
+	assert.Equal(t, 3, run.Attempt)
+	assert.Equal(t, ".github/workflows/daily-report.lock.yml", run.WorkflowPath)
+	assert.Equal(t, "octo/repo", run.Repository)
+	assert.Equal(t, "octocat", run.Actor)
+
+	cachePath := filepath.Join(outputDir, runAPIResponseFileName)
+	cached, err := os.ReadFile(cachePath)
+	require.NoError(t, err)
+	assert.Contains(t, string(cached), `"run_attempt":3`)
+
+	require.NoError(t, os.Remove(fakeGH))
+	cachedRun, err := fetchAndCacheWorkflowRunMetadata(context.Background(), 42, outputDir, "octo", "repo", "", false)
+	require.NoError(t, err, "the second read should use the cache without invoking gh")
+	assert.Equal(t, run, cachedRun)
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Equal(t, "api repos/octo/repo/actions/runs/42\n", string(argsLog))
+}
+
 // TestBuildCreatedFilter verifies that buildCreatedFilter always produces a single
 // --created expression that enforces all supplied date bounds. The key invariant is that
 // StartDate is never silently dropped, which was the root cause of the bug where runs
