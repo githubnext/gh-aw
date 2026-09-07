@@ -42,6 +42,7 @@ func loadCachedAuditData(runOutputDir string, run WorkflowRun, source auditCache
 	if auditData.Overview.RunID != run.DatabaseID ||
 		auditData.Overview.Status != run.Status ||
 		auditData.Overview.Conclusion != run.Conclusion ||
+		!auditData.Overview.UpdatedAt.Equal(run.UpdatedAt) ||
 		auditData.CacheSource != source {
 		return AuditData{}, false
 	}

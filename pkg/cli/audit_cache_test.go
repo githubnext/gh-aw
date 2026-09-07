@@ -32,7 +32,7 @@ func TestWriteAuditDataCreatesReusableAuditFile(t *testing.T) {
 
 func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 	runDir := t.TempDir()
-	run := WorkflowRun{DatabaseID: 42, Status: "in_progress", Conclusion: ""}
+	run := WorkflowRun{DatabaseID: 42, Status: "in_progress", Conclusion: "", UpdatedAt: time.Now()}
 	require.NoError(t, writeAuditData(runDir, AuditData{CacheSource: auditCacheSourceFull, Overview: buildAuditOverview(run, nil)}))
 
 	tests := []struct {
@@ -44,6 +44,7 @@ func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 		{name: "status changed", run: WorkflowRun{DatabaseID: 42, Status: "completed"}, ok: false},
 		{name: "conclusion changed", run: WorkflowRun{DatabaseID: 42, Status: "in_progress", Conclusion: "success"}, ok: false},
 		{name: "run changed", run: WorkflowRun{DatabaseID: 43, Status: "in_progress"}, ok: false},
+		{name: "updated time changed", run: WorkflowRun{DatabaseID: 42, Status: "in_progress", UpdatedAt: run.UpdatedAt.Add(time.Second)}, ok: false},
 	}
 
 	for _, tt := range tests {
