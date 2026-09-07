@@ -770,7 +770,7 @@ func buildMCPGatewayDelegationEnvelope(enclave *EnclaveConfig) map[string]any {
 // earlier of the compiled enclaves[].dynamic.expires-at upper bound and
 // job-start + enclave.timeout, so it can never exceed the job or invocation
 // lifetime regardless of how stale a checked-in absolute timestamp has grown.
-func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) string {
+func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) (string, error) {
 	var script strings.Builder
 	// Canonicalize the compiled expires-at to a UTC whole-second RFC3339 "...Z"
 	// value before embedding it: validateEnclavesConfig accepts any RFC3339
@@ -778,10 +778,15 @@ func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) string {
 	// date fallback below only parses that exact whole-second UTC form. Doing the
 	// canonicalization here in Go (rather than widening the BSD date format
 	// string) keeps the fallback exact and covers the full accepted syntax.
-	expiresAt := enclave.Dynamic.ExpiresAt
-	if parsed, err := time.Parse(time.RFC3339, expiresAt); err == nil {
-		expiresAt = parsed.UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
+	// validateEnclavesConfig already guarantees enclave.Dynamic.ExpiresAt parses as
+	// RFC3339, so a failure here indicates an internal invariant violation, not a
+	// user error; surface it rather than silently falling back to the raw,
+	// possibly non-canonical value (which would reintroduce the BSD parsing bug).
+	parsed, err := time.Parse(time.RFC3339, enclave.Dynamic.ExpiresAt)
+	if err != nil {
+		return "", fmt.Errorf("internal error: enclaves[].dynamic.expires-at %q failed RFC3339 parsing after compile-time validation: %w", enclave.Dynamic.ExpiresAt, err)
 	}
+	expiresAt := parsed.UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
 	escapedExpiresAt := shellEscapeArg(expiresAt)
 	fmt.Fprintf(&script, "          GH_AW_ENCLAVE_DYNAMIC_JOB_EXPIRES_EPOCH=$(( $(date -u +%%s) + %d ))\n", enclave.Timeout)
 	// date -u -d is GNU coreutils syntax (Linux runners); fall back to BSD date's
@@ -795,7 +800,7 @@ func buildDynamicEnclaveExpiryScript(enclave *EnclaveConfig) string {
 	script.WriteString("          fi\n")
 	fmt.Fprintf(&script, "          %s=$(date -u -d \"@$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ 2>/dev/null || date -u -r \"$GH_AW_ENCLAVE_DYNAMIC_EXPIRES_EPOCH\" +%%Y-%%m-%%dT%%H:%%M:%%SZ)\n", enclaveDelegationExpiresAtEnv)
 	fmt.Fprintf(&script, "          export %s\n", enclaveDelegationExpiresAtEnv)
-	return script.String()
+	return script.String(), nil
 }
 
 func stringSliceOrEmpty(values []string) []string {

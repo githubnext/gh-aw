@@ -396,7 +396,8 @@ func TestBuildDynamicEnclaveExpiryScriptResolvesMinOfConfiguredAndJobExpiry(t *t
 
 	runScript := func(t *testing.T, enclave *EnclaveConfig) string {
 		t.Helper()
-		script := buildDynamicEnclaveExpiryScript(enclave)
+		script, err := buildDynamicEnclaveExpiryScript(enclave)
+		require.NoError(t, err)
 		cmd := exec.Command("bash", "-c", "set -eo pipefail\n"+script+"echo \"$MCP_GATEWAY_DELEGATION_EXPIRES_AT\"\n")
 		output, err := cmd.Output()
 		require.NoError(t, err)
@@ -430,6 +431,13 @@ func TestBuildDynamicEnclaveExpiryScriptResolvesMinOfConfiguredAndJobExpiry(t *t
 		got, err := time.Parse(time.RFC3339, runScript(t, enclave))
 		require.NoError(t, err)
 		assert.WithinDuration(t, configured, got, time.Second)
+	})
+
+	t.Run("non-RFC3339 expires-at (bypassing compile-time validation) surfaces an internal error", func(t *testing.T) {
+		enclave := newEnclave("not-a-timestamp", 30)
+		_, err := buildDynamicEnclaveExpiryScript(enclave)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "internal error")
 	})
 }
 

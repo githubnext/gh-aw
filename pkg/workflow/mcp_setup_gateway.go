@@ -337,7 +337,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			}
 			yaml.WriteString("          export MCP_GATEWAY_DELEGATION_CONTROL_LISTEN=\"" + controlListenHost + ":" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + "\"\n")
 			if dynamicEnclave := enclaveDynamicRepositoryPolicyConfig(workflowData); dynamicEnclave != nil {
-				yaml.WriteString(buildDynamicEnclaveExpiryScript(dynamicEnclave))
+				expiryScript, err := buildDynamicEnclaveExpiryScript(dynamicEnclave)
+				if err != nil {
+					return err
+				}
+				yaml.WriteString(expiryScript)
 				envelopeJSON, err := json.Marshal(buildMCPGatewayDelegationEnvelope(dynamicEnclave))
 				if err != nil {
 					return fmt.Errorf("failed to marshal MCP gateway delegation envelope: %w", err)
