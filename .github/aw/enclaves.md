@@ -54,7 +54,7 @@ Prefer this configuration shape for new workflows:
 ```yaml
 sandbox:
   mcp:
-    version: v0.4.16
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5
@@ -85,7 +85,7 @@ sandbox:
     id: awf
     version: v0.28.14
   mcp:
-    version: v0.4.16
+    version: v0.4.17
 enclaves:
   - agent:
       model: gpt-5
@@ -116,8 +116,8 @@ enclaves:
 - Each entry declares either non-empty static `repos` or `dynamic`, never both.
 - Declare `allowed-owners` or `allowed-repositories` using the ADR 0001 canonical lowercase ASCII selector form. The compiler does not trim, case-fold, URL-decode, or otherwise normalize dynamic selectors.
 - `github-policy` must be `github-repository-read-v1`, the closed policy containing only `list_issues` and `issue_read`.
-- Dynamic entries require fixed sensitivity, finite resource limits, total quotas, audit labels, an absolute `expires-at` no later than the enclave job lifetime, AWF `v0.28.14` or newer, and mcpg `v0.4.16` or newer.
-- The compiler emits the dynamic policy envelope and mcpg `github-repository-delegation-v1` controller. The delegation-control capability is AWF-only and is excluded from primary and enclave agent environments.
+- Dynamic entries require fixed sensitivity, finite resource limits, total quotas, audit labels, an absolute `expires-at` timestamp, AWF `v0.28.14` or newer, and mcpg `v0.4.17` or newer (the first mcpg release that accepts the delegation controller's atomic bootstrap configuration; see `github/gh-aw-mcpg#12605`). `expires-at` is an upper bound; the compiler resolves the effective envelope expiry at workflow setup time as `min(expires-at, job-start + enclave timeout)`.
+- The compiler emits the dynamic policy envelope and starts mcpg's `github-repository-delegation-v1` controller, then hands AWF a host-private delegation control endpoint. The delegation-control capability is AWF-only and is excluded from primary and enclave agent environments.
 
 ## Deprecated legacy profile
 
