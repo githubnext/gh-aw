@@ -683,3 +683,9 @@
 - **[declined, stale claims]** Documentation Noob Tester #59120's "Day-one commands table buried" and "frontmatter undefined on first use" — both live-verified already fixed, see [[known_patterns]]. Only the Copilot-auth-step-optionality claim is unresolved, and it's thin (not filed).
 - **[declined, already self-filed]** Sergo #59123 nolint space-prefix bug (#59122), ESLint Refiner #59145 `no-misplaced-error-code-definition` gap — both self-filed by their source workflows, no action.
 - **[declined, ADR-covered]** Firewall Escape Test #59132 docker.sock hardening suggestion — sandbox infra, already addressed by ADR 44446.
+
+## 2026-09-07 (cycle since #59153): watch items
+- Merge/close-invalidation cascade (#58986): reproduced 2nd consecutive day, new "closed-without-merge" trigger variant added (PR #59124) alongside the original "merge" trigger (PR #59049). Still unfixed — escalate priority if it recurs a 3rd day.
+- MCP Structural Analysis (#59212) independently rated `list_issues` 2/5 for integrity-policy redaction — same tool limitation already tracked; still no landed fix. Continue using local-snapshot-grep workaround (see known_patterns.md).
+- Typist (#59203): 6 of 7 filed issues came from this single first run. Next run should be checked for genuinely new findings vs. re-surfacing today's 7 — do not re-file duplicates of: graderManifestEntry, ManifestFilesPolicy, Azure DevOps Target-any, runtimeImportReference dup, PollOptions/RepeatOptions dup, HTTP/firewall log struct dup, OTLP if-missing-mode string.
+- Reminder (carried forward): known_patterns.md (~90KB) and flagged_items.md (~123KB) are large and approaching repo-memory's per-file/patch caps — trim oldest/superseded entries in a near-future cycle.
