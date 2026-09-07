@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,6 +35,97 @@ func TestLogsDirectorySizeMissingDirectory(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Zero(t, size)
+}
+
+func TestLogsFolderSizesLargestFirst(t *testing.T) {
+	outputDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(outputDir, "run-small"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(outputDir, "run-large"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-small", "data"), make([]byte, 64), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-large", "data"), make([]byte, 128), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "summary.json"), make([]byte, 256), 0o644))
+
+	folders, err := logsFolderSizes(outputDir)
+
+	require.NoError(t, err)
+	require.Len(t, folders, 2)
+	assert.Equal(t, logsFolderSize{name: "run-large", size: 128}, folders[0])
+	assert.Equal(t, logsFolderSize{name: "run-small", size: 64}, folders[1])
+}
+
+func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
+	outputDir := t.TempDir()
+	runDir := filepath.Join(outputDir, "run-1")
+	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "sandbox", "agent", "logs"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "sandbox", "agent", "logs", downloadedArtifactsMarkerDir), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(runDir, "usage"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, "sandbox", "agent", "logs", "events.jsonl"), make([]byte, bytesPerMegabyte), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, jobsAPIResponseFileName), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, runSummaryFileName), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, "usage", "summary.json"), []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, filepath.Base(constants.AgentStdioLogPath)), []byte("log"), 0o600))
+	require.NoError(t, markArtifactDownloaded(runDir, string(ArtifactSetAll)))
+	require.NoError(t, markArtifactDownloaded(runDir, constants.AgentArtifactName.String()))
+	require.NoError(t, markArtifactDownloaded(runDir, constants.AgentOutputFallbackArtifactName.String()))
+
+	limit := newLogsStorageLimit(outputDir, 1)
+	called := false
+	err := limit.runDownload(context.Background(), filepath.Join(outputDir, "run-2"), func() error {
+		called = true
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.True(t, called, "pruning should free space so the download can proceed")
+	assert.NoFileExists(t, filepath.Join(runDir, "sandbox", "agent", "logs", "events.jsonl"))
+	assert.FileExists(t, filepath.Join(runDir, jobsAPIResponseFileName))
+	assert.FileExists(t, filepath.Join(runDir, runSummaryFileName))
+	assert.FileExists(t, filepath.Join(runDir, "usage", "summary.json"))
+	assert.FileExists(t, filepath.Join(runDir, filepath.Base(constants.AgentStdioLogPath)))
+	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, string(ArtifactSetAll)))
+	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, constants.AgentArtifactName.String()))
+	assert.NoFileExists(t, filepath.Join(runDir, downloadedArtifactsMarkerDir, constants.AgentOutputFallbackArtifactName.String()))
+	assert.False(t, limit.isReached())
+}
+
+func TestLogsStorageLimitPrunesEarlierCompletedRuns(t *testing.T) {
+	outputDir := t.TempDir()
+	firstRunDir := filepath.Join(outputDir, "run-1")
+	require.NoError(t, os.MkdirAll(filepath.Join(firstRunDir, "sandbox", "agent", "logs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(firstRunDir, "sandbox", "agent", "logs", "events.jsonl"), make([]byte, 3*bytesPerMegabyte/4), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(firstRunDir, runSummaryFileName), []byte("{}"), 0o600))
+
+	limit := newLogsStorageLimit(outputDir, 1)
+	secondRunDir := filepath.Join(outputDir, "run-2")
+	err := limit.runDownload(context.Background(), secondRunDir, func() error {
+		require.NoError(t, os.MkdirAll(secondRunDir, 0o755))
+		return os.WriteFile(filepath.Join(secondRunDir, runSummaryFileName), make([]byte, bytesPerMegabyte/2), 0o600)
+	})
+
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(firstRunDir, "sandbox", "agent", "logs", "events.jsonl"))
+	assert.FileExists(t, filepath.Join(secondRunDir, runSummaryFileName))
+	assert.False(t, limit.isReached())
+}
+
+func TestLogsStorageLimitPrunesCompletedDownloadToBudget(t *testing.T) {
+	outputDir := t.TempDir()
+	limit := newLogsStorageLimit(outputDir, 1)
+	runDir := filepath.Join(outputDir, "run-1")
+
+	err := limit.runDownload(context.Background(), runDir, func() error {
+		require.NoError(t, os.MkdirAll(filepath.Join(runDir, "mcp-logs"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(runDir, "mcp-logs", "large.log"), make([]byte, 2*bytesPerMegabyte), 0o600))
+		return os.WriteFile(filepath.Join(runDir, runSummaryFileName), []byte("{}"), 0o600)
+	})
+
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(runDir, "mcp-logs", "large.log"))
+	assert.FileExists(t, filepath.Join(runDir, runSummaryFileName))
+	assert.False(t, limit.isReached())
+	size, sizeErr := logsDirectorySize(outputDir)
+	require.NoError(t, sizeErr)
+	assert.Less(t, size, bytesPerMegabyte)
 }
 
 func TestLogsStorageLimitStopsNewDownloadsAtExistingLimit(t *testing.T) {
