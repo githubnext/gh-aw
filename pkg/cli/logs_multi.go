@@ -109,6 +109,14 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 	workerCount := min(len(targets), getMaxConcurrentWorkflowDownloads())
 	sem := make(chan struct{}, workerCount)
 	perTargetDownloads := max(1, getMaxConcurrentDownloads()/workerCount)
+	cleanupErrors := make(map[string]error, len(targets))
+	for _, target := range targets {
+		cleanupOpts := opts
+		cleanupOpts.OutputDir = logsTargetOutputDir(opts.OutputDir, target)
+		if err := cleanupLogsOutputDir(cleanupOpts); err != nil {
+			cleanupErrors[target.displayName()] = err
+		}
+	}
 	storageLimit := newLogsStorageLimit(opts.OutputDir, opts.MaxStorageMB)
 	for _, target := range targets {
 		wg.Go(func() {
@@ -117,6 +125,10 @@ func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets [
 					resultChannel <- logsTargetResult{target: target, err: fmt.Errorf("workflow collector panicked: %v", recovered)}
 				}
 			}()
+			if err := cleanupErrors[target.displayName()]; err != nil {
+				resultChannel <- logsTargetResult{target: target, err: err}
+				return
+			}
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
