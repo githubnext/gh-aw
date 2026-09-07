@@ -52,8 +52,8 @@ const (
 	// disagree about what compiles. It also keeps
 	// time.Duration(enclave.Timeout) * time.Second well within int64 for the
 	// mcpg delegation envelope's max_identity_ttl field.
-	maxDynamicEnclaveTimeoutSeconds     = 4740
-	enclaveMCPTransportAllowance        = 60
+	maxDynamicEnclaveTimeoutSeconds = 4740
+	enclaveMCPTransportAllowance    = 60
 	// enclaveDelegationControlPortOffset is added to the job's MCP gateway data-plane
 	// port to derive the private, host-only listener port for mcpg's
 	// github-repository-delegation-v1 control plane. Deriving it from the (per-job
