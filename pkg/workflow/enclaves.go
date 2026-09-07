@@ -61,9 +61,11 @@ const (
 	// multiple concurrent jobs on the same host must still choose distinct
 	// sandbox.mcp.port values that are not exactly enclaveDelegationControlPortOffset
 	// apart (e.g. do not pair 8080 and 8090), or the second job's data port
-	// collides with the first job's control port. validateSandboxConfig rejects
-	// configured ports that would push the derived control port out of the valid
-	// TCP range.
+	// collides with the first job's control port; this cross-job collision is an
+	// operator responsibility and is not detected or rejected at compile time.
+	// validateSandboxConfig only rejects the separate, detectable failure mode of
+	// a configured port that would push the derived control port out of the
+	// valid TCP range.
 	enclaveDelegationControlPortOffset = 10
 	// enclaveDelegationStateDir is the protected, persistent mount used for mcpg
 	// delegation controller state so that it survives an in-run restart.
