@@ -143,6 +143,10 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
+	// Strict enforces strict mode for every workflow compiled in the repository.
+	// The schema only permits true when this field is present.
+	Strict bool
+
 	// GHES enables GitHub Enterprise Server compatibility mode.
 	// When true, the compiler uses artifact action versions supported by GHES.
 	GHES bool
@@ -225,6 +229,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
+		Strict        bool                          `json:"strict,omitempty"`
 		GHES          bool                          `json:"ghes,omitempty"`
 		HelpCommand   *bool                         `json:"help_command,omitempty"` // nil = use default (enabled)
 		UTC           string                        `json:"utc,omitempty"`
@@ -237,6 +242,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		return err
 	}
 
+	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)

@@ -21,6 +21,8 @@ const (
 	runSummaryFileName = "run_summary.json"
 	// jobsAPIResponseFileName is the raw GitHub Actions jobs API response cached for each run
 	jobsAPIResponseFileName = "jobs.json"
+	// runAPIResponseFileName is the raw GitHub Actions run API response cached for each run
+	runAPIResponseFileName = "run.json"
 	// defaultLogsOutputDir is the default directory for downloaded workflow logs
 	defaultLogsOutputDir = ".github/aw/logs"
 )
@@ -76,6 +78,9 @@ type WorkflowRun struct {
 	HeadBranch          string    `json:"headBranch"`
 	HeadSha             string    `json:"headSha"`
 	DisplayTitle        string    `json:"displayTitle"`
+	Attempt             int       `json:"attempt,omitempty"`
+	Repository          string    `json:"repository,omitempty"`
+	Actor               string    `json:"actor,omitempty"`
 	Duration            time.Duration
 	ActionMinutes       float64 // Billable Actions minutes estimated from wall-clock time
 	TokenUsage          int
