@@ -75,6 +75,10 @@ func TestNewLogsCommand(t *testing.T) {
 	parseFlag := flags.Lookup("parse")
 	assert.NotNil(t, parseFlag, "Should have 'parse' flag")
 
+	// Check audit flag
+	auditFlag := flags.Lookup("audit")
+	assert.NotNil(t, auditFlag, "Should have 'audit' flag")
+
 	// Check json flag
 	jsonFlag := flags.Lookup("json")
 	assert.NotNil(t, jsonFlag, "Should have 'json' flag")
@@ -169,7 +173,7 @@ func TestLogsCommandBooleanFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 	flags := cmd.Flags()
 
-	boolFlags := []string{"firewall", "no-firewall", "tool-graph", "parse", "json"}
+	boolFlags := []string{"firewall", "no-firewall", "tool-graph", "parse", "audit", "json"}
 
 	for _, flagName := range boolFlags {
 		t.Run(flagName, func(t *testing.T) {
@@ -178,6 +182,16 @@ func TestLogsCommandBooleanFlags(t *testing.T) {
 			assert.Equal(t, "false", flag.DefValue, "Boolean flag should default to false: %s", flagName)
 		})
 	}
+}
+
+func TestLogsCommandAuditFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	require.NoError(t, cmd.Flags().Set("audit", "true"))
+
+	opts, err := loadCommonLogsOptions(cmd)
+
+	require.NoError(t, err)
+	assert.True(t, opts.Audit)
 }
 
 func TestLogsCommandStructure(t *testing.T) {

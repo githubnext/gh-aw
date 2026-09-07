@@ -174,6 +174,7 @@ type RunData struct {
 	UpdatedAt                  time.Time              `json:"updated_at,omitzero" console:"-"`
 	URL                        string                 `json:"url" console:"-"`
 	LogsPath                   string                 `json:"logs_path" console:"header:Logs Path"`
+	AuditPath                  string                 `json:"audit_path,omitempty" console:"-"`
 	Event                      string                 `json:"event" console:"-"`
 	Branch                     string                 `json:"branch" console:"-"`
 	HeadSHA                    string                 `json:"head_sha,omitempty" console:"-"`
@@ -517,6 +518,7 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		UpdatedAt:                  run.UpdatedAt,
 		URL:                        run.URL,
 		LogsPath:                   run.LogsPath,
+		AuditPath:                  existingAuditPath(run.LogsPath),
 		Event:                      run.Event,
 		Branch:                     run.HeadBranch,
 		HeadSHA:                    run.HeadSha,

@@ -38,6 +38,7 @@ type LogsDownloadOptions struct {
 	FilteredIntegrity bool
 	EvalsOnly         bool
 	GradersOnly       bool
+	Audit             bool
 	Train             bool
 	Format            string
 	ArtifactSets      []string
@@ -86,6 +87,7 @@ type StdinLogsOptions struct {
 	FilteredIntegrity bool
 	EvalsOnly         bool
 	GradersOnly       bool
+	Audit             bool
 	Train             bool
 	Format            string
 	ReportFile        string
@@ -130,6 +132,7 @@ type renderLogsOutputOptions struct {
 	jsonOutput     bool
 	toolGraph      bool
 	train          bool
+	audit          bool
 	continuation   *ContinuationData
 	message        string
 	verbose        bool
