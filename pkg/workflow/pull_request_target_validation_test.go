@@ -77,6 +77,7 @@ Test workflow content.`,
 		{
 			name: "pull_request_target with trusted checkout - non-strict - no warnings no error",
 			frontmatter: `---
+strict: false
 on:
   pull_request_target:
     types: [opened]
@@ -341,7 +342,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with no checkout key - strict CLI + frontmatter strict false - insecure checkout warning",
+			name: "pull_request_target with no checkout key - strict CLI overrides frontmatter strict false",
 			frontmatter: `---
 strict: false
 on:
@@ -358,9 +359,10 @@ permissions:
 Test workflow content.`,
 			filename:      "prt-checkout-enabled-strict-frontmatter-opt-out.md",
 			strictMode:    true,
-			expectError:   false,
+			expectError:   true,
 			expectWarning: true,
-			warningCount:  1, // strict: false lowers to non-strict mode (skips dangerous-trigger warning), but insecure-checkout warning still emits
+			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
+			warningCount:  1, // dangerous-trigger warning
 		},
 		{
 			name: "pull_request trigger (not target) - strict - no diagnostic",
