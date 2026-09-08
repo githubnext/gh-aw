@@ -37,6 +37,7 @@ type logsStorageLimit struct {
 	reached   atomic.Bool
 	initErr   error
 	usedBytes int64
+	active    int
 	completed map[string]struct{}
 }
 
@@ -151,14 +152,18 @@ func logsFolderSizes(path string) ([]logsFolderSize, error) {
 }
 
 func (l *logsStorageLimit) runDownload(ctx context.Context, storagePath string, download func() error) error {
-	return l.runDownloadWithPruning(ctx, storagePath, download, true)
+	return l.runDownloadWithPruning(ctx, storagePath, download, true, false)
 }
 
 func (l *logsStorageLimit) runDownloadDeferred(ctx context.Context, storagePath string, download func() error) error {
-	return l.runDownloadWithPruning(ctx, storagePath, download, false)
+	return l.runDownloadWithPruning(ctx, storagePath, download, false, false)
 }
 
-func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePath string, download func() error, prune bool) error {
+func (l *logsStorageLimit) runDownloadDeferredReserved(ctx context.Context, storagePath string, download func() error) error {
+	return l.runDownloadWithPruning(ctx, storagePath, download, false, true)
+}
+
+func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePath string, download func() error, markCompleted, reserved bool) error {
 	if l == nil {
 		return download()
 	}
@@ -169,8 +174,10 @@ func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePa
 	default:
 	}
 
-	if err := l.reserve(storagePath); err != nil {
-		return err
+	if !reserved {
+		if err := l.reserve(storagePath); err != nil {
+			return err
+		}
 	}
 
 	sizeBefore, err := logsDirectorySize(storagePath)
@@ -182,7 +189,7 @@ func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePa
 	if sizeErr != nil {
 		return errors.Join(downloadErr, fmt.Errorf("failed to measure logs storage: %w", sizeErr))
 	}
-	pruneErr := l.recordUsage(storagePath, sizeAfter-sizeBefore, prune)
+	pruneErr := l.recordUsage(storagePath, sizeAfter-sizeBefore, markCompleted)
 	return errors.Join(downloadErr, pruneErr)
 }
 
@@ -196,14 +203,29 @@ func (l *logsStorageLimit) reserve(storagePath string) error {
 	if l.initErr != nil {
 		return l.initErr
 	}
-	if l.reached.Load() {
+	cleanPath := filepath.Clean(storagePath)
+	_, wasCompleted := l.completed[cleanPath]
+	delete(l.completed, cleanPath)
+	l.active++
+	restoreAndReject := func() error {
+		l.active--
+		if wasCompleted {
+			l.completed[cleanPath] = struct{}{}
+		}
 		return errLogsStorageLimitReached
+	}
+	if l.reached.Load() && l.active == 1 && !wasCompleted {
+		return restoreAndReject()
 	}
 	if l.usedBytes >= l.maxBytes {
-		l.markReached(l.usedBytes)
-		return errLogsStorageLimitReached
+		if err := l.pruneLocked(); err != nil {
+			l.active--
+			return err
+		}
+		if l.usedBytes >= l.maxBytes && l.active == 1 && !wasCompleted {
+			return restoreAndReject()
+		}
 	}
-	delete(l.completed, filepath.Clean(storagePath))
 	return nil
 }
 
@@ -241,7 +263,7 @@ func (l *logsStorageLimit) initialize() error {
 		}
 		l.recordPrunedUsage(freed)
 	}
-	if l.usedBytes >= l.maxBytes {
+	if l.usedBytes >= l.maxBytes && l.active == 0 {
 		l.markReached(l.usedBytes)
 	}
 	return nil
@@ -249,12 +271,13 @@ func (l *logsStorageLimit) initialize() error {
 
 // recordUsage applies a completed download's byte delta and removes non-essential
 // data from paths that are safe to prune when the cache reaches the budget.
-func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, prune bool) error {
+func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, markCompleted bool) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	l.usedBytes += delta
-	if prune {
+	if markCompleted {
+		l.active--
 		l.completed[filepath.Clean(storagePath)] = struct{}{}
 	}
 	if l.usedBytes >= l.maxBytes {
@@ -266,6 +289,7 @@ func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, prune bo
 func (l *logsStorageLimit) finalizeDownload(storagePath string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.active--
 	l.completed[filepath.Clean(storagePath)] = struct{}{}
 	if l.usedBytes < l.maxBytes {
 		return nil
@@ -281,7 +305,7 @@ func (l *logsStorageLimit) pruneLocked() error {
 		}
 		l.recordPrunedUsage(freed)
 	}
-	if l.usedBytes >= l.maxBytes {
+	if l.usedBytes >= l.maxBytes && l.active == 0 {
 		l.markReached(l.usedBytes)
 	}
 	return nil
@@ -381,6 +405,8 @@ func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]st
 }
 
 func isInCompletedLogsCachePath(path string, completedPaths map[string]struct{}) bool {
+	// A nil map means no active-path filtering is requested; an empty map means
+	// filtering is enabled and all active paths are protected.
 	if completedPaths == nil {
 		return true
 	}

@@ -290,5 +290,8 @@ func TestLogsStorageLimitConcurrentDeferredDownloadsProtectFreshRuns(t *testing.
 	for _, file := range files {
 		assert.FileExists(t, file, "fresh run data must not be pruned before finalization")
 	}
-	assert.True(t, limit.isReached())
+	for i := range numDownloads {
+		require.NoError(t, limit.finalizeDownload(filepath.Join(outputDir, fmt.Sprintf("run-%d", i))))
+	}
+	assert.False(t, limit.isReached())
 }
