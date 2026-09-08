@@ -33,6 +33,7 @@ var notYetEnforced = map[string]string{
 	"packagelevelmutableslicemap": "existing production violations need remediation",
 	"seenmapbool":                 "existing production violations need remediation",
 	"sprintferrdot":               "has not yet completed an enforcement-readiness audit",
+	"sprintfstring":               "has not yet completed an enforcement-readiness audit",
 	"ssljson":                     "has not yet completed an enforcement-readiness audit",
 	"stringsconcatloop":           "has not yet completed an enforcement-readiness audit",
 }

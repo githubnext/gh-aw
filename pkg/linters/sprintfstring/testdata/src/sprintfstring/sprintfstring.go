@@ -1,0 +1,19 @@
+package sprintfstring
+
+import "fmt"
+
+func direct(s string) string {
+	return fmt.Sprintf("%s", s) // want `use s directly instead of fmt\.Sprintf\("%s", s\)`
+}
+
+func literal() string {
+	return fmt.Sprintf("%s", "hello") // want `use "hello" directly instead of fmt\.Sprintf\("%s", "hello"\)`
+}
+
+func notFlagged(v int) string {
+	return fmt.Sprintf("%d", v)
+}
+
+func suppressed(s string) string {
+	return fmt.Sprintf("%s", s) //nolint:sprintfstring
+}

@@ -59,6 +59,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintferrdot"
 	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
+	"github.com/github/gh-aw/pkg/linters/sprintfstring"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/stringbytesroundtrip"
@@ -93,7 +94,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 67 analyzers
+// "Public API > Subpackages" table. The README documents 68 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -103,7 +104,7 @@ type docAnalyzer struct {
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
 //	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, manualpathconcat, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
-//	regexpcompileinfunction, regexpdynamicpattern, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
+//	regexpcompileinfunction, regexpdynamicpattern, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, sprintfstring, ssljson,
 //	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
 //	tolowerequalfold, trimleftright, uncheckedflushreturn, uncheckedtypeassertion, walkfuncerrshadow, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
@@ -156,6 +157,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"sprintferrorsnew", sprintferrorsnew.Analyzer},
 		{"sprintfbool", sprintfbool.Analyzer},
 		{"sprintfint", sprintfint.Analyzer},
+		{"sprintfstring", sprintfstring.Analyzer},
 		{"ssljson", ssljson.Analyzer},
 		{"strconvparseignorederror", strconvparseignorederror.Analyzer},
 		{"stringbytesroundtrip", stringbytesroundtrip.Analyzer},
