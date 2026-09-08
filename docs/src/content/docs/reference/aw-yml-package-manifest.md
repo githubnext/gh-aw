@@ -89,6 +89,7 @@ If `files` is present, valid entries become the install bundle. Two entry kinds 
 - Every other string entry (such as `workflows/review.md`) is resolved relative to the package root.
 - A string entry may end in a single `/*` wildcard (such as `workflows/*`) to include supported direct children of that directory. The wildcard does not recurse, and `*` is not supported in any other position. Matches are filtered by the same workflow, skill, and agent path rules as explicit entries.
 - A **mapping entry** always resolves `source` relative to the package root and `destination` relative to the consuming repository root.
+- A mapping `source` may end in `/*`. For wildcard mappings, `destination` must be the `.github/workflows/` folder, and each matching file keeps its source filename.
 
 ### Source-to-destination mappings
 
@@ -103,13 +104,15 @@ includes:
   - source: payload/workflows/controller.yml
     destination: .github/workflows/controller.yml
     kind: action-workflow
+  - source: payload/extra-workflows/*
+    destination: .github/workflows/
 ```
 
 With a nested package reference such as `owner/repo/factory`, the files above are fetched from `factory/payload/workflows/` and installed to `.github/workflows/`. Because the sources live outside `.github/workflows/` in the distribution repository, they never run there.
 
 The optional `kind` field is either `agentic-workflow` (`.md`) or `action-workflow` (`.yml`) and must match the source extension.
 
-Mappings are rejected when `source` or `destination` is absolute, contains `..`, points at a symbolic link, uses an unsupported extension (or `.lock.yml`), changes the file extension between source and destination, or targets anything other than a direct child of `.github/workflows/`. Two entries installing to the same destination are rejected before any file is written.
+Mappings are rejected when `source` or `destination` is absolute, contains `..`, points at a symbolic link, uses an unsupported extension (or `.lock.yml`), changes the file extension between source and destination, or targets anything other than a direct child of `.github/workflows/`. A wildcard mapping is the exception: it targets the `.github/workflows/` folder, then preserves each matching source filename. Two entries installing to the same destination are rejected before any file is written.
 
 `gh aw add`, `gh aw add-wizard`, and `gh aw update` all use these same mapping rules.
 
