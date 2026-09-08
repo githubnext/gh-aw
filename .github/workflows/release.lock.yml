@@ -1150,7 +1150,6 @@ jobs:
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/pre-agent-audit.txt
-            /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/otlp-export-errors.jsonl
