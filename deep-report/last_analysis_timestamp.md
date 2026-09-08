@@ -108,3 +108,14 @@
 - Weekly issues data: 500 total, 150 open/350 closed, 0 stale >7 days, 59 unlabeled (chronic WIP-stub pattern, +5 vs last cycle).
 - Fleet-log spot-check (20 runs, 2026-09-07T01:00→04:45Z window): 16/20 success (80% raw), 0 intentional-failure workflows in sample. 3 failures (Daily AgentRx Trace Optimizer, Avenger, Schema Consistency Checker), all `driver_exit`-class with 0 agent-logic failures — single-occurrence each, consistent with normal infra noise, not fileable.
 - Next cycle: retry GitHub MCP search early; if recovered, live-verify current status of `compiler_safe_outputs_builder.go` test gap and `compiler_safe_outputs_job.go` decomposition before deciding whether to file either.
+
+---
+2026-09-08T~01:05Z (incremental cycle since prior briefing #59283, created 2026-09-07T18:40:46Z)
+
+## Cycle summary
+- Window: ~6.4h elapsed since prior briefing #59283. Only 4 new discussions: #59287 (MCP Inspector Report), #59295 (Lockfile Statistics), #59299 (Copilot PR Prompt Analysis), #59301 (Daily Performance Summary) — lowest-yield window in recent history.
+- **1 issue filed, live-verified against current source**: 6 `shared/mcp/*.md` configs (agentdb, ast-grep, azure-devops, microsoft-docs, skillz, tavily) expose `allowed: ["*"]` wildcard tool access instead of an explicit allowlist, unlike the already-hardened `azure.md` sibling; `mempalace.md` bundled in for its 4 mutating tools (add/delete drawer, kg_add, kg_invalidate) exposed with no secret gating. Confirmed via direct grep against all 7 files in the checked-out repo.
+- 0 comments added. 1 discussion created (this briefing).
+- Declined: Copilot PR Prompt Analysis #59299 (chronic operational-value-study pattern, no new evidence), Lockfile Stats #59295 (healthy, "6 workflows missing scaffold" too vague to action without names), Daily Performance Summary #59301 (chronic informational).
+- Repo-memory hygiene: trimmed `flagged_items.md`, `known_patterns.md`, `trend_data.md` (124KB/93KB/67KB → ~47KB/45KB/47KB) this cycle, completing the trim-oldest-entries work flagged as needed since 2026-09-06.
+- Next cycle: watch pickup on the MCP wildcard-allowlist issue.

@@ -304,3 +304,9 @@ Not filed (already self-filed by source workflow): Sergo #59123's nolint space-p
 Not filed (sandbox infra, ADR-covered): Firewall Escape Test #59132's docker.sock hardening suggestion (see ADR 44446).
 
 **Blocking issue**: GitHub MCP read tools (`search_issues`/`list_issues`/`get_file_contents`) were unavailable all cycle ("WASM guard 'github' is unavailable after a previous trap"), preventing the mandatory dedup-gate search for the 2 compiler-quality candidates. Per standing policy, declined to file without live verification. Flagged via `missing_tool`. Next cycle: retry GitHub search early; if recovered, verify current status of the builder-test-file and job.go-decomposition tasks before deciding whether to re-file.
+
+## 2026-09-08 ~01:05Z cycle (1 task extracted, baseline #59283, window #59287-59301, 4 new discussions)
+
+- **Narrow wildcard MCP tool allowlists to explicit lists in 6 shared/mcp configs + gate mempalace's mutating tools** — source: MCP Inspector Report #59287. Live-verified: `agentdb.md`, `ast-grep.md`, `azure-devops.md`, `microsoft-docs.md`, `skillz.md`, `tavily.md` all use `allowed: ["*"]`; `azure.md` already demonstrates the fix pattern (7 explicit read-only tools). `mempalace.md` separately exposes 4 mutating tools (`mempalace_add_drawer`, `mempalace_delete_drawer`, `mempalace_kg_add`, `mempalace_kg_invalidate`) with no secret/auth requirement. Filed as 1 bundled GitHub issue this cycle.
+
+No other tasks extracted — Lockfile Stats/Prompt Analysis/Daily Performance Summary all reviewed and declined (chronic/vague/informational, see [[flagged_items]]).
