@@ -35,21 +35,6 @@ var runtimeImportMacroRe = regexp.MustCompile(`\{\{#(?:runtime-import|import)\??
 // lineRangeRe matches a line range suffix of the form "digits-digits" (e.g., "10-20").
 var lineRangeRe = regexp.MustCompile(`^\d+-\d+$`)
 
-// extractRuntimeImportPaths extracts all runtime-import file paths from markdown content.
-// Returns a list of file paths (not URLs) referenced in {{#runtime-import}} macros.
-// URLs (http:// or https://) are excluded since they are validated separately.
-func extractRuntimeImportPaths(markdownContent string) []string {
-	refs := extractRuntimeImportReferences(markdownContent)
-	if len(refs) == 0 {
-		return nil
-	}
-	paths := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		paths = append(paths, ref.importPath)
-	}
-	return paths
-}
-
 type runtimeImportReference struct {
 	importPath string
 	startLine  int

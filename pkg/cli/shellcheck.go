@@ -425,10 +425,6 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 // When strict is true, any step failure causes a non-nil error to be returned
 // after all steps have been checked (reports-all-then-errors). In non-strict
 // mode, all failures are printed as warnings and nil is returned.
-func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
-	return runShellcheckOnLockFilesAndResources(ctx, lockFiles, nil, verbose, strict)
-}
-
 func runShellcheckOnLockFilesAndResources(ctx context.Context, lockFiles []string, resources []workflow.ShellScriptResource, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 && len(resources) == 0 {
 		return nil
