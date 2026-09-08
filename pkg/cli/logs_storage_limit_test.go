@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -300,24 +299,16 @@ func TestLogsStorageLimitPrunesOldestRunAfterCachePruningIsExhausted(t *testing.
 	assert.False(t, limit.isReached())
 }
 
-func TestLogsStorageLimitPrunesOldestRunByCreationTime(t *testing.T) {
+func TestLogsStorageLimitPrunesOldestRunByRunID(t *testing.T) {
 	outputDir := t.TempDir()
-	olderRunDir := filepath.Join(outputDir, "run-20")
-	newerRunDir := filepath.Join(outputDir, "run-10")
-	for _, run := range []struct {
-		path      string
-		id        int64
-		createdAt time.Time
-	}{
-		{path: olderRunDir, id: 20, createdAt: time.Now().Add(-2 * time.Hour)},
-		{path: newerRunDir, id: 10, createdAt: time.Now().Add(-time.Hour)},
-	} {
-		require.NoError(t, os.MkdirAll(run.path, 0o755))
-		summary, err := json.Marshal(RunSummary{RunID: run.id, RunAnalysis: RunAnalysis{Run: WorkflowRun{DatabaseID: run.id, CreatedAt: run.createdAt}}})
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(run.path, runSummaryFileName), summary, 0o600))
-		require.NoError(t, os.WriteFile(filepath.Join(run.path, "essential.bin"), make([]byte, 3*bytesPerMegabyte/8), 0o600))
+	oldestRunDir := filepath.Join(outputDir, "run-10")
+	newerRunDir := filepath.Join(outputDir, "run-20")
+	for _, runDir := range []string{oldestRunDir, newerRunDir} {
+		require.NoError(t, os.MkdirAll(runDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(runDir, "essential.bin"), make([]byte, 3*bytesPerMegabyte/8), 0o600))
 	}
+	require.NoError(t, os.Chtimes(oldestRunDir, time.Now(), time.Now()))
+	require.NoError(t, os.Chtimes(newerRunDir, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
 
 	limit := newLogsStorageLimit(outputDir, 1, true)
 	currentRunDir := filepath.Join(outputDir, "run-30")
@@ -327,7 +318,7 @@ func TestLogsStorageLimitPrunesOldestRunByCreationTime(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.NoDirExists(t, olderRunDir)
+	assert.NoDirExists(t, oldestRunDir)
 	assert.DirExists(t, newerRunDir)
 }
 

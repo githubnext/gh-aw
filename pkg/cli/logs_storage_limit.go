@@ -4,7 +4,6 @@ package cli
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -15,7 +14,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -37,13 +35,12 @@ type logsStorageLimit struct {
 	// shared byte counter is serialized. This means the budget can overshoot by up
 	// to the combined size of the in-flight downloads that were admitted before
 	// the limit was reached, which is an accepted trade-off for a soft cap.
-	mu         sync.Mutex
-	reached    atomic.Bool
-	initErr    error
-	usedBytes  int64
-	active     int
-	activeRuns map[string]time.Time
-	completed  map[string]time.Time
+	mu        sync.Mutex
+	reached   atomic.Bool
+	initErr   error
+	usedBytes int64
+	active    int
+	completed map[string]struct{}
 }
 
 type logsFolderSize struct {
@@ -96,8 +93,7 @@ func newLogsStorageLimit(outputDir string, maxStorageMB int, pruneOlderRuns bool
 		outputDir:      outputDir,
 		maxBytes:       int64(maxStorageMB) * bytesPerMegabyte,
 		pruneOlderRuns: pruneOlderRuns,
-		activeRuns:     make(map[string]time.Time),
-		completed:      make(map[string]time.Time),
+		completed:      make(map[string]struct{}),
 	}
 	limit.initErr = limit.initialize()
 	return limit
@@ -277,7 +273,7 @@ func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePa
 // reserve checks the shared budget state and protects the download path from
 // pruning under a short-lived lock. It never holds the lock across the actual
 // download, so concurrent downloads keep running in parallel.
-func (l *logsStorageLimit) reserve(storagePath string, createdAt ...time.Time) error {
+func (l *logsStorageLimit) reserve(storagePath string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -285,19 +281,13 @@ func (l *logsStorageLimit) reserve(storagePath string, createdAt ...time.Time) e
 		return l.initErr
 	}
 	cleanPath := filepath.Clean(storagePath)
-	completedCreatedAt, wasCompleted := l.completed[cleanPath]
+	_, wasCompleted := l.completed[cleanPath]
 	delete(l.completed, cleanPath)
-	runCreatedAt := completedCreatedAt
-	if len(createdAt) > 0 && !createdAt[0].IsZero() {
-		runCreatedAt = createdAt[0]
-	}
-	l.activeRuns[cleanPath] = runCreatedAt
 	l.active++
 	restoreAndReject := func() error {
 		l.active--
-		delete(l.activeRuns, cleanPath)
 		if wasCompleted {
-			l.completed[cleanPath] = completedCreatedAt
+			l.completed[cleanPath] = struct{}{}
 		}
 		return errLogsStorageLimitReached
 	}
@@ -305,9 +295,8 @@ func (l *logsStorageLimit) reserve(storagePath string, createdAt ...time.Time) e
 		return restoreAndReject()
 	}
 	if l.usedBytes >= l.maxBytes {
-		if err := l.pruneLocked(storagePath, runCreatedAt); err != nil {
+		if err := l.pruneLocked(storagePath); err != nil {
 			l.active--
-			delete(l.activeRuns, cleanPath)
 			return err
 		}
 		if l.usedBytes >= l.maxBytes && l.active == 1 && !wasCompleted {
@@ -332,7 +321,7 @@ func (l *logsStorageLimit) initialize() error {
 			return walkErr
 		}
 		if info != nil && info.IsDir() && strings.HasPrefix(info.Name(), "run-") {
-			l.completed[filepath.Clean(path)] = logsRunCreatedAt(path)
+			l.completed[filepath.Clean(path)] = struct{}{}
 			return filepath.SkipDir
 		}
 		return nil
@@ -360,18 +349,13 @@ func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, markComp
 	defer l.mu.Unlock()
 
 	l.usedBytes += delta
-	currentCreatedAt := l.activeRuns[filepath.Clean(storagePath)]
 	if markCompleted {
 		cleanPath := filepath.Clean(storagePath)
-		delete(l.activeRuns, cleanPath)
-		if currentCreatedAt.IsZero() {
-			currentCreatedAt = logsRunCreatedAt(cleanPath)
-		}
 		l.active--
-		l.completed[cleanPath] = currentCreatedAt
+		l.completed[cleanPath] = struct{}{}
 	}
 	if l.usedBytes >= l.maxBytes {
-		return l.pruneLocked(storagePath, currentCreatedAt)
+		return l.pruneLocked(storagePath)
 	}
 	return nil
 }
@@ -380,20 +364,15 @@ func (l *logsStorageLimit) finalizeDownload(storagePath string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	cleanPath := filepath.Clean(storagePath)
-	createdAt := l.activeRuns[cleanPath]
-	delete(l.activeRuns, cleanPath)
-	if createdAt.IsZero() {
-		createdAt = logsRunCreatedAt(cleanPath)
-	}
 	l.active--
-	l.completed[cleanPath] = createdAt
+	l.completed[cleanPath] = struct{}{}
 	if l.usedBytes < l.maxBytes {
 		return nil
 	}
-	return l.pruneLocked(storagePath, createdAt)
+	return l.pruneLocked(storagePath)
 }
 
-func (l *logsStorageLimit) pruneLocked(storagePath string, currentCreatedAt time.Time) error {
+func (l *logsStorageLimit) pruneLocked(storagePath string) error {
 	if l.usedBytes >= l.maxBytes {
 		freed, err := pruneLogsCache(l.outputDir, l.usedBytes-l.maxBytes+1, l.completed)
 		if err != nil {
@@ -402,7 +381,7 @@ func (l *logsStorageLimit) pruneLocked(storagePath string, currentCreatedAt time
 		l.recordPrunedUsage(freed)
 	}
 	if l.pruneOlderRuns && l.usedBytes >= l.maxBytes {
-		freed, err := l.pruneOldestRunsLocked(storagePath, currentCreatedAt, l.usedBytes-l.maxBytes+1)
+		freed, err := l.pruneOldestRunsLocked(storagePath, l.usedBytes-l.maxBytes+1)
 		if err != nil {
 			return fmt.Errorf("failed to prune older logs runs: %w", err)
 		}
@@ -415,13 +394,12 @@ func (l *logsStorageLimit) pruneLocked(storagePath string, currentCreatedAt time
 }
 
 type logsRunPruneCandidate struct {
-	path      string
-	runID     int64
-	createdAt time.Time
-	size      int64
+	path  string
+	runID int64
+	size  int64
 }
 
-func (l *logsStorageLimit) pruneOldestRunsLocked(storagePath string, currentCreatedAt time.Time, bytesToFree int64) (int64, error) {
+func (l *logsStorageLimit) pruneOldestRunsLocked(storagePath string, bytesToFree int64) (int64, error) {
 	currentRunID, ok := logsRunIDFromPath(storagePath)
 	if !ok || bytesToFree <= 0 {
 		return 0, nil
@@ -429,32 +407,22 @@ func (l *logsStorageLimit) pruneOldestRunsLocked(storagePath string, currentCrea
 
 	candidates := make([]logsRunPruneCandidate, 0, len(l.completed))
 	var availableBytes int64
-	for completedPath, createdAt := range l.completed {
+	for completedPath := range l.completed {
 		runID, ok := logsRunIDFromPath(completedPath)
-		if !ok {
-			continue
-		}
-		olderThanCurrent := runID < currentRunID
-		if !currentCreatedAt.IsZero() && !createdAt.IsZero() {
-			olderThanCurrent = createdAt.Before(currentCreatedAt)
-		}
-		if !olderThanCurrent {
+		if !ok || runID >= currentRunID {
 			continue
 		}
 		size, err := logsDirectorySize(completedPath)
 		if err != nil {
 			return 0, err
 		}
-		candidates = append(candidates, logsRunPruneCandidate{path: completedPath, runID: runID, createdAt: createdAt, size: size})
+		candidates = append(candidates, logsRunPruneCandidate{path: completedPath, runID: runID, size: size})
 		availableBytes += size
 	}
 	if availableBytes < bytesToFree {
 		return 0, nil
 	}
 	slices.SortFunc(candidates, func(a, b logsRunPruneCandidate) int {
-		if !a.createdAt.IsZero() && !b.createdAt.IsZero() && !a.createdAt.Equal(b.createdAt) {
-			return a.createdAt.Compare(b.createdAt)
-		}
 		if a.runID == b.runID {
 			return cmp.Compare(a.path, b.path)
 		}
@@ -473,20 +441,6 @@ func (l *logsStorageLimit) pruneOldestRunsLocked(storagePath string, currentCrea
 		freed += candidate.size
 	}
 	return freed, nil
-}
-
-func logsRunCreatedAt(path string) time.Time {
-	data, err := os.ReadFile(filepath.Join(path, runSummaryFileName))
-	if err == nil {
-		var summary RunSummary
-		if json.Unmarshal(data, &summary) == nil && !summary.Run.CreatedAt.IsZero() {
-			return summary.Run.CreatedAt
-		}
-	}
-	if info, err := os.Stat(path); err == nil {
-		return info.ModTime()
-	}
-	return time.Time{}
 }
 
 func logsRunIDFromPath(path string) (int64, bool) {
@@ -567,7 +521,7 @@ func (l *logsStorageLimit) recordPrunedRunUsage(freed int64) {
 	logsOrchestratorLog.Printf("Pruned older logs runs: freed=%d remaining=%d", freed, l.usedBytes)
 }
 
-func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]time.Time) (int64, error) {
+func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]struct{}) (int64, error) {
 	if bytesToFree <= 0 {
 		return 0, nil
 	}
@@ -628,7 +582,7 @@ func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]ti
 	return freed, nil
 }
 
-func isInCompletedLogsCachePath(path string, completedPaths map[string]time.Time) bool {
+func isInCompletedLogsCachePath(path string, completedPaths map[string]struct{}) bool {
 	// A nil map means no active-path filtering is requested; an empty map means
 	// filtering is enabled and all active paths are protected.
 	if completedPaths == nil {
