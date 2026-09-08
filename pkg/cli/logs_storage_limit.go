@@ -435,6 +435,7 @@ func (l *logsStorageLimit) pruneOldestRunsLocked(storagePath string, bytesToFree
 			break
 		}
 		if err := os.RemoveAll(candidate.path); err != nil {
+			l.recordPrunedRunUsage(freed)
 			return freed, err
 		}
 		delete(l.completed, candidate.path)
