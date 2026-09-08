@@ -8,7 +8,7 @@
 //
 // # Validation Functions
 //
-//   - extractRuntimeImportPaths() - Extracts file paths from {{#runtime-import}} macros
+//   - extractRuntimeImportReferences() - Extracts file paths and expressions from {{#runtime-import}} macros
 //   - validateRuntimeImportFiles() - Validates expressions in all runtime-import files
 //
 // For expression security and allowlist validation, see expression_safety_validation.go.

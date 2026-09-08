@@ -6,7 +6,7 @@
 //
 // # Key Functions
 //
-//   - runShellcheckOnLockFiles() - Run shellcheck on run steps in multiple lock files
+//   - runShellcheckOnLockFilesAndResources() - Run shellcheck on lock files and explicit shell resources
 //   - extractRunStepsFromLockFile() - Parse a lock file and extract run step info
 //   - isShellcheckAvailable() - Check whether the shellcheck binary is in PATH
 //   - isShellcheckableShell() - True for bash/sh steps; false for pwsh/python/etc.
@@ -406,9 +406,10 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 	return out.Bytes(), nil
 }
 
-// runShellcheckOnLockFiles extracts run: steps from each lock file and runs
-// shellcheck on the shell snippets in parallel. It uses shellcheckDefaultIgnoreCodes
-// to suppress known false positives from GitHub Actions expression syntax.
+// runShellcheckOnLockFilesAndResources extracts run: steps from each lock file,
+// combines them with explicit shell resources, and runs shellcheck on the shell
+// snippets in parallel. It uses shellcheckDefaultIgnoreCodes to suppress known
+// false positives from GitHub Actions expression syntax.
 //
 // When the shellcheck binary is not installed, it falls back to the Docker
 // container (ShellcheckImage) if Docker is available. This allows shellcheck
