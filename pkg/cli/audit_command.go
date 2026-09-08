@@ -194,7 +194,7 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 	if err := applyAuditRepoFlag(opts.repoFlag, components); err != nil {
 		return err
 	}
-	auditCommandLog.Printf("Running single-run audit: run=%d, owner=%s, repo=%s, job_id=%s", components.Number, components.Owner, components.Repo, components.JobID)
+	auditCommandLog.Printf("Running single-run audit: run=%d, owner=%s, repo=%s, job_id=%d", components.Number, components.Owner, components.Repo, components.JobID)
 	return AuditWorkflowRun(ctx, components.Number, AuditOptions{
 		Owner:            components.Owner,
 		Repo:             components.Repo,
