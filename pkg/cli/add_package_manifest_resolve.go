@@ -272,17 +272,20 @@ func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, p
 		}
 
 		remoteParent := parent
-		rootRelative := strings.HasPrefix(parent, constants.GithubDir)
-		if packagePath != "" && !strings.HasPrefix(parent, constants.GithubDir) {
+		rootRelative := !include.isMapping() && strings.HasPrefix(parent, constants.GithubDir)
+		if packagePath != "" && !rootRelative {
 			remoteParent = joinRepositoryPackagePath(packagePath, parent)
 		}
 		files, err := listPackageDirFilesForHost(ctx, owner, repo, ref, remoteParent, host)
 		if err != nil && !isRepositoryFileNotFound(err) {
 			return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, err)
 		}
-		dirs, dirErr := listPackageDirSubdirsForHost(ctx, owner, repo, ref, remoteParent, host)
-		if dirErr != nil && !isRepositoryFileNotFound(dirErr) {
-			return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, dirErr)
+		var dirs []string
+		if !include.isMapping() {
+			dirs, err = listPackageDirSubdirsForHost(ctx, owner, repo, ref, remoteParent, host)
+			if err != nil && !isRepositoryFileNotFound(err) {
+				return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, err)
+			}
 		}
 
 		fileCandidates := make([]string, 0, len(files))
@@ -293,19 +296,20 @@ func expandRepositoryPackageWildcardIncludes(ctx context.Context, owner, repo, p
 			}
 			fileCandidates = append(fileCandidates, candidate)
 		}
-		expanded = append(expanded, expandManifestWildcardMatches(parent, fileCandidates, func(source string) bool {
-			return isSupportedPackageInstallablePath(source) || isSupportedAgentFilePath(source)
-		})...)
-
-		dirCandidates := make([]string, 0, len(dirs))
-		for _, candidate := range dirs {
-			candidate = filepath.ToSlash(candidate)
-			if packagePath != "" && !rootRelative {
-				candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
+		if !include.isMapping() {
+			for i, candidate := range dirs {
+				candidate = filepath.ToSlash(candidate)
+				if packagePath != "" && !rootRelative {
+					candidate = strings.TrimPrefix(candidate, strings.TrimSuffix(packagePath, "/")+"/")
+				}
+				dirs[i] = candidate
 			}
-			dirCandidates = append(dirCandidates, candidate)
 		}
-		expanded = append(expanded, expandManifestWildcardMatches(parent, dirCandidates, isSupportedSkillDirPath)...)
+		matches, err := expandManifestWildcardCandidates(include, parent, fileCandidates, dirs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand includes wildcard %q in %s/%s@%s: %w", include.Source, owner, repo, ref, err)
+		}
+		expanded = append(expanded, matches...)
 	}
 	return deduplicateManifestIncludes(expanded), nil
 }
