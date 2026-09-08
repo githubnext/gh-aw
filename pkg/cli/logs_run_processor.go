@@ -243,41 +243,44 @@ func processSingleRunDownload(
 	runOutputDir := filepath.Join(params.outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
 	perRunParams := resolveRunRepoContext(run, params)
 
-	result, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, perRunParams)
-	if !ok {
-		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
-		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
-		err := params.storageLimit.runDownloadDeferred(ctx, runOutputDir, func() error {
-			if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit, logsRunPreflightAPIReserve); err != nil {
-				return err
-			}
-			if err := os.MkdirAll(runOutputDir, constants.DirPermSensitive); err != nil {
-				return fmt.Errorf("failed to create run output directory: %w", err)
-			}
-			if metadata, err := fetchAndCacheWorkflowRunMetadata(ctx, run, runOutputDir, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.verbose); err != nil {
-				logsOrchestratorLog.Printf("Failed to fetch workflow run metadata for run %d: %v", run.DatabaseID, err)
-			} else {
-				applyWorkflowRunMetadata(&result.Run, metadata)
-			}
-			if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter}); err != nil {
-				return err
-			}
-			// When evals are requested but not found in the usage artifact (older runs
-			// that predate the conclusion-job copy), fall back to the dedicated evals
-			// artifact so those runs are not silently skipped. This applies both when
-			// --evals is set and when --artifacts evals was explicitly listed.
-			if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
-				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, perRunParams)
-			}
-			analyzeRunArtifacts(ctx, result, runOutputDir, params.verbose, params.artifactFilter)
-			return nil
-		})
-
-		if err != nil {
-			handleArtifactDownloadError(result, err, params.verbose)
-		}
+	result, ok, err := prepareRunDownload(ctx, run, runOutputDir, perRunParams, params.storageLimit)
+	if err != nil {
+		handleArtifactDownloadError(result, err, params.verbose)
 	} else {
-		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
+		if !ok {
+			logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
+			err := params.storageLimit.runDownloadDeferredReserved(ctx, runOutputDir, func() error {
+				if err := waitForConfiguredRateLimit(ctx, params.verbose, params.maxGitHubAPIRateLimit, logsRunPreflightAPIReserve); err != nil {
+					return err
+				}
+				if err := os.MkdirAll(runOutputDir, constants.DirPermSensitive); err != nil {
+					return fmt.Errorf("failed to create run output directory: %w", err)
+				}
+				if metadata, err := fetchAndCacheWorkflowRunMetadata(ctx, run, runOutputDir, perRunParams.dlOwner, perRunParams.dlRepo, perRunParams.dlHost, params.verbose); err != nil {
+					logsOrchestratorLog.Printf("Failed to fetch workflow run metadata for run %d: %v", run.DatabaseID, err)
+				} else {
+					applyWorkflowRunMetadata(&result.Run, metadata)
+				}
+				if err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter}); err != nil {
+					return err
+				}
+				// When evals are requested but not found in the usage artifact (older runs
+				// that predate the conclusion-job copy), fall back to the dedicated evals
+				// artifact so those runs are not silently skipped. This applies both when
+				// --evals is set and when --artifacts evals was explicitly listed.
+				if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
+					tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, perRunParams)
+				}
+				analyzeRunArtifacts(ctx, result, runOutputDir, params.verbose, params.artifactFilter)
+				return nil
+			})
+
+			if err != nil {
+				handleArtifactDownloadError(result, err, params.verbose)
+			}
+		} else {
+			logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
+		}
 	}
 
 	completed := completedCount.Add(1)
@@ -285,6 +288,28 @@ func processSingleRunDownload(
 		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 	}
 	return *result, nil
+}
+
+func prepareRunDownload(
+	ctx context.Context,
+	run WorkflowRun,
+	runOutputDir string,
+	params concurrentRunDownloadParams,
+	storageLimit *logsStorageLimit,
+) (*DownloadResult, bool, error) {
+	result := &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
+	if storageLimit != nil {
+		if err := storageLimit.reserve(runOutputDir); err != nil {
+			return result, false, err
+		}
+		result.storageReserved = true
+	}
+	cachedResult, ok := tryLoadCachedRunResult(ctx, run, runOutputDir, params)
+	if ok {
+		cachedResult.storageReserved = result.storageReserved
+		return cachedResult, true, nil
+	}
+	return result, false, nil
 }
 
 // tryDownloadEvalsArtifactFallback attempts to download the dedicated evals artifact for
