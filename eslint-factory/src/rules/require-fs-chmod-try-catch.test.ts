@@ -12,26 +12,14 @@ const cjsRuleTester = new RuleTester({
 function expectedWrapInTryCatchSuggestion(method: string, statement: string, prefix = "") {
   return {
     messageId: "wrapInTryCatch",
-    output:
-      `${prefix}try {\n` +
-      `  ${statement}\n` +
-      `} catch (err) {\n` +
-      `  // TODO: handle permission-change failure for this fs.${method} call.\n` +
-      `  throw new Error(\n` +
-      `    "fs.${method} failed: " + (err instanceof Error ? err.message : String(err)),\n` +
-      `    { cause: err },\n` +
-      `  );\n` +
-      `}`,
+    output: `${prefix}try {\n` + `  ${statement}\n` + `} catch (err) {\n` + `  throw new Error(\n` + `    "fs.${method} failed: " + (err instanceof Error ? err.message : String(err)),\n` + `    { cause: err },\n` + `  );\n` + `}`,
   };
 }
 
 describe("require-fs-chmod-try-catch", () => {
   it("valid: fs.chmodSync and fs.fchmodSync inside try block pass", () => {
     cjsRuleTester.run("require-fs-chmod-try-catch", requireFsChmodTryCatchRule, {
-      valid: [
-        `try { fs.chmodSync(path, 0o600); } catch (e) {}`,
-        `try { fs.fchmodSync(fd, 0o600); } catch (e) {}`,
-      ],
+      valid: [`try { fs.chmodSync(path, 0o600); } catch (e) {}`, `try { fs.fchmodSync(fd, 0o600); } catch (e) {}`],
       invalid: [],
     });
   });
