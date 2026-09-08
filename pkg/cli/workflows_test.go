@@ -87,6 +87,29 @@ func TestFetchGitHubWorkflows_ContextCancellation(t *testing.T) {
 	assert.Less(t, elapsed, 5*time.Second, "fetchGitHubWorkflows should return promptly on cancellation")
 }
 
+func TestFetchGitHubWorkflows_RequestsAllWorkflows(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell script fake gh is not supported on Windows")
+	}
+
+	fakeBinDir := t.TempDir()
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" > \"" + argsLogPath + "\"\n" +
+		"printf '%s\\n' '[]'\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	_, err := fetchGitHubWorkflows(context.Background(), "owner/repo", true)
+	require.NoError(t, err)
+
+	args, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(args), "workflow list --all --limit 1000",
+		"workflow discovery must override the gh CLI default limit")
+}
+
 // TestFetchLatestRunsByRef_ContextCancellation verifies that cancelling the
 // context while the gh subprocess (run list) is blocked causes
 // fetchLatestRunsByRef to return promptly with a context error.

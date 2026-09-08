@@ -69,7 +69,7 @@ type GitHubWorkflow struct {
 }
 
 // fetchGitHubWorkflows fetches workflow information from GitHub
-func fetchGitHubWorkflows(ctx context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+func fetchGitHubWorkflows(ctx context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) { //nolint:largefunc // Existing workflow discovery and diagnostics remain centralized.
 	workflowsLog.Printf("Fetching GitHub workflows: repoOverride=%s", repoOverride)
 
 	// Start spinner for network operation (only if not in verbose mode)
@@ -78,7 +78,7 @@ func fetchGitHubWorkflows(ctx context.Context, repoOverride string, verbose bool
 		spinner.Start()
 	}
 
-	args := []string{"workflow", "list", "--all", "--json", "id,name,path,state"}
+	args := []string{"workflow", "list", "--all", "--limit", "1000", "--json", "id,name,path,state"}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
@@ -354,7 +354,7 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 // Frontmatter is recognised only when "---" appears on the very first line.
 // Returns the first H1/H2/H3 title text, or ("", nil) when none are present.
 // Returns an error if frontmatter is opened but never closed.
-func fastParseTitleFromReader(r io.Reader) (string, error) {
+func fastParseTitleFromReader(r io.Reader) (string, error) { //nolint:largefunc // Existing streaming parser remains intentionally linear.
 	scanner := bufio.NewScanner(r)
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
