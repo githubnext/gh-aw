@@ -20,6 +20,7 @@ import (
 )
 
 const bytesPerMegabyte int64 = 1024 * 1024
+const maxReportedLogsCacheFiles = 20
 
 var errLogsStorageLimitReached = errors.New("logs storage limit reached")
 
@@ -42,6 +43,11 @@ type logsStorageLimit struct {
 
 type logsFolderSize struct {
 	name string
+	size int64
+}
+
+type logsFileSize struct {
+	path string
 	size int64
 }
 
@@ -150,6 +156,46 @@ func logsFolderSizes(path string) ([]logsFolderSize, error) {
 	return folders, nil
 }
 
+func largestLogsFiles(path string, limit int) ([]logsFileSize, int, error) {
+	if limit <= 0 {
+		return nil, 0, nil
+	}
+
+	var files []logsFileSize
+	fileCount := 0
+	err := filepath.Walk(path, func(filePath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		if info == nil || !info.Mode().IsRegular() {
+			return nil
+		}
+		relativePath, err := filepath.Rel(path, filePath)
+		if err != nil {
+			return err
+		}
+		fileCount++
+		files = append(files, logsFileSize{path: relativePath, size: info.Size()})
+		slices.SortFunc(files, func(a, b logsFileSize) int {
+			if a.size == b.size {
+				return cmp.Compare(a.path, b.path)
+			}
+			return cmp.Compare(b.size, a.size)
+		})
+		if len(files) > limit {
+			files = files[:limit]
+		}
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return nil, 0, nil
+	}
+	return files, fileCount, err
+}
+
 func (l *logsStorageLimit) runDownload(ctx context.Context, storagePath string, download func() error) error {
 	return l.runDownloadWithPruning(ctx, storagePath, download, true)
 }
@@ -215,7 +261,11 @@ func (l *logsStorageLimit) initialize() error {
 	if err != nil {
 		return fmt.Errorf("failed to measure logs cache folders: %w", err)
 	}
-	l.reportStartingUsage(size, folders)
+	files, fileCount, err := largestLogsFiles(l.outputDir, maxReportedLogsCacheFiles)
+	if err != nil {
+		return fmt.Errorf("failed to inspect logs cache files: %w", err)
+	}
+	l.reportStartingUsage(size, folders, files, fileCount)
 	l.usedBytes = size
 	err = filepath.Walk(l.outputDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -284,7 +334,7 @@ func (l *logsStorageLimit) pruneLocked() error {
 	return nil
 }
 
-func (l *logsStorageLimit) reportStartingUsage(size int64, folders []logsFolderSize) {
+func (l *logsStorageLimit) reportStartingUsage(size int64, folders []logsFolderSize, files []logsFileSize, fileCount int) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
 		"Logs cache starting size: %s (maximum %s)",
 		console.FormatFileSize(size), console.FormatFileSize(l.maxBytes),
@@ -296,6 +346,25 @@ func (l *logsStorageLimit) reportStartingUsage(size int64, folders []logsFolderS
 			strconv.Quote(folder.name), console.FormatFileSize(folder.size),
 		)))
 		logsOrchestratorLog.Printf("Logs cache folder size: folder=%q size=%d", folder.name, folder.size)
+	}
+	if fileCount > len(files) {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
+			"Logs cache files: showing %d largest of %d",
+			len(files), fileCount,
+		)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
+			"Logs cache files: %d",
+			fileCount,
+		)))
+	}
+	logsOrchestratorLog.Printf("Logs cache file count: total=%d reported=%d", fileCount, len(files))
+	for _, file := range files {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
+			"Logs cache file %s: %s",
+			strconv.Quote(file.path), console.FormatFileSize(file.size),
+		)))
+		logsOrchestratorLog.Printf("Logs cache file size: path=%q size=%d", file.path, file.size)
 	}
 }
 

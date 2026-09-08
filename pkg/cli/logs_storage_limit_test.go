@@ -53,6 +53,31 @@ func TestLogsFolderSizesLargestFirst(t *testing.T) {
 	assert.Equal(t, logsFolderSize{name: "run-small", size: 64}, folders[1])
 }
 
+func TestLargestLogsFilesSortedAndLimited(t *testing.T) {
+	outputDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(outputDir, "run-1", "agent"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-1", "agent", "large.log"), make([]byte, 256), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-1", "medium.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "small.log"), make([]byte, 64), 0o600))
+
+	files, count, err := largestLogsFiles(outputDir, 2)
+
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+	require.Equal(t, []logsFileSize{
+		{path: filepath.Join("run-1", "agent", "large.log"), size: 256},
+		{path: filepath.Join("run-1", "medium.log"), size: 128},
+	}, files)
+}
+
+func TestLargestLogsFilesMissingDirectory(t *testing.T) {
+	files, count, err := largestLogsFiles(filepath.Join(t.TempDir(), "missing"), maxReportedLogsCacheFiles)
+
+	require.NoError(t, err)
+	assert.Empty(t, files)
+	assert.Zero(t, count)
+}
+
 func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
 	outputDir := t.TempDir()
 	runDir := filepath.Join(outputDir, "run-1")
