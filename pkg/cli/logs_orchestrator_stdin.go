@@ -201,15 +201,18 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 			if opts.Verbose && result.Error != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
 			}
+			finalizeLogsRunDownload(storageLimit, result)
 			continue
 		}
 
 		if result.Error != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
+			finalizeLogsRunDownload(storageLimit, result)
 			continue
 		}
 
 		if applyRunFilters(ctx, result, filters, opts.Verbose) {
+			finalizeLogsRunDownload(storageLimit, result)
 			continue
 		}
 
@@ -237,6 +240,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 		}
 
 		processedRuns = append(processedRuns, processedRun)
+		finalizeLogsRunDownload(storageLimit, result)
 	}
 
 	if len(processedRuns) == 0 {

@@ -542,7 +542,7 @@ func appendProcessedWorkflowRuns(
 }
 
 func finalizeLogsRunDownload(storageLimit *logsStorageLimit, result DownloadResult) {
-	if storageLimit == nil || result.Cached {
+	if storageLimit == nil || !result.storageReserved {
 		return
 	}
 	if err := storageLimit.finalizeDownload(result.LogsPath); err != nil {
