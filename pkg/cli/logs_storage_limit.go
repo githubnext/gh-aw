@@ -127,43 +127,45 @@ func logsDirectorySize(path string) (int64, error) {
 	return total, err
 }
 
-func logsFolderSizes(path string) ([]logsFolderSize, error) {
-	entries, err := os.ReadDir(path)
-	if os.IsNotExist(err) {
-		return nil, nil
+func compareLogsFolderSizeDesc(a, b logsFolderSize) int {
+	if a.size == b.size {
+		return cmp.Compare(a.name, b.name)
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	folders := make([]logsFolderSize, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		size, err := logsDirectorySize(filepath.Join(path, entry.Name()))
-		if err != nil {
-			return nil, err
-		}
-		folders = append(folders, logsFolderSize{name: entry.Name(), size: size})
-	}
-	slices.SortFunc(folders, func(a, b logsFolderSize) int {
-		if a.size == b.size {
-			return cmp.Compare(a.name, b.name)
-		}
-		return cmp.Compare(b.size, a.size)
-	})
-	return folders, nil
+	return cmp.Compare(b.size, a.size)
 }
 
-func largestLogsFiles(path string, limit int) ([]logsFileSize, int, error) {
-	if limit <= 0 {
-		return nil, 0, nil
+func compareLogsFileSizeDesc(a, b logsFileSize) int {
+	if a.size == b.size {
+		return cmp.Compare(a.path, b.path)
+	}
+	return cmp.Compare(b.size, a.size)
+}
+
+// computeLogsCacheStats walks the logs cache directory once, computing the total
+// size, per top-level folder sizes, the fileLimit largest files (by size, then
+// relative path), and the total file count. Doing this in a single pass avoids
+// the redundant traversals that would result from measuring the total size, the
+// per-folder sizes, and the largest files independently.
+func computeLogsCacheStats(path string, fileLimit int) (int64, []logsFolderSize, []logsFileSize, int, error) {
+	entries, err := os.ReadDir(path)
+	if os.IsNotExist(err) {
+		return 0, nil, nil, 0, nil
+	}
+	if err != nil {
+		return 0, nil, nil, 0, err
 	}
 
+	folderSizes := make(map[string]int64, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			folderSizes[entry.Name()] = 0
+		}
+	}
+
+	var totalSize int64
 	var files []logsFileSize
 	fileCount := 0
-	err := filepath.Walk(path, func(filePath string, info os.FileInfo, walkErr error) error {
+	err = filepath.Walk(path, func(filePath string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
 				return nil
@@ -173,27 +175,43 @@ func largestLogsFiles(path string, limit int) ([]logsFileSize, int, error) {
 		if info == nil || !info.Mode().IsRegular() {
 			return nil
 		}
-		relativePath, err := filepath.Rel(path, filePath)
-		if err != nil {
-			return err
+		if info.Size() > math.MaxInt64-totalSize {
+			return errors.New("logs directory size exceeds supported maximum")
+		}
+		totalSize += info.Size()
+
+		relativePath, relErr := filepath.Rel(path, filePath)
+		if relErr != nil {
+			return relErr
 		}
 		fileCount++
-		files = append(files, logsFileSize{path: relativePath, size: info.Size()})
-		slices.SortFunc(files, func(a, b logsFileSize) int {
-			if a.size == b.size {
-				return cmp.Compare(a.path, b.path)
-			}
-			return cmp.Compare(b.size, a.size)
-		})
-		if len(files) > limit {
-			files = files[:limit]
+		if top, rest, ok := strings.Cut(relativePath, string(filepath.Separator)); ok && rest != "" {
+			folderSizes[top] += info.Size()
+		}
+		if fileLimit > 0 {
+			files = append(files, logsFileSize{path: relativePath, size: info.Size()})
 		}
 		return nil
 	})
 	if os.IsNotExist(err) {
-		return nil, 0, nil
+		return 0, nil, nil, 0, nil
 	}
-	return files, fileCount, err
+	if err != nil {
+		return 0, nil, nil, 0, err
+	}
+
+	folders := make([]logsFolderSize, 0, len(folderSizes))
+	for name, size := range folderSizes {
+		folders = append(folders, logsFolderSize{name: name, size: size})
+	}
+	slices.SortFunc(folders, compareLogsFolderSizeDesc)
+
+	slices.SortFunc(files, compareLogsFileSizeDesc)
+	if len(files) > fileLimit {
+		files = files[:fileLimit]
+	}
+
+	return totalSize, folders, files, fileCount, nil
 }
 
 func (l *logsStorageLimit) runDownload(ctx context.Context, storagePath string, download func() error) error {
