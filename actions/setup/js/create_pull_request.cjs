@@ -2825,7 +2825,6 @@ ${issueSafeFallbackFooter}`;
             create_pr_url: createPrUrl,
             faq_url: FAQ_CREATE_PR_PERMISSIONS_URL,
             patch_preview: patchPreview,
-            footer: footerContent,
           });
 
           try {
