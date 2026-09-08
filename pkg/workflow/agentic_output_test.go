@@ -280,12 +280,12 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 }
 
 func TestEngineOutputFileDeclarations(t *testing.T) {
-	// Test Claude engine declares no output files (Claude CLI no longer produces output.txt)
+	// Test Claude engine declares claudeDebugLogFile for debug log collection
 	claudeEngine := NewClaudeEngine()
 	claudeOutputFiles := claudeEngine.GetDeclaredOutputFiles()
 
-	if len(claudeOutputFiles) != 0 {
-		t.Errorf("Claude engine should declare no output files (Claude CLI no longer produces output.txt), got: %v", claudeOutputFiles)
+	if len(claudeOutputFiles) != 1 || claudeOutputFiles[0] != claudeDebugLogFile {
+		t.Errorf("Claude engine should declare [%s], got: %v", claudeDebugLogFile, claudeOutputFiles)
 	}
 
 	// Test Codex engine declares output files for log collection

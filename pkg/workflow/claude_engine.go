@@ -155,9 +155,9 @@ func (e *ClaudeEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []
 	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{})
 }
 
-// GetDeclaredOutputFiles returns the output files that Claude may produce
+// GetDeclaredOutputFiles returns the diagnostic files that Claude may produce.
 func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
-	return []string{}
+	return []string{claudeDebugLogFile}
 }
 
 // GetAgentManifestFiles returns Claude-specific instruction files that should be
