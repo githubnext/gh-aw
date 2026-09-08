@@ -271,17 +271,9 @@ func (l *logsStorageLimit) reserve() error {
 }
 
 func (l *logsStorageLimit) initialize() error {
-	size, err := logsDirectorySize(l.outputDir)
+	size, folders, files, fileCount, err := computeLogsCacheStats(l.outputDir, maxReportedLogsCacheFiles)
 	if err != nil {
-		return fmt.Errorf("failed to measure logs storage: %w", err)
-	}
-	folders, err := logsFolderSizes(l.outputDir)
-	if err != nil {
-		return fmt.Errorf("failed to measure logs cache folders: %w", err)
-	}
-	files, fileCount, err := largestLogsFiles(l.outputDir, maxReportedLogsCacheFiles)
-	if err != nil {
-		return fmt.Errorf("failed to inspect logs cache files: %w", err)
+		return fmt.Errorf("failed to measure logs cache: %w", err)
 	}
 	l.reportStartingUsage(size, folders, files, fileCount)
 	l.usedBytes = size

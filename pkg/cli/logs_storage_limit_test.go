@@ -3,9 +3,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,7 +47,7 @@ func TestLogsFolderSizesLargestFirst(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-large", "data"), make([]byte, 128), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "summary.json"), make([]byte, 256), 0o644))
 
-	folders, err := logsFolderSizes(outputDir)
+	_, folders, _, _, err := computeLogsCacheStats(outputDir, maxReportedLogsCacheFiles)
 
 	require.NoError(t, err)
 	require.Len(t, folders, 2)
@@ -60,7 +62,7 @@ func TestLargestLogsFilesSortedAndLimited(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-1", "medium.log"), make([]byte, 128), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "small.log"), make([]byte, 64), 0o600))
 
-	files, count, err := largestLogsFiles(outputDir, 2)
+	_, _, files, count, err := computeLogsCacheStats(outputDir, 2)
 
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
@@ -70,10 +72,73 @@ func TestLargestLogsFilesSortedAndLimited(t *testing.T) {
 	}, files)
 }
 
-func TestLargestLogsFilesMissingDirectory(t *testing.T) {
-	files, count, err := largestLogsFiles(filepath.Join(t.TempDir(), "missing"), maxReportedLogsCacheFiles)
+// TestLargestLogsFilesTieBreaksByPath guards the secondary ordering contract: when
+// files are the same size, results must be ordered by relative path ascending
+// regardless of filesystem traversal order. Reverse-lexical filenames ("z" before
+// "a") ensure the assertion would fail if the path tie-breaker were removed or
+// reversed.
+func TestLargestLogsFilesTieBreaksByPath(t *testing.T) {
+	outputDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "z.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "a.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "m.log"), make([]byte, 128), 0o600))
+
+	_, _, files, count, err := computeLogsCacheStats(outputDir, 2)
 
 	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+	require.Equal(t, []logsFileSize{
+		{path: "a.log", size: 128},
+		{path: "m.log", size: 128},
+	}, files, "equally sized files must be ordered by relative path ascending")
+}
+
+func captureLogsStorageLimitStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "failed to create stderr pipe")
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
+	fn()
+
+	w.Close()
+	var buf bytes.Buffer
+	_, copyErr := io.Copy(&buf, r)
+	require.NoError(t, copyErr, "failed to read stderr output")
+	return buf.String()
+}
+
+func TestReportStartingUsageIndicatesTruncation(t *testing.T) {
+	limit := &logsStorageLimit{maxBytes: bytesPerMegabyte}
+	files := []logsFileSize{{path: "a.log", size: 128}}
+
+	output := captureLogsStorageLimitStderr(t, func() {
+		limit.reportStartingUsage(128, nil, files, 5)
+	})
+
+	assert.Contains(t, output, "Logs cache files: showing 1 largest of 5")
+	assert.NotContains(t, output, "Logs cache files: 5")
+}
+
+func TestReportStartingUsageNoTruncation(t *testing.T) {
+	limit := &logsStorageLimit{maxBytes: bytesPerMegabyte}
+	files := []logsFileSize{{path: "a.log", size: 128}}
+
+	output := captureLogsStorageLimitStderr(t, func() {
+		limit.reportStartingUsage(128, nil, files, 1)
+	})
+
+	assert.Contains(t, output, "Logs cache files: 1")
+	assert.NotContains(t, output, "showing")
+}
+
+func TestLargestLogsFilesMissingDirectory(t *testing.T) {
+	_, folders, files, count, err := computeLogsCacheStats(filepath.Join(t.TempDir(), "missing"), maxReportedLogsCacheFiles)
+
+	require.NoError(t, err)
+	assert.Empty(t, folders)
 	assert.Empty(t, files)
 	assert.Zero(t, count)
 }
