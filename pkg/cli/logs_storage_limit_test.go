@@ -294,4 +294,13 @@ func TestLogsStorageLimitConcurrentDeferredDownloadsProtectFreshRuns(t *testing.
 		require.NoError(t, limit.finalizeDownload(filepath.Join(outputDir, fmt.Sprintf("run-%d", i))))
 	}
 	assert.False(t, limit.isReached())
+
+	subsequentRun := filepath.Join(outputDir, "run-subsequent")
+	called := false
+	err := limit.runDownload(context.Background(), subsequentRun, func() error {
+		called = true
+		return os.MkdirAll(subsequentRun, 0o755)
+	})
+	require.NoError(t, err)
+	assert.True(t, called, "a later run should be admitted after all deferred runs are finalized")
 }
