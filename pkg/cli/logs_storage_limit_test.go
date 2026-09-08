@@ -3,9 +3,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,12 +47,100 @@ func TestLogsFolderSizesLargestFirst(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-large", "data"), make([]byte, 128), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "summary.json"), make([]byte, 256), 0o644))
 
-	folders, err := logsFolderSizes(outputDir)
+	_, folders, _, _, err := computeLogsCacheStats(outputDir, maxReportedLogsCacheFiles)
 
 	require.NoError(t, err)
 	require.Len(t, folders, 2)
 	assert.Equal(t, logsFolderSize{name: "run-large", size: 128}, folders[0])
 	assert.Equal(t, logsFolderSize{name: "run-small", size: 64}, folders[1])
+}
+
+func TestLargestLogsFilesSortedAndLimited(t *testing.T) {
+	outputDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(outputDir, "run-1", "agent"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-1", "agent", "large.log"), make([]byte, 256), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "run-1", "medium.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "small.log"), make([]byte, 64), 0o600))
+
+	_, _, files, count, err := computeLogsCacheStats(outputDir, 2)
+
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+	require.Equal(t, []logsFileSize{
+		{path: filepath.Join("run-1", "agent", "large.log"), size: 256},
+		{path: filepath.Join("run-1", "medium.log"), size: 128},
+	}, files)
+}
+
+// TestLargestLogsFilesTieBreaksByPath guards the secondary ordering contract: when
+// files are the same size, results must be ordered by relative path ascending
+// regardless of filesystem traversal order. Reverse-lexical filenames ("z" before
+// "a") ensure the assertion would fail if the path tie-breaker were removed or
+// reversed.
+func TestLargestLogsFilesTieBreaksByPath(t *testing.T) {
+	outputDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "z.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "a.log"), make([]byte, 128), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "m.log"), make([]byte, 128), 0o600))
+
+	_, _, files, count, err := computeLogsCacheStats(outputDir, 2)
+
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+	require.Equal(t, []logsFileSize{
+		{path: "a.log", size: 128},
+		{path: "m.log", size: 128},
+	}, files, "equally sized files must be ordered by relative path ascending")
+}
+
+func captureLogsStorageLimitStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "failed to create stderr pipe")
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
+	fn()
+
+	w.Close()
+	var buf bytes.Buffer
+	_, copyErr := io.Copy(&buf, r)
+	require.NoError(t, copyErr, "failed to read stderr output")
+	return buf.String()
+}
+
+func TestReportStartingUsageIndicatesTruncation(t *testing.T) {
+	limit := &logsStorageLimit{maxBytes: bytesPerMegabyte}
+	files := []logsFileSize{{path: "a.log", size: 128}}
+
+	output := captureLogsStorageLimitStderr(t, func() {
+		limit.reportStartingUsage(128, nil, files, 5)
+	})
+
+	assert.Contains(t, output, "Logs cache files: showing 1 largest of 5")
+	assert.NotContains(t, output, "Logs cache files: 5")
+}
+
+func TestReportStartingUsageNoTruncation(t *testing.T) {
+	limit := &logsStorageLimit{maxBytes: bytesPerMegabyte}
+	files := []logsFileSize{{path: "a.log", size: 128}}
+
+	output := captureLogsStorageLimitStderr(t, func() {
+		limit.reportStartingUsage(128, nil, files, 1)
+	})
+
+	assert.Contains(t, output, "Logs cache files: 1")
+	assert.NotContains(t, output, "showing")
+}
+
+func TestLargestLogsFilesMissingDirectory(t *testing.T) {
+	_, folders, files, count, err := computeLogsCacheStats(filepath.Join(t.TempDir(), "missing"), maxReportedLogsCacheFiles)
+
+	require.NoError(t, err)
+	assert.Empty(t, folders)
+	assert.Empty(t, files)
+	assert.Zero(t, count)
 }
 
 func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
@@ -126,6 +216,27 @@ func TestLogsStorageLimitPrunesCompletedDownloadToBudget(t *testing.T) {
 	size, sizeErr := logsDirectorySize(outputDir)
 	require.NoError(t, sizeErr)
 	assert.Less(t, size, bytesPerMegabyte)
+}
+
+func TestLogsStorageLimitDeferredDownloadPrunesExistingCacheAtLimit(t *testing.T) {
+	outputDir := t.TempDir()
+	existingRunDir := filepath.Join(outputDir, "run-existing")
+	require.NoError(t, os.MkdirAll(filepath.Join(existingRunDir, "mcp-logs"), 0o755))
+	existingCache := filepath.Join(existingRunDir, "mcp-logs", "large.log")
+	require.NoError(t, os.WriteFile(existingCache, make([]byte, 3*bytesPerMegabyte/4), 0o600))
+
+	limit := newLogsStorageLimit(outputDir, 1)
+	freshRunDir := filepath.Join(outputDir, "run-fresh")
+	freshCache := filepath.Join(freshRunDir, "mcp-logs", "large.log")
+	err := limit.runDownloadDeferred(context.Background(), freshRunDir, func() error {
+		require.NoError(t, os.MkdirAll(filepath.Dir(freshCache), 0o755))
+		return os.WriteFile(freshCache, make([]byte, bytesPerMegabyte/2), 0o600)
+	})
+
+	require.NoError(t, err)
+	assert.NoFileExists(t, existingCache)
+	assert.FileExists(t, freshCache, "fresh run data must remain available for parsing")
+	assert.False(t, limit.isReached())
 }
 
 func TestLogsStorageLimitStopsNewDownloadsAtExistingLimit(t *testing.T) {
@@ -225,4 +336,61 @@ func TestLogsStorageLimitConcurrentDownloadsRunInParallel(t *testing.T) {
 	wg.Wait()
 
 	assert.EqualValues(t, numDownloads, maxObservedConcurrency.Load(), "storage limiter must not serialize concurrent downloads")
+}
+
+func TestLogsStorageLimitConcurrentDeferredDownloadsProtectFreshRuns(t *testing.T) {
+	outputDir := t.TempDir()
+	limit := newLogsStorageLimit(outputDir, 1)
+
+	const numDownloads = 2
+	ready := make(chan struct{}, numDownloads)
+	release := make(chan struct{})
+	errs := make(chan error, numDownloads)
+	files := make([]string, numDownloads)
+
+	var wg sync.WaitGroup
+	for i := range numDownloads {
+		runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", i))
+		files[i] = filepath.Join(runDir, "mcp-logs", "large.log")
+		wg.Go(func() {
+			errs <- limit.runDownloadDeferred(context.Background(), runDir, func() error {
+				if err := os.MkdirAll(filepath.Dir(files[i]), 0o755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(files[i], make([]byte, 3*bytesPerMegabyte/4), 0o600); err != nil {
+					return err
+				}
+				ready <- struct{}{}
+				<-release
+				return nil
+			})
+		})
+	}
+
+	for range numDownloads {
+		<-ready
+	}
+	close(release)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	for _, file := range files {
+		assert.FileExists(t, file, "fresh run data must not be pruned before finalization")
+	}
+	for i := range numDownloads {
+		require.NoError(t, limit.finalizeDownload(filepath.Join(outputDir, fmt.Sprintf("run-%d", i))))
+	}
+	assert.False(t, limit.isReached())
+
+	subsequentRun := filepath.Join(outputDir, "run-subsequent")
+	called := false
+	err := limit.runDownload(context.Background(), subsequentRun, func() error {
+		called = true
+		return os.MkdirAll(subsequentRun, 0o755)
+	})
+	require.NoError(t, err)
+	assert.True(t, called, "a later run should be admitted after all deferred runs are finalized")
 }

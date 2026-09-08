@@ -303,10 +303,11 @@ type RunSummary struct {
 // DownloadResult represents the result of downloading and processing a workflow run
 type DownloadResult struct {
 	RunAnalysis
-	Error    error
-	Skipped  bool
-	Cached   bool // True if loaded from cached summary
-	LogsPath string
+	Error           error
+	Skipped         bool
+	Cached          bool // True if loaded from cached summary
+	LogsPath        string
+	storageReserved bool
 }
 
 // JobInfo represents basic information about a workflow job
