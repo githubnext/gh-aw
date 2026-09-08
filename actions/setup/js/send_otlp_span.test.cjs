@@ -6705,6 +6705,17 @@ describe("parseOTLPEndpoints", () => {
     expect(parseOTLPEndpoints()).toEqual([]);
   });
 
+  it.each(["Authorization=ApiKey", "Authorization=Bearer", "Authorization=Digest%20%20", "x-sentry-auth=ApiKey", "x-sentry-auth=DSN"])("drops an endpoint when its %s header has an auth scheme without credentials", headers => {
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers }]);
+    expect(parseOTLPEndpoints()).toEqual([]);
+  });
+
+  it("keeps an endpoint when its authorization header has credentials", () => {
+    const endpoint = { url: "https://traces.example.com:4317", headers: "Authorization=ApiKey secret-token" };
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([endpoint]);
+    expect(parseOTLPEndpoints()).toEqual([endpoint]);
+  });
+
   it("keeps an endpoint when an unrelated header is empty", () => {
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
     expect(parseOTLPEndpoints()).toEqual([{ url: "https://traces.example.com:4317", headers: "X-Tenant=" }]);
