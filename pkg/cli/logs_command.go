@@ -10,6 +10,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -248,6 +249,8 @@ func loadLogsCommandValues(cmd *cobra.Command, args []string) (*logsCommandValue
 		return nil, err
 	}
 	targets, targetErrors := resolveLogsWorkflowTargets(cmd, args)
+	targets, remoteTargetErrors := resolveRemoteLogsWorkflowTargets(cmd.Context(), targets, options.Verbose)
+	targetErrors = append(targetErrors, remoteTargetErrors...)
 	if len(args) <= 1 && len(targetErrors) > 0 {
 		return nil, targetErrors[0]
 	}
@@ -297,6 +300,57 @@ func resolveLogsWorkflowTarget(cmd *cobra.Command, arg string) (logsWorkflowTarg
 	}
 	workflowName, err := resolveLogsWorkflowNameLocally(arg)
 	return logsWorkflowTarget{workflowName: workflowName}, err
+}
+
+func resolveRemoteLogsWorkflowTargets(ctx context.Context, targets []logsWorkflowTarget, verbose bool) ([]logsWorkflowTarget, []error) {
+	return resolveRemoteLogsWorkflowTargetsWithFetcher(ctx, targets, verbose, fetchGitHubWorkflows)
+}
+
+func resolveRemoteLogsWorkflowTargetsWithFetcher(
+	ctx context.Context,
+	targets []logsWorkflowTarget,
+	verbose bool,
+	fetchWorkflows func(context.Context, string, bool) (map[string]*GitHubWorkflow, error),
+) ([]logsWorkflowTarget, []error) {
+	workflowsByRepo := make(map[string]map[string]*GitHubWorkflow)
+	errorsByRepo := make(map[string]error)
+	resolvedTargets := make([]logsWorkflowTarget, 0, len(targets))
+	var targetErrors []error
+
+	for i := range targets {
+		target := &targets[i]
+		if target.workflowName == "" || target.repoOverride == "" || repoIsLocal(target.repoOverride) {
+			resolvedTargets = append(resolvedTargets, *target)
+			continue
+		}
+
+		githubWorkflows, ok := workflowsByRepo[target.repoOverride]
+		if !ok {
+			if err := errorsByRepo[target.repoOverride]; err != nil {
+				targetErrors = append(targetErrors, fmt.Errorf("%s: failed to resolve workflow name: %w", target.displayName(), err))
+				continue
+			}
+			var err error
+			githubWorkflows, err = fetchWorkflows(ctx, target.repoOverride, verbose)
+			if err != nil {
+				errorsByRepo[target.repoOverride] = err
+				targetErrors = append(targetErrors, fmt.Errorf("%s: failed to resolve workflow name: %w", target.displayName(), err))
+				continue
+			}
+			workflowsByRepo[target.repoOverride] = githubWorkflows
+		}
+
+		resolvedName := matchRemoteWorkflowName(target.workflowName, githubWorkflows)
+		if resolvedName == "" {
+			targetErrors = append(targetErrors, fmt.Errorf("%s: workflow not found", target.displayName()))
+			continue
+		}
+		logsCommandLog.Printf("Resolved remote workflow name: %s -> %s", target.displayName(), resolvedName)
+		target.workflowName = resolvedName
+		resolvedTargets = append(resolvedTargets, *target)
+	}
+
+	return resolvedTargets, targetErrors
 }
 
 func splitCrossRepoWorkflowTarget(arg string) (string, string, bool) {

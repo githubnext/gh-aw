@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -428,6 +429,31 @@ func TestResolveLogsWorkflowTargetCrossRepo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "other-org/other-repo", target.repoOverride)
 	assert.Equal(t, "daily-report.yml", target.workflowName)
+}
+
+func TestResolveRemoteLogsWorkflowTargets(t *testing.T) {
+	t.Parallel()
+
+	targets := []logsWorkflowTarget{
+		{repoOverride: "githubnext/gh-aw-cao", workflowName: "uk-ai-advisory"},
+	}
+	fetchWorkflows := func(context.Context, string, bool) (map[string]*GitHubWorkflow, error) {
+		return map[string]*GitHubWorkflow{
+			"uk-ai-advisory": {
+				Name: "UK AI Advisory",
+				Path: ".github/workflows/uk-ai-advisory.lock.yml",
+			},
+		}, nil
+	}
+
+	resolved, targetErrors := resolveRemoteLogsWorkflowTargetsWithFetcher(
+		context.Background(), targets, false, fetchWorkflows,
+	)
+
+	require.Empty(t, targetErrors)
+	require.Len(t, resolved, 1)
+	assert.Equal(t, "UK AI Advisory", resolved[0].workflowName)
+	assert.Equal(t, "githubnext/gh-aw-cao", resolved[0].repoOverride)
 }
 
 func TestLogsCommandStdinFlag(t *testing.T) {
