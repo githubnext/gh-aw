@@ -22,3 +22,11 @@
 - Agent Plugins (`plugins:`) feature has zero real-world adoption — worth a demo workflow
 - --share flag still essentially unused; conversation-tracking benefit not being leveraged
 - BYOK (COPILOT_PROVIDER_*) usage remains low (3 workflows) — mostly smoke tests
+
+## Run 2026-09-08 (34184590907) — stable, no regressions
+- Numbers essentially unchanged from Sep-07 run (only counting method for extended id differs slightly: 88 vs 109 previously — using stricter "id: copilot" grep this run).
+- plugins: still 0 real-world workflow adoption despite schema support (agent-plugins.org integration exists in engine schema).
+- --share and --add-dir manual usage remain flat at 1 workflow each — confirmed persistent gap across 4+ runs now.
+- --disable-builtin-mcps flat at 2.
+- Model usage diversified: gpt-5.3-codex (47), openai/gpt-5.4 (43), aliases small/large (47 combined) still dominate; genuine copilot model slugs used in ~15% of configs.
+- Engine version pinning for copilot only in 11 workflows — most rely on floating/default version.
