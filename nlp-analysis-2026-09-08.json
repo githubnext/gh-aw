@@ -1,0 +1,79 @@
+{
+  "date": "2026-09-08",
+  "pr_count": 150,
+  "avg_sentiment": 0.0666,
+  "positive_count": 76,
+  "neutral_count": 35,
+  "negative_count": 39,
+  "top_topic": "workflow, workflows, safe",
+  "top_keywords": [
+    "workflow",
+    "run",
+    "add",
+    "configuration",
+    "generated"
+  ],
+  "run_id": "34215095956",
+  "topic_detail": [
+    {
+      "cluster": 0,
+      "terms": [
+        "aic",
+        "sub",
+        "firewall",
+        "details"
+      ],
+      "count": 40
+    },
+    {
+      "cluster": 1,
+      "terms": [
+        "github",
+        "job",
+        "actions",
+        "api"
+      ],
+      "count": 19
+    },
+    {
+      "cluster": 2,
+      "terms": [
+        "model",
+        "codex",
+        "workflow",
+        "daily"
+      ],
+      "count": 20
+    },
+    {
+      "cluster": 3,
+      "terms": [
+        "workflow",
+        "workflows",
+        "safe",
+        "output"
+      ],
+      "count": 63
+    },
+    {
+      "cluster": 4,
+      "terms": [
+        "package",
+        "manifest",
+        "packages",
+        "path"
+      ],
+      "count": 8
+    }
+  ],
+  "most_positive_pr": {
+    "pr_number": 58054,
+    "pr_title": "Restore MicroVM and ARC runner cards on homepage",
+    "sentiment_polarity": 0.5
+  },
+  "most_negative_pr": {
+    "pr_number": 58770,
+    "pr_title": "Use Codex-compatible model for CLI Version Checker",
+    "sentiment_polarity": -0.5
+  }
+}
