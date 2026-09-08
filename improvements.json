@@ -1,35 +1,10 @@
 {
-  "last_updated": "2026-07-07",
+  "last_updated": "2026-09-08",
   "pending_tasks": [
     {
-      "file": "pkg/parser/schema_validation.go",
-      "created": "2026-07-07",
-      "priority": "high",
-      "title": "Fix multi-field forbidden-fields error: replace %v with strings.Join over single-quoted values (line 71 in validateSharedWorkflowFields)"
-    },
-    {
-      "file": ".github/workflows/smoke-copilot-aoai-apikey.md",
-      "created": "2026-07-07",
-      "priority": "medium",
-      "title": "Remove contradictory clause 'This is a developing story' from run-success message"
-    },
-    {
-      "file": "pkg/workflow/permissions_validation.go",
-      "created": "2026-07-06",
-      "priority": "high",
-      "title": "Rewrite ValidateIncludedPermissions error header (line 338): remove 'ERROR:' prefix and clarify 'imported workflows require additional permissions not declared in the main workflow'"
-    },
-    {
-      "file": "docs/src/content/docs/reference/rate-limiting-controls.md",
-      "created": "2026-07-05",
-      "priority": "high",
-      "title": "Convert Best Practices paragraph (line 175) to numbered list with bold lead-ins"
-    },
-    {
-      "file": "docs/src/content/docs/guides/agentic-authoring.mdx",
-      "created": "2026-07-04",
-      "priority": "high",
-      "title": "Convert Self-Hosted Runners paragraph (lines 84-87) to a bullet list for five agent behaviors"
+      "file": ".github/workflows/smoke-copilot-aoai-entra.md",
+      "created": "2026-09-08",
+      "status": "pending"
     }
   ]
 }

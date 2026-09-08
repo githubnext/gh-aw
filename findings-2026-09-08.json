@@ -1,0 +1,29 @@
+{
+  "date": "2026-09-08",
+  "files_analyzed": {
+    "documentation": [
+      "docs/src/content/docs/specs/checkout-behavior-specification.md",
+      "docs/src/content/docs/experimental/awf-reflect.md"
+    ],
+    "cli": [],
+    "messages": [
+      ".github/workflows/smoke-copilot-aoai-entra.md",
+      ".github/workflows/pr-code-quality-reviewer.md"
+    ],
+    "validation": [
+      "pkg/workflow/engine_driver_validation.go"
+    ]
+  },
+  "overall_quality": "professional",
+  "quality_highlights": [
+    "docs/src/content/docs/experimental/awf-reflect.md - clear, concrete retry guidance",
+    "pkg/workflow/engine_driver_validation.go - actionable validation errors with examples"
+  ],
+  "single_file_improvements": [
+    {
+      "file": ".github/workflows/smoke-copilot-aoai-entra.md",
+      "priority": "high",
+      "issue": "Tabloid/breaking-news style status messages inconsistent with enterprise tone used in other workflows"
+    }
+  ]
+}
