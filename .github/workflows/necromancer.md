@@ -23,7 +23,7 @@ network:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets: [default, pull_requests]
   bash:
     - "*"
@@ -58,7 +58,7 @@ evals:
     question: Were regression tests added to the pull request branch, or was noop correctly called when no tests were needed?
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 ---
 
 # Necromancer

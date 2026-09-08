@@ -12,7 +12,7 @@ permissions:
   issues: read
 tracker-id: weekly-issue-summary
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 network:
   allowed:
     - defaults

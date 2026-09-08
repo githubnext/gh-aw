@@ -54,19 +54,18 @@
 
   <rect x="474" y="172" width="110" height="34" fill="#ffffff" stroke="#1f2328" stroke-width="1"/>
   <text x="529" y="189" text-anchor="middle" font-size="9" fill="#1f2328">create_pull_request</text>
-  <text x="529" y="200" font-size="7"/>
 
   <!-- arrows from detection to jobs -->
-  <path d="M452,210 L529,210 L529,114" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L470,210" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L529,210 L529,160" fill="none" stroke="#0969da" stroke-width="1"/>
-  <path d="M452,210 L529,210 L529,206" fill="none" stroke="#0969da" stroke-width="1"/>
+  <path d="M452,210 L464,210 L464,97" fill="none" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="97" x2="474" y2="97" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="143" x2="474" y2="143" stroke="#0969da" stroke-width="1"/>
+  <line x1="464" y1="189" x2="474" y2="189" stroke="#0969da" stroke-width="1"/>
 
   <!-- GitHub API -->
   <rect x="628" y="120" width="80" height="60" fill="#ffffff" stroke="#1f2328" stroke-width="1"/>
   <text x="668" y="145" text-anchor="middle" font-size="9" fill="#1f2328">GitHub</text>
   <text x="668" y="159" text-anchor="middle" font-size="9" fill="#1f2328">API</text>
 
-  <line x1="604" y1="150" x2="628" y2="150" stroke="#1f2328" stroke-width="1"/>
+  <line x1="584" y1="150" x2="628" y2="150" stroke="#1f2328" stroke-width="1"/>
   <polygon points="628,150 620,146 620,154" fill="#1f2328"/>
 </svg>

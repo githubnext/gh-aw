@@ -656,7 +656,7 @@ Each runtime takes a required `version` string, plus optional `action-repo` and 
 
 | Runtime | Default Version | Default Setup Action |
 |---------|----------------|---------------------|
-| `node` | 24 | `actions/setup-node@v6` |
+| `node` | 24 | `actions/setup-node@v7` |
 | `python` | 3.12 | `actions/setup-python@v5` |
 | `go` | 1.25 | `actions/setup-go@v5` |
 | `uv` | latest | `astral-sh/setup-uv@v5` |
@@ -770,6 +770,8 @@ strict: false  # Disable enhanced security validation for development/testing
 ```
 
 Workflows compiled with `strict: false` cannot run on public repositories. The workflow fails at runtime with an error message prompting recompilation with strict mode.
+
+To prevent workflows from opting out, set `"strict": true` at the top level of `.github/workflows/aw.json`. This enforces strict mode for every `gh aw compile` invocation in the repository. The repository setting only accepts `true`; `"strict": false` is invalid.
 
 See [Network Permissions - Strict Mode Validation](/gh-aw/reference/network/#strict-mode-validation) for details on network validation and [CLI Commands](/gh-aw/setup/cli/#compile) for compilation options.
 

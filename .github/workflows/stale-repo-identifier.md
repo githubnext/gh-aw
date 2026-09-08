@@ -22,7 +22,7 @@ concurrency:
   job-discriminator: ${{ inputs.organization || github.run_id }}
 
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 timeout-minutes: 45
 

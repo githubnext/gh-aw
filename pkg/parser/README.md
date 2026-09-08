@@ -368,7 +368,7 @@ This appendix is generated from the current non-test Go source files in this pac
 
 ## Source Synchronization
 
-Reviewed against recent source updates on 2026-07-24; no additional public-contract deltas were identified beyond the sections above. Re-verified on 2026-08-14; no public-contract changes since the last review (only internal schema-suggestions refactoring landed). Re-verified on 2026-08-29; no public-contract deltas since the last review.
+Reviewed against recent source updates on 2026-07-24; no additional public-contract deltas were identified beyond the sections above. Re-verified on 2026-08-14; no public-contract changes since the last review (only internal schema-suggestions refactoring landed). Re-verified on 2026-08-29; no public-contract deltas since the last review. Re-verified on 2026-09-03; no public-contract deltas since the last review.
 
 ---
 

@@ -217,12 +217,12 @@ engine:
 
 steps:
   - name: Checkout main repo
-    uses: actions/checkout@v6
+    uses: actions/checkout@v7
     with:
       path: main-repo
 
   - name: Checkout secondary repo
-    uses: actions/checkout@v6
+    uses: actions/checkout@v7
     with:
       repository: org/secondary-repo
       token: ${{ secrets.CROSS_REPO_PAT }}

@@ -37,8 +37,8 @@ imports:
   - shared/reporting.md
   - shared/graders.md
 tools:
-  bash: false
-  cli-proxy: false
+  bash: ["*"]
+  cli-proxy: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1

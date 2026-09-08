@@ -123,13 +123,16 @@ func TestAuditRunConfigAuditOptions(t *testing.T) {
 
 func TestCacheRecoveryError(t *testing.T) {
 	t.Parallel()
-	err := cacheRecoveryError("GitHub API access denied.", 1234, "/tmp/run-1234", errors.New("boom"))
+	sentinel := errors.New("boom")
+	err := cacheRecoveryError("GitHub API access denied.", 1234, "/tmp/run-1234", sentinel)
 	require.Error(t, err)
 	msg := err.Error()
 	assert.Contains(t, msg, "GitHub API access denied.")
 	assert.Contains(t, msg, "1234")
 	assert.Contains(t, msg, "/tmp/run-1234")
 	assert.Contains(t, msg, "boom")
+	require.ErrorIs(t, err, sentinel, "cacheRecoveryError must wrap its cause with %%w so errors.Is can match it")
+	require.Error(t, errors.Unwrap(err), "cacheRecoveryError result must be unwrappable")
 }
 
 func TestPrepareRunForAnalysis(t *testing.T) {

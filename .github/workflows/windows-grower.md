@@ -16,8 +16,9 @@ concurrency:
   group: windows-grower
   cancel-in-progress: false
 engine:
-  id: copilot
-model: copilot/gpt-5.4-mini
+  id: codex
+  model-provider: github
+model: copilot/gpt-5.3-codex
 network: {}
 tools:
   cache-memory:
