@@ -16,7 +16,7 @@ permissions:
   pull-requests: read
 
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 
 imports:
   - shared/ffmpeg.md

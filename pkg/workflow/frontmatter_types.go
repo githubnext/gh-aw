@@ -390,6 +390,7 @@ type FrontmatterConfig struct {
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)
 	OnNeeds     []string       `json:"-"`                     // New typed field extracted from on.needs (not in JSON to avoid conflict)
+	OnStopAfter string         `json:"-"`                     // Typed field extracted from on.stop-after (not in JSON to avoid conflict). Accepts a relative delta ("+25h"), an absolute timestamp, or a GitHub Actions expression (e.g. "${{ inputs.stop-after }}").
 	Permissions map[string]any `json:"permissions,omitempty"` // Deprecated: use PermissionsTyped (can be string or map)
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`

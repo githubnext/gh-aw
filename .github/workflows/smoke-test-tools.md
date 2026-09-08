@@ -19,7 +19,7 @@ permissions:
   pull-requests: read
 name: Agent Container Smoke Test
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 runtimes:
   node:
@@ -55,6 +55,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/reporting.md
+  - shared/playwright-title-test.md
 features:
   gh-aw-detection: false
 sandbox:

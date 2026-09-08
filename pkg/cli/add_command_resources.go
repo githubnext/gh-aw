@@ -16,6 +16,8 @@ import (
 // This file installs non-markdown resources referenced by packages.
 
 func addNonWorkflowResourceWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot, githubWorkflowsDir, workflowName string) (bool, error) {
+	addLog.Printf("Dispatching non-workflow resource check: actionWorkflow=%t, skillFile=%t, agentFile=%t, resourceFile=%t",
+		resolved.IsActionWorkflow, resolved.IsPackageSkillFile, resolved.IsPackageAgentFile, resolved.IsPackageResourceFile)
 	// Action workflow files (.yml) are copied as-is to .github/workflows/ without any
 	// frontmatter processing, dependency fetching, or compilation.
 	if resolved.IsActionWorkflow {
@@ -31,6 +33,9 @@ func addNonWorkflowResourceWithTracking(resolved *ResolvedWorkflow, tracker *Fil
 	}
 	// Package resources are copied as-is to their declared repository-relative destinations.
 	if resolved.IsPackageResourceFile {
+		if resolved.IsPackageProjectFile {
+			return true, mergeProjectFileWithTracking(resolved, tracker, gitRoot)
+		}
 		return true, addResourceFileWithTracking(resolved, tracker, opts, gitRoot)
 	}
 	return false, nil
@@ -207,6 +212,7 @@ func resolveSkillRelativePath(resolved *ResolvedWorkflow) (string, error) {
 		}
 	}
 	if len(relParts) == 0 {
+		addLog.Printf("Failed to determine relative skill path for %q from source %q", resolved.SkillName, resolved.Spec.WorkflowPath)
 		return "", fmt.Errorf("failed to determine relative path for skill %q from source path %q", resolved.SkillName, resolved.Spec.WorkflowPath)
 	}
 	relPath := filepath.Clean(filepath.Join(relParts...))

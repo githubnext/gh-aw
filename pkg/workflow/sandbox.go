@@ -88,7 +88,6 @@ type AgentSandboxConfig struct {
 	Runtime        AgentRuntime                          `yaml:"runtime,omitempty"`         // Sandbox runtime profile for the agent container (see sandbox_runtime_profile.go)
 	AllowHostPorts []int                                 `yaml:"-"`                         // Additional host TCP ports the agent may connect to (docker-sudo-iptables only).
 	Disabled       bool                                  `yaml:"-"`                         // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	DisableReason  string                                `yaml:"-"`                         // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
 	Config         *SandboxRuntimeConfig                 `yaml:"config,omitempty"`          // Custom SRT config (optional)
 	Command        string                                `yaml:"command,omitempty"`         // Custom command to replace AWF or SRT installation
 	Args           []string                              `yaml:"args,omitempty"`            // Additional arguments to append to the command
@@ -352,6 +351,28 @@ func ensureCacheMemoryWritePaths(sandboxConfig *SandboxConfig, cacheMemoryConfig
 	}
 	for _, cache := range cacheMemoryConfig.Caches {
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, cacheMemoryDirFor(cache.ID))
+	}
+}
+
+// ensureRepoMemoryWritePaths adds compiler-provisioned repo-memory directories to the
+// Cloud Hypervisor write policy. Wiki memories are stored in the same RepoMemoryConfig
+// and share the /tmp/gh-aw/repo-memory/<id> layout. Without these entries the
+// /tmp/gh-aw export is narrowed to read-only outside the allowlist, so the agent cannot
+// write to the cloned memory working tree (writes fail with EROFS) and the repo-memory
+// push job has nothing to commit.
+func ensureRepoMemoryWritePaths(sandboxConfig *SandboxConfig, repoMemoryConfig *RepoMemoryConfig) {
+	if repoMemoryConfig == nil || sandboxConfig == nil || sandboxConfig.Agent == nil ||
+		sandboxConfig.Agent.Runtime != AgentRuntimeCloudHypervisor {
+		return
+	}
+	if sandboxConfig.Agent.Config == nil {
+		sandboxConfig.Agent.Config = &SandboxRuntimeConfig{}
+	}
+	if sandboxConfig.Agent.Config.Filesystem == nil {
+		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
+	}
+	for _, memory := range repoMemoryConfig.Memories {
+		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, constants.TmpRepoMemoryDir+memory.ID)
 	}
 }
 

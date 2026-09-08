@@ -14,7 +14,7 @@ Update existing workflow files in `.github/workflows/`.
 - [workflow-constraints.md](workflow-constraints.md)
 - [safe-outputs.md](safe-outputs.md)
 - [syntax.md](syntax.md)
-- [intent.md](intent.md)
+- [intent.md](intent.md) for preserving the outcome and re-deriving evals or operational value when it changes
 
 Load these additional files only when relevant:
 

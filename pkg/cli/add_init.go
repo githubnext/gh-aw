@@ -45,6 +45,7 @@ type addInitializedFile struct {
 }
 
 func confirmAddRepositoryInitialization(ctx context.Context, engineOverride string, noGitattributes bool) (addRepositoryInitializationPlan, error) {
+	addLog.Printf("Checking repository initialization state: engineOverride=%s, noGitattributes=%v", engineOverride, noGitattributes)
 	gitRoot, err := addFindGitRoot()
 	if err != nil {
 		if errors.Is(err, gitutil.ErrNotGitRepository) {
@@ -91,14 +92,6 @@ func applyAddRepositoryInitialization(plan addRepositoryInitializationPlan, engi
 	return ensureAddRepositoryInitializedFromPlan(plan.files, engineOverride, verbose, noGitattributes)
 }
 
-func confirmAndInitializeAddRepository(ctx context.Context, engineOverride string, verbose bool, noGitattributes bool) ([]addInitializedFile, error) {
-	plan, err := confirmAddRepositoryInitialization(ctx, engineOverride, noGitattributes)
-	if err != nil {
-		return nil, err
-	}
-	return applyAddRepositoryInitialization(plan, engineOverride, verbose, noGitattributes)
-}
-
 func ensureAddRepositoryInitializedFromPlan(markers []string, engineOverride string, verbose bool, noGitattributes bool) ([]addInitializedFile, error) {
 	gitRoot, err := addFindGitRoot()
 	if err != nil {
@@ -131,6 +124,7 @@ func ensureAddRepositoryInitialized(engineOverride string, verbose bool, noGitat
 }
 
 func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bool, noGitattributes bool) ([]string, error) {
+	addLog.Printf("Ensuring repository initialization with details: engineOverride=%s", engineOverride)
 	gitRoot, err := addFindGitRoot()
 	if err != nil {
 		if errors.Is(err, gitutil.ErrNotGitRepository) {
