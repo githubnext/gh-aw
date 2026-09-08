@@ -41,3 +41,9 @@
 
 ## Do Not Re-File (cumulative through Jul 8 PM)
 #41827,#41987,#41988,#42032,#42033,#42095,#42329,#42332,#42333,#42342,#42356,#42398,#42423,#42442,#42482,#42598,#42607,#42637,#42652,#42824,#42867,#42872,#42883,#42889,#42890,#42899,#42908,#42918,#42919,#42921,#42930,#42943,#42960,#43031,#43040,#43045,#43065,#43066,#43079,#43084,#43087,#43101,#43108,#43110,#43122,#43138,#43141,#43143,#43146,#43159,#43161,#43179,#43182,#43191,#43194,#43277,#43281,#43292,#43308,#43309,#43317,#43319,#43323,#43330,#43335,#43336,#43352,#43353,#43355,#43368,#43379,#43883,#43894,#43895,#43925,#43927,#43930,#44006,#44016,#44031,#44032,#44035,#44241,#aw_ai_mod_jul8,#aw_ci_parser_ctx,#aw_pr_cq_tqs,#aw_quality_plateau,#aw_whd_jul4,#aw_whd_jul5,#aw_whd_jul6,#aw_whd_jul7
+
+## Correction — 2026-09-08 (Agent Performance Analyzer)
+- **STALE ALERT REMOVED:** PR #44254 (CLI hang-on-exit fix) — verified MERGED 2026-07-08T14:05:28Z. The prior "CRITICAL — merge this PR" note is obsolete; do not repeat.
+- **STALE ALERT REMOVED:** PR #43527 (quality gate) — verified MERGED 2026-07-05T13:28:36Z. The prior "URGENT, not yet merged" note is obsolete; do not repeat.
+- Reviewer/gate agents (Impeccable, Matt Pocock, PR Code Quality Reviewer, Test Quality Sentinel, Design Decision Gate) show 1/1 clean runs in the 2026-09-01 metrics snapshot — reclassified from "deprecation candidate" to "recovered — monitor" pending more sampled runs.
+- New (unverified pattern, single-run sample) failures observed 2026-09-01: daily-firewall-report, daily-go-test-parallelizer, lint-monster — flagged for WHM log check, not yet filed.
