@@ -104,6 +104,8 @@ func TestNewLogsCommand(t *testing.T) {
 	require.NotNil(t, maxRateLimitFlag, "Should have 'max-github-api-rate-limit' flag")
 	maxStorageFlag := flags.Lookup("max-storage")
 	require.NotNil(t, maxStorageFlag, "Should have 'max-storage' flag")
+	pruneOlderRunsFlag := flags.Lookup("prune-older-runs")
+	require.NotNil(t, pruneOlderRunsFlag, "Should have 'prune-older-runs' flag")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {
@@ -126,6 +128,7 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"artifacts", "[usage]"},
 		{"max-github-api-rate-limit", "0"},
 		{"max-storage", "0"},
+		{"prune-older-runs", "false"},
 	}
 
 	for _, tt := range tests {
@@ -141,12 +144,14 @@ func TestLogsCommandResourceBudgetFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 	require.NoError(t, cmd.Flags().Set("max-github-api-rate-limit", "-2000"))
 	require.NoError(t, cmd.Flags().Set("max-storage", "10240"))
+	require.NoError(t, cmd.Flags().Set("prune-older-runs", "true"))
 
 	opts, err := loadCommonLogsOptions(cmd)
 
 	require.NoError(t, err)
 	assert.Equal(t, -2000, opts.MaxGitHubAPIRateLimit)
 	assert.Equal(t, 10240, opts.MaxStorageMB)
+	assert.True(t, opts.PruneOlderRuns)
 }
 
 func TestLogsCommandRejectsNegativeMaxStorage(t *testing.T) {
