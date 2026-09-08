@@ -286,6 +286,30 @@ describe("check_membership.cjs", () => {
       }
     });
 
+    it("should not retry a permanent pull request provenance failure", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.actor = "github-actions[bot]";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            command_name: "triage",
+            actor: "octocat",
+            item_type: "pull_request",
+            item_number: "42",
+          }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      const apiError = Object.assign(new Error("Not Found"), { status: 404 });
+      mockGithub.rest.pulls.get.mockRejectedValue(apiError);
+
+      await runScript();
+
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledTimes(1);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
+    });
+
     it("should fail closed after exhausting transient provenance retries", async () => {
       vi.useFakeTimers();
       try {
