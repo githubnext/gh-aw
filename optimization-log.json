@@ -215,5 +215,15 @@
     "recommendations_count": 4,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 85
+  },
+  {
+    "date": "2026-09-08",
+    "workflow_name": "PR Sous Chef",
+    "workflow_file": "pr-sous-chef",
+    "total_aic_analyzed": 223.02,
+    "runs_audited": 11,
+    "recommendations_count": 3,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 18
   }
 ]
