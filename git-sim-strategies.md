@@ -917,3 +917,18 @@ calls attempted — noop only. This is 18 consecutive identical halts (08-16
 through 09-07). Reiterating prior recommendation: a human maintainer should
 pause/redesign/retire this workflow rather than have it re-evaluate the same
 conflict daily.
+
+## HALTED 2026-09-08 (19th consecutive run) — independently reconfirmed, no further re-litigation needed
+
+Reconfirmed both blockers before touching any tooling: (1) outer safe-outputs
+policy still explicitly forbids probing/placeholder-content real writes, and
+this workflow's method (real create_pull_request/push_to_pull_request_branch/
+create_issue against github/gh-aw filled with synthetic stuff.md/history.md/
+probe content) still matches that forbidden pattern exactly; (2)
+config-simulator sub-agent still unregistered (only claude/Explore/
+general-purpose/Plan/statusline-setup available via the Agent tool). No
+steering issue number given. next_index unchanged at 216. No create_issue/
+create_pull_request/push_to_pull_request_branch calls attempted — noop only.
+This is 19 consecutive identical halts (08-16 through 09-08). Reiterating
+prior recommendation: a human maintainer should pause/redesign/retire this
+workflow rather than have it re-evaluate the same conflict daily.
