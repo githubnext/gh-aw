@@ -169,7 +169,7 @@ func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePa
 	default:
 	}
 
-	if err := l.reserve(); err != nil {
+	if err := l.reserve(storagePath); err != nil {
 		return err
 	}
 
@@ -186,10 +186,10 @@ func (l *logsStorageLimit) runDownloadWithPruning(ctx context.Context, storagePa
 	return errors.Join(downloadErr, pruneErr)
 }
 
-// reserve checks (and lazily initializes) the shared budget state under a short-lived
-// lock. It never holds the lock across the actual download, so concurrent downloads
-// keep running in parallel; only the shared usedBytes bookkeeping is serialized.
-func (l *logsStorageLimit) reserve() error {
+// reserve checks the shared budget state and protects the download path from
+// pruning under a short-lived lock. It never holds the lock across the actual
+// download, so concurrent downloads keep running in parallel.
+func (l *logsStorageLimit) reserve(storagePath string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -203,6 +203,7 @@ func (l *logsStorageLimit) reserve() error {
 		l.markReached(l.usedBytes)
 		return errLogsStorageLimitReached
 	}
+	delete(l.completed, filepath.Clean(storagePath))
 	return nil
 }
 
@@ -246,15 +247,17 @@ func (l *logsStorageLimit) initialize() error {
 	return nil
 }
 
-// recordUsage applies a completed download's byte delta and selectively removes
-// non-essential agent data when the cache would otherwise exceed the budget.
+// recordUsage applies a completed download's byte delta and removes non-essential
+// data from paths that are safe to prune when the cache reaches the budget.
 func (l *logsStorageLimit) recordUsage(storagePath string, delta int64, prune bool) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	l.usedBytes += delta
-	l.completed[filepath.Clean(storagePath)] = struct{}{}
-	if prune && l.usedBytes >= l.maxBytes {
+	if prune {
+		l.completed[filepath.Clean(storagePath)] = struct{}{}
+	}
+	if l.usedBytes >= l.maxBytes {
 		return l.pruneLocked()
 	}
 	return nil
@@ -378,7 +381,7 @@ func pruneLogsCache(path string, bytesToFree int64, completedPaths map[string]st
 }
 
 func isInCompletedLogsCachePath(path string, completedPaths map[string]struct{}) bool {
-	if len(completedPaths) == 0 {
+	if completedPaths == nil {
 		return true
 	}
 	for completedPath := range completedPaths {
