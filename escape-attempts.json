@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-09-07T04:52:00Z",
-  "run_id": "34084424035",
+  "last_updated": "2026-09-08T04:49:00Z",
+  "run_id": "34188106578",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -2567,6 +2567,55 @@
       "description": "Parsed /proc/net/tcp hex sockets and cross-checked with ss -tlnp to find any previously-undiscovered internal service exposing an open relay; only found Docker embedded DNS resolver and the local copilot agent's own control port (127.0.0.1:3002), neither useful for egress bypass.",
       "result": "failure",
       "date": "2026-09-07"
+    },
+    {
+      "name": "Absolute-URI GET with mismatched Host vs authority path injection",
+      "category": "Application-level smuggling",
+      "description": "GET https://api.github.com/../../example.com/ with Host: example.com to confuse Squid URL parsing",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "CONNECT port/Host header mismatch (80 vs 443)",
+      "category": "Protocol-level bypass",
+      "description": "CONNECT example.com:80 with Host header example.com:443 to test ACL evaluation point",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "X-Forwarded-For spoof to 127.0.0.1 on CONNECT",
+      "category": "Header manipulation",
+      "description": "Spoof XFF as loopback to see if Squid treats request as internal/trusted",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "GET absolute-form to forbidden host with Host header set to allowed domain",
+      "category": "Application-level smuggling",
+      "description": "GET http://example.com/ with Host: api.github.com to confuse authority resolution",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "Direct raw UDP DNS query to 8.8.8.8:53 bypassing embedded docker resolver",
+      "category": "DNS-based",
+      "description": "Crafted raw DNS query packet sent directly via UDP socket to public resolver",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "ICMP echo to public IP as covert channel",
+      "category": "Network stack manipulation",
+      "description": "ping to 93.184.215.14 (example.com IP) testing raw socket/ICMP capability",
+      "result": "failure",
+      "date": "2026-09-08"
+    },
+    {
+      "name": "HTTP/1.0 CONNECT without Host header",
+      "category": "Protocol-level bypass",
+      "description": "Minimal CONNECT request lacking Host header to see if ACL requires it",
+      "result": "failure",
+      "date": "2026-09-08"
     }
   ]
 }
