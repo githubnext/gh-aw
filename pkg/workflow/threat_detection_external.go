@@ -223,9 +223,6 @@ func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID s
 	if engineID != "copilot" {
 		return externalDetectorPathSetup{}
 	}
-	if data.EngineConfig != nil && data.EngineConfig.Command != "" {
-		return externalDetectorPathSetup{}
-	}
 	setup := externalDetectorPathSetup{
 		commandPrefix: `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && `,
 	}

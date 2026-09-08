@@ -128,6 +128,8 @@ func TestBuildInstallDetectionEngineForExternalDetectorStepIncludesNodeRuntime(t
 					EngineConfig: &EngineConfig{ID: "copilot", Command: "/opt/custom/copilot"},
 				}},
 			},
+			wantInstallStep:      "Install GitHub Copilot CLI",
+			wantCopilotInstalled: true,
 		},
 		{
 			name: "copilot inherited custom command",
@@ -136,6 +138,8 @@ func TestBuildInstallDetectionEngineForExternalDetectorStepIncludesNodeRuntime(t
 				EngineConfig: &EngineConfig{ID: "copilot", Command: "/opt/custom/copilot"},
 				SafeOutputs:  &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{}},
 			},
+			wantInstallStep:      "Install GitHub Copilot CLI",
+			wantCopilotInstalled: true,
 		},
 		{
 			name: "claude does not duplicate bundled node setup",
