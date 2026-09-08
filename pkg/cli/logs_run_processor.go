@@ -299,7 +299,7 @@ func prepareRunDownload(
 ) (*DownloadResult, bool, error) {
 	result := &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
 	if storageLimit != nil {
-		if err := storageLimit.reserve(runOutputDir); err != nil {
+		if err := storageLimit.reserve(runOutputDir, run.CreatedAt); err != nil {
 			return result, false, err
 		}
 		result.storageReserved = true

@@ -105,6 +105,7 @@ const logsCommandExampleTemplate = `  # Basic usage
   %[1]s logs --timeout 30 --max-github-api-rate-limit 12000 # Wait after 12000 core API requests are used
   %[1]s logs --timeout 30 --max-github-api-rate-limit -2000 # Keep 2000 core API requests available
   %[1]s logs --timeout 30 --max-storage 10240                # Prune cache data and stop downloads at 10 GB
+  %[1]s logs --max-storage 10240 --prune-older-runs          # Remove oldest runs if cache pruning is insufficient
 
   # Cache maintenance
   %[1]s logs --cache-before -1w          # Evict local cache older than 1 week before downloading runs
@@ -229,6 +230,7 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 		JSONOutput:        values.JSONOutput,
 		Timeout:           values.TimeoutMinutes,
 		MaxStorageMB:      values.MaxStorageMB,
+		PruneOlderRuns:    values.PruneOlderRuns,
 		SummaryFile:       values.SummaryFile,
 		SafeOutputType:    values.SafeOutputType,
 		FilteredIntegrity: values.FilteredIntegrity,
@@ -353,6 +355,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		TimeoutSeconds:        getIntFlag(cmd, "timeout-seconds"),
 		MaxGitHubAPIRateLimit: getIntFlag(cmd, "max-github-api-rate-limit"),
 		MaxStorageMB:          getIntFlag(cmd, "max-storage"),
+		PruneOlderRuns:        getBoolFlag(cmd, "prune-older-runs"),
 		SummaryFile:           getStringFlag(cmd, "summary-file"),
 		SafeOutputType:        getStringFlag(cmd, "safe-output"),
 		FilteredIntegrity:     getBoolFlag(cmd, "filtered-integrity"),
@@ -497,6 +500,7 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	_ = logsCmd.Flags().MarkHidden("timeout-seconds")
 	logsCmd.Flags().Int("max-github-api-rate-limit", 0, "Maximum used GitHub core API requests before waiting for reset (positive = absolute, negative = reserve from API limit; e.g. 12000 or -2000)")
 	logsCmd.Flags().Int("max-storage", 0, "Maximum logs storage in MB after pruning non-essential cache data (0 = unlimited)")
+	logsCmd.Flags().Bool("prune-older-runs", false, "Remove oldest completed runs when non-essential cache pruning cannot satisfy --max-storage")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
