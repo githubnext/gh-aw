@@ -10,7 +10,7 @@ permissions:
   contents: read
   issues: read
 engine: codex
-model: copilot/mai-code-1-flash-picker
+model: copilot/gpt-5.3-codex
 strict: true
 network:
   allowed:
@@ -21,7 +21,7 @@ imports:
 tools:
   cli-proxy: true
   github:
-    mode: gh-proxy
+    mode: local
     toolsets:
       - issues
 safe-outputs:
@@ -41,7 +41,7 @@ evals:
 
 sandbox:
   agent:
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 ---
 
 # Sub-Issue Closer 🔒

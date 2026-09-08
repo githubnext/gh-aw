@@ -28,6 +28,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-json-stringify-equality`](#no-json-stringify-equality) | Disallow comparing two `JSON.stringify()` results for equality |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
+| [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
@@ -74,7 +75,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 | [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
-| [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` to be read after `getExecOutput(..., { ignoreReturnCode: true })` |
+| [`require-getexecoutput-exitcode-check`](#require-getexecoutput-exitcode-check) | Require `exitCode` / returned exit code to be read after `getExecOutput()` or `exec()` with `{ ignoreReturnCode: true }` |
 | [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
 
 ### `no-empty-catch-block`
@@ -182,6 +183,19 @@ Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...
 
 **Safe alternative:**
 - `values.reduce((a, b) => Math.max(a, b), -Infinity)` / `values.reduce((a, b) => Math.min(a, b), Infinity)` — folds the array without expanding it into arguments, using the same identity value `Math.max()` / `Math.min()` return on an empty array so the empty-input result matches the spread form instead of throwing.
+
+### `no-misplaced-error-code-definition`
+
+Require exported constants whose names end in `_ERROR_CODE` or `_REASON_CODE` to be defined in the centralized `error_codes.cjs` registry. Local-only constants are allowed because they do not establish a shared code outside the registry.
+
+**Flagged form:**
+```js
+const POLICY_FILE_PROTECTION_DENIED_REASON_CODE = "POLICY_FILE_PROTECTION_DENIED";
+module.exports = { POLICY_FILE_PROTECTION_DENIED_REASON_CODE };
+```
+
+**Safe alternative:**
+Define and export the constant from `error_codes.cjs`, then import it where needed.
 
 ### `prefer-number-isnan`
 
@@ -1099,14 +1113,16 @@ req.on("error", reject);
 
 ### `require-getexecoutput-exitcode-check`
 
-Require the `exitCode` returned by `@actions/exec`'s `getExecOutput()` to be read (destructured or accessed) whenever the call passes `{ ignoreReturnCode: true }`.
+Require the `exitCode` returned by `@actions/exec`'s `getExecOutput()` or the exit code returned by `exec()` to be read (destructured, accessed, or captured) whenever the call passes `{ ignoreReturnCode: true }`.
 
-Why: `getExecOutput()` throws automatically on a non-zero exit code by default. Passing `ignoreReturnCode: true` suppresses that behavior, making the caller solely responsible for detecting failure. Discarding `exitCode` (e.g. only destructuring `{ stdout }`) silently swallows command failures — the action proceeds with empty or stale output as if the command had succeeded.
+Why: `getExecOutput()` and `exec()` throw automatically on a non-zero exit code by default. Passing `ignoreReturnCode: true` suppresses that behavior, making the caller solely responsible for detecting failure. Discarding `exitCode` or the returned exit code (e.g. only destructuring `{ stdout }` from `getExecOutput()`, or a bare `await exec.exec(...)` statement whose returned exit code is never captured) silently swallows command failures — the action proceeds with empty or stale output as if the command had succeeded.
 
 **Flagged form:**
 ```js
 const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only"], { ignoreReturnCode: true });
 return stdout.split("\n");
+
+await exec.exec("git", ["diff", "--exit-code", "."], { ignoreReturnCode: true });
 ```
 
 **Safe alternative:**
@@ -1116,6 +1132,11 @@ if (exitCode !== 0) {
   throw new Error(`git diff failed with exit code ${exitCode}`);
 }
 return stdout.split("\n");
+
+const exitCode = await exec.exec("git", ["diff", "--exit-code", "."], { ignoreReturnCode: true });
+if (exitCode !== 0) {
+  throw new Error(`git diff failed with exit code ${exitCode}`);
+}
 ```
 
 **Out of scope:**
