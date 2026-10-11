@@ -351,7 +351,7 @@ describe("Copilot SDK evidence capture (synthetic)", () => {
     expect(saved.map(event => event.type)).toEqual(events.slice(0, -1).map(event => event.type));
     expect(saved[1]).toEqual(native[1]);
     expect(saved.find(event => event.id === "audit-message")).toEqual(native[2]);
-    expect(saved.find(event => event.id === "audit-tool-start").data.command).toBe("  echo sanitized\n");
+    expect(saved.find(event => event.id === "audit-tool-start")).toEqual(native[3]);
     expect(saved.find(event => event.id === "audit-tool-end").data.error).toEqual(native[4].data.error);
     expect(saved.find(event => event.type === "vendor.audit")).toEqual(events.at(-2));
     expect(
@@ -361,6 +361,7 @@ describe("Copilot SDK evidence capture (synthetic)", () => {
       )
     ).toBe(false);
     const normalized = parseCopilotLog(saved.map(event => JSON.stringify(event)).join("\n")).logEntries;
+    expect(normalized.find(event => event.id === "audit-tool-start").data.command).toBe("  echo sanitized\n");
     expect(normalized.find(event => event.id === "refused" && event.type === "assistant.refusal").data).toMatchObject({ reason: "refusal", content: "  Cannot comply.\n", apiCallId: "refusal-call" });
     expect(normalized.find(event => event.type === "assistant.reasoning" && event.id === "refused").data.content).toBe(" Policy check.\n");
     expect(projectSessionResult(normalized).errors).toEqual([events.at(-4).data, events.at(-3).data]);
@@ -377,10 +378,15 @@ describe("Copilot SDK evidence capture (synthetic)", () => {
       { type: "tool.execution_complete", data: { toolCallId: "orphan" } },
     ]);
     expect(saved[0].data).toEqual({ toolCallId: "", toolName: "root", input: false, command: "" });
-    expect(saved[2].data).toMatchObject({ toolName: "root", success: true, error: "", result: null });
-    expect(saved[3].data).toMatchObject({ toolName: "child", success: false, output: 0 });
+    expect(saved[2].data).toMatchObject({ success: true, error: "", result: null });
+    expect(saved[3].data).toMatchObject({ success: false, output: 0 });
+    expect(saved[2].data.toolName).toBeUndefined();
+    expect(saved[3].data.toolName).toBeUndefined();
     expect(saved[4].data).toEqual({ toolCallId: "orphan" });
-    expect(sessionToolSuccess(normalizeCopilotSession(saved)[2].data)).toBe(false);
+    const normalized = normalizeCopilotSession(saved);
+    expect(normalized[2].data.toolName).toBe("root");
+    expect(normalized[3].data.toolName).toBe("child");
+    expect(sessionToolSuccess(normalized[2].data)).toBe(false);
   });
 
   it("keeps parentToolCallId-only child SDK output separate without adding canonical fields to native capture", async () => {

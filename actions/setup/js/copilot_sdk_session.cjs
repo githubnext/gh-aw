@@ -8,9 +8,9 @@
  * unified_session.cjs can collect them for the unified session step summary.
  *
  * Retains native non-ephemeral events and selected ephemeral conversation,
- * accounting, failure and workflow observations. Tool names and inputs are
- * enriched only from observed evidence; canonical conversion is performed by
- * copilot_session.cjs. Assistant turn events also control the idle watchdog.
+ * accounting, failure and workflow observations. Tool enrichment and canonical
+ * conversion are performed by copilot_session.cjs, not the native capture.
+ * Assistant turn events also control the idle watchdog.
  *
  * The JSONL file is written to:
  *   /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
@@ -259,12 +259,11 @@ async function runWithCopilotSDK({
   // is an intentional no-op (safe to ignore).
   denialGuardPromise.catch(() => {});
   /**
-   * Map from toolCallId → {toolName, mcpServerName} for enriching tool.execution_complete
-   * events and for tracking in-flight tool calls when the idle-timeout fires.
+   * Scoped toolCallIds for tracking in-flight tool calls when the idle-timeout fires.
    * Declared at function scope so the catch block can check pendingToolCalls.size.
-   * @type {Map<string, Record<string, any>>}
+   * @type {Set<string>}
    */
-  const pendingToolCalls = new Map();
+  const pendingToolCalls = new Set();
 
   // Post-completion idle watchdog.
   // When the agent has produced output and all tracked tool calls have completed,
@@ -431,24 +430,11 @@ async function runWithCopilotSDK({
 
       switch (event.type) {
         case "tool.execution_start": {
-          if (!Object.hasOwn(data, "input")) {
-            for (const key of ["arguments", "parameters", "args", "toolInput"]) {
-              if (!Object.hasOwn(data, key)) continue;
-              data.input = data[key];
-              break;
-            }
-          }
-          if (!Object.hasOwn(data, "command") && typeof data.input?.command === "string") data.command = data.input.command;
-          if (data.toolCallId !== undefined) pendingToolCalls.set(toolKey, data);
+          if (data.toolCallId !== undefined) pendingToolCalls.add(toolKey);
           break;
         }
 
         case "tool.execution_complete": {
-          const pending = data.toolCallId !== undefined ? pendingToolCalls.get(toolKey) : undefined;
-          for (const key of ["toolName", "mcpServerName"]) {
-            if (!Object.hasOwn(data, key) && pending && Object.hasOwn(pending, key)) data[key] = pending[key];
-          }
-          if (!Object.hasOwn(data, "toolName") && data.toolDescription?.name !== undefined) data.toolName = data.toolDescription.name;
           if (data.toolCallId !== undefined) pendingToolCalls.delete(toolKey);
           break;
         }

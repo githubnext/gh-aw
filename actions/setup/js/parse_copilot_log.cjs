@@ -6,7 +6,6 @@
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, buildStepSummaryDetailsSection, formatInitializationSummary, formatToolUse, AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { projectSessionResult, createSessionEvent, accumulateSessionUsage, isTokenCount, normalizeAgentSession, normalizeSessionUsage } = require("./agent_session.cjs");
 const { normalizeCopilotSession } = require("./copilot_session.cjs");
-const { getMessageRefusal, normalizeOpenAIChatUsage } = require("./provider_refusal.cjs");
 
 const main = createEngineLogParser({
   parserName: "Copilot",
@@ -265,36 +264,15 @@ function parseDebugLogFormat(logContent) {
     }
     if (!Array.isArray(value.choices) && value.error === undefined) return;
     if (typeof value.model === "string") entries.push(createSessionEvent(source, "session.init", { sourceEngine: "copilot", model: value.model }));
-    for (const choice of Array.isArray(value.choices) ? value.choices : []) {
-      const message = choice?.message;
-      if (!message && choice?.finish_reason === "content_filter") {
-        entries.push(createSessionEvent(source, "assistant.refusal", { reason: "content_filter" }));
-        continue;
-      }
-      if (!message || (message.role !== undefined && message.role !== "assistant")) continue;
-      if (typeof message.reasoning_text === "string") entries.push(createSessionEvent(source, "assistant.reasoning", { content: message.reasoning_text }));
-      const refusal = getMessageRefusal(message, choice.finish_reason);
-      if (refusal) entries.push(createSessionEvent(source, "assistant.refusal", refusal));
-      else if (typeof message.content === "string") entries.push(createSessionEvent(source, "assistant.message", { content: message.content }));
-      for (const tool of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
-        if (!tool?.function) continue;
-        let input = tool.function.arguments;
-        if (typeof input === "string") {
-          try {
-            input = JSON.parse(input);
-          } catch {
-            // Invalid argument JSON is intentionally ignored; retain the original argument text.
-          }
-        }
-        entries.push(createSessionEvent(source, "tool.execution_start", { ...tool, toolCallId: tool.id, toolName: tool.function.name, input }));
-      }
-    }
     const identity = value.id ?? framing.requestId;
     const duplicate = identity !== undefined && responses.has(identity);
     if (identity !== undefined) responses.add(identity);
-    if (!duplicate && value.usage) {
-      accumulateSessionUsage(usage, normalizeOpenAIChatUsage(value.usage) ?? {});
-      if (Object.keys(usage).length) entries.push(createSessionEvent(source, "session.result", { usage: { ...usage } }));
+    for (const event of normalizeAgentSession([source], { sourceEngine: "copilot" })) {
+      if (event.type !== "session.result") entries.push(event);
+      else if (!duplicate && event.data.usage) {
+        accumulateSessionUsage(usage, event.data.usage);
+        if (Object.keys(usage).length) entries.push(createSessionEvent(event, "session.result", { usage: { ...usage } }));
+      }
     }
     if (!duplicate && value.error !== undefined) entries.push(createSessionEvent(source, "session.result", { errors: [value.error] }));
   };
