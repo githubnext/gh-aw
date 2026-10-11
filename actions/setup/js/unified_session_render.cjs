@@ -1,7 +1,7 @@
 // @ts-check
 
 const fs = require("fs");
-const { sessionOutputText, sessionContext, sessionScopeKey } = require("./agent_session.cjs");
+const { sessionOutputText, sessionContext, sessionScopeKey, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collapseStreamedMessages, boundSummaryLines, escapeSummaryText, redactSessionForPublication } = require("./agent_session_render.cjs");
 const { collectArtifactSecretValues, redactManifestValue } = require("./safe_output_manifest.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -214,8 +214,11 @@ function scopedAgentSessions(events) {
     if (source ? source.component !== "agent" : RUNTIME_TYPES.has(event.type)) continue;
     const context = sessionContext(event);
     const baseLabel = source ? `${source.phase}/${source.path}` : "agent";
-    const label = context.parentToolUseId ? `${baseLabel} sessionId=${context.sessionId ?? "unavailable"} parentToolUseId=${context.parentToolUseId}${context.agentId ? ` agentId=${context.agentId}` : ""}` : baseLabel;
-    const key = JSON.stringify([source?.phase, source?.path, context.parentToolUseId ? sessionScopeKey(event) : undefined]);
+    const nested = isNestedSessionEvent(event);
+    const label = nested
+      ? `${baseLabel} sessionId=${context.sessionId ?? "unavailable"}${context.parentToolUseId ? ` parentToolUseId=${context.parentToolUseId}` : ""}${context.agentId !== undefined ? ` agentId=${context.agentId}` : ""}`
+      : baseLabel;
+    const key = JSON.stringify([source?.phase, source?.path, nested ? sessionScopeKey(event) : undefined]);
     if (!groups.has(key)) groups.set(key, { label, events: [] });
     groups.get(key).events.push(event);
   }
