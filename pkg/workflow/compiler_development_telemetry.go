@@ -44,6 +44,16 @@ func (c *Compiler) prepareDryRunWorkflowData(data *WorkflowData) (*WorkflowData,
 			delete(result.EnvSources, name)
 		}
 	}
+	if result.EngineConfig != nil {
+		engine := *result.EngineConfig
+		engine.Env = maps.Clone(engine.Env)
+		for name := range engine.Env {
+			if isDryRunTelemetryEnv(name) {
+				delete(engine.Env, name)
+			}
+		}
+		result.EngineConfig = &engine
+	}
 	return result, nil
 }
 
@@ -102,7 +112,11 @@ func prepareDryRunWorkflowDispatch(data *WorkflowData) error {
 }
 
 func isDryRunTelemetryEnv(name string) bool {
-	return strings.HasPrefix(name, "OTEL_") || strings.HasPrefix(name, "GH_AW_OTLP_")
+	return strings.HasPrefix(name, "OTEL_") ||
+		strings.HasPrefix(name, "GH_AW_OTLP_") ||
+		strings.HasPrefix(name, "GITHUB_AW_OTEL_") ||
+		name == "TRACEPARENT" || name == "TRACESTATE" || name == "BAGGAGE" ||
+		name == "CLAUDE_CODE_ENABLE_TELEMETRY"
 }
 
 // Rewrite only environment mappings so executable scalar contents remain intact.

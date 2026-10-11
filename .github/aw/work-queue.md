@@ -6,7 +6,7 @@ description: Agent instructions for Git-backed work queue producers, dispatchers
 
 `tools.work-queue` schedules immutable DAGs and Claim-scoped effects;
 `work-queue.jsonl` is authoritative. V3 has no storage selector; Issues/PRs are
-dependencies. Weights distribute Claim opportunities, not CPU/completions.
+dependencies.
 For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/patterns/workqueue-ops.md).
 
 ## Select the role
@@ -17,10 +17,10 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 - **Worker:** require compiler-supplied version-3 `claims`; never override
   reserved `work_queue_assignment` or caller context.
 
-Trust compiler/runtime role, not snapshot metadata; don't downgrade workers.
-AW authenticates run/workflow/revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty. Its first producer submit atomically
-creates it with compiled Policy and Work; reads and dispatch alone never do.
+Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
+revision; reruns cannot inherit attempt 1.
+An absent branch is uninitialized/empty; the first producer submit atomically
+creates compiled Policy and Work. Reads and dispatch alone never do.
 Reject malformed or unsupported existing logs.
 
 ## Configure deployment
@@ -45,7 +45,6 @@ use one default pool, weighted-priority, concurrency 16, pending 4,096,
 singleton assignments and three attempts with 30-second backoff.
 First submit automatically installs compiled Policy and Work.
 Standalone seeding is unsupported; AW and Actions authorize the trusted submission.
-No producer enrollment, principal or credential settings are needed.
 Economic Policy updates require quiescence and explicit
 `policy --from-config --epoch EPOCH`; config edits never rewrite active state.
 Compatible deployments evolve future execution without draining.
@@ -76,6 +75,10 @@ Upgrade all closed-schema readers first. See the
 - Trusted processing refreshes the ledger and commits a compatible fair prefix.
   CAS losers discard tentative choices/charges and recompute.
 
+ESLint, daily-report and conformance agents explain staged plans only.
+Trusted controls validate the batch; empty dispatcher intents fail.
+Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
+
 ## Execute original Claims
 
 - Process only the assignment's original Claims and stored plans. Scope every
@@ -86,16 +89,14 @@ Upgrade all closed-schema readers first. See the
 - Finish each member with `work_queue_claim_finish`, using
   `outcome: "completed"` or `"cancelled"`. Missing finish authorizes no effects;
   valid siblings settle independently.
-- Default to one Claim. Enable batching only for compatible Work with substantial
-  reusable setup; never treat the batch's native conclusion as every Work's Result.
+- Default to one Claim; batch only compatible Work with reusable setup. A native
+  batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before
   scoped effects and Result only after independently verified delivery.
 
-Use `<mcp-clis>` subcommands with one JSON argument.
-`uninitialized` plus null SHA is empty;
-first `work_queue_submit` atomically installs compiled Policy and Work. Submit
-before dispatch. Existing policyless ledgers are failures; workers require
-Policy. `status: "staged"` is no grant or launch.
+Use `<mcp-clis>` with one JSON argument. `uninitialized` plus null SHA is empty;
+first `work_queue_submit` installs Policy and Work. Submit before dispatch.
+Policyless ledgers fail; workers require Policy; `status: "staged"` is no grant.
 
 ## Dependencies and recovery
 

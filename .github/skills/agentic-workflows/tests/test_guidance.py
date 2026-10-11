@@ -17,6 +17,30 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_single_security_reviewer_and_markdown_overview(self):
+        gate = (ROOT / ".github/aw/debug-security-review.md").read_text()
+        self.assertIn("exactly one read-only security-review agent", gate)
+        self.assertIn("same reviewer", gate)
+        self.assertIn("every question has an evidence-backed YES", gate)
+        self.assertIn("## Single Reviewer", gate)
+        self.assertIn("### Annotated Markdown Change Overview", gate)
+        self.assertIn("Ignore generated `.lock.yml` files in", gate)
+        self.assertIn("Generated locks remain execution-review evidence", gate)
+        self.assertIn("Show it in the user response", gate)
+        self.assertIn("| Markdown source | Change | Security impact |", gate)
+        for obsolete in (
+            "Launch two independent", "third independent cheap judge",
+            "two evidence-backed YES votes", "two-affirmative-vote requirement",
+        ):
+            self.assertNotIn(obsolete, gate)
+        for skill in ("debugging-workflows", "review-agentic-workflows"):
+            with self.subTest(skill=skill):
+                text = (ROOT / f".github/skills/{skill}/SKILL.md").read_text()
+                self.assertIn("debug-security-review.md#single-reviewer", text)
+                self.assertIn(
+                    "debug-security-review.md#annotated-markdown-change-overview", text
+                )
+
     def test_customer_case_remedy_order(self):
         case = FIXTURES["model_mismatch"]
         self.assertIn("v0.89.21", case["lock_header"])

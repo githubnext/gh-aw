@@ -35,5 +35,6 @@ intent, not proof that the discussion was published: trusted processing verifies
 delivery before recording Result. If there is no qualifying data, prerequisites
 are unavailable, or no discussion can be prepared, stage a scoped `noop` or
 `report_incomplete` and finish with `outcome: "cancelled"` instead. Do not claim
-successful reporting without a discussion. The installed one-attempt policy
-makes this day's declined report terminal rather than repeatedly consuming slots.
+successful reporting without a discussion. A cancelled Claim may be retried
+under the installed pool policy; it is not a terminal cancellation of Work until
+the configured attempt budget is exhausted.
