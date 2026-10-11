@@ -156,7 +156,7 @@ function normalizeClaudeSession(records) {
     return ids?.size === 1 ? [...ids][0] : undefined;
   };
   const emit = (source, type, data) => {
-    const event = createSessionEvent(source, type, { ...data, ...sessionContext(source) });
+    const event = createSessionEvent(source, type, { ...data, ...sessionContext(source), sourceEngine: "claude" });
     events.push(event);
     return event;
   };
@@ -259,11 +259,14 @@ function normalizeClaudeSession(records) {
   for (const record of records) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
     let source = structuredClone(record);
-    if (isSessionEvent(source)) {
+    if (isSessionEvent(source) && (source.data.sourceEngine === "claude" || source.type.startsWith("claude."))) {
       const mapped = normalizeAgentSession([source], { sourceEngine: "claude" })[0];
       events.push(mapped);
       if (mapped.type === "session.result") terminalResults.push(mapped);
       if (mapped.type === "tool.execution_start" && mapped.data.toolCallId !== undefined) tools.set(toolKey(mapped, mapped.data.toolCallId), mapped.data);
+      continue;
+    } else if (isSessionEvent(source)) {
+      native(source, source.type.startsWith("claude.") ? source.type : `claude.${source.type}`);
       continue;
     }
     const agentId = parentAgent(source);
@@ -508,7 +511,7 @@ function normalizeClaudeSession(records) {
         const toolCallId = source.tool_use_id ?? bashTask?.tool_use_id;
         emit(source, "tool.execution_update", {
           ...sourceFields(source),
-          ...toolFields({ name: source.tool_name }, tools.get(toolKey(source, toolCallId))),
+          ...toolFields({ name: source.tool_name ?? source.toolName, mcpServerName: source.mcpServerName }, tools.get(toolKey(source, toolCallId))),
           toolCallId,
           taskId: source.task_id,
           taskType: "local_bash",
@@ -546,7 +549,7 @@ function normalizeClaudeSession(records) {
     } else if (source.type === "error" && source.error != null) {
       reportError(source, source.error);
     } else if (typeof source.type === "string") {
-      native(source, source.type.includes(".") ? source.type : `claude.${source.type}`);
+      native(source, source.type.startsWith("claude.") ? source.type : `claude.${source.type}`);
     }
   }
 

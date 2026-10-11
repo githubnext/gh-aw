@@ -34,7 +34,7 @@ describe("Claude native background Bash lifecycle", () => {
     const saved = tasks.map((record, index) => ({
       ...record,
       type: `dynamicWorkflows.${record.subtype}`,
-      data: { ...record },
+      data: { ...record, toolName: "Bash" },
       provenance: { path: "agent-session.jsonl", index },
     }));
     const original = structuredClone(saved);
@@ -42,7 +42,8 @@ describe("Claude native background Bash lifecycle", () => {
     expect(migrated.map(event => event.type)).toEqual(["tool.execution_update", "tool.execution_update"]);
     expect(migrated.map(event => event.provenance)).toEqual(saved.map(event => event.provenance));
     expect(migrated.every(event => event.mapped)).toBe(true);
-    expect(migrated[1].data).toMatchObject({ taskType: "local_bash", taskId: "task-example", output: "Example task completed" });
+    expect(migrated.every(event => event.data.toolName === "Bash")).toBe(true);
+    expect(migrated[1].data).toMatchObject({ taskType: "local_bash", taskId: "task-example", toolName: "Bash", output: "Example task completed" });
     expect(normalizeClaudeObservations(migrated)).toEqual(migrated);
     expect(normalizeClaudeSession(migrated)).toEqual(migrated);
     expect(saved).toEqual(original);
@@ -149,6 +150,13 @@ describe("Claude observed partials and structured payloads", () => {
     expect(normalizeClaudeSession(events)).toEqual(events);
     expect(records).toEqual(original);
   });
+  it.each(["session.result", "tool.execution_complete"])("keeps unknown dotted type %s opaque", type => {
+    const events = parse([{ type, id: "unknown-dotted-record", session_id: "audit-session", data: { success: true, toolCallId: "fabricated-tool" } }]);
+    expect(events.map(event => event.type)).toEqual([`claude.${type}`]);
+    expect(project(events).map(event => event.type)).toEqual([`claude.${type}`]);
+    expect(events.some(event => ["session.result", "tool.execution_complete"].includes(event.type))).toBe(false);
+    expect(projectSessionResult(events)).toBeUndefined();
+  });
   // Synthetic Messages API/SDK shapes: the inspected CI artifacts do not enable partial-message streaming.
   it("retains mapped stream metadata and final snapshots without duplicate claude records in any serialization", () => {
     const records = [
@@ -172,7 +180,7 @@ describe("Claude observed partials and structured payloads", () => {
     expect(normalizeClaudeSession(persisted)).toEqual(persisted);
     const unified = project(persisted);
     expect(unified.filter(event => event.type === "assistant.message").map(event => event.data.content)).toEqual(["  start", "\r\n"]);
-    expect(unified.find(event => event.type === "vendor.unknown").data).toEqual(records.at(-1).data);
+    expect(unified.find(event => event.type === "claude.vendor.unknown").data).toMatchObject(records.at(-1).data);
     const validate = createSessionValidator("unified").event;
     for (const event of unified) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
     expect(records).toEqual(original);
