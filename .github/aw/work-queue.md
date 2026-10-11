@@ -76,6 +76,16 @@ Upgrade all closed-schema readers first. See the
 - Trusted processing refreshes the ledger and commits a compatible fair prefix.
   CAS losers discard tentative choices/charges and recompute.
 
+The repository's ESLint, daily-report and conformance portfolio preparation
+steps use `stagePlanIntents` to stage the exact generated nodes and dispatch
+budget, in that order, before agent execution. Their agents read and explain
+the snapshot only; they never reconstruct or resubmit the plan. Staging still
+grants no authority: the normal trusted collector and control processor verify
+the native origin, installed Policy, worker routes and launch credential.
+An unassigned dispatcher with no control intents fails rather than reporting a
+successful activation. Unassigned dispatchers cannot emit worker safe outputs,
+including `noop` or `report_incomplete`.
+
 ## Execute original Claims
 
 - Process only the assignment's original Claims and stored plans. Scope every

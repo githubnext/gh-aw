@@ -582,6 +582,9 @@ async function main(options = {}) {
   try {
     const runtime = assertQueueControlRole({ ...options, context });
     const { intents, errors } = readStagedIntentBatch(options.intentPath || process.env.GH_AW_WORK_QUEUE_INTENTS || DEFAULT_INTENT_PATH);
+    if (runtime.role === "dispatcher" && intents.length === 0 && errors.length === 0) {
+      errors.push({ reason: "work_queue_dispatcher_intents_missing" });
+    }
     const preview = isStagedMode(options) || isStagedMode(config);
     const launching = intents.some(intent => intent.kind === "dispatch_next") && !preview;
     if (launching && !options.validateDispatchCredential) normalizeDispatchCredential(config.work_queue_dispatch_credential);
@@ -615,7 +618,9 @@ async function main(options = {}) {
     await coreApi.summary.write();
   }
   if (recoveryRequired) {
-    const failure = "Work queue controls require recovery; inspect the work_queue_requests output and step summary.";
+    const failure = result.receipts.some(receipt => receipt.reason === "work_queue_dispatcher_intents_missing")
+      ? "Work queue dispatcher produced no control intents; inspect the preparation step and tool-denial logs."
+      : "Work queue controls require recovery; inspect the work_queue_requests output and step summary.";
     if (typeof coreApi.setFailed === "function") coreApi.setFailed(failure);
     else throw new Error(failure);
   }

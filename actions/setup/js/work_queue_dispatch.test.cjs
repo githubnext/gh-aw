@@ -1414,6 +1414,25 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
+  it.each(["absent", "empty"])("fails an unassigned dispatcher with %s intents instead of reporting a successful activation", async state => {
+    const { options, post } = setup({ granted: false });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-missing-intents-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+    const publish = vi.fn(options.publishWorkQueueRequest);
+    try {
+      if (state === "empty") fs.writeFileSync(filename, "");
+      const result = await publishQueueControls({ ...options, assignment: null, role: "dispatcher", intentPath: filename, publishWorkQueueRequest: publish, core });
+      expect(result).toMatchObject({ status: "recovery_required", success: false });
+      expect(result.receipts).toEqual([{ reason: "work_queue_dispatcher_intents_missing", status: "blocked" }]);
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("produced no control intents"));
+      expect(publish).not.toHaveBeenCalled();
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each([undefined, null, { kind: "unsupported" }, { kind: "github_app" }])("rejects public dispatch credential metadata %j before constructing a client or publishing", async credential => {
     const { fixture, options, post } = setup({ granted: false });
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-public-credential-"));

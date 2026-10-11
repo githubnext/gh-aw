@@ -8,7 +8,11 @@ import { newRequest, generateRequestOperations } from "./work_queue_replay.cjs";
 import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
 import { digest } from "./work_queue_codec.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
-import { MAX_INTENTS, MAX_INTENT_BYTES, readStagedIntentBatch, readStagedIntents, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, stageIntent } from "./work_queue_intents.cjs";
+import { MAX_INTENTS, MAX_INTENT_BYTES, readStagedIntentBatch, readStagedIntents, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, stageIntent, stagePlanIntents } from "./work_queue_intents.cjs";
+import { buildESLintFactoryPlan } from "./eslint_factory_portfolio.cjs";
+import { buildDailyReportPlan } from "./daily_report_portfolio.cjs";
+import { buildEngineConformancePlan } from "./engine_conformance_portfolio.cjs";
+import { main as collectIntents } from "./collect_work_queue_intents.cjs";
 
 const directories = [];
 const origin = { authenticated: true, roles: ["dispatcher"], role: "dispatcher", principal: "11", repository: "owner/repo", workflow: ".github/workflows/dispatcher.lock.yml", run_id: "15", run_attempt: 1 };
@@ -23,6 +27,70 @@ afterEach(() => {
 });
 
 describe("trusted stable intent ingestion", () => {
+  it.each([buildESLintFactoryPlan, buildDailyReportPlan, buildEngineConformancePlan])("stages the exact portfolio submission before dispatch without an agent or credentials", buildPlan => {
+    const file = filename();
+    const plan = buildPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });
+    const staged = stagePlanIntents(file, plan);
+    expect(staged.map(intent => intent.kind)).toEqual(["submit", "dispatch_next"]);
+    expect(staged[0].parameters).toEqual({ nodes: plan.nodes });
+    expect(staged[1].parameters).toEqual(plan.dispatch);
+    expect(readStagedIntents(file)).toEqual(staged);
+    const original = fs.readFileSync(file, "utf8");
+    expect(stagePlanIntents(file, plan)).toEqual(staged);
+    expect(fs.readFileSync(file, "utf8")).toBe(original);
+    expect(staged.every(intent => !Object.hasOwn(intent, "claim_handle"))).toBe(true);
+  });
+
+  it("rejects invalid or conflicting prepared plans without replacing staged work", () => {
+    const file = filename();
+    const plan = buildESLintFactoryPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });
+    for (const invalid of [null, {}, { ...plan, version: 3 }, { ...plan, nodes: [] }, { ...plan, dispatch: { ...plan.dispatch, max_claims: 0 } }, { ...plan, dispatch: { ...plan.dispatch, pool: "other" } }]) {
+      expect(() => stagePlanIntents(file, invalid)).toThrow();
+      expect(fs.existsSync(file)).toBe(false);
+    }
+    stagePlanIntents(file, plan);
+    const original = fs.readFileSync(file, "utf8");
+    expect(() => stagePlanIntents(file, { ...plan, nodes: plan.nodes.slice(0, 1) })).toThrow(/conflict/);
+    expect(fs.readFileSync(file, "utf8")).toBe(original);
+  });
+
+  it("recovers a staged submission prefix but rejects dispatch-before-submission", () => {
+    const file = filename();
+    const plan = buildESLintFactoryPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });
+    const intents = stagePlanIntents(file, plan);
+    fs.writeFileSync(file, `${JSON.stringify(intents[0])}\n`);
+    expect(stagePlanIntents(file, plan)).toEqual(intents);
+    expect(readStagedIntents(file)).toEqual(intents);
+    const outOfOrder = `${JSON.stringify(intents[1])}\n`;
+    fs.writeFileSync(file, outOfOrder);
+    expect(() => stagePlanIntents(file, plan)).toThrow(/conflict/);
+    expect(fs.readFileSync(file, "utf8")).toBe(outOfOrder);
+    fs.writeFileSync(file, intents.map(intent => JSON.stringify(intent)).join("\n") + "\n");
+    stageIntent(file, { version: 3, intent_id: "extra", kind: "dispatch_next", parameters: plan.dispatch });
+    expect(() => stagePlanIntents(file, plan)).toThrow(/conflict/);
+  });
+
+  it("collects prepared intents from the same directory as the queue MCP server", () => {
+    const file = filename();
+    const sourceDir = path.dirname(file);
+    const outputDir = path.join(sourceDir, "collected");
+    const intentPath = path.join(sourceDir, "work-queue.intents.jsonl");
+    const plan = buildESLintFactoryPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });
+    const staged = stagePlanIntents(intentPath, plan);
+    expect(
+      collectIntents({
+        sourceDir,
+        outputDir,
+        core: {
+          setFailed: message => {
+            throw new Error(message);
+          },
+        },
+      })
+    ).toEqual([{ filename: "work-queue.intents.jsonl", bytes: fs.statSync(intentPath).size, status: "collected" }]);
+    expect(readStagedIntents(path.join(outputDir, "work-queue.intents.jsonl"))).toEqual(staged);
+  });
+
   it("binds request identities to native origin, never agent authority", () => {
     const parameters = { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 1000 };
     const request = requestForIntent(origin, "intent1", "dispatch_next", parameters);

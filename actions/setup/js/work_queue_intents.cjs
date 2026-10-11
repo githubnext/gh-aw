@@ -87,6 +87,27 @@ function stageIntent(filename, intent) {
   log.debug("intent.stage.complete", { staged_intents: previous.length + 1 });
 }
 
+function stagePlanIntents(filename, plan) {
+  if (plan?.version !== 1 || !Array.isArray(plan.nodes) || plan.nodes.length < 1 || plan.nodes.length > 256) throw new Error("work_queue_plan_invalid");
+  closed(plan.dispatch, ["pool", "max_claims", "max_dispatches"], [], "planned dispatch");
+  identity(plan.dispatch.pool, "pool");
+  integer(plan.dispatch.max_claims, 1, 256, "max_claims");
+  integer(plan.dispatch.max_dispatches, 1, 256, "max_dispatches");
+  if (plan.nodes.some(node => node.pool !== plan.dispatch.pool)) throw new Error("work_queue_plan_pool_mismatch");
+  const parameters = [
+    { kind: "submit", parameters: { nodes: plan.nodes } },
+    { kind: "dispatch_next", parameters: plan.dispatch },
+  ];
+  const id = digest(parameters);
+  const intents = parameters.map(intent => ({ version: 3, intent_id: `plan:${id}:${intent.kind}`, ...intent }));
+  const previous = readStagedIntents(filename);
+  if (previous.length > intents.length || previous.some((intent, index) => canonical(intent) !== canonical(intents[index]))) throw new Error("work_queue_plan_intents_conflict");
+  for (const intent of intents) {
+    if (!previous.some(existing => existing.intent_id === intent.intent_id)) stageIntent(filename, intent);
+  }
+  return intents;
+}
+
 function requestIdForIntent(trustedContext, intentId) {
   const actor = actorFromContext(trustedContext);
   identity(intentId, "intent ID");
@@ -151,4 +172,4 @@ function normalizeSubmitParameters(parameters, policy, at, state) {
   };
 }
 
-module.exports = { MAX_INTENT_BYTES, MAX_INTENTS, readIntentLines, readStagedIntentBatch, readStagedIntents, stageIntent, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters };
+module.exports = { MAX_INTENT_BYTES, MAX_INTENTS, readIntentLines, readStagedIntentBatch, readStagedIntents, stageIntent, stagePlanIntents, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters };
