@@ -426,7 +426,7 @@ engine:
           "pi.message_snapshot",
         ]);
         const isInterpreted = entry => interpretedTypes.has(entry.type) ||
-          entry.type.startsWith("subagent.");
+          entry.type.startsWith("subagent.") || entry.type.startsWith("otel.");
         const logEntries = (parseLogEntries(logContent) || []).filter(
           entry => isSessionEvent(entry) && (
             entry.data.sourceEngine === "aider" ||

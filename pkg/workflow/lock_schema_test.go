@@ -9,6 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLockMetadataDryRunRoundTrip(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		t.Run(map[bool]string{false: "normal", true: "dry-run"}[dryRun], func(t *testing.T) {
+			expected := &LockMetadata{SchemaVersion: LockSchemaV4, DryRun: dryRun}
+			content, err := expected.ToJSON()
+			require.NoError(t, err)
+			metadata, legacy, err := ExtractMetadataFromLockFile("# gh-aw-metadata: " + content + "\n")
+			require.NoError(t, err)
+			assert.False(t, legacy)
+			assert.Equal(t, expected, metadata)
+			if dryRun {
+				assert.Contains(t, content, `"dry_run":true`)
+			} else {
+				assert.NotContains(t, content, `"dry_run"`)
+			}
+		})
+	}
+	metadata, _, err := ExtractMetadataFromLockFile(`# gh-aw-metadata: {"schema_version":"v4","dry_run":false}`)
+	require.NoError(t, err)
+	assert.False(t, metadata.DryRun)
+	_, _, err = ExtractMetadataFromLockFile(`# gh-aw-metadata: {"schema_version":"v4","dry_run":"true"}`)
+	require.Error(t, err)
+}
+
 func TestExtractMetadataFromLockFile(t *testing.T) {
 	tests := []struct {
 		name           string

@@ -15,6 +15,30 @@ const {
 } = require("./agent_session.cjs");
 const { getMessageRefusal } = require("./provider_refusal.cjs");
 const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs");
+const CLAUDE_STATUS_TYPES = new Set(["thinking_tokens", "vcs_state_changed", "status", "compact_boundary"]);
+
+/**
+ * Migrate supported saved status wrappers without replaying conversation snapshots.
+ * @param {Array<any>} records
+ * @param {(event: import("./types/agent_session").SessionEvent) => import("./types/agent_session").SessionEvent} [mapEvent]
+ * @returns {Array<any>}
+ */
+function normalizeClaudeObservations(records, mapEvent = event => event) {
+  const legacy = record =>
+    isSessionEvent(record) &&
+    (record.data.sourceEngine === undefined || record.data.sourceEngine === "claude") &&
+    ((record.type === "claude.system" && CLAUDE_STATUS_TYPES.has(record.data.subtype)) || ["claude.tool_progress", "claude.tool_use_summary", "claude.rate_limit_event", "claude.auth_status"].includes(record.type));
+  if (!records.some(legacy)) return records;
+  return records.flatMap(record => {
+    if (!legacy(record)) return [record];
+    const source = { ...record, ...sourceFields(record), type: record.type.slice("claude.".length) };
+    delete source.data;
+    // Saved status wrappers can already have a separate compatibility text event.
+    return normalizeClaudeSession([source])
+      .filter(event => ["session.info", "session.result", "tool.execution_update"].includes(event.type))
+      .map(mapEvent);
+  });
+}
 
 /**
  * Claude input tokens exclude cache reads and cache writes.
@@ -51,6 +75,7 @@ function toolFields(block, start) {
  * @returns {import("./types/agent_session").SessionEvent[]}
  */
 function normalizeClaudeSession(records) {
+  records = normalizeClaudeObservations(records);
   /** @type {import("./types/agent_session").SessionEvent[]} */
   const events = [];
   const tools = new Map();
@@ -221,6 +246,8 @@ function normalizeClaudeSession(records) {
       const raw = source.event;
       const channel = channelKey(source);
       if (raw.type === "message_start") {
+        transport.type = "assistant.message_update";
+        Object.assign(transport.data, { sourceType: raw.type, messageId: raw.message?.id, model: raw.message?.model });
         const state = { id: raw.message?.id, model: raw.message?.model, blocks: new Map(), textEvents: [], refusalEvent: undefined, transportEvent: transport };
         streams.set(channel, state);
         if (state.id !== undefined) streamedMessages.set(messageKey(source, state.id), state);
@@ -281,24 +308,39 @@ function normalizeClaudeSession(records) {
             mappedTransport = true;
           } else if (delta.type === "input_json_delta" && typeof delta.partial_json === "string") {
             block.argumentText += delta.partial_json;
-            if (block.event) block.event.data.argumentText = block.argumentText;
+            if (block.event) {
+              block.event.data.argumentText = block.argumentText;
+              retainSnapshot(block.event, source);
+              mappedTransport = true;
+            }
           } else if (delta.type === "signature_delta" && typeof delta.signature === "string" && block.event) {
             block.event.data.signature = (block.event.data.signature ?? "") + delta.signature;
+            retainSnapshot(block.event, source);
+            mappedTransport = true;
           }
         } else if (raw.type === "content_block_stop") {
           const block = state.blocks.get(raw.index);
           if (block?.type === "tool_use" && block.argumentText && block.event) {
+            let input;
             try {
-              block.event.data.input = JSON.parse(block.argumentText);
+              input = JSON.parse(block.argumentText);
             } catch {
-              // Malformed/truncated arguments retain exact argumentText; recover at the next record.
-              continue;
+              input = undefined;
+            }
+            if (input !== undefined) {
+              block.event.data.input = input;
+              retainSnapshot(block.event, source);
+              mappedTransport = true;
             }
           }
         } else if (raw.type === "message_stop" && state.refusalEvent) {
           retainSnapshot(state.refusalEvent, source);
           delete state.refusalEvent.data.partial;
           mappedTransport = true;
+        }
+        if (!mappedTransport && ["message_delta", "message_stop", "content_block_stop"].includes(raw.type)) {
+          transport.type = "assistant.message_update";
+          Object.assign(transport.data, { ...streamFields(state, raw.index), sourceType: raw.type });
         }
       }
       // The mapped event already retains this transport envelope and its metadata.
@@ -423,8 +465,14 @@ function normalizeClaudeSession(records) {
           totalToolCalls: isTokenCount(source.usage?.tool_uses) ? source.usage.tool_uses : undefined,
           ...(source.status === "stopped" ? { cancelled: true } : {}),
         });
+      } else if (CLAUDE_STATUS_TYPES.has(source.subtype)) {
+        emit(source, "session.info", {
+          ...sourceFields(source),
+          sourceType: source.subtype,
+          ...(source.subtype === "thinking_tokens" ? { estimatedTokens: source.estimated_tokens, estimatedTokensDelta: source.estimated_tokens_delta } : {}),
+        });
       } else native(source, !task && Object.hasOwn(DYNAMIC_WORKFLOW_EVENT_TYPES, source.subtype) ? DYNAMIC_WORKFLOW_EVENT_TYPES[source.subtype] : "claude.system");
-      if (source.subtype !== "permission_denied" && source.error == null) {
+      if (source.subtype !== "permission_denied" && !CLAUDE_STATUS_TYPES.has(source.subtype) && source.error == null) {
         const content = typeof source.message === "string" ? source.message : (source.message?.content ?? source.content);
         if (typeof content === "string") emitBlock(source, { type: "text", text: content });
         else if (Array.isArray(content)) {
@@ -433,7 +481,17 @@ function normalizeClaudeSession(records) {
       }
     } else if (["tool_progress", "tool_use_summary", "rate_limit_event", "auth_status"].includes(source.type)) {
       if (source.type === "auth_status" && source.error != null) reportError(source, source.error);
-      else native(source, `claude.${source.type}`);
+      else if (source.type === "tool_progress") {
+        const start = tools.get(toolKey(source, source.tool_use_id));
+        emit(source, "tool.execution_update", {
+          ...sourceFields(source),
+          ...toolFields({ name: source.tool_name }, start),
+          toolCallId: source.tool_use_id,
+          sourceType: source.type,
+          partial: true,
+          ...(isMetric(source.elapsed_time_seconds) && isMetric(source.elapsed_time_seconds * 1000) ? { durationMs: source.elapsed_time_seconds * 1000 } : {}),
+        });
+      } else emit(source, "session.info", { ...sourceFields(source), sourceType: source.type, ...(Object.hasOwn(source, "summary") ? { content: source.summary } : {}) });
     } else if (source.type === "error" && source.error != null) {
       reportError(source, source.error);
     }
@@ -461,4 +519,4 @@ function normalizeClaudeSession(records) {
   return events;
 }
 
-module.exports = { normalizeClaudeSession };
+module.exports = { normalizeClaudeSession, normalizeClaudeObservations };

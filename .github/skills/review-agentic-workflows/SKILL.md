@@ -18,13 +18,18 @@ Reference workflow authoring skill guidance at: https://raw.githubusercontent.co
 ## Agent ownership
 
 The agent performs setup, source and runtime-dependency inspection, independent
-review coordination when required, compilation/scanners, evidence collection,
+single-reviewer coordination, compilation/scanners, evidence collection,
 finding resolution and cleanup. Do not give the user a technical preflight
 checklist to execute. Report concrete blockers and request only authorization
 or decisions the agent cannot supply. For debugging and live-test gates, follow
 the [shared security-review guidance](../../aw/debug-security-review.md);
 the agent prepares the evidence for human validation rather than asking the
 user to conduct the review.
+
+Require exactly one read-only security-review agent per reviewed revision.
+Resolve coverage questions with that reviewer; do not require parallel judges,
+majority votes or a tie-breaker. Follow the shared
+[single-reviewer rules](../../aw/debug-security-review.md#single-reviewer).
 
 The user may explicitly authorize live debugging for the current session rather
 than approve each run. Record the grant and agreed scope/bounds; reuse it for
@@ -151,6 +156,13 @@ Look for optimization opportunities:
 Recommend minimal, safe optimizations that keep or improve security posture.
 
 ## Review output contract
+
+Show an annotated overview of changed authored `.md` files, excluding generated
+`.lock.yml` diffs from the overview. Link source lines, describe before/after
+behavior, and explain the security impact of each relevant change in plain
+language. Include preserved controls and unresolved evidence, not just findings.
+Keep generated locks in the execution-review evidence. Follow the shared
+[annotated overview contract](../../aw/debug-security-review.md#annotated-markdown-change-overview).
 
 Always provide a short user-visible result sentence for each security review and
 dry-run attempt, including failed, blocked, or unavailable checks. State the

@@ -15,6 +15,13 @@ reference, not a separate execution policy. Respect explicit no-dispatch context
 Apply its live-outcome table, credential triage and untrusted-evidence rules.
 Without accessible existing logs, use source/fixtures; never dispatch for evidence.
 
+Require one read-only security-review agent per revision, not multiple judges.
+Show the user an annotated overview of changed authored `.md` sources explaining
+their security impacts; ignore `.lock.yml` diffs in that overview while retaining
+generated locks as execution-review evidence. Follow the shared
+[single-reviewer](../../aw/debug-security-review.md#single-reviewer) and
+[annotated overview](../../aw/debug-security-review.md#annotated-markdown-change-overview) rules.
+
 Workflow registration/activation and secret presence, validity, or expiry are
 runtime readiness checks, not pre-dispatch prerequisites. Do not require workflow
 or secret inventories or organization-admin metadata access. An otherwise

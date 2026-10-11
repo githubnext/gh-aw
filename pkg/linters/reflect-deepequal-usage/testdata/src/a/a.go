@@ -28,7 +28,7 @@ func testDeepEqualNegation(a, b interface{}) bool {
 	return !reflect.DeepEqual(a, b) // want `reflect.DeepEqual\(\) is inefficient`
 }
 
-// testDeepEqualWithAlias should be flagged - using an alias for reflect package
+// testDeepEqualWithAlias should be flagged - using a function-value alias
 func testDeepEqualWithAlias(a, b interface{}) bool {
 	r := reflect.DeepEqual // reference to function
 	return r(a, b)         // want `reflect.DeepEqual\(\) is inefficient`
@@ -42,4 +42,30 @@ func testDeepEqualInComparison(a, b, c, d interface{}) bool {
 // testDeepEqualStandalone should be flagged - standalone call that discards result
 func testDeepEqualStandalone(a, b interface{}) {
 	reflect.DeepEqual(a, b) // want `reflect.DeepEqual\(\) is inefficient`
+}
+
+func testDeclaredAlias(a, b interface{}) bool {
+	var equal = reflect.DeepEqual
+	return equal(a, b) // want `reflect.DeepEqual\(\) is inefficient`
+}
+
+func testAliasChain(a, b interface{}) bool {
+	equal := (reflect.DeepEqual)
+	alias := (equal)
+	return (alias)(a, b) // want `reflect.DeepEqual\(\) is inefficient`
+}
+
+func testMultipleAliases(a, b interface{}) bool {
+	other, equal := reflect.TypeOf, reflect.DeepEqual
+	_ = other
+	var ignored, alias = 0, equal
+	_ = ignored
+	return alias(a, b) // want `reflect.DeepEqual\(\) is inefficient`
+}
+
+func testAliasInClosure(a, b interface{}) bool {
+	equal := reflect.DeepEqual
+	return func() bool {
+		return equal(a, b) // want `reflect.DeepEqual\(\) is inefficient`
+	}()
 }

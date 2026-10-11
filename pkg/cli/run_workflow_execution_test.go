@@ -251,8 +251,10 @@ func TestRunWorkflowOnGitHub_FlagCombinations(t *testing.T) {
 				ctx,
 				"test-workflow",
 				RunOptions{
-					RepoOverride: tt.repoOverride,
-					Push:         tt.push,
+					WorkflowRunFlags: WorkflowRunFlags{
+						RepoOverride: tt.repoOverride,
+						Push:         tt.push,
+					},
 				},
 			)
 

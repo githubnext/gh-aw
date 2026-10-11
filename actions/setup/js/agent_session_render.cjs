@@ -39,8 +39,8 @@ function collapseStreamedMessages(events) {
   for (const entry of events) {
     const source = publicationSources.get(entry) ?? entry;
     const scope = messageSourceScope(source);
-    const native = source.event ?? source.data?.event;
-    if (source.type === "claude.stream_event" && native && ["message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop"].includes(native.type)) {
+    const native = source.event ?? source.data?.event ?? (source.type === "assistant.message_update" ? { type: source.data?.sourceType, message: { id: source.data?.messageId }, index: source.data?.contentIndex } : undefined);
+    if (["claude.stream_event", "assistant.message_update"].includes(source.type) && native && ["message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop"].includes(native.type)) {
       if (native.type === "message_start") {
         claudeMessages.set(scope, { id: native.message?.id, sequence: ++sequence });
         previous = undefined;
