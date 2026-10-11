@@ -482,6 +482,54 @@ err := cli.RunWorkflowOnGitHub(ctx, "my-workflow", cli.RunOptions{
 })
 ```
 
+#### Migrating workflow run option literals
+
+`RunOptions` and `RunWorkflowOptions` now embed `WorkflowRunFlags`, as requested
+by issue [#67198](https://github.com/github/gh-aw/issues/67198). This is a breaking
+Go source API change: promoted fields cannot be keys in an outer struct's
+composite literal.
+
+Before (no longer compiles):
+
+```go
+runOpts := cli.RunOptions{
+    RepoOverride: "owner/repo",
+    Verbose:      true,
+    Enable:       true,
+}
+interactiveOpts := cli.RunWorkflowOptions{
+    WorkflowName: "my-workflow",
+    RepoOverride: "owner/repo",
+    Verbose:      true,
+}
+```
+
+After:
+
+```go
+runOpts := cli.RunOptions{
+    WorkflowRunFlags: cli.WorkflowRunFlags{
+        RepoOverride: "owner/repo",
+        Verbose:      true,
+    },
+    Enable: true,
+}
+interactiveOpts := cli.RunWorkflowOptions{
+    WorkflowRunFlags: cli.WorkflowRunFlags{
+        RepoOverride: "owner/repo",
+        Verbose:      true,
+    },
+    WorkflowName: "my-workflow",
+}
+```
+
+Move `Verbose`, `EngineOverride`, `RepoOverride`, `RefOverride`, `AutoMergePRs`,
+`Push`, `DryRun`, and `Approve` into the nested `WorkflowRunFlags` literal.
+Keep mode-specific fields on the outer struct. Field selectors and assignments
+(for example, `runOpts.RepoOverride` and `interactiveOpts.Verbose = true`),
+zero-value defaults, and flat JSON serialization remain unchanged. CLI flags
+and runtime behavior are unchanged; CLI users do not need to migrate.
+
 ### Auditing a run
 
 ```go

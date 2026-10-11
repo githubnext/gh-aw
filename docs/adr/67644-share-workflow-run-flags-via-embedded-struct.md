@@ -1,7 +1,7 @@
 # ADR-67644: Share CLI Workflow Run Flags via an Embedded `WorkflowRunFlags` Struct
 
 **Date**: 2026-10-11
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan (PR #67644)
 
 ---
@@ -12,7 +12,7 @@ The `gh aw run` command feeds the same eight run-time flags (`Verbose`, `EngineO
 
 ### Decision
 
-We will extract the eight shared run flags into a single exported `WorkflowRunFlags` struct in `pkg/cli/run_workflow_execution.go` and **embed** it (anonymously, without a JSON tag) in both `RunOptions` and `RunWorkflowOptions`. The CLI constructs `WorkflowRunFlags` once in `cmd/gh-aw/main.go` and forwards the whole value to both entry points. Flags that are genuinely mode-specific — `Enable`, `WaitForCompletion`, `RepeatCount`, `Inputs`, `JSON` on the non-interactive side and `WorkflowName`, `requiredInputsOnly` on the interactive side — stay on their respective structs. Anonymous embedding was chosen over a named field because it preserves promoted field access (`opts.Verbose`) and flat JSON serialization, keeping the change source- and wire-compatible for field *reads* while giving a single place to add future flags.
+Extract the eight shared run flags into a single exported `WorkflowRunFlags` struct in `pkg/cli/run_workflow_execution.go` and **embed** it (anonymously, without a JSON tag) in both `RunOptions` and `RunWorkflowOptions`, as explicitly requested by issue #67198. The CLI constructs `WorkflowRunFlags` once in `cmd/gh-aw/main.go` and forwards the whole value to both entry points. Flags that are genuinely mode-specific — `Enable`, `WaitForCompletion`, `RepeatCount`, `Inputs`, `JSON` on the non-interactive side and `WorkflowName`, `requiredInputsOnly` on the interactive side — stay on their respective structs. Anonymous embedding preserves promoted field selectors and assignments (`opts.Verbose`) and flat JSON serialization, but it is not a source-compatible API refactor: keyed literals using promoted fields break. Accept that trade-off rather than restore duplicated direct fields, and provide a major changeset with migration guidance.
 
 ### Alternatives Considered
 
@@ -32,14 +32,14 @@ A named field makes the grouping explicit and avoids any ambiguity if a future o
 - Promoted-field access and flat JSON serialization are preserved, so read-side code and serialized payloads are unchanged.
 
 #### Negative
-- Composite literals that set these fields directly (`RunOptions{RefOverride: "main"}`) no longer compile and must be rewritten as `RunOptions{WorkflowRunFlags: WorkflowRunFlags{...}}`. This is a breaking change for external `pkg/cli` consumers, and already required updating `pkg/cli/run_command_test.go`, `run_workflow_execution_test.go`, and `add_interactive_workflow.go`.
+- Composite literals that set these fields directly (`RunOptions{RefOverride: "main"}` or `RunWorkflowOptions{RefOverride: "main"}`) no longer compile and must be rewritten as `RunOptions{WorkflowRunFlags: WorkflowRunFlags{RefOverride: "main"}}` or `RunWorkflowOptions{WorkflowRunFlags: WorkflowRunFlags{RefOverride: "main"}}`. Mode-specific fields stay on the outer struct. This is a breaking change for external `pkg/cli` consumers, and already required updating `pkg/cli/run_command_test.go`, `run_workflow_execution_test.go`, and `add_interactive_workflow.go`.
 - Embedding introduces the possibility of future silent field shadowing if an outer struct ever declares a field with a promoted name.
 
 #### Neutral
-- `pkg/cli/README.md` was updated to document `WorkflowRunFlags` and the new usage example; the generated API appendix reflects the new `RunWorkflowOptions` shape.
-- New regression coverage was added in `pkg/cli/workflow_run_flags_test.go` for promoted fields, zero defaults, flat JSON round-trips, and `buildWorkflowRunArgs` dispatch arguments.
-- Runtime behavior, flag defaults, and command semantics are unchanged; this is a pure structural refactor.
+- [Package API migration guidance](../../pkg/cli/README.md#migrating-workflow-run-option-literals) documents before/after literals for both exported option types. The [major changeset](../../.changeset/major-embed-workflow-run-flags.md) supplies the breaking-change notice and migration instructions for the release changelog; no CLI migration is required.
+- Regression coverage in `pkg/cli/workflow_run_flags_test.go` verifies repository, ref, and input dispatch arguments through `buildWorkflowRunArgs`. Tests that only restated Go embedding and JSON behavior were removed because the option structs have no production JSON consumer.
+- Runtime behavior, flag defaults, and command semantics are unchanged; the Go keyed-literal API break is intentional and documented.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Generated draft finalized to record the accepted embedding and Go API migration decision.*
