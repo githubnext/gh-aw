@@ -192,8 +192,12 @@ func parseCIEnforcedLinterSets(t *testing.T, workflowBytes []byte) (map[string]s
 	native := make(map[string]struct{})
 	wasm := make(map[string]struct{})
 	for _, step := range job.Steps {
+		activeLines := slices.DeleteFunc(strings.Split(step.Run, "\n"), func(line string) bool {
+			return strings.HasPrefix(strings.TrimSpace(line), "#")
+		})
+		run := strings.Join(activeLines, "\n")
 		goos, goarch := step.Env["GOOS"], step.Env["GOARCH"]
-		for field := range strings.FieldsSeq(step.Run) {
+		for field := range strings.FieldsSeq(run) {
 			key, value, ok := strings.Cut(field, "=")
 			if !ok {
 				continue
@@ -209,7 +213,7 @@ func parseCIEnforcedLinterSets(t *testing.T, workflowBytes []byte) (map[string]s
 		if goos == "js" && goarch == "wasm" {
 			target = wasm
 		}
-		for _, match := range linterFlagsRe.FindAllStringSubmatch(step.Run, -1) {
+		for _, match := range linterFlagsRe.FindAllStringSubmatch(run, -1) {
 			for flag := range strings.FieldsSeq(match[1]) {
 				if flag == "-test=false" {
 					continue
