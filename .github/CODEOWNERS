@@ -1,0 +1,10 @@
+# For more information, see [docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax)
+
+# Security-sensitive compiler, CLI, workflow sources and generated workflows.
+/pkg/workflow/ @dsyme @pelikhan @krzysztof-cieslak
+/pkg/cli/ @dsyme @pelikhan @krzysztof-cieslak
+/.github/workflows/ @dsyme @pelikhan @krzysztof-cieslak
+/Dockerfile @dsyme @pelikhan @krzysztof-cieslak
+
+# Changes to ownership must also request maintainer review.
+/.github/CODEOWNERS @dsyme @pelikhan @krzysztof-cieslak
