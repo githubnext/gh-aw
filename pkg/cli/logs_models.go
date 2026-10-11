@@ -216,10 +216,10 @@ type AggregatedSummaryBase struct {
 }
 
 // MCPServerStatsBase holds the per-server identity and volume fields shared by the MCP
-// server health/stats report types (MCPServerStats, MCPServerHealthDetail and
-// MCPServerCrossRunHealth). Those types previously spelled the same concepts four
-// different ways (TotalCalls/ToolCalls/ToolCallCount and TotalErrors/ErrorCount);
-// embedding this struct standardizes the Go field names and removes copy-paste drift
+// server health/stats report types (MCPServerStats, MCPServerHealthDetail,
+// MCPServerCrossRunHealth and GatewayServerMetrics). Those types previously spelled
+// the same concepts with different field names (TotalCalls/ToolCalls/ToolCallCount and
+// TotalErrors/ErrorCount); embedding this struct standardizes the Go field names and removes copy-paste drift
 // risk, following the same approach as AggregatedSummaryBase. Types whose serialized
 // schema differs from these tags keep it via a MarshalJSON override.
 type MCPServerStatsBase struct {
