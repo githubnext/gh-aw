@@ -6,7 +6,7 @@ description: Overview and practical guidance for configuring and using GitHub MC
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-08-16
+**Last Updated**: 2026-10-11
 
 ## Overview
 
@@ -82,6 +82,7 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `gists` | Gist creation and management |
 | `git` | Git API operations (tree, refs) |
 | `github_support_docs_search` | GitHub support documentation search (remote mode only) |
+| `governance` | Custom properties and repository rulesets (org/enterprise level requires a PAT) |
 | `labels` | Label management automation |
 | `notifications` | Notification processing agents |
 | `orgs` | Organization search operations |

@@ -27,12 +27,18 @@ Full tool reference for each toolset. See [github-mcp-server.md](github-mcp-serv
 ---
 
 ### copilot
-**Description**: GitHub Copilot assignment, review, and coding agent tools
+**Description**: GitHub Copilot assignment, review, coding agent, and Copilot Automation management tools
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `assign_copilot_to_issue` | Assign GitHub Copilot to an issue | `owner`, `repo`, `issue_number` |
 | `create_pull_request_with_copilot` | Ask Copilot to create a pull request | `owner`, `repo`, `issue_number` |
+| `get_automation` | Get a Copilot Automation in a repository | `owner`, `repo`, `automation_id` |
+| `get_automation_revision` | Get a revision of a Copilot Automation | `owner`, `repo`, `automation_id`, `revision_id` |
+| `list_automation_revisions` | List revisions for a Copilot Automation | `owner`, `repo`, `automation_id`, `cursor`, `perPage` |
+| `list_automations` | List Copilot Automations for a repository | `owner`, `repo`, `ownership`, `page`, `perPage` |
+| `list_available_automation_tools` | List available tools for Copilot Automations | — |
+| `list_available_automation_triggers` | List available triggers for Copilot Automations | — |
 | `request_copilot_review` | Request a Copilot review on a pull request | `owner`, `repo`, `pullNumber` |
 
 ---
@@ -55,6 +61,19 @@ Full tool reference for each toolset. See [github-mcp-server.md](github-mcp-serv
 |------|---------|----------------|
 | `get_copilot_space` | Get details of a specific Copilot Space | `owner`, `name` |
 | `list_copilot_spaces` | List Copilot Spaces for a user or organization | `owner` |
+
+---
+
+### governance
+**Description**: Repository/organization/enterprise custom properties and repository rulesets
+
+> **Note**: Organization- and enterprise-level operations require a PAT — `GITHUB_TOKEN` lacks the required scope. Repository-level `custom_properties_read` works with `GITHUB_TOKEN`.
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `custom_properties_read` | Read custom properties at the repository, organization, or enterprise level | `level`, `owner`, `repo`, `org`, `enterprise` |
+| `custom_properties_write` | Create or update custom properties at the repository, organization, or enterprise level | `level`, `owner`, `repo`, `org`, `enterprise`, `properties` |
+| `repository_ruleset_read` | Read rulesets (and rule suites) at the repository, organization, or enterprise level | `level`, `owner`, `repo`, `org`, `enterprise`, `method`, `ruleset_id` |
 
 ---
 
