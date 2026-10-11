@@ -244,7 +244,7 @@ opaque because its essential fields are not defined by this specification.
 | Firewall | Host, method, status, decision, byte count, duration; steering/tracker event, level, message, reason, and request ID. |
 | Safe outputs | Operation type, repository/number, provider/identifier/URL, status, and errors; no requested title/body or arbitrary operation payload. |
 | Experiments | Run ID, assignments, and counts. |
-| Graders and evals | Grader IDs/names, values, units, statuses, decisions, thresholds, and errors; eval ID, answer, model, and error. No grader scripts or eval questions. |
+| Graders and evals | Grader IDs/names, sources, enabled flags, bounds, values, units, statuses, decisions, thresholds, errors, severity, and diagnostic messages. Manifest/result versions, run ID/attempt and counts, implementation ID/version/digest, and metric ID/value pairs are retained when supplied. Eval ID, answer, model, error, run ID, and experiment assignments are retained. No grader scripts, opaque diagnostics, or eval questions. |
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
@@ -1358,7 +1358,7 @@ timeline, and the disclosure does not repeat its title as a standalone heading.
 | MCPG | Method, server, RPC ID, tool name, observed responses/errors, and filter/block diagnostics. Raw RPC arguments and response bodies are omitted. |
 | AWF | Network host/method/status/decision, observed token usage, steering messages, and tracker event names. |
 | Safe outputs | Requested versus execution-recorded operations, target metadata, and structured error counts. Requests are not displayed as successes. |
-| Experiments, graders, evals | Assignments/state, grader value/unit/outcome, and eval ID/answer/model. Grader scripts and raw evaluation questions are omitted. |
+| Experiments, graders, evals | Assignments/state, grader value/unit/outcome, implementation identity, diagnostic messages and metrics, and eval ID/answer/model with run and experiment attribution. Grader scripts, opaque diagnostics, and raw evaluation questions are omitted. |
 | Execution, detection, collection | Recorded outcomes/verdict flags, detection job result/conclusion/categorical reason, source coverage, warnings, untimed counts, and absent components. No detector transcript or free-form reasons. |
 | Unknown extensions | Type and provenance only; opaque payloads are not dumped. |
 

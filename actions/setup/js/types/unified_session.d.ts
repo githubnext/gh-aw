@@ -254,14 +254,40 @@ export interface GraderData {
   direction?: JsonValue;
   threshold?: JsonValue;
   error?: JsonValue;
+  source?: JsonValue;
+  enabled?: JsonValue;
+  min?: JsonValue;
+  max?: JsonValue;
+  digest?: JsonValue;
+  severity?: JsonValue;
+  message?: JsonValue;
 }
 
 export interface GraderManifestData {
+  version?: JsonValue;
   graders?: GraderData[];
 }
 
-export interface GraderResultData extends GraderData {
-  results?: GraderData[];
+export interface GraderMeasurementData extends GraderData {
+  implementation?: {
+    id?: JsonValue;
+    version?: JsonValue;
+    digest?: JsonValue;
+  } | null;
+  metrics?: { id?: JsonValue; value?: JsonValue }[];
+}
+
+export interface GraderResultData extends GraderMeasurementData {
+  version?: JsonValue;
+  run?: {
+    id?: JsonValue;
+    attempt?: JsonValue;
+    graderCount?: JsonValue;
+    passed?: JsonValue;
+    failed?: JsonValue;
+    errors?: JsonValue;
+  } | null;
+  results?: GraderMeasurementData[];
 }
 
 export interface EvalResultData {
@@ -269,6 +295,8 @@ export interface EvalResultData {
   answer?: JsonValue;
   model?: JsonValue;
   error?: JsonValue;
+  runId?: JsonValue;
+  assignments?: JsonValue;
 }
 
 export interface ExecutionResultData {
