@@ -68,6 +68,14 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 			"Set cache_write to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    input: 0.000001\n    output: 0.000001\n    cache_write: 0.00000125",
 		)
 	}
+	if p.Reasoning != nil && *p.Reasoning <= 0 {
+		return NewValidationError(
+			"models.default-ai-credits-pricing.reasoning",
+			fmt.Sprintf("%g", *p.Reasoning),
+			fmt.Sprintf("reasoning must be a positive value when set, got %g. Expected a value greater than 0.", *p.Reasoning),
+			"Set reasoning to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    input: 0.000001\n    output: 0.000001\n    reasoning: 0.000003",
+		)
+	}
 	modelCostsPricingValidationLog.Printf("Validated default-ai-credits-pricing: input=%g output=%g", p.Input, p.Output)
 	return nil
 }
