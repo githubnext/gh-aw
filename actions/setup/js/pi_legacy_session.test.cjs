@@ -180,7 +180,7 @@ describe("historical Pi observations", () => {
       { type: "pi.subagent_event", data: { agent: "reader", invocation_id: "child", event: { message: { role: "assistant", model: "gpt-5.4-mini", usage: { input: 5, output: 2 } } } } },
       { type: "pi.subagent_result", data: { agent: "reader", invocation_id: "child", outcome: "failed", error_code: "SUBAGENT_MODEL_UNAVAILABLE" } },
     ]);
-    expect(events.map(event => event.type)).toEqual(["subagent.started", "subagent.configured", "subagent.request", "subagent.failed"]);
+    expect(events.map(event => event.type)).toEqual(["subagent.started", "subagent.configured", "subagent.request", "session.info", "subagent.failed"]);
     expect(events.every(event => event.agentId === "child")).toBe(true);
     expect(byType(events, "subagent.request")[0].data).toMatchObject({ inputTokens: 5, outputTokens: 2 });
     expect(byType(events, "subagent.failed")[0].data).toMatchObject({ errorCode: "SUBAGENT_MODEL_UNAVAILABLE" });
