@@ -81,6 +81,9 @@ describe("engine conformance queue portfolio", () => {
     const dispatcher = source("engine-conformance-dispatcher");
     expect(dispatcher.match(/^      - engine-conformance-[a-z-]+$/gm)).toHaveLength(ENGINES.length);
     expect(dispatcher).toContain("if: github.run_attempt == 1");
+    expect(dispatcher).toContain("stagePlanIntents(");
+    expect(dispatcher).toContain("shared/work-queue-staged-plan.md");
+    expect(fs.readFileSync(new URL("../../../.github/workflows/shared/work-queue-staged-plan.md", import.meta.url), "utf8")).toContain("Do not submit, dispatch, edit intent files");
     expect(compiled("engine-conformance-dispatcher")).toContain("engine_conformance_portfolio.cjs");
     for (const engine of ENGINES) {
       const worker = source(`engine-conformance-${engine}`);

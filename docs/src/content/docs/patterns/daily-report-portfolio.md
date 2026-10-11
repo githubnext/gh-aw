@@ -196,9 +196,9 @@ safe-outputs:
 
 Read /tmp/gh-aw/agent/daily-report-plan.json.
 Call work_queue_read with {"pool":"daily-reports","limit":32}.
-Call work_queue_submit once with {"nodes": <the exact plan.nodes array>}.
-Call work_queue_dispatch_next once with the exact plan.dispatch:
-{"pool":"daily-reports","max_claims":3,"max_dispatches":3}.
+The preparation step has already staged the exact nodes and dispatch budget.
+Do not submit, dispatch, or reconstruct the plan.
+Report the staged cohort, not completed work.
 Do not select winning Work IDs, workflows or revisions from the snapshot.
 Do not call ordinary dispatch_workflow or target-specific dispatch tools.
 ```
@@ -218,11 +218,19 @@ fs.writeFileSync(
   "/tmp/gh-aw/agent/daily-report-plan.json",
   JSON.stringify(plan)
 );
+stagePlanIntents(
+  path.join(process.env.RUNNER_TEMP, "gh-aw/safeoutputs/work-queue/work-queue.intents.jsonl"),
+  plan
+);
 ```
 
 The JSON file is a preparation artifact, not a second scheduler ledger. Its
 selection becomes durable through normal Work admission. Queue snapshots are
-read-only views and never grants.
+read-only views and never grants. Preparation stages one submission followed by
+one dispatch intent without agent JSON transcription or shell approval. Trusted
+collection and control processing retain the same origin, Policy and credential
+checks. A dispatcher with no intents fails rather than reporting a green run
+with no admission.
 
 ### MCP read, submit and request
 
@@ -233,8 +241,9 @@ server, not operator CLI commands:
 {"name":"work_queue_read","arguments":{"pool":"daily-reports","limit":32}}
 ```
 
-The submit call contains all three complete generated nodes. This JavaScript
-excerpt shows the argument shape without repeating their shared contracts:
+The preparation step stages the same parameters as the following MCP calls.
+The submission contains all three complete generated nodes; the portfolio agent
+does not make these calls itself:
 
 ```javascript title="MCP tools/call parameters constructed from the prepared plan"
 const submitCall = {
@@ -418,7 +427,8 @@ three artifacts; none substitutes for the required intelligence Discussion.
 
 ## One ledger from admission to verified Result
 
-Agent calls stage intents. The trusted publisher owns the following ledger
+The trusted preparation step stages portfolio control intents; worker agent
+calls stage Claim-scoped effect and finish intents. The trusted publisher owns the following ledger
 transitions; none can be manufactured by a report worker:
 
 ```mermaid
@@ -459,7 +469,7 @@ sequenceDiagram
 | `Dispatch` | Sender fencing, assignment and verified native run binding |
 | `Completion` | A scoped completed intent accepted by trusted processing |
 | `Result` | Required output cardinality and independently verified delivery |
-| `ClaimCancellation`, `WorkCancellation` | Declined/failed attempt and terminal Work when its one-attempt budget is exhausted |
+| `ClaimCancellation`, `WorkCancellation` | Declined/failed attempt and terminal Work when its configured attempt budget is exhausted |
 | `Release` | Capacity release justified by exact native terminal or definitive nonlaunch evidence |
 
 Completion is not Result. An API success response or a native run's success

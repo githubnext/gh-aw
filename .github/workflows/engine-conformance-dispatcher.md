@@ -6,6 +6,8 @@ on:
   schedule: daily around 09:00
   workflow_dispatch:
 if: github.run_attempt == 1
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -45,6 +47,7 @@ steps:
         const fs = require("node:fs");
         const path = require("node:path");
         const { buildEngineConformancePlan, ENGINES } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/engine_conformance_portfolio.cjs"));
+        const { stagePlanIntents } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/work_queue_intents.cjs"));
         const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: context.runId });
         const { data: repository } = await github.rest.repos.get(context.repo);
         const date = new Date(run.created_at).toISOString().slice(0, 10);
@@ -64,6 +67,7 @@ steps:
         });
         fs.mkdirSync("/tmp/gh-aw/agent", { recursive: true });
         fs.writeFileSync("/tmp/gh-aw/agent/engine-conformance-plan.json", JSON.stringify(plan));
+        stagePlanIntents(path.join(process.env.RUNNER_TEMP, "gh-aw/safeoutputs/work-queue/work-queue.intents.jsonl"), plan);
         core.info(`Engine conformance cohort ${date}: ${plan.selected.join(", ")}`);
 timeout-minutes: 15
 strict: true
@@ -83,9 +87,9 @@ backlog; the first trusted submission atomically installs Policy and Work.
 An existing policyless ledger is a failure. Surface tool failures instead of
 claiming an empty queue, and never dispatch ordinary workflows.
 
-Call `work_queue_submit` once with `{"nodes": <plan.nodes>}`. Date-keyed Work
-identities make a same-day repeat idempotent. Then call
-`work_queue_dispatch_next` once with the exact `plan.dispatch`:
+The staged submission contains `{"nodes": <plan.nodes>}`. Date-keyed Work
+identities make a same-day repeat idempotent. The staged
+dispatch request contains the exact `plan.dispatch`:
 `{"pool":"engine-conformance","max_claims":3,"max_dispatches":3}`. Use only
 the advertised work-queue MCP tools or their CLI wrappers. Do not choose the
 winning Work, worker, revision, or target: the installed Policy does that.
@@ -96,4 +100,5 @@ in `.github/workflows/aw.json` under `work_queue`. AW handles authorization,
 approved worker routes and actual native-run binding; no producer enrollment,
 worker-principal configuration or administrator seeding is required.
 The three-launch cap may produce fewer launches if capacity is unavailable.
-Use `noop` only when there is no eligible grant, not when admission fails.
+Report only the staged request; do not infer a grant or empty live queue from
+the activation snapshot.

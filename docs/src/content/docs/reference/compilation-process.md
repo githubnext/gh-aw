@@ -338,15 +338,20 @@ Set `DEBUG=workflow:compiler_development,cli:compile_development` to log each
 dry-run configuration mutation, removed environment key, disabled job, and forced
 CLI flag to stderr. Logs identify changed fields/keys, never their values.
 
-Dry-run locks omit `OTEL_*` and `GH_AW_OTLP_*` variables from workflow, job,
+Dry-run locks omit `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*` variables,
+W3C trace context (`TRACEPARENT`, `TRACESTATE`, `BAGGAGE`), and
+`CLAUDE_CODE_ENABLE_TELEMETRY` from workflow, job,
 step, container, and service environment mappings, including user-defined values.
 Workflow environment suppression occurs before job and header generation so
 telemetry-only masking steps and environment-source entries are also omitted.
+Engine environment overrides are filtered before native engine configuration is rendered.
 Automatic OTLP export configuration and telemetry authentication steps are also
 disabled. Existing network permissions, local diagnostics, summaries, and artifacts remain
 available; ordinary compilation preserves telemetry configuration. This does not
 rewrite custom scripts that configure their own exporters.
 
+The emitted lock's `gh-aw-metadata` header records `"dry_run":true`. Normal and
+older locks omit this optional field, which readers interpret as `false`.
 Suppression applies to the lock emitted by `--dry-run`, not a previously compiled
 normal lock on GitHub. Restoring that normal lock after diagnostic compilation
 does not disable its telemetry. Any permitted live test must review and execute
