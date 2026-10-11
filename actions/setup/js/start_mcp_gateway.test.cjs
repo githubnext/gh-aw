@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import http from "http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
@@ -28,6 +29,7 @@ import {
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
   validateGatewayAgentIdentifiers,
+  waitForSafeOutputsReadiness,
 } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
@@ -130,6 +132,125 @@ describe("start_mcp_gateway startup diagnostics", () => {
     expect(dir.startsWith("/tmp/gh-aw/")).toBe(false);
     expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  describe("start_mcp_gateway safeoutputs readiness", () => {
+    let server;
+    let originalCore;
+    let requests;
+    const config = { mcpServers: { safeoutputs: {} } };
+    const retryConfig = {
+      maxTotalAttempts: 4,
+      initialDelayMs: 1,
+      maxDelayMs: 1,
+      backoffMultiplier: 1,
+      backendStartupTimeoutMs: 1000,
+      retryBudgetMs: 3,
+    };
+
+    beforeEach(() => {
+      originalCore = global.core;
+      global.core = { ...originalCore, info: vi.fn(), warning: vi.fn() };
+      requests = [];
+    });
+
+    afterEach(async () => {
+      if (server) {
+        await new Promise(resolve => server.close(resolve));
+        server = undefined;
+      }
+      global.core = originalCore;
+    });
+
+    async function startBackend(handleToolsList, { resetFirstInitialize = false, initStatus = 200 } = {}) {
+      let initializes = 0;
+      server = http.createServer((req, res) => {
+        let data = "";
+        req.on("data", chunk => (data += chunk));
+        req.on("end", () => {
+          const rpc = JSON.parse(data);
+          requests.push(rpc.method);
+          expect(req.url).toBe("/mcp/safeoutputs");
+          expect(req.headers.authorization).toBe("readiness-test-key");
+          if (rpc.method === "initialize") {
+            initializes += 1;
+            if (resetFirstInitialize && initializes === 1) {
+              req.socket.destroy();
+              return;
+            }
+            res.writeHead(initStatus, { "Content-Type": "application/json", "Mcp-Session-Id": "readiness-test-session" });
+            res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: {} }));
+          } else {
+            expect(req.headers["mcp-session-id"]).toBe("readiness-test-session");
+            if (rpc.method === "tools/list") {
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: { tools: handleToolsList() } }));
+            } else {
+              res.writeHead(204);
+              res.end();
+            }
+          }
+        });
+      });
+      await new Promise(resolve => server.listen(0, "localhost", resolve));
+      return String(server.address().port);
+    }
+
+    it("waits for delayed backend registration after process health succeeds", async () => {
+      let lists = 0;
+      const port = await startBackend(() => (++lists < 3 ? [] : [{ name: "noop" }]));
+
+      await waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig);
+
+      expect(lists).toBe(3);
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("ready with 1 tool(s) after 3 attempt(s)"));
+    });
+
+    it("retries connection resets and then empty tools before registration succeeds", async () => {
+      let lists = 0;
+      const port = await startBackend(() => (++lists < 2 ? [] : [{ name: "noop" }]), { resetFirstInitialize: true });
+
+      await waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig);
+
+      expect(requests.filter(method => method === "initialize")).toHaveLength(3);
+      expect(lists).toBe(2);
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("initialize failed"));
+    });
+
+    it("fails setup explicitly after the bounded attempts when tools stay empty", async () => {
+      const port = await startBackend(() => []);
+
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig)).rejects.toThrow(
+        /MCP gateway safeoutputs readiness failed after 4 attempt\(s\): no tools registered or backend unavailable\. The agent will not start/
+      );
+
+      expect(requests.filter(method => method === "tools/list")).toHaveLength(4);
+      expect(global.core.info).not.toHaveBeenCalledWith(expect.stringContaining("is ready"));
+    });
+
+    it("does not accept tools after an unsuccessful initialize", async () => {
+      const port = await startBackend(() => [{ name: "noop" }], { initStatus: 401 });
+
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig)).rejects.toThrow(/readiness failed/);
+
+      expect(requests).toEqual(Array(4).fill("initialize"));
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("readiness-test-key");
+    });
+
+    it.each([{}, { mcpServers: {} }, { mcpServers: { github: {} } }])("skips workflows without configured safe outputs: %j", async noSafeOutputs => {
+      await waitForSafeOutputsReadiness(noSafeOutputs, "invalid-port", "readiness-test-key", retryConfig);
+      expect(global.core.info).not.toHaveBeenCalled();
+    });
+
+    it("gates startup completion and outputs on safeoutputs readiness", () => {
+      const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+      const gate = source.indexOf("await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig)");
+      expect(gate).toBeGreaterThan(0);
+      expect(gate).toBeLessThan(source.indexOf("writeGatewayStartupMarker(gatewayStartupMarker)"));
+      expect(gate).toBeLessThan(source.indexOf("fs.appendFileSync(githubOutput, outputs"));
+      expect(source).toContain("stopGatewayProcess(activeGatewayPid)");
+      expect(source).toContain("core.setFailed(`FATAL: ${message}`)");
+    });
   });
 
   it("redacts bearer headers and structured credential keys", () => {

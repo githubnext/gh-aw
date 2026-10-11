@@ -332,9 +332,10 @@ function parseMCPResponseBody(body) {
  * @param {string} serverUrl - HTTP URL of the MCP server endpoint
  * @param {string} agentId - Bearer token for gateway authentication
  * @param {typeof import("@actions/core")} core - GitHub Actions core
+ * @param {number} [timeoutMs=DEFAULT_HTTP_TIMEOUT_MS]
  * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean}>}
  */
-async function fetchMCPToolsResult(serverUrl, agentId, core) {
+async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
   const authHeaders = { Authorization: agentId };
 
   // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
@@ -354,8 +355,13 @@ async function fetchMCPToolsResult(serverUrl, agentId, core) {
           protocolVersion: "2024-11-05",
         },
       },
-      DEFAULT_HTTP_TIMEOUT_MS
+      timeoutMs
     );
+    const initBody = parseMCPResponseBody(initResp.body);
+    if (initResp.statusCode !== 200 || !initBody || typeof initBody !== "object" || "error" in initBody) {
+      core.warning(`  initialize did not succeed for ${serverUrl} (HTTP ${initResp.statusCode})`);
+      return { tools: [], emptyWasSuccessful: false };
+    }
     const sessionId = initResp.headers["mcp-session-id"];
     if (sessionId && typeof sessionId === "string") {
       sessionHeader = { "Mcp-Session-Id": sessionId };
@@ -368,16 +374,16 @@ async function fetchMCPToolsResult(serverUrl, agentId, core) {
   // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
   // The server responds with 204 No Content; errors here are non-fatal.
   try {
-    await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
+    await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, Math.min(10000, timeoutMs));
   } catch (err) {
     core.warning(`  notifications/initialized failed for ${serverUrl}: ${getErrorMessage(err)}`);
   }
 
   // Step 3: tools/list – get the available tool definitions
   try {
-    const listResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, DEFAULT_HTTP_TIMEOUT_MS);
+    const listResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, timeoutMs);
     const respBody = parseMCPResponseBody(listResp.body);
-    if (respBody && typeof respBody === "object" && "result" in respBody && respBody.result && typeof respBody.result === "object") {
+    if (listResp.statusCode === 200 && respBody && typeof respBody === "object" && !("error" in respBody) && "result" in respBody && respBody.result && typeof respBody.result === "object") {
       const result = respBody.result;
       if ("tools" in result && Array.isArray(result.tools)) {
         return {
@@ -399,10 +405,11 @@ async function fetchMCPToolsResult(serverUrl, agentId, core) {
  * @param {string} serverUrl - HTTP URL of the MCP server endpoint
  * @param {string} agentId - ****** for gateway authentication
  * @param {typeof import("@actions/core")} core - GitHub Actions core
+ * @param {number} [timeoutMs=DEFAULT_HTTP_TIMEOUT_MS]
  * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
  */
-async function fetchMCPTools(serverUrl, agentId, core) {
-  const result = await fetchMCPToolsResult(serverUrl, agentId, core);
+async function fetchMCPTools(serverUrl, agentId, core, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
+  const result = await fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs);
   return result.tools;
 }
 

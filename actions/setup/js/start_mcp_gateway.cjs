@@ -41,6 +41,7 @@ const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
+const { fetchMCPTools } = require("./mount_mcp_as_cli.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -173,6 +174,66 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
   }
 
   return Object.freeze({ ...config, retryBudgetMs });
+}
+
+/**
+ * Process health alone does not guarantee that the safe-output backend has
+ * registered its tools. Probe the live backend before permitting agent startup.
+ *
+ * @param {Record<string, unknown>} config
+ * @param {string | undefined} gatewayPort
+ * @param {string | undefined} agentId
+ * @param {ReturnType<typeof resolveGatewayHealthRetryConfig>} retryConfig
+ * @returns {Promise<void>}
+ */
+async function waitForSafeOutputsReadiness(config, gatewayPort, agentId, retryConfig) {
+  const servers = config.mcpServers;
+  if (!servers || typeof servers !== "object" || !Object.hasOwn(servers, "safeoutputs")) {
+    return;
+  }
+  if (!gatewayPort || !/^\d+$/.test(gatewayPort)) {
+    throw new Error("MCP gateway safeoutputs readiness requires a numeric MCP_GATEWAY_PORT");
+  }
+  if (!agentId) {
+    throw new Error("MCP gateway safeoutputs readiness requires MCP_GATEWAY_AGENT_ID");
+  }
+
+  const serverUrl = `http://localhost:${gatewayPort}/mcp/safeoutputs`;
+  const deadline = nowMs() + retryConfig.backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+  let attempts = 0;
+  core.info("Waiting for MCP gateway safeoutputs tool registration...");
+  try {
+    await withRetry(
+      async () => {
+        attempts += 1;
+        const remainingMs = deadline - nowMs();
+        if (remainingMs <= 0) {
+          throw new Error("safeoutputs readiness deadline exceeded");
+        }
+        // Each probe performs at most three HTTP requests.
+        const tools = await fetchMCPTools(serverUrl, agentId, core, Math.min(2000, Math.max(1, Math.floor(remainingMs / 3))));
+        if (tools.length === 0) {
+          throw new Error("safeoutputs tools/list has no registered tools");
+        }
+        core.info(`MCP gateway safeoutputs is ready with ${tools.length} tool(s) after ${attempts} attempt(s)`);
+      },
+      {
+        maxRetries: retryConfig.maxTotalAttempts - 1,
+        initialDelayMs: retryConfig.initialDelayMs,
+        maxDelayMs: retryConfig.maxDelayMs,
+        backoffMultiplier: retryConfig.backoffMultiplier,
+        jitterMs: 0,
+        shouldRetry: () => nowMs() < deadline,
+      },
+      "MCP gateway safeoutputs readiness"
+    );
+  } catch (err) {
+    throw new Error(
+      `MCP gateway safeoutputs readiness failed after ${attempts} attempt(s): no tools registered or backend unavailable. ` +
+        "The agent will not start. Check MCP gateway startup logs for connection resets (ECONNRESET) or delayed backend registration.",
+      { cause: err }
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1040,6 +1101,7 @@ async function main() {
   }
 
   if (succeeded) {
+    await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig);
     core.info("Gateway is ready!");
     printTiming(healthCheckStart, "Health check wait");
     writeGatewayStartupMarker(gatewayStartupMarker);
@@ -1409,5 +1471,6 @@ module.exports = {
   redactGatewayDiagnostics,
   resolveCopilotConfigPaths,
   validateGatewayAgentIdentifiers,
+  waitForSafeOutputsReadiness,
   writeGatewayStartupMarker,
 };
