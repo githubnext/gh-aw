@@ -886,8 +886,9 @@ describe("Unified conclusion session", () => {
     const published = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8").trimEnd().split("\n").map(JSON.parse);
     const agent = published.filter(event => event.provenance.component === "agent");
     expect(agent.map(event => event.type)).toEqual(["session.init", "session.result", "turn.started", "assistant.message", "assistant.message", "session.result"]);
-    expect(agent[1].data).toEqual({ errors: ["Model metadata unavailable; using fallback metadata."] });
+    expect(agent[1].data).toEqual({ sessionId: "sanitized-no-tools-thread", errors: ["Model metadata unavailable; using fallback metadata."] });
     expect(agent.at(-1).data).toEqual({
+      sessionId: "sanitized-no-tools-thread",
       status: "completed",
       sourceType: "turn.completed",
       numTurns: 1,

@@ -12,6 +12,36 @@
       { "$ref": "#/definitions/EventMetadata" },
       { "if": { "properties": { "type": { "const": "agent.execution" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/AgentExecutionData" } } } },
       { "if": { "properties": { "type": { "const": "assistant.message" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/UnifiedMessageData" } } } },
+      {
+        "if": { "properties": { "type": { "const": "assistant.message_update" } }, "required": ["type"] },
+        "then": {
+          "properties": {
+            "data": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sourceType": { "$ref": "#/definitions/JsonValue" },
+                "type": { "$ref": "#/definitions/JsonValue", "description": "Native update subtype distinguishes historical Pi text and thinking controls." },
+                "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Observed native usage, not an additive accounting contribution." },
+                "content": { "$ref": "#/definitions/JsonValue" },
+                "delta": { "$ref": "#/definitions/JsonValue" },
+                "partial": { "$ref": "#/definitions/JsonValue" },
+                "messageId": { "$ref": "#/definitions/JsonValue" },
+                "contentIndex": { "$ref": "#/definitions/JsonValue" },
+                "channel": { "$ref": "#/definitions/JsonValue" },
+                "sessionId": { "$ref": "#/definitions/JsonValue" },
+                "agentId": { "$ref": "#/definitions/JsonValue" },
+                "parentToolUseId": { "$ref": "#/definitions/JsonValue" },
+                "model": { "$ref": "#/definitions/JsonValue" },
+                "apiCallId": { "$ref": "#/definitions/JsonValue" },
+                "interactionId": { "$ref": "#/definitions/JsonValue" },
+                "turnId": { "$ref": "#/definitions/JsonValue" },
+                "parentToolCallId": { "$ref": "#/definitions/JsonValue" }
+              }
+            }
+          }
+        }
+      },
       { "if": { "properties": { "type": { "const": "assistant.reasoning" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/UnifiedMessageData" } } } },
       {
         "if": { "properties": { "type": { "const": "assistant.refusal" } }, "required": ["type"] },
@@ -147,7 +177,15 @@
                 "messageId": { "$ref": "#/definitions/JsonValue" },
                 "toolCallId": { "$ref": "#/definitions/JsonValue" },
                 "toolName": { "$ref": "#/definitions/JsonValue" },
-                "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Repeated observed metadata, never additive inference usage." }
+                "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Repeated observed metadata, never additive inference usage." },
+                "estimatedTokens": { "$ref": "#/definitions/JsonValue", "description": "Native estimates, not measured or additive token usage." },
+                "estimatedTokensDelta": { "$ref": "#/definitions/JsonValue" },
+                "cwd": { "$ref": "#/definitions/JsonValue" },
+                "branch": { "$ref": "#/definitions/JsonValue" },
+                "kind": { "$ref": "#/definitions/JsonValue" },
+                "rateLimitInfo": { "$ref": "#/definitions/JsonValue" },
+                "isAuthenticating": { "$ref": "#/definitions/JsonValue" },
+                "output": { "$ref": "#/definitions/JsonValue" }
               }
             }
           }
@@ -314,6 +352,9 @@
                 "contentIndex": { "$ref": "#/definitions/JsonValue" },
                 "sourceType": { "$ref": "#/definitions/JsonValue" },
                 "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Repeated observed metadata, never additive inference usage." },
+                "durationMs": { "$ref": "#/definitions/JsonValue" },
+                "status": { "$ref": "#/definitions/JsonValue" },
+                "command": { "$ref": "#/definitions/JsonValue" },
                 "toolCallId": { "type": "string" },
                 "stepIndex": { "$ref": "#/definitions/SessionCount" },
                 "toolName": { "type": "string" },
