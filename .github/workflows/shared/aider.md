@@ -400,7 +400,7 @@ engine:
         const interpretedTypes = new Set([
           "session.init", "session.start", "session.info", "session.shutdown",
           "session.task_complete", "user.message",
-          "assistant.message", "assistant.message_delta",
+          "assistant.message", "assistant.message_delta", "assistant.message_update",
           "assistant.reasoning", "assistant.reasoning_delta", "assistant.refusal",
           "assistant.usage", "assistant.turn_end", "model.call_failure",
           "tool.execution_start", "tool.execution_update", "tool.execution_complete",
