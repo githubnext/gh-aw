@@ -75,7 +75,7 @@ telemetry, no network calls):
   // {
   //   "toolCalls": [{ "name": "string", "arguments": {} }], // tool-wise-score
   //   "states": ["states[].id"],                            // trajectory-ndtw
-  //   "patch": { "files": [{ "path": "string" }] }          // code-search-recall
+  //   "patch": { "files": [{ "path": "string" }] }          // code-search-recall / code-read-precision
   // }
 }
 ```
@@ -116,6 +116,12 @@ telemetry, no network calls):
    valid-action schema of the state in which it was issued.
 8. Write the IR to `/tmp/gh-aw/agent/graders/trajectory_ir.json` so a
    single run can compute more than one grader without rebuilding the IR.
+
+For `code-read-precision`, record file content reads as actions with `type: "read"`
+and file inspections as `type: "inspect"`, `target` set to the file path and
+`consequential: false`. Searches and listings use distinct action types and do not
+count as content reads. The grader compares distinct target paths with the
+reference patch files; the IR has no symbol records, so precision is file-level.
 
 ### Output contract every grader in this directory follows
 

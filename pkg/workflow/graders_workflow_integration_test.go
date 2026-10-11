@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -70,11 +69,7 @@ experiments:
 	assert.Contains(t, yaml, "grader:retries")
 	assert.Contains(t, yaml, "graders.custom-score.value")
 
-	match := regexp.MustCompile(`await main\('([^']+)', '([^']+)'\);`).FindStringSubmatch(yaml)
-	require.Len(t, match, 3, "expected encoded manifest and exec spec in generated script")
-
-	manifestJSON, err := base64.StdEncoding.DecodeString(match[1])
-	require.NoError(t, err)
+	manifestJSON := graderEnvironmentPayload(yaml, "GH_AW_GRADER_MANIFEST")
 
 	var manifest graderManifest
 	require.NoError(t, json.Unmarshal(manifestJSON, &manifest))
@@ -101,8 +96,7 @@ experiments:
 	require.NotNil(t, custom.Config)
 	assert.Equal(t, float64(5), custom.Config["window"])
 
-	execJSON, err := base64.StdEncoding.DecodeString(match[2])
-	require.NoError(t, err)
+	execJSON := graderEnvironmentPayload(yaml, "GH_AW_GRADER_EXEC")
 
 	var execEntries []graderExecEntry
 	require.NoError(t, json.Unmarshal(execJSON, &execEntries))
@@ -143,11 +137,7 @@ graders:
 
 	compiled, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
 	require.NoError(t, err)
-	match := regexp.MustCompile(`await main\('([^']+)', '([^']+)'\);`).FindStringSubmatch(string(compiled))
-	require.Len(t, match, 3, "expected encoded manifest and exec spec in generated script")
-
-	manifestJSON, err := base64.StdEncoding.DecodeString(match[1])
-	require.NoError(t, err)
+	manifestJSON := graderEnvironmentPayload(string(compiled), "GH_AW_GRADER_MANIFEST")
 	var manifest graderManifest
 	require.NoError(t, json.Unmarshal(manifestJSON, &manifest))
 	require.Len(t, manifest.Graders, 1)
@@ -158,8 +148,7 @@ graders:
 	assert.Equal(t, "workflow.md", entry.Inline)
 	assert.Equal(t, fmt.Sprintf("%x", sha256.Sum256([]byte(evaluator))), entry.Digest)
 
-	execJSON, err := base64.StdEncoding.DecodeString(match[2])
-	require.NoError(t, err)
+	execJSON := graderEnvironmentPayload(string(compiled), "GH_AW_GRADER_EXEC")
 	var execEntries []graderExecEntry
 	require.NoError(t, json.Unmarshal(execJSON, &execEntries))
 	require.Len(t, execEntries, 1)

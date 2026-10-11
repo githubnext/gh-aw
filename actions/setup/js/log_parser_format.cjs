@@ -92,9 +92,12 @@ function createLogParserFormatters(deps) {
     return "`".repeat(Math.max(3, maxBacktickRun + 1));
   }
 
-  function normalizeEntriesForRendering(logEntries) {
+  function normalizeEntriesForRendering(logEntries, secrets) {
     if (!Array.isArray(logEntries)) return [];
-    logEntries = collapseStreamedMessages(logEntries.filter(entry => entry && typeof entry === "object"));
+    logEntries = collapseStreamedMessages(
+      logEntries.filter(entry => entry && typeof entry === "object"),
+      secrets
+    );
     if (isCopilotEventLogEntries(logEntries)) {
       return convertCopilotEventsToLegacyLogEntries(logEntries);
     }
@@ -670,12 +673,12 @@ function createLogParserFormatters(deps) {
     }
   }
 
-  function generateSummaryLines(logEntries, includeStatistics = true) {
-    const groups = publicationAgentSessions(logEntries);
+  function generateSummaryLines(logEntries, includeStatistics = true, publicationReady = false, secrets) {
+    const groups = publicationReady ? [] : publicationAgentSessions(logEntries);
     if (groups.length > 1 && groups.some(group => group.events.some(event => sessionContext(event).parentToolUseId))) {
       return groups.flatMap(group => [`Agent conversation: ${group.label.replace(/[\r\n]/g, " ")}`, "", ...generateSummaryLines(group.events, includeStatistics), ""]);
     }
-    const renderEntries = normalizeEntriesForRendering(logEntries);
+    const renderEntries = normalizeEntriesForRendering(logEntries, secrets);
     const lines = [];
     const toolUsePairs = collectToolUsePairs(renderEntries);
 
@@ -805,15 +808,15 @@ function createLogParserFormatters(deps) {
       markdown,
       maxBytes: Math.min(maxBytes, MAX_STEP_SUMMARY_SIZE),
       maxLineBytes: 4 * MAX_AGENT_TEXT_LENGTH + 128,
-      agentStatistics: entries => {
-        const projected = normalizeEntriesForRendering(entries);
+      agentStatistics: (entries, secrets) => {
+        const projected = normalizeEntriesForRendering(entries, secrets);
         const model = observedSessionModel(entries);
         const lines = [...(model ? [`Model: ${model}`] : []), ...renderInitializationLines(projected.find(entry => entry.type === "system" && entry.subtype === "init"))];
         appendStatistics(lines, projected, collectToolUsePairs(projected), true);
-        lines.push(...renderSubagentSummary(entries));
+        lines.push(...renderSubagentSummary(entries, secrets));
         return lines;
       },
-      agentConversation: entries => generateSummaryLines(entries, false),
+      agentConversation: (entries, secrets) => generateSummaryLines(entries, false, true, secrets),
     });
   }
 

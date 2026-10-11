@@ -99,7 +99,7 @@ describe("subagent session summaries", () => {
     ];
     const output = generateCopilotCliStyleSummary(events, { maxBytes: 8192 });
     expect(Buffer.byteLength(output)).toBeLessThanOrEqual(8192);
-    expect(output).toContain("Unified session summary omitted: remaining step-summary byte limit reached.");
+    expect(output).toContain("summary truncated: byte limit reached");
     const bounded = generateCopilotCliStyleSummary(events, { maxBytes: 512 * 1024 });
     expect(Buffer.byteLength(bounded)).toBeLessThanOrEqual(512 * 1024);
     expect(bounded).toContain("Subagents");
@@ -121,7 +121,7 @@ describe("subagent session summaries", () => {
       await publishUnifiedSessionSummary(path.join(root, "usage/aw_session.jsonl"));
       const output = fs.readFileSync(summaryPath, "utf8");
       expect(output).toContain("Existing summary");
-      expect(output).toContain("Research &lt;routing&gt;");
+      expect(output).toContain("Research <routing>");
       expect(output).toContain("child credits: 3.000 (75.0% of agent credits)");
       expect(output).toContain("reasoningEffort=xhigh executionMode=background");
       expect(output).toContain("cacheWriteTokens=0");

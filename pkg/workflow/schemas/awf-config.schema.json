@@ -159,7 +159,7 @@
         },
         "defaultAiCreditsPricing": {
           "type": "object",
-          "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. When maxAiCredits is active and a model is unrecognized, this rate is used. If not set, unrecognized models are rejected with HTTP 400 (type: unknown_model_ai_credits).",
+          "description": "Fallback per-token pricing ($/1M tokens) for models not in a configured pricing catalog. When maxAiCredits is active and a model is unrecognized, this rate is used. If not set, unrecognized models are rejected with HTTP 400 (type: unknown_model_ai_credits).",
           "required": ["input", "output"],
           "properties": {
             "input": {
@@ -181,6 +181,82 @@
               "type": ["number", "null"],
               "minimum": 0,
               "description": "Cache write token price per 1M tokens. Null means cache writes are free."
+            },
+            "reasoning": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Reasoning token price per 1M tokens. Defaults to output when omitted."
+            }
+          },
+          "additionalProperties": false
+        },
+        "modelPricingCatalog": {
+          "type": "object",
+          "description": "Versioned, provider-scoped model prices supplied by a compiler or other authoritative catalog. Rates are USD per million tokens and are used offline; the catalog version is recorded with AI-credit usage.",
+          "required": ["schemaVersion", "unit", "catalogId", "version", "providers"],
+          "properties": {
+            "schemaVersion": {
+              "type": "integer",
+              "const": 1
+            },
+            "unit": {
+              "type": "string",
+              "const": "USD_PER_1M_TOKENS"
+            },
+            "catalogId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "providers": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": ["models"],
+                "properties": {
+                  "models": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": {
+                      "type": "object",
+                      "required": ["input", "output", "cachedInput", "cacheWrite", "reasoning"],
+                      "properties": {
+                        "input": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "output": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "cachedInput": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Cached input token price per 1M tokens."
+                        },
+                        "cacheWrite": {
+                          "type": ["number", "null"],
+                          "minimum": 0,
+                          "description": "Cache write token price per 1M tokens. Null means no separate cache-write charge."
+                        },
+                        "reasoning": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Reasoning token price per 1M tokens; set to output when no distinct reasoning rate applies."
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
