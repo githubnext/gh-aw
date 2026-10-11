@@ -6,7 +6,7 @@ engine:
   experimental: true
   detection-engine: copilot
   runtime-id: agy
-  version: "1.3.1"
+  version: "1.3.3"
   provider:
     name: google
   models:

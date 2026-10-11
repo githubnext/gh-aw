@@ -9,14 +9,17 @@ const path = require("node:path");
 const { fetchAWFReflect, deriveBaseUrlFromModelsURL } = require("./awf_reflect.cjs");
 const [command, ...commandArgs] = process.argv.slice(2);
 const log = message => process.stderr.write(`[agy-harness] ${message}\n`);
-const checksums = { "1.3.1": "0e313b309ea58c71431ce86bb820936a3700e17e44eabce7bf2264617dc822db" };
+const checksums = {
+  "1.3.1": "0e313b309ea58c71431ce86bb820936a3700e17e44eabce7bf2264617dc822db",
+  "1.3.3": "8ee3ca32574c431285efbf4d4732f7f8d53e959370bc4a61646e4fa496f7f2b6",
+};
 const fail = (result, action) => {
   if (result.error || result.signal || result.status !== 0) throw new Error(`${action} failed`);
 };
 
 const main = async () => {
   const version = process.env.GH_AW_ENGINE_VERSION;
-  if (!version || !Object.hasOwn(checksums, version)) throw new Error("Agy requires the verified 1.3.1 release");
+  if (!version || !Object.hasOwn(checksums, version)) throw new Error("Agy requires a verified 1.3.1 or 1.3.3 release");
   if (!command) throw new Error("Agy command is required");
   const workspace = process.env.GITHUB_WORKSPACE;
   const promptPath = process.env.GH_AW_PROMPT;

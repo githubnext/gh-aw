@@ -14,6 +14,21 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it("retains background task correlation and observed errors on tool updates", () => {
+    const source = {
+      type: "tool.execution_update",
+      data: { toolCallId: "shell", task_id: "background", task_type: "local_bash", status: "failed", output: "observed progress\n", error: "observed failure", nativeEnvelope: { omitted: true } },
+    };
+    const original = structuredClone(source);
+    const [event] = mergeSessionSources([{ component: "agent", phase: "agent", path: "tasks.jsonl", events: [source] }]);
+    expect(event.data).toEqual({ toolCallId: "shell", taskId: "background", taskType: "local_bash", status: "failed", output: "observed progress\n", error: "observed failure" });
+    expect(event.data).not.toHaveProperty("success");
+    expect(normalizeUnifiedSessionEvent(event).data).toEqual(event.data);
+    const validate = createSessionValidator("unified").event;
+    expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    expect(source).toEqual(original);
+  });
+
   it.each([true, false])("retains final model result and BYOK=%s through persisted unified projection", isByok => {
     const source = {
       type: "model.call_final_result",
