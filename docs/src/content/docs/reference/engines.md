@@ -732,7 +732,7 @@ tools:
   timeout: 300   # 5 minutes per tool call
 ```
 
-Claude and Codex default to `60s` for tool calls. Codex's MCP startup timeout separately defaults to `120s`. Other engines (Copilot, Gemini) manage their own native tool limits. Codex resolves timeout expressions at runtime, with explicit per-server `engine.config` settings taking precedence. See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration).
+Claude and Codex default to `60s` for native MCP tool calls. Copilot, Gemini, and Pi apply `tools.timeout` to MCP gateway tool calls (default `60s`), not native shell/tool limits; Copilot also receives the gateway timeout as its per-server MCP client timeout. An explicit `engine.mcp.tool-timeout` takes precedence for the gateway. Codex's MCP startup timeout separately defaults to `120s`; it resolves timeout expressions at runtime, with explicit per-server `engine.config` settings taking precedence. See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for per-engine scope and defaults.
 
 ### Per-Engine Timeout Controls
 

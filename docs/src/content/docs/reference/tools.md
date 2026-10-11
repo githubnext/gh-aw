@@ -236,7 +236,17 @@ With `cli-proxy: false` and an MCP-backed GitHub mode (`local` or `remote`), MCP
 
 ### Tool Operation Timeout (`tools.timeout`)
 
-Sets the per-operation timeout in seconds when supported by the engine. Claude and Codex default to 60 seconds. For Codex, this configures native MCP tool calls, not shell-command duration; use `timeout-minutes` for the overall execution limit.
+Sets the per-operation timeout in seconds. The scope and default depend on the engine:
+
+| Engine | Default | Scope |
+|---|---|---|
+| Claude | 60 seconds | Native MCP tool calls and Bash commands, plus MCP gateway tool calls. |
+| Codex | 60 seconds | Native MCP tool calls and MCP gateway tool calls, not shell-command duration. |
+| Copilot | 60 seconds (MCP gateway) | MCP gateway tool calls; the gateway's timeout is also converted to Copilot's per-server MCP client timeout in milliseconds. Native shell/tool limits are unchanged. |
+| Gemini | 60 seconds (MCP gateway) | MCP gateway tool calls. Native tool limits use Gemini's own defaults. |
+| Pi | 60 seconds (MCP gateway) | MCP gateway tool calls. Native tool limits use Pi's own defaults. |
+
+An explicit `engine.mcp.tool-timeout` overrides `tools.timeout` for the gateway. Use `timeout-minutes` for the overall execution limit.
 
 ```yaml wrap
 tools:
@@ -261,7 +271,7 @@ tools:
 ```
 
 > [!NOTE]
-> Expression values are passed through environment variables and resolved before execution. Codex's configuration renderer converts the resolved values into numeric TOML settings; expressions do not fall back to defaults. An explicit per-server timeout in `engine.config` takes precedence over `tools.timeout` or `tools.startup-timeout`.
+> Expression values are passed through environment variables and resolved before execution. Codex's configuration renderer converts the resolved values into numeric TOML settings; expressions do not fall back to defaults. For Codex, an explicit per-server timeout in `engine.config` takes precedence over `tools.timeout` or `tools.startup-timeout`.
 
 ## Custom MCP Servers (`mcp-servers:`)
 
