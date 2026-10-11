@@ -5,7 +5,7 @@
 /**
  * Self-contained Pi coding-agent SDK driver example.
  *
- * Declare @earendil-works/pi-coding-agent@1.0.0 as a project dependency and
+ * Declare @earendil-works/pi-coding-agent@1.1.0 as a project dependency and
  * install it in setup-steps before the agent runs. Select this file with
  * engine.driver: .github/drivers/pi_agent_core_driver_sample_node.cjs.
  *
