@@ -6,7 +6,7 @@ const { isSessionEvent } = require("./agent_session.cjs");
 const { hasCopilotConversation, deduplicateCopilotFallback, normalizeCopilotSession } = require("./copilot_session.cjs");
 const { collectAddMaskedValues, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
+const { normalizeUnifiedSessionEvent, evalResultRunId } = require("./unified_session_payload.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAgentExecution, parseAgentExitCode, validateAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { normalizeEngineLogEntries, normalizeEngineSessionEvents, parseEngineLog } = require("./engine_log_parser.cjs");
@@ -31,7 +31,7 @@ function isModelEndpointMismatchData(data) {
 }
 
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
-/** @typedef {{component: string, phase: string, path: string, events: SessionEvent[], timestampUnit?: import("./unified_session_order.cjs").TimestampUnit}} SessionSource */
+/** @typedef {{component: string, phase: string, path: string, events: SessionEvent[], indices?: number[], timestampUnit?: import("./unified_session_order.cjs").TimestampUnit}} SessionSource */
 
 /** @param {unknown} value @returns {boolean} */
 const isNativePath = value => typeof value === "string" && /^sandbox\/agent\/logs\/copilot-session-state\/[A-Za-z0-9_-]+\/events\.jsonl$/.test(value);
@@ -63,7 +63,7 @@ function mergeSessionSources(sources) {
           Number.isSafeInteger(native.index) &&
           native.index >= 0
             ? native.index
-            : index;
+            : (source.indices?.[index] ?? index);
         if (event.type === "detection.result" && source.path !== "usage/detection/detection_result.json") {
           delete normalized.data.reason;
         }
@@ -139,6 +139,8 @@ function parseEngineSession(content, engine) {
  * @returns {{events: import("./types/unified_session").UnifiedSession, maskedValues: string[]}}
  */
 function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env } = {}) {
+  let currentRunId = dailyAIC.GITHUB_RUN_ID;
+  let currentRunAttempt = dailyAIC.GITHUB_RUN_ATTEMPT;
   /** @type {SessionSource[]} */
   const sources = [];
   const masks = new Set();
@@ -172,6 +174,8 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     }
   };
   const recordCache = new Map();
+  /** @type {Map<string, number[]>} */
+  const recordLines = new Map();
   const records = file => {
     if (recordCache.has(file)) return recordCache.get(file);
     const content = read(file);
@@ -188,16 +192,19 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       }
     }
     const values = [];
+    const lines = [];
     for (const [index, raw] of content.split(/\r?\n/).entries()) {
       if (!raw.trim()) continue;
       try {
         values.push(JSON.parse(raw));
+        lines.push(index + 1);
       } catch {
         incompleteSources.add(file);
         report(file, "malformed_jsonl", index + 1);
       }
     }
     recordCache.set(file, values);
+    recordLines.set(file, lines);
     return values;
   };
   /**
@@ -210,14 +217,29 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
   const add = (file, component, phase, type, timestampUnit = "milliseconds") => {
     if (!exists(file)) return 0;
     const events = [];
+    const indices = [];
+    // These result types imply run-scoped files; do not reuse them for unscoped sources.
+    const isRunResult = type === "grader.result" || type === "eval.result";
     const input = component === "agent" ? normalizeEngineSessionEvents(records(file), engine ?? "custom") : records(file);
     const normalized = component === "agent" ? normalizeEngineLogEntries(input, engine ?? "custom") : [];
     const hasLegacyContent = normalized.some(event => ["assistant.message", "assistant.reasoning", "assistant.refusal", "user.message", "tool.execution_start", "tool.execution_complete"].includes(event.type));
-    for (const record of input) {
+    for (const [index, record] of input.entries()) {
       if (!record || typeof record !== "object" || Array.isArray(record)) {
         incompleteSources.add(file);
         report(file, "non_object_record", undefined);
         continue;
+      }
+      if (isRunResult) {
+        const line = recordLines.get(file)?.[index];
+        const runId = type === "grader.result" ? record.run?.id : evalResultRunId(record);
+        if (!currentRunId || runId === undefined || runId === null || String(runId) === "") {
+          report(file, "unattributed_run_result", line);
+          continue;
+        }
+        if (String(runId) !== String(currentRunId)) continue;
+        const attempt = type === "grader.result" ? record.run?.attempt : (record.runAttempt ?? record.run_attempt);
+        if (currentRunAttempt && attempt !== undefined && String(attempt) !== String(currentRunAttempt)) continue;
+        indices.push(line === undefined ? index : line - 1);
       }
       if (component === "otel") {
         events.push(
@@ -246,7 +268,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
         if (canonicalRecords.has(JSON.stringify(event)) || !canonicalKeys.has(key)) events.push(event);
       }
     }
-    sources.push({ component, phase, path: path.relative(rootDir, file), events, timestampUnit });
+    sources.push({ component, phase, path: path.relative(rootDir, file), events, ...(isRunResult ? { indices } : {}), timestampUnit });
     return events.filter(event => event.type !== "agent.execution").length;
   };
   const walk = (directory, depth = 0) => {
@@ -283,8 +305,13 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
   if (metadata) {
     const phase = metadata === path.join(rootDir, "agent/aw_info.json") ? "agent" : metadata === path.join(rootDir, "usage/aw_info.json") ? "conclusion" : "activation";
     add(metadata, "workflow", phase, "workflow.info");
-    const observedEngine = sources.at(-1)?.events[0]?.data.engine_id;
+    const info = sources.at(-1)?.events[0]?.data;
+    const observedEngine = info?.engine_id;
     if (engine === undefined && typeof observedEngine === "string") engine = observedEngine;
+    if (info?.run_id !== undefined && info.run_id !== null && String(info.run_id) !== "") {
+      currentRunId = String(info.run_id);
+      currentRunAttempt = info.run_attempt !== undefined && info.run_attempt !== null ? String(info.run_attempt) : undefined;
+    }
   }
   /** @type {Array<[string, `${string}.${string}`]>} */
   const prompts = [
@@ -558,7 +585,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
   const summary = {
     type: "session.collection",
     data: {
-      sources: sources.map(({ events, ...source }) => ({ ...source, events: events.length })),
+      sources: sources.map(({ events, indices: _indices, ...source }) => ({ ...source, events: events.length })),
       warnings: coverageWarnings.length,
       untimedEvents: sources.reduce((total, source) => total + source.events.filter(event => sessionTimestamp(event, source.timestampUnit) === undefined).length, 0),
       absentComponents: ["agent", "mcp", "firewall", "safe_output", "experiment", "grader", "eval", "workflow"].filter(component => !sources.some(source => source.component === component)),
