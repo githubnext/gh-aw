@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"math"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -89,18 +88,22 @@ func (s *TokenUsageSteering) valid() bool {
 	}
 }
 
-// steeringThreshold is a budget percentage that decodes leniently: non-numeric
-// values decode to zero instead of failing the enclosing record.
+// steeringThreshold is a budget percentage that decodes leniently: any value
+// other than exactly 80, 90, 95 or 99 (including fractions, strings and other
+// percentages) decodes to zero instead of failing the enclosing record.
 type steeringThreshold int
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (t *steeringThreshold) UnmarshalJSON(data []byte) error {
+	*t = 0
 	var value float64
-	if err := json.Unmarshal(data, &value); err != nil || value <= 0 || value > 100 {
-		*t = 0
+	if err := json.Unmarshal(data, &value); err != nil {
 		return nil
 	}
-	*t = steeringThreshold(math.Round(value))
+	switch value {
+	case 80, 90, 95, 99:
+		*t = steeringThreshold(value)
+	}
 	return nil
 }
 
@@ -140,10 +143,13 @@ type TokenUsageSummary struct {
 	SubagentModelActuals   []SubagentModelActual       `json:"subagent_model_actuals,omitempty"`
 	AgentUsage             []AgentUsageBreakdown       `json:"agent_usage,omitempty"`
 	SteeringNotices        []SteeringNotice            `json:"steering_notices,omitempty" console:"-"`
-	MismatchCount          int                         `json:"mismatch_count,omitempty"`
-	Warnings               []string                    `json:"warnings,omitempty"`
-	agentModels            map[string]*ModelTokenUsage
-	endpoint               string
+	// SteeringNoticesUnavailable is true when the unified session could not be
+	// read, so the absence of steering_notices does not mean "no notices".
+	SteeringNoticesUnavailable bool     `json:"steering_notices_unavailable,omitempty" console:"-"`
+	MismatchCount              int      `json:"mismatch_count,omitempty"`
+	Warnings                   []string `json:"warnings,omitempty"`
+	agentModels                map[string]*ModelTokenUsage
+	endpoint                   string
 }
 
 // ModelTokenUsage contains per-model token usage statistics

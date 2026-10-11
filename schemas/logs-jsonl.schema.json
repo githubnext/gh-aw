@@ -2400,6 +2400,9 @@
                     "additionalProperties": false
                   }
                 },
+                "steering_notices_unavailable": {
+                  "type": "boolean"
+                },
                 "mismatch_count": {
                   "type": "integer"
                 },
@@ -2453,6 +2456,9 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "steering_notices_unavailable": {
+              "type": "boolean"
             },
             "model_routing": {
               "type": [
@@ -5028,6 +5034,9 @@
                     "additionalProperties": false
                   }
                 },
+                "steering_notices_unavailable": {
+                  "type": "boolean"
+                },
                 "firewall_token_usage": {
                   "type": [
                     "null",
@@ -5498,6 +5507,9 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "steering_notices_unavailable": {
+                      "type": "boolean"
                     },
                     "mismatch_count": {
                       "type": "integer"

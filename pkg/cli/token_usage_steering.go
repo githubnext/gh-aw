@@ -36,7 +36,9 @@ func applyGatewaySteeringSummary(summary *TokenUsageSummary, runDir string) {
 // applySteeringNotices records the AWF steering notices delivered on model
 // requests. The unified session is the source of truth: notices are read from the
 // steering field of firewall.token_usage events. Runs without a unified session or
-// from AWF versions that do not record the field leave the list empty.
+// from AWF versions that do not record the field leave the list empty. When the
+// unified session cannot be read, the notices are marked unavailable and a
+// warning is recorded so that an empty list keeps meaning "no notices".
 func applySteeringNotices(summary *TokenUsageSummary, runDir string) {
 	if summary == nil {
 		return
@@ -44,6 +46,9 @@ func applySteeringNotices(summary *TokenUsageSummary, runDir string) {
 	_, notices, err := readUnifiedTokenUsage(runDir)
 	if err != nil {
 		tokenUsageLog.Printf("Failed to read steering notices from unified session in %s: %v", runDir, err)
+		summary.SteeringNotices = nil
+		summary.SteeringNoticesUnavailable = true
+		addTokenUsageWarning(summary, "steering notices unavailable: failed to read unified session: "+err.Error())
 		return
 	}
 	if len(notices) > 0 {
@@ -59,6 +64,12 @@ func tokenUsageSteeringNotices(summary *TokenUsageSummary) []SteeringNotice {
 		return nil
 	}
 	return summary.SteeringNotices
+}
+
+// tokenUsageSteeringNoticesUnavailable reports whether the steering notices of a
+// token usage summary could not be read.
+func tokenUsageSteeringNoticesUnavailable(summary *TokenUsageSummary) bool {
+	return summary != nil && summary.SteeringNoticesUnavailable
 }
 
 func parseAPIProxySteeringLog(filePath string) (*apiProxySteeringLog, error) {

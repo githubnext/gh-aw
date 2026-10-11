@@ -1,8 +1,8 @@
 # ADR-67597: Version-Gated AWF `agentTimeout` and First-Class Steering Notices in the Unified Session
 
 **Date**: 2026-10-11
-**Status**: Draft
-**Deciders**: SivaKesava1 (PR author); gh-aw maintainers (review pending)
+**Status**: Proposed
+**Deciders**: the gh-aw maintainers
 
 ---
 
@@ -39,6 +39,24 @@ dedicated `firewall.steering` event instead of the generic `firewall.event`. The
 to 1.8.0 with requirement **T-UAS-071** (a missing field means "no notice recorded", not "no notice delivered"),
 and a new `steering_notices` list is surfaced in `gh aw audit` and `gh aw logs --json`, with the audit and logs
 JSON schemas updated to match.
+
+Two further rules keep `steering_notices` meaningful:
+
+- **Exact thresholds.** The Go decoder accepts only thresholds that are exactly 80, 90, 95 or 99, matching the
+  unified-session schema and the JS projector. Other values (for example `79.6`, `94.6`, `100` or the string
+  `"90"`) are rejected rather than rounded, so malformed telemetry is never reported as a budget warning. The same
+  rule applies to `threshold` on gateway steering events.
+- **Visible read failures.** If `aw_session.jsonl` cannot be read or parsed (for example, a truncated record), the
+  CLI does not report "no notices". It sets `steering_notices_unavailable: true` in audit and logs output and adds
+  a token usage warning, so the only outcomes are notices present, no notices, or an explicit unavailable state.
+
+The `awfVersionAtLeast` semantics are shared by every AWF feature flag and are unchanged: `version: latest` is
+treated as satisfying the gate, and `latest` resolves to v0.28.51 or newer once that release is published.
+
+The compiled behaviour is documented in `docs/src/content/docs/reference/sandbox.md`: a literal `timeout-minutes`
+produces `container.agentTimeout`; an expression (including the default) produces the runtime `--agent-timeout`
+from the step timeout; AWF older than v0.28.51 gets neither (outside Cloud Hypervisor and NVX). Notices arrive on
+the next eligible model request after a threshold, and the GitHub step timeout fires before AWF's deadline.
 
 ### Alternatives Considered
 
@@ -85,6 +103,9 @@ would remain effectively unreachable for most users, and the issue explicitly as
   future AWF integration must reason about.
 - Notices attached to requests that never produced a usage record (for example a failed upstream call) are not
   reported, so `steering_notices` under-counts in failure scenarios.
+- Workflows pinned to `version: latest` take the new path before v0.28.51 is published, because the shared
+  `latest` handling is not special-cased for this flag.
+- A runtime notice whose next eligible model request would come after the GitHub step timeout is never delivered.
 
 #### Neutral
 - `pkg/cli/token_usage_subagent_session.go` was refactored to split helpers out of the session reader; this is
@@ -94,6 +115,3 @@ would remain effectively unreachable for most users, and the issue explicitly as
 - Runs without a `steering` field serialize exactly as before, so existing artifacts and dashboards are
   unaffected until AWF starts emitting the field.
 
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

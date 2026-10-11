@@ -232,9 +232,13 @@ sandbox:
     token-steering: false
 ```
 
-With steering enabled, AWF adds a notice to the next model request when the run reaches 80, 90, 95 or 99% of its AI-credit budget, its effective-token budget or its runtime deadline. Runtime notices need an agent deadline: with AWF v0.28.51 or newer, gh-aw sends `container.agentTimeout` on every runtime when `timeout-minutes` is a literal number or omitted at compile time (default 20, or the `GH_AW_DEFAULT_TIMEOUT_MINUTES` compile-time override). When the agent step timeout is a GitHub Actions expression, including the default emitted into compiled workflows that read `vars.GH_AW_DEFAULT_TIMEOUT_MINUTES`, gh-aw instead passes the step timeout resolved at run time to `awf --agent-timeout` (through the agent step's `GH_AW_ENGINE_STEP_TIMEOUT_MINUTES` environment variable) on runtimes other than Cloud Hypervisor and NVX. The deadline is never shorter than the agent step timeout. Older AWF versions receive the deadline only on the Cloud Hypervisor and NVX runtimes, as before. The threat-detection run uses its own job timeout.
+With steering enabled, AWF adds a notice to the next eligible model request after the run crosses 80, 90, 95 or 99% of its AI-credit budget, its effective-token budget or its runtime deadline. Runtime notices need an agent deadline, which gh-aw sends with AWF v0.28.51 or newer on runtimes other than Cloud Hypervisor and NVX:
 
-AWF also stops the agent at this deadline (exit code 124). AWF counts it from agent start, after the step has started, and gh-aw never sends a deadline shorter than the agent step timeout, so the GitHub Actions step timeout normally fires first and runtime notices arrive slightly after the step's own deadline. Delivered notices are listed in `gh aw audit` and `gh aw logs --json` (see [Artifacts](/gh-aw/reference/artifacts/)).
+- **Literal `timeout-minutes`** (for example `timeout-minutes: 30`): the AWF config gets `container.agentTimeout` set to that value.
+- **Expression timeout**, including the default that workflows without `timeout-minutes` compile to (`${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}`): the agent step gets the step timeout in `GH_AW_ENGINE_STEP_TIMEOUT_MINUTES`, and `awf` receives it at run time as `--agent-timeout`. The AWF config has no `agentTimeout`.
+- **AWF older than v0.28.51**: neither is emitted, so no runtime notices are sent. Cloud Hypervisor and NVX keep their existing `container.agentTimeout` on every AWF version.
+
+The deadline is never shorter than the agent step timeout, and AWF counts it from agent start, after the step has started. The GitHub Actions step timeout therefore fires before AWF's deadline (AWF exit code 124), so a notice whose next eligible model request would come after the step timeout is never delivered. The threat-detection run uses its own job timeout. Delivered notices are listed in `gh aw audit` and `gh aw logs --json` (see [Artifacts](/gh-aw/reference/artifacts/)); when the unified session cannot be read, these outputs report `steering_notices_unavailable: true` instead of an empty list.
 
 #### Custom infrastructure images (`sandbox.agent.images`)
 

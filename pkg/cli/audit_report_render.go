@@ -513,7 +513,7 @@ func renderConsoleOperationalSections(data AuditData) {
 	renderConsoleWorkQueue(data.WorkQueue)
 	renderConsoleSkillActivations(data.SkillActivations)
 	renderConsoleGatewaySteeringEvents(data.GatewaySteeringEvents)
-	renderConsoleSteeringNotices(data.SteeringNotices)
+	renderConsoleSteeringNotices(data.SteeringNotices, data.SteeringNoticesUnavailable)
 	renderConsoleMissingTools(data.MissingTools)
 	renderConsoleMCPFailures(data.MCPFailures)
 	renderCompactMCPHealth(data.MCPServerHealth)
@@ -608,7 +608,11 @@ func renderConsoleGatewaySteeringEvents(events []GatewaySteeringEvent) {
 	}
 }
 
-func renderConsoleSteeringNotices(notices []SteeringNotice) {
+func renderConsoleSteeringNotices(notices []SteeringNotice, unavailable bool) {
+	if unavailable {
+		fmt.Fprintln(os.Stderr, "  steering_notices: unavailable (unified session could not be read)")
+		return
+	}
 	if len(notices) == 0 {
 		return
 	}

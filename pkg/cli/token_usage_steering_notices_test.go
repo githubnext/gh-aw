@@ -120,6 +120,66 @@ func TestAnalyzeTokenUsageSteeringNotices(t *testing.T) {
 		assert.Nil(t, summary.SteeringNotices)
 		assert.Equal(t, 3, summary.TotalRequests, "malformed steering values must not drop token usage")
 	})
+
+	t.Run("rejects thresholds that are not exactly 80, 90, 95 or 99", func(t *testing.T) {
+		runDir := writeSteeringNoticesRun(t, []string{
+			steeringNoticesSessionEvent(t, "agent", "req-1", map[string]any{"type": "token", "threshold": 79.6}),
+			steeringNoticesSessionEvent(t, "agent", "req-2", map[string]any{"type": "timeout", "threshold": 94.6}),
+			steeringNoticesSessionEvent(t, "agent", "req-3", map[string]any{"type": "ai_credit", "threshold": 100}),
+			steeringNoticesSessionEvent(t, "agent", "req-4", map[string]any{"type": "token", "threshold": "90"}),
+		})
+
+		summary, err := analyzeTokenUsage(runDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.Nil(t, summary.SteeringNotices)
+		assert.False(t, summary.SteeringNoticesUnavailable)
+	})
+
+	t.Run("truncated unified session marks notices unavailable", func(t *testing.T) {
+		valid := steeringNoticesSessionEvent(t, "agent", "req-2", map[string]any{"type": "ai_credit", "threshold": 80})
+		truncated := steeringNoticesSessionEvent(t, "agent", "req-3", map[string]any{"type": "timeout", "threshold": 90})
+		runDir := writeSteeringNoticesRun(t, []string{valid, truncated[:len(truncated)/2]})
+
+		summary, err := analyzeTokenUsage(runDir, false)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.Nil(t, summary.SteeringNotices)
+		assert.True(t, summary.SteeringNoticesUnavailable)
+		require.NotEmpty(t, summary.Warnings)
+		assert.Contains(t, strings.Join(summary.Warnings, "\n"), "steering notices unavailable")
+
+		processed := ProcessedRun{
+			Run:        WorkflowRun{DatabaseID: 9, WorkflowName: "wf", LogsPath: runDir},
+			TokenUsage: summary,
+		}
+		audit, _ := buildLocalAuditData(processed, LogMetrics{}, nil)
+		assert.True(t, audit.SteeringNoticesUnavailable)
+		logs := buildLogsData([]ProcessedRun{processed}, t.TempDir(), nil)
+		require.Len(t, logs.Runs, 1)
+		assert.True(t, logs.Runs[0].SteeringNoticesUnavailable)
+		compact := compactLogsData(logs)
+		encoded, err := json.Marshal(compact.Runs[0])
+		require.NoError(t, err)
+		assert.Contains(t, string(encoded), `"steering_notices_unavailable":true`)
+	})
+}
+
+func TestSteeringThresholdDecodesExactValuesOnly(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want steeringThreshold
+	}{
+		{`80`, 80}, {`90`, 90}, {`95`, 95}, {`99`, 99}, {`90.0`, 90},
+		{`79.6`, 0}, {`94.6`, 0}, {`100`, 0}, {`50`, 0}, {`"90"`, 0}, {`null`, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			var got steeringThreshold
+			require.NoError(t, json.Unmarshal([]byte(tt.raw), &got))
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestSteeringNoticesInAuditAndLogs(t *testing.T) {
@@ -161,13 +221,14 @@ func TestRenderConsoleSteeringNotices(t *testing.T) {
 		renderConsoleSteeringNotices([]SteeringNotice{
 			{Type: "ai_credit", Threshold: 80, RequestID: "req-2", Phase: "agent"},
 			{Type: "token", Threshold: 95, RequestID: "det-1", Phase: "detection"},
-		})
+		}, false)
 	})
 	assert.Contains(t, output, "steering_notices:")
 	assert.Contains(t, output, "ai_credit 80% request_id=req-2\n")
 	assert.Contains(t, output, "token 95% request_id=det-1 phase=detection")
 
-	assert.Empty(t, captureStderrForGuardPolicyReportTest(func() { renderConsoleSteeringNotices(nil) }))
+	assert.Empty(t, captureStderrForGuardPolicyReportTest(func() { renderConsoleSteeringNotices(nil, false) }))
+	assert.Contains(t, captureStderrForGuardPolicyReportTest(func() { renderConsoleSteeringNotices(nil, true) }), "steering_notices: unavailable")
 }
 
 func TestGatewaySteeringEventsIncludeAICreditAndThreshold(t *testing.T) {
