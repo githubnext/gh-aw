@@ -161,7 +161,7 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    version: v0.28.47
+    version: v0.28.51
 enclaves:
   - script:
     runtime: cloud-hypervisor
@@ -198,7 +198,7 @@ Run exactly one enclave script to inspect the repository.
 	assert.Less(t, bundle, enclaveArtifacts)
 	assert.Less(t, enclaveArtifacts, gateway)
 	assert.Less(t, gateway, awf)
-	assert.Contains(t, lock, "GH_AW_AWF_VERSION: v0.28.47")
+	assert.Contains(t, lock, "GH_AW_AWF_VERSION: v0.28.51")
 	assert.Contains(t, lock, "GH_AW_AWF_VERSION: ${{ steps.cloud-hypervisor-bundle.outputs.release_tag }}")
 
 	assert.Contains(t, lock, `"awf-enclave"`)

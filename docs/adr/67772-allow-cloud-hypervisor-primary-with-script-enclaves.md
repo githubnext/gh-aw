@@ -8,7 +8,7 @@
 
 ### Context
 
-The gh-aw compiler historically treated `sandbox.agent.runtime: cloud-hypervisor` and the `enclaves:` subsystem as mutually exclusive: `validateSandboxConfig` (`pkg/workflow/sandbox_validation.go`) rejected any workflow that declared enclaves alongside a Cloud Hypervisor primary, and `validateCloudHypervisorEnclavePrimaryRuntime` (`pkg/workflow/enclaves_runtime.go`) grouped `cloud-hypervisor` with the unsupported `sbx`/`nvx` primaries. That rule forced compiler-owned workflows that target AWF's unified workload backend to choose either a microVM primary agent or microVM enclaves, but never both, even though AWF `v0.28.47+` ships both from the same release. The combination is still a preview: compiling it must not be read as acceptance of Linux/KVM isolation or as a production-readiness signal. Agent enclaves additionally depend on a scoped executor bearer handoff that is not yet available under a Cloud Hypervisor primary.
+The gh-aw compiler historically treated `sandbox.agent.runtime: cloud-hypervisor` and the `enclaves:` subsystem as mutually exclusive: `validateSandboxConfig` (`pkg/workflow/sandbox_validation.go`) rejected any workflow that declared enclaves alongside a Cloud Hypervisor primary, and `validateCloudHypervisorEnclavePrimaryRuntime` (`pkg/workflow/enclaves_runtime.go`) grouped `cloud-hypervisor` with the unsupported `sbx`/`nvx` primaries. That rule forced compiler-owned workflows that target AWF's unified workload backend to choose either a microVM primary agent or microVM enclaves, but never both. AWF `v0.28.47+` ships both artifacts from the same release, but their unified backend lifecycle requires `v0.28.51+`. The combination is still a preview: compiling it must not be read as acceptance of Linux/KVM isolation or as a production-readiness signal. Agent enclaves additionally depend on a scoped executor bearer handoff that is not yet available under a Cloud Hypervisor primary.
 
 ### Decision
 
@@ -43,7 +43,7 @@ Introduce a dedicated frontmatter or CLI flag that must be set before the primar
 #### Neutral
 - `docker-sudo-iptables`, `sbx`, and `nvx` primaries, `dynamic` enclaves, enclave `image` overrides, `--enable-dind`, `--docker-host-path-prefix`, and `runner.topology: arc-dind` remain rejected — the change is scoped to the Cloud Hypervisor primary case only.
 - An existing test was inverted rather than removed (`TestCloudHypervisorValidationRejectsEnclaves` → `TestCloudHypervisorValidationAllowsEnclaves`), preserving the original coverage point with its new expected outcome.
-- The experimental enclaves documentation (`docs/src/content/docs/experimental/enclaves.md`) now states the AWF `v0.28.47+` requirement, the same-release artifact provisioning behaviour, and the acceptance boundary explicitly.
+- The experimental enclaves documentation (`docs/src/content/docs/experimental/enclaves.md`) states the AWF `v0.28.47+` requirement for standalone VM enclaves and `v0.28.51+` for a Cloud Hypervisor primary with script enclaves, the same-release artifact provisioning behaviour, and the acceptance boundary explicitly.
 
 ---
 

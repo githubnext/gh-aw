@@ -39,7 +39,7 @@ func validateCloudHypervisorEnclavePrimaryRuntime(workflowData *WorkflowData) er
 }
 
 func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
-	if !hasCloudHypervisorEnclaves(workflowData) {
+	if !hasCloudHypervisorEnclaves(workflowData) && (!enclavesEnabled(workflowData) || !isCloudHypervisorRuntime(workflowData)) {
 		return nil
 	}
 	if isArcDindTopology(workflowData) {
@@ -87,7 +87,11 @@ func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
 			}
 		}
 	}
-	return validateCloudHypervisorEnclaveVersion(getFirewallConfig(workflowData))
+	minVersion := constants.AWFEnclaveCloudHypervisorMinVersion
+	if isCloudHypervisorRuntime(workflowData) {
+		minVersion = constants.AWFCloudHypervisorPrimaryEnclaveMinVersion
+	}
+	return validateCloudHypervisorEnclaveVersion(getFirewallConfig(workflowData), minVersion)
 }
 
 func validateCloudHypervisorEnclaveAWFArgs(args []string, primaryRuntime string) error {
@@ -103,26 +107,21 @@ func validateCloudHypervisorEnclaveAWFArgs(args []string, primaryRuntime string)
 			if nextIndex := index + 1; arg == name && nextIndex >= 0 && nextIndex < len(args) {
 				runtime = args[nextIndex]
 			}
-			switch runtime {
-			case "sbx", "nvx":
-				return fmt.Errorf("enclaves cloud-hypervisor runtime is incompatible with --container-runtime %s; use a Docker primary agent runtime", runtime)
-			case "docker", "cloud-hypervisor":
-				if runtime != primaryRuntime {
-					return fmt.Errorf("enclaves cloud-hypervisor runtime requires --container-runtime %s to match sandbox.agent.runtime", primaryRuntime)
-				}
+			if runtime != primaryRuntime {
+				return fmt.Errorf("enclaves cloud-hypervisor runtime requires --container-runtime %s to match sandbox.agent.runtime", primaryRuntime)
 			}
 		}
 	}
 	return nil
 }
 
-func validateCloudHypervisorEnclaveVersion(firewallConfig *FirewallConfig) error {
-	if !awfVersionAtLeast(firewallConfig, constants.AWFEnclaveCloudHypervisorMinVersion) {
+func validateCloudHypervisorEnclaveVersion(firewallConfig *FirewallConfig, minVersion constants.Version) error {
+	if !awfVersionAtLeast(firewallConfig, minVersion) {
 		effectiveVersion := string(constants.DefaultFirewallVersion)
 		if firewallConfig != nil && firewallConfig.Version != "" {
 			effectiveVersion = firewallConfig.Version
 		}
-		return fmt.Errorf("enclaves cloud-hypervisor runtime requires AWF %s or newer, but the effective version is %s; set sandbox.agent.version to %s or newer", constants.AWFEnclaveCloudHypervisorMinVersion, effectiveVersion, constants.AWFEnclaveCloudHypervisorMinVersion)
+		return fmt.Errorf("enclaves cloud-hypervisor runtime requires AWF %s or newer, but the effective version is %s; set sandbox.agent.version to %s or newer", minVersion, effectiveVersion, minVersion)
 	}
 	return nil
 }

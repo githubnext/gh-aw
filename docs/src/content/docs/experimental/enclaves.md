@@ -44,8 +44,8 @@ runs-on: ubuntu-24.04
 engine: copilot
 sandbox:
   agent:
-    runtime: docker
-    version: v0.28.47
+    runtime: cloud-hypervisor
+    version: v0.28.51
 enclaves:
   - script:
     runtime: cloud-hypervisor
@@ -54,7 +54,7 @@ enclaves:
         sensitivity: confidential
 ```
 
-The compiler enables the AWF preview and stages its runtime artifacts without changing the primary agent's runtime, mounts, or TTY. A Cloud Hypervisor primary may be combined with static script enclaves when both explicitly select `cloud-hypervisor`; this primary-plus-enclave configuration is experimental and not evidence of Linux/KVM isolation acceptance or production readiness. Static agent enclaves with a Cloud Hypervisor primary are not yet supported. All enclave entries must select Cloud Hypervisor together: mixed Docker/default and VM entries, `dynamic`, and enclave `image` overrides are unsupported. The primary agent cannot use `sbx` or `nvx`; `runner.topology: arc-dind` and Docker host path prefixes are also unsupported.
+The compiler enables the AWF preview and stages its runtime artifacts without changing the primary agent's runtime, mounts, or TTY. A Cloud Hypervisor primary may be combined with static script enclaves when both explicitly select `cloud-hypervisor` and AWF is `v0.28.51` or newer; pin `sandbox.agent.version` explicitly when the compiler's default is older. This primary-plus-enclave configuration is experimental and not evidence of Linux/KVM isolation acceptance or production readiness. Static agent enclaves with a Cloud Hypervisor primary are not yet supported. All enclave entries must select Cloud Hypervisor together: mixed Docker/default and VM entries, `dynamic`, and enclave `image` overrides are unsupported. The primary agent cannot use `sbx` or `nvx`; `runner.topology: arc-dind` and Docker host path prefixes are also unsupported.
 
 Agent enclaves additionally require `agent.model`, the API proxy with a configured provider route matching their fixed engine/profile, and no Docker-in-Docker. Only the default `agent.engine: copilot` is currently implemented; its route requires the emitted `COPILOT_GITHUB_TOKEN` or `COPILOT_PROVIDER_API_KEY` credential, not just a target hostname or pricing overlay. Static `agent.github` and `agent.tools.github` access is unavailable in this VM preview because the scoped executor bearer handoff is not yet supported. Repository disclosure limits and the existing MCP tool contract remain unchanged.
 

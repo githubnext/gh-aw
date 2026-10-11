@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -42,6 +43,56 @@ func TestValidateCloudHypervisorEnclaveVersion(t *testing.T) {
 	}
 }
 
+func TestValidateCloudHypervisorPrimaryEnclaveVersion(t *testing.T) {
+	for _, version := range []string{"", "v0.28.47", "v0.28.50", "v0.28.51", "v0.28.52", "latest", "main"} {
+		t.Run(version, func(t *testing.T) {
+			data := cloudHypervisorEnclaveWorkflowData(true, false)
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.NetworkPermissions.Firewall.Version = version
+			err := validateEnclavesConfig(data)
+			supported := version == "v0.28.51" || version == "v0.28.52" || version == "latest"
+			if version == "" {
+				supported = versionAtLeast("", string(constants.DefaultFirewallVersion), "v0.28.51")
+			}
+			if supported {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "requires AWF v0.28.51 or newer")
+				if version == "" {
+					require.ErrorContains(t, err, "effective version is "+string(constants.DefaultFirewallVersion))
+				}
+			}
+		})
+	}
+}
+
+func TestValidateCloudHypervisorEnclaveAWFArgs(t *testing.T) {
+	for _, primary := range []string{"docker", "cloud-hypervisor"} {
+		for _, runtime := range []string{"docker", "cloud-hypervisor", "sbx", "nvx", "gvisor", "custom-runtime", "", "--debug"} {
+			for _, equals := range []bool{false, true} {
+				args := []string{"--container-runtime", runtime}
+				if equals {
+					args = []string{"--container-runtime=" + runtime}
+				}
+				t.Run(primary+"/"+strings.Join(args, " "), func(t *testing.T) {
+					err := validateCloudHypervisorEnclaveAWFArgs(args, primary)
+					if runtime == primary {
+						require.NoError(t, err)
+					} else {
+						require.ErrorContains(t, err, "requires --container-runtime "+primary)
+					}
+				})
+			}
+		}
+		t.Run(primary+"/missing value", func(t *testing.T) {
+			require.ErrorContains(t, validateCloudHypervisorEnclaveAWFArgs([]string{"--container-runtime"}, primary), "requires --container-runtime "+primary)
+		})
+		t.Run(primary+"/duplicate override", func(t *testing.T) {
+			require.Error(t, validateCloudHypervisorEnclaveAWFArgs([]string{"--container-runtime=" + primary, "--container-runtime=gvisor"}, primary))
+		})
+	}
+}
+
 func TestValidateCloudHypervisorEnclaves(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -58,7 +109,18 @@ func TestValidateCloudHypervisorEnclaves(t *testing.T) {
 		}, "cannot be mixed"},
 		{"ARC DinD", func(data *WorkflowData) { data.RunnerConfig = &RunnerConfig{Topology: RunnerTopologyArcDind} }, "runner.topology: arc-dind"},
 		{"primary sbx", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = "sbx" }, "sandbox.agent.runtime: sbx"},
-		{"primary VM", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor }, ""},
+		{"primary VM", func(data *WorkflowData) {
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.NetworkPermissions.Firewall.Version = string(constants.AWFCloudHypervisorPrimaryEnclaveMinVersion)
+		}, ""},
+		{"primary VM with default enclave", func(data *WorkflowData) {
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.Enclaves[0].Runtime = ""
+		}, "set runtime: cloud-hypervisor on every enclave entry"},
+		{"primary VM with Docker enclave", func(data *WorkflowData) {
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.Enclaves[0].Runtime = "docker"
+		}, "set runtime: cloud-hypervisor on every enclave entry"},
 		{"primary NVX", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = "nvx" }, "sandbox.agent.runtime: nvx"},
 		{"primary docker-sudo-iptables", func(data *WorkflowData) {
 			data.SandboxConfig.Agent.Runtime = AgentRuntimeDockerSudoIptables
@@ -75,10 +137,18 @@ func TestValidateCloudHypervisorEnclaves(t *testing.T) {
 		{"script DinD", func(data *WorkflowData) { data.SandboxConfig.Agent.Args = []string{"--enable-dind"} }, "--enable-dind"},
 		{"primary runtime argument", func(data *WorkflowData) {
 			data.SandboxConfig.Agent.Args = []string{"--container-runtime", "sbx"}
-		}, "--container-runtime sbx"},
+		}, "requires --container-runtime docker"},
 		{"primary firewall runtime argument", func(data *WorkflowData) {
 			data.NetworkPermissions.Firewall.Args = []string{"--container-runtime=nvx"}
-		}, "--container-runtime nvx"},
+		}, "requires --container-runtime docker"},
+		{"primary VM gvisor argument", func(data *WorkflowData) {
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.SandboxConfig.Agent.Args = []string{"--container-runtime", "gvisor"}
+		}, "requires --container-runtime cloud-hypervisor"},
+		{"primary VM custom firewall runtime argument", func(data *WorkflowData) {
+			data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+			data.NetworkPermissions.Firewall.Args = []string{"--container-runtime=custom-runtime"}
+		}, "requires --container-runtime cloud-hypervisor"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
