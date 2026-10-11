@@ -81,16 +81,9 @@ func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) erro
 
 	// Step 7: Execute the workflow
 	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, RunOptions{
-		Enable:         false,
-		EngineOverride: opts.EngineOverride,
-		RepoOverride:   opts.RepoOverride,
-		RefOverride:    opts.RefOverride,
-		AutoMergePRs:   opts.AutoMergePRs,
-		Push:           opts.Push,
-		Inputs:         inputValues,
-		Verbose:        opts.Verbose,
-		DryRun:         opts.DryRun,
-		Approve:        opts.Approve,
+		WorkflowRunFlags: opts.WorkflowRunFlags,
+		Enable:           false,
+		Inputs:           inputValues,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
@@ -362,17 +355,10 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 	return confirm
 }
 
-// RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively.
+// RunWorkflowOptions holds parameters for interactive workflow runs.
 type RunWorkflowOptions struct {
+	WorkflowRunFlags
 	WorkflowName       string
-	Verbose            bool
-	EngineOverride     string
-	RepoOverride       string
-	RefOverride        string
-	AutoMergePRs       bool
-	Push               bool
-	DryRun             bool
-	Approve            bool
 	requiredInputsOnly bool
 }
 
@@ -423,17 +409,10 @@ func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptio
 
 	// Execute the workflow
 	err = RunWorkflowOnGitHub(ctx, opts.WorkflowName, RunOptions{
+		WorkflowRunFlags:  opts.WorkflowRunFlags,
 		Enable:            false,
-		EngineOverride:    opts.EngineOverride,
-		RepoOverride:      opts.RepoOverride,
-		RefOverride:       opts.RefOverride,
-		AutoMergePRs:      opts.AutoMergePRs,
-		Push:              opts.Push,
 		WaitForCompletion: true,
 		Inputs:            inputValues,
-		Verbose:           opts.Verbose,
-		DryRun:            opts.DryRun,
-		Approve:           opts.Approve,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
