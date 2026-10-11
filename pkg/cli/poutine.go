@@ -463,10 +463,11 @@ func poutineFindingsToShared(findings []poutineFinding, rules poutineRules, file
 			message = fmt.Sprintf("%s - %s", message, finding.Meta.Details)
 		}
 
-		shared = append(shared, scanfindings.NewFinding(
-			finding.RuleID, severityLabel, message,
-			firstNonEmpty(finding.Meta.Path, filePath), lineNum, 1, fileLines,
-		))
+		shared = append(shared, scanfindings.NewFinding(scanfindings.NewFindingParams{
+			RuleID: finding.RuleID, SeverityLabel: severityLabel, Message: message,
+			File: firstNonEmpty(finding.Meta.Path, filePath), Line: lineNum, Column: 1,
+			FileLines: fileLines,
+		}))
 	}
 	return shared
 }

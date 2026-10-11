@@ -19,7 +19,7 @@ Each scanner speaks its own native JSON dialect, with severities spelled in a di
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `NewFinding` | `func NewFinding(ruleID, severityLabel, message, file string, line, column int, fileLines []string) Finding` | Maps scanner-adapted fields, normalizes severity, and attaches source context |
+| `NewFinding` | `func NewFinding(params NewFindingParams) Finding` | Maps scanner-adapted fields, normalizes severity, and attaches source context |
 | `ParseSeverity` | `func ParseSeverity(raw string) SeverityLevel` | Normalizes a native severity label (case-insensitive) |
 | `SeverityLevel.String` | `func (s SeverityLevel) String() string` | Canonical lowercase severity name |
 | `SeverityLevel.Rank` | `func (s SeverityLevel) Rank() int` | Relative ordering, higher is more severe |
@@ -46,11 +46,14 @@ the production diagnostic stream.
 ```go
 import "github.com/github/gh-aw/pkg/scanfindings"
 
-findings := []scanfindings.Finding{scanfindings.NewFinding(
-    "template-injection", "High",
-    scanfindings.FormatMessage("High", "template-injection", "template injection with untrusted input"),
-    ".github/workflows/demo.lock.yml", 12, 24, nil,
-)}
+findings := []scanfindings.Finding{scanfindings.NewFinding(scanfindings.NewFindingParams{
+    RuleID: "template-injection",
+    SeverityLabel: "High",
+    Message: scanfindings.FormatMessage("High", "template-injection", "template injection with untrusted input"),
+    File: ".github/workflows/demo.lock.yml",
+    Line: 12,
+    Column: 24,
+})}
 
 scanfindings.Sort(findings)
 scanfindings.Render(os.Stderr, findings)

@@ -51,7 +51,10 @@ func TestNewFinding(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewFinding("rule", tt.severity, "native message", "workflow.yml", tt.line, tt.column, tt.lines)
+			got := NewFinding(NewFindingParams{
+				RuleID: "rule", SeverityLabel: tt.severity, Message: "native message",
+				File: "workflow.yml", Line: tt.line, Column: tt.column, FileLines: tt.lines,
+			})
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFinding() = %#v, want %#v", got, tt.want)
 			}

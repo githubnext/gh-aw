@@ -317,10 +317,10 @@ func runnerGuardFindingsToShared(findings []runnerGuardFinding, fileLines []stri
 			message = fmt.Sprintf("%s - %s", message, finding.Description)
 		}
 
-		shared = append(shared, scanfindings.NewFinding(
-			finding.RuleID, finding.Severity, message,
-			finding.File, lineNum, 1, fileLines,
-		))
+		shared = append(shared, scanfindings.NewFinding(scanfindings.NewFindingParams{
+			RuleID: finding.RuleID, SeverityLabel: finding.Severity, Message: message,
+			File: finding.File, Line: lineNum, Column: 1, FileLines: fileLines,
+		}))
 	}
 	return shared
 }

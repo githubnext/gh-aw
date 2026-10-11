@@ -116,18 +116,29 @@ type Finding struct {
 	Context []string `json:"-"`
 }
 
+// NewFindingParams contains scanner-adapted fields for NewFinding.
+type NewFindingParams struct {
+	RuleID        string
+	SeverityLabel string
+	Message       string
+	File          string
+	Line          int
+	Column        int
+	FileLines     []string
+}
+
 // NewFinding converts scanner-adapted fields into a shared finding, normalizing
 // severity and attaching source context. The integration supplies its formatted
 // message and display location, including any scanner-specific defaults.
-func NewFinding(ruleID, severityLabel, message, file string, line, column int, fileLines []string) Finding {
+func NewFinding(params NewFindingParams) Finding {
 	return Finding{
-		RuleID:   ruleID,
-		Severity: ParseSeverity(severityLabel),
-		Message:  message,
-		File:     file,
-		Line:     line,
-		Column:   column,
-		Context:  ContextLines(fileLines, line),
+		RuleID:   params.RuleID,
+		Severity: ParseSeverity(params.SeverityLabel),
+		Message:  params.Message,
+		File:     params.File,
+		Line:     params.Line,
+		Column:   params.Column,
+		Context:  ContextLines(params.FileLines, params.Line),
 	}
 }
 

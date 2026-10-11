@@ -1,7 +1,7 @@
 # ADR-67643: Share Scanner Finding Conversion via a Constructor Helper
 
 **Date**: 2026-10-10
-**Status**: Draft
+**Status**: Proposed
 **Deciders**: pelikhan (PR author); gh-aw maintainers (review pending)
 
 ---
@@ -20,13 +20,15 @@ location selection, per-scanner defaults, filtering, and rendering — must not 
 
 ### Decision
 
-We will add a single shared constructor, `scanfindings.NewFinding(ruleID, severityLabel, message, file,
-line, column, fileLines)`, that owns the common mapping: severity normalization via `ParseSeverity` and
-source-context attachment via `ContextLines`. Each of the four adapters calls it with the values it has
+We will add a single shared constructor, `scanfindings.NewFinding(params)`, taking a
+`scanfindings.NewFindingParams` value with named fields for the rule, severity label, message, display
+location, and source lines. It owns the common mapping: severity normalization via `ParseSeverity` and
+source-context attachment via `ContextLines`. Named fields make call sites self-documenting and prevent
+same-typed values from being silently transposed. Each of the four adapters supplies values it has
 already computed, so scanner-specific message formatting, location selection, and defaults remain in the
-adapter where they belong. The helper is deliberately the smallest possible shared surface: it centralizes
-only the mechanical, identical part of the conversion and leaves the semantics of each scanner untouched.
-`AuditFinding` and `SecurityFinding` are explicitly out of scope for this change.
+adapter where they belong. The helper centralizes only the mechanical, identical part of the conversion
+and leaves the semantics of each scanner untouched. `AuditFinding` and `SecurityFinding` are explicitly
+out of scope for this change.
 
 ### Alternatives Considered
 
@@ -46,17 +48,22 @@ defensible pattern. This was rejected because the duplication is exact rather th
 normalization and context attachment are invariants of the shared `Finding` type, and letting each adapter
 restate them invites silent drift as scanners are added — the concrete motivation recorded in issue #67202.
 
+#### Alternative 3: Use positional constructor parameters
+
+A constructor with one argument per field would avoid duplicating conversion logic, but adjacent
+same-typed values could be accidentally transposed without a compiler error. A parameter struct was
+chosen instead so each call site names the field it supplies.
+
 ### Consequences
 
 #### Positive
 - New scanner integrations get severity normalization and context attachment for free by calling one helper.
 - Severity/context behaviour can be changed in one place instead of four, removing a class of drift bugs.
+- Named parameter fields make scanner call sites clearer and avoid silent argument-order mistakes.
 - Native-JSON regression tests added for all four adapters pin the existing output semantics, so future
   refactors of the helper are guarded.
 
 #### Negative
-- `NewFinding` takes seven positional parameters, so call sites are less self-documenting than the previous
-  keyed struct literals and are easy to mis-order (e.g. swapping `line` and `column`).
 - The helper always calls `ContextLines`; an adapter that wants a finding without context must pass `nil`,
   which couples all adapters to one context policy.
 
@@ -69,4 +76,4 @@ restate them invites silent drift as scanners are added — the concrete motivat
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR proposed by the PR author; acceptance is pending maintainer review.*

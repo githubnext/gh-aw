@@ -393,10 +393,11 @@ func zizmorFindingsToShared(filePath string, findings []zizmorFinding, fileLines
 			message = fmt.Sprintf("%s (%s)", message, finding.URL)
 		}
 
-		shared = append(shared, scanfindings.NewFinding(
-			finding.Ident, finding.Determinations.Severity, message,
-			filePath, lineNum, colNum, fileLines,
-		))
+		shared = append(shared, scanfindings.NewFinding(scanfindings.NewFindingParams{
+			RuleID: finding.Ident, SeverityLabel: finding.Determinations.Severity,
+			Message: message, File: filePath, Line: lineNum, Column: colNum,
+			FileLines: fileLines,
+		}))
 	}
 	return shared
 }
