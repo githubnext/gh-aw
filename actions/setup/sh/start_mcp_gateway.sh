@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Start MCP Gateway
@@ -457,7 +458,8 @@ case "$ENGINE_TYPE" in
     else
       cp /tmp/gh-aw/mcp-config/gateway-output.json "$HOME/.copilot/mcp-config.json"
     fi
-    cat "$HOME/.copilot/mcp-config.json"
+    echo "Gateway configuration written to $HOME/.copilot/mcp-config.json"
+    echo "Configuration contents withheld because they may contain credentials."
     ;;
 esac
 print_timing $CONFIG_CONVERT_START "Configuration conversion"

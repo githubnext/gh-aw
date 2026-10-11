@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Verify MCP Gateway Health
@@ -161,9 +162,7 @@ else
 fi
 echo ''
 
-# Show MCP config file content
-echo '=== MCP Configuration Content ==='
-cat "$mcp_config_path" || { echo 'ERROR: Failed to read MCP config file'; exit 1; }
+echo "Configuration contents withheld because they may contain credentials."
 echo ''
 
 # Verify safeinputs and safeoutputs are present in config
@@ -203,8 +202,6 @@ if [ -n "$mcp_server" ]; then
   # Check if server was rewritten in config
   echo "Checking if '$mcp_server' was rewritten to use gateway..."
   server_config=$(jq -r ".mcpServers.\"$mcp_server\"" "$mcp_config_path")
-  echo "Server config for '$mcp_server':"
-  echo "$server_config" | jq '.' 2>/dev/null || echo "$server_config"
   
   if echo "$server_config" | grep -q "gateway"; then
     echo "✓ Server appears to be configured for gateway"

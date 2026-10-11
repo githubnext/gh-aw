@@ -526,6 +526,7 @@ test-scripts: build
 	bash actions/setup/sh/copy_gh_aw_binary_for_mcp_test.sh
 	bash actions/setup/sh/create_gh_aw_tmp_dir_test.sh
 	bash actions/setup/sh/download_docker_images_local_test.sh
+	bash actions/setup/sh/gateway_config_logging_test.sh
 	@echo "✓ All script tests passed"
 
 # Test all code and guidance (Go, JavaScript, wasm golden, shell scripts, and guidance contracts)

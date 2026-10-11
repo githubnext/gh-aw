@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Convert MCP Gateway Configuration to Claude Format
@@ -95,6 +96,4 @@ jq --arg urlPrefix "$URL_PREFIX" '
 chmod 600 /tmp/gh-aw/mcp-config/mcp-servers.json
 
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
-echo ""
-echo "Converted configuration:"
-cat /tmp/gh-aw/mcp-config/mcp-servers.json
+echo "Configuration contents withheld because they may contain credentials."

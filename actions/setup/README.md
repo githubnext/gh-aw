@@ -110,6 +110,15 @@ npx vitest run setup_sh_file_lists.test.cjs
 
 ## Testing Locally
 
+Gateway configuration converters and health checks deliberately withhold configuration
+contents from logs because headers may contain custom or parsed credentials that the
+Actions runner has not masked. They disable shell tracing before handling credentials.
+Run the isolated logging regression check with:
+
+```bash
+bash actions/setup/sh/gateway_config_logging_test.sh
+```
+
 You can test this action locally using the provided test script:
 
 ```bash

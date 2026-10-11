@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Convert MCP Gateway Configuration to Gemini Format
@@ -126,6 +127,4 @@ jq --arg urlPrefix "$URL_PREFIX" --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-
 chmod 600 "$GEMINI_SETTINGS_FILE"
 
 echo "Gemini configuration written to $GEMINI_SETTINGS_FILE"
-echo ""
-echo "Converted configuration:"
-cat "$GEMINI_SETTINGS_FILE"
+echo "Configuration contents withheld because they may contain credentials."

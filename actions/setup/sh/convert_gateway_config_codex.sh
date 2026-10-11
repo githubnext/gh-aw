@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Convert MCP Gateway Configuration to Codex Format
@@ -99,6 +100,4 @@ jq -r --arg urlPrefix "$URL_PREFIX" '
 chmod 600 /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
-echo ""
-echo "Converted configuration:"
-cat /tmp/gh-aw/mcp-config/config.toml
+echo "Configuration contents withheld because they may contain credentials."

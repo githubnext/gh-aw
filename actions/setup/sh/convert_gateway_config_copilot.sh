@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set +o histexpand
 
 # Convert MCP Gateway Configuration to Copilot Format
@@ -106,6 +107,4 @@ jq --arg urlPrefix "$URL_PREFIX" '
 chmod 600 "$COPILOT_CONFIG_PATH"
 
 echo "Copilot configuration written to $COPILOT_CONFIG_PATH"
-echo ""
-echo "Converted configuration:"
-cat "$COPILOT_CONFIG_PATH"
+echo "Configuration contents withheld because they may contain credentials."
