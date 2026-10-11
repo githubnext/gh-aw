@@ -211,7 +211,7 @@ describe("Generated session schemas", () => {
   });
 
   it("checks timestamp ordering, the untimed tail and execution singleton semantics", () => {
-    const timed = time => ({ ...unified({ type: "vendor.progress", data: {} }), provenance: { ...unified({}).provenance, timestampMs: time } });
+    const timed = time => ({ ...unified({ type: "vendor.progress", data: {} }), provenance: { ...unified({}).provenance, path: `source-${time}`, timestampMs: time } });
     const untimed = unified({ type: "vendor.progress", data: {} });
     expect(validateSession(jsonl([header, timed(0), timed(0), timed(1), untimed]))).toBe(5);
     expect(() => validateSession(jsonl([header, timed(1), timed(0)]))).toThrow("timestamp ordered");
@@ -219,6 +219,24 @@ describe("Generated session schemas", () => {
     const execution = unified({ type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 0 } });
     expect(() => validateSession(jsonl([header, execution, execution]))).toThrow("multiple agent.execution");
     expect(() => validateSession(jsonl([header, { ...execution, data: { ...execution.data, exitCode: 256 } }]))).toThrow("SessionExitCode");
+  });
+
+  it("uses persisted millisecond provenance when v1 source metadata omits timestampUnit", () => {
+    const secondsSource = { component: "agent", phase: "agent", path: "seconds.jsonl", events: 1 };
+    const millisecondsSource = { component: "mcp", phase: "agent", path: "milliseconds.jsonl", events: 1 };
+    const collection = {
+      type: "session.collection",
+      data: { sources: [secondsSource, millisecondsSource], warnings: 0, untimedEvents: 0, absentComponents: [] },
+      provenance: { component: "collector", phase: "conclusion", path: "usage/aw_session.jsonl", index: 3 },
+    };
+    const event = (component, sourcePath, timestamp, timestampMs) => ({
+      type: "vendor.progress",
+      timestamp,
+      data: {},
+      provenance: { component, phase: "agent", path: sourcePath, index: 0, timestampMs },
+    });
+
+    expect(validateSession(jsonl([header, event("mcp", "milliseconds.jsonl", 1500, 1500), event("agent", "seconds.jsonl", 2, 2000), collection]))).toBe(4);
   });
 
   it("checks exact JSONL framing without requiring canonical JSON number or escape spellings", () => {

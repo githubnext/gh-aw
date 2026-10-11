@@ -182,6 +182,32 @@ func TestWorkQueueCurrentReport(t *testing.T) {
 	assert.NotContains(t, string(serialized), "principal")
 }
 
+func TestWorkQueueAssignmentReceiptSchema(t *testing.T) {
+	t.Parallel()
+	fixture := currentWorkQueueFixture(t)
+	commits, err := workqueue.Parse([]byte(fixture["transactionLog"].(string)))
+	require.NoError(t, err)
+	state, err := workqueue.Replay(commits)
+	require.NoError(t, err)
+	assignment := fixture["worker"].(workqueue.Assignment)
+	dispatch := state.Dispatches[assignment.DispatchID]
+	dispatch.State, dispatch.Released = "completed", true
+	first, second := assignment.Claims[0], assignment.Claims[1]
+	state.Works[first.WorkID].Barrier = "verified"
+	receipt, err := currentWorkQueueAssignmentReceipt(state, assignment, fixture["origin"].(workqueue.Actor))
+	require.NoError(t, err)
+	data, err := json.Marshal(receipt)
+	require.NoError(t, err)
+	assert.JSONEq(t, fmt.Sprintf(`{
+		"dispatch_id":%q,"request_id":%q,"commit_id":%q,"state":"completed","released":true,
+		"claims":[
+			{"claim_handle":%q,"claim_id":%q,"work_id":%q,"state":"completed","delivery_barrier":"verified"},
+			{"claim_handle":%q,"claim_id":%q,"work_id":%q,"state":"cancelled","delivery_barrier":"none"}
+		]
+	}`, assignment.DispatchID, assignment.RequestID, assignment.CommitID,
+		first.Handle, first.ClaimID, first.WorkID, second.Handle, second.ClaimID, second.WorkID), string(data))
+}
+
 func TestWorkQueueCurrentSnapshotRejectsMalformed(t *testing.T) {
 	t.Parallel()
 	for _, scenario := range []string{"fork", "truncated", "duplicate-key", "wrong-worker", "foreign-origin", "rerun", "unknown-origin-field", "missing-policy"} {

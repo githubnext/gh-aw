@@ -1,6 +1,7 @@
 // Package closeerrorunchecked implements a Go analysis linter that flags
 // Close() method calls on resources where the error return value is
 // explicitly discarded, potentially hiding resource cleanup failures.
+// Deferred calls are checked by the complementary unchecked_deferredclose analyzer.
 package closeerrorunchecked
 
 import (
@@ -16,7 +17,7 @@ import (
 )
 
 // Analyzer is the close-error-unchecked analysis pass.
-var Analyzer = analyzerutil.New("closeerrorunchecked", "reports Close() method calls where the error return value is explicitly discarded, potentially hiding resource cleanup failures", run)
+var Analyzer = analyzerutil.New("closeerrorunchecked", "reports Close() expression statements and assignments where the error return value is discarded; unchecked_deferredclose checks direct deferred calls", run)
 
 var builtinErrorType = types.Universe.Lookup("error").Type()
 
@@ -102,8 +103,8 @@ func analyzeExprStmt(pass *analysis.Pass, exprStmt *ast.ExprStmt, generatedFiles
 		return
 	}
 
-	// Don't flag defer statements (those are handled separately)
-	// Check if this is inside a defer (this is a simple heuristic check)
+	// Direct deferred calls are DeferStmt nodes, not ExprStmt nodes.
+	// Expression statements inside deferred closures still need error handling.
 	if isCloseMethodCall(pass, call) {
 		reportIfNotSkipped(pass, call, generatedFiles, noLintIndex)
 	}

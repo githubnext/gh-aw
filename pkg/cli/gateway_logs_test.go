@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,183 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGatewayServerMetricsJSON(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		metrics GatewayServerMetrics
+		want    string
+	}{
+		{
+			name: "zero values retain all legacy fields",
+			want: `{"ServerName":"","RequestCount":0,"ToolCallCount":0,"TotalDuration":0,"ErrorCount":0,"FilteredCount":0,"GuardPolicyBlocked":0,"Tools":null}`,
+		},
+		{
+			name: "shared and gateway-specific statistics",
+			metrics: GatewayServerMetrics{
+				MCPServerStatsBase: MCPServerStatsBase{
+					ServerName:    "github",
+					ToolCallCount: 3,
+					ErrorCount:    1,
+				},
+				RequestCount:       4,
+				TotalDuration:      150.5,
+				FilteredCount:      2,
+				GuardPolicyBlocked: 1,
+				Tools: map[string]*GatewayToolMetrics{
+					"list_issues": {ToolName: "list_issues", CallCount: 3},
+				},
+			},
+			want: `{"ServerName":"github","RequestCount":4,"ToolCallCount":3,"TotalDuration":150.5,"ErrorCount":1,"FilteredCount":2,"GuardPolicyBlocked":1,"Tools":{"list_issues":{"ToolName":"list_issues","CallCount":3,"TotalDuration":0,"AvgDuration":0,"MaxDuration":0,"MinDuration":0,"ErrorCount":0,"TotalInputSize":0,"TotalOutputSize":0}}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			data, err := json.Marshal(tt.metrics)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(data))
+
+			var restored GatewayServerMetrics
+			require.NoError(t, json.Unmarshal([]byte(tt.want), &restored))
+			assert.Equal(t, tt.metrics, restored)
+		})
+	}
+}
+
+func TestGatewayServerMetricsUnmarshalPreservesExistingValues(t *testing.T) {
+	t.Parallel()
+	server := GatewayServerMetrics{
+		MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1},
+		RequestCount:       4,
+	}
+	require.NoError(t, json.Unmarshal([]byte(`{"toolcallcount":5,"ErrorCount":null,"FilteredCount":2}`), &server))
+	assert.Equal(t, MCPServerStatsBase{ServerName: "github", ToolCallCount: 5, ErrorCount: 1}, server.MCPServerStatsBase)
+	assert.Equal(t, 4, server.RequestCount)
+	assert.Equal(t, 2, server.FilteredCount)
+	require.NoError(t, json.Unmarshal([]byte(`{"ErrorCount":null,"ErrorCount":2}`), &server))
+	assert.Equal(t, 2, server.ErrorCount)
+	before := server
+	require.Error(t, json.Unmarshal([]byte(`{"ToolCallCount":"invalid"}`), &server))
+	assert.Equal(t, before, server)
+}
+
+func TestGatewayServerMetricsUnmarshalErrorLeavesReceiverUnchanged(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		data string
+	}{
+		{"shared field type", `{"ServerName":"other","ToolCallCount":"bad","ErrorCount":9}`},
+		{"gateway field type", `{"ServerName":"other","RequestCount":"bad","FilteredCount":9}`},
+		{"tools type", `{"ServerName":"other","Tools":[]}`},
+		{"nested tool field type", `{"Tools":{"existing":{"CallCount":9,"ErrorCount":"bad"},"new":{"CallCount":2}}}`},
+		{"nested tool type", `{"Tools":{"existing":false,"new":{"CallCount":2}}}`},
+		{"tools updated before error", `{"Tools":{"existing":{"CallCount":9},"new":{"CallCount":2},"nil":null},"ErrorCount":"bad"}`},
+		{"tools cleared before error", `{"Tools":null,"ErrorCount":"bad"}`},
+		{"duplicate tools before error", `{"Tools":{"existing":null},"Tools":{"new":{"CallCount":2}},"ErrorCount":"bad"}`},
+		{"duplicate scalar before error", `{"ServerName":"other","ServerName":false,"ToolCallCount":9}`},
+		{"syntax error", `{"ServerName":"other","Tools":{"existing":{"CallCount":9}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tool := GatewayToolMetrics{ToolName: "existing", CallCount: 3, ErrorCount: 1, TotalDuration: 15}
+			existing := tool
+			server := GatewayServerMetrics{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1},
+				RequestCount:       4,
+				TotalDuration:      15,
+				FilteredCount:      2,
+				GuardPolicyBlocked: 1,
+				Tools:              map[string]*GatewayToolMetrics{"existing": &tool, "nil": nil},
+			}
+			before := server
+			before.Tools = map[string]*GatewayToolMetrics{"existing": &existing, "nil": nil}
+			originalTools := server.Tools
+
+			require.Error(t, json.Unmarshal([]byte(tt.data), &server))
+			assert.Equal(t, before, server)
+			assert.Equal(t, before.Tools, originalTools, "existing map aliases must remain unchanged")
+			assert.Same(t, &tool, server.Tools["existing"])
+			assert.Equal(t, existing, tool, "existing tool pointers must remain unchanged")
+		})
+	}
+}
+
+func TestGatewayServerMetricsUnmarshalToolsCompatibility(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		data string
+		want map[string]*GatewayToolMetrics
+	}{
+		{"absent", `{}`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"top-level null", `null`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"empty object", `{"Tools":{}}`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"null map", `{"Tools":null}`, nil},
+		{"replace existing tool", `{"tools":{"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "nil": nil,
+		}},
+		{"null tool", `{"Tools":{"existing":null}}`, map[string]*GatewayToolMetrics{
+			"existing": nil, "nil": nil,
+		}},
+		{"duplicate tool values replace", `{"Tools":{"existing":{"ToolName":"new"},"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "nil": nil,
+		}},
+		{"duplicate maps merge", `{"Tools":{"new":{"CallCount":2}},"Tools":{"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "new": {CallCount: 2}, "nil": nil,
+		}},
+		{"null then object resets map", `{"Tools":null,"Tools":{"new":{"CallCount":2}}}`, map[string]*GatewayToolMetrics{
+			"new": {CallCount: 2},
+		}},
+		{"object then null clears map", `{"Tools":{"new":{"CallCount":2}},"Tools":null}`, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tool := GatewayToolMetrics{ToolName: "existing", CallCount: 3}
+			server := GatewayServerMetrics{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1},
+				RequestCount:       4,
+				Tools:              map[string]*GatewayToolMetrics{"existing": &tool, "nil": nil},
+			}
+			require.NoError(t, json.Unmarshal([]byte(tt.data), &server))
+			assert.Equal(t, tt.want, server.Tools)
+			assert.Equal(t, MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1}, server.MCPServerStatsBase)
+			assert.Equal(t, 4, server.RequestCount)
+			assert.Equal(t, GatewayToolMetrics{ToolName: "existing", CallCount: 3}, tool)
+		})
+	}
+}
+
+func TestGetOrCreateServerSharedStats(t *testing.T) {
+	t.Parallel()
+	metrics := &GatewayMetrics{Servers: make(map[string]*GatewayServerMetrics)}
+	server := getOrCreateServer(metrics, "github")
+	assert.Equal(t, MCPServerStatsBase{ServerName: "github"}, server.MCPServerStatsBase)
+	require.NotNil(t, server.Tools)
+
+	server.ToolCallCount++
+	server.ErrorCount++
+	server.RequestCount = 2
+	server.FilteredCount = 3
+	server.GuardPolicyBlocked = 4
+	server.TotalDuration = 150.5
+	assert.Same(t, server, getOrCreateServer(metrics, "github"))
+	assert.Equal(t, MCPServerStatsBase{ServerName: "github", ToolCallCount: 1, ErrorCount: 1}, server.MCPServerStatsBase)
+	assert.Equal(t, 2, server.RequestCount)
+	assert.Equal(t, 3, server.FilteredCount)
+	assert.Equal(t, 4, server.GuardPolicyBlocked)
+	assert.InDelta(t, 150.5, server.TotalDuration, 0.001)
+}
 
 func TestParseGatewayLogs(t *testing.T) {
 	t.Parallel()
@@ -168,11 +346,13 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 		TotalErrors:    2,
 		Servers: map[string]*GatewayServerMetrics{
 			"github": {
-				ServerName:    "github",
+				MCPServerStatsBase: MCPServerStatsBase{
+					ServerName:    "github",
+					ToolCallCount: 5,
+					ErrorCount:    1,
+				},
 				RequestCount:  6,
-				ToolCallCount: 5,
 				TotalDuration: 600.0,
-				ErrorCount:    1,
 				Tools: map[string]*GatewayToolMetrics{
 					"get_repository": {
 						ToolName:      "get_repository",
@@ -186,11 +366,13 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 				},
 			},
 			"playwright": {
-				ServerName:    "playwright",
+				MCPServerStatsBase: MCPServerStatsBase{
+					ServerName:    "playwright",
+					ToolCallCount: 3,
+					ErrorCount:    1,
+				},
 				RequestCount:  4,
-				ToolCallCount: 3,
 				TotalDuration: 400.0,
-				ErrorCount:    1,
 				Tools: map[string]*GatewayToolMetrics{
 					"navigate": {
 						ToolName:      "navigate",
@@ -223,6 +405,13 @@ func TestRenderGatewayMetricsTable(t *testing.T) {
 	assert.Contains(t, verboseOutput, "Tool Usage Details")
 	assert.Contains(t, verboseOutput, "get_repository")
 	assert.Contains(t, verboseOutput, "navigate")
+
+	data, err := json.Marshal(metrics)
+	require.NoError(t, err)
+	var restored GatewayMetrics
+	require.NoError(t, json.Unmarshal(data, &restored))
+	assert.Equal(t, output, renderGatewayMetricsTable(&restored, false))
+	assert.Equal(t, verboseOutput, renderGatewayMetricsTable(&restored, true))
 }
 
 func TestRenderGatewayMetricsTableEmpty(t *testing.T) {
@@ -472,16 +661,16 @@ func TestGetSortedServerNames(t *testing.T) {
 	metrics := &GatewayMetrics{
 		Servers: map[string]*GatewayServerMetrics{
 			"github": {
-				ServerName:   "github",
-				RequestCount: 10,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github"},
+				RequestCount:       10,
 			},
 			"playwright": {
-				ServerName:   "playwright",
-				RequestCount: 5,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "playwright"},
+				RequestCount:       5,
 			},
 			"tavily": {
-				ServerName:   "tavily",
-				RequestCount: 15,
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "tavily"},
+				RequestCount:       15,
 			},
 		},
 	}

@@ -27,21 +27,26 @@ const workflowCompletionWaitTimeoutMinutes = 6 * 60
 // betweenWorkflowsDelay paces sequential workflow triggers to avoid overwhelming the GitHub API.
 const betweenWorkflowsDelay = 1 * time.Second
 
+// WorkflowRunFlags contains flags shared by interactive and non-interactive workflow runs.
+type WorkflowRunFlags struct {
+	Verbose        bool   // Enable verbose output
+	EngineOverride string // Override AI engine
+	RepoOverride   string // Target repository (owner/repo format)
+	RefOverride    string // Branch or tag name
+	AutoMergePRs   bool   // Auto-merge PRs created during execution
+	Push           bool   // Commit and push workflow files before running
+	DryRun         bool   // Validate without actually triggering
+	Approve        bool   // Approve safe update changes during compilation
+}
+
 // RunOptions contains all configuration options for running workflows
 type RunOptions struct {
+	WorkflowRunFlags
 	Enable            bool     // Enable the workflow if it's disabled
-	EngineOverride    string   // Override AI engine
-	RepoOverride      string   // Target repository (owner/repo format)
-	RefOverride       string   // Branch or tag name
-	AutoMergePRs      bool     // Auto-merge PRs created during execution
-	Push              bool     // Commit and push workflow files before running
 	WaitForCompletion bool     // Wait for workflow completion
 	RepeatCount       int      // Number of times to repeat (0 = run once)
 	Inputs            []string // Workflow inputs in key=value format
-	Verbose           bool     // Enable verbose output
-	DryRun            bool     // Validate without actually triggering
 	JSON              bool     // Output results in JSON format
-	Approve           bool     // Approve safe update changes during compilation
 }
 
 // WorkflowRunResult contains the result of a single workflow run trigger for JSON output

@@ -149,22 +149,22 @@ func TestProgressFlagSignature(t *testing.T) {
 func TestRefFlagSignature(t *testing.T) {
 	// Test that RunWorkflowOnGitHub accepts refOverride parameter
 	// This is a compile-time check that ensures the refOverride parameter exists
-	_ = RunWorkflowOnGitHub(context.Background(), "test", RunOptions{RefOverride: "main"})
+	_ = RunWorkflowOnGitHub(context.Background(), "test", RunOptions{WorkflowRunFlags: WorkflowRunFlags{RefOverride: "main"}})
 
 	// Test that RunWorkflowsOnGitHub accepts refOverride parameter
-	_ = RunWorkflowsOnGitHub(context.Background(), []string{"test"}, RunOptions{RefOverride: "main"})
+	_ = RunWorkflowsOnGitHub(context.Background(), []string{"test"}, RunOptions{WorkflowRunFlags: WorkflowRunFlags{RefOverride: "main"}})
 }
 
 // TestRunWorkflowOnGitHubWithRef tests that the ref parameter is handled correctly
 func TestRunWorkflowOnGitHubWithRef(t *testing.T) {
 	// Test with explicit ref override (should still fail for non-existent workflow, but syntax is valid)
-	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{RefOverride: "main"})
+	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{WorkflowRunFlags: WorkflowRunFlags{RefOverride: "main"}})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with ref flag")
 	}
 
 	// Test with ref override and repo override
-	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{RepoOverride: "owner/repo", RefOverride: "feature-branch"})
+	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{WorkflowRunFlags: WorkflowRunFlags{RepoOverride: "owner/repo", RefOverride: "feature-branch"}})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow with both ref and repo")
 	}
@@ -232,7 +232,10 @@ func TestInputValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Since we can't actually run workflows in tests, we'll just test the validation
 			// by checking if the function would error before attempting to run
-			err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{RepoOverride: "owner/repo", Inputs: tt.inputs})
+			err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{
+				WorkflowRunFlags: WorkflowRunFlags{RepoOverride: "owner/repo"},
+				Inputs:           tt.inputs,
+			})
 
 			if tt.shouldError {
 				if err == nil {
