@@ -405,6 +405,19 @@ collection MUST NOT leave a stale or partially written unified output eligible
 for upload. Artifact paths MUST NOT follow symbolic links. Any source traversal
 limit MUST produce a coverage warning.
 
+Grader and eval result collection MUST import only records attributed to the
+current run, not restored historical results. Runner-owned `aw_info.json`
+supplies the run ID and available attempt; the supplied collector environment
+(defaulting to the process environment) supplies them only when recorded run
+identity is absent. An explicit environment snapshot MUST NOT borrow run identity
+from the ambient process. Records from other runs or
+explicitly different attempts are excluded without changing source artifacts.
+Unattributed results or an unavailable current run ID produce collection
+warnings and are omitted. Retained records preserve their original source
+indices; evals without attempt metadata are selected by run ID. Warning line
+numbers refer to original JSONL lines, including skipped blank or malformed
+lines; JSON result arrays do not supply file line numbers.
+
 **T-UAS-060 — Publication boundary.** Both persisted canonical agent events and
 the unified session MUST apply the artifact secret/add-mask policy before JSON
 serialization. Redaction MUST process decoded string values, including native
