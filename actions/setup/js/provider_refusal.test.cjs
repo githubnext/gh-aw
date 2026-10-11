@@ -19,15 +19,15 @@ const debugBlock = value => {
 describe("Structured policy refusals", () => {
   it("recovers the real CI content_filter signal despite null content and refusal fields", () => {
     const parsed = parseCopilotLog(debugBlock(contentFiltered));
-    expect(refusals(parsed.logEntries)).toEqual([
-      expect.objectContaining({
+    expect(refusals(parsed.logEntries)).toMatchObject([
+      {
         type: "assistant.refusal",
         id: "response-filtered",
         requestId: "request-filtered",
         timestamp: "2026-10-06T01:12:45.797Z",
         model: "claude-sonnet-5",
         data: { reason: "content_filter" },
-      }),
+      },
     ]);
     expect(parsed.logEntries.filter(event => event.type === "assistant.message")).toEqual([]);
     expect(projectSessionResult(parsed.logEntries).usage).toMatchObject({ input_tokens: 19929, output_tokens: 9, cache_read_input_tokens: 19251 });

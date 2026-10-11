@@ -23,6 +23,7 @@ const { computeFrictionCost } = require("./friction_cost_metrics.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseDetectionLog, parseStructuredResultFile } = require("./parse_threat_detection_results.cjs");
+const { copilotSessionContext, normalizeCopilotSession } = require("./copilot_session.cjs");
 
 require("./shim.cjs");
 
@@ -426,6 +427,12 @@ function parseFirewallLogs() {
 /**
  * Parse Copilot session event logs and aggregate counters
  */
+function copilotToolScope(entry) {
+  const context = copilotSessionContext(entry);
+  const provenance = entry.provenance && typeof entry.provenance === "object" ? entry.provenance : {};
+  return JSON.stringify([provenance.component, provenance.phase, provenance.path, context.sessionId, context.agentId, context.parentToolUseId]);
+}
+
 function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copilot-session-state", "/tmp/gh-aw/threat-detection/sandbox/agent/logs/copilot-session-state"]) {
   const session = {
     total_events: 0,
@@ -439,14 +446,15 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
     failed_tool_executions: 0,
   };
   const skills = new Map();
-  const pendingSkills = new Map();
 
   for (const logDir of sessionLogDirs) {
     for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl", 1)) {
       try {
-        const pendingSkillsWithoutIDs = [];
+        const pendingSkills = new Map();
+        const pendingSkillsWithoutIDs = new Map();
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");
+        const entries = [];
 
         for (const raw of lines) {
           const line = raw.trim();
@@ -461,9 +469,18 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
             continue;
           }
 
+          entries.push(entry);
+        }
+
+        const normalizedToolEvents = normalizeCopilotSession(entries).filter(entry => ["tool.execution_start", "tool.execution_complete"].includes(entry.type));
+        let normalizedToolEventIndex = 0;
+        for (let entry of entries) {
           const eventType = String(entry.type || "")
             .trim()
             .toLowerCase();
+          if (entry.type === "tool.execution_start" || entry.type === "tool.execution_complete") {
+            entry = normalizedToolEvents[normalizedToolEventIndex++] || entry;
+          }
           session.total_events += 1;
 
           if (eventType === "session.start") {
@@ -487,7 +504,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
                 .trim()
                 .toLowerCase() === "skill"
             ) {
-              const input = data.input && typeof data.input === "object" ? data.input : data.arguments && typeof data.arguments === "object" ? data.arguments : {};
+              const input = data.input && typeof data.input === "object" ? data.input : {};
               const skillName = String(input.skill || "").trim();
               if (skillName) {
                 const aggregate = skills.get(skillName) || {
@@ -506,10 +523,13 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
                   aggregate.last_timestamp = timestamp;
                 }
                 skills.set(skillName, aggregate);
-                if (data.toolCallId) {
-                  pendingSkills.set(String(data.toolCallId), skillName);
+                const scope = copilotToolScope(entry);
+                if (data.toolCallId !== undefined) {
+                  pendingSkills.set(JSON.stringify([scope, data.toolCallId]), skillName);
                 } else {
-                  pendingSkillsWithoutIDs.push(skillName);
+                  const pending = pendingSkillsWithoutIDs.get(scope) || [];
+                  pending.push(skillName);
+                  pendingSkillsWithoutIDs.set(scope, pending);
                 }
               }
             }
@@ -517,24 +537,28 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
             session.tool_execution_completes += 1;
             const data = entry.data || {};
             const success = typeof data === "object" ? data.success !== false : true;
-            let skillName = pendingSkills.get(String(data.toolCallId || ""));
-            if (
-              !skillName &&
+            const scope = copilotToolScope(entry);
+            let skillName;
+            if (data.toolCallId !== undefined) {
+              const key = JSON.stringify([scope, data.toolCallId]);
+              skillName = pendingSkills.get(key);
+              pendingSkills.delete(key);
+            } else if (
               String(data.toolName || "")
                 .trim()
                 .toLowerCase() === "skill"
             ) {
-              // SDK events without IDs are paired in start order within this session file.
-              skillName = pendingSkillsWithoutIDs.shift();
+              // SDK events without IDs are paired in start order within this scope.
+              const pending = pendingSkillsWithoutIDs.get(scope) || [];
+              skillName = pending.shift();
+              if (pending.length) pendingSkillsWithoutIDs.set(scope, pending);
+              else pendingSkillsWithoutIDs.delete(scope);
             }
             if (!success) {
               session.failed_tool_executions += 1;
               if (skillName && skills.has(skillName)) {
                 skills.get(skillName).failed_count += 1;
               }
-            }
-            if (typeof data === "object" && data.toolCallId) {
-              pendingSkills.delete(String(data.toolCallId));
             }
           }
         }
