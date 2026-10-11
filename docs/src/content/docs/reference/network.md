@@ -107,7 +107,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `clojure` | Clojure packages (`clojars.org`) |
 | `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
 | `copilot` | Copilot engine transport (`api.githubcopilot.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com`) |
-| `claude` | Claude engine transport (Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads, `host.docker.internal`) |
+| `claude` | Claude engine transport (`api.anthropic.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `codex` | Codex engine transport (`api.openai.com`, `chatgpt.com`, GitHub API/web, `host.docker.internal`) |
 | `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi` | Pi engine transport (`api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
@@ -147,12 +147,14 @@ Engine domain sets are named allowlist bundles for engine CLI authentication and
 | Engine set | Included domains |
 |---|---|
 | `copilot` | `api.github.com`, `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
-| `claude` | Anthropic APIs, GitHub transport, certificate/OCSP services, Ubuntu package metadata, Playwright downloads, and `host.docker.internal` |
+| `claude` | `api.anthropic.com`, `api.github.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `chatgpt.com`, `github.com`, `host.docker.internal`, `openai.com` |
 | `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
 | `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
 | `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. |
+
+The `claude` set excludes telemetry, certificate/OCSP hosts, package mirrors, container registries, and Playwright downloads. Those require explicit domains or ecosystem opt-ins such as `defaults`, `github`, `containers`, or `playwright`; configuring the Playwright tool also enables its download domains. Claude uses API-key or gateway authentication, so the set includes `api.anthropic.com`, not the broader `anthropic.com` suffix that would also permit `statsig.anthropic.com`. CLI installation runs outside the agent firewall and does not require adding download hosts to this set.
 
 ### Ecosystem Identifier Validation
 

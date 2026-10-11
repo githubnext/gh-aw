@@ -528,38 +528,55 @@ func TestCodexDefaultDomains(t *testing.T) {
 }
 
 func TestClaudeDefaultDomains(t *testing.T) {
-	// Verify that critical Claude domains are present
-	criticalDomains := []string{
-		"anthropic.com",
+	expectedDomains := []string{
 		"api.anthropic.com",
-		"statsig.anthropic.com",
 		"api.github.com",
 		"github.com",
 		"host.docker.internal",
+		"raw.githubusercontent.com",
 	}
 
-	// Create a map for O(1) lookups
-	domainMap := make(map[string]bool)
-	for _, domain := range ClaudeDefaultDomains {
-		domainMap[domain] = true
+	assert.ElementsMatch(t, expectedDomains, ClaudeDefaultDomains)
+	defaults, err := GetDefaultDomainsForEngine(constants.ClaudeEngine, "")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedDomains, defaults)
+	assert.ElementsMatch(t, expectedDomains, getEcosystemDomains("claude"))
+}
+
+func TestClaudeDomainSetGatesOptionalEcosystems(t *testing.T) {
+	for _, ecosystem := range []string{"defaults", "github", "containers", "playwright"} {
+		t.Run(ecosystem, func(t *testing.T) {
+			optionalDomains := getEcosystemDomains(ecosystem)
+			require.NotEmpty(t, optionalDomains)
+			baseline := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+				&NetworkPermissions{Allowed: []string{"claude"}}, nil, nil))
+			optedIn := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+				&NetworkPermissions{Allowed: []string{"claude", ecosystem}}, nil, nil))
+			for _, domain := range optionalDomains {
+				if slices.Contains(ClaudeDefaultDomains, domain) {
+					continue
+				}
+				assert.NotContains(t, baseline, domain)
+				assert.Contains(t, optedIn, domain)
+			}
+		})
 	}
 
-	for _, expected := range criticalDomains {
-		if !domainMap[expected] {
-			t.Errorf("Expected domain %q not found in ClaudeDefaultDomains", expected)
-		}
+	for _, domain := range []string{"sentry.io", "statsig.anthropic.com", "anthropic.com", "*.anthropic.com"} {
+		t.Run(domain, func(t *testing.T) {
+			baseline := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+				&NetworkPermissions{Allowed: []string{"claude"}}, nil, nil))
+			assert.NotContains(t, baseline, domain)
+			optedIn := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+				&NetworkPermissions{Allowed: []string{"claude", domain}}, nil, nil))
+			assert.Contains(t, optedIn, domain)
+		})
 	}
 
-	// Package registries must never be part of the engine defaults: they would be
-	// reachable even when the workflow declares network: {}.
-	for _, registry := range []string{"registry.npmjs.org", "pypi.org", "files.pythonhosted.org"} {
-		assert.NotContains(t, ClaudeDefaultDomains, registry,
-			"ClaudeDefaultDomains must not include %q; package registries require explicit node/python opt-in", registry)
-	}
-
-	// Verify minimum count (Claude has many more domains than the critical ones)
-	if len(ClaudeDefaultDomains) < len(criticalDomains) {
-		t.Errorf("ClaudeDefaultDomains has %d domains, expected at least %d", len(ClaudeDefaultDomains), len(criticalDomains))
+	playwright := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+		&NetworkPermissions{Allowed: []string{"claude"}}, map[string]any{"playwright": map[string]any{}}, nil))
+	for _, domain := range getEcosystemDomains("playwright") {
+		assert.Contains(t, playwright, domain)
 	}
 }
 

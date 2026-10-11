@@ -115,7 +115,10 @@ var CopilotDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
 var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["codex"])
 
-// ClaudeDefaultDomains are the default domains required for Claude Code CLI authentication and operation.
+// ClaudeDefaultDomains are the opt-in Claude API and gateway/GitHub transport baseline.
+// Claude uses API-key or gateway authentication, not interactive browser login.
+// Do not include anthropic.com: AWF also allows subdomains, which would re-enable
+// statsig.anthropic.com. Infrastructure and downloads belong in ecosystem opt-ins.
 var ClaudeDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["claude"])
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
