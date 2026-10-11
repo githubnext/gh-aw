@@ -2,8 +2,8 @@ package workflow
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -49,43 +49,16 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
-	if err := writeGraderInvocation(yaml, manifestJSON, execJSON); err != nil {
-		compilerYamlGradersLog.Printf("Failed to encode grader invocation: %v", err)
-		return
-	}
+	yaml.WriteString("            const { mainFromEnvironment } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
+	yaml.WriteString("            await mainFromEnvironment();\n")
+	yaml.WriteString("        env:\n")
+	writeGraderEnvironment(yaml, "GH_AW_GRADER_MANIFEST", manifestJSON)
+	writeGraderEnvironment(yaml, "GH_AW_GRADER_EXEC", execJSON)
 	if operationalValueGrader, ok := data.Graders.Graders["operational-value"]; ok && (operationalValueGrader.Enabled == nil || *operationalValueGrader.Enabled) {
-		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		yaml.WriteString("          GH_AW_RUN_CREATED_AT: ${{ needs.activation.outputs.run_created_at }}\n")
 	}
 	compilerYamlGradersLog.Print("Generated graders step")
-}
-
-func writeGraderInvocation(yaml *strings.Builder, manifestJSON, execJSON []byte) error {
-	manifestPayload := escapeGraderJSON(manifestJSON)
-	execPayload := escapeGraderJSON(execJSON)
-	manifestLiteral, err := graderJSONString(manifestPayload)
-	if err != nil {
-		return err
-	}
-	execLiteral, err := graderJSONString(execPayload)
-	if err != nil {
-		return err
-	}
-	invocation := fmt.Sprintf("            await main(JSON.parse(%s), JSON.parse(%s));\n", manifestLiteral, execLiteral)
-	if len(invocation) <= MaxExpressionSize {
-		yaml.WriteString(invocation)
-	} else {
-		if err := writeChunkedGraderPayload(yaml, "graderManifest", manifestPayload); err != nil {
-			return err
-		}
-		if err := writeChunkedGraderPayload(yaml, "graderExec", execPayload); err != nil {
-			return err
-		}
-		yaml.WriteString("            await main(JSON.parse(graderManifest), JSON.parse(graderExec));\n")
-	}
-	return nil
 }
 
 func escapeGraderJSON(payload []byte) string {
@@ -93,28 +66,17 @@ func escapeGraderJSON(payload []byte) string {
 	return strings.ReplaceAll(string(payload), "$", `\u0024`)
 }
 
-func graderJSONString(value string) (string, error) {
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return "", fmt.Errorf("encode grader JSON string: %w", err)
-	}
-	return string(encoded), nil
-}
-
-func writeChunkedGraderPayload(yaml *strings.Builder, variable, payload string) error {
-	yaml.WriteString("            const " + variable + " = [\n")
-	runes := []rune(payload)
+func writeGraderEnvironment(yaml *strings.Builder, variable string, payload []byte) {
+	runes := []rune(escapeGraderJSON(payload))
+	index := 0
 	for len(runes) > 0 {
 		chunkSize := min(len(runes), graderPayloadChunkSize)
-		chunk, err := graderJSONString(string(runes[:chunkSize]))
-		if err != nil {
-			return err
-		}
-		yaml.WriteString("              " + chunk + ",\n")
+		chunk := strings.ReplaceAll(string(runes[:chunkSize]), "'", "''")
+		yaml.WriteString("          " + variable + "_" + strconv.Itoa(index) + ": '" + chunk + "'\n")
 		runes = runes[chunkSize:]
+		index++
 	}
-	yaml.WriteString("            ].join('');\n")
-	return nil
+	yaml.WriteString("          " + variable + "_CHUNKS: '" + strconv.Itoa(index) + "'\n")
 }
 
 // graderManifestEntry represents a single grader in the serialized manifest.

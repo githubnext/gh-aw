@@ -8,6 +8,8 @@ const crypto = require("crypto");
 
 const {
   main,
+  mainFromEnvironment,
+  readGraderEnvironment,
   preprocessTrace,
   findAgentEventsFiles,
   extractNativeToolCalls,
@@ -2000,6 +2002,29 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
     afterEach(() => {
       global.core = originalCore;
+      vi.unstubAllEnvs();
+    });
+
+    it("reads JSON chunks from the environment without evaluating their contents", async () => {
+      const manifest = { version: 1, graders: [{ id: "env-metric", name: "'${{ secrets.TOKEN }}' 世界", source: "inline", enabled: true }] };
+      const payload = JSON.stringify(manifest).replaceAll("$", "\\u0024");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", "2");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", payload.slice(0, 50));
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_1", payload.slice(50));
+      vi.stubEnv("GH_AW_GRADER_EXEC_CHUNKS", "1");
+      vi.stubEnv("GH_AW_GRADER_EXEC_0", JSON.stringify([{ id: "env-metric", script: "return {value: 7};" }]));
+      expect(readGraderEnvironment("GH_AW_GRADER_MANIFEST")).toEqual(manifest);
+      await mainFromEnvironment();
+      const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
+      expect(output.results.find(result => result.id === "env-metric")).toMatchObject({ value: 7 });
+      expect(global.core.setFailed).not.toHaveBeenCalled();
+    });
+
+    it.each(["missing", "invalid-count", "missing-chunk", "malformed-json"])("fails explicitly for %s environment payloads", async scenario => {
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", scenario === "missing" ? undefined : scenario === "invalid-count" ? "NaN" : "1");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", scenario === "malformed-json" ? "{" : undefined);
+      await mainFromEnvironment();
+      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("failed to parse environment payloads"));
     });
 
     it.each(["json", "legacy-base64"])("runs every built-in grader with %s inputs even when the manifest lists only custom graders", async format => {

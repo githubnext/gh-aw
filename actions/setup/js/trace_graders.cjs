@@ -1003,6 +1003,33 @@ function withAllBuiltinGraders(graders) {
   return [...graders, ...missing];
 }
 
+/** @param {string} prefix @returns {any} */
+function readGraderEnvironment(prefix) {
+  const countText = process.env[`${prefix}_CHUNKS`];
+  const count = Number(countText);
+  if (!countText || !Number.isSafeInteger(count) || count < 1 || count > 10000) throw new Error(`invalid ${prefix}_CHUNKS`);
+  const chunks = [];
+  for (let index = 0; index < count; index++) {
+    const chunk = process.env[`${prefix}_${index}`];
+    if (chunk === undefined) throw new Error(`missing ${prefix}_${index}`);
+    chunks.push(chunk);
+  }
+  return JSON.parse(chunks.join(""));
+}
+
+async function mainFromEnvironment() {
+  let manifest;
+  let execSpec;
+  try {
+    manifest = readGraderEnvironment("GH_AW_GRADER_MANIFEST");
+    execSpec = readGraderEnvironment("GH_AW_GRADER_EXEC");
+  } catch (err) {
+    core.setFailed(`Graders: failed to parse environment payloads: ${getErrorMessage(err)}`);
+    return;
+  }
+  await main(manifest, execSpec);
+}
+
 /**
  * Main entry point. Older compiled workflows may still supply base64 JSON.
  * @param {{version: number, graders: any[]}|string} manifestInput
@@ -1152,6 +1179,8 @@ async function main(manifestInput, execSpecInput) {
 }
 
 module.exports = {
+  mainFromEnvironment,
+  readGraderEnvironment,
   main,
   preprocessTrace,
   findAgentEventsFiles,
