@@ -19,8 +19,9 @@ type ClaimReceipt struct {
 	Barrier string `json:"delivery_barrier"`
 }
 
-// ToReceipt projects immutable identity only. Callers must validate the
-// assignment and populate lifecycle facts from their captured projection.
+// ToReceipt projects immutable identity only, preserving source claim order.
+// Callers must validate the assignment and populate lifecycle facts from their
+// captured projection.
 func (assignment Assignment) ToReceipt() AssignmentReceipt {
 	receipt := AssignmentReceipt{
 		DispatchID: assignment.DispatchID,

@@ -217,6 +217,7 @@ func currentWorkQueueAssignmentReceipt(state workqueue.Projection, assignment wo
 		dispatch.Run.Principal != origin.Principal {
 		return nil, errors.New("current snapshot origin differs from durable assignment binding")
 	}
+	// The embedded Assignment.ToReceipt projects identity; enrich lifecycle facts from the captured state.
 	receipt := dispatch.ToReceipt()
 	receipt.State, receipt.Released = dispatch.State, dispatch.Released
 	for i, member := range receipt.Claims {
