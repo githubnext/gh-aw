@@ -321,7 +321,18 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
       toolStarts.delete(key);
     }
   }
-  const displayEvents = collapseStreamedMessages(events);
+  const timelineIndex = Symbol("timelineIndex");
+  const streamScopes = new Map();
+  for (const [index, event] of events.entries()) {
+    const source = event.provenance;
+    const key = JSON.stringify([source?.component, source?.phase, source?.path, sessionScopeKey(event)]);
+    if (!streamScopes.has(key)) streamScopes.set(key, []);
+    streamScopes.get(key).push({ ...event, [timelineIndex]: index });
+  }
+  // Reconcile each private conversation before restoring merged timeline order.
+  const displayEvents = [...streamScopes.values()]
+    .flatMap(entries => collapseStreamedMessages(entries.sort((left, right) => (left.provenance?.index ?? 0) - (right.provenance?.index ?? 0))))
+    .sort((left, right) => left[timelineIndex] - right[timelineIndex]);
   const trace = redactManifestValue(displayEvents, collectArtifactSecretValues());
   if (!Array.isArray(trace)) throw new Error(`${ERR_VALIDATION}: Expected unified session display events`);
   let previousTime;
@@ -347,7 +358,7 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     if (identity) traceLines.push(`  ${identity}`);
     if (conversational) {
       const original = displayEvents[index];
-      const start = pairedStarts.get(original);
+      const start = pairedStarts.get(events[original[timelineIndex]]);
       const entries = publicationAgentSessions(start ? [start, original] : [original]).flatMap(group => group.events);
       const content = agentConversation(entries).map(line => line.replace(/^\[\d+\] /, ""));
       traceLines.push(...content);

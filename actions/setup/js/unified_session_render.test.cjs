@@ -311,6 +311,30 @@ describe("unified session publication views", () => {
     }
   });
 
+  it("collapses interleaved streams only within their source and conversation", () => {
+    const scopes = [
+      { path: "first.jsonl", sessionId: "root", parentToolUseId: null, content: "Root " },
+      { path: "first.jsonl", sessionId: "root", parentToolUseId: "child", content: "Child " },
+      { path: "first.jsonl", sessionId: "second", parentToolUseId: null, content: "Second " },
+      { path: "other.jsonl", sessionId: "root", parentToolUseId: null, content: "Other " },
+    ];
+    const events = [
+      header,
+      ...scopes.map((scope, index) => event("assistant.message", { content: scope.content, delta: true, messageId: "reused", sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId }, "agent", 0, index + 1, scope.path)),
+      event("firewall.http_access", { host: "example.com", status: 200 }, "firewall", 0, 5),
+      ...scopes.map((scope, index) => event("assistant.message", { content: "answer", delta: true, messageId: "reused", sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId }, "agent", 1, index + 6, scope.path)),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      for (const scope of scopes) expect(output.split(`◆ ${scope.content}answer`)).toHaveLength(2);
+      expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(4);
+      expect(output).toContain("Records: 10");
+      expect(output.indexOf("◆ Root answer")).toBeLessThan(output.indexOf("◆ Child answer"));
+      expect(output.indexOf("◆ Other answer")).toBeLessThan(output.indexOf("firewall/conclusion firewall.http_access"));
+    }
+    expect(events).toEqual(original);
+  });
+
   it("redacts secrets formed by joining individually innocuous stream fragments", () => {
     process.env.GH_AW_SECRET_NAMES = "STREAM";
     process.env.SECRET_STREAM = "cross-stream-secret-value";

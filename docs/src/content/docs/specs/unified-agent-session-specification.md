@@ -1284,7 +1284,9 @@ when source timestamps disagree. Each timed entry ends with an elapsed `+...s`
 suffix relative to the preceding displayed timed entry; the first uses `+0s`.
 Untimed observations are labeled rather than assigned a clock. Message bodies
 retain multiline terminal-style formatting, and the Actions view fences the
-overview and timeline separately.
+overview and timeline separately. Stream fragments reconcile within each private
+source and conversation in source-local order; the resulting message appears at
+its first fragment's timeline position without changing the persisted records.
 Literal command operators and HTML stay readable inside payload-safe fences,
 rather than displaying HTML entities; source text cannot close those fences.
 
