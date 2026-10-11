@@ -10,7 +10,8 @@ const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 const { calculateWorkingSetFromEntries } = require("./working_set_metrics.cjs");
 const { executeOperationalValueEvaluator } = require("./operational_value_grader.cjs");
 const { extractStructuredToolInput } = require("./tool_call_details.cjs");
-const { TRAJECTORY_GRADERS, TRAJECTORY_GRADER_META } = require("./trajectory_graders.cjs");
+const { TRAJECTORY_GRADERS } = require("./trajectory_graders.cjs");
+const BUILTIN_META = require("./builtin_graders.json");
 
 // --- Constants ---
 const TMP_GH_AW = "/tmp/gh-aw";
@@ -582,21 +583,6 @@ function preprocessTrace() {
 
 // --- Built-in graders ---
 
-/** @type {Record<string, {name: string, description: string, unit: string, direction: string, threshold?: number, min?: number, max?: number}>} */
-const BUILTIN_META = {
-  "tool-success-rate": { name: "Tool Success Rate", description: "Fraction of tool calls that succeeded", unit: "ratio", direction: "higher_is_better", threshold: 0.8, min: 0, max: 1 },
-  "tool-failure-count": { name: "Tool Failure Count", description: "Number of tool calls that failed", unit: "count", direction: "lower_is_better", threshold: 5 },
-  retries: { name: "Retries", description: "Number of retry events detected in gateway logs", unit: "count", direction: "lower_is_better", threshold: 10 },
-  loops: { name: "Loops", description: "Consecutive identical tool calls (same name and arguments)", unit: "count", direction: "lower_is_better", threshold: 3 },
-  "trajectory-efficiency": { name: "Trajectory Efficiency", description: "Ratio of unique tool names to total tool calls (higher = more diverse usage)", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "execution-step-count": { name: "Execution Step Count", description: "Total LLM request count", unit: "count", direction: "lower_is_better" },
-  "execution-duration": { name: "Execution Duration", description: "Total execution duration", unit: "ms", direction: "lower_is_better" },
-  "working-set-rebuild-factor": { name: "Working-Set Rebuild Factor", description: "Cumulative input tokens divided by peak invocation input tokens", unit: "factor", direction: "lower_is_better", min: 1 },
-  "context-growth": { name: "Context Growth", description: "Ratio of total tokens to first-request tokens", unit: "factor", direction: "lower_is_better" },
-  "artifact-production": { name: "Artifact Production", description: "Count of outputs/artifacts produced by the agent", unit: "count", direction: "higher_is_better" },
-  ...TRAJECTORY_GRADER_META,
-};
-
 /**
  * A tool call counts as failed when it reported an explicit failure, or when it
  * started but never completed (`completed: false`) — an unfinished call never
@@ -991,7 +977,7 @@ function runGrader(id, builtin, script, trace, config) {
  * every trace. Append each built-in missing from the manifest (for example a
  * manifest compiled before the grader existed, or one that lists only custom
  * graders) with its default metadata. Explicitly declared entries, including
- * disabled built-ins, are left unchanged.
+ * disabled built-ins, retain their overrides.
  * @param {any[]} graders
  * @returns {any[]}
  */
@@ -1000,7 +986,7 @@ function withAllBuiltinGraders(graders) {
   const missing = Object.keys(BUILTIN_GRADERS)
     .filter(id => !declared.has(id))
     .map(id => ({ id, ...BUILTIN_META[id], source: "builtin", enabled: true }));
-  return [...graders, ...missing];
+  return [...graders.map(g => (g?.source === "builtin" && BUILTIN_META[g.id] ? { ...BUILTIN_META[g.id], ...g } : g)), ...missing];
 }
 
 /** @param {string} prefix @returns {any} */
