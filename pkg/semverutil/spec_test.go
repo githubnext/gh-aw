@@ -230,6 +230,47 @@ func TestSpec_PublicAPI_Compare(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_NormalizeGitDescribeSemver validates the documented
+// behavior of NormalizeGitDescribeSemver as described in the semverutil README.md.
+func TestSpec_PublicAPI_NormalizeGitDescribeSemver(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "strips git describe commit suffix",
+			input:    "v1.2.3-14-gabcdef",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "strips dirty git describe commit suffix",
+			input:    "v1.2.3-14-gabcdef-dirty",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "preserves ordinary prerelease",
+			input:    "v1.2.3-beta.1",
+			expected: "v1.2.3-beta.1",
+		},
+		{
+			name:     "preserves canonical version",
+			input:    "v1.2.3",
+			expected: "v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeGitDescribeSemver(tt.input)
+			assert.Equal(t, tt.expected, result, "NormalizeGitDescribeSemver(%q) mismatch", tt.input)
+		})
+	}
+}
+
+// SPEC_MISMATCH: The README states that invalid input is returned unchanged,
+// but NormalizeGitDescribeSemver("not-a-version") returns "vnot-a-version".
+
 // TestSpec_PublicAPI_IsMorePreciseVersion validates the documented behavior of
 // IsMorePreciseVersion as described in the semverutil README.md specification.
 func TestSpec_PublicAPI_IsMorePreciseVersion(t *testing.T) {
