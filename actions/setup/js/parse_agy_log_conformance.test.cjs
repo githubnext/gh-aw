@@ -13,7 +13,15 @@ const roots = [];
 afterEach(() => roots.splice(0).forEach(root => fs.rmSync(root, { recursive: true, force: true })));
 
 describe("run-backed AGY canonical session", () => {
-  it("reconciles all observed step accounting with the native terminal, not the appended legacy summary", () => {
+  it("intentionally ignores the observed type-only legacy summary, alone or appended to the native stream", () => {
+    expect(agyLegacySummary).not.toHaveProperty("event");
+    expect(agyLegacySummary).not.toHaveProperty("status");
+    expect(agyLegacySummary.usage.input_tokens_include_cache).toBe(true);
+    expect(parseAgyLog(jsonl([agyLegacySummary])).logEntries).toEqual([]);
+    expect(parseAgyLog(jsonl([...agySmoke, agyLegacySummary])).logEntries).toEqual(parseAgyLog(jsonl(agySmoke)).logEntries);
+  });
+
+  it("reconciles all observed step accounting with the native terminal while ignoring the type-only legacy summary", () => {
     const terminal = agySmoke.at(-1);
     const records = [agySmoke[0], ...agyAccounting, terminal, agyLegacySummary];
     const events = parseAgyLog(jsonl(records)).logEntries;
@@ -86,6 +94,23 @@ describe("run-backed AGY canonical session", () => {
 });
 
 describe("AGY source-dependent observations (synthetic edge cases)", () => {
+  it.each([
+    ["event/result", true],
+    ["event/result", false],
+    ["bare status", true],
+    ["bare status", false],
+  ])("preserves explicit input_tokens_include_cache in a parsed %s envelope: %j", (envelope, input_tokens_include_cache) => {
+    const initial = { event: "result", result: { status: "SUCCESS", usage: { input_tokens: 10, cache_read_tokens: 4, input_tokens_include_cache: !input_tokens_include_cache } } };
+    const body = { status: "SUCCESS", usage: { input_tokens: 10, cache_read_tokens: 4, input_tokens_include_cache } };
+    const terminal = envelope === "event/result" ? { event: "result", result: body } : body;
+    const events = parseAgyLog(jsonl([initial, terminal])).logEntries;
+    const results = events.filter(event => event.type === "session.result");
+    expect(results).toHaveLength(1);
+    expect(results[0].data.usage).toMatchObject({ input_tokens: 10, cache_read_input_tokens: 4, input_tokens_include_cache });
+    expect(results[0].data.nativeSnapshots).toEqual([initial]);
+    expect(validateSession(jsonl(events), "agent")).toBe(events.length);
+  });
+
   it("uses shared cumulative reconciliation for canonical usage additions and explicit overflow", () => {
     const records = [
       { event: "result", result: { status: "SUCCESS", usage: { input_tokens: 10, thinking_tokens: 2, cache_read_tokens: 4, cache_creation_input_tokens: 1, billing: { measured: true } } } },
