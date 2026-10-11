@@ -5,7 +5,7 @@ const { createSessionEvent, isSessionEvent, normalizeAgentSession, transformFlat
 
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
 /** @typedef {{content: string, segments: SessionEvent[]}} TextState */
-/** @typedef {{text: Map<number, TextState>, thinking: Map<number, TextState>, calls: Map<number, SessionEvent>, errors: unknown[], finalized: boolean, identity?: string}} MessageState */
+/** @typedef {{text: Map<number, TextState>, thinking: Map<number, TextState>, calls: Map<number, SessionEvent>, blocks: Map<number, SessionEvent>, errors: unknown[], finalized: boolean, identity?: string}} MessageState */
 
 const PI_SESSION_EVENT_TYPES = {
   agent_start: "session.start",
@@ -108,7 +108,7 @@ function messageIdentity(message) {
 
 /** @returns {MessageState} */
 function newMessageState() {
-  return { text: new Map(), thinking: new Map(), calls: new Map(), errors: [], finalized: false };
+  return { text: new Map(), thinking: new Map(), calls: new Map(), blocks: new Map(), errors: [], finalized: false };
 }
 
 /** @param {any} result @returns {boolean} */
@@ -278,10 +278,20 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     if (messageID !== undefined) state.identity = messageID;
     if (message.role === "assistant") assistantState = state;
     const content = typeof message.content === "string" ? [{ type: "text", text: message.content }] : message.content;
-    for (const [index, part] of (Array.isArray(content) ? content : []).entries()) {
+    const parts = Array.isArray(content) ? content : content !== undefined ? [content] : [];
+    for (const [index, part] of parts.entries()) {
       if (part?.type === "text" || part?.type === "thinking") {
         emitText(raw, state, part.type, index, part.type === "text" ? part.text : part.thinking, false, message.role, part);
       } else if (part?.type === "toolCall") emitCall(raw, part, state, index);
+      else {
+        const previous = state.blocks.get(index);
+        if (previous) {
+          if (!isDeepStrictEqual(previous.data.content, part)) {
+            (previous.data.nativeSnapshots ??= []).push({ content: structuredClone(previous.data.content) });
+            previous.data.content = structuredClone(part);
+          }
+        } else state.blocks.set(index, emit(raw, message.role === "user" ? "user.message" : "assistant.message", { content: part, contentIndex: index }));
+      }
     }
     const messageMetadata = { ...message };
     delete messageMetadata.content;
@@ -294,6 +304,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
       for (const event of segments.segments) Object.assign(event.data, structuredClone(metadata));
     }
     for (const event of state.calls.values()) Object.assign(event.data, structuredClone(metadata));
+    for (const event of state.blocks.values()) Object.assign(event.data, structuredClone(metadata));
     if (!snapshots.some(snapshot => snapshot.state === state && isDeepStrictEqual(snapshot.message, message))) snapshots.push({ message: structuredClone(message), state });
     if (raw.type === "message_end" || raw.type === "turn_end") state.finalized = true;
     if (message.errorMessage !== undefined && !state.errors.some(error => isDeepStrictEqual(error, message.errorMessage))) {

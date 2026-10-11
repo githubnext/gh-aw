@@ -17,6 +17,7 @@ const SCOPED_AGENT_TYPES = new Set([
   "user.message",
   "assistant.message",
   "assistant.reasoning",
+  "assistant.message_update",
   "assistant.refusal",
   "tool.execution_start",
   "tool.execution_update",
@@ -175,6 +176,7 @@ const EVENT_FIELDS = {
   "assistant.message": MESSAGE_FIELDS,
   "assistant.refusal": { ...MESSAGE_FIELDS, reason: ["reason"], policyCategory: ["policyCategory"], explanation: ["explanation"] },
   "assistant.reasoning": MESSAGE_FIELDS,
+  "assistant.message_update": { ...MESSAGE_FIELDS, sourceType: ["sourceType"] },
   "tool.execution_start": { ...TOOL_FIELDS, input: ["input", "parameters", "arguments", "argumentText"], inputTruncated: ["inputTruncated"], command: ["command"] },
   "tool.execution_update": {
     ...TOOL_FIELDS,
@@ -185,6 +187,9 @@ const EVENT_FIELDS = {
     contentIndex: ["contentIndex"],
     sourceType: ["sourceType"],
     usageSnapshot: ["usageSnapshot"],
+    durationMs: ["durationMs"],
+    status: ["status"],
+    command: ["command"],
   },
   "tool.execution_complete": {
     ...TOOL_FIELDS,
@@ -236,6 +241,14 @@ const EVENT_FIELDS = {
     toolCallId: ["toolCallId"],
     toolName: ["toolName"],
     usageSnapshot: ["usageSnapshot"],
+    estimatedTokens: ["estimatedTokens"],
+    estimatedTokensDelta: ["estimatedTokensDelta"],
+    cwd: ["cwd"],
+    branch: ["branch"],
+    kind: ["kind"],
+    rateLimitInfo: ["rateLimitInfo", "rate_limit_info"],
+    isAuthenticating: ["isAuthenticating", "is_authenticating"],
+    output: ["output"],
   },
   "mcp.rpc.request": MCP_FIELDS,
   "mcp.rpc.response": MCP_FIELDS,
@@ -410,7 +423,7 @@ function resolveUsageAic(source, data, usage) {
 function normalizeUnifiedSessionEvent(event, phase) {
   /** @type {any} */
   const source = event.data;
-  const known = Object.hasOwn(EVENT_FIELDS, event.type);
+  const known = Object.hasOwn(EVENT_FIELDS, event.type) && (event.type !== "assistant.message_update" || ["message_start", "message_delta", "message_stop", "content_block_stop"].includes(source.sourceType));
   const data = known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "workflow.info") {
     const modelRouting = source.modelRouting ?? source.model_routing;

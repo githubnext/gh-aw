@@ -98,7 +98,7 @@ describe("Codex real CI trace regression", () => {
     expect(ofType(events, "tool.execution_complete")).toEqual([]);
     const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events: JSON.parse(JSON.stringify(events)) }]);
     expect(unified.map(event => event.type)).toEqual(events.map(event => event.type));
-    expect(unified.at(-1).data).toEqual({ sourceType: "turn.failed", status: "failed", errors: [{ message: error }] });
+    expect(unified.at(-1).data).toEqual({ sessionId: "sanitized-failed-thread", sourceType: "turn.failed", status: "failed", errors: [{ message: error }] });
     expect(unified.at(-1).provenance).toMatchObject({ component: "agent", path: "agent-session.jsonl", index: 4 });
   });
 
@@ -115,14 +115,20 @@ describe("Codex real CI trace regression", () => {
     const events = parse(records);
     expect(ofType(events, "session.init")).toHaveLength(4);
     expect(ofType(events, "session.result")).toHaveLength(8);
-    expect(selectSessionResult(events)).toEqual({ sourceType: "turn.failed", status: "failed", errors: records.filter(record => ["error", "turn.failed"].includes(record.type)).map(record => record.error ?? record.message) });
+    expect(selectSessionResult(events)).toEqual({
+      sessionId: "sanitized-retry-3",
+      sourceType: "turn.failed",
+      status: "failed",
+      errors: records.filter(record => ["error", "turn.failed"].includes(record.type)).map(record => record.error ?? record.message),
+    });
     expect(ofType(events, "assistant.refusal")).toEqual([]);
     expect(ofType(events, "tool.execution_start")).toEqual([]);
   });
 });
 
 describe("Codex normalization contract", () => {
-  it.each(["todo_list", "future_item"])("retains native %s observations without losing payloads", type => {
+  it("retains unknown native item observations without losing payloads", () => {
+    const type = "future_item";
     const record = { type: "item.completed", timestamp: 0, item: { id: "item_0", type, status: "failed", extension: { retained: true } } };
     const events = normalizeCodexSession([record]);
     expect(events).toHaveLength(1);
@@ -307,8 +313,10 @@ describe("Codex normalization contract", () => {
     ]);
     expect(ofType(events, "assistant.message").map(event => event.data.content)).toEqual([" final\n"]);
     expect(ofType(events, "assistant.reasoning").map(event => event.data.content)).toEqual([" \r\n"]);
-    expect(ofType(events, "codex.item_snapshot")).toHaveLength(4);
-    expect(ofType(events, "codex.item_snapshot")[0]).toMatchObject({ timestamp: 1, data: { item: { text: " " } } });
+    expect(ofType(events, "codex.item_snapshot")).toEqual([]);
+    expect(ofType(events, "assistant.message")[0].data.nativeSnapshots).toHaveLength(3);
+    expect(ofType(events, "assistant.message")[0].data.nativeSnapshots[0]).toMatchObject({ timestamp: 1, item: { text: " " } });
+    expect(ofType(events, "assistant.reasoning")[0].data.nativeSnapshots).toHaveLength(1);
     expect(events.findIndex(event => event.type === "tool.execution_start")).toBeLessThan(events.findIndex(event => event.type === "assistant.message"));
     expect(ofType(events, "assistant.reasoning")[0].data).toMatchObject({ messageId: "partial", partial: true });
   });
@@ -325,7 +333,8 @@ describe("Codex normalization contract", () => {
       { type: "item.completed", item: { id: "partial", type: "agent_message" } },
     ]);
     expect(events[0]).toMatchObject({ type: "assistant.message", data: { content: " observed " } });
-    expect(events[1].type).toBe("codex.item_snapshot");
+    expect(events).toHaveLength(1);
+    expect(events[0].data.nativeSnapshots).toEqual([{ type: "item.completed", item: { id: "partial", type: "agent_message" } }]);
   });
 
   it("counts distinct per-turn reports once and accumulates all reported native cache fields", () => {
@@ -519,7 +528,7 @@ describe("Codex normalization contract", () => {
     const events = normalizeCodexSession([completion, structuredClone(completion)]);
     expect(ofType(events, "tool.execution_start")).toHaveLength(1);
     expect(ofType(events, "tool.execution_complete")).toHaveLength(1);
-    expect(events.at(-1)).toMatchObject({ type: "codex.item_snapshot", data: { item: completion.item } });
+    expect(events.at(-1)).toMatchObject({ type: "tool.execution_update", data: { ...completion.item, toolCallId: "call", sourceType: "item.completed" } });
   });
 
   it("correlates mixed legacy starts and canonical completions without dropping extensions", () => {

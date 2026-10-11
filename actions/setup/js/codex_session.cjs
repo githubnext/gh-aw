@@ -96,6 +96,7 @@ function normalizeCodexSession(records, model = null) {
   const completedItems = new Set();
   const completedErrors = new Map();
   const messageSnapshots = new Map();
+  const messageHistory = new Map();
   // item.updated carries a full snapshot, not a text delta. Retain the transport
   // observations, but expose only the latest available text for each native item.
   let thread = 0;
@@ -120,6 +121,14 @@ function normalizeCodexSession(records, model = null) {
       const key = itemKey(record, index);
       if (key !== undefined) messageSnapshots.set(key, index);
     }
+    if (["item.started", "item.updated", "item.completed"].includes(record?.type) && ["agent_message", "reasoning", "user_message"].includes(record.item?.type)) {
+      const key = itemKey(record, index);
+      if (key !== undefined) {
+        const history = messageHistory.get(key) ?? [];
+        history.push({ index, record });
+        messageHistory.set(key, history);
+      }
+    }
   });
   /** @type {Record<string, any>} */
   let usage = {};
@@ -137,7 +146,7 @@ function normalizeCodexSession(records, model = null) {
       continue;
     }
     const emit = (type, data) => {
-      const context = type === "tool.execution_start" || type === "tool.execution_complete" ? { sessionId: scopes[index].sessionId, ...sessionContext(record) } : {};
+      const context = { sessionId: scopes[index].sessionId, ...sessionContext(record) };
       events.push(createSessionEvent(record, type, { ...context, ...data }));
     };
     if (record.type === "thread.started" && Object.hasOwn(record, "thread_id")) {
@@ -195,12 +204,12 @@ function normalizeCodexSession(records, model = null) {
           emit("tool.execution_start", { ...item, ...start });
           if (key !== undefined) starts.set(key, start);
         } else if (!completed) {
-          emit("codex.item_snapshot", { item });
+          emit("tool.execution_update", { ...item, ...start, output, partial: true, sourceType: record.type });
         }
         if (previous && key !== undefined) starts.set(key, start);
         if (completed && item.status !== "in_progress" && item.status !== "pending") {
           if (key !== undefined && completedItems.has(key)) {
-            emit("codex.item_snapshot", { item });
+            emit("tool.execution_update", { ...item, ...start, output, sourceType: record.type });
             continue;
           }
           if (key !== undefined) completedItems.add(key);
@@ -217,13 +226,15 @@ function normalizeCodexSession(records, model = null) {
             durationMs: isMetric(item.duration_ms) ? item.duration_ms : undefined,
           });
         } else if (completed) {
-          emit("codex.item_snapshot", { item });
+          emit("tool.execution_update", { ...item, ...start, output, partial: true, sourceType: record.type });
         }
       } else if (item.type === "agent_message" || item.type === "reasoning" || item.type === "user_message") {
         const content = itemContent(item);
         const refusal = item.type === "agent_message" ? getMessageRefusal(item) : undefined;
         const snapshotKey = itemKey(record, index);
-        if ((content === undefined && !refusal) || (snapshotKey !== undefined && messageSnapshots.get(snapshotKey) !== index)) emit("codex.item_snapshot", { item });
+        const selected = snapshotKey !== undefined ? messageSnapshots.get(snapshotKey) : undefined;
+        if (snapshotKey !== undefined && selected !== undefined && selected !== index) continue;
+        if (content === undefined && !refusal) emit("assistant.message_update", { ...item, messageId: item.id, sourceType: record.type, partial: !completed });
         else
           emit(refusal ? "assistant.refusal" : item.type === "reasoning" ? "assistant.reasoning" : item.type === "user_message" ? "user.message" : "assistant.message", {
             ...item,
@@ -231,7 +242,17 @@ function normalizeCodexSession(records, model = null) {
             content,
             ...(refusal ?? {}),
             ...(completed ? {} : { partial: true }),
+            ...(snapshotKey !== undefined && messageHistory.get(snapshotKey).length > 1
+              ? {
+                  nativeSnapshots: messageHistory
+                    .get(snapshotKey)
+                    .filter(snapshot => snapshot.index !== index)
+                    .map(snapshot => snapshot.record),
+                }
+              : {}),
           });
+      } else if (item.type === "todo_list") {
+        emit("session.info", { ...item, sourceType: item.type, ...(Object.hasOwn(item, "items") ? { content: item.items } : {}) });
       } else if (item.type === "error" && (completed || Object.hasOwn(item, "message"))) {
         const error = Object.hasOwn(item, "message") ? item.message : item;
         const signature = JSON.stringify(error);

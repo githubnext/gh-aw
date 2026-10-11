@@ -368,6 +368,15 @@ export interface UnifiedSessionEventDataMap {
     toolName?: JsonValue;
     /** Repeated observed metadata, never additive inference usage. */
     usageSnapshot?: JsonValue;
+    /** Native estimates, not measured or additive token usage. */
+    estimatedTokens?: JsonValue;
+    estimatedTokensDelta?: JsonValue;
+    cwd?: JsonValue;
+    branch?: JsonValue;
+    kind?: JsonValue;
+    rateLimitInfo?: JsonValue;
+    isAuthenticating?: JsonValue;
+    output?: JsonValue;
   } & UnifiedSessionContextData;
   "session.shutdown": {
     shutdownType?: JsonValue;
@@ -385,6 +394,7 @@ export interface UnifiedSessionEventDataMap {
   "assistant.message": UnifiedMessageData;
   "assistant.refusal": Pick<AssistantRefusalData, "reason" | "content" | "policyCategory" | "explanation" | "partial"> & UnifiedMessageData;
   "assistant.reasoning": UnifiedMessageData;
+  "assistant.message_update": UnifiedMessageData & { sourceType?: JsonValue; [key: string]: unknown };
   "tool.execution_start": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "inputTruncated" | "command" | "mcpServerName"> & UnifiedSessionContextData;
   "tool.execution_update": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "mcpServerName"> & {
     output?: JsonValue;
@@ -394,6 +404,9 @@ export interface UnifiedSessionEventDataMap {
     sourceType?: JsonValue;
     /** Repeated observed metadata, never additive inference usage. */
     usageSnapshot?: JsonValue;
+    durationMs?: JsonValue;
+    status?: JsonValue;
+    command?: JsonValue;
   } & UnifiedSessionContextData;
   "tool.execution_complete": Pick<
     ToolExecutionCompleteData,

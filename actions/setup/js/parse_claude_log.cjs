@@ -3,7 +3,7 @@
 
 const { createEngineLogParser, generateConversationMarkdown, buildStepSummaryDetailsSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 const { projectSessionResult, sessionContext } = require("./agent_session.cjs");
-const { normalizeClaudeSession } = require("./claude_session.cjs");
+const { normalizeClaudeSession, normalizeClaudeObservations } = require("./claude_session.cjs");
 
 const main = createEngineLogParser({
   parserName: "Claude",
@@ -107,5 +107,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
     parseClaudeLog,
+    normalizeSessionEvents: normalizeClaudeObservations,
   };
 }
