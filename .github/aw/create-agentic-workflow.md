@@ -131,9 +131,9 @@ Expected comparison output: return one combined table with one row per scenario 
 
 | Scenario | Trigger | Scope | Read tools | Safe outputs | Permissions | Noop condition |
 |---|---|---|---|---|---|---|
-| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
-| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
-| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`gh-proxy`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
+| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: read` | window has no assigned issues/PRs |
+| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: read` | no items cross the staleness threshold |
+| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`gh-proxy`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: read` | no API contract files changed in the PR |
 
 This is the same invocation surface as [Single-Scenario Evaluation Example](#single-scenario-evaluation-example) above — reached only by addressing the `agentic-workflows` custom agent directly in conversation, never via a CLI/MCP tool parameter. After the comparison table, call out any scenario that shares a trigger or write path with another (for example two digests that could share a schedule) before offering to generate files.
 
@@ -335,6 +335,7 @@ Before finalizing any newly generated workflow, verify:
 - [ ] **Maintenance baseline**: recurring maintenance strategies are derived from a bounded repository survey, with observed signals separated from recommendations
 - [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `gh-proxy`; add `playwright`/`cache-memory` only when required)
 - [ ] **Safe outputs**: all visible writes route through `safe-outputs:` and include `noop` for explicit no-op outcomes
+- [ ] **Recurring audit/monitor dedup**: define a stable signature from the scope and finding (for example workflow, job, and normalized error signature), check for an existing open issue before creating one, and choose `close-older-issues`/`close-older-key` when newer findings supersede older ones
 - [ ] **Permissions**: agent job remains read-only; no direct write scopes granted
 - [ ] **Network**: access is inferred from repository ecosystem and avoids `network: defaults` alone for install/build/test workflows
 - [ ] **Prompt clarity**: prompt is concise, context-aware, and clearly states expected outputs and stop/no-op behavior

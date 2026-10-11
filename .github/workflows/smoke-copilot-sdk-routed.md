@@ -67,7 +67,9 @@ This run checks model routing and sub-agent delegation, not the task. Keep outpu
 
 ## Tasks
 
-1. Call the `haiku-whoami` agent exactly once and ask it exactly: `who am i?`
+1. Call the `haiku-whoami` agent once with the `task` tool, setting both `agent_type` and `name` to `haiku-whoami` and `mode` to `sync`:
+   `{"description":"Ask haiku-whoami","prompt":"who am i?","agent_type":"haiku-whoami","name":"haiku-whoami","mode":"sync"}`
+   If the tool returns an error, fix the arguments to match the call above and retry exactly once.
 2. Do not answer on its behalf, and do not call any other agent.
 3. Do not make other tool calls except the issue below.
 
