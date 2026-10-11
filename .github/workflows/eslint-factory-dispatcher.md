@@ -17,6 +17,7 @@ tools:
 safe-outputs:
   dispatch-workflow:
     workflows: [eslint-miner, eslint-refiner, eslint-monster]
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     target-ref: ${{ github.event.repository.default_branch }}
     max: 3
   noop:
@@ -111,7 +112,9 @@ choose or modify Policy. If bootstrap or admission fails, report the failure; do
 not bypass it with `noop` or ordinary worker dispatch.
 
 Scheduling overrides are shared in `.github/workflows/aw.json` under
-`work_queue`. AW selects the launch credential and pins declared worker routes
+`work_queue`. Trusted `safe-outputs.dispatch-workflow` processing uses the
+built-in Actions token with `actions: write`; no custom launch secret is required.
+AW pins declared worker routes
 to the immutable workflow revision; it binds each actual native run to its
 Claim. The first accepted submission automatically creates the queue with
 compiled Policy and Work; no administrator seed is required.

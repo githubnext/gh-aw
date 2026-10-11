@@ -149,11 +149,12 @@ describe("ESLint factory producer and dispatcher", () => {
       }
     }
     expect(source).not.toContain("github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}");
+    expect(source).toContain("github-token: ${{ secrets.GITHUB_TOKEN }}");
     const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
     expect(configMatch).not.toBeNull();
     const config = JSON.parse(JSON.parse(configMatch[1]));
-    expect(config["github-token"]).toBe("${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}");
-    expect(config.work_queue_dispatch_credential).toEqual({ kind: "${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'authenticated' || 'github_token' }}" });
+    expect(config["github-token"]).toBe("${{ secrets.GITHUB_TOKEN }}");
+    expect(config.work_queue_dispatch_credential).toEqual({ kind: "github_token" });
     expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
   });
 
@@ -166,6 +167,9 @@ describe("ESLint factory producer and dispatcher", () => {
     const posts = [];
     const failures = [];
     const compiled = fs.readFileSync(new URL("../../../.github/workflows/eslint-factory-dispatcher.lock.yml", import.meta.url), "utf8");
+    const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
+    expect(configMatch).not.toBeNull();
+    const dispatchConfig = JSON.parse(JSON.parse(configMatch[1]));
     const [environment] = compiledFactoryPolicyEnvironments(compiled);
     expect(environment).toBeDefined();
     const policy = JSON.parse(readWorkQueuePolicyConfig(environment).replaceAll("${{ github.repository }}", REPOSITORY).replaceAll("${{ github.sha }}", REF));
@@ -239,7 +243,11 @@ describe("ESLint factory producer and dispatcher", () => {
           expect(token).toBe("fixture-token");
           return fake.githubClient;
         },
-        config: { max: 3, work_queue_enabled: true, work_queue_workflows: ESLINT_WORKERS, aw_context_workflows: ESLINT_WORKERS, "github-token": "fixture-token", work_queue_dispatch_credential: { kind } },
+        config: {
+          ...dispatchConfig,
+          "github-token": "fixture-token",
+          work_queue_dispatch_credential: kind === "github_token" ? dispatchConfig.work_queue_dispatch_credential : { kind },
+        },
       };
       const result = await processControls(controls);
       expect(result.success, JSON.stringify({ result, failures })).toBe(true);
