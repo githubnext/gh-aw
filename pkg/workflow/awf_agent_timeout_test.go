@@ -46,7 +46,7 @@ func TestBuildAWFConfigJSON_AgentTimeoutDockerRuntime(t *testing.T) {
 		{name: "expression timeout is omitted", timeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}", version: supported},
 		{name: "runtime-variable default timeout is omitted", timeoutMinutes: "timeout-minutes: " + compilerenv.BuildTimeoutMinutesExpression(compilerenv.DefaultTimeoutMinutes, 20), version: supported},
 		{name: "unsupported AWF version", timeoutMinutes: "timeout-minutes: 45", version: "v0.28.50"},
-		{name: "default AWF version", timeoutMinutes: "timeout-minutes: 45", version: ""},
+		{name: "default AWF version", timeoutMinutes: "timeout-minutes: 45", version: "", wantTimeout: 45, wantPresent: true},
 	}
 
 	for _, tt := range tests {
