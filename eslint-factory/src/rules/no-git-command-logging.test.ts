@@ -98,6 +98,7 @@ describe("no-git-command-logging", () => {
       ],
       invalid: [
         { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); const run = cp.spawnSync; run("git", args, { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
         { code: `const { execSync: run } = require("node:child_process"); run("git diff", { stdio: [0, 1, 2] });`, errors: [{ messageId: "stdio" }] },
         { code: `const { spawnSync } = require("child_process"); spawnSync("git", args, { stdio: ["ignore", fileFd, "pipe"] });`, errors: [{ messageId: "stdio" }] },
         { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: "pipe", ...options });`, errors: [{ messageId: "stdio" }] },
@@ -129,6 +130,7 @@ describe("no-git-command-logging", () => {
         { code: `async function run() { const result = await exec.getExecOutput("git", args, { silent: true }); server.debug(result.stderr); }`, errors: [{ messageId: "output" }] },
         { code: `const output = execGitSync(args); const text = output.trim(); debugLog(\`Git output: \${text}\`);`, errors: [{ messageId: "output" }] },
         { code: `const cp = require("child_process"); const result = cp.spawnSync("git", args); logger.debug(result.stdout.toString());`, errors: [{ messageId: "output" }] },
+        { code: `const cp = require("child_process"); const run = cp.spawnSync; const result = run("git", args); logger.debug(result.stdout.toString());`, errors: [{ messageId: "output" }] },
         { code: `const result = exec.getExecOutput("git", args, { silent: true }); const error = new Error(result.stderr); server.debug(error.message);`, errors: [{ messageId: "output" }] },
         { code: `const output = execGitSync(args); fs.appendFileSync("debug.log", output);`, errors: [{ messageId: "output" }] },
         { code: `const output = execGitSync(args); fs.writeFileSync(logPath, output);`, errors: [{ messageId: "output" }] },

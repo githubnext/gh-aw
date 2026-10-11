@@ -132,7 +132,6 @@ function execGitSync(args, options = {}) {
     timeout: defaultTimeoutMs,
     killSignal: "SIGKILL",
     ...spawnOptions,
-    stdio: spawnOptions.stdio === "inherit" ? "pipe" : spawnOptions.stdio,
     env: safeEnv,
     // Override caller stdio: inherited streams and file descriptors bypass
     // secret masking and can end up in uploaded MCP or diagnostic log files.

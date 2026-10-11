@@ -105,6 +105,7 @@ function methodFor(node: TSESTree.CallExpression, source: TSESLint.SourceCode): 
     const init = initializer(callee, source);
     if (init?.type === AST_NODE_TYPES.MemberExpression) {
       const name = staticString(init.property, source) ?? (init.property.type === AST_NODE_TYPES.Identifier && !init.computed ? init.property.name : undefined);
+      if (name && childMethods.has(name) && init.object.type === AST_NODE_TYPES.Identifier && isChildProcessObjectBinding(init.object.name, init.object, source)) return { name, child: true };
       if (name === "exec" || name === "getExecOutput") return { name, child: false };
     }
     if (callee.name === "execGetExecOutput") return { name: "getExecOutput", child: false };
