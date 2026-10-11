@@ -144,6 +144,30 @@ jobs:
         fi
 
         echo "validated $checked_images container pins across $checked_files workflow lock files"
+  test-race:
+    name: Race detector
+    if: ${{ github.event_name == 'schedule' && needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Run race detector
+      run: make test-race
   shellcheck-setup-sh:
     name: ShellCheck actions/setup/sh
     if: ${{ needs.changes.outputs.has_changes == 'true' }}

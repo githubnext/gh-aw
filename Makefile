@@ -92,6 +92,11 @@ test: test-unit test-integration
 test-unit-all:
 	go test -v -parallel=4 -timeout=10m -run='^Test' ./... -short
 
+# Run concurrency-heavy package tests with the Go race detector
+.PHONY: test-race
+test-race:
+	go test -race -count=1 -short -parallel=4 -timeout=30m ./pkg/cli ./pkg/console ./pkg/parser ./pkg/workflow
+
 # Test impacted Go unit tests first for faster feedback (target budget: ~30s)
 .PHONY: test-unit
 test-unit:
