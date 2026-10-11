@@ -263,11 +263,16 @@ function normalizeCodexSession(records, model = null) {
         if (key !== undefined) completedErrors.set(key, signature);
         emit("session.result", { errors: [error] });
       } else {
-        emit("codex.item_snapshot", { item });
+        emit("session.info", { sourceType: item.type, content: item });
       }
     } else {
-      events.push(structuredClone(record));
-      normalizeAgentSession([record], { sourceEngine: "codex" }).forEach(observeResult);
+      const normalized = normalizeAgentSession([record], { sourceEngine: "codex" });
+      if (normalized.length) {
+        events.push(structuredClone(record));
+        normalized.forEach(observeResult);
+      } else if (typeof record.type === "string" && record.type.length > 0 && !["thread.started", "item.started", "item.updated", "item.completed"].includes(record.type)) {
+        emit("session.info", { sourceType: record.type, content: record });
+      }
     }
   }
   return normalizeAgentSession(events, { sourceEngine: "codex" });

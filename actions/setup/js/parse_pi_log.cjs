@@ -1,16 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const {
-  createEngineLogParser,
-  generateConversationMarkdown,
-  generateInformationSection,
-  buildStepSummaryDetailsSection,
-  formatInitializationSummary,
-  formatToolUse,
-  convertLegacyLogEntriesToCopilotEvents,
-  parseLogEntries,
-} = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, buildStepSummaryDetailsSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 const { transformFlatSessionEntries, projectSessionResult, selectSessionResult, reconcileSessionUsage } = require("./agent_session.cjs");
 const { transformPiV3Entries, computePiV3Stats, normalizePiObservations } = require("./pi_session.cjs");
 
@@ -22,12 +13,8 @@ const main = createEngineLogParser({
 
 /**
  * Parse Pi CLI JSONL streaming log output and format as markdown.
- * Pi CLI emits one JSON object per line (JSONL) with typed events:
- * - type "init":        session initialization with model and session_id
- * - type "assistant":   agent message content (delta:true for streaming chunks)
- * - type "tool_use":    tool invocations with tool_name, tool_id, and parameters
- * - type "tool_result": tool responses with tool_id, status, and output
- * - type "result":      final stats with token usage and duration
+ * Normalize native streaming events and historical flat records directly into
+ * canonical session events, then render the shared conversation and usage view.
  * @param {string} logContent - The raw log content to parse
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
  */
@@ -58,10 +45,8 @@ function parsePiLog(logContent) {
   // Detect which schema this log uses and transform accordingly so the step summary
   // renders the conversation and token stats for both.
   const useV3Schema = isPiV3Schema(rawEntries);
-  const logEntries = useV3Schema ? transformPiV3Entries(rawEntries) : transformPiEntries(rawEntries);
-
   const stats = useV3Schema ? computePiV3Stats(rawEntries) : null;
-  const canonicalLogEntries = normalizePiObservations(convertLegacyLogEntriesToCopilotEvents(logEntries, { sourceEngine: "pi" }));
+  const canonicalLogEntries = transformPiV3Entries(rawEntries);
   if (stats) {
     const terminal = [...canonicalLogEntries].reverse().find(event => event.type === "session.result");
     const selected = selectSessionResult(canonicalLogEntries);
@@ -74,7 +59,7 @@ function parsePiLog(logContent) {
     };
     if (terminal) {
       Object.assign(terminal.data, data);
-      if (stats.errors.length || stats.exposedErrors) terminal.data.errors = [...(terminal.data.errors ?? []), ...stats.errors];
+      if (stats.errors.length || stats.exposedErrors) terminal.data.errors = [...(Array.isArray(terminal.data.errors) ? terminal.data.errors : []), ...stats.errors];
     } else {
       canonicalLogEntries.push({ type: "session.result", data: { ...data, errors: stats.errors.length || stats.exposedErrors ? stats.errors : undefined } });
     }
@@ -143,6 +128,7 @@ function isPiV3Schema(rawEntries) {
       e.type === "message_update" ||
       e.type === "message_start" ||
       e.type === "message_end" ||
+      (e.type === "message" && e.message && typeof e.message.role === "string") ||
       (e.type === "session" && typeof e.version === "number")
     ) {
       return true;

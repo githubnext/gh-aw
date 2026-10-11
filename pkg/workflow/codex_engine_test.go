@@ -303,6 +303,26 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	}
 }
 
+func TestCodexEngineStableReleaseInstallation(t *testing.T) {
+	// The verified official codex-npm-0.162.1.tgz manifest retains all six
+	// platform aliases. A stale local mirror must not change the installer.
+	for _, version := range []string{"0.162.1", "0.159.3"} {
+		t.Run(version, func(t *testing.T) {
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex", Version: version}}
+			steps := NewCodexEngine().GetInstallationSteps(data)
+			require.Len(t, steps, 2)
+			assert.Contains(t, strings.Join(steps[0], "\n"), "Setup Node.js")
+			assert.Contains(t, strings.Join(steps[1], "\n"), "npm install --ignore-scripts -g @openai/codex@"+version)
+			assert.NotContains(t, strings.Join(steps[1], "\n"), "NPM_CONFIG_MIN_RELEASE_AGE")
+
+			microVM := strings.Join(generateCodexMicroVMCLIInstallStep(data), "\n")
+			assert.Contains(t, microVM, `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @openai/codex@`+version)
+			assert.Contains(t, microVM, `ln -sf "../node_modules/.bin/codex" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/codex"`)
+			assert.NotContains(t, microVM, "NPM_CONFIG_MIN_RELEASE_AGE")
+		})
+	}
+}
+
 func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 	engine := NewCodexEngine()
 
