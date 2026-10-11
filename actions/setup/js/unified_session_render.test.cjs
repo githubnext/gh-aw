@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { generatePlainTextSummary, generateCopilotCliStyleSummary, generateConversationMarkdown, formatToolUse, formatInitializationSummary, MAX_STEP_SUMMARY_SIZE } from "./log_parser_shared.cjs";
 import { publishUnifiedSessionSummary, validateSessionFileHeader } from "./unified_session_render.cjs";
+import { MCP_GATEWAY_CONFIG_PATHS } from "./redact_secrets.cjs";
 import { main, mergeSessionSources } from "./unified_session.cjs";
 import { normalizeClaudeSession } from "./claude_session.cjs";
 import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
@@ -105,7 +106,7 @@ describe("unified session publication views", () => {
     }
   });
 
-  it("escapes and redacts hostile mismatch model, endpoint, and detail values", () => {
+  it("fences and redacts hostile mismatch model, endpoint, and detail values", () => {
     process.env.GH_AW_SECRET_NAMES = "MISMATCH_TEST";
     process.env.SECRET_MISMATCH_TEST = "mismatch-secret-fixture";
     const hostile = "````\n# heading\n<img src=x>\n::error::oops mismatch-secret-fixture";
@@ -135,7 +136,7 @@ describe("unified session publication views", () => {
     const markdown = generateCopilotCliStyleSummary(events);
     const plain = generatePlainTextSummary(events);
     for (const summary of [markdown, plain]) expect(summary).not.toContain("mismatch-secret-fixture");
-    expect(markdown).not.toContain("<img");
+    expect(markdown).toContain("<img src=x>");
     const opening = markdown.match(/^(`{3,})$/m)?.[1];
     expect(opening.length).toBeGreaterThan(4);
     expect(plain).not.toContain("::error::");
@@ -166,6 +167,24 @@ describe("unified session publication views", () => {
       expect(output).not.toContain("[extension payload omitted]");
     }
     expect(events[3].data.delta).toEqual(delta);
+  });
+
+  it.each(["PRIVATE_SESSION_CONTENT", { payload: "PRIVATE_SESSION_CONTENT" }, ["PRIVATE_SESSION_CONTENT"]])("omits opaque session content %j and structured metadata", content => {
+    const events = [
+      header,
+      event("session.info", { content, status: "retrying", isAuthenticating: false, message: { private: "PRIVATE_INFO_MESSAGE" }, rateLimitInfo: ["PRIVATE_RATE_LIMIT"] }, "agent", 0),
+      event("session.error", { content, code: 0, exitCode: 1, message: ["PRIVATE_ERROR_MESSAGE"], error: { code: "provider_error", message: "Provider unavailable", type: { private: "PRIVATE_ERROR_TYPE" } } }, "agent", 1),
+      event("session.error", { content, error: ["PRIVATE_ERROR_ARRAY"] }, "agent", 2),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      expect(output).toContain("session.info status=retrying isAuthenticating=false");
+      expect(output).toContain("session.error code=0 exitCode=1 code=provider_error message=Provider unavailable");
+      expect(output).not.toContain("PRIVATE_");
+      expect(output).not.toContain("content=");
+      expect(output).not.toContain("rateLimitInfo=");
+    }
+    expect(events).toEqual(original);
   });
 
   it("renders episode lineage in both sinks without dumping the caller context", () => {
@@ -233,7 +252,7 @@ describe("unified session publication views", () => {
     }
     expect(trace).toEqual(original);
     const markdown = generateCopilotCliStyleSummary(trace);
-    expect(markdown).toContain("Done &lt;details&gt;");
+    expect(markdown).toContain("Done <details>");
     expect(markdown).toContain("<details><summary>Unified session</summary>");
     expect(markdown).not.toContain("### Unified session");
     expect(markdown).not.toContain("=== Unified session ===");
@@ -281,15 +300,15 @@ describe("unified session publication views", () => {
     expect(first + second).not.toContain("999");
   });
 
-  it("collapses streamed text into one conversation and timeline message, preserving the native record count", () => {
+  it("collapses streamed text into one timeline message, preserving the native record count", () => {
     const events = [header, ...["Hello", " ", "world."].map((content, index) => event("assistant.message", { content, delta: true, messageId: "answer" }, "agent", index, index + 1))];
     const original = structuredClone(events);
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      const conversation = output.slice(output.indexOf("Agent conversation:"), output.indexOf("Chronological trace"));
-      expect(conversation).toContain("Hello world.");
-      expect(output.match(/assistant\.message Hello world\./g)).toHaveLength(1);
+      expect(output.match(/◆ Hello world\./g)).toHaveLength(1);
+      expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(1);
       expect(output).toContain("Records: 4");
-      expect(output).toContain("1970-01-01T00:00:00.001Z agent/agent assistant.message");
+      expect(output).toContain("agent/agent assistant.message +0s");
+      expect(output).not.toContain("1970-01-01");
     }
     expect(events).toEqual(original);
   });
@@ -309,6 +328,30 @@ describe("unified session publication views", () => {
       expect(output).not.toContain("secret-first-message");
       expect(output).not.toContain("secret-second-message");
     }
+  });
+
+  it("collapses interleaved streams only within their source and conversation", () => {
+    const scopes = [
+      { path: "first.jsonl", sessionId: "root", parentToolUseId: null, content: "Root " },
+      { path: "first.jsonl", sessionId: "root", parentToolUseId: "child", content: "Child " },
+      { path: "first.jsonl", sessionId: "second", parentToolUseId: null, content: "Second " },
+      { path: "other.jsonl", sessionId: "root", parentToolUseId: null, content: "Other " },
+    ];
+    const events = [
+      header,
+      ...scopes.map((scope, index) => event("assistant.message", { content: scope.content, delta: true, messageId: "reused", sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId }, "agent", 0, index + 1, scope.path)),
+      event("firewall.http_access", { host: "example.com", status: 200 }, "firewall", 0, 5),
+      ...scopes.map((scope, index) => event("assistant.message", { content: "answer", delta: true, messageId: "reused", sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId }, "agent", 1, index + 6, scope.path)),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      for (const scope of scopes) expect(output.split(`◆ ${scope.content}answer`)).toHaveLength(2);
+      expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(4);
+      expect(output).toContain("Records: 10");
+      expect(output.indexOf("◆ Root answer")).toBeLessThan(output.indexOf("◆ Child answer"));
+      expect(output.indexOf("◆ Other answer")).toBeLessThan(output.indexOf("firewall/conclusion firewall.http_access"));
+    }
+    expect(events).toEqual(original);
   });
 
   it("redacts secrets formed by joining individually innocuous stream fragments", () => {
@@ -352,7 +395,7 @@ describe("unified session publication views", () => {
     expect(result.markdown).not.toContain("PRIVATE_");
   });
 
-  it("renders multiline agent conversations with tool arguments, output and errors before runtime observations", () => {
+  it("renders multiline messages, tool arguments, output and errors in the full timeline", () => {
     const events = [
       header,
       event("user.message", { content: "PRIVATE_USER_PROMPT" }, "agent", 0, 0),
@@ -366,7 +409,8 @@ describe("unified session publication views", () => {
     ];
     const original = structuredClone(events);
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events), generateConversationMarkdown(events, { formatToolCallback: formatToolUse, formatInitCallback: formatInitializationSummary }).markdown]) {
-      expect(output).toContain("Agent conversation: agent/agent.jsonl");
+      expect(output).toContain("Chronological trace");
+      expect(output).toContain("path=agent.jsonl");
       expect(output).toContain("◐ First thought\n  Second thought");
       expect(output).toContain("◆ First answer\n  Second answer");
       expect(output).toContain("✗ $ printf fixture-command");
@@ -378,13 +422,14 @@ describe("unified session publication views", () => {
       expect(output).toContain("[pending]");
       expect(output).toContain("[start unavailable]");
       expect(output).toContain("[empty output]");
-      expect(output.indexOf("Agent conversation:")).toBeLessThan(output.indexOf("Chronological trace"));
+      expect(output.indexOf("assistant.reasoning")).toBeLessThan(output.indexOf("assistant.message"));
+      expect(output.indexOf("fixture-output")).toBeLessThan(output.indexOf("mcp.rpc.request"));
       expect(output).not.toContain("PRIVATE_");
     }
     expect(events).toEqual(original);
   });
 
-  it("keeps conversation tool pairing and source order independent of merged timestamps", () => {
+  it("keeps tool pairing source-local while displaying the merged timeline order", () => {
     const events = [
       header,
       event("tool.execution_complete", { toolCallId: "shared", success: true, output: "second source result" }, "agent", 1, 0, "second.jsonl"),
@@ -393,8 +438,9 @@ describe("unified session publication views", () => {
       event("tool.execution_start", { toolCallId: "shared", toolName: "second", input: null }, "agent", 0, 3, "second.jsonl"),
     ];
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      const second = output.slice(output.indexOf("Agent conversation: agent/second.jsonl"), output.indexOf("Agent conversation: agent/first.jsonl"));
-      const first = output.slice(output.indexOf("Agent conversation: agent/first.jsonl"), output.indexOf("Chronological trace"));
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const second = timeline.slice(timeline.indexOf("[2]"), timeline.indexOf("[3]"));
+      const first = timeline.slice(timeline.indexOf("[3]"), timeline.indexOf("[4]"));
       expect(second).toContain("✓ second(null)");
       expect(second).toContain("second source result");
       expect(second).not.toContain("first source result");
@@ -402,6 +448,167 @@ describe("unified session publication views", () => {
       expect(first).toContain("first source result");
       expect(first).not.toContain("second source result");
     }
+  });
+
+  it.each([
+    [{ stepIndex: 0 }, { stepIndex: 0 }],
+    [
+      { toolCallId: "", stepIndex: 1 },
+      { toolCallId: "", stepIndex: 2 },
+    ],
+    [{ toolCallId: 123, stepIndex: 0 }, { stepIndex: 0 }],
+    [{}, {}],
+    [{ toolName: "bash" }, { toolName: "Bash" }],
+    [{ toolName: "lookup", mcpServerName: "github" }, { toolName: "mcp__github__lookup" }],
+  ])("pairs tools using scoped ID, step, or unique normalized name: %j / %j", (startData, completeData) => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "lookup", ...startData, input: { command: "printf fixture", query: "paired-input" } }, "agent", 0, 2000),
+      event("tool.execution_complete", { toolName: "lookup", ...completeData, success: true, output: "paired-output" }, "agent", 1, 1000),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events), generateConversationMarkdown(events, { formatToolCallback: formatToolUse, formatInitCallback: formatInitializationSummary }).markdown]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const completion = timeline.slice(timeline.indexOf("[3]"));
+      expect(completion).toContain("✓");
+      expect(completion).toContain("paired-output");
+      expect(completion).toContain(startData.toolName?.toLowerCase() === "bash" ? "printf fixture" : "paired-input");
+      expect(completion).not.toContain("[start unavailable]");
+      expect(completion).not.toContain("[pending]");
+    }
+    expect(events).toEqual(original);
+  });
+
+  it.each([{ toolCallId: "missing", stepIndex: 0 }, { stepIndex: 1 }, {}, { stepIndex: -1 }, { stepIndex: 0.5 }])("does not guess a tool pairing for unmatched identities or ambiguous names: %j", completionData => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "lookup", stepIndex: 0, input: "first-input" }, "agent", 0, 0),
+      event("tool.execution_start", { toolName: "lookup", stepIndex: 2, input: "second-input" }, "agent", 1, 1),
+      event("tool.execution_complete", { toolName: "lookup", ...completionData, success: true, output: "orphan-output" }, "agent", 2, 2),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const completion = timeline.slice(timeline.indexOf("[4]"));
+      expect(completion).toContain("[start unavailable]");
+      expect(completion).toContain("orphan-output");
+      expect(completion).not.toContain("first-input");
+      expect(completion).not.toContain("second-input");
+    }
+  });
+
+  it.each([{ stepIndex: 0 }, {}])("isolates fallback pairing by source, phase and conversation: %j", correlation => {
+    const scopes = [
+      { path: "first.jsonl", phase: "agent", sessionId: "root", parentToolUseId: null },
+      { path: "other.jsonl", phase: "agent", sessionId: "root", parentToolUseId: null },
+      { path: "first.jsonl", phase: "retry", sessionId: "root", parentToolUseId: null },
+      { path: "first.jsonl", phase: "agent", sessionId: "second", parentToolUseId: null },
+      { path: "first.jsonl", phase: "agent", sessionId: "root", parentToolUseId: "child" },
+    ];
+    const scoped = (scope, index, type, data) => ({
+      ...event(type, { toolName: "lookup", ...correlation, sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId, ...data }, "agent", index, index, scope.path),
+      provenance: { ...event(type, {}, "agent", index, index, scope.path).provenance, phase: scope.phase },
+    });
+    const events = [
+      header,
+      ...scopes.map((scope, index) => scoped(scope, 0, "tool.execution_start", { input: `scope-input-${index}` })),
+      ...scopes.map((scope, index) => scoped(scope, 1, "tool.execution_complete", { success: true, output: `scope-output-${index}` })),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      for (const index of scopes.keys()) {
+        const completion = timeline.split(`[${index + 7}]`)[1].split(/\n\[\d+\]/)[0];
+        expect(completion).toContain(`✓ lookup("scope-input-${index}")`);
+        expect(completion).toContain(`scope-output-${index}`);
+        expect(completion).not.toContain("[start unavailable]");
+        for (const other of scopes.keys()) {
+          if (other !== index) expect(completion).not.toContain(`scope-input-${other}`);
+        }
+      }
+    }
+  });
+
+  it("keeps the display clock monotonic across regressions, omitted prompts and untimed records", () => {
+    const events = [
+      header,
+      event("assistant.message", { content: "First" }, "agent", 0, 5000),
+      event("assistant.message", { content: "Regressed" }, "agent", 1, 3000),
+      event("vendor.progress", {}, "agent", 2),
+      event("user.message", { content: "PRIVATE_PROMPT" }, "agent", 3, 20000),
+      event("assistant.message", { content: "Still behind" }, "agent", 4, 4000),
+      event("assistant.message", { content: "Caught up" }, "agent", 5, 6000),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      expect(timeline.match(/assistant\.message \+\d+s/g)).toEqual(["assistant.message +0s", "assistant.message +0s", "assistant.message +0s", "assistant.message +1s"]);
+      expect(timeline).toContain("vendor.progress [extension payload omitted] [untimed]");
+      expect(timeline.indexOf("First")).toBeLessThan(timeline.indexOf("Regressed"));
+      expect(timeline.indexOf("Regressed")).toBeLessThan(timeline.indexOf("Still behind"));
+      expect(timeline).not.toMatch(/ -\d+(?:\.\d+)?s/);
+      expect(timeline).not.toContain("PRIVATE_PROMPT");
+    }
+    expect(events).toEqual(original);
+  });
+
+  it("interleaves runtime events and messages, showing results only at completion with elapsed suffixes", () => {
+    const events = [
+      header,
+      event("assistant.message", { content: "Starting work" }, "agent", 0, 1000),
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shell", input: { command: "printf done" } }, "agent", 1, 1250),
+      event("firewall.http_access", { host: "example.com", decision: "allowed" }, "firewall", 0, 2500),
+      event("assistant.reasoning", { content: "Waiting for the command" }, "agent", 2, 2500),
+      event("tool.execution_complete", { toolCallId: "shell", success: true, output: "Command finished" }, "agent", 3, 4500),
+      event("vendor.progress", { content: "PRIVATE_EXTENSION" }, "agent", 4),
+      event("execution.result", { outcome: "success", startedAt: "2026-10-11T00:00:00Z", finishedAt: "2026-10-11T00:01:00Z", durationMs: 60000 }, "execution", 0),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      expect(timeline.indexOf("Starting work")).toBeLessThan(timeline.indexOf("tool.execution_start"));
+      expect(timeline.indexOf("tool.execution_start")).toBeLessThan(timeline.indexOf("firewall.http_access"));
+      expect(timeline.indexOf("firewall.http_access")).toBeLessThan(timeline.indexOf("Waiting for the command"));
+      expect(timeline.indexOf("Waiting for the command")).toBeLessThan(timeline.indexOf("tool.execution_complete"));
+      expect(timeline.indexOf("tool.execution_complete")).toBeLessThan(timeline.indexOf("Command finished"));
+      expect(timeline.slice(0, timeline.indexOf("tool.execution_complete"))).not.toContain("✓");
+      expect(timeline).toContain("assistant.message +0s");
+      expect(timeline).toContain("[started] +0.25s");
+      expect(timeline).toContain("decision=allowed +1.25s");
+      expect(timeline).toContain("assistant.reasoning +0s");
+      expect(timeline).toContain("[succeeded] +2s");
+      expect(timeline).toContain("vendor.progress [extension payload omitted] [untimed]");
+      expect(timeline).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+      expect(timeline).not.toContain("PRIVATE_EXTENSION");
+      expect(output).not.toContain("Agent conversation:");
+    }
+  });
+
+  it("renders update, model, guardrail, permission and skill observations without their private envelopes", () => {
+    const events = [
+      header,
+      event("assistant.message_update", { sourceType: "content_block_delta", contentIndex: 0, partial: true, content: "PRIVATE_UPDATE", usageSnapshot: { inputTokens: 0, outputTokens: 2 } }, "agent", 0),
+      event("model.call_final_result", { model: "fixture", isByok: false, result: { status: "success", stopReason: "end_turn", usage: { inputTokens: 0, outputTokens: 42 }, content: "PRIVATE_MODEL" } }, "agent", 1),
+      event("guardrail.daily_aic", { status: "checked", exceeded: false, total: 0, estimated: 2, threshold: 10 }, "guardrail", 0),
+      event("session.mode_changed", { previousMode: "plan", newMode: "interactive" }, "agent", 2),
+      event("assistant.turn_start", { turnId: "turn-1", interactionId: "interaction-1" }, "agent", 3),
+      event("assistant.turn_end", { turnId: "turn-1" }, "agent", 4),
+      event("permission.requested", { requestId: "request-1", permissionRequest: { kind: "shell", toolCallId: "shell", fullCommandText: "PRIVATE_PERMISSION" } }, "agent", 5),
+      event("permission.completed", { requestId: "request-1", toolCallId: "shell", result: { kind: "approved" }, decisionSource: "user" }, "agent", 6),
+      event("skill.invoked", { name: "developer", content: "PRIVATE_SKILL", source: "project" }, "agent", 7),
+      event("skill.context_delivered_ref", { contentId: "skill-1", prefix: "PRIVATE_PREFIX" }, "agent", 8),
+      event("system.message", { content: "PRIVATE_SYSTEM" }, "agent", 9),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      for (const record of events) expect(output).toContain(record.type);
+      expect(output).toContain("sourceType=content_block_delta contentIndex=0 partial=true");
+      expect(output).toContain("model=fixture isByok=false status=success stopReason=end_turn inputTokens=0 outputTokens=42");
+      expect(output).toContain("exceeded=false total=0 estimated=2 threshold=10");
+      expect(output).toContain("previousMode=plan newMode=interactive");
+      expect(output).toContain("kind=approved");
+      expect(output).toContain("name=developer source=project");
+      expect(output).not.toContain("PRIVATE_");
+      expect(output).not.toContain("[extension payload omitted]");
+    }
+    expect(events).toEqual(original);
   });
 
   it("keeps distinct source scopes when redaction makes their publication labels identical", () => {
@@ -458,10 +665,28 @@ describe("unified session publication views", () => {
       expect(output).toContain("DENIED: ***REDACTED***");
       expect(output).not.toMatch(/^::warning::/m);
     }
-    expect(markdown).toContain("&lt;/details&gt;");
+    expect(markdown).toContain("\n  </details>\n");
     expect(markdown).toContain("\n``````````\n");
     expect(plain).not.toContain("::warning::");
     expect(events).toEqual(original);
+  });
+
+  it("keeps command operators and hostile markup literal inside balanced, payload-safe fences", () => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shell", input: { command: "test -f file && cat file 2>/dev/null" } }, "agent", 0, 0),
+      event("assistant.message", { content: "</details>\n<script>alert('fixture')</script>\n````\n# not a heading" }, "agent", 1, 1),
+    ];
+    const markdown = generateCopilotCliStyleSummary(events);
+    const fences = [...markdown.matchAll(/^(`{5,})$/gm)];
+    expect(fences).toHaveLength(4);
+    expect(new Set(fences.map(match => match[1])).size).toBe(1);
+    expect(markdown).toContain("&&");
+    expect(markdown).toContain("2>/dev/null");
+    expect(markdown).not.toContain("&amp;");
+    expect(markdown).not.toContain("&gt;");
+    expect(markdown.slice(fences[2].index, fences[3].index)).toContain("<script>");
+    expect(markdown.slice(fences[3].index + fences[3][0].length).trim()).toBe("</details>");
   });
 
   it("clips oversized views with explicit notices without trimming the source artifact", () => {
@@ -471,6 +696,19 @@ describe("unified session publication views", () => {
       expect(output).toContain("summary truncated: byte limit reached");
     }
     expect(events.at(-1).data.content).toHaveLength(2000);
+  });
+
+  it("keeps the timeline section visible when the overview uses the byte budget and collects secrets once", () => {
+    const existsSync = vi.spyOn(fs, "existsSync");
+    const events = [header, ...Array.from({ length: 128 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(9000)}.jsonl`))];
+    const output = generateCopilotCliStyleSummary(events);
+    const gatewayConfigChecks = existsSync.mock.calls.filter(([candidate]) => MCP_GATEWAY_CONFIG_PATHS.includes(candidate)).length;
+
+    expect(Buffer.byteLength(output)).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
+    expect(output).toContain("#### Session overview");
+    expect(output).toContain("#### Full timeline");
+    expect(output).toContain("Full timeline omitted: byte limit reached");
+    expect(gatewayConfigChecks).toBe(MCP_GATEWAY_CONFIG_PATHS.length);
   });
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {

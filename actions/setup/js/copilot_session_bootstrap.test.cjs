@@ -138,8 +138,8 @@ describe("Copilot retry session bootstrap", () => {
     const summary = core.summary.addRaw.mock.calls.flat().join("\n");
     expect(summary).toContain("first attempt result");
     expect(summary).toContain("final attempt result");
-    expect(summary).toContain("Agent conversation: agent/sandbox/agent/logs/copilot-session-state/first/events.jsonl");
-    expect(summary).toContain("Agent conversation: agent/sandbox/agent/logs/copilot-session-state/last/events.jsonl");
+    expect(summary).toContain("Agent source: agent/sandbox/agent/logs/copilot-session-state/first/events.jsonl");
+    expect(summary).toContain("Agent source: agent/sandbox/agent/logs/copilot-session-state/last/events.jsonl");
 
     const reconstructed = sessionCLI(["reconstruct", root, "copilot"])
       .trim()
@@ -150,15 +150,21 @@ describe("Copilot retry session bootstrap", () => {
     expect(new Set(starts.map(event => event.provenance.path)).size).toBe(2);
     expect(reconstructed.filter(event => event.type === "tool.execution_complete")).toHaveLength(2);
     const unified = generateCopilotCliStyleSummary(reconstructed);
-    const firstGroup = unified.indexOf("Agent conversation: agent/sandbox/agent/logs/copilot-session-state/first/events.jsonl");
-    const lastGroup = unified.indexOf("Agent conversation: agent/sandbox/agent/logs/copilot-session-state/last/events.jsonl");
-    expect(firstGroup).toBeGreaterThanOrEqual(0);
-    expect(lastGroup).toBeGreaterThan(firstGroup);
-    expect(unified.slice(firstGroup, lastGroup)).toContain("first attempt result");
-    expect(unified.slice(firstGroup, lastGroup)).not.toContain("final attempt result");
-    const finalConversation = unified.slice(lastGroup, unified.indexOf("Chronological trace"));
-    expect(finalConversation).toContain("final attempt result");
-    expect(finalConversation).not.toContain("first attempt result");
+    for (const output of [summary, unified]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const completions = timeline.split(/(?=^\[\d+\] )/m).filter(entry => /^\[\d+\] agent\/agent tool\.execution_complete /m.test(entry));
+      expect(completions).toHaveLength(2);
+      expect(completions[0]).toContain("path=sandbox/agent/logs/copilot-session-state/first/events.jsonl");
+      expect(completions[0]).toContain("✓ $ echo retained");
+      expect(completions[0]).toContain("first attempt result");
+      expect(completions[0]).not.toContain("final attempt result");
+      expect(completions[0]).not.toContain("[start unavailable]");
+      expect(completions[1]).toContain("path=sandbox/agent/logs/copilot-session-state/last/events.jsonl");
+      expect(completions[1]).toContain("✓ $ echo retained");
+      expect(completions[1]).toContain("final attempt result");
+      expect(completions[1]).not.toContain("first attempt result");
+      expect(completions[1]).not.toContain("[start unavailable]");
+    }
   });
 
   it("applies masks from earlier sessions to every published retry conversation", async () => {

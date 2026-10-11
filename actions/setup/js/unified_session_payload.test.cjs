@@ -357,7 +357,8 @@ describe("essential unified session payloads", () => {
       const projected = collapseStreamedMessages(compact);
       expect(projected.filter(event => event.type === "assistant.message").map(event => event.data.content)).toEqual(["Hello world."]);
       const output = generatePlainTextSummary(compact);
-      expect(output.match(/agent\/agent assistant\.message Hello world\./g)).toHaveLength(1);
+      expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(1);
+      expect(output.match(/◆ Hello world\./g)).toHaveLength(1);
     }
   });
 

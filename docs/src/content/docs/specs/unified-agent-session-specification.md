@@ -1300,12 +1300,35 @@ statistics first, and places the detailed fenced trace in a collapsed
 `<details>` section. The console view renders the same observations as plain text.
 Neither view publishes user prompts or dumps unknown extension payloads.
 
+The unified-session view shows source-scoped accounting followed by one full
+timeline, interleaving assistant text, reasoning, tool starts and completions,
+subagent activity, and runtime observations in merged record order. Tool output
+appears at the completion, with source-local identities used for pairing even
+when source timestamps disagree. Pairing prefers a string `toolCallId`, then a
+non-negative safe-integer `stepIndex`; without either, only a unique pending
+normalized tool name in the same source and conversation can match.
+Each timed entry ends with an elapsed `+...s` suffix relative to the preceding
+displayed clock; the first uses `+0s`. The display clock never moves backward:
+regressing timestamps use `+0s` until the source clock exceeds the previous maximum.
+Untimed observations are labeled rather than assigned a clock. Message bodies
+retain multiline terminal-style formatting, and the Actions view fences the
+overview and timeline separately. Stream fragments reconcile within each private
+source and conversation in source-local order; the resulting message appears at
+its first fragment's timeline position without changing the persisted records.
+Literal command operators and HTML stay readable inside payload-safe fences,
+rather than displaying HTML entities; source text cannot close those fences.
+
 | Source event | Display |
 | --- | --- |
 | `session.init` | Merge supplied initialization observations for the display header: engine, observed model, session ID, cwd, tools, MCP status, slash commands, and model information. Missing inventories remain unavailable, not empty. |
 | `user.message` | Retained in the canonical trace; omitted from default publication. |
+| `session.info`, `session.error` | Whitelisted scalar diagnostic metadata and error code/type/message; generic `content` and structured metadata payloads are omitted. |
 | `assistant.message` | Assistant answer, including supported structured native content. |
 | `assistant.reasoning` | Distinct reasoning channel, not converted into an answer or tool output. |
+| `assistant.message_update` | Stream boundary, message/block identity, partial markers, and observed usage; opaque update payloads are omitted. |
+| `model.call_final_result` | Observed model, BYOK flag, stop reason, status, and usage, without the model response envelope. |
+| `guardrail.daily_aic` | Observed budget status, exceeded flag, total, estimate, and threshold, including zero and false. |
+| Permission, turn, mode, and skill lifecycle observations | Explicit lifecycle fields; permission prompts, system instructions, and skill contents are omitted. |
 | `tool.execution_start` | All standard tools, including built-ins and bookkeeping tools; JSON arguments can be objects, arrays, scalars, null, or empty strings. A missing result is visibly pending. |
 | `tool.execution_complete` | Source-proven pairing, separate output and error previews, known success/failure versus unknown outcome, duration, and an explicit missing-start label for orphan results. MCP text-block arrays display their text rather than JSON envelopes; structured errors prioritize their message and code. Empty observed output has an `[empty output]` marker. |
 | `session.result` | Selected accounting, zero-valued metrics, cache counts, structured provider errors, and permission-denial records. Tool statistics separate failed, pending, and unknown outcomes. |
@@ -1333,8 +1356,9 @@ Publication creates redacted copies before shortening previews, so truncation
 cannot expose the prefix of a recognized credential or registered add-mask value.
 Private tool pairing keys remain available internally for correct correlation;
 the final publication text is redacted as well. Source events are unchanged.
-Formatted tool output uses a fence longer than its payload's backtick runs, and
-untrusted inline HTML is escaped rather than treated as summary structure.
+Formatted tool output uses a fence longer than its payload's backtick runs.
+Untrusted inline HTML outside fenced code is escaped rather than treated as
+summary structure.
 
 Both text publication views have a 1000 KiB byte budget, below GitHub Actions'
 1024 KiB hard limit. UTF-8-safe clipping and explicit notices distinguish partial
