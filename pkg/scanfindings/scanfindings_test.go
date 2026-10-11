@@ -2,9 +2,62 @@ package scanfindings
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestNewFinding(t *testing.T) {
+	fileLines := []string{"one", "two", "three", "four", "five"}
+	tests := []struct {
+		name     string
+		severity string
+		line     int
+		column   int
+		lines    []string
+		want     Finding
+	}{
+		{
+			name: "normalizes severity and attaches context", severity: " High ",
+			line: 3, column: 7, lines: fileLines,
+			want: Finding{
+				RuleID: "rule", Severity: SeverityHigh, Message: "native message",
+				File: "workflow.yml", Line: 3, Column: 7, Context: fileLines,
+			},
+		},
+		{
+			name: "preserves absent coordinates", severity: "",
+			want: Finding{
+				RuleID: "rule", Severity: SeverityUnknown, Message: "native message",
+				File: "workflow.yml",
+			},
+		},
+		{
+			name: "preserves negative coordinates", severity: "custom",
+			line: -1, column: -2, lines: fileLines,
+			want: Finding{
+				RuleID: "rule", Severity: SeverityUnknown, Message: "native message",
+				File: "workflow.yml", Line: -1, Column: -2,
+			},
+		},
+		{
+			name: "out of range has no context", severity: "note",
+			line: 9, column: 1, lines: fileLines,
+			want: Finding{
+				RuleID: "rule", Severity: SeverityInfo, Message: "native message",
+				File: "workflow.yml", Line: 9, Column: 1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NewFinding("rule", tt.severity, "native message", "workflow.yml", tt.line, tt.column, tt.lines)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewFinding() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestParseSeverity(t *testing.T) {
 	tests := []struct {
