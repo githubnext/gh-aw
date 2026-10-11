@@ -157,6 +157,23 @@ describe("Claude observed partials and structured payloads", () => {
     expect(events.some(event => ["session.result", "tool.execution_complete"].includes(event.type))).toBe(false);
     expect(projectSessionResult(events)).toBeUndefined();
   });
+  it("keeps a bare canonical-looking refusal envelope opaque", () => {
+    const record = { type: "assistant.refusal", id: "native", parentId: null, timestamp: 0, data: { reason: "refusal", content: " text\n", partial: false, nativeExtra: true } };
+    const original = structuredClone(record);
+    const events = parse([record]);
+    expect(events.map(event => event.type)).toEqual(["claude.assistant.refusal"]);
+    expect(events[0].data).toMatchObject(record.data);
+    expect(project(events).map(event => event.type)).toEqual(["claude.assistant.refusal"]);
+    expect(normalizeClaudeSession(JSON.parse(JSON.stringify(events)))).toEqual(events);
+    expect(record).toEqual(original);
+  });
+  it("preserves a mapped native refusal through saved-session normalization", () => {
+    const events = parse([{ type: "assistant", uuid: "native-refusal", message: { role: "assistant", content: [{ type: "text", text: " text\n" }], stop_reason: "refusal" } }]);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "assistant.refusal", data: { sourceEngine: "claude", reason: "refusal", content: " text\n" } });
+    expect(normalizeClaudeSession(JSON.parse(JSON.stringify(events)))).toEqual(events);
+    expect(project(events)[0]).toMatchObject({ type: "assistant.refusal", data: { reason: "refusal", content: " text\n" } });
+  });
   // Synthetic Messages API/SDK shapes: the inspected CI artifacts do not enable partial-message streaming.
   it("retains mapped stream metadata and final snapshots without duplicate claude records in any serialization", () => {
     const records = [
