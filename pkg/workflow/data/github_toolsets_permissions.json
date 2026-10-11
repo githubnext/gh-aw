@@ -1,6 +1,6 @@
 {
-  "version": "2.5",
-  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: restored semantic search, advisory, and secret scanning tools; search tools remain redistributed to repos/orgs/users/issues; experiments toolset removed; list_org_repository_security_advisories moved orgs->security_advisories; get_label dual-registered in issues; create_pull_request_with_copilot added; find_duplicate added to issues; copilot_issue_intents added)",
+  "version": "2.6",
+  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: restored semantic search, advisory, and secret scanning tools; search tools remain redistributed to repos/orgs/users/issues; experiments toolset removed; list_org_repository_security_advisories moved orgs->security_advisories; get_label dual-registered in issues; create_pull_request_with_copilot added; find_duplicate added to issues; copilot_issue_intents added; governance and Copilot Automation tools added)",
   "toolsets": {
     "actions": {
       "description": "GitHub Actions workflows",
@@ -27,10 +27,20 @@
       "tools": ["get_me", "get_team_members", "get_teams"]
     },
     "copilot": {
-      "description": "GitHub Copilot assignment, review, and coding agent tools",
+      "description": "GitHub Copilot assignment, review, coding agent, and Automation tools",
       "read_permissions": [],
       "write_permissions": ["issues", "pull-requests"],
-      "tools": ["assign_copilot_to_issue", "create_pull_request_with_copilot", "request_copilot_review"]
+      "tools": [
+        "assign_copilot_to_issue",
+        "create_pull_request_with_copilot",
+        "get_automation",
+        "get_automation_revision",
+        "list_automation_revisions",
+        "list_automations",
+        "list_available_automation_tools",
+        "list_available_automation_triggers",
+        "request_copilot_review"
+      ]
     },
     "copilot_issue_intents": {
       "description": "Opt-in Copilot issue assignment tools with intent metadata",
@@ -73,6 +83,12 @@
       "read_permissions": [],
       "write_permissions": [],
       "tools": ["github_support_docs_search"]
+    },
+    "governance": {
+      "description": "Custom properties and repository rulesets (organization and enterprise operations require separate token access)",
+      "read_permissions": ["repository-custom-properties", "organization-custom-properties"],
+      "write_permissions": ["repository-custom-properties", "organization-custom-properties"],
+      "tools": ["custom_properties_read", "custom_properties_write", "repository_ruleset_read"]
     },
     "issues": {
       "description": "Issue management (get_label is also registered here alongside labels)",

@@ -58,6 +58,10 @@ const RUNTIME_FIELDS = {
   requestId: ["requestId", "request_id", "rid"],
 };
 /** @type {Fields} */
+const STEERING_FIELDS = { type: ["type"], threshold: ["threshold"] };
+const STEERING_TYPES = new Set(["ai_credit", "timeout", "token"]);
+const STEERING_THRESHOLDS = new Set([80, 90, 95, 99]);
+/** @type {Fields} */
 const MCP_FIELDS = {
   serverName: ["serverName", "server_name", "server_id"],
   direction: ["direction"],
@@ -274,7 +278,7 @@ const EVENT_FIELDS = {
     bytes: ["bytes"],
     durationMs: ["durationMs", "duration_ms"],
   },
-  "firewall.steering": RUNTIME_FIELDS,
+  "firewall.steering": { ...RUNTIME_FIELDS, threshold: ["threshold"] },
   "firewall.event": RUNTIME_FIELDS,
   "firewall.token_usage": {
     provider: ["provider"],
@@ -288,6 +292,7 @@ const EVENT_FIELDS = {
     totalAic: ["totalAic", "aiCreditsTotal", "ai_credits_total", "ai_credits", "aiCredits"],
     premiumRequests: ["premiumRequests", "premium_requests"],
     durationMs: ["durationMs", "duration_ms"],
+    steering: ["steering"],
   },
   "firewall.model_routing": {
     schema: ["_schema", "schema"],
@@ -325,7 +330,7 @@ const EVENT_FIELDS = {
   "experiment.state": { runId: ["runId", "run_id"], assignments: ["assignments"], counts: ["counts"] },
   "grader.manifest": { version: ["version"] },
   "grader.result": GRADER_FIELDS,
-  "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"], runId: ["runId", "runid"], assignments: ["assignments", "experiments"] },
+  "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"], runId: ["runId", "runid", "run_id"], assignments: ["assignments", "experiments"] },
   "github_api.rate_limit": {
     source: ["source"],
     credentialSource: ["credentialSource", "credential_source"],
@@ -400,6 +405,11 @@ function selectFields(value, fields) {
     if (alias !== undefined) result[key] = structuredClone(value[alias]);
   }
   return result;
+}
+
+/** @param {Record<string, any>} record @returns {any} */
+function evalResultRunId(record) {
+  return EVENT_FIELDS["eval.result"].runId.reduce((runId, alias) => runId ?? record[alias], undefined);
 }
 
 /** @param {any} source @param {Record<string, any>} data @param {Record<string, any>} usage */
@@ -509,6 +519,12 @@ function normalizeUnifiedSessionEvent(event, phase) {
       }
     }
     if (event.type === "usage.report" && phase !== undefined && AIC_RESOLVABLE_PHASES.has(phase)) resolveUsageAic(source, data, usage);
+    if (Object.hasOwn(data, "steering")) {
+      // Keep only the AWF steering notice type and threshold; drop unrecognized notices.
+      const steering = data.steering && typeof data.steering === "object" && !Array.isArray(data.steering) ? selectFields(data.steering, STEERING_FIELDS) : {};
+      if (STEERING_TYPES.has(steering.type) && STEERING_THRESHOLDS.has(steering.threshold)) data.steering = steering;
+      else delete data.steering;
+    }
   }
   if (event.type === "tool.execution_complete" && (source.is_error === true || source.result?.isError === true || source.result?.is_error === true)) data.isError = true;
   if (event.type === "experiment.assignment") {
@@ -542,4 +558,4 @@ function normalizeUnifiedSessionEvent(event, phase) {
   };
 }
 
-module.exports = { normalizeUnifiedSessionEvent };
+module.exports = { normalizeUnifiedSessionEvent, evalResultRunId };

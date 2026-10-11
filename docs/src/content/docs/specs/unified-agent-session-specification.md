@@ -5,7 +5,7 @@ sidebar:
   order: 1365
 version: "1.8.0"
 status: Draft
-publication_date: "2026-10-10"
+publication_date: "2026-10-11"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -15,7 +15,7 @@ editors:
 
 **Version**: 1.8.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-10<br>
+**Publication Date**: 2026-10-11<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -405,6 +405,19 @@ collection MUST NOT leave a stale or partially written unified output eligible
 for upload. Artifact paths MUST NOT follow symbolic links. Any source traversal
 limit MUST produce a coverage warning.
 
+Grader and eval result collection MUST import only records attributed to the
+current run, not restored historical results. Runner-owned `aw_info.json`
+supplies the run ID and available attempt; the supplied collector environment
+(defaulting to the process environment) supplies them only when recorded run
+identity is absent. An explicit environment snapshot MUST NOT borrow run identity
+from the ambient process. Records from other runs or
+explicitly different attempts are excluded without changing source artifacts.
+Unattributed results or an unavailable current run ID produce collection
+warnings and are omitted. Retained records preserve their original source
+indices; evals without attempt metadata are selected by run ID. Warning line
+numbers refer to original JSONL lines, including skipped blank or malformed
+lines; JSON result arrays do not supply file line numbers.
+
 **T-UAS-060 — Publication boundary.** Both persisted canonical agent events and
 the unified session MUST apply the artifact secret/add-mask policy before JSON
 serialization. Redaction MUST process decoded string values, including native
@@ -632,7 +645,12 @@ source for opaque fields.
 `firewall.token_usage` and its `usage.report` alias expose the following
 source-dependent fields: `provider`, `model`, `purpose` (for example `agent`,
 `subagent`, or `routing_classification`), `path`, `xInitiator`, `requestId`,
-`status`, `durationMs`, `aic`, `totalAic`, `premiumRequests`, and `usage`.
+`status`, `durationMs`, `aic`, `totalAic`, `premiumRequests`, `steering`, and
+`usage`. `steering` is the AWF notice delivered on that request, retaining only
+its `type` (`ai_credit`, `timeout`, or `token`) and `threshold` (80, 90, 95, or
+99); unrecognized values are dropped. `firewall.steering` retains the event-log
+`threshold` and maps `ai_credit_steering`, `token_steering`, and
+`timeout_steering` events.
 Consumers identify router and classifier traffic by `purpose`; a missing
 `purpose` means unknown, not agent.
 
@@ -640,6 +658,12 @@ Consumers identify router and classifier traffic by `purpose`; a missing
 `purpose`, `path`, and `xInitiator` values on `firewall.token_usage` and
 `usage.report` events. A consumer MUST treat a missing `purpose` as unknown and
 MUST NOT classify the event as agent traffic by default.
+
+**T-UAS-071 — Firewall steering notices.** A producer MUST preserve a supplied
+`steering` notice type and threshold on `firewall.token_usage` and
+`usage.report` events. A consumer MUST treat a missing `steering` field as "no
+notice recorded", not "no notice delivered", because earlier AWF versions never
+write it.
 
 **T-UAS-062 — Observation semantics.** A merger MUST NOT sum overlapping agent,
 firewall, or accounting observations to produce another session total. Readers
@@ -1276,12 +1300,35 @@ statistics first, and places the detailed fenced trace in a collapsed
 `<details>` section. The console view renders the same observations as plain text.
 Neither view publishes user prompts or dumps unknown extension payloads.
 
+The unified-session view shows source-scoped accounting followed by one full
+timeline, interleaving assistant text, reasoning, tool starts and completions,
+subagent activity, and runtime observations in merged record order. Tool output
+appears at the completion, with source-local identities used for pairing even
+when source timestamps disagree. Pairing prefers a string `toolCallId`, then a
+non-negative safe-integer `stepIndex`; without either, only a unique pending
+normalized tool name in the same source and conversation can match.
+Each timed entry ends with an elapsed `+...s` suffix relative to the preceding
+displayed clock; the first uses `+0s`. The display clock never moves backward:
+regressing timestamps use `+0s` until the source clock exceeds the previous maximum.
+Untimed observations are labeled rather than assigned a clock. Message bodies
+retain multiline terminal-style formatting, and the Actions view fences the
+overview and timeline separately. Stream fragments reconcile within each private
+source and conversation in source-local order; the resulting message appears at
+its first fragment's timeline position without changing the persisted records.
+Literal command operators and HTML stay readable inside payload-safe fences,
+rather than displaying HTML entities; source text cannot close those fences.
+
 | Source event | Display |
 | --- | --- |
 | `session.init` | Merge supplied initialization observations for the display header: engine, observed model, session ID, cwd, tools, MCP status, slash commands, and model information. Missing inventories remain unavailable, not empty. |
 | `user.message` | Retained in the canonical trace; omitted from default publication. |
+| `session.info`, `session.error` | Whitelisted scalar diagnostic metadata and error code/type/message; generic `content` and structured metadata payloads are omitted. |
 | `assistant.message` | Assistant answer, including supported structured native content. |
 | `assistant.reasoning` | Distinct reasoning channel, not converted into an answer or tool output. |
+| `assistant.message_update` | Stream boundary, message/block identity, partial markers, and observed usage; opaque update payloads are omitted. |
+| `model.call_final_result` | Observed model, BYOK flag, stop reason, status, and usage, without the model response envelope. |
+| `guardrail.daily_aic` | Observed budget status, exceeded flag, total, estimate, and threshold, including zero and false. |
+| Permission, turn, mode, and skill lifecycle observations | Explicit lifecycle fields; permission prompts, system instructions, and skill contents are omitted. |
 | `tool.execution_start` | All standard tools, including built-ins and bookkeeping tools; JSON arguments can be objects, arrays, scalars, null, or empty strings. A missing result is visibly pending. |
 | `tool.execution_complete` | Source-proven pairing, separate output and error previews, known success/failure versus unknown outcome, duration, and an explicit missing-start label for orphan results. MCP text-block arrays display their text rather than JSON envelopes; structured errors prioritize their message and code. Empty observed output has an `[empty output]` marker. |
 | `session.result` | Selected accounting, zero-valued metrics, cache counts, structured provider errors, and permission-denial records. Tool statistics separate failed, pending, and unknown outcomes. |
@@ -1309,8 +1356,9 @@ Publication creates redacted copies before shortening previews, so truncation
 cannot expose the prefix of a recognized credential or registered add-mask value.
 Private tool pairing keys remain available internally for correct correlation;
 the final publication text is redacted as well. Source events are unchanged.
-Formatted tool output uses a fence longer than its payload's backtick runs, and
-untrusted inline HTML is escaped rather than treated as summary structure.
+Formatted tool output uses a fence longer than its payload's backtick runs.
+Untrusted inline HTML outside fenced code is escaped rather than treated as
+summary structure.
 
 Both text publication views have a 1000 KiB byte budget, below GitHub Actions'
 1024 KiB hard limit. UTF-8-safe clipping and explicit notices distinguish partial
@@ -1424,6 +1472,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-067 | Repeated native/canonical/detector error observations, live timeout evidence, final-zero and missing exits, malformed or duplicate aggregate records, quoted errors and tool failures | One deterministic `agent.execution` record with distinct native codes/types, stable categories, observed exit precedence, unchanged error evidence, and matching JS/Go reader validation. |
 | T-UAS-068 | Goose stream messages/deltas, tool requests/results, cumulative completion usage, source-second timestamps, malformed records, error-only and partial sessions | Exact supported content and IDs, observed outcomes only, no duplicated snapshots or invented partial results, explicit diagnostics. |
 | T-UAS-070 | Firewall token usage with supplied or absent purpose/path/initiator; `usage.report` alias | Supplied routing metadata survives projection; consumers treat absent purpose as unknown, not agent. |
+| T-UAS-071 | Firewall token usage with supplied, absent, or malformed `steering`; AI-credit, token, and time steering event-log entries | Type and threshold survive projection, malformed notices are dropped, steering events keep threshold and request ID, and absent notices remain unrecorded rather than undelivered. |
 
 ### 9.3 Engine and integration fixture matrix
 
@@ -1907,11 +1956,15 @@ Native IDs can collide, timestamps can be out of order, and a trace can contain 
 
 ## 13. Change Log (Informative)
 
-### Version 1.8.0 — Draft (2026-10-10)
+### Version 1.8.0 — Draft (2026-10-11)
 
+- Added the AWF `steering` notice to `firewall.token_usage` and `usage.report` (T-UAS-071).
+- Mapped `ai_credit_steering` to `firewall.steering` and retained steering thresholds.
+- Added the `model_endpoint.mismatch` harness observation from `agent/model-endpoint-mismatch.json` and the `model_endpoint_mismatch_error` category.
 - Preserved sequential source order across missing timestamps and clock regressions while interleaving agent, AWF, MCPG, and GitHub API evidence.
 - Imported local OTLP spans, span events, and log messages with resource/scope context and nanosecond ordering; kept publication summaries metadata-only.
 - Updated the ordering validator and regression coverage without changing the numeric serialization-format version.
+- Retained serialization-format version 1.
 
 ### Version 1.7.0 — Draft (2026-10-09)
 

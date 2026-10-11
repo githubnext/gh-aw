@@ -8,6 +8,8 @@ const crypto = require("crypto");
 
 const {
   main,
+  mainFromEnvironment,
+  readGraderEnvironment,
   preprocessTrace,
   findAgentEventsFiles,
   extractNativeToolCalls,
@@ -1453,6 +1455,103 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
   });
 
+  describe("code-read-precision built-in grader", () => {
+    const reference = { patch: { files: ["pkg/a.go", { path: "./pkg/a.go" }, { path: "/pkg/b.go" }, "pkg/unread.go"] } };
+    const read = target => ({ type: "read", target, consequential: false });
+    const run = ir => runTrajectoryBuiltin("code-read-precision", { trajectoryIR: ir });
+
+    it("scores distinct file reads, not reference recall or action frequency", () => {
+      const result = run({
+        reference,
+        actions: [
+          read(" pkg/a.go "),
+          read("./pkg/a.go"),
+          { type: "inspect", target: "/pkg/b.go", consequential: false },
+          read("pkg/unrelated.go"),
+          { type: "search", target: "pkg/other.go", consequential: false },
+          { type: "list", target: "pkg/listed.go", consequential: false },
+          { type: "edit", target: "pkg/edited.go", consequential: true },
+          { type: "read", target: "pkg/mutated.go", consequential: true },
+          { type: "thread", target: "pkg/thread.go", consequential: false },
+        ],
+        resources: [{ kind: "file", uri: "pkg/unread.go" }],
+      });
+      expect(result.value).toBeCloseTo(2 / 3);
+      expect(result).toMatchObject({ source: "builtin", status: "pass", unit: "ratio" });
+      expect(TRAJECTORY_GRADER_META["code-read-precision"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
+      expect(result.details).toBe("referenceFiles=3 readFiles=3 relevant=2; unrelated reads: pkg/unrelated.go");
+    });
+
+    it.each([
+      ["all relevant", [read("pkg/a.go"), read("pkg/b.go")], 1],
+      ["none relevant", [read("pkg/A.go"), read("pkg/elsewhere.go")], 0],
+    ])("scores %s reads", (_name, actions, value) => {
+      expect(run({ reference, actions }).value).toBe(value);
+    });
+
+    it.each(["root", "trajectoryIR", "trajectoryIr", "ir", "agentOutput", "agentOutput.trajectoryIR", "agentOutput.trajectoryIr", "agentOutput.trajectory"])("accepts the %s canonical IR location", location => {
+      const ir = { reference, actions: [read("pkg/a.go")] };
+      const trace = location === "root" ? ir : location.split(".").reduceRight((value, key) => ({ [key]: value }), ir);
+      expect(runTrajectoryBuiltin("code-read-precision", trace).value).toBe(1);
+    });
+
+    it.each([
+      ["missing reference", { actions: [read("pkg/a.go")] }, "no reference patch files"],
+      ["malformed reference", { reference: { patch: { files: "pkg/a.go" } }, actions: [] }, "no reference patch files"],
+      ["empty reference", { reference: { patch: { files: [] } }, actions: [] }, "no reference patch files"],
+      ["missing reference path", { reference: { patch: { files: [{}] } }, actions: [] }, "missing a path"],
+      ["invalid reference path", { reference: { patch: { files: [{ path: 42 }] } }, actions: [] }, "missing a path"],
+      ["empty reference path", { reference: { patch: { files: [" ./ "] } }, actions: [] }, "missing a path"],
+      ["missing actions", { reference }, "well-formed actions"],
+      ["non-array actions", { reference, actions: {} }, "well-formed actions"],
+      ["non-record action", { reference, actions: [read("pkg/a.go"), null] }, "well-formed actions"],
+      ["missing type", { reference, actions: [read("pkg/a.go"), { consequential: false }] }, "missing a type"],
+      ["missing flag", { reference, actions: [{ type: "read", target: "pkg/a.go" }] }, "consequential flag"],
+      ["invalid flag", { reference, actions: [{ ...read("pkg/a.go"), consequential: "false" }] }, "consequential flag"],
+      ["missing target", { reference, actions: [read("pkg/a.go"), read(null)] }, "file target"],
+      ["invalid target", { reference, actions: [read(42)] }, "file target"],
+      ["empty target", { reference, actions: [read(" / ")] }, "file target"],
+      ["no reads", { reference, actions: [] }, "no file reads"],
+      ["searches only", { reference, actions: [{ type: "search", target: null, consequential: false }] }, "no file reads"],
+    ])("reports %s as unavailable without fabricating a score", (_name, ir, reason) => {
+      const result = run(ir);
+      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable", source: "builtin" });
+      expect(result.message).toContain(reason);
+    });
+
+    it("does not merge evidence from unrelated IR candidates", () => {
+      const result = runTrajectoryBuiltin("code-read-precision", { reference, agentOutput: { actions: [read("pkg/a.go")] } });
+      expect(result.status).toBe("unavailable");
+      expect(result.message).toContain("well-formed actions");
+    });
+
+    it.each(["actions", "reference.patch.files"])("rejects oversized %s", collection => {
+      const ir = { reference, actions: [read("pkg/a.go")] };
+      const oversized = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, () => (collection === "actions" ? read("pkg/a.go") : "pkg/a.go"));
+      if (collection === "actions") ir.actions = oversized;
+      else ir.reference = { patch: { files: oversized } };
+      const result = run(ir);
+      expect(result.status).toBe("unavailable");
+      expect(result.message).toContain(`${collection} exceeds ${MAX_TRAJECTORY_ITEMS} items`);
+    });
+
+    it("computes at the size limit with bounded diagnostic output", () => {
+      const longPath = `pkg/${"x".repeat(10_000)}.go`;
+      const actions = [read(longPath), ...Array.from({ length: MAX_TRAJECTORY_ITEMS - 1 }, (_, index) => read(`pkg/${index}.go`))];
+      const files = actions.map(action => action.target);
+      const started = performance.now();
+      expect(run({ reference: { patch: { files } }, actions }).value).toBe(1);
+      const unrelated = run({ reference, actions });
+      expect(unrelated.value).toBe(0);
+      expect(unrelated.details).toContain(`${longPath.slice(0, 117)}...`);
+      expect(unrelated.details).not.toContain(longPath);
+      expect(unrelated.details).toContain("pkg/3.go");
+      expect(unrelated.details).not.toContain("pkg/4.go");
+      expect(unrelated.details.length).toBeLessThan(1000);
+      expect(performance.now() - started).toBeLessThan(1000);
+    });
+  });
+
   // --- Hostile data ---
   describe("hostile data handling", () => {
     it("handles hostile strings in tool call names", () => {
@@ -1853,7 +1952,7 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
 
     it("includes every trajectory grader", () => {
-      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(22);
+      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(23);
       expect(Object.keys(TRAJECTORY_GRADER_META).sort()).toEqual(Object.keys(TRAJECTORY_GRADERS).sort());
     });
 
@@ -1903,12 +2002,35 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
     afterEach(() => {
       global.core = originalCore;
+      vi.unstubAllEnvs();
     });
 
-    it("runs every built-in grader even when the manifest lists only custom graders", async () => {
+    it("reads JSON chunks from the environment without evaluating their contents", async () => {
+      const manifest = { version: 1, graders: [{ id: "env-metric", name: "'${{ secrets.TOKEN }}' 世界", source: "inline", enabled: true }] };
+      const payload = JSON.stringify(manifest).replaceAll("$", "\\u0024");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", "2");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", payload.slice(0, 50));
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_1", payload.slice(50));
+      vi.stubEnv("GH_AW_GRADER_EXEC_CHUNKS", "1");
+      vi.stubEnv("GH_AW_GRADER_EXEC_0", JSON.stringify([{ id: "env-metric", script: "return {value: 7};" }]));
+      expect(readGraderEnvironment("GH_AW_GRADER_MANIFEST")).toEqual(manifest);
+      await mainFromEnvironment();
+      const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
+      expect(output.results.find(result => result.id === "env-metric")).toMatchObject({ value: 7 });
+      expect(global.core.setFailed).not.toHaveBeenCalled();
+    });
+
+    it.each(["missing", "invalid-count", "missing-chunk", "malformed-json"])("fails explicitly for %s environment payloads", async scenario => {
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", scenario === "missing" ? undefined : scenario === "invalid-count" ? "NaN" : "1");
+      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", scenario === "malformed-json" ? "{" : undefined);
+      await mainFromEnvironment();
+      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("failed to parse environment payloads"));
+    });
+
+    it.each(["json", "legacy-base64"])("runs every built-in grader with %s inputs even when the manifest lists only custom graders", async format => {
       const manifest = { version: 1, graders: [{ id: "my-metric", name: "My Metric", source: "inline", enabled: true, unit: "count" }] };
       const execSpec = [{ id: "my-metric", script: "return { value: 1 };" }];
-      await main(Buffer.from(JSON.stringify(manifest)).toString("base64"), Buffer.from(JSON.stringify(execSpec)).toString("base64"));
+      await main(format === "json" ? manifest : Buffer.from(JSON.stringify(manifest)).toString("base64"), format === "json" ? execSpec : Buffer.from(JSON.stringify(execSpec)).toString("base64"));
 
       const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
       const ids = output.results.map(r => r.id);

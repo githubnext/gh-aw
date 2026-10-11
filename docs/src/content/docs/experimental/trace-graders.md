@@ -62,6 +62,15 @@ These built-ins are deterministic projections over the canonical [Trajectory IR]
 | `tool-wise-score` | Longest correct execution prefix against a reference trajectory, with parameter credit | 0–1 |
 | `trajectory-ndtw` | Normalized dynamic time warping similarity to a reference state trajectory | 0–1 |
 | `code-search-recall` | Fraction of reference patch files located during the run | 0–1 |
+| `code-read-precision` | Fraction of distinct read or inspected files touched by the reference patch | 0–1 |
+
+`code-read-precision` uses file-level evidence, not symbols: distinct `actions[].target`
+paths whose `type` is exactly `read` or `inspect` and whose `consequential` flag is
+`false`. The score is the number of those files in `reference.patch.files[]`
+divided by the number of distinct read/inspected files. Reference files may be
+strings or `{ path }` records. Paths are trimmed and leading `./` or `/` is
+stripped, as for `code-search-recall`. Missing reference data, malformed required
+fields and runs without file reads report `unavailable`.
 
 `skill-constraint-coverage` reads its constraints from `config.constraints`:
 

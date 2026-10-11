@@ -74,7 +74,7 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `actions` | Workflow introspection, triggering runs |
 | `code_quality` | Code quality finding lookups |
 | `code_security` | Code scanning alert management |
-| `copilot` | Copilot assignment, PR creation, and review requests |
+| `copilot` | Copilot assignment, PR creation, review requests, and Automation tools |
 | `copilot_issue_intents` | Intent-aware Copilot issue assignment |
 | `copilot_spaces` | GitHub Copilot Spaces (remote mode only) |
 | `dependabot` | Dependency vulnerability management |
@@ -82,6 +82,7 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `gists` | Gist creation and management |
 | `git` | Git API operations (tree, refs) |
 | `github_support_docs_search` | GitHub support documentation search (remote mode only) |
+| `governance` | Custom properties and repository rulesets (organization/enterprise access requires appropriate credentials) |
 | `labels` | Label management automation |
 | `notifications` | Notification processing agents |
 | `orgs` | Organization search operations |

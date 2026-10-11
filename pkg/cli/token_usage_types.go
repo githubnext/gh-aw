@@ -39,6 +39,81 @@ type TokenUsageEntry struct {
 	AICreditsThisResponse   json.RawMessage `json:"ai_credits_this_response,omitempty"`
 	AICreditsTotal          json.RawMessage `json:"ai_credits_total,omitempty"`
 	InputTokensIncludeCache json.RawMessage `json:"input_tokens_include_cache,omitempty"`
+	// Steering is the AWF steering notice delivered on this request, if any.
+	// Older AWF versions never record it, so nil means "no notice recorded".
+	Steering *TokenUsageSteering `json:"steering,omitempty"`
+}
+
+// TokenUsageSteering is the steering notice AWF attached to a model request.
+type TokenUsageSteering struct {
+	Type      string            `json:"type"`      // ai_credit, timeout or token
+	Threshold steeringThreshold `json:"threshold"` // 80, 90, 95 or 99 (percent of the budget used)
+}
+
+// UnmarshalJSON decodes a steering notice leniently so that an unexpected shape
+// never prevents the surrounding token-usage record from being read.
+func (s *TokenUsageSteering) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Type      json.RawMessage   `json:"type"`
+		Threshold steeringThreshold `json:"threshold"`
+	}
+	*s = TokenUsageSteering{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+	var steeringType string
+	if err := json.Unmarshal(raw.Type, &steeringType); err == nil {
+		s.Type = steeringType
+	}
+	s.Threshold = raw.Threshold
+	return nil
+}
+
+// valid reports whether the notice carries a known AWF steering type and
+// threshold, matching the unified session schema.
+func (s *TokenUsageSteering) valid() bool {
+	if s == nil {
+		return false
+	}
+	switch s.Type {
+	case "ai_credit", "timeout", "token":
+	default:
+		return false
+	}
+	switch s.Threshold {
+	case 80, 90, 95, 99:
+		return true
+	default:
+		return false
+	}
+}
+
+// steeringThreshold is a budget percentage that decodes leniently: any value
+// other than exactly 80, 90, 95 or 99 (including fractions, strings and other
+// percentages) decodes to zero instead of failing the enclosing record.
+type steeringThreshold int
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (t *steeringThreshold) UnmarshalJSON(data []byte) error {
+	*t = 0
+	var value float64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil
+	}
+	switch value {
+	case 80, 90, 95, 99:
+		*t = steeringThreshold(value)
+	}
+	return nil
+}
+
+// SteeringNotice is an AWF steering notice delivered on a model request, read
+// from firewall.token_usage events in the unified session.
+type SteeringNotice struct {
+	Type      string `json:"type" console:"header:Type"`
+	Threshold int    `json:"threshold" console:"header:Threshold"`
+	RequestID string `json:"request_id,omitempty" console:"header:Request ID,omitempty"`
+	Phase     string `json:"phase,omitempty" console:"header:Phase,omitempty"`
 }
 
 // AmbientContextMetrics captures token footprint for the first LLM invocation.
@@ -67,10 +142,14 @@ type TokenUsageSummary struct {
 	DeclaredSubagentModels []SubagentModelRequest      `json:"declared_subagent_models,omitempty"`
 	SubagentModelActuals   []SubagentModelActual       `json:"subagent_model_actuals,omitempty"`
 	AgentUsage             []AgentUsageBreakdown       `json:"agent_usage,omitempty"`
-	MismatchCount          int                         `json:"mismatch_count,omitempty"`
-	Warnings               []string                    `json:"warnings,omitempty"`
-	agentModels            map[string]*ModelTokenUsage
-	endpoint               string
+	SteeringNotices        []SteeringNotice            `json:"steering_notices,omitempty" console:"-"`
+	// SteeringNoticesUnavailable is true when the unified session could not be
+	// read, so the absence of steering_notices does not mean "no notices".
+	SteeringNoticesUnavailable bool     `json:"steering_notices_unavailable,omitempty" console:"-"`
+	MismatchCount              int      `json:"mismatch_count,omitempty"`
+	Warnings                   []string `json:"warnings,omitempty"`
+	agentModels                map[string]*ModelTokenUsage
+	endpoint                   string
 }
 
 // ModelTokenUsage contains per-model token usage statistics
@@ -196,6 +275,10 @@ type proxyEventsEntry struct {
 	Message string `json:"message"`
 	// Optional RFC3339/RFC3339Nano timestamp (not always present).
 	Timestamp string `json:"timestamp"`
+	// Request ID and budget threshold (present on steering events from AWF releases
+	// that include gh-aw-firewall#9790).
+	RequestID string            `json:"request_id"`
+	Threshold steeringThreshold `json:"threshold"`
 }
 
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
@@ -208,5 +291,7 @@ const modelMismatchReasonModelNotObserved = "REQUESTED_MODEL_NOT_OBSERVED"
 const modelMismatchReasonSubagentFailed = "SUBAGENT_FAILED"
 const tokenSteeringEventName = "token_steering"
 const timeoutSteeringEventName = "timeout_steering"
+const aiCreditSteeringEventName = "ai_credit_steering"
 const awfTokenWarningPrefix = "[AWF TOKEN WARNING]"
 const awfTimeWarningPrefix = "[AWF TIME WARNING]"
+const awfAICreditWarningPrefix = "[AWF AI CREDIT WARNING]"
