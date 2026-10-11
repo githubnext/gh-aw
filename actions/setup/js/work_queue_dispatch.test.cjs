@@ -21,7 +21,7 @@ import { assignmentOnly } from "./work_queue_scheduler.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { validateStoredAssignment } from "./work_queue_binding.cjs";
 import { authenticatePublisher } from "./work_queue_native.cjs";
-import { requestForIntent } from "./work_queue_intents.cjs";
+import { requestForIntent, stagePlanIntents } from "./work_queue_intents.cjs";
 import { canonical, digest } from "./work_queue_codec.cjs";
 import { queueFixture, DISPATCHER, REF, REPOSITORY } from "./work_queue_lifecycle.test_helpers.cjs";
 import { fakeGitHub } from "./work_queue_store_checks.cjs";
@@ -1409,6 +1409,49 @@ describe("native queue launch fencing and conservative recovery", () => {
       expect(publish).not.toHaveBeenCalled();
       expect(post).not.toHaveBeenCalled();
       expect([...fixture.state.claims.values()].every(claim => claim.state === "open")).toBe(true);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["absent", "empty"])("fails an unassigned dispatcher with %s intents instead of reporting a successful activation", async state => {
+    const { options, post } = setup({ granted: false });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-missing-intents-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+    const publish = vi.fn(options.publishWorkQueueRequest);
+    try {
+      if (state === "empty") fs.writeFileSync(filename, "");
+      const direct = await processWorkQueueIntents({ ...options, assignment: null, role: "dispatcher", intentPath: filename, publishWorkQueueRequest: publish });
+      expect(direct.receipts).toEqual([{ reason: "work_queue_dispatcher_intents_missing", status: "blocked" }]);
+      const result = await publishQueueControls({ ...options, assignment: null, role: "dispatcher", intentPath: filename, publishWorkQueueRequest: publish, core });
+      expect(result).toMatchObject({ status: "recovery_required", success: false });
+      expect(result.receipts).toEqual([{ reason: "work_queue_dispatcher_intents_missing", status: "blocked" }]);
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("produced no control intents"));
+      expect(publish).not.toHaveBeenCalled();
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects dispatcher intents appended to a trusted prepared plan before admission", async () => {
+    const { options, post } = setup({ granted: false });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-prepared-plan-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const publish = vi.fn(options.publishWorkQueueRequest);
+    const plan = {
+      version: 1,
+      nodes: [{ pool: "default", payload: { task: "prepared" } }],
+      dispatch: { pool: "default", max_claims: 1, max_dispatches: 1 },
+    };
+    try {
+      stagePlanIntents(filename, plan);
+      fs.appendFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "agent-extra", kind: "dispatch_next", parameters: plan.dispatch })}\n`);
+      const result = await processWorkQueueIntents({ ...options, assignment: null, role: "dispatcher", intentPath: filename, publishWorkQueueRequest: publish });
+      expect(result.receipts).toEqual([{ reason: "work_queue_plan_intent_batch_invalid", status: "blocked" }]);
+      expect(publish).not.toHaveBeenCalled();
+      expect(post).not.toHaveBeenCalled();
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

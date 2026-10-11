@@ -4,6 +4,8 @@ description: Admits daily ESLint factory tasks and dispatches queued work to the
 on:
   schedule: daily
   workflow_dispatch:
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -17,7 +19,6 @@ tools:
 safe-outputs:
   dispatch-workflow:
     workflows: [eslint-miner, eslint-refiner, eslint-monster]
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
     target-ref: ${{ github.event.repository.default_branch }}
     max: 3
   noop:
@@ -29,6 +30,7 @@ steps:
         const fs = require("node:fs");
         const path = require("node:path");
         const { buildESLintFactoryPlan } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/eslint_factory_portfolio.cjs"));
+        const { stagePlanIntents } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/work_queue_intents.cjs"));
         const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: context.runId });
         const { data: repository } = await github.rest.repos.get(context.repo);
         const plan = buildESLintFactoryPlan({
@@ -38,6 +40,7 @@ steps:
         });
         fs.mkdirSync("/tmp/gh-aw/agent", { recursive: true });
         fs.writeFileSync("/tmp/gh-aw/agent/eslint-factory-plan.json", JSON.stringify(plan));
+        stagePlanIntents(path.join(process.env.RUNNER_TEMP, "gh-aw/safeoutputs/work-queue/work-queue.intents.jsonl"), plan);
         core.info(`ESLint factory cohort ${plan.date}: ${plan.nodes.length} tasks`);
 timeout-minutes: 15
 strict: true
@@ -55,9 +58,8 @@ Read the activation snapshot first with `work_queue_read`, using
 `"uninitialized"` with a null snapshot SHA means the queue branch does not
 exist yet. Treat it as an empty backlog; the first trusted producer submission
 will atomically bootstrap the branch with its compiler-approved Policy and Work.
-Do not dispatch until that submission has been admitted. Surface read/tool
-errors explicitly; never turn an error or an existing policyless ledger into an
-empty-backlog report.
+Surface read/tool errors explicitly; never report an existing policyless ledger
+as an empty backlog.
 
 When `<mcp-clis>` advertises the wrappers, invoke their subcommands with one JSON
 argument through the shell tool:
@@ -68,22 +70,19 @@ work-queue work_queue_read '{"pool":"default","limit":32}'
 
 Use the advertised MCP tools directly when wrappers are not available.
 
-Submit the prepared cohort whether the queue is initialized or absent:
-Call `work_queue_submit` once with
-`{"nodes": <the plan.nodes array>}` before requesting any grants. Date-keyed
+The prepared cohort is submitted whether the queue is initialized or absent,
+with `{"nodes": <the plan.nodes array>}` before requesting any grants. Date-keyed
 graph/node identities make repeated submissions on the same UTC day idempotent,
 including manual runs and reruns. Do not change stored task payloads on retries
 or replace admitted Work. AW authorizes trusted participants; the installed
 Policy controls scheduling for pool `default`, priority `3`, and accounting key
 `""`. A failed admission is not permission to bypass scheduling bounds.
-With CLI wrappers, use the `work-queue work_queue_submit` subcommand with one
-JSON argument containing the exact stored nodes. Submission is also a staged
-intent, not proof of durable admission.
+Submission is a staged intent, not proof of durable admission.
 
-Then request the trusted scheduler's fair prefix once, using `plan.dispatch`:
+The following request is already staged from `plan.dispatch`:
 
-```bash
-work-queue work_queue_dispatch_next '{"pool":"default","max_claims":3,"max_dispatches":3}'
+```json
+{"pool":"default","max_claims":3,"max_dispatches":3}
 ```
 
 Keep the request within the installed pool policy and this workflow's dispatch
@@ -106,10 +105,13 @@ choose or modify Policy. If bootstrap or admission fails, report the failure; do
 not bypass it with `noop` or ordinary worker dispatch.
 
 Scheduling overrides are shared in `.github/workflows/aw.json` under
-`work_queue`. AW selects the launch credential and pins declared worker routes
+`work_queue`. Trusted `safe-outputs.dispatch-workflow` processing uses the
+built-in Actions token with `actions: write`; no custom launch secret is required.
+AW pins declared worker routes
 to the immutable workflow revision; it binds each actual native run to its
 Claim. The first accepted submission automatically creates the queue with
 compiled Policy and Work; no administrator seed is required.
-Changing scheduling or worker revisions after bootstrap requires a quiescent
-queue and an administrator Policy update; editing this proposal alone cannot
-replace installed Policy.
+Changing economic scheduling after bootstrap requires a quiescent queue and an
+administrator Policy update. Compatible worker revisions evolve through trusted
+deployment reconciliation; editing this proposal alone cannot replace installed
+Policy.
