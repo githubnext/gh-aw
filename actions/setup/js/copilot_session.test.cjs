@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { parseCopilotLog, parseDebugLogFormat, parsePrettyPrintFormat } = require("./parse_copilot_log.cjs");
 const { normalizeCopilotSession } = require("./copilot_session.cjs");
-const { projectSessionResult, sessionTokenTotal, sessionToolSuccess } = require("./agent_session.cjs");
+const { normalizeAgentSession, projectSessionResult, sessionTokenTotal, sessionToolSuccess } = require("./agent_session.cjs");
 
 // Sanitized real shapes, not raw traces:
 // Smoke Copilot failure: https://github.com/github/gh-aw/actions/runs/36946387975
@@ -100,6 +100,28 @@ const debugBlock = (response, rust = true) => {
 };
 
 describe("Copilot real CI shape projections", () => {
+  it.each(["arguments", "parameters", "args", "toolInput"])("retains the %s SDK input alias through centralized enrichment", alias => {
+    const native = [
+      { type: "tool.execution_start", id: "start", data: { toolCallId: "tool", toolName: "bash", mcpServerName: "", [alias]: { command: "  echo sanitized\n" } } },
+      { type: "tool.execution_complete", id: "end", data: { toolCallId: "tool", success: false, error: { code: "DENIED" } } },
+    ];
+    const original = structuredClone(native);
+    const normalized = normalizeCopilotSession(native);
+    expect(normalized[0].data).toMatchObject({ [alias]: original[0].data[alias], input: { command: "  echo sanitized\n" }, command: "  echo sanitized\n" });
+    expect(normalized[1].data).toMatchObject({ toolName: "bash", mcpServerName: "", success: false, error: { code: "DENIED" } });
+    expect(native).toEqual(original);
+    expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
+  });
+
+  it("does not overwrite explicit SDK tool evidence with aliases or correlated start data", () => {
+    const native = [
+      { type: "tool.execution_start", data: { toolCallId: "tool", toolName: "bash", mcpServerName: "original", input: null, command: "", arguments: { command: "not authoritative" }, parameters: false } },
+      { type: "tool.execution_complete", data: { toolCallId: "tool", toolName: "", mcpServerName: null, success: false, toolDescription: { name: "not authoritative" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "unknown" } },
+    ];
+    expect(normalizeCopilotSession(native)).toEqual(native);
+  });
+
   it("maps native startup, arguments, reasoning and shutdown without dropping native additions", () => {
     const result = parseCopilotLog(native.map(event => JSON.stringify(event)).join("\n"));
     const init = result.logEntries.find(event => event.type === "session.init");
@@ -282,6 +304,38 @@ describe("Copilot real CI shape projections", () => {
 });
 
 describe("Copilot Rust and legacy structured debug decoding", () => {
+  // Rechecked against Copilot 1.0.90, Smoke Copilot run 38099607416,
+  // agent artifact 11686649002, sandbox/agent/logs/process-1791679939010-402.log.
+  // Structural fixture only; all content, IDs and accounting below are synthetic.
+  it("uses the shared provider mapping for live-shaped Rust debug responses", () => {
+    const response = debugResponse("shared-provider", 10, 2, {
+      content: "  preserved content\n",
+      tool_calls: [{ id: "call", type: "function", function: { name: "github-list_issues", arguments: '{"state":"open"}' }, nativeFlag: false }],
+    });
+    response.choices[0].index = 3;
+    response.usage.completion_tokens_details = { reasoning_tokens: 1 };
+    const actual = parseDebugLogFormat(debugBlock(response));
+    const expected = normalizeAgentSession([{ ...response, timestamp: "2026-10-02T00:00:01.000Z", requestId: "request-shared-provider" }], { sourceEngine: "copilot" });
+    const withoutInit = actual.filter(event => event.type !== "session.init");
+    expect(withoutInit.filter(event => event.type !== "session.result")).toEqual(expected.filter(event => event.type !== "session.result"));
+    expect(projectSessionResult(actual).usage).toMatchObject({ input_tokens: 10, output_tokens: 2 });
+    expect(actual.find(event => event.type === "session.result").usage.completion_tokens_details).toEqual({ reasoning_tokens: 1 });
+    expect(actual.find(event => event.type === "tool.execution_start").data).toMatchObject({ toolName: "github-list_issues", input: { state: "open" }, nativeFlag: false });
+    expect(actual.filter(event => event.type === "tool.execution_complete")).toEqual([]);
+  });
+
+  it("shares refusal handling without dropping reasoning, provenance or provider errors", () => {
+    const response = debugResponse("filtered", 3, 1, { content: "partial", refusal: "declined" });
+    response.choices[0].finish_reason = "content_filter";
+    response.error = { code: "filtered", message: "Sanitized provider error" };
+    const events = parseDebugLogFormat(debugBlock(response) + debugBlock(response));
+    expect(events.filter(event => event.type === "assistant.refusal")).toHaveLength(2);
+    expect(events.find(event => event.type === "assistant.refusal")).toMatchObject({ requestId: "request-filtered", data: { reason: "content_filter", content: "declined" } });
+    expect(events.filter(event => event.type === "assistant.reasoning")).toHaveLength(2);
+    expect(projectSessionResult(events)).toMatchObject({ usage: { input_tokens: 3, output_tokens: 1 }, errors: [response.error] });
+    expect(events.filter(event => event.type === "assistant.message" || event.type === "tool.execution_complete")).toEqual([]);
+  });
+
   it("decodes real Rust debug framing and distinct response accounting at EOF", () => {
     const first = debugResponse("response-1", 10, 0);
     const second = debugResponse("response-2", 20, 2);
