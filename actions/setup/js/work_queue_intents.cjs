@@ -87,6 +87,47 @@ function stageIntent(filename, intent) {
   log.debug("intent.stage.complete", { staged_intents: previous.length + 1 });
 }
 
+function stagePlanIntents(filename, plan) {
+  if (plan?.version !== 1 || !Array.isArray(plan.nodes) || plan.nodes.length < 1 || plan.nodes.length > 256) throw new Error("work_queue_plan_invalid");
+  closed(plan.dispatch, ["pool", "max_claims", "max_dispatches"], [], "planned dispatch");
+  identity(plan.dispatch.pool, "pool");
+  integer(plan.dispatch.max_claims, 1, 256, "max_claims");
+  integer(plan.dispatch.max_dispatches, 1, 256, "max_dispatches");
+  for (const node of plan.nodes) {
+    closed(node, ["payload"], ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "depends_on", "subject", "backing_issue", "replacement_of"], "planned Work");
+    if (!node.payload || typeof node.payload !== "object" || Array.isArray(node.payload)) throw new Error("work_queue_plan_payload_invalid");
+    canonical(node.payload);
+    if (identity(node.pool, "pool") !== plan.dispatch.pool) throw new Error("work_queue_plan_pool_mismatch");
+  }
+  const parameters = [
+    { kind: "submit", parameters: { nodes: plan.nodes } },
+    { kind: "dispatch_next", parameters: plan.dispatch },
+  ];
+  const id = digest(parameters);
+  const intents = parameters.map(intent => ({ version: 3, intent_id: `plan:${id}:${intent.kind}`, ...intent }));
+  const previous = readStagedIntents(filename);
+  if (previous.length > intents.length || previous.some((intent, index) => canonical(intent) !== canonical(intents[index]))) throw new Error("work_queue_plan_intents_conflict");
+  for (const intent of intents) {
+    if (!previous.some(existing => existing.intent_id === intent.intent_id)) stageIntent(filename, intent);
+  }
+  return intents;
+}
+
+function validatePreparedPlanIntentBatch(intents, errors) {
+  const hasPlanIntent = intents.some(intent => intent.intent_id.startsWith("plan:")) || errors.some(error => error.intent_id?.startsWith("plan:"));
+  if (!hasPlanIntent) return null;
+  if (errors.length || intents.length !== 2) return "work_queue_plan_intent_batch_invalid";
+  const [submit, dispatch] = intents;
+  if (submit.kind !== "submit" || dispatch.kind !== "dispatch_next") return "work_queue_plan_intent_batch_invalid";
+  const parameters = [
+    { kind: "submit", parameters: submit.parameters },
+    { kind: "dispatch_next", parameters: dispatch.parameters },
+  ];
+  const batchId = digest(parameters);
+  if (submit.intent_id !== `plan:${batchId}:submit` || dispatch.intent_id !== `plan:${batchId}:dispatch_next`) return "work_queue_plan_intent_batch_invalid";
+  return null;
+}
+
 function requestIdForIntent(trustedContext, intentId) {
   const actor = actorFromContext(trustedContext);
   identity(intentId, "intent ID");
@@ -151,4 +192,17 @@ function normalizeSubmitParameters(parameters, policy, at, state) {
   };
 }
 
-module.exports = { MAX_INTENT_BYTES, MAX_INTENTS, readIntentLines, readStagedIntentBatch, readStagedIntents, stageIntent, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters };
+module.exports = {
+  MAX_INTENT_BYTES,
+  MAX_INTENTS,
+  readIntentLines,
+  readStagedIntentBatch,
+  readStagedIntents,
+  stageIntent,
+  stagePlanIntents,
+  validatePreparedPlanIntentBatch,
+  requestIdForIntent,
+  requestForIntent,
+  normalizeDispatchParameters,
+  normalizeSubmitParameters,
+};
