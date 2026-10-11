@@ -250,6 +250,11 @@ opaque because its essential fields are not defined by this specification.
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
 | Episode lineage | `workflow.info.episode` retains supplied `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`, `rootWorkflowId`, and `rootRunId` from runner-owned `aw_info.json` context. No arbitrary caller context, credentials, or work-queue payloads. |
 
+OpenTelemetry observations use `otel.span`, `otel.span_event`, and `otel.log`.
+They retain trace/span/parent IDs, names, status, attributes, links, log bodies
+and severity, resource/scope context, and original Unix-nanosecond clocks. Span
+events are separate observations rather than duplicated inside the span payload.
+
 Known payload aliases MUST use one canonical key, preferring an explicitly
 present canonical value even when it is `false`, `0`, `null`, or empty.
 `parameters` maps to `input`; `result` maps to `output` when `output` is absent.
@@ -281,7 +286,7 @@ disambiguate sources. A preexisting native `provenance` field MUST survive under
 The TypeScript `SessionProvenance`, `UnifiedSessionEvent`, and `UnifiedSession`
 types describe this additive envelope. Components include `agent`, `mcp`,
 `firewall`, `safe_output`, `experiment`, `grader`, `eval`, `usage`, `execution`,
-`detection`, `workflow`, and `collector`. Phases distinguish agent and detection
+`detection`, `workflow`, `github_api`, `otel`, and `collector`. Phases distinguish agent and detection
 traffic, activation snapshots, evals, safe-output execution, and conclusion
 collection. A component is not an engine name or a success claim.
 
@@ -305,23 +310,37 @@ MUST report a missing, invalid, or unsupported version instead of silently
 assuming compatibility. Parser-only canonical arrays and `agent-session.jsonl`
 are source traces, not versioned unified files, and do not require this header.
 
-**T-UAS-056 — Timestamp ordering.** After the file-format header, events with a
-supported source timestamp MUST sort ascending by `provenance.timestampMs`. The merger MUST preserve native
+**T-UAS-056 — Timestamp ordering.** After the file-format header, the merger MUST
+interleave sources by supported timestamps while preserving each sequential
+source's normalized event order. A regressing clock MUST NOT reverse source-local
+observations. For merging only, each sequential source uses a nondecreasing
+ordering anchor: its first valid timestamp anchors preceding untimed records,
+and subsequent records use the latest timestamp observed so far. These anchors
+MUST NOT be written as observed timestamps. The merger MUST preserve native
 timestamp values and MUST derive its ordering key using the source schema's
 units, not an epoch-magnitude heuristic. ISO timestamps MUST carry a timezone.
 Numeric Squid audit timestamps use Unix seconds; native agent timestamps and
 token-tracker audit `ts` values use milliseconds. Pi's observed
-`message.timestamp` is also a supported source timestamp. Timestamp precision is
-limited to the JavaScript ordering key; original source precision remains
-preserved.
+`message.timestamp` is also a supported source timestamp. ISO fractional seconds
+and OTLP decimal-string Unix nanoseconds MUST be compared at nanosecond precision.
+`provenance.timestampMs` is an observed millisecond projection, not the exact
+ordering key; native timestamps retain their original precision.
+
+OTLP export envelopes are unordered batches, not sequential execution streams.
+Their expanded spans, span events, and logs MUST sort by their own observed
+timestamps, regardless of export order. A span uses `startTimeUnixNano`; a span
+event uses `timeUnixNano`; a log uses `timeUnixNano`, falling back to supplied
+`observedTimeUnixNano` only when the former is absent. The merger MUST NOT
+substitute a containing span's clock for an untimed span event.
 
 **T-UAS-057 — Untimed and tied observations.** Missing or invalid timestamps
-MUST NOT cause observations to be discarded. Except for the pinned file-format
-header, untimed observations MUST follow all timed events. Equal-time events and
-untimed events MUST preserve the deterministic source enumeration and source-local
-array order. The merger MUST
-NOT substitute file modification time, collection time, a neighboring event's
-time, or an inferred tool duration for absent evidence. Wall-clock ordering
+MUST NOT cause observations to be discarded. Untimed sequential observations MUST
+stay in source-local order using the merge-only anchors in T-UAS-056. Completely
+untimed sources and untimed OTLP observations MUST follow anchored observations.
+Equal ordering keys and unanchored observations MUST preserve deterministic source
+enumeration and source-local array order. The merger MUST NOT fabricate an
+observed timestamp from file modification time, collection time, a neighboring
+event's time, or an inferred tool duration. Wall-clock ordering
 does not establish causality or correct cross-process clock skew.
 
 **T-UAS-058 — Authoritative source selection.** A persisted canonical agent
@@ -332,6 +351,18 @@ and count them as separate observations. Replicated firewall paths MUST select
 `sandbox/firewall/logs` before `sandbox/firewall/audit`, then supported legacy
 layouts; an existing empty authoritative file MUST suppress its older copy.
 Distinct gateway streams and events MUST remain separate observations.
+
+For agent-phase OTel evidence, `otel.jsonl` takes precedence over
+`usage/otel.jsonl`, including an empty primary mirror. Detection evidence uses
+`threat-detection/otel.jsonl`, then `usage/threat-detection/otel.jsonl`.
+The collector MUST expand OTLP `resourceSpans[].scopeSpans[].spans[]` and
+`resourceLogs[].scopeLogs[].logRecords[]`, retaining resource and scope context.
+Malformed nested entries MUST emit collection warnings without discarding
+adjacent valid spans or messages. Only available local mirrors are imported;
+collection MUST NOT fetch an OTLP backend or infer missing engine spans.
+Publication summaries show span identity, severity, and status rather than
+dumping log bodies, attributes, links, or resource payloads. Artifact secret
+redaction and symlink protections apply to these sources as to other traces.
 
 Native Copilot session files MUST pass through the Copilot adapter before
 essential-payload projection so model selection, streamed assistant text, tool
@@ -1377,7 +1408,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-046, T-UAS-047, T-UAS-048 | Canonical snapshots, alias usage, zero/missing metrics, existing telemetry, no trailing newline, failed append | Correct single projection; no double counting/defaults; safe line boundary; best-effort failure; activity not success. |
 | T-UAS-049, T-UAS-050 | Hostile HTML/fences, mask values, oversized display, partial parse boundary | Safe/redacted publication, explicit truncation, canonical source remains unchanged. |
 | T-UAS-051, T-UAS-052, T-UAS-053 | Conformance report and isolated test harness | Applicable IDs covered; structural/round-trip/purity assertions; no real production I/O. |
-| T-UAS-054–T-UAS-064 | Six engine adapters; interleaved MCPG/AWF sources; downstream snapshots/results; leading numeric format version; timestamp units and ties; malformed/missing logs; read/write failure; escaped secrets and symlinks | Complete compact `aw_session.jsonl`, pinned format header, provenance and payload preservation, deterministic chronology and untimed tail, explicit coverage, safe atomic persistence, existing accounting unchanged. |
+| T-UAS-054–T-UAS-064 | Six engine adapters; interleaved agent/MCPG/AWF/GitHub API/OTel sources; downstream snapshots/results; leading numeric format version; timestamp units, ties, regressions, and nanoseconds; malformed/missing logs; read/write failure; escaped secrets and symlinks | Complete compact `aw_session.jsonl`, pinned format header, provenance and payload preservation, deterministic source-preserving interleaving, unanchored tail, explicit coverage, safe atomic persistence, existing accounting unchanged. |
 | T-UAS-065–T-UAS-066 | Unified file through both publication sinks and the conversation renderer; colliding source IDs; overlapping accounting; hostile/secret text; exhausted summary budget | Known runtime types remain visible, scopes and accounting remain independent, private prompts/payloads stay omitted, output is bounded and safely redacted, source artifact remains intact. |
 | T-UAS-067 | Repeated native/canonical/detector error observations, live timeout evidence, final-zero and missing exits, malformed or duplicate aggregate records, quoted errors and tool failures | One deterministic `agent.execution` record with distinct native codes/types, stable categories, observed exit precedence, unchanged error evidence, and matching JS/Go reader validation. |
 | T-UAS-068 | Goose stream messages/deltas, tool requests/results, cumulative completion usage, source-second timestamps, malformed records, error-only and partial sessions | Exact supported content and IDs, observed outcomes only, no duplicated snapshots or invented partial results, explicit diagnostics. |
@@ -1871,6 +1902,9 @@ Native IDs can collide, timestamps can be out of order, and a trace can contain 
 - Added the AWF `steering` notice to `firewall.token_usage` and `usage.report` (T-UAS-071).
 - Mapped `ai_credit_steering` to `firewall.steering` and retained steering thresholds.
 - Added the `model_endpoint.mismatch` harness observation from `agent/model-endpoint-mismatch.json` and the `model_endpoint_mismatch_error` category.
+- Preserved sequential source order across missing timestamps and clock regressions while interleaving agent, AWF, MCPG, and GitHub API evidence.
+- Imported local OTLP spans, span events, and log messages with resource/scope context and nanosecond ordering; kept publication summaries metadata-only.
+- Updated the ordering validator and regression coverage without changing the numeric serialization-format version.
 - Retained serialization-format version 1.
 
 ### Version 1.7.0 — Draft (2026-10-09)

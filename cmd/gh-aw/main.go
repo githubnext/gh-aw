@@ -347,6 +347,17 @@ This command only works with workflows that have workflow_dispatch triggers.
 			return err
 		}
 
+		runFlags := cli.WorkflowRunFlags{
+			Verbose:        verboseFlag,
+			EngineOverride: engineOverride,
+			RepoOverride:   repoOverride,
+			RefOverride:    refOverride,
+			AutoMergePRs:   autoMergePRs,
+			Push:           push,
+			DryRun:         dryRun,
+			Approve:        approveRun,
+		}
+
 		// If no arguments provided, enter interactive mode
 		if len(args) == 0 {
 			// Check if running in CI environment
@@ -366,30 +377,16 @@ This command only works with workflows that have workflow_dispatch triggers.
 			}
 
 			return cli.RunWorkflowInteractively(cmd.Context(), cli.RunWorkflowOptions{
-				Verbose:        verboseFlag,
-				RepoOverride:   repoOverride,
-				RefOverride:    refOverride,
-				AutoMergePRs:   autoMergePRs,
-				Push:           push,
-				EngineOverride: engineOverride,
-				DryRun:         dryRun,
-				Approve:        approveRun,
+				WorkflowRunFlags: runFlags,
 			})
 		}
 
 		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
-			RepeatCount:    repeatCount,
-			Enable:         enable,
-			EngineOverride: engineOverride,
-			RepoOverride:   repoOverride,
-			RefOverride:    refOverride,
-			AutoMergePRs:   autoMergePRs,
-			Push:           push,
-			Inputs:         inputs,
-			Verbose:        verboseFlag,
-			DryRun:         dryRun,
-			JSON:           jsonOutput,
-			Approve:        approveRun,
+			WorkflowRunFlags: runFlags,
+			RepeatCount:      repeatCount,
+			Enable:           enable,
+			Inputs:           inputs,
+			JSON:             jsonOutput,
 		})
 	},
 }
