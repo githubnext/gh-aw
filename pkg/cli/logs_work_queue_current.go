@@ -27,22 +27,9 @@ type WorkQueueCurrentSnapshot struct {
 	Assignment      *WorkQueueAssignmentReceipt `json:"assignment,omitempty"`
 }
 
-type WorkQueueAssignmentReceipt struct {
-	DispatchID string                  `json:"dispatch_id"`
-	RequestID  string                  `json:"request_id"`
-	CommitID   string                  `json:"commit_id"`
-	State      string                  `json:"state"`
-	Released   bool                    `json:"released"`
-	Claims     []WorkQueueClaimReceipt `json:"claims"`
-}
+type WorkQueueAssignmentReceipt = workqueue.AssignmentReceipt
 
-type WorkQueueClaimReceipt struct {
-	Handle  string `json:"claim_handle"`
-	ClaimID string `json:"claim_id"`
-	WorkID  string `json:"work_id"`
-	State   string `json:"state"`
-	Barrier string `json:"delivery_barrier"`
-}
+type WorkQueueClaimReceipt = workqueue.ClaimReceipt
 
 type WorkQueueFinishReceipt struct {
 	IntentID string `json:"intent_id"`
@@ -230,18 +217,13 @@ func currentWorkQueueAssignmentReceipt(state workqueue.Projection, assignment wo
 		dispatch.Run.Principal != origin.Principal {
 		return nil, errors.New("current snapshot origin differs from durable assignment binding")
 	}
-	receipt := &WorkQueueAssignmentReceipt{
-		DispatchID: dispatch.DispatchID, RequestID: dispatch.RequestID, CommitID: dispatch.CommitID,
-		State: dispatch.State, Released: dispatch.Released,
-	}
-	for _, member := range dispatch.Claims {
+	receipt := dispatch.ToReceipt()
+	receipt.State, receipt.Released = dispatch.State, dispatch.Released
+	for i, member := range receipt.Claims {
 		claim, work := state.Claims[member.ClaimID], state.Works[member.WorkID]
-		receipt.Claims = append(receipt.Claims, WorkQueueClaimReceipt{
-			Handle: member.Handle, ClaimID: member.ClaimID, WorkID: member.WorkID,
-			State: claim.State, Barrier: work.Barrier,
-		})
+		receipt.Claims[i].State, receipt.Claims[i].Barrier = claim.State, work.Barrier
 	}
-	return receipt, nil
+	return &receipt, nil
 }
 
 func readCurrentWorkQueueFinishIntents(path string, snapshot *WorkQueueCurrentSnapshot) ([]WorkQueueFinishReceipt, error) {
