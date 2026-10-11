@@ -32,6 +32,7 @@ type WorkflowDomainsDetail struct {
 }
 
 // MarshalJSON keeps empty domain lists in the output, unlike DomainBuckets' omitempty fields.
+// Keep the shadow struct and its field assignments in sync with WorkflowDomainsDetail.
 func (d WorkflowDomainsDetail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Workflow       string   `json:"workflow"`
