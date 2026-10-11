@@ -116,6 +116,32 @@ type Finding struct {
 	Context []string `json:"-"`
 }
 
+// NewFindingParams contains scanner-adapted fields for NewFinding.
+type NewFindingParams struct {
+	RuleID        string
+	SeverityLabel string
+	Message       string
+	File          string
+	Line          int
+	Column        int
+	FileLines     []string
+}
+
+// NewFinding converts scanner-adapted fields into a shared finding, normalizing
+// severity and attaching source context. The integration supplies its formatted
+// message and display location, including any scanner-specific defaults.
+func NewFinding(params NewFindingParams) Finding {
+	return Finding{
+		RuleID:   params.RuleID,
+		Severity: ParseSeverity(params.SeverityLabel),
+		Message:  params.Message,
+		File:     params.File,
+		Line:     params.Line,
+		Column:   params.Column,
+		Context:  ContextLines(params.FileLines, params.Line),
+	}
+}
+
 // CompilerError converts the finding into the console error format shared by all
 // scanner output. Missing line and column values default to 1 so that the
 // rendered position stays well formed.

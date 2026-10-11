@@ -452,14 +452,10 @@ func grypeFindingsToShared(imageTag string, matches []grypeFinding) []scanfindin
 			message = fmt.Sprintf("%s (%s)", message, vuln.DataSource)
 		}
 
-		findings = append(findings, scanfindings.Finding{
-			RuleID:   vuln.ID,
-			Severity: scanfindings.ParseSeverity(severityLabel),
-			Message:  message,
-			File:     imageTag,
-			Line:     1,
-			Column:   1,
-		})
+		findings = append(findings, scanfindings.NewFinding(scanfindings.NewFindingParams{
+			RuleID: vuln.ID, SeverityLabel: severityLabel, Message: message,
+			File: imageTag, Line: 1, Column: 1,
+		}))
 	}
 	return findings
 }
