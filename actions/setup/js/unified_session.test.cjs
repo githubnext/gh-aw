@@ -57,7 +57,7 @@ describe("Unified conclusion session", () => {
       write("usage/evals.jsonl", [{ id: "stale" }]);
       write("usage/evals/token_usage.jsonl", [{ model: "stale" }]);
     }
-    const events = writeUnifiedSession({ rootDir: root, dailyAIC: {} });
+    const events = writeUnifiedSession({ rootDir: root, dailyAIC: { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "2" } });
     expect(events.filter(event => event.type === "grader.manifest").map(event => event.data)).toEqual([manifest]);
     expect(events.filter(event => event.type === "grader.result").map(event => event.data)).toEqual([{ version: 1, run, results: [result] }]);
     expect(events.filter(event => event.type === "eval.result")).toMatchObject([{ data: { id: "quality", answer: "NO", model: "fixture", runId: "123" }, provenance: { phase: "evals", path: evalsPath } }]);
@@ -67,7 +67,7 @@ describe("Unified conclusion session", () => {
     const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
     expect(persisted).not.toContain("PRIVATE_");
     expect(persisted).not.toContain("stale");
-    expect(writeUnifiedSession({ rootDir: root, dailyAIC: {} })).toEqual(events);
+    expect(writeUnifiedSession({ rootDir: root, dailyAIC: { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "2" } })).toEqual(events);
   });
 
   it.each(["evals/evals.jsonl", "evals.jsonl", "usage/evals.jsonl"])("imports only current-run evals from mixed history in %s", evalsPath => {
@@ -126,10 +126,53 @@ describe("Unified conclusion session", () => {
     expect(events.filter(event => event.type === "session.collection_warning").every(event => event.data.code === "unattributed_run_result")).toBe(true);
   });
 
+  it("uses injected run identity and attempt instead of the ambient environment", () => {
+    write("evals.jsonl", [
+      { id: "ambient-run", runid: "123", runAttempt: 2, answer: "YES" },
+      { id: "ambient-attempt", runid: "456", runAttempt: 2, answer: "YES" },
+      { id: "injected", runid: "456", runAttempt: 3, answer: "NO" },
+    ]);
+    write("agent/graders/grader_results.json", [
+      { run: { id: "123", attempt: 2 }, results: [{ id: "ambient-run" }] },
+      { run: { id: "456", attempt: 2 }, results: [{ id: "ambient-attempt" }] },
+      { run: { id: "456", attempt: 3 }, results: [{ id: "injected" }] },
+    ]);
+    const { events } = collectUnifiedSession({ rootDir: root, dailyAIC: { GITHUB_RUN_ID: "456", GITHUB_RUN_ATTEMPT: "3" } });
+    expect(events.filter(event => event.type === "eval.result").map(event => event.data.id)).toEqual(["injected"]);
+    expect(events.filter(event => event.type === "grader.result").map(event => event.data.results[0].id)).toEqual(["injected"]);
+  });
+
+  it("does not attribute results to ambient run identity with an empty injected environment", () => {
+    write("evals.jsonl", [{ id: "ambient", runid: "123", answer: "YES" }]);
+    write("agent/graders/grader_results.json", { run: { id: "123", attempt: 2 }, results: [{ id: "ambient" }] });
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, dailyAIC: {}, warn });
+    expect(events.some(event => event.type === "eval.result" || event.type === "grader.result")).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(events.filter(event => event.type === "session.collection_warning").every(event => event.data.code === "unattributed_run_result")).toBe(true);
+  });
+
+  it.each([{ GITHUB_RUN_ID: "456", GITHUB_RUN_ATTEMPT: "3" }, {}])("keeps recorded run identity authoritative over injected environment %j", dailyAIC => {
+    write("aw_info.json", { run_id: "789", run_attempt: 4 });
+    write("evals.jsonl", [
+      { id: "injected-run", runid: "456", runAttempt: 3, answer: "YES" },
+      { id: "injected-attempt", runid: "789", runAttempt: 3, answer: "YES" },
+      { id: "recorded", runid: "789", runAttempt: 4, answer: "NO" },
+    ]);
+    write("agent/graders/grader_results.json", [
+      { run: { id: "456", attempt: 3 }, results: [{ id: "injected-run" }] },
+      { run: { id: "789", attempt: 3 }, results: [{ id: "injected-attempt" }] },
+      { run: { id: "789", attempt: 4 }, results: [{ id: "recorded" }] },
+    ]);
+    const { events } = collectUnifiedSession({ rootDir: root, dailyAIC });
+    expect(events.filter(event => event.type === "eval.result").map(event => event.data.id)).toEqual(["recorded"]);
+    expect(events.filter(event => event.type === "grader.result").map(event => event.data.results[0].id)).toEqual(["recorded"]);
+  });
+
   it("does not borrow the collector attempt for recorded runs without attempt metadata", () => {
     write("aw_info.json", { run_id: "456" });
     write("agent/graders/grader_results.json", { run: { id: "456", attempt: 1 }, results: [{ id: "current" }] });
-    expect(collectUnifiedSession({ rootDir: root }).events.filter(event => event.type === "grader.result")).toHaveLength(1);
+    expect(collectUnifiedSession({ rootDir: root, dailyAIC: { GITHUB_RUN_ID: "456", GITHUB_RUN_ATTEMPT: "3" } }).events.filter(event => event.type === "grader.result")).toHaveLength(1);
   });
 
   it("does not resurrect mirrored historical results when the original has no current-run results", () => {
@@ -139,6 +182,27 @@ describe("Unified conclusion session", () => {
     write("usage/graders/grader_results.json", { run: { id: "123" }, results: [{ id: "stale" }] });
     const { events } = collectUnifiedSession({ rootDir: root });
     expect(events.some(event => event.type === "eval.result" || event.type === "grader.result")).toBe(false);
+  });
+
+  it.each(["evals/evals.jsonl", "evals.jsonl", "usage/evals.jsonl"])("preserves raw JSONL positions for warnings and current-run evidence in %s", evalsPath => {
+    write(evalsPath, '\n{broken\n{"id":"unattributed","answer":"YES"}\n\n{"id":"current","runid":"123","answer":"NO"}\n');
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(warn.mock.calls).toEqual([[`Unified session: malformed_jsonl in ${evalsPath}:2`], [`Unified session: unattributed_run_result in ${evalsPath}:3`]]);
+    expect(events.filter(event => event.type === "session.collection_warning").map(event => event.data)).toEqual([
+      { path: evalsPath, code: "malformed_jsonl", line: 2 },
+      { path: evalsPath, code: "unattributed_run_result", line: 3 },
+    ]);
+    expect(events.filter(event => event.type === "eval.result")).toMatchObject([{ data: { id: "current" }, provenance: { index: 4 } }]);
+  });
+
+  it.each(["agent/graders/grader_results.json", "usage/graders/grader_results.json"])("omits file line numbers for unattributed JSON grader snapshots in %s", file => {
+    write(file, [{ results: [{ id: "unattributed" }] }, { run: { id: "123", attempt: 2 }, results: [{ id: "current" }] }]);
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(warn).toHaveBeenCalledExactlyOnceWith(`Unified session: unattributed_run_result in ${file}`);
+    expect(events.filter(event => event.type === "session.collection_warning").map(event => event.data)).toEqual([{ path: file, code: "unattributed_run_result" }]);
+    expect(events.filter(event => event.type === "grader.result")).toMatchObject([{ data: { results: [{ id: "current" }] }, provenance: { index: 1 } }]);
   });
 
   it.each(["startup", "runtime"])("collects a single model/endpoint mismatch record in the %s phase", phase => {

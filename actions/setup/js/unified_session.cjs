@@ -139,8 +139,8 @@ function parseEngineSession(content, engine) {
  * @returns {{events: import("./types/unified_session").UnifiedSession, maskedValues: string[]}}
  */
 function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env } = {}) {
-  let currentRunId = process.env.GITHUB_RUN_ID;
-  let currentRunAttempt = process.env.GITHUB_RUN_ATTEMPT;
+  let currentRunId = dailyAIC.GITHUB_RUN_ID;
+  let currentRunAttempt = dailyAIC.GITHUB_RUN_ATTEMPT;
   /** @type {SessionSource[]} */
   const sources = [];
   const masks = new Set();
@@ -174,6 +174,8 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     }
   };
   const recordCache = new Map();
+  /** @type {Map<string, number[]>} */
+  const recordLines = new Map();
   const records = file => {
     if (recordCache.has(file)) return recordCache.get(file);
     const content = read(file);
@@ -190,16 +192,19 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       }
     }
     const values = [];
+    const lines = [];
     for (const [index, raw] of content.split(/\r?\n/).entries()) {
       if (!raw.trim()) continue;
       try {
         values.push(JSON.parse(raw));
+        lines.push(index + 1);
       } catch {
         incompleteSources.add(file);
         report(file, "malformed_jsonl", index + 1);
       }
     }
     recordCache.set(file, values);
+    recordLines.set(file, lines);
     return values;
   };
   /**
@@ -224,15 +229,16 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
         continue;
       }
       if (isRunResult) {
+        const line = recordLines.get(file)?.[index];
         const runId = type === "grader.result" ? record.run?.id : (record.runId ?? record.runid ?? record.run_id);
         if (!currentRunId || runId === undefined || runId === null || String(runId) === "") {
-          report(file, "unattributed_run_result", index + 1);
+          report(file, "unattributed_run_result", line);
           continue;
         }
         if (String(runId) !== String(currentRunId)) continue;
         const attempt = type === "grader.result" ? record.run?.attempt : (record.runAttempt ?? record.run_attempt);
         if (currentRunAttempt && attempt !== undefined && String(attempt) !== String(currentRunAttempt)) continue;
-        indices.push(index);
+        indices.push(line === undefined ? index : line - 1);
       }
       if (component === "otel") {
         events.push(
