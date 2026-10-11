@@ -440,7 +440,7 @@ func TestCloudHypervisorValidationRejectsAllowHostPorts(t *testing.T) {
 	require.ErrorContains(t, err, "cloud-hypervisor")
 }
 
-func TestCloudHypervisorValidationRejectsEnclaves(t *testing.T) {
+func TestCloudHypervisorValidationAllowsEnclaves(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
 			ID:      "awf",
@@ -454,10 +454,7 @@ func TestCloudHypervisorValidationRejectsEnclaves(t *testing.T) {
 		Enclaves: EnclavesConfig{{}},
 	}
 
-	err := validateSandboxConfig(workflowData)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "enclaves")
-	require.ErrorContains(t, err, "cloud-hypervisor")
+	require.NoError(t, validateSandboxConfig(workflowData))
 }
 
 func TestCloudHypervisorFrontmatterExtraction(t *testing.T) {

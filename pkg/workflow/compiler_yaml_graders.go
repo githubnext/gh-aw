@@ -139,6 +139,12 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest { //nolint:largefun
 		source := "builtin"
 		if _, ok := builtinSet[id]; !ok {
 			source = "inline"
+		} else if enabled {
+			// The setup action supplies default built-in metadata at runtime.
+			// Only serialize entries that override those defaults.
+			if graderUsesBuiltinDefaults(g, builtinGraderMetaByID[id]) {
+				return
+			}
 		}
 		if id == "operational-value" {
 			source = "operational-value"
@@ -177,6 +183,16 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest { //nolint:largefun
 	}
 
 	return &graderManifest{Version: 1, Graders: entries}
+}
+
+func graderUsesBuiltinDefaults(g *GraderDefinition, meta *BuiltinGraderMeta) bool {
+	sameBound := func(actual, expected *float64) bool {
+		return actual == nil && expected == nil || actual != nil && expected != nil && *actual == *expected
+	}
+	return g.Name == meta.Name && g.Description == meta.Description &&
+		g.Unit == meta.Unit && g.Direction == meta.Direction &&
+		sameBound(g.Threshold, meta.Threshold) && sameBound(g.Min, meta.Min) && sameBound(g.Max, meta.Max) &&
+		len(g.Config) == 0 && g.Script == "" && g.Run == ""
 }
 
 // buildGraderExecSpec builds the execution spec: an array of {id, script}

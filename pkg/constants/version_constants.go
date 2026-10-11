@@ -146,6 +146,10 @@ const AWFNVXMinVersion Version = "v0.28.49"
 // the release-attested Cloud Hypervisor enclave executor preview.
 const AWFEnclaveCloudHypervisorMinVersion Version = "v0.28.47"
 
+// AWFCloudHypervisorPrimaryEnclaveMinVersion is the minimum AWF version supporting
+// the unified Cloud Hypervisor primary and static script enclave lifecycle.
+const AWFCloudHypervisorPrimaryEnclaveMinVersion Version = "v0.28.51"
+
 // AWFLegacySecurityMinVersion is the minimum AWF version that supports the
 // --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).
 // Workflows pinning an older AWF version must use the old --security-mode compat behavior.

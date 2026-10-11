@@ -80,10 +80,8 @@ experiments:
 		entriesByID[entry.ID] = entry
 	}
 
-	retries, ok := entriesByID["retries"]
-	require.True(t, ok, "expected retries grader in manifest")
-	assert.Equal(t, "builtin", retries.Source)
-	assert.True(t, retries.Enabled)
+	_, ok := entriesByID["retries"]
+	assert.False(t, ok, "default builtin graders are supplied by the setup action")
 
 	custom, ok := entriesByID["custom-score"]
 	require.True(t, ok, "expected custom grader in manifest")

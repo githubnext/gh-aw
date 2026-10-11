@@ -199,17 +199,6 @@ func validateSandboxConfig(workflowData *WorkflowData) error { //nolint:largefun
 			)
 		}
 
-		// cloud-hypervisor rejects enclaves configuration outright.
-		if len(workflowData.Enclaves) > 0 {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeCloudHypervisor),
-				"cloud-hypervisor is incompatible with enclaves",
-				"cloud-hypervisor does not support the enclaves subsystem. Remove the enclaves "+
-					"configuration, or change sandbox.agent.runtime.",
-			)
-		}
-
 		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology, AWF version, and feature compatibility checks passed")
 	}
 

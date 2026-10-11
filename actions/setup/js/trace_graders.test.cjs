@@ -1970,6 +1970,7 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
       const registry = goSource.slice(goSource.indexOf("var BuiltinGraderRegistry"), goSource.indexOf("// BuiltinGraderIDs"));
       const goIds = [...registry.matchAll(/\{ID: "([a-z0-9-]+)"/g)].map(match => match[1]);
       expect(goIds).toEqual(Object.keys(BUILTIN_GRADERS));
+      expect(Object.keys(BUILTIN_META)).toEqual(goIds);
     });
   });
 
@@ -1987,9 +1988,14 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
         { id: "recurrence-rate", source: "inline", enabled: true },
       ];
       const graders = withAllBuiltinGraders(declared);
-      expect(graders.filter(g => g.id === "loops")).toEqual([declared[0]]);
+      expect(graders.filter(g => g.id === "loops")).toEqual([{ ...BUILTIN_META.loops, ...declared[0] }]);
       expect(graders.filter(g => g.id === "recurrence-rate")).toEqual([declared[1]]);
       expect(graders).toHaveLength(Object.keys(BUILTIN_GRADERS).length);
+    });
+
+    it("hydrates compact overrides without replacing explicit values", () => {
+      const graders = withAllBuiltinGraders([{ id: "tool-success-rate", source: "builtin", enabled: true, threshold: 0.95 }]);
+      expect(graders[0]).toMatchObject({ ...BUILTIN_META["tool-success-rate"], threshold: 0.95, enabled: true });
     });
   });
 
