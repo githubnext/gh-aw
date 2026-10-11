@@ -74,7 +74,7 @@ Whether a sub-agent may use a different model family (Claude versus GPT) from th
 
 Model routing works with the Copilot engine in both Copilot CLI mode (the default) and Copilot SDK mode (`engine.copilot-sdk: true`). Only SDK mode supports declared sub-agents from a different model family in the same run.
 
-- **CLI mode**: one wire API serves the whole session. If the main agent is a GPT model and a sub-agent is a Claude model (or the reverse), the sub-agent's requests fail and the main model redoes its work ([copilot-cli#5103](https://github.com/github/copilot-cli/issues/5103)). Since [gh-aw#67487](https://github.com/github/gh-aw/pull/67487), the run logs a startup warning when a declared custom agent's model does not support the main model's session endpoint.
+- **CLI mode**: one wire API serves the whole session. If the main agent is a GPT model and a sub-agent is a Claude model (or the reverse), the sub-agent's requests fail; the main model's subsequent response is nondeterministic and may report the missing result or attempt another approach ([copilot-cli#5103](https://github.com/github/copilot-cli/issues/5103)). Since [gh-aw#67487](https://github.com/github/gh-aw/pull/67487), the run logs a startup warning when a declared custom agent's model does not support the main model's session endpoint.
 - **SDK mode**: since [gh-aw#67509](https://github.com/github/gh-aw/pull/67509), the runner builds one provider per wire API (Responses and Chat Completions), so each model uses its own endpoint.
 
 For mixed-family candidate pools, this means:
@@ -141,7 +141,7 @@ All six candidates are covered by the routing tables of router 0.1.3.
 
 ### Tested reference workflows
 
-These smoke workflows run every 2 days with `mode: economy` and check each request's model and endpoint from the unified session and AWF's api-proxy `token-usage.jsonl`:
+These smoke workflows run every 2 days with `mode: economy`. They check main-agent request models against the candidate models and use the unified session and AWF's api-proxy `token-usage.jsonl` as model/endpoint evidence, including a successful request on a supported or declared endpoint:
 
 - [`smoke-copilot-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed.md): Copilot CLI mode, routing over three models (`gpt-5.4-mini`, `gpt-5.6-luna`, `claude-haiku-4.5`) with no sub-agents.
 - [`smoke-copilot-sdk-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed.md): Copilot SDK mode, routing over `gpt-5.6-luna` with a `claude-haiku-4.5` sub-agent.
