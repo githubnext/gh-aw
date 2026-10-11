@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.7.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.8.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -592,6 +592,7 @@ source for opaque fields.
 | `eval.result` | Evals JSONL observations, preserving answers, IDs, and observed timestamps. |
 | `usage.report`, `execution.result`, `detection.result`, `workflow.info` | Existing accounting, execution evidence, detection verdicts, and run metadata. `workflow.info` retains available `cliVersion` (gh-aw), `awfVersion`, `mcpgVersion`, `engineId`, `agentVersion`, observed `model`, `requestedModel`, compact `modelRouting`, and `triggerType` from `aw_info.json`. `requestedModel` prefers `requested_model` and falls back to `model` for earlier metadata. Unavailable values are not inferred. |
 | `model_routing.outcome` | The harness's observed routing status, wire model, effective endpoint, selected endpoint, effort, applied effort, and failure code from `agent/awf-routing-outcome.json`; free-form detail is excluded. |
+| `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
 | `guardrail.daily_aic` | Activation's daily AI Credits decision (`status`, `exceeded`, and available numeric `total`, `estimated`, `threshold`). Omitted when the guardrail has no decision; an existing event is not duplicated. |
 | `github_api.rate_limit` | Available GitHub API rate-limit JSONL observations retain the recorded source (`response_headers`, `rate_limit_api`, or `retry`), operation, resource, limit, remaining, used, reset, and retry state. `credentialSource` identifies a known GitHub Actions token, PAT, or app token where classified by the client; absent or unknown credential types are not inferred from quota values. Raw credentials and unrecognized fields are excluded. The collector prefers `github_rate_limits.jsonl` over its `usage/` copy to avoid duplicate observations. |
 | `session.collection_warning`, `session.collection` | Explicit collection diagnostics and coverage. |
@@ -656,6 +657,30 @@ schema, stage, purpose, attempt, classifier model and effort, objective,
 provider, labels, mode, classifier attempts, degraded-classification state,
 selected ID/provider/model/effort, wire model, endpoint, router, latency, code,
 request ID, routed outcome, deviations, requested model, and requested effort.
+
+#### Model/endpoint mismatch
+
+The collector MUST map the single JSON object in
+`agent/model-endpoint-mismatch.json` to `model_endpoint.mismatch`, with provenance
+component `model_endpoint`, source path `agent/model-endpoint-mismatch.json`, and
+phase equal to the record's `startup` or `runtime` phase. Arrays, malformed JSON,
+and records that violate the following contract MUST produce a collection
+warning rather than a mismatch event.
+
+The payload has required fields `category: "model_endpoint_mismatch"`,
+`phase: "startup" | "runtime"`, and strings `configured_model`, `resolved_model`,
+`wire_api`, `wire_api_source`, `detail`, and `fix`. `supported_endpoints` is a
+required array of strings. `model` and `endpoint` are optional strings describing
+runtime observations. Unknown source fields are excluded; unavailable optional
+fields MUST NOT be inferred.
+
+Default summaries MUST render the cause (`detail`) and corrective action (`fix`),
+alongside the configured and resolved model, wire API and its source, and
+supported endpoints. Failure reports MUST derive this context only from the
+unified session, without rescanning raw agent or firewall logs or reading the
+source JSON separately. Reports MUST use the `model_endpoint_mismatch` grouping
+category and the `model_endpoint_mismatch_context` template placeholder, and
+redact and bound diagnostic text before publication.
 
 ### 4.8 `agent.execution`
 
@@ -722,7 +747,7 @@ codes/types without requiring a closed enumeration.
 
 | Origin | Observed categories |
 | --- | --- |
-| Compiler error-detection outputs | `inference_access_error`, `mcp_policy_error`, `agentic_engine_timeout`, `model_not_supported_error`, `http_400_response_error`, `capi_quota_exceeded_error`, `invocation_cap_exceeded`, `max_cache_misses_exceeded`, `missing_model_pricing_error`, `shell_expansion_guard_rejected` |
+| Compiler error-detection outputs | `inference_access_error`, `mcp_policy_error`, `agentic_engine_timeout`, `model_not_supported_error`, `model_endpoint_mismatch_error`, `http_400_response_error`, `capi_quota_exceeded_error`, `invocation_cap_exceeded`, `max_cache_misses_exceeded`, `missing_model_pricing_error`, `shell_expansion_guard_rejected` |
 | Harness retry and proxy guards | `capi_server_error`, `authentication_failed`, `max_ai_credits_exceeded`, `effective_tokens_limit_exceeded`, `permission_denied_limit_exceeded`, `model_policy_violation`, `awf_api_proxy_blocking_requests`, `goal_already_active` |
 | Harness failure reasons and fatal signals | Observed `failure_reason` identifiers such as `harness_retry_path_invalid`, `cancelled_or_timed_out`, and `sandbox_runtime_crash`; crash exit codes preserve the corresponding native signal name. |
 
@@ -1845,6 +1870,7 @@ Native IDs can collide, timestamps can be out of order, and a trace can contain 
 
 - Added the AWF `steering` notice to `firewall.token_usage` and `usage.report` (T-UAS-071).
 - Mapped `ai_credit_steering` to `firewall.steering` and retained steering thresholds.
+- Added the `model_endpoint.mismatch` harness observation from `agent/model-endpoint-mismatch.json` and the `model_endpoint_mismatch_error` category.
 - Retained serialization-format version 1.
 
 ### Version 1.7.0 — Draft (2026-10-09)

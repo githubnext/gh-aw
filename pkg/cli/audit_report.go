@@ -58,6 +58,7 @@ type AuditData struct {
 	SteeringNotices         []SteeringNotice         `json:"steering_notices,omitempty"`
 	FirewallTokenUsage      *TokenUsageSummary       `json:"firewall_token_usage,omitempty"`
 	ModelRouting            *ModelRoutingSummary     `json:"model_routing,omitempty"`
+	ModelEndpointMismatches []ModelEndpointMismatch  `json:"model_endpoint_mismatches,omitempty"`
 	GitHubRateLimitUsage    *GitHubRateLimitUsage    `json:"github_rate_limit_usage,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
 	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`
@@ -349,6 +350,7 @@ func buildLocalAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolU
 	})
 	auditData.ModelRouting = applyAwInfoModelRouting(processedRun.ModelRouting, processedRun.Run.LogsPath)
 	auditData.SteeringNotices = tokenUsageSteeringNotices(processedRun.TokenUsage)
+	auditData.ModelEndpointMismatches = readSessionModelEndpointMismatches(processedRun.Run.LogsPath)
 	return auditData, createdItems
 }
 
