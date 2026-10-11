@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { ERR_VALIDATION, ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -18,7 +19,7 @@ const { maskSecret } = require("./actions_secret_masking.cjs");
  */
 async function getCurrentCheckoutRepo() {
   try {
-    const result = await exec.getExecOutput("git", ["config", "--get", "remote.origin.url"], { silent: true });
+    const result = await exec.getExecOutput("git", ["config", "--get", "remote.origin.url"], gitLoggingOptions({ silent: true }));
     const url = result.stdout.trim();
 
     // Extract repo slug from URL
@@ -101,7 +102,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     // embedded-credential URL configure_git_credentials.sh may have set, leaving the
     // persisted extraheader as the single source of auth.
     core.info(`Configuring remote origin to: ${repoSlug}`);
-    await exec.exec("git", ["remote", "set-url", "origin", remoteUrl], { silent: true });
+    await exec.exec("git", ["remote", "set-url", "origin", remoteUrl], gitLoggingOptions({ silent: true }));
 
     // Trust the persisted credential rather than injecting a second one. git treats
     // http.<url>.extraheader as multi-valued, so adding our own header on top of the
@@ -122,19 +123,19 @@ async function checkoutRepo(repoSlug, token, options = {}) {
 
     // Fetch the new repo
     core.info(`Fetching repository: ${repoSlug}`);
-    await exec.exec("git", ["fetch", "origin", "--prune"], { silent: true });
+    await exec.exec("git", ["fetch", "origin", "--prune"], gitLoggingOptions({ silent: true }));
 
     // Reset to the base branch of the new repo
     core.info(`Checking out base branch: ${baseBranch}`);
     try {
-      await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`], { silent: true });
+      await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`], gitLoggingOptions({ silent: true }));
     } catch {
       throw new Error(`${ERR_NOT_FOUND}: Base branch ${baseBranch} not found in ${repoSlug}`);
     }
 
     // Clean up any local changes
-    await exec.exec("git", ["clean", "-fd"], { silent: true });
-    await exec.exec("git", ["reset", "--hard", "HEAD"], { silent: true });
+    await exec.exec("git", ["clean", "-fd"], gitLoggingOptions({ silent: true }));
+    await exec.exec("git", ["reset", "--hard", "HEAD"], gitLoggingOptions({ silent: true }));
 
     core.info(`Successfully switched to repository: ${repoSlug}`);
 

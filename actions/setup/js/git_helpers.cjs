@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { spawnSync } = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -138,6 +139,9 @@ function execGitSync(args, options = {}) {
     stdio: "pipe",
   });
 
+  if (result.stdout) core.info(String(result.stdout));
+  if (result.stderr) core.info(String(result.stderr));
+
   if (result.error) {
     // Detect ENOBUFS (buffer overflow) and provide a more actionable message
     /** @type {NodeJS.ErrnoException} */
@@ -180,18 +184,14 @@ function execGitSync(args, options = {}) {
     if (suppressLogs) {
       core.debug(`Git command failed (expected): ${gitCommand}`);
       core.debug(`Exit status: ${result.status}`);
-      if (result.stderr) core.debug(`Stderr: ${result.stderr}`);
     } else {
       core.error(`Git command failed: ${gitCommand}`);
       core.error(`Exit status: ${result.status}`);
-      if (result.stderr) core.error(`Stderr: ${result.stderr}`);
     }
     throw new Error(errorMsg);
   }
 
-  if (result.stdout) {
-    core.debug(`Git command output: ${result.stdout.substring(0, 200)}${result.stdout.length > 200 ? "..." : ""}`);
-  } else {
+  if (!result.stdout) {
     core.debug("Git command completed successfully with no output");
   }
 
@@ -486,7 +486,7 @@ const BUNDLE_DEEPEN_MAX_ITERATIONS = 200;
  */
 async function getBundlePrerequisites(execApi, bundleFilePath, options = {}) {
   try {
-    const { stdout, stderr } = await execApi.getExecOutput("git", ["bundle", "verify", bundleFilePath], { ...options, ignoreReturnCode: true, silent: true });
+    const { stdout, stderr } = await execApi.getExecOutput("git", ["bundle", "verify", bundleFilePath], gitLoggingOptions({ ...options, ignoreReturnCode: true, silent: true }));
     const combined = `${stdout || ""}\n${stderr || ""}`;
     const prereqs = new Set();
     const lines = combined.split(/\r?\n/);
@@ -541,7 +541,7 @@ async function getBundlePrerequisites(execApi, bundleFilePath, options = {}) {
 async function findMissingObjects(execApi, shas, options = {}) {
   const missing = [];
   for (const sha of shas) {
-    const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${sha}^{commit}`], { ...options, ignoreReturnCode: true, silent: true });
+    const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${sha}^{commit}`], gitLoggingOptions({ ...options, ignoreReturnCode: true, silent: true }));
     if (exitCode !== 0) {
       missing.push(sha);
     }
@@ -586,7 +586,7 @@ async function findMissingObjects(execApi, shas, options = {}) {
 async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions = {}) {
   let stdout;
   try {
-    ({ stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], { ...options, silent: true }));
+    ({ stdout } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], gitLoggingOptions({ ...options, silent: true })));
   } catch (error) {
     const message = getErrorMessage(error);
     core.warning(`Could not determine shallow repository status; skipping full-history fetch probe: ${message}`);
@@ -603,7 +603,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
   // to get targeted prerequisite fetching instead.
   if (!baseRef || !bundleFilePath) {
     core.info("Repository is shallow; fetching full history before bundle processing (no baseRef/bundle info; using --unshallow)");
-    await execApi.exec("git", ["fetch", "--unshallow", "origin"], { ...options, silent: true });
+    await execApi.exec("git", ["fetch", "--unshallow", "origin"], gitLoggingOptions({ ...options, silent: true }));
     return;
   }
 
@@ -629,7 +629,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
     core.info("Using --filter=blob:none for prerequisite SHA fetch (shallow or sparse checkout detected)");
   }
   try {
-    await execApi.exec("git", directFetchArgs, { ...options, silent: true });
+    await execApi.exec("git", directFetchArgs, gitLoggingOptions({ ...options, silent: true }));
     missing = await findMissingObjects(execApi, prereqs, options);
     if (missing.length === 0) {
       core.info("Bundle prerequisite commits fetched directly from origin; no deepen required");
@@ -646,7 +646,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
   core.info(`Iteratively deepening origin/${baseRef} by ${BUNDLE_DEEPEN_STEP} commit(s) at a time to satisfy ${missing.length} prerequisite commit(s)`);
   for (let iteration = 1; iteration <= BUNDLE_DEEPEN_MAX_ITERATIONS; iteration++) {
     try {
-      await execApi.exec("git", ["fetch", `--deepen=${BUNDLE_DEEPEN_STEP}`, "origin", baseRef], { ...options, silent: true });
+      await execApi.exec("git", ["fetch", `--deepen=${BUNDLE_DEEPEN_STEP}`, "origin", baseRef], gitLoggingOptions({ ...options, silent: true }));
     } catch (fetchError) {
       core.warning(`git fetch --deepen=${BUNDLE_DEEPEN_STEP} origin ${baseRef} failed: ${getErrorMessage(fetchError)}; aborting iterative deepen`);
       break;
@@ -660,7 +660,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
 
   core.warning(`Bundle prerequisites still not present after iterative deepen (${missing.length} remaining); attempting --unshallow as a last resort`);
   try {
-    await execApi.exec("git", ["fetch", "--unshallow", "origin", baseRef], { ...options, silent: true });
+    await execApi.exec("git", ["fetch", "--unshallow", "origin", baseRef], gitLoggingOptions({ ...options, silent: true }));
   } catch (unshallowError) {
     core.warning(`Fallback --unshallow fetch failed: ${getErrorMessage(unshallowError)}; bundle apply may still fail`);
   }
@@ -686,7 +686,7 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
 async function isShallowOrSparseCheckout(execApi, options = {}) {
   const probeOptions = { ...options, ignoreReturnCode: true };
   try {
-    const { stdout, exitCode } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], { ...probeOptions, silent: true });
+    const { stdout, exitCode } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], gitLoggingOptions({ ...probeOptions, silent: true }));
     if (exitCode === 0 && stdout.trim() === "true") {
       return true;
     }
@@ -694,7 +694,7 @@ async function isShallowOrSparseCheckout(execApi, options = {}) {
     // Fall through to sparse check; if both probes fail, return false (no filter).
   }
   try {
-    const { stdout, exitCode } = await execApi.getExecOutput("git", ["config", "--get", "core.sparseCheckout"], { ...probeOptions, silent: true });
+    const { stdout, exitCode } = await execApi.getExecOutput("git", ["config", "--get", "core.sparseCheckout"], gitLoggingOptions({ ...probeOptions, silent: true }));
     if (exitCode === 0 && stdout.trim().toLowerCase() === "true") {
       return true;
     }
@@ -761,7 +761,7 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
   }
   const fetchOptions = { ...options, ignoreReturnCode: true };
   try {
-    const { exitCode, stderr } = await execApi.getExecOutput("git", ["fetch", "--no-filter", "origin", ...targets], { ...fetchOptions, silent: true });
+    const { exitCode, stderr } = await execApi.getExecOutput("git", ["fetch", "--no-filter", "origin", ...targets], gitLoggingOptions({ ...fetchOptions, silent: true }));
     if (exitCode !== 0) {
       core.warning(`backfillCommitObjects: targeted fetch exited with code ${exitCode}: ${String(stderr || "").trim()}`);
     }
@@ -811,7 +811,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
   {
     let rangeCommitCount = 0;
     try {
-      const { stdout: countOut } = await execApi.getExecOutput("git", ["rev-list", "--count", `${baseRef}..HEAD`], execOptions);
+      const { stdout: countOut } = await execApi.getExecOutput("git", ["rev-list", "--count", `${baseRef}..HEAD`], gitLoggingOptions(execOptions));
       rangeCommitCount = parseInt(countOut.trim(), 10) || 0;
     } catch {
       rangeCommitCount = 0;
@@ -820,7 +820,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       let isShallow = false;
       try {
         const shallowOpts = gitOpts !== undefined ? { ...gitOpts, ignoreReturnCode: true } : { ignoreReturnCode: true };
-        const { stdout: shallowOut } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], { ...shallowOpts, silent: true });
+        const { stdout: shallowOut } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], gitLoggingOptions({ ...shallowOpts, silent: true }));
         isShallow = shallowOut.trim() === "true";
       } catch {
         // Non-fatal: if the shallow probe fails, do not block the rewrite.
@@ -835,7 +835,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     }
   }
 
-  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], execOptions);
+  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], gitLoggingOptions(execOptions));
   const originalHead = originalHeadOut.trim();
   if (!originalHead) {
     throw new Error(`${ERR_SYSTEM}: ` + "Could not resolve current HEAD before linearizing range");
@@ -845,45 +845,45 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
   // "rebase in progress" (needs --abort) from "pre-rebase failure" (needs reset only).
   let rebaseStarted = false;
   try {
-    await execApi.exec("git", ["reset", "--soft", baseRef], execOptions);
+    await execApi.exec("git", ["reset", "--soft", baseRef], gitLoggingOptions(execOptions));
     if (Array.isArray(excludedFiles) && excludedFiles.length > 0) {
-      const { stdout: excludedStagedOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only", "--", ...excludedFiles], execOptions);
+      const { stdout: excludedStagedOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only", "--", ...excludedFiles], gitLoggingOptions(execOptions));
       if (excludedStagedOut.trim()) {
         // Use `git reset HEAD -- <files>` rather than `git checkout HEAD -- <files>`.
         // For newly-added excluded files (not present in HEAD), `checkout` fails with
         // "pathspec did not match any file(s) known to git". `reset HEAD --` handles
         // both cases: removes new files from the index and restores modified files to
         // the HEAD version, without touching the working tree.
-        await execApi.exec("git", ["reset", "HEAD", "--", ...excludedFiles], execOptions);
+        await execApi.exec("git", ["reset", "HEAD", "--", ...excludedFiles], gitLoggingOptions(execOptions));
         // For excluded files that were modifications (not new additions), the working tree
         // still has the agent's version while the index was just restored to HEAD. This
         // creates an unstaged change that would cause `git rebase --onto` to fail.
         // Detect any such unstaged changes among the excluded files and restore them from
         // the index so the working tree stays in sync before the commit and rebase steps.
-        const { stdout: modifiedExcludedOut } = await execApi.getExecOutput("git", ["diff", "--name-only", "--", ...excludedFiles], execOptions);
+        const { stdout: modifiedExcludedOut } = await execApi.getExecOutput("git", ["diff", "--name-only", "--", ...excludedFiles], gitLoggingOptions(execOptions));
         const modifiedExcluded = modifiedExcludedOut.trim().split("\n").filter(Boolean);
         if (modifiedExcluded.length > 0) {
-          await execApi.exec("git", ["checkout", "--", ...modifiedExcluded], execOptions);
+          await execApi.exec("git", ["checkout", "--", ...modifiedExcluded], gitLoggingOptions(execOptions));
         }
       }
     }
-    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], execOptions);
+    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], gitLoggingOptions(execOptions));
     if (!stagedFilesOut.trim()) {
       throw new Error(`${ERR_SYSTEM}: No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
-    await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], execOptions);
+    await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], gitLoggingOptions(execOptions));
     if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef.trim()) {
       rebaseStarted = true;
-      await execApi.exec("git", ["rebase", "--onto", rebaseOnto.trim(), baseRef, "HEAD"], execOptions);
+      await execApi.exec("git", ["rebase", "--onto", rebaseOnto.trim(), baseRef, "HEAD"], gitLoggingOptions(execOptions));
       rebaseStarted = false;
       // Guard: if the rebase silently dropped the commit (became empty relative to rebaseOnto),
       // the agent's changes are lost. Detect and fail loudly rather than pushing an empty diff.
-      const { stdout: diffOut } = await execApi.getExecOutput("git", ["diff", "--name-only", rebaseOnto.trim(), "HEAD"], execOptions);
+      const { stdout: diffOut } = await execApi.getExecOutput("git", ["diff", "--name-only", rebaseOnto.trim(), "HEAD"], gitLoggingOptions(execOptions));
       if (!diffOut.trim()) {
         throw new Error(`${ERR_SYSTEM}: Rebase onto ${rebaseOnto} produced no changes; the synthesized commit was dropped as empty`);
       }
     }
-    const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], execOptions);
+    const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], gitLoggingOptions(execOptions));
     return newHeadOut.trim();
   } catch (rewriteError) {
     try {
@@ -891,13 +891,13 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
         // A rebase was in progress when the error occurred; abort it to restore the repo to its
         // pre-rebase state before the hard reset below finishes the rollback.
         try {
-          await execApi.exec("git", ["rebase", "--abort"], execOptions);
+          await execApi.exec("git", ["rebase", "--abort"], gitLoggingOptions(execOptions));
         } catch (abortError) {
           // --abort failed while a rebase was genuinely in progress — repo may be in a dirty state.
           core.error(`linearizeRangeAsCommit: rebase --abort also failed: ${getErrorMessage(abortError)}`);
         }
       }
-      await execApi.exec("git", ["reset", "--hard", originalHead], execOptions);
+      await execApi.exec("git", ["reset", "--hard", originalHead], gitLoggingOptions(execOptions));
       core.warning(`linearizeRangeAsCommit: rewrite failed; restored original HEAD ${originalHead}`);
     } catch (restoreError) {
       core.warning(`linearizeRangeAsCommit: rollback also failed: ${getErrorMessage(restoreError)}`);

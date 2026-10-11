@@ -385,8 +385,11 @@ describe("upload_assets.cjs", () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockExec.getExecOutput).toHaveBeenCalledTimes(2);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--no-tags", "origin", "+refs/heads/assets/test-workflow:refs/remotes/origin/assets/test-workflow"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "refs/remotes/origin/assets/test-workflow"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--no-tags", "origin", "+refs/heads/assets/test-workflow:refs/remotes/origin/assets/test-workflow"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "refs/remotes/origin/assets/test-workflow"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("should stop after three failed push attempts", async () => {

@@ -17,8 +17,15 @@ describe("no-git-command-logging", () => {
         `exec.exec("git", args, { silent: true, ...{} });`,
         `exec.exec("git", args, { "silent": true });`,
         `exec["exec"]("git", args, { silent: true });`,
+        `const { gitLoggingOptions } = require("./git_logging.cjs"); exec.exec("git", args, gitLoggingOptions(options));`,
+        `const { gitLoggingOptions: logOptions } = require("./git_logging.cjs"); exec.getExecOutput("git", args, logOptions());`,
       ],
       invalid: [
+        {
+          code: `const gitLoggingOptions = () => ({}); exec.exec("git", args, gitLoggingOptions());`,
+          output: `const gitLoggingOptions = () => ({}); exec.exec("git", args, { ...(gitLoggingOptions()), silent: true });`,
+          errors: [{ messageId: "silent" }],
+        },
         {
           code: `exec.exec("git", ["status"]);`,
           output: `exec.exec("git", ["status"], { silent: true });`,

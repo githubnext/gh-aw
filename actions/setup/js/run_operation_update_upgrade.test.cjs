@@ -186,7 +186,7 @@ describe("run_operation_update_upgrade", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
       // git add was called for known files
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("does not stage workflow yml files for update operation", async () => {
@@ -201,8 +201,11 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow yml files must never be staged - they are not in the update allowlist
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], { silent: true });
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("does not stage workflow md files for upgrade operation", async () => {
@@ -217,8 +220,11 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow files must never be staged
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true });
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], { silent: true });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
     });
   });
 
@@ -249,11 +255,14 @@ describe("run_operation_update_upgrade", () => {
       // Verify gh aw update was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
       // Verify only known update files were staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       // Verify branch was created
-      expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["checkout", "-b", expect.stringContaining("aw/update-")]), { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["checkout", "-b", expect.stringContaining("aw/update-")]), {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
       // Verify commit was made
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: update agentic workflows"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: update agentic workflows"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       // Verify PR title
       expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Updates available", "--label", "agentic-workflows"]), expect.anything());
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created PR"));
@@ -283,10 +292,13 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Workflow files must NEVER be staged for update
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true });
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], { silent: true });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/my-workflow.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
       // Only known update file should be staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("creates PR for upgrade operation with correct title", async () => {
@@ -315,18 +327,27 @@ describe("run_operation_update_upgrade", () => {
       // Verify gh aw upgrade was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
       // Verify known upgrade files were staged (including skills and agent files)
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/instructions.md"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflows/SKILL.md"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflow-designer/SKILL.md"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/agentic-workflows.md"], { silent: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/interactive-agent-designer.agent.md"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/actions-lock.json"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/aw/instructions.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflows/SKILL.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/skills/agentic-workflow-designer/SKILL.md"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/agentic-workflows.md"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/interactive-agent-designer.agent.md"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
       // Verify correct commit message
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       // Verify PR title is "[aw] Upgrade available"
       expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Upgrade available", "--label", "agentic-workflows"]), expect.anything());
       // Verify workflow yml was NOT staged
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], { silent: true });
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/workflows/agentics-maintenance.yml"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
     });
 
     it("stages old agent files for upgrade operation (for deletion tracking)", async () => {
@@ -353,7 +374,10 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       // Old agent file deletion should be staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/create-agentic-workflow.agent.md"], { silent: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "-A", "--", ".github/agents/create-agentic-workflow.agent.md"], {
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
     });
 
     it("uses ./gh-aw as binary in dev mode", async () => {

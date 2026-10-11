@@ -120,6 +120,13 @@ the command line and output off the runner streams while preserving return
 values and output listeners. The rule resolves local option constants and
 checks spread order, and can automatically add the silent option.
 
+Runtime Git calls use `gitLoggingOptions` from `git_logging.cjs` to retain
+`silent: true` while forwarding complete stdout/stderr through `core.info`.
+The helper preserves execution options and existing listeners. The rule
+recognizes this imported helper as a safe option provider.
+Credential-query stdout remains deliberately silent; its failure diagnostics
+still reach Actions logs.
+
 For `child_process`, keep stdout/stderr piped (the default) or ignored; do not
 inherit them or send them to file descriptors. Callback overloads keep the
 default pipes; stdio array spreads before stdout/stderr require review and are

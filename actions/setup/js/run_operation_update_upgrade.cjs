@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 // @safe-outputs-exempt SEC-004 — PR/issue body values in this handler are static internal templates (plus allowlisted changed-file paths), not untrusted user content.
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
 
@@ -117,14 +118,14 @@ async function main() {
   const knownFiles = isUpgrade ? KNOWN_FILES_UPGRADE : KNOWN_FILES_UPDATE;
   for (const file of knownFiles) {
     try {
-      await exec.exec("git", ["add", "-A", "--", file], { silent: true });
+      await exec.exec("git", ["add", "-A", "--", file], gitLoggingOptions({ silent: true }));
     } catch (error) {
       core.warning(`Failed to stage '${file}': ${getErrorMessage(error)}`);
     }
   }
 
   // Check what was actually staged
-  const { stdout: stagedOutput } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"], { silent: true });
+  const { stdout: stagedOutput } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"], gitLoggingOptions({ silent: true }));
   if (!stagedOutput.trim()) {
     core.info("✓ No changes detected - nothing to create a PR for");
     return;
@@ -141,17 +142,17 @@ async function main() {
   }
 
   // Configure git identity
-  await exec.exec("git", ["config", "user.email", "github-actions[bot]@users.noreply.github.com"], { silent: true });
-  await exec.exec("git", ["config", "user.name", "github-actions[bot]"], { silent: true });
+  await exec.exec("git", ["config", "user.email", "github-actions[bot]@users.noreply.github.com"], gitLoggingOptions({ silent: true }));
+  await exec.exec("git", ["config", "user.name", "github-actions[bot]"], gitLoggingOptions({ silent: true }));
 
   // Create a new branch with a filesystem-safe timestamp (no colons)
   const branchName = `aw/${operation}-${formatTimestamp(new Date())}`;
   core.info(`Creating branch: ${branchName}`);
-  await exec.exec("git", ["checkout", "-b", branchName], { silent: true });
+  await exec.exec("git", ["checkout", "-b", branchName], gitLoggingOptions({ silent: true }));
 
   // Commit the changes
   const commitMessage = isUpgrade ? "chore: upgrade agentic workflows" : "chore: update agentic workflows";
-  await exec.exec("git", ["commit", "-m", commitMessage], { silent: true });
+  await exec.exec("git", ["commit", "-m", commitMessage], gitLoggingOptions({ silent: true }));
 
   // Push to the new branch using a token-authenticated remote
   const owner = context.repo.owner;
@@ -171,18 +172,18 @@ async function main() {
   const remoteUrl = `https://x-access-token:${token}@${githubHost}/${owner}/${repo}.git`;
 
   try {
-    await exec.exec("git", ["remote", "remove", "aw-push"], { silent: true });
+    await exec.exec("git", ["remote", "remove", "aw-push"], gitLoggingOptions({ silent: true }));
   } catch {
     // Remote doesn't exist yet — removal failure is ignored, that's fine.
   }
-  await exec.exec("git", ["remote", "add", "aw-push", remoteUrl], { silent: true });
+  await exec.exec("git", ["remote", "add", "aw-push", remoteUrl], gitLoggingOptions({ silent: true }));
 
   try {
-    await exec.exec("git", ["push", "aw-push", branchName], { silent: true });
+    await exec.exec("git", ["push", "aw-push", branchName], gitLoggingOptions({ silent: true }));
   } finally {
     // Always clean up the temporary remote
     try {
-      await exec.exec("git", ["remote", "remove", "aw-push"], { silent: true });
+      await exec.exec("git", ["remote", "remove", "aw-push"], gitLoggingOptions({ silent: true }));
     } catch {
       // Non-fatal
     }
@@ -275,7 +276,7 @@ async function mainNotifyIssue() {
   const changedFiles = [];
   for (const file of KNOWN_FILES_UPGRADE) {
     try {
-      const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", "--", file], { silent: true });
+      const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", "--", file], gitLoggingOptions({ silent: true }));
       if (stdout.trim()) {
         changedFiles.push(file);
       }
@@ -296,7 +297,7 @@ async function mainNotifyIssue() {
 
   // Discard local changes — we only notify via issue, not push
   try {
-    await exec.exec("git", ["checkout", "--", "."], { silent: true });
+    await exec.exec("git", ["checkout", "--", "."], gitLoggingOptions({ silent: true }));
   } catch (error) {
     core.warning(`Failed to discard local changes: ${getErrorMessage(error)}`);
   }

@@ -7,6 +7,7 @@
  * `git push`.
  */
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { ERR_API, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
@@ -23,7 +24,7 @@ const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
  * @param {Record<string, any>} [options]
  */
 function getGitExecOutput(args, options = {}) {
-  return exec.getExecOutput("git", args, { ...options, silent: true });
+  return exec.getExecOutput("git", args, gitLoggingOptions({ ...options, silent: true }));
 }
 
 /**
@@ -31,7 +32,7 @@ function getGitExecOutput(args, options = {}) {
  * @param {Record<string, any>} [options]
  */
 function execGitCommand(args, options = {}) {
-  return exec.exec("git", args, { ...options, silent: true });
+  return exec.exec("git", args, gitLoggingOptions({ ...options, silent: true }));
 }
 
 /**

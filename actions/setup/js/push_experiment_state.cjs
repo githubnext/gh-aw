@@ -24,6 +24,7 @@
  *   GITHUB_REPOSITORY           - "owner/repo" of the current repository
  */
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -561,7 +562,7 @@ async function main() {
         // pushSignedCommits can resolve the new baseRef in git rev-list.
         try {
           const gitEnv = { ...process.env, ...getGitAuthEnv(ghToken) };
-          const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], { cwd: workspaceDir, env: gitEnv, silent: true });
+          const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], gitLoggingOptions({ cwd: workspaceDir, env: gitEnv, silent: true }));
           const remoteHead = lsOut.trim().split(/\s+/)[0] || "";
           if (remoteHead && remoteHead !== currentBaseRef) {
             // Fetch the updated branch history into the local repo so pushSignedCommits

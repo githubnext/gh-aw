@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const fs = require("fs");
 const path = require("path");
 const { isUtf8 } = require("buffer");
@@ -218,11 +219,15 @@ async function pushRepoMemoryChangesWithRetry({
         // pushSignedCommits while still preserving concurrent JSONL rows via the
         // checkout-local merge=union policy.
         try {
-          const { stdout: lsOut } = await execGetExecOutput("git", ["ls-remote", retryUrl, `refs/heads/${branchName}`], {
-            cwd: workspaceDir,
-            env: getGitAuthEnv(ghToken),
-            silent: true,
-          });
+          const { stdout: lsOut } = await execGetExecOutput(
+            "git",
+            ["ls-remote", retryUrl, `refs/heads/${branchName}`],
+            gitLoggingOptions({
+              cwd: workspaceDir,
+              env: getGitAuthEnv(ghToken),
+              silent: true,
+            })
+          );
           const remoteHead = lsOut.trim().split(/\s+/)[0] || "";
           if (remoteHead && remoteHead !== currentBaseRef) {
             const previousBaseRef = currentBaseRef;

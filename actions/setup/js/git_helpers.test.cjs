@@ -134,6 +134,7 @@ describe("git_helpers.cjs", () => {
       global.core = {
         debug: msg => debugLogs.push(msg),
         error: msg => errorLogs.push(msg),
+        info: () => {},
       };
 
       try {
@@ -162,6 +163,7 @@ describe("git_helpers.cjs", () => {
       global.core = {
         debug: () => {},
         error: msg => errorLogs.push(msg),
+        info: () => {},
       };
 
       try {
@@ -187,6 +189,7 @@ describe("git_helpers.cjs", () => {
       global.core = {
         debug: msg => debugLogs.push(msg),
         error: () => {},
+        info: () => {},
       };
 
       try {
@@ -212,6 +215,7 @@ describe("git_helpers.cjs", () => {
     it("allows core logging while keeping Git output off caller-provided file descriptors", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");
       const debug = vi.spyOn(global.core, "debug");
+      const info = vi.spyOn(global.core, "info");
       const secret = "git-log-test-secret";
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-git-logging-"));
       const logPath = path.join(dir, "git.log");
@@ -220,11 +224,26 @@ describe("git_helpers.cjs", () => {
         const stdout = execGitSync(["-c", `test.secret=${secret}`, "config", "--get", "test.secret"], { stdio: ["ignore", fd, fd] });
         expect(stdout.trim()).toBe(secret);
         expect(debug).toHaveBeenCalledWith(expect.stringContaining(secret));
+        expect(info).toHaveBeenCalledWith(stdout);
         expect(fs.readFileSync(logPath, "utf8")).toBe("");
       } finally {
         debug.mockRestore();
+        info.mockRestore();
         fs.closeSync(fd);
         fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("logs synchronous output beyond the former debug preview limit", async () => {
+      const { execGitSync } = await import("./git_helpers.cjs");
+      const info = vi.spyOn(global.core, "info");
+      const output = "long git output ".repeat(40);
+      try {
+        const stdout = execGitSync(["-c", `test.output=${output}`, "config", "--get", "test.output"]);
+        expect(stdout.length).toBeGreaterThan(200);
+        expect(info).toHaveBeenCalledWith(stdout);
+      } finally {
+        info.mockRestore();
       }
     });
 
@@ -250,7 +269,7 @@ describe("git_helpers.cjs", () => {
             require: name => (name === "child_process" ? { spawnSync: spawn } : requireLocal(name)),
             module,
             process,
-            core: { debug: writeLog, error: writeLog },
+            core: { debug: writeLog, error: writeLog, info: writeLog },
           });
           const { execGitSync, isTransientGitError } = module.exports;
           let error;
@@ -526,8 +545,8 @@ describe("git_helpers.cjs", () => {
 
       await ensureFullHistoryForBundle(execApi, options);
 
-      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], { ...options, silent: true });
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], { ...options, silent: true });
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], { ...options, silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], { ...options, silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("should not fetch full history when the repository is not shallow", async () => {
@@ -923,7 +942,11 @@ describe("git_helpers.cjs", () => {
       const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
 
       expect(result).toEqual([PREREQ_SHA]);
-      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { ignoreReturnCode: true, silent: true });
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], {
+        ignoreReturnCode: true,
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
     });
 
     it("should return multiple prerequisite SHAs when bundle has several", async () => {
@@ -1004,7 +1027,12 @@ describe("git_helpers.cjs", () => {
 
       await getBundlePrerequisites(execApi, "/tmp/test.bundle", options);
 
-      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { cwd: "/repo", ignoreReturnCode: true, silent: true });
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], {
+        cwd: "/repo",
+        ignoreReturnCode: true,
+        silent: true,
+        listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+      });
     });
   });
 
@@ -1037,8 +1065,8 @@ describe("git_helpers.cjs", () => {
       const result = await linearizeRangeAsCommit("origin/main", "Squash commit", execApi);
 
       expect(result).toBe(NEW_HEAD);
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"], { silent: true });
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "-m", "Squash commit"], { silent: true });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "-m", "Squash commit"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("should prepend commitFlags before -m in the git commit call", async () => {
@@ -1049,7 +1077,7 @@ describe("git_helpers.cjs", () => {
         commitFlags: ["--allow-empty", "--no-verify"],
       });
 
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "--allow-empty", "--no-verify", "-m", "Squash commit"], { silent: true });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "--allow-empty", "--no-verify", "-m", "Squash commit"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     });
 
     it("should pass gitOpts to every exec and getExecOutput call", async () => {
@@ -1061,10 +1089,10 @@ describe("git_helpers.cjs", () => {
 
       // Every call should have received gitOpts as the trailing argument
       for (const [, , opts] of execApi.exec.mock.calls) {
-        expect(opts).toEqual({ ...gitOpts, silent: true });
+        expect(opts).toEqual({ ...gitOpts, silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       }
       for (const [, , opts] of execApi.getExecOutput.mock.calls) {
-        expect(opts).toEqual({ ...gitOpts, silent: true });
+        expect(opts).toEqual({ ...gitOpts, silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       }
     });
 
@@ -1075,10 +1103,10 @@ describe("git_helpers.cjs", () => {
       await linearizeRangeAsCommit("origin/main", "Squash commit", execApi);
 
       for (const callArgs of execApi.exec.mock.calls) {
-        expect(callArgs[2]).toEqual({ silent: true });
+        expect(callArgs[2]).toEqual({ silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       }
       for (const callArgs of execApi.getExecOutput.mock.calls) {
-        expect(callArgs[2]).toEqual({ silent: true });
+        expect(callArgs[2]).toEqual({ silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       }
     });
 
@@ -1101,7 +1129,7 @@ describe("git_helpers.cjs", () => {
       await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD/);
 
       // Should have rolled back to the original HEAD
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
 
       // Should have emitted a warning about restoring the original HEAD
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
@@ -1122,7 +1150,7 @@ describe("git_helpers.cjs", () => {
       await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*reset failed/s);
 
       // Should have attempted rollback (reset --hard)
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
     });
 
@@ -1143,7 +1171,7 @@ describe("git_helpers.cjs", () => {
 
       await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*commit failed/s);
 
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true });
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
     });
 

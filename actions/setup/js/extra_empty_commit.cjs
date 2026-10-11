@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
@@ -102,14 +103,18 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       let logOutput = "";
       // List last N commits: for each, output "COMMIT:<hash> <parents>" then changed file names.
       // Empty commits will have no files listed after the hash line.
-      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H %P", "--name-only", "HEAD"], {
-        listeners: {
-          stdout: data => {
-            logOutput += data.toString();
+      await exec.exec(
+        "git",
+        ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H %P", "--name-only", "HEAD"],
+        gitLoggingOptions({
+          listeners: {
+            stdout: data => {
+              logOutput += data.toString();
+            },
           },
-        },
-        silent: true,
-      });
+          silent: true,
+        })
+      );
       // Split by COMMIT: markers; each chunk starts with the hash, followed by filenames
       const chunks = logOutput.split("COMMIT:").filter(c => c.trim());
       for (const chunk of chunks) {
@@ -172,8 +177,8 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // before we know whether a git push will actually be needed.
       try {
         core.info(`Fetching and syncing with remote branch ${branchName}`);
-        await exec.exec("git", ["fetch", remoteUrl, branchName], { silent: true });
-        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], { silent: true });
+        await exec.exec("git", ["fetch", remoteUrl, branchName], gitLoggingOptions({ silent: true }));
+        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], gitLoggingOptions({ silent: true }));
         core.info(`Synced local branch with remote ${branchName}`);
       } catch (error) {
         // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
@@ -193,7 +198,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // expectedHeadOid parameter.  If this fails, skip the API path entirely.
       let expectedHeadOid = "";
       try {
-        const headResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { silent: true, ignoreReturnCode: true });
+        const headResult = await exec.getExecOutput("git", ["rev-parse", "HEAD"], gitLoggingOptions({ silent: true, ignoreReturnCode: true }));
         if (headResult.exitCode === 0) {
           expectedHeadOid = headResult.stdout.trim();
           core.info(`HEAD OID for GraphQL mutation: ${expectedHeadOid}`);
@@ -228,8 +233,8 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
           // Update the local branch HEAD to the API-created commit so that any
           // downstream git state reads see the new OID rather than stale data.
           try {
-            await exec.exec("git", ["fetch", remoteUrl, branchName], { silent: true });
-            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], { silent: true });
+            await exec.exec("git", ["fetch", remoteUrl, branchName], gitLoggingOptions({ silent: true }));
+            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], gitLoggingOptions({ silent: true }));
             core.info(`Updated local branch to API-created commit ${newOid}`);
           } catch (updateErr) {
             core.info(`Could not update local branch to API-created commit: ${getErrorMessage(updateErr)}`);
@@ -244,15 +249,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         // Add a named remote only when a git push is actually needed.
         core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
         try {
-          await exec.exec("git", ["remote", "remove", "ci-trigger"], { silent: true });
+          await exec.exec("git", ["remote", "remove", "ci-trigger"], gitLoggingOptions({ silent: true }));
           core.info("Removed pre-existing ci-trigger remote");
         } catch {
           // Remote doesn't exist yet — removal failure is ignored, that's fine.
         }
-        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl], { silent: true });
-        await exec.exec("git", ["commit", "--allow-empty", "-m", message], { silent: true });
+        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl], gitLoggingOptions({ silent: true }));
+        await exec.exec("git", ["commit", "--allow-empty", "-m", message], gitLoggingOptions({ silent: true }));
         await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: "ci-trigger", branch: branchName });
-        await exec.exec("git", ["push", "ci-trigger", branchName], { silent: true });
+        await exec.exec("git", ["push", "ci-trigger", branchName], gitLoggingOptions({ silent: true }));
       }
 
       core.info(`Extra empty commit pushed to ${branchName} successfully`);
@@ -261,7 +266,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     } finally {
       // Clean up the temporary remote and restore previous checkout auth state.
       try {
-        await exec.exec("git", ["remote", "remove", "ci-trigger"], { silent: true });
+        await exec.exec("git", ["remote", "remove", "ci-trigger"], gitLoggingOptions({ silent: true }));
         core.info("Removed ci-trigger remote");
       } catch {
         // Non-fatal cleanup error

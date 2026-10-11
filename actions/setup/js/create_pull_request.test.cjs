@@ -170,7 +170,7 @@ describe("create_pull_request - draft policy enforcement", () => {
     const result = await handler({ title: "Test PR", body: "Test body" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
   });
 
   it("should preserve existing base history in a shallow repository", async () => {
@@ -186,8 +186,8 @@ describe("create_pull_request - draft policy enforcement", () => {
     const result = await handler({ title: "Test PR", body: "Test body" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true });
-    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
   });
 
   it("should preserve a sparse-full repository when fetching the base branch", async () => {
@@ -203,8 +203,8 @@ describe("create_pull_request - draft policy enforcement", () => {
     const result = await handler({ title: "Test PR", body: "Test body" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true });
-    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
   });
 
   it("should enforce draft: false from config even when agent requests draft: true", async () => {
@@ -609,8 +609,8 @@ index 0000000..abc1234
     }
     expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature\/test:refs\/bundles\/create-pr-feature-test-[a-f0-9]{8}$/);
     const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef], { silent: true });
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     // Primary path: the exact prerequisite SHA is fetched directly from origin,
     // with no broad iterative deepen and no --unshallow.
     const directFetch = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(prereq));
@@ -796,8 +796,8 @@ index 0000000..abc1234
     expect(result.success).toBe(true);
     expect(result.fallback_used).not.toBe(true);
     expect(pushSignedSpy).toHaveBeenCalledTimes(2);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"], { silent: true });
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "bundle merge headline"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "bundle merge headline"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     expect(global.github.rest.issues.create).not.toHaveBeenCalled();
   });
 
@@ -853,7 +853,7 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true });
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     const resolvedFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2].startsWith("refs/heads/main:"));
     if (!resolvedFetchCall) {
       throw new Error("expected resolved bundle fetch call");
@@ -918,7 +918,7 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true });
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     // HEAD-based bundle fetch is now performed via getExecOutput (ignoreReturnCode: true)
     // so the code can distinguish prerequisite errors from other failures.
     const headFetchCall = global.exec.getExecOutput.mock.calls.find(
@@ -996,7 +996,7 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     // Feature-branch tip prerequisite is fetched from origin
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", featureBranchTip], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", featureBranchTip], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     // After prerequisite recovery, HEAD bundle is retried via exec
     const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:"));
     expect(bundleRetryFetchCalls.length).toBe(1);
@@ -1119,11 +1119,11 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     // Prerequisites are fetched from origin via exec with --filter=blob:none to avoid downloading blobs
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     // Retry bundle fetch is via exec (only the retry, not the initial attempt which was getExecOutput)
     const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(bundleRetryFetchCalls.length).toBe(1);
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true });
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
   });
 
   it("should fetch all prerequisite commits in a single origin fetch and retry bundle fetch", async () => {
@@ -1172,10 +1172,13 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2], {
+      silent: true,
+      listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+    });
     const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(bundleRetryFetchCalls.length).toBe(1);
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true });
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
   });
 
   it("should fail when fetching prerequisite commits from origin fails", async () => {
@@ -1329,7 +1332,10 @@ index 0000000..abc1234
     }
     expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/autoloop\/perf-comparison:refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8}$/);
     const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", bundleTempRef], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/autoloop/perf-comparison", bundleTempRef], {
+      silent: true,
+      listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+    });
   });
 
   it("should give fallback issue bundle instructions that avoid direct branch fetches", async () => {
@@ -3313,7 +3319,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: `  ${MOCK_BASE_COMMIT_SHA}  ` }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     const checkoutWithBaseCommit = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === MOCK_BASE_COMMIT_SHA);
     expect(checkoutWithBaseCommit).toBeTruthy();
   });
@@ -3334,9 +3340,13 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true });
-    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true });
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["merge-base", "--is-ancestor", MOCK_BASE_COMMIT_SHA, "origin/main"], { ignoreReturnCode: true, silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--depth=1", "origin", "main"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["merge-base", "--is-ancestor", MOCK_BASE_COMMIT_SHA, "origin/main"], {
+      ignoreReturnCode: true,
+      silent: true,
+      listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+    });
   });
 
   it("should ignore agent-supplied base_commit values when creating the branch", async () => {
@@ -3350,7 +3360,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: "not-a-sha --bad" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"], { silent: true });
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("base_commit"));
   });
 
@@ -3370,7 +3380,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     const checkoutWithBaseBranch = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === "main");
     expect(checkoutWithBaseBranch).toBeTruthy();
   });
@@ -3457,7 +3467,10 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.createReview).toHaveBeenCalled();
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", `${MOCK_BASE_COMMIT_SHA}..HEAD`], { silent: true });
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", `${MOCK_BASE_COMMIT_SHA}..HEAD`], {
+      silent: true,
+      listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
+    });
   });
 
   it("should return error when both git am --3way and the fallback git am fail", async () => {
@@ -3518,8 +3531,8 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath], { silent: true });
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"], { silent: true });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"], { silent: true, listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }) });
     expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Add/add recovery probe unresolved files"));
   });
 

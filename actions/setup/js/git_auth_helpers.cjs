@@ -3,6 +3,7 @@
 // This module relies on the `exec` and `core` globals injected by github-script at runtime.
 // All callers must ensure these globals are set before invoking any helper.
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { buildGitAuthEnv } = require("./git_auth_env.cjs");
 const { maskSecret } = require("./actions_secret_masking.cjs");
@@ -59,7 +60,7 @@ async function findIncludedExtraheaderConfigFiles(cwd) {
   const baseOpts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
 
   // Step 1: get the key names only (avoids splitting issues for paths with spaces in the key).
-  const namesResult = await exec.getExecOutput("git", ["config", "--local", "--name-only", "--get-regexp", "^includeif\\.gitdir.*\\.path$"], { ...baseOpts, silent: true });
+  const namesResult = await exec.getExecOutput("git", ["config", "--local", "--name-only", "--get-regexp", "^includeif\\.gitdir.*\\.path$"], gitLoggingOptions({ ...baseOpts, silent: true }));
   if (namesResult.exitCode !== 0 || !namesResult.stdout.trim()) {
     return [];
   }
@@ -72,7 +73,7 @@ async function findIncludedExtraheaderConfigFiles(cwd) {
     .map(l => l.trim())
     .filter(Boolean)) {
     // Step 2: for each key name, retrieve its value(s) with --get-all.
-    const valResult = await exec.getExecOutput("git", ["config", "--local", "--get-all", keyName], { ...baseOpts, silent: true });
+    const valResult = await exec.getExecOutput("git", ["config", "--local", "--get-all", keyName], gitLoggingOptions({ ...baseOpts, silent: true }));
     if (valResult.exitCode !== 0 || !valResult.stdout.trim()) continue;
     for (const valLine of valResult.stdout
       .split("\n")
@@ -120,7 +121,7 @@ async function unsetExtraheaderAllScopes(key, cwd) {
   const scopes = ["--global", "--local"];
   for (const scope of scopes) {
     const opts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
-    const result = await exec.getExecOutput("git", ["config", scope, "--unset-all", key], { ...opts, silent: true });
+    const result = await exec.getExecOutput("git", ["config", scope, "--unset-all", key], gitLoggingOptions({ ...opts, silent: true }));
     // Exit code 5 means the key was absent in this scope — expected and safe to ignore.
     // Any other non-zero exit code indicates a real failure (e.g., permission denied,
     // write lock). Throw so the caller knows the credential may still be effective.
@@ -140,7 +141,7 @@ async function unsetExtraheaderAllScopes(key, cwd) {
     includedFiles = [];
   }
   for (const file of includedFiles) {
-    const result = await exec.getExecOutput("git", ["config", "--file", file, "--unset-all", key], { silent: true, ignoreReturnCode: true });
+    const result = await exec.getExecOutput("git", ["config", "--file", file, "--unset-all", key], gitLoggingOptions({ silent: true, ignoreReturnCode: true }));
     if (result.exitCode !== 0 && result.exitCode !== 5) {
       throw new Error(`git config --file --unset-all failed (exit ${result.exitCode}; arguments and output omitted)`);
     }
@@ -159,7 +160,7 @@ async function unsetExtraheaderAllScopes(key, cwd) {
 async function getExtraheaderValues(serverUrl, cwd) {
   const normalizedUrl = normalizeServerUrl(serverUrl);
   const execOptions = cwd ? { silent: true, ignoreReturnCode: true, cwd } : { silent: true, ignoreReturnCode: true };
-  const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${normalizedUrl}/.extraheader`], { ...execOptions, silent: true });
+  const result = await exec.getExecOutput("git", ["config", "--get-all", `http.${normalizedUrl}/.extraheader`], gitLoggingOptions({ ...execOptions, silent: true }, false));
   if (result.exitCode !== 0 || !result.stdout.trim()) {
     return [];
   }
@@ -196,7 +197,7 @@ async function checkoutHasPersistedExtraheader(serverUrl) {
  */
 async function gitExecSilent(gitArgs, cwd) {
   try {
-    await exec.exec("git", gitArgs, { ...(cwd ? { cwd } : {}), silent: true });
+    await exec.exec("git", gitArgs, gitLoggingOptions({ ...(cwd ? { cwd } : {}), silent: true }));
   } catch (err) {
     throw new Error("git-config-credential failed (arguments and output omitted)");
   }

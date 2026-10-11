@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const fs = require("fs");
@@ -66,10 +67,14 @@ ${xmlMarker}
 async function getChangedLockFiles() {
   // Compare the current working tree against HEAD to capture the lock files
   // changed by this maintenance compile run before any branch operations.
-  const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", ".github/workflows/*.lock.yml"], {
-    ignoreReturnCode: true,
-    silent: true,
-  });
+  const { stdout } = await exec.getExecOutput(
+    "git",
+    ["diff", "--name-only", ".github/workflows/*.lock.yml"],
+    gitLoggingOptions({
+      ignoreReturnCode: true,
+      silent: true,
+    })
+  );
   return stdout
     .split("\n")
     .map(file => file.trim())
@@ -77,15 +82,19 @@ async function getChangedLockFiles() {
 }
 
 async function getLocalHeadSha() {
-  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { silent: true });
+  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], gitLoggingOptions({ silent: true }));
   return stdout.trim();
 }
 
 async function getRemoteBranchHead(branchName) {
-  const { stdout, exitCode, stderr } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], {
-    ignoreReturnCode: true,
-    silent: true,
-  });
+  const { stdout, exitCode, stderr } = await exec.getExecOutput(
+    "git",
+    ["ls-remote", "origin", `refs/heads/${branchName}`],
+    gitLoggingOptions({
+      ignoreReturnCode: true,
+      silent: true,
+    })
+  );
   if (exitCode !== 0) {
     core.info(`Could not query remote branch ${branchName}: ${stderr.trim() || `exit code ${exitCode}`}`);
     return "";
@@ -102,7 +111,7 @@ async function getRemoteBranchHead(branchName) {
 
 async function fetchRemoteBranch(branchName) {
   core.info(`Fetching remote branch ${branchName} for comparison`);
-  await exec.exec("git", ["fetch", "origin", `refs/heads/${branchName}:refs/remotes/origin/${branchName}`], { silent: true });
+  await exec.exec("git", ["fetch", "origin", `refs/heads/${branchName}:refs/remotes/origin/${branchName}`], gitLoggingOptions({ silent: true }));
 }
 
 async function filterFilesNeedingUpdate(comparisonRef, changedFiles, workspaceDir) {
@@ -115,10 +124,14 @@ async function filterFilesNeedingUpdate(comparisonRef, changedFiles, workspaceDi
     } catch (err) {
       throw new Error(`Failed to read file ${workingTreePath}: ${getErrorMessage(err)}`, { cause: err });
     }
-    const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${comparisonRef}:${file}`], {
-      ignoreReturnCode: true,
-      silent: true,
-    });
+    const { stdout, exitCode } = await exec.getExecOutput(
+      "git",
+      ["show", `${comparisonRef}:${file}`],
+      gitLoggingOptions({
+        ignoreReturnCode: true,
+        silent: true,
+      })
+    );
     if (exitCode !== 0) {
       core.info(`Remote ref ${comparisonRef} does not contain ${file}; scheduling update`);
       filesToUpdate.push(file);
@@ -138,7 +151,7 @@ async function stageFiles(files) {
   if (!Array.isArray(files) || files.length === 0) {
     return;
   }
-  await exec.exec("git", ["add", "--", ...files], { silent: true });
+  await exec.exec("git", ["add", "--", ...files], gitLoggingOptions({ silent: true }));
 }
 
 async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
@@ -157,7 +170,7 @@ async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
   }
 
   core.info(`Preparing maintenance branch ${RECOMPILE_PR_BRANCH}`);
-  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH], { silent: true });
+  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH], gitLoggingOptions({ silent: true }));
 
   if (filesToCommit.length === 0) {
     core.info("Existing maintenance branch already contains the latest compiled workflow lock files");
@@ -166,7 +179,7 @@ async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
 
   await stageFiles(filesToCommit);
   core.info(`Staging ${filesToCommit.length} workflow lock file(s): ${filesToCommit.join(", ")}`);
-  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"], { silent: true });
+  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"], gitLoggingOptions({ silent: true }));
 
   core.info(`Pushing maintenance branch ${RECOMPILE_PR_BRANCH} via signed commit helper (baseRef=${baseRef})`);
   await pushSignedCommits({
@@ -279,18 +292,22 @@ async function main() {
 
   try {
     // Run git diff to check if there are any changes in lock files
-    await exec.exec("git", ["diff", "--exit-code", ".github/workflows/*.lock.yml"], {
-      ignoreReturnCode: true,
-      listeners: {
-        stdout: data => {
-          diffOutput += data.toString();
+    await exec.exec(
+      "git",
+      ["diff", "--exit-code", ".github/workflows/*.lock.yml"],
+      gitLoggingOptions({
+        ignoreReturnCode: true,
+        listeners: {
+          stdout: data => {
+            diffOutput += data.toString();
+          },
+          stderr: data => {
+            diffOutput += data.toString();
+          },
         },
-        stderr: data => {
-          diffOutput += data.toString();
-        },
-      },
-      silent: true,
-    });
+        silent: true,
+      })
+    );
 
     // If git diff exits with code 0, there are no changes
     // If it exits with code 1, there are changes
@@ -314,14 +331,18 @@ async function main() {
   // Capture the actual diff for the issue body
   let detailedDiff = "";
   try {
-    await exec.exec("git", ["diff", ".github/workflows/*.lock.yml"], {
-      listeners: {
-        stdout: data => {
-          detailedDiff += data.toString();
+    await exec.exec(
+      "git",
+      ["diff", ".github/workflows/*.lock.yml"],
+      gitLoggingOptions({
+        listeners: {
+          stdout: data => {
+            detailedDiff += data.toString();
+          },
         },
-      },
-      silent: true,
-    });
+        silent: true,
+      })
+    );
   } catch (error) {
     core.warning(`Could not capture detailed diff: ${getErrorMessage(error)}`);
   }

@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -82,8 +83,8 @@ async function main() {
   try {
     // Check if orphaned branch already exists, if not create it
     try {
-      await exec.exec("git", ["rev-parse", "--verify", `origin/${normalizedBranchName}`], { silent: true });
-      await exec.exec("git", ["checkout", "-B", normalizedBranchName, `origin/${normalizedBranchName}`], { silent: true });
+      await exec.exec("git", ["rev-parse", "--verify", `origin/${normalizedBranchName}`], gitLoggingOptions({ silent: true }));
+      await exec.exec("git", ["checkout", "-B", normalizedBranchName, `origin/${normalizedBranchName}`], gitLoggingOptions({ silent: true }));
       core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
     } catch (originError) {
       // Validate that branch starts with "assets/" prefix before creating orphaned branch
@@ -98,9 +99,9 @@ async function main() {
 
       // Branch doesn't exist on origin and has valid prefix, create orphaned branch
       core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-      await exec.exec("git", ["checkout", "--orphan", normalizedBranchName], { silent: true });
-      await exec.exec("git", ["rm", "-rf", "."], { silent: true });
-      await exec.exec("git", ["clean", "-fdx"], { silent: true });
+      await exec.exec("git", ["checkout", "--orphan", normalizedBranchName], gitLoggingOptions({ silent: true }));
+      await exec.exec("git", ["rm", "-rf", "."], gitLoggingOptions({ silent: true }));
+      await exec.exec("git", ["clean", "-fdx"], gitLoggingOptions({ silent: true }));
     }
 
     // Process each asset
@@ -164,7 +165,7 @@ async function main() {
         fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
-        await exec.exec("git", ["add", targetFileName], { silent: true });
+        await exec.exec("git", ["add", targetFileName], gitLoggingOptions({ silent: true }));
 
         uploadCount++;
         hasChanges = true;
@@ -185,11 +186,11 @@ async function main() {
     // Commit and push if there are changes (skip if staged)
     if (hasChanges) {
       const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-      await exec.exec(`git`, [`commit`, `-m`, commitMessage], { silent: true });
+      await exec.exec(`git`, [`commit`, `-m`, commitMessage], gitLoggingOptions({ silent: true }));
       if (!isStaged) {
         const maxPushAttempts = 3;
         for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
-          const pushResult = await exec.getExecOutput("git", ["push", "--porcelain", "origin", normalizedBranchName], { ignoreReturnCode: true, silent: true });
+          const pushResult = await exec.getExecOutput("git", ["push", "--porcelain", "origin", normalizedBranchName], gitLoggingOptions({ ignoreReturnCode: true, silent: true }));
           if (pushResult.exitCode === 0) {
             break;
           }
@@ -200,11 +201,11 @@ async function main() {
           }
           core.warning(`Asset push attempt ${attempt}/${maxPushAttempts} was rejected because the branch changed; rebasing onto the latest ${normalizedBranchName} branch before retrying`);
           const remoteBranch = `refs/remotes/origin/${normalizedBranchName}`;
-          await exec.exec("git", ["fetch", "--no-tags", "origin", `+refs/heads/${normalizedBranchName}:${remoteBranch}`], { silent: true });
+          await exec.exec("git", ["fetch", "--no-tags", "origin", `+refs/heads/${normalizedBranchName}:${remoteBranch}`], gitLoggingOptions({ silent: true }));
           try {
-            await exec.exec("git", ["rebase", remoteBranch], { silent: true });
+            await exec.exec("git", ["rebase", remoteBranch], gitLoggingOptions({ silent: true }));
           } catch (rebaseError) {
-            await exec.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true, silent: true });
+            await exec.exec("git", ["rebase", "--abort"], gitLoggingOptions({ ignoreReturnCode: true, silent: true }));
             throw rebaseError;
           }
         }

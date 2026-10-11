@@ -77,6 +77,26 @@ function staticKey(prop: TSESTree.Property): string | undefined {
   return prop.key.type === AST_NODE_TYPES.Literal && typeof prop.key.value === "string" ? prop.key.value : undefined;
 }
 
+function isGitLoggingOptions(expression: TSESTree.Node | undefined, source: TSESLint.SourceCode): boolean {
+  if (expression?.type !== AST_NODE_TYPES.CallExpression || expression.callee.type !== AST_NODE_TYPES.Identifier) return false;
+  const name = expression.callee.name;
+  const variable = variableFor(expression.callee, source);
+  if (!variable || hasWrites(variable)) return false;
+  return (
+    variable.defs.some(def => {
+      if (def.type !== "Variable" || def.node.type !== AST_NODE_TYPES.VariableDeclarator || def.node.id.type !== AST_NODE_TYPES.ObjectPattern) return false;
+      const init = def.node.init;
+      return (
+        init?.type === AST_NODE_TYPES.CallExpression &&
+        init.callee.type === AST_NODE_TYPES.Identifier &&
+        init.callee.name === "require" &&
+        staticString(init.arguments[0], source) === "./git_logging.cjs" &&
+        def.node.id.properties.some(prop => prop.type === AST_NODE_TYPES.Property && staticKey(prop) === "gitLoggingOptions" && prop.value.type === AST_NODE_TYPES.Identifier && prop.value.name === name)
+      );
+    }) ?? false
+  );
+}
+
 function methodFor(node: TSESTree.CallExpression, source: TSESLint.SourceCode): { name: string; child: boolean } | undefined {
   const callee = node.callee;
   if (callee.type === AST_NODE_TYPES.MemberExpression) {
@@ -217,6 +237,7 @@ export const noGitCommandLoggingRule = createRule({
           context.report({ node, messageId: "stdio" });
           return;
         }
+        if (isGitLoggingOptions(options, source)) return;
         const silent = propertyValue(options, "silent", source);
         if (silent?.type === AST_NODE_TYPES.Literal && silent.value === true) return;
         context.report({

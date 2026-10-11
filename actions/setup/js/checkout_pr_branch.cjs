@@ -30,6 +30,7 @@
  * it only works with the PR from the triggering event.
  */
 
+const { gitLoggingOptions } = require("./git_logging.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
@@ -54,10 +55,14 @@ const PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
  */
 async function resolveCheckedOutHeadSha() {
   try {
-    const result = await exec.getExecOutput("git", ["rev-parse", "HEAD^{commit}"], {
-      silent: true,
-      ignoreReturnCode: true,
-    });
+    const result = await exec.getExecOutput(
+      "git",
+      ["rev-parse", "HEAD^{commit}"],
+      gitLoggingOptions({
+        silent: true,
+        ignoreReturnCode: true,
+      })
+    );
     if (result.exitCode !== 0) {
       return null;
     }
@@ -106,10 +111,14 @@ async function exportPRHeadBaseline({ branchName, baseRepo, headRepo, prNumber }
  */
 async function isShallowRepository() {
   try {
-    const result = await exec.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], {
-      silent: true,
-      ignoreReturnCode: true,
-    });
+    const result = await exec.getExecOutput(
+      "git",
+      ["rev-parse", "--is-shallow-repository"],
+      gitLoggingOptions({
+        silent: true,
+        ignoreReturnCode: true,
+      })
+    );
     if (result.exitCode !== 0) {
       return false;
     }
@@ -454,10 +463,10 @@ async function main() {
       core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const fetchArgs = await depthArgs(fetchDepth);
       core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs], { silent: true });
+      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs], gitLoggingOptions({ silent: true }));
 
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", branchName], { silent: true });
+      await exec.exec("git", ["checkout", branchName], gitLoggingOptions({ silent: true }));
 
       await exportPRHeadBaseline({
         branchName,
@@ -502,11 +511,11 @@ async function main() {
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const prFetchArgs = await depthArgs(fetchDepth);
       core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs], { silent: true });
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs], gitLoggingOptions({ silent: true }));
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"], { silent: true });
+      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"], gitLoggingOptions({ silent: true }));
 
       await exportPRHeadBaseline({
         branchName,
@@ -616,13 +625,13 @@ Pull request #${pullRequest.number} was merged after this workflow was triggered
     // Log current git state for debugging
     try {
       core.info("Current git status:");
-      await exec.exec("git", ["status"], { silent: true });
+      await exec.exec("git", ["status"], gitLoggingOptions({ silent: true }));
 
       core.info("Available remotes:");
-      await exec.exec("git", ["remote", "-v"], { silent: true });
+      await exec.exec("git", ["remote", "-v"], gitLoggingOptions({ silent: true }));
 
       core.info("Current branch:");
-      await exec.exec("git", ["branch", "--show-current"], { silent: true });
+      await exec.exec("git", ["branch", "--show-current"], gitLoggingOptions({ silent: true }));
     } catch (gitError) {
       core.warning(`Could not retrieve git state: ${getErrorMessage(gitError)}`);
     }

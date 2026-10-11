@@ -2193,6 +2193,7 @@ describe("push_repo_memory.cjs - signed commit push (pushSignedCommits delegatio
             GIT_CONFIG_VALUE_0: `Authorization: basic ${Buffer.from("x-access-token:token").toString("base64")}`,
           },
           silent: true,
+          listeners: expect.objectContaining({ stdout: expect.any(Function), stderr: expect.any(Function) }),
         });
         expect(pushSignedCommitsFn).toHaveBeenCalledTimes(2);
         expect(global.core.setFailed).not.toHaveBeenCalled();
@@ -2396,7 +2397,7 @@ describe("push_repo_memory.cjs - signed commit push (pushSignedCommits delegatio
 describe("push_repo_memory.cjs - concurrent merge policy", () => {
   it("keeps rows from both sides of a conflicting JSONL merge", () => {
     const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "repo-memory-jsonl-merge-"));
-    global.core = { debug: vi.fn(), error: vi.fn() };
+    global.core = { debug: vi.fn(), error: vi.fn(), info: vi.fn() };
 
     try {
       execSync("git init -b memory/test", { cwd: repoDir, stdio: "pipe" });
