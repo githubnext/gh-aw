@@ -350,6 +350,8 @@ disabled. Existing network permissions, local diagnostics, summaries, and artifa
 available; ordinary compilation preserves telemetry configuration. This does not
 rewrite custom scripts that configure their own exporters.
 
+The emitted lock's `gh-aw-metadata` header records `"dry_run":true`. Normal and
+older locks omit this optional field, which readers interpret as `false`.
 Suppression applies to the lock emitted by `--dry-run`, not a previously compiled
 normal lock on GitHub. Restoring that normal lock after diagnostic compilation
 does not disable its telemetry. Any permitted live test must review and execute

@@ -279,7 +279,13 @@ jobs:
 				content, err := os.ReadFile(filepath.Join(dir, "telemetry.lock.yml"))
 				require.NoError(t, err)
 				compiled := string(content)
+				metadata, legacy, err := ExtractMetadataFromLockFile(compiled)
+				require.NoError(t, err)
+				require.NotNil(t, metadata)
+				assert.False(t, legacy)
+				assert.Equal(t, enabled, metadata.DryRun)
 				if enabled {
+					assert.Contains(t, strings.SplitN(compiled, "\n", 2)[0], `"dry_run":true`)
 					var workflow map[string]any
 					require.NoError(t, yaml.Unmarshal(content, &workflow))
 					assertNoDryRunTelemetryEnv(t, workflow)
@@ -302,6 +308,7 @@ jobs:
 					assert.Contains(t, compiled, `ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"`)
 					assertDryRunEngineDate(t, content)
 				} else {
+					assert.NotContains(t, strings.SplitN(compiled, "\n", 2)[0], `"dry_run"`)
 					assert.Contains(t, compiled, "OTEL_EXPORTER_OTLP_ENDPOINT:")
 					assert.Contains(t, compiled, "OTEL_SERVICE_NAME: engine")
 					assert.Contains(t, compiled, "TRACEPARENT: engine-parent")
