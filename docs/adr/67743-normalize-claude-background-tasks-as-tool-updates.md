@@ -8,48 +8,57 @@
 
 ### Context
 
-The Claude session adapter (`actions/setup/js/claude_session.cjs`) translates Claude-native stdio records into the engine-neutral agent-session event schema. Claude emits `system` records with `subtype: "task_started"` / `task_notification`, which the adapter previously routed through `DYNAMIC_WORKFLOW_EVENT_TYPES`, so backgrounded shell tasks (`task_type: "local_bash"`) were reported as dynamic workflow lifecycle events rather than as activity belonging to an existing tool call. Those records carry only observational facts — a task id, an optional `tool_use_id`, a status and an optional `summary` — and never a tool result, exit code or usage block, so any mapping that implies completion would fabricate data. Saved sessions from earlier runs already contain `dynamicWorkflows.*` Bash wrappers that must keep working, and unknown native record types were previously discarded outright, losing forward compatibility with newer Claude CLI versions. Live evidence from three existing `agent` artifacts (Claude 2.1.285 and 2.1.288) confirms both the mis-typed Bash lifecycle records and the volume of discarded wrappers.
+The Claude session adapter (`actions/setup/js/claude_session.cjs`) translates Claude-native stdio records into the engine-neutral agent-session event schema. Claude emits `system` records with `subtype: "task_started"` / `task_notification`, which the adapter previously routed through `DYNAMIC_WORKFLOW_EVENT_TYPES`. Backgrounded shell tasks (`task_type: "local_bash"`) were therefore reported as dynamic workflow lifecycle events rather than as observations belonging to a tool call. A notification can omit `task_type`; identifying it requires correlation with a start record in the same session/child scope, without reclassifying unrelated workflow or subagent activity.
+
+Existing downloaded `agent-stdio.log` artifacts from runs [36812703027](https://github.com/github/gh-aw/actions/runs/36812703027) and [36762044297](https://github.com/github/gh-aw/actions/runs/36762044297), both using Claude 2.1.285, contain eight and four Bash lifecycle records respectively. Their starts identify `local_bash`; their notifications report `status: "completed"` without `task_type`. These observations do not establish a tool result, exit code or accounting data. Run [38098153730](https://github.com/github/gh-aw/actions/runs/38098153730), using Claude 2.1.288, provides saved-session compatibility evidence but contains no Bash lifecycle records. No fresh agent execution or workflow run is required for this decision, and no newer-version live behavior is claimed.
+
+Saved sessions may already contain `dynamicWorkflows.*` Bash wrappers. Migration must retain provenance without replaying conversation or tool results. Separately, previously discarded unknown native types need an opaque representation; their names must not impersonate canonical events.
 
 ### Decision
 
-We will map Claude `local_bash` task starts and notifications to the canonical `tool.execution_update` event, correlating task identity within a session/child scope via `bashTaskKey(source, task_id)` so a `task_notification` without `task_type` can be resolved back to its originating `task_started`. Emitted updates carry `taskId`, `taskType: "local_bash"`, the resolved `toolCallId`, `partial: true`, the observed `sourceType`/status, errors and `summary` output, and deliberately omit success flags, exit codes and usage. Saved `dynamicWorkflows.*` Bash wrappers are migrated in `normalizeClaudeObservations` with provenance intact, and previously discarded unknown native record types are now preserved as opaque Claude extension events. The primary driver is fidelity: a background shell task is an in-progress observation of a tool call, and the schema must not invent terminal state the engine never observed.
+Map Claude `local_bash` task starts and notifications to canonical `tool.execution_update` observations. `collectClaudeBashTasks` indexes starts by `bashTaskKey(source, task_id)`, combining session/child scope and task identity, so a notification without `task_type` can use a matching start even when record order differs. An explicit non-Bash type is not overridden, and a notification without either explicit Bash identity or a matching start stays on the existing mapping path.
+
+Updates carry `taskId`, `taskType: "local_bash"`, an available `toolCallId`, `partial: true`, the observed subtype/status/error fields and string `summary` as `output`. Available tool metadata is retained; missing metadata is not invented. A reported task status, including `completed`, is not synthesized into a canonical tool completion, success flag, exit code or usage. `partial: true` marks an observational event, not a claim that the background process is still running.
+
+Migrate saved `dynamicWorkflows.*` Bash wrappers in `normalizeClaudeObservations`, preserving provenance and avoiding duplicate tool results. Preserve unknown native record types as opaque `claude.*` extension events, including dotted names such as `session.result` and `tool.execution_complete`; only names already prefixed with `claude.` are left unchanged. The primary driver is fidelity: preserve what Claude observed without assigning unsupported terminal or workflow semantics.
 
 ### Alternatives Considered
 
 #### Alternative 1: Keep `local_bash` tasks on the dynamic-workflow event path
 
-Continue emitting `dynamicWorkflows.task_started` / `task_notification` for Bash tasks and let downstream consumers special-case `task_type`. This was a close call because it requires no adapter change and preserves existing saved-session shapes verbatim. It was rejected because it overloads the dynamic-workflow vocabulary with something that is not a workflow, forcing every consumer (log rendering, audit, metrics) to re-implement the same discrimination, and it leaves the task disconnected from the tool call it actually belongs to.
+Continue emitting `dynamicWorkflows.task_started` / `task_notification` for Bash tasks and let downstream consumers special-case `task_type`. This preserves existing saved-session shapes and avoids migration, but overloads workflow vocabulary with shell activity and leaves correlation and classification to consumers. Adapter-level normalization provides a single interpretation while retaining the original observed fields.
 
-#### Alternative 2: Synthesize paired `tool.execution_start` / `tool.execution_end` events
+#### Alternative 2: Synthesize paired `tool.execution_start` / `tool.execution_complete` events
 
-Model each background task as a full tool lifecycle, inferring completion and success from the `task_notification` status. This would give consumers a tidy start/end pair. It was rejected because Claude never reports a result, exit code or usage for these records, so success, duration and output would be fabricated; it would also double-count tool executions that already have real start/end events under the same `tool_use_id`.
+Model each background task as a full tool lifecycle, inferring completion and success from the `task_notification` status. This would give consumers a start/end pair, but the inspected lifecycle records do not establish a tool result or exit code. Synthesizing completion could also double-count executions already represented by real tool events under the same `tool_use_id`. An update can retain the reported summary without inventing a result.
 
 #### Alternative 3: Drop `local_bash` lifecycle records entirely
 
-Filter them out as noise, relying on the real tool call events. Rejected because the `summary` and error fields are the only visibility into long-running backgrounded shells, and silently discarding them repeats the forward-compatibility failure this PR is also fixing for unknown native record types.
+Filter them out as noise, relying on the real tool call events. This reduces payload size but loses task identity, status, summaries and diagnostics present in the trace. Preserving observations is preferable to discarding potentially useful audit evidence.
 
 ### Consequences
 
 #### Positive
 
-- Background shell activity is attributed to the correct tool call via `toolCallId`, so consumers see progress on the existing execution rather than a phantom workflow.
-- Observed-only semantics (`partial: true`, no exit code/usage) keep the session schema honest; no downstream consumer can mistake an observation for a completion.
-- Unknown Claude record types are preserved as opaque extension events, so newer CLI releases degrade gracefully instead of losing data.
+- Background shell activity can be attributed to an existing tool call via `toolCallId`, rather than represented as a workflow.
+- Observational semantics (`partial: true`, no synthesized completion or accounting) distinguish task reports from canonical tool results.
+- Unknown Claude record types remain inspectable as namespaced extension events without acquiring canonical semantics from their names.
 - Saved sessions containing legacy `dynamicWorkflows.*` Bash wrappers are migrated with provenance, so historical artifacts render under the new model.
 
 #### Negative
 
-- Consumers that previously matched on `dynamicWorkflows.task_started` for Bash tasks must be updated; the change is a behavioural break in the emitted event stream.
-- Scope-based correlation (`sessionScopeKey` + `task_id`) is heuristic: a `task_notification` whose `task_started` was never observed, or whose scope conflicts, falls back to an un-correlated update with no `toolCallId`.
+- Consumers that previously matched on `dynamicWorkflows.task_started` for Bash tasks must accommodate the new event type.
+- Correlation depends on matching scope and task identity. Untyped orphan notifications retain their existing mapping; explicitly typed Bash records can become updates even without a correlated tool call. A reused task id within the same scope is not independently disambiguated.
 - The adapter grows an additional pre-pass (`collectClaudeBashTasks`) over all records plus a migration branch, increasing the surface area of a file that is already dense with engine-specific special cases.
 - Preserving unknown native records increases session payload size for traces that contain many opaque wrappers.
 
 #### Neutral
 
-- Changes are confined to the Claude adapter and its tests; workflow/subagent mappings, orphan notifications, explicit non-Bash task types, conversation, tool results and usage compatibility are unchanged.
-- Depends on a shared commit (`36774f94cb`, cherry-picked as `a5198048f7`) that retains `taskId`/`taskType`/`error` on unified tool updates; shared schema, spec and version-constant work remains coordinator-owned.
-- Coverage for failed/stopped/future statuses, saved-wrapper migration and scope conflicts is synthetic; only the Bash lifecycle normalization itself is backed by live artifact evidence.
+- Relative to the PR base `pelikhan-unified-session-parsers`, implementation changes are confined to the Claude adapter and its two test files, plus this ADR. Work-queue staging, dry-run compiler metadata and security-review policy changes are inherited base work, not decisions made by this PR.
+- Existing workflow/subagent mappings, untyped orphan notifications and explicit non-Bash task types remain on their existing paths. Conversation, tool-result and usage compatibility remain covered by the Claude tests.
+- Shared unified-session support for `taskId`/`taskType`/`error` is a prerequisite supplied by the base; this decision does not change the shared schema or runtime version pin.
+- Failed/stopped/future statuses, saved-wrapper migration, scope conflicts and unknown-type behavior are synthetic regression cases, not claims about fresh live traces. Bash lifecycle fixtures in `claude_session_audit.test.cjs` have documented provenance from the existing 2.1.285 run.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Status remains Draft pending maintainer acceptance; completing this record does not imply that the proposal has been accepted.*
