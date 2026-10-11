@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parsePiLog } from "./parse_pi_log.cjs";
 import { transformPiV3Entries, computePiV3Stats } from "./pi_session.cjs";
-import { success, failure } from "./fixtures/pi_ci_stream.cjs";
+import { success, failure, childObservations } from "./fixtures/pi_ci_stream.cjs";
 import { normalizeAgentSession, selectSessionResult, sessionTokenTotal } from "./agent_session.cjs";
 import { mergeSessionSources } from "./unified_session.cjs";
 import { normalizeUnifiedSessionEvent } from "./unified_session_payload.cjs";
@@ -11,6 +11,110 @@ const parse = records => parsePiLog(records.map(record => JSON.stringify(record)
 const byType = (events, type) => events.filter(event => event.type === type);
 
 describe("Pi CI stream regressions", () => {
+  it("retains sampled child text and reasoning in their evidenced dispatch scope through unified projection", () => {
+    const original = structuredClone(childObservations);
+    const records = [...success, ...childObservations];
+    const events = parse(records).logEntries;
+    const scope = "legacy:pi:sanitized-reader:1";
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "pi-streaming.jsonl", events }]);
+    expect(byType(unified, "assistant.reasoning")).toMatchObject([{ agentId: scope, data: { content: "Sanitized reasoning.", agentId: scope } }]);
+    expect(byType(unified, "assistant.message").find(event => event.agentId === scope)).toMatchObject({
+      data: { content: "Sanitized child answer.", model: "gpt-5-mini", messageId: "sanitized-child-response", agentId: scope },
+    });
+    expect(byType(unified, "subagent.request")).toMatchObject([{ agentId: scope, data: { inputTokens: 3085, outputTokens: 136, cacheReadTokens: 0, cacheWriteTokens: 0 } }]);
+    expect(selectSessionResult(events)).toMatchObject({ numTurns: 2, usage: { input_tokens: 6427, output_tokens: 145 } });
+    expect(byType(unified, "subagent.completed")).toEqual([]);
+    expect(byType(unified, "subagent.failed")).toEqual([]);
+    const validate = createSessionValidator("unified").event;
+    for (const event of unified) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    expect(childObservations).toEqual(original);
+  });
+
+  it("reconciles synthetic child streams without conflating parent tool IDs or repeated snapshots", () => {
+    const message = { role: "assistant", id: "child-answer", model: "fixture-model", content: [{ type: "text", text: "Child answer" }] };
+    const wrap = event => ({ type: "gh_aw_subagent_event", agent: "reader", invocation_id: "child", event, provenance: { path: "pi-streaming.jsonl", index: 7 } });
+    const records = [
+      { type: "gh_aw_subagent_dispatch", agent: "reader", invocation_id: "child" },
+      wrap({ type: "message_update", assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "Child " } }),
+      { type: "tool_execution_start", toolCallId: "same-id", toolName: "parent-tool", args: {} },
+      wrap({ type: "tool_execution_start", toolCallId: "same-id", toolName: "child-tool", args: { child: true } }),
+      wrap({ type: "tool_execution_end", toolCallId: "same-id", result: { error: "Child failure" } }),
+      wrap({ type: "message_end", message }),
+      wrap({ type: "turn_end", message }),
+      wrap({ type: "agent_end", messages: [message] }),
+      wrap({ type: "error", message: "Child error" }),
+    ];
+    const events = transformPiV3Entries(records);
+    expect(byType(events, "tool.execution_start").map(event => [event.agentId, event.data.toolName])).toEqual([
+      [undefined, "parent-tool"],
+      ["child", "child-tool"],
+    ]);
+    expect(byType(events, "tool.execution_complete")).toMatchObject([{ agentId: "child", data: { success: false, error: "Child failure" } }]);
+    expect(byType(events, "assistant.message").map(event => event.data.content)).toEqual(["Child ", "answer"]);
+    expect(byType(events, "assistant.message").every(event => event.agentId === "child" && event.provenance.path === "pi-streaming.jsonl" && event.provenance.index === 7)).toBe(true);
+    expect(byType(events, "session.error")).toMatchObject([{ agentId: "child", data: { error: "Child error" } }]);
+    expect(byType(events, "subagent.request")).toHaveLength(1);
+    expect(transformPiV3Entries(JSON.parse(JSON.stringify(events)))).toEqual(JSON.parse(JSON.stringify(events)));
+  });
+
+  it("preserves native unknown observations and deduplicated system snapshots without new custom types", () => {
+    const message = { role: "system", content: "SANITIZED SYSTEM PROMPT", sections: ["sanitized"], timestamp: 1, toolsAdded: [] };
+    const unknown = { type: "future_native_event", payload: { preserved: false }, timestamp: 2 };
+    const update = { type: "future_update", payload: { preserved: 0 }, contentIndex: 1 };
+    const records = [{ type: "message_start", message }, { type: "message_end", message }, unknown, { type: "message_update", assistantMessageEvent: update }, { type: "agent_end", messages: [message] }];
+    const events = parse(records).logEntries;
+    const compact = events.map(event => normalizeUnifiedSessionEvent(event));
+    expect(byType(compact, "session.info").map(event => event.data)).toEqual([
+      { sourceType: "message_snapshot", role: "system", content: message },
+      { sourceType: "future_native_event", content: unknown },
+    ]);
+    expect(byType(compact, "assistant.message_update")).toMatchObject([{ data: { type: "future_update", content: update } }]);
+    expect(parse(records).markdown).not.toContain("SANITIZED SYSTEM PROMPT");
+    expect(byType(events, "session.result")).toEqual([]);
+  });
+
+  // Official v1.1.0 agent/src/types.ts and coding-agent/src/core/agent-session.ts;
+  // synthetic observations, not a workflow run using the upgraded CLI.
+  it.each([true, false])("retains Pi 1.1.0 cancellation=%s and measured tool duration without fabricating a terminal result", aborted => {
+    const records = [
+      { type: "session", version: 3, id: "release-contract" },
+      { type: "tool_execution_start", toolCallId: "measured", toolName: "bash", args: { command: "sanitized" } },
+      { type: "tool_execution_end", toolCallId: "measured", toolName: "bash", result: { content: [] }, isError: false, durationMs: 0 },
+      { type: "agent_settled", aborted },
+    ];
+    const compact = parse(records).logEntries.map(event => normalizeUnifiedSessionEvent(event));
+    expect(byType(compact, "tool.execution_complete")).toMatchObject([{ data: { durationMs: 0, success: true } }]);
+    expect(byType(compact, "session.idle")).toEqual([{ type: "session.idle", data: { aborted } }]);
+    expect(byType(compact, "session.result")).toEqual([]);
+  });
+
+  // Synthetic persisted entries following v1.1.0 core/session-manager.ts,
+  // not a downloaded persisted session (the sampled artifacts contain streams).
+  it("maps persisted native message envelopes through the same canonical content and tool mapping", () => {
+    const records = [
+      { type: "session", version: 3, id: "persisted", cwd: "/sanitized" },
+      { type: "message", id: "user-entry", parentId: null, timestamp: 0, message: { role: "user", content: "Sanitized prompt" } },
+      {
+        type: "message",
+        id: "call-entry",
+        parentId: "user-entry",
+        timestamp: 1,
+        message: { role: "assistant", id: "call-message", content: [{ type: "toolCall", id: "tool", name: "bash", arguments: false }], usage: { input: 3, output: 1 } },
+      },
+      { type: "message", id: "result-entry", parentId: "call-entry", timestamp: 2, message: { role: "toolResult", toolCallId: "tool", content: 0, isError: false } },
+      { type: "message", id: "answer-entry", parentId: "result-entry", timestamp: 3, message: { role: "assistant", id: "answer-message", content: [{ type: "text", text: "Sanitized answer" }], usage: { input: 2, output: 1 } } },
+      { type: "usage", id: "auxiliary", parentId: "answer-entry", timestamp: 4, kind: "cache_warm", model: "fixture", provider: "fixture", usage: { input: 1, output: 0 } },
+    ];
+    const events = parse(records).logEntries;
+    expect(byType(events, "user.message")).toMatchObject([{ id: "user-entry", parentId: null, timestamp: 0, data: { content: "Sanitized prompt" } }]);
+    expect(byType(events, "tool.execution_start")).toMatchObject([{ id: "call-entry", data: { toolCallId: "tool", toolName: "bash", input: false } }]);
+    expect(byType(events, "tool.execution_complete")).toMatchObject([{ id: "result-entry", data: { output: 0, success: true } }]);
+    expect(byType(events, "assistant.message")).toMatchObject([{ id: "answer-entry", data: { content: "Sanitized answer" } }]);
+    expect(byType(events, "session.info")).toMatchObject([{ data: { sourceType: "usage", content: records.at(-1) } }]);
+    expect(selectSessionResult(events)).toMatchObject({ numTurns: 2, usage: { input_tokens: 6, output_tokens: 2 } });
+    expect(parse(records.slice(1, -1)).logEntries).toHaveLength(events.length - 2);
+  });
+
   it.each([
     ["success", success],
     ["provider failure", failure],
@@ -85,7 +189,12 @@ describe("Pi CI stream regressions", () => {
     expect(byType(events, "pi.subagent_dispatch")).toEqual([]);
     expect(byType(events, "pi.subagent_event")).toEqual([]);
     expect(byType(events, "pi.subagent_result")).toEqual([]);
-    expect(byType(events, "assistant.message").map(e => e.data.content)).toEqual(["Parent answer"]);
+    expect(
+      byType(events, "assistant.message")
+        .filter(e => !e.agentId)
+        .map(e => e.data.content)
+    ).toEqual(["Parent answer"]);
+    expect(byType(events, "assistant.message").find(e => e.agentId === "invocation-1")).toMatchObject({ data: { content: "Child answer", agentId: "invocation-1" } });
     expect(computePiV3Stats(records).usage.input_tokens).toBe(10);
   });
 
@@ -499,7 +608,7 @@ describe("Pi CI stream regressions", () => {
     expect(logEntries.map(e => e.type)).toEqual(["assistant.message", "vendor.progress", "assistant.message", "session.result"]);
     expect(byType(logEntries, "assistant.message").map(e => e.data.content)).toEqual([" flat ", " v3 "]);
     expect(logEntries[1]).toMatchObject({ id: "native", data: { count: 0 } });
-    expect(parsePiLog('{"type":"unknown","value":1}').logEntries).toEqual([]);
+    expect(parsePiLog('{"type":"unknown","value":1}').logEntries).toMatchObject([{ type: "session.info", data: { sourceType: "unknown", content: { type: "unknown", value: 1 } } }]);
   });
 
   it("accounts for truncated message_end and terminal-only transcript snapshots", () => {

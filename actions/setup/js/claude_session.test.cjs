@@ -48,7 +48,8 @@ describe("Claude CI session shapes", () => {
     });
     expect(completions[1].data).toMatchObject({ toolCallId: "tool-failed", toolName: "Read", success: false, output: "Example file does not exist." });
     expect(events.filter(event => event.type === "session.info").map(event => event.data.sourceType)).toEqual(["thinking_tokens"]);
-    expect(events.filter(event => event.type.startsWith("dynamicWorkflows.task_")).map(event => event.data.subtype)).toEqual(["task_started", "task_notification"]);
+    expect(events.filter(event => event.type === "tool.execution_update").map(event => event.data.subtype)).toEqual(["task_started", "task_notification"]);
+    expect(events.some(event => event.type.startsWith("dynamicWorkflows.task_"))).toBe(false);
   });
 
   it("uses authoritative terminal usage once, including Claude's disjoint cache inputs", () => {
@@ -118,8 +119,8 @@ describe("Claude CI session shapes", () => {
   it("preserves independent response fields with canonical terminal snapshots", () => {
     const events = normalizeClaudeSession([
       { type: "assistant", message: { id: "known", content: [], usage: { input_tokens: 4, output_tokens: 2 } } },
-      { type: "session.result", data: { usage: { outputTokens: 0 }, numTurns: 1 } },
-      { type: "session.result", data: { durationMs: 0 } },
+      { type: "session.result", data: { sourceEngine: "claude", usage: { outputTokens: 0 }, numTurns: 1 } },
+      { type: "session.result", data: { sourceEngine: "claude", durationMs: 0 } },
     ]);
     expect(projectSessionResult(events)).toMatchObject({ num_turns: 1, duration_ms: 0, usage: { input_tokens: 4, output_tokens: 0 } });
   });
@@ -305,7 +306,11 @@ describe("Claude preservation and privacy boundaries", () => {
       { type: "result", usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, permission_denials: [] },
       { type: "example.trailing", data: { source: true } },
     ]);
-    expect(parsed.logEntries[0]).toEqual(native);
+    expect(parsed.logEntries[0]).toMatchObject({
+      type: "claude.example.telemetry",
+      id: "native-id",
+      data: { arbitrary: native.data.arbitrary, sourceEngine: "claude" },
+    });
     expect(parsed.logEntries.find(event => event.type === "user.message").data.content).toBe("PRIVATE_USER_PROMPT_SENTINEL");
     expect(parsed.markdown).not.toContain("PRIVATE_USER_PROMPT_SENTINEL");
     expect(parsed.markdown).toContain("Public answer");

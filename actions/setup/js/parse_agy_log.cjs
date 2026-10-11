@@ -2,7 +2,7 @@
 "use strict";
 
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
-const { createSessionEvent, isSessionEvent, isTokenCount, isMetric } = require("./agent_session.cjs");
+const { createSessionEvent, isSessionEvent, isTokenCount, isMetric, reconcileSessionUsage } = require("./agent_session.cjs");
 const { getMessageRefusal } = require("./provider_refusal.cjs");
 
 const main = createEngineLogParser({ parserName: "Agy", parseFunction: parseAgyLog, supportsDirectories: false });
@@ -23,22 +23,19 @@ const isObject = value => !!value && typeof value === "object" && !Array.isArray
  */
 function agyUsage(native, emit, previous) {
   if (!isObject(native)) return previous;
-  const usage = { ...previous, ...native };
+  const snapshot = { ...native };
   for (const [field, canonical] of [
-    ["input_tokens", "input_tokens"],
-    ["output_tokens", "output_tokens"],
     ["thinking_tokens", "reasoning_output_tokens"],
     ["cache_read_tokens", "cache_read_input_tokens"],
-    ["total_tokens", "total_tokens"],
   ]) {
-    delete usage[field];
-    if (isTokenCount(native[field])) usage[canonical] = native[field];
-    else {
-      if (previous?.[canonical] !== undefined) usage[canonical] = previous[canonical];
-      if (native[field] != null) emit("session.collection_warning", { code: "invalid_usage", field });
-    }
+    if (Object.hasOwn(native, field)) snapshot[canonical] = native[field];
+    delete snapshot[field];
   }
-  if (!Object.hasOwn(native, "input_tokens_include_cache") && ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "total_tokens"].some(field => isTokenCount(usage[field])))
+  for (const field of ["input_tokens", "output_tokens", "thinking_tokens", "cache_read_tokens", "total_tokens"]) {
+    if (native[field] != null && !isTokenCount(native[field])) emit("session.collection_warning", { code: "invalid_usage", field });
+  }
+  const usage = reconcileSessionUsage(previous, snapshot);
+  if (usage && !Object.hasOwn(native, "input_tokens_include_cache") && ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "total_tokens"].some(field => isTokenCount(usage[field])))
     usage.input_tokens_include_cache = false;
   return usage;
 }

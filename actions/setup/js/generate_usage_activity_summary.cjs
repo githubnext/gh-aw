@@ -23,6 +23,8 @@ const { computeFrictionCost } = require("./friction_cost_metrics.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseDetectionLog, parseStructuredResultFile } = require("./parse_threat_detection_results.cjs");
+const { normalizeCopilotSession, copilotSessionContext } = require("./copilot_session.cjs");
+const { sessionToolSuccess } = require("./agent_session.cjs");
 
 require("./shim.cjs");
 
@@ -439,12 +441,14 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
     failed_tool_executions: 0,
   };
   const skills = new Map();
-  const pendingSkills = new Map();
 
   for (const logDir of sessionLogDirs) {
     for (const eventsPath of findFiles(logDir, entry => entry.name === "events.jsonl", 1)) {
       try {
-        const pendingSkillsWithoutIDs = [];
+        const pendingTools = new Map();
+        const sourceSessions = new Map();
+        const childSessions = new Map();
+        const entries = [];
         const content = fs.readFileSync(eventsPath, "utf-8");
         const lines = content.split("\n");
 
@@ -460,10 +464,13 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
           } catch {
             continue;
           }
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
 
           const eventType = String(entry.type || "")
             .trim()
             .toLowerCase();
+          entries.push({ ...entry, type: eventType });
+          if (entry.copilotProjection) continue;
           session.total_events += 1;
 
           if (eventType === "session.start") {
@@ -481,14 +488,32 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
             session.reasoning_events += 1;
           } else if (eventType === "tool.execution_start") {
             session.tool_execution_starts += 1;
-            const data = entry.data && typeof entry.data === "object" ? entry.data : {};
-            if (
-              String(data.toolName || "")
-                .trim()
-                .toLowerCase() === "skill"
-            ) {
-              const input = data.input && typeof data.input === "object" ? data.input : data.arguments && typeof data.arguments === "object" ? data.arguments : {};
-              const skillName = String(input.skill || "").trim();
+          } else if (eventType === "tool.execution_complete") {
+            session.tool_execution_completes += 1;
+          }
+        }
+
+        for (const entry of normalizeCopilotSession(entries)) {
+          if (entry.copilotProjection) continue;
+          /** @type {Record<string, any>} */
+          const data = entry.data;
+          const context = copilotSessionContext(entry);
+          const provenance = entry.provenance && typeof entry.provenance === "object" ? entry.provenance : {};
+          const sourceKey = JSON.stringify(["component" in provenance ? provenance.component : undefined, "phase" in provenance ? provenance.phase : undefined, "path" in provenance ? provenance.path : undefined]);
+          const childKey = JSON.stringify([sourceKey, context.agentId, context.parentToolUseId]);
+          if (["session.start", "session.init"].includes(entry.type) && context.sessionId !== undefined) {
+            if (context.agentId !== undefined || context.parentToolUseId) childSessions.set(childKey, context.sessionId);
+            else sourceSessions.set(sourceKey, context.sessionId);
+          }
+          const sessionId = context.sessionId !== undefined ? context.sessionId : childSessions.has(childKey) ? childSessions.get(childKey) : sourceSessions.get(sourceKey);
+          const scope = JSON.stringify([sourceKey, sessionId, context.agentId, context.parentToolUseId]);
+          const pending = pendingTools.get(scope) || [];
+          const toolName = typeof data.toolName === "string" ? data.toolName.trim().toLowerCase() : undefined;
+          if (entry.type === "tool.execution_start") {
+            let skillName;
+            if (toolName === "skill") {
+              const input = data.input && typeof data.input === "object" ? data.input : {};
+              skillName = String(input.skill || "").trim();
               if (skillName) {
                 const aggregate = skills.get(skillName) || {
                   name: skillName,
@@ -506,35 +531,20 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
                   aggregate.last_timestamp = timestamp;
                 }
                 skills.set(skillName, aggregate);
-                if (data.toolCallId) {
-                  pendingSkills.set(String(data.toolCallId), skillName);
-                } else {
-                  pendingSkillsWithoutIDs.push(skillName);
-                }
               }
             }
-          } else if (eventType === "tool.execution_complete") {
-            session.tool_execution_completes += 1;
-            const data = entry.data || {};
-            const success = typeof data === "object" ? data.success !== false : true;
-            let skillName = pendingSkills.get(String(data.toolCallId || ""));
-            if (
-              !skillName &&
-              String(data.toolName || "")
-                .trim()
-                .toLowerCase() === "skill"
-            ) {
-              // SDK events without IDs are paired in start order within this session file.
-              skillName = pendingSkillsWithoutIDs.shift();
-            }
-            if (!success) {
+            pending.push({ id: data.toolCallId, toolName, skillName });
+            pendingTools.set(scope, pending);
+          } else if (entry.type === "tool.execution_complete") {
+            const candidates = pending.filter(tool => (data.toolCallId !== undefined ? tool.id === data.toolCallId : tool.id === undefined && (toolName === undefined || tool.toolName === toolName)));
+            // A nameless, ID-less completion is attributable only when unambiguous.
+            const start = data.toolCallId !== undefined || toolName !== undefined || candidates.length === 1 ? candidates[0] : undefined;
+            if (start) pending.splice(pending.indexOf(start), 1);
+            if (sessionToolSuccess(data) === false) {
               session.failed_tool_executions += 1;
-              if (skillName && skills.has(skillName)) {
-                skills.get(skillName).failed_count += 1;
+              if (start?.skillName && skills.has(start.skillName)) {
+                skills.get(start.skillName).failed_count += 1;
               }
-            }
-            if (typeof data === "object" && data.toolCallId) {
-              pendingSkills.delete(String(data.toolCallId));
             }
           }
         }

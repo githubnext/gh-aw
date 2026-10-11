@@ -5,6 +5,7 @@ import * as path from "path";
 
 const require = createRequire(import.meta.url);
 const { runWithCopilotSDK, parsePermissionConfigFromServerArgs } = require("./copilot_sdk_driver.cjs");
+const { normalizeCopilotSession } = require("./copilot_session.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
   let testSessionStateDir;
@@ -353,8 +354,10 @@ describe("copilot_sdk_driver.cjs", () => {
         const startEvent = parsedEvents.find(event => event.type === "tool.execution_start");
         expect(startEvent).toMatchObject({
           type: "tool.execution_start",
-          data: { toolName: "bash", mcpServerName: "terminal", command: "git status" },
+          data: { toolName: "bash", mcpServerName: "terminal", input: { command: "git status" } },
         });
+        expect(startEvent.data.command).toBeUndefined();
+        expect(normalizeCopilotSession(parsedEvents).find(event => event.type === "tool.execution_start").data.command).toBe("git status");
       } finally {
         stderrWriteSpy.mockRestore();
       }
@@ -435,8 +438,10 @@ describe("copilot_sdk_driver.cjs", () => {
         const completeEvent = parsedEvents.find(event => event.type === "tool.execution_complete");
         expect(completeEvent).toMatchObject({
           type: "tool.execution_complete",
-          data: { toolName: "skill", toolCallId: "call-1", success: true },
+          data: { toolCallId: "call-1", success: true },
         });
+        expect(completeEvent.data.toolName).toBeUndefined();
+        expect(normalizeCopilotSession(parsedEvents).find(event => event.type === "tool.execution_complete").data).toMatchObject({ toolName: "skill", mcpServerName: "", success: true });
       } finally {
         stderrWriteSpy.mockRestore();
       }

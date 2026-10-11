@@ -1,15 +1,73 @@
 import { describe, expect, it } from "vitest";
 import { parseClaudeLog } from "./parse_claude_log.cjs";
-import { normalizeClaudeSession } from "./claude_session.cjs";
+import { normalizeClaudeSession, normalizeClaudeObservations } from "./claude_session.cjs";
 import { projectSessionResult } from "./agent_session.cjs";
 import { mergeSessionSources } from "./unified_session.cjs";
 import { createSessionValidator } from "./scripts/validate_session.cjs";
-import { failure } from "./fixtures/claude_ci_sessions.cjs";
+import { success, failure } from "./fixtures/claude_ci_sessions.cjs";
 import { normalization } from "./fixtures/claude_ci_normalization.cjs";
 
 const parse = records => parseClaudeLog(records.map(record => JSON.stringify(record)).join("\n")).logEntries;
 const project = events => mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events }]);
 const stream = event => ({ type: "stream_event", session_id: "audit-session", parent_tool_use_id: null, event });
+
+describe("Claude native background Bash lifecycle", () => {
+  // Verified against run 36812703027, agent artifact 11139794162, Claude Code 2.1.285.
+  const tasks = success.filter(record => record.type === "system" && record.subtype.startsWith("task_"));
+
+  it("uses canonical tool updates, not dynamic workflow events or duplicate completions", () => {
+    const events = parse(success);
+    const updates = events.filter(event => event.type === "tool.execution_update");
+    expect(updates.map(event => event.data.sourceType)).toEqual(["task_started", "task_notification"]);
+    expect(updates.every(event => event.data.taskId === "task-example" && event.data.taskType === "local_bash")).toBe(true);
+    expect(updates.every(event => event.data.toolCallId === "tool-example" && event.data.toolName === "Bash")).toBe(true);
+    expect(updates[1].data).toMatchObject({ status: "completed", output: "Example task completed", output_file: "/workspace/example/task.output" });
+    expect(events.filter(event => event.type === "tool.execution_complete")).toHaveLength(2);
+    expect(events.some(event => event.type.startsWith("dynamicWorkflows."))).toBe(false);
+    const projected = project(events).filter(event => event.type === "tool.execution_update");
+    expect(projected[1].data).toMatchObject({ taskId: "task-example", taskType: "local_bash", toolCallId: "tool-example", status: "completed", output: "Example task completed" });
+    const validate = createSessionValidator("unified").event;
+    for (const event of projected) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it("migrates saved task wrappers with provenance intact and without replaying tool results", () => {
+    const saved = tasks.map((record, index) => ({
+      ...record,
+      type: `dynamicWorkflows.${record.subtype}`,
+      data: { ...record, toolName: "Bash" },
+      provenance: { path: "agent-session.jsonl", index },
+    }));
+    const original = structuredClone(saved);
+    const migrated = normalizeClaudeObservations(saved, event => ({ ...event, mapped: true }));
+    expect(migrated.map(event => event.type)).toEqual(["tool.execution_update", "tool.execution_update"]);
+    expect(migrated.map(event => event.provenance)).toEqual(saved.map(event => event.provenance));
+    expect(migrated.every(event => event.mapped)).toBe(true);
+    expect(migrated.every(event => event.data.toolName === "Bash")).toBe(true);
+    expect(migrated[1].data).toMatchObject({ taskType: "local_bash", taskId: "task-example", toolName: "Bash", output: "Example task completed" });
+    expect(normalizeClaudeObservations(migrated)).toEqual(migrated);
+    expect(normalizeClaudeSession(migrated)).toEqual(migrated);
+    expect(saved).toEqual(original);
+  });
+
+  it.each(["failed", "stopped", "future-status"])("retains %s as an observed update without fabricating a result", status => {
+    const events = parse([tasks[0], { ...tasks[1], status, error: "Observed background diagnostic." }]);
+    expect(events.map(event => event.type)).toEqual(["tool.execution_update", "tool.execution_update"]);
+    expect(events[1].data).toMatchObject({ status, error: "Observed background diagnostic.", partial: true });
+    expect(project(events)[1].data.error).toBe("Observed background diagnostic.");
+    expect(events[1].data.success).toBeUndefined();
+    expect(projectSessionResult(events)).toBeUndefined();
+  });
+
+  it("does not infer task types across session/child boundaries or override explicit workflow types", () => {
+    const events = parse([tasks[0], { ...tasks[1], session_id: "other-session" }, { ...tasks[1], parent_tool_use_id: "child-tool" }, { ...tasks[1], task_type: "local_workflow" }]);
+    expect(events.map(event => event.type)).toEqual(["tool.execution_update", "dynamicWorkflows.task_notification", "dynamicWorkflows.task_notification", "dynamicWorkflows.task_notification"]);
+  });
+
+  it("keeps orphan notifications opaque but maps an explicitly identified orphan Bash task", () => {
+    expect(parse([tasks[1]])[0].type).toBe("dynamicWorkflows.task_notification");
+    expect(parse([{ ...tasks[1], task_type: "local_bash" }])[0]).toMatchObject({ type: "tool.execution_update", data: { taskId: "task-example", toolCallId: "tool-example" } });
+  });
+});
 
 describe("Claude canonical diagnostics from live run shapes", () => {
   it.each(["thinking_tokens", "vcs_state_changed", "status", "compact_boundary"])("keeps mapped %s status text out of assistant messages", subtype => {
@@ -81,6 +139,41 @@ describe("Claude canonical diagnostics from live run shapes", () => {
 });
 
 describe("Claude observed partials and structured payloads", () => {
+  it("retains unknown native record types without inventing conversation or terminal success", () => {
+    const records = [{ type: "future_observation", uuid: "future-record", session_id: "audit-session", payload: { zero: 0, empty: "", disabled: false, unknown: null } }];
+    const original = structuredClone(records);
+    const events = parse(records);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "claude.future_observation", uuid: "future-record", data: { payload: records[0].payload } });
+    expect(project(events)[0].data.payload).toEqual(records[0].payload);
+    expect(projectSessionResult(events)).toBeUndefined();
+    expect(normalizeClaudeSession(events)).toEqual(events);
+    expect(records).toEqual(original);
+  });
+  it.each(["session.result", "tool.execution_complete"])("keeps unknown dotted type %s opaque", type => {
+    const events = parse([{ type, id: "unknown-dotted-record", session_id: "audit-session", data: { success: true, toolCallId: "fabricated-tool" } }]);
+    expect(events.map(event => event.type)).toEqual([`claude.${type}`]);
+    expect(project(events).map(event => event.type)).toEqual([`claude.${type}`]);
+    expect(events.some(event => ["session.result", "tool.execution_complete"].includes(event.type))).toBe(false);
+    expect(projectSessionResult(events)).toBeUndefined();
+  });
+  it("keeps a bare canonical-looking refusal envelope opaque", () => {
+    const record = { type: "assistant.refusal", id: "native", parentId: null, timestamp: 0, data: { reason: "refusal", content: " text\n", partial: false, nativeExtra: true } };
+    const original = structuredClone(record);
+    const events = parse([record]);
+    expect(events.map(event => event.type)).toEqual(["claude.assistant.refusal"]);
+    expect(events[0].data).toMatchObject(record.data);
+    expect(project(events).map(event => event.type)).toEqual(["claude.assistant.refusal"]);
+    expect(normalizeClaudeSession(JSON.parse(JSON.stringify(events)))).toEqual(events);
+    expect(record).toEqual(original);
+  });
+  it("preserves a mapped native refusal through saved-session normalization", () => {
+    const events = parse([{ type: "assistant", uuid: "native-refusal", message: { role: "assistant", content: [{ type: "text", text: " text\n" }], stop_reason: "refusal" } }]);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "assistant.refusal", data: { sourceEngine: "claude", reason: "refusal", content: " text\n" } });
+    expect(normalizeClaudeSession(JSON.parse(JSON.stringify(events)))).toEqual(events);
+    expect(project(events)[0]).toMatchObject({ type: "assistant.refusal", data: { reason: "refusal", content: " text\n" } });
+  });
   // Synthetic Messages API/SDK shapes: the inspected CI artifacts do not enable partial-message streaming.
   it("retains mapped stream metadata and final snapshots without duplicate claude records in any serialization", () => {
     const records = [
@@ -104,7 +197,7 @@ describe("Claude observed partials and structured payloads", () => {
     expect(normalizeClaudeSession(persisted)).toEqual(persisted);
     const unified = project(persisted);
     expect(unified.filter(event => event.type === "assistant.message").map(event => event.data.content)).toEqual(["  start", "\r\n"]);
-    expect(unified.find(event => event.type === "vendor.unknown").data).toEqual(records.at(-1).data);
+    expect(unified.find(event => event.type === "claude.vendor.unknown").data).toMatchObject(records.at(-1).data);
     const validate = createSessionValidator("unified").event;
     for (const event of unified) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
     expect(records).toEqual(original);

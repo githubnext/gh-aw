@@ -258,6 +258,48 @@ describe("generate_usage_activity_summary.cjs", () => {
       }
     });
 
+    it("uses canonical input aliases and scoped correlation for skill usage", () => {
+      const sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "session-skills-scoped-test-"));
+      try {
+        const sessionDir = path.join(sessionRoot, "session-1");
+        fs.mkdirSync(sessionDir, { recursive: true });
+        const start = (toolCallId, agentId, alias, skill, timestamp) => ({
+          type: "tool.execution_start",
+          timestamp,
+          data: { sessionId: "session-1", toolCallId, agentId, toolName: "skill", [alias]: { skill } },
+        });
+        const complete = (toolCallId, agentId, success, timestamp) => ({
+          type: "tool.execution_complete",
+          timestamp,
+          data: { sessionId: "session-1", toolCallId, agentId, success },
+        });
+        const events = [
+          start(0, "agent-a", "parameters", "documentation", "2026-09-26T00:00:00Z"),
+          start(0, "agent-b", "args", "validation", "2026-09-26T00:00:01Z"),
+          start(false, "agent-a", "toolInput", "testing", "2026-09-26T00:00:02Z"),
+          start("", "agent-b", "arguments", "documentation", "2026-09-26T00:00:03Z"),
+          start("input-call", "agent-a", "input", "release", "2026-09-26T00:00:04Z"),
+          complete(0, "agent-b", true, "2026-09-26T00:00:05Z"),
+          complete(0, "agent-a", false, "2026-09-26T00:00:06Z"),
+          complete(false, "agent-a", false, "2026-09-26T00:00:07Z"),
+          complete("", "agent-b", true, "2026-09-26T00:00:08Z"),
+          complete("input-call", "agent-a", false, "2026-09-26T00:00:09Z"),
+        ];
+        fs.writeFileSync(path.join(sessionDir, "events.jsonl"), events.map(JSON.stringify).join("\n"));
+
+        const result = parseSessionLogs([sessionRoot]);
+        expect(result).toMatchObject({ tool_execution_starts: 5, tool_execution_completes: 5, failed_tool_executions: 3 });
+        expect(Object.fromEntries(result.skills.items.map(skill => [skill.name, skill]))).toMatchObject({
+          documentation: { invocation_count: 2, failed_count: 1 },
+          release: { invocation_count: 1, failed_count: 1 },
+          testing: { invocation_count: 1, failed_count: 1 },
+          validation: { invocation_count: 1, failed_count: 0 },
+        });
+      } finally {
+        fs.rmSync(sessionRoot, { recursive: true, force: true });
+      }
+    });
+
     it("correlates ID-less failures and orders skill timestamps chronologically", () => {
       const sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "session-skills-order-test-"));
       try {

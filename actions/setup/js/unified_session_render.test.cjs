@@ -55,6 +55,19 @@ const trace = [
 ];
 
 describe("unified session publication views", () => {
+  it("displays task identity and observed errors without inventing tool completion", () => {
+    const events = [header, event("tool.execution_update", { toolCallId: "shell", taskId: "background", taskType: "local_bash", status: "failed", error: "observed failure" }, "agent", 0)];
+    for (const render of [generatePlainTextSummary, generateCopilotCliStyleSummary]) {
+      const output = render(events);
+      expect(output).toContain("taskId=background");
+      expect(output).toContain("taskType=local_bash");
+      expect(output).toContain("status=failed");
+      expect(output).toContain("observed failure");
+      expect(output).toContain("[updated]");
+      expect(output).not.toContain("tool.execution_complete");
+    }
+  });
+
   let previousEnv;
   let previousCore;
   let directory;
