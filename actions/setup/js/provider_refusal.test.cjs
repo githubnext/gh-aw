@@ -19,15 +19,15 @@ const debugBlock = value => {
 describe("Structured policy refusals", () => {
   it("recovers the real CI content_filter signal despite null content and refusal fields", () => {
     const parsed = parseCopilotLog(debugBlock(contentFiltered));
-    expect(refusals(parsed.logEntries)).toEqual([
-      expect.objectContaining({
+    expect(refusals(parsed.logEntries)).toMatchObject([
+      {
         type: "assistant.refusal",
         id: "response-filtered",
         requestId: "request-filtered",
         timestamp: "2026-10-06T01:12:45.797Z",
         model: "claude-sonnet-5",
         data: { reason: "content_filter" },
-      }),
+      },
     ]);
     expect(parsed.logEntries.filter(event => event.type === "assistant.message")).toEqual([]);
     expect(projectSessionResult(parsed.logEntries).usage).toMatchObject({ input_tokens: 19929, output_tokens: 9, cache_read_input_tokens: 19251 });
@@ -256,7 +256,22 @@ describe("Structured policy refusals", () => {
     expect(normalizeUnifiedSessionEvent(events[0]).data).toEqual({ reason: "content_filter", content });
   });
 
-  it.each(["copilot", "claude", "codex", "gemini", "pi", "custom", "opencode", "goose"])("retains canonical refusal events through the %s parser", engine => {
+  it("retains bare canonical refusal events at the canonical normalization boundary", () => {
+    const event = { type: "assistant.refusal", id: "native", parentId: null, timestamp: 0, data: { reason: "refusal", content: " text\n", partial: false, nativeExtra: true } };
+    expect(normalizeAgentSession([event])).toEqual([event]);
+    expect(normalizeAgentSession(JSON.parse(JSON.stringify([event])))).toEqual([event]);
+  });
+
+  it.each(["claude", "custom"])("maps native Anthropic refusal records through the %s parser", engine => {
+    const record = { type: "assistant", session_id: "session", parent_tool_use_id: null, message: anthropicRefusal };
+    const original = structuredClone(record);
+    const events = parseEngineSession(jsonl([record]), engine);
+    expect(refusals(events)).toMatchObject([{ data: { reason: "refusal", policyCategory: "general_harms" } }]);
+    expect(normalizeAgentSession(JSON.parse(JSON.stringify(events)))).toEqual(events);
+    expect(record).toEqual(original);
+  });
+
+  it.each(["copilot", "codex", "gemini", "pi", "opencode", "goose"])("retains canonical refusal events through the %s parser", engine => {
     const event = { type: "assistant.refusal", id: "native", parentId: null, timestamp: 0, data: { reason: "refusal", content: " text\n", partial: false, nativeExtra: true } };
     const events = parseEngineSession(jsonl([event]), engine);
     expect(refusals(events)).toEqual([event]);

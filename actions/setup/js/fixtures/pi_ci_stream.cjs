@@ -85,4 +85,34 @@ const failure = [
   { type: "agent_settled" },
 ];
 
-module.exports = { success, failure };
+// Shape from Smoke Pi Sub Agents run 37735099783, agent artifact
+// 11531640894/pi-streaming.jsonl. Names, IDs, timestamps and content replaced.
+// This historical wrapper has no native invocation or parent tool identity.
+const childObservations = [
+  { type: "gh_aw_subagent_dispatch", agent: "sanitized-reader", requested_model: "gpt-5-mini", resolved_model: "gpt-5-mini" },
+  {
+    type: "gh_aw_subagent_event",
+    agent: "sanitized-reader",
+    event: {
+      type: "message_end",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "Sanitized reasoning.", thinkingSignature: "sanitized-signature" },
+          { type: "text", text: "Sanitized child answer.", textSignature: "sanitized-signature" },
+        ],
+        api: "openai-responses",
+        provider: "aw-gateway",
+        model: "gpt-5-mini",
+        responseId: "sanitized-child-response",
+        timestamp: 6,
+        rawStopReason: "completed",
+        stopReason: "stop",
+        thinkingLevel: "minimal",
+        usage: { input: 3085, output: 136, cacheRead: 0, cacheWrite: 0, reasoning: 64, totalTokens: 3221, cost: { input: 0.00077125, output: 0.000272, cacheRead: 0, cacheWrite: 0, total: 0.00104325 } },
+      },
+    },
+  },
+];
+
+module.exports = { success, failure, childObservations };

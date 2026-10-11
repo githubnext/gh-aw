@@ -137,6 +137,9 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
   const events = [];
   const subagentInvocations = new Map();
   const subagentInvocationCounts = new Map();
+  const subagentRecords = new Map();
+  const subagentEvents = new Map();
+  const subagentRequests = new Map();
   const legacyCallIds = new Map();
   const executionEnds = new Set(records.filter(r => r.type === "tool_execution_end" && r.toolCallId !== undefined).map(r => r.toolCallId));
   const calls = new Map();
@@ -202,7 +205,10 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
       const value = usage[source] ?? usage[target];
       if (Number.isSafeInteger(value) && value >= 0) data[target] = value;
     }
-    emit(raw, "subagent.request", data, { agentId: invocationId });
+    const key = JSON.stringify([invocationId, messageIdentity(message) ?? message]);
+    const previous = subagentRequests.get(key);
+    if (previous) Object.assign(previous.data, data);
+    else subagentRequests.set(key, emit(raw, "subagent.request", data, { agentId: invocationId }));
   };
 
   const emitText = (raw, state, kind, index, text, delta, role = "assistant", metadata = {}) => {
@@ -301,7 +307,14 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
   };
 
   const emitMessage = (raw, message, fallback) => {
-    if (!message || !["assistant", "user", "toolResult"].includes(message.role)) return;
+    if (!message || typeof message.role !== "string") return;
+    if (!["assistant", "user", "toolResult"].includes(message.role)) {
+      if (!snapshots.some(snapshot => isDeepStrictEqual(snapshot.message, message))) {
+        snapshots.push({ message: structuredClone(message), state: fallback });
+        emit(raw, "session.info", { sourceType: "message_snapshot", role: message.role, content: message });
+      }
+      return;
+    }
     if (message.role === "toolResult") {
       emitCompletion(raw, message);
       return;
@@ -389,7 +402,33 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
         emit(raw, "subagent.configured", { invocationId, model: raw.resolved_model ?? raw.resolvedModel }, { agentId: invocationId });
       }
     } else if (raw.type === "gh_aw_subagent_event") {
-      emitSubagentRequest(raw, invocationIdentity(raw, false));
+      const invocationId = invocationIdentity(raw, false);
+      emitSubagentRequest(raw, invocationId);
+      if (raw.event && typeof raw.event === "object" && !Array.isArray(raw.event) && typeof raw.event.type === "string") {
+        const childRecords = subagentRecords.get(invocationId) ?? [];
+        childRecords.push({
+          ...structuredClone(raw.event),
+          ...(raw.provenance !== undefined ? { provenance: structuredClone(raw.provenance) } : {}),
+        });
+        subagentRecords.set(invocationId, childRecords);
+        const previous = subagentEvents.get(invocationId) ?? [];
+        // Replay only this child's observations so repeated snapshots reconcile
+        // without sharing tool/message identities with the parent or other children.
+        const childEvents = transformPiV3Entries(childRecords).map(event => ({
+          ...event,
+          agentId: event.agentId ?? invocationId,
+          data: { ...event.data, agentId: event.data.agentId ?? invocationId },
+        }));
+        for (let index = 0; index < previous.length; index++) {
+          const position = events.indexOf(previous[index]);
+          if (position >= 0) {
+            if (index < childEvents.length) events[position] = childEvents[index];
+            else events.splice(position, 1);
+          }
+        }
+        events.push(...childEvents.slice(previous.length));
+        subagentEvents.set(invocationId, childEvents);
+      } else emit(raw, "session.info", { sourceType: raw.type, content: raw.event }, { agentId: invocationId });
     } else if (raw.type === "gh_aw_subagent_result") {
       const invocationId = invocationIdentity(raw, false);
       const failed = raw.outcome !== "completed";
@@ -431,8 +470,9 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
         if (call) call.data.argumentText = (call.data.argumentText ?? "") + update.delta;
         else emit(raw, "tool.execution_update", { input: update.delta, delta: true, partial: true, contentIndex: update.contentIndex });
       } else if (update?.type === "done" || update?.type === "error") emitMessage(raw, update.message ?? update.error, assistantState);
-      else if (update && !["start", "text_start", "thinking_start"].includes(update.type)) emit(raw, "assistant.message_update", { ...update, usage: raw.usage });
-    } else if (raw.type === "message_end") emitMessage(raw, raw.message, raw.message?.role === "assistant" ? assistantState : activeState);
+      else if (update && !["start", "text_start", "thinking_start"].includes(update.type)) emit(raw, "assistant.message_update", { ...update, content: update, usage: raw.usage });
+    } else if (raw.type === "message" && raw.message) emitMessage(raw, raw.message, newMessageState());
+    else if (raw.type === "message_end") emitMessage(raw, raw.message, raw.message?.role === "assistant" ? assistantState : activeState);
     else if (raw.type === "turn_end") {
       emitMessage(raw, raw.message, assistantState);
       for (const result of raw.toolResults ?? []) emitCompletion(raw, result);
@@ -470,7 +510,11 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
         emitMessage(raw, message, index >= 0 ? snapshots[index].state : partialAssistant && position === lastAssistant ? assistantState : newMessageState());
       }
     } else if (raw.type === "error") emit(raw, "session.error", { error: raw.error ?? raw.message });
-    else events.push(...normalizeAgentSession(transformFlatSessionEntries([raw]), { sourceEngine: "pi" }));
+    else {
+      const flat = normalizeAgentSession(transformFlatSessionEntries([raw]), { sourceEngine: "pi" });
+      if (flat.length) events.push(...flat);
+      else if (typeof raw.type === "string" && raw.type !== "") emit(raw, "session.info", { sourceType: raw.type, content: raw });
+    }
   }
   return events;
 }
@@ -566,10 +610,12 @@ function computePiV3Stats(records) {
       lastWasMessageUpdate = false;
     } else if (raw.type === "message_update" && ["done", "error"].includes(raw.assistantMessageEvent?.type)) {
       addMessage(raw, raw.assistantMessageEvent.message ?? raw.assistantMessageEvent.error);
-    } else if (raw.type === "message_end" || raw.type === "turn_end") {
+    } else if (raw.type === "message_end" || raw.type === "turn_end" || (raw.type === "message" && raw.message)) {
       addMessage(raw, raw.message);
       if (raw.message?.role === "toolResult") addAuxiliaryUsage(`tool:${raw.message.toolCallId}`, raw.message.usage);
       for (const result of raw.toolResults ?? []) addAuxiliaryUsage(`tool:${result.toolCallId}`, result.usage);
+    } else if (["usage", "compaction", "branch_summary"].includes(raw.type)) {
+      addAuxiliaryUsage(`${raw.type}:${raw.id}`, raw.usage);
     } else if (raw.type === "compaction_end") {
       addAuxiliaryUsage(`compaction:${compactionCount++}`, raw.result?.usage);
       if (raw.errorMessage) errors.push(raw.errorMessage);

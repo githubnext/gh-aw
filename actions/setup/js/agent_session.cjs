@@ -53,7 +53,13 @@ function sessionContext(event) {
 
 /** @param {Array<any>} events @returns {boolean} */
 function isSingleNestedSession(events) {
-  return events.length > 0 && events.every(event => !!sessionContext(event).parentToolUseId) && new Set(events.map(sessionScopeKey)).size === 1;
+  return events.length > 0 && events.every(isNestedSessionEvent) && new Set(events.map(sessionScopeKey)).size === 1;
+}
+
+/** @param {any} event @returns {boolean} */
+function isNestedSessionEvent(event) {
+  const { parentToolUseId, agentId } = sessionContext(event);
+  return !!parentToolUseId || agentId !== undefined;
 }
 
 /** @param {any} event @returns {string} */
@@ -189,12 +195,12 @@ function normalizeAgentSession(entries, { sourceEngine } = {}) {
         const message = choice.message ?? choice.delta;
         const streamKey = JSON.stringify([entry.id ?? entry.request_id ?? entry.requestId ?? "chat", choice.index ?? choiceIndex]);
         if (streaming && typeof message?.content === "string") chatStreamText.set(streamKey, (chatStreamText.get(streamKey) ?? "") + message.content);
+        if (!streaming && message && (message.role === undefined || message.role === "assistant") && typeof message.reasoning_text === "string") emit("assistant.reasoning", { content: message.reasoning_text });
         const refusal = getMessageRefusal(message ?? {}, choice.finish_reason);
         if (refusal) {
           if (streaming && refusal.reason === "content_filter" && chatStreamText.has(streamKey)) refusal.content = chatStreamText.get(streamKey);
           emit("assistant.refusal", refusal, { choiceIndex: choice.index ?? choiceIndex });
         } else if (!streaming && message && (message.role === undefined || message.role === "assistant")) {
-          if (typeof message.reasoning_text === "string") emit("assistant.reasoning", { content: message.reasoning_text });
           if (typeof message.content === "string") emit("assistant.message", { content: message.content }, { choiceIndex: choice.index ?? choiceIndex });
         }
         for (const tool of Array.isArray(message?.tool_calls) ? message.tool_calls : []) {
@@ -369,7 +375,7 @@ function selectSessionResult(events, { includeNested = false } = {}) {
   const claudeSessions = new Map();
   for (const event of normalized) {
     const context = sessionContext(event);
-    if (event.type !== "session.result" || event.data.sourceEngine !== "claude" || (!includeNested && context.parentToolUseId) || typeof context.sessionId !== "string") continue;
+    if (event.type !== "session.result" || event.data.sourceEngine !== "claude" || (!includeNested && isNestedSessionEvent(event)) || typeof context.sessionId !== "string") continue;
     const key = sessionScopeKey(event);
     claudeSessions.set(key, [...(claudeSessions.get(key) ?? []), event]);
   }
@@ -388,7 +394,7 @@ function selectSessionResult(events, { includeNested = false } = {}) {
     }
     for (const event of normalized) {
       const context = sessionContext(event);
-      if (event.type !== "session.result" || event.data.sourceEngine !== "claude" || (!includeNested && context.parentToolUseId) || typeof context.sessionId === "string") continue;
+      if (event.type !== "session.result" || event.data.sourceEngine !== "claude" || (!includeNested && isNestedSessionEvent(event)) || typeof context.sessionId === "string") continue;
       // Unassigned diagnostics are valid evidence, but their usage may overlap a named session.
       for (const key of ["errors", "permissionDenials"]) {
         if (Array.isArray(event.data[key])) aggregate[key] = [...(aggregate[key] ?? []), ...structuredClone(event.data[key])];
@@ -401,8 +407,7 @@ function selectSessionResult(events, { includeNested = false } = {}) {
   let result;
   for (const event of normalized) {
     if (event.type !== "session.result") continue;
-    const context = sessionContext(event);
-    if (!includeNested && (context.parentToolUseId || context.agentId !== undefined)) continue;
+    if (!includeNested && isNestedSessionEvent(event)) continue;
     result ??= {};
     const data = event.data;
     for (const [key, value] of Object.entries(data)) {
@@ -439,7 +444,7 @@ function projectSessionInitialization(events, { includeNested = false } = {}) {
   let data;
   for (const event of normalizeAgentSession(events)) {
     if (event.type !== "session.init" && event.type !== "session.start") continue;
-    if (!includeNested && sessionContext(event).parentToolUseId) continue;
+    if (!includeNested && isNestedSessionEvent(event)) continue;
     data ??= {};
     for (const [key, value] of Object.entries(event.data)) {
       if (value !== undefined) data = { ...data, [key]: structuredClone(value) };
@@ -571,7 +576,7 @@ function sessionTokenTotal(usage) {
 function observedSessionModel(events, { includeNested = false } = {}) {
   let model;
   for (const event of events) {
-    if (!includeNested && sessionContext(event).parentToolUseId) continue;
+    if (!includeNested && isNestedSessionEvent(event)) continue;
     const value =
       event?.type === "system" && event.subtype === "init"
         ? event.model
@@ -587,6 +592,7 @@ module.exports = {
   sessionContext,
   sessionScopeKey,
   isSingleNestedSession,
+  isNestedSessionEvent,
   isSessionEvent,
   isTokenCount,
   isMetric,

@@ -237,7 +237,7 @@ opaque because its essential fields are not defined by this specification.
 | Agent messages and reasoning | Exact `content`, without duplicate text blocks or the original message envelope. |
 | Agent session errors | Observed diagnostic fields, including `errorType`, `code`, and `statusCode`; absent status codes remain absent, and unrelated native error context is omitted. |
 | Agent policy refusals | Structured `reason`, exact available `content`, `policyCategory`, `explanation`, and streaming `partial` flag; no duplicated provider envelope. |
-| Agent tool lifecycle | Correlation IDs, tool/server names, one `input` or `output` field, command, outcome/error signals, duration, and exit code. |
+| Agent tool lifecycle | Correlation IDs, tool/server names, one `input` or `output` field, command, outcome/error signals, duration, and exit code. Background tool updates retain observed `taskId` and `taskType`; progress and task notifications do not imply a tool completion. |
 | Agent accounting | Turns, duration, cost, observed terminal `status` and `sourceType`, normalized `usage` including reported reasoning tokens, errors, and permission denials. |
 | Agent execution diagnostics | Unique harness/compiler `categories`, native `errorCodes` and `errorTypes`, and the observed final process `exitCode`; no diagnostic messages or duplicated engine envelopes. |
 | MCP | Server, direction, RPC/call/request IDs, method, tool name, duration, sizes, status, reason, and error code/message; no RPC arguments, response bodies, or error context. |
@@ -1394,6 +1394,13 @@ unified events. Their unified view shows file version, per-component record
 counts, per-source agent statistics and conversations, and a chronological trace. Existing
 agent-only inputs retain their earlier rendering behavior except that nested
 conversations are labeled separately.
+
+Caller `agentId` alone identifies a nested conversation when the source does not
+provide a parent tool ID, as in Pi subagent streams. Its messages, tool pairing,
+model, and accounting remain separate from the parent. A subagent lifecycle
+envelope's target `agentId` does not identify the emitting caller. Readers must
+not invent parent tool IDs to distinguish these scopes; a view containing only
+one nested scope can select that scope's initialization and accounting explicitly.
 
 Actions publishes this view once in a plain-titled `Unified session` disclosure,
 using a fenced CLI-style transcript like the Claude conversation summary rather

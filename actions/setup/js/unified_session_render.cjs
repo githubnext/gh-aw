@@ -1,8 +1,8 @@
 // @ts-check
 
 const fs = require("fs");
-const { sessionOutputText, sessionContext, sessionScopeKey } = require("./agent_session.cjs");
-const { collapseStreamedMessages, boundSummaryLines, redactSessionForPublication } = require("./agent_session_render.cjs");
+const { sessionOutputText, sessionContext, sessionScopeKey, isNestedSessionEvent } = require("./agent_session.cjs");
+const { collapseStreamedMessages, boundSummaryLines, escapeSummaryText, redactSessionForPublication } = require("./agent_session_render.cjs");
 const { collectArtifactSecretValues, redactManifestValue } = require("./safe_output_manifest.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
@@ -158,7 +158,7 @@ function eventDetail(event) {
     case "tool.execution_start":
       return fields(data, ["toolName", "mcpServerName", "toolCallId", "stepIndex"]) + " [started]";
     case "tool.execution_update":
-      return fields(data, ["toolName", "mcpServerName", "toolCallId", "stepIndex", "partial"]) + " [updated]";
+      return fields(data, ["toolName", "mcpServerName", "toolCallId", "stepIndex", "taskId", "taskType", "status", "error", "partial"]) + " [updated]";
     case "tool.execution_complete": {
       const outcome = data.success === false || data.error != null || data.is_error === true || data.isError === true ? "failed" : data.success === true ? "succeeded" : "outcome unknown";
       if (data.workflowRunId !== undefined && data.status === "async_launched") {
@@ -258,8 +258,11 @@ function scopedAgentSessions(events) {
     if (source ? source.component !== "agent" : RUNTIME_TYPES.has(event.type)) continue;
     const context = sessionContext(event);
     const baseLabel = source ? `${source.phase}/${source.path}` : "agent";
-    const label = context.parentToolUseId ? `${baseLabel} sessionId=${context.sessionId ?? "unavailable"} parentToolUseId=${context.parentToolUseId}${context.agentId ? ` agentId=${context.agentId}` : ""}` : baseLabel;
-    const key = JSON.stringify([source?.phase, source?.path, context.parentToolUseId ? sessionScopeKey(event) : undefined]);
+    const nested = isNestedSessionEvent(event);
+    const label = nested
+      ? `${baseLabel} sessionId=${context.sessionId ?? "unavailable"}${context.parentToolUseId ? ` parentToolUseId=${context.parentToolUseId}` : ""}${context.agentId !== undefined ? ` agentId=${context.agentId}` : ""}`
+      : baseLabel;
+    const key = JSON.stringify([source?.phase, source?.path, nested ? sessionScopeKey(event) : undefined]);
     if (!groups.has(key)) groups.set(key, { label, events: [] });
     groups.get(key).events.push(event);
   }

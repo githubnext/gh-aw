@@ -10,6 +10,10 @@ import {
   sessionToolSuccess,
   sessionTokenTotal,
   sessionContext,
+  isNestedSessionEvent,
+  isSingleNestedSession,
+  projectSessionInitialization,
+  observedSessionModel,
 } from "./agent_session.cjs";
 import { scopedAgentSessions } from "./unified_session_render.cjs";
 import {
@@ -62,6 +66,66 @@ const canonical = freeze([
 ]);
 
 describe("Unified Agent Session 1.0.0 conformance", () => {
+  it("retains observed assistant reasoning alongside provider refusals", () => {
+    const source = freeze({
+      object: "chat.completion",
+      id: "response",
+      choices: [{ message: { role: "assistant", reasoning_text: "observed reasoning\n", refusal: "declined\n" } }, { message: { role: "user", reasoning_text: "not assistant reasoning", content: "prompt" } }],
+    });
+    const events = normalizeAgentSession([source]);
+    expect(events.map(event => event.type)).toEqual(["assistant.reasoning", "assistant.refusal"]);
+    expect(events[0].data.content).toBe("observed reasoning\n");
+    expect(events[1].data).toMatchObject({ reason: "refusal", content: "declined\n" });
+    expect(events.every(event => event.id === "response")).toBe(true);
+    expect(normalizeAgentSession(events)).toEqual(events);
+  });
+
+  it("separates agentId-only child evidence without inventing a parent tool ID", () => {
+    const child = [
+      { type: "session.init", data: { sourceEngine: "pi", agentId: "legacy:pi:worker:1", model: "child-model" } },
+      { type: "assistant.message", agentId: "legacy:pi:worker:1", data: { content: "child answer" } },
+      { type: "session.result", data: { agentId: "legacy:pi:worker:1", usage: { input_tokens: 99 } } },
+    ];
+    const root = [
+      { type: "session.init", data: { sourceEngine: "pi", model: "root-model" } },
+      { type: "assistant.message", data: { content: "root answer" } },
+      { type: "session.result", data: { usage: { input_tokens: 2 } } },
+    ];
+    const events = [...root, ...child];
+    expect(isSingleNestedSession(child)).toBe(true);
+    expect(isSingleNestedSession(events)).toBe(false);
+    expect(isNestedSessionEvent({ type: "subagent.started", agentId: "target", data: {} })).toBe(false);
+    expect(sessionContext(child[1])).toEqual({ agentId: "legacy:pi:worker:1" });
+    expect(projectSessionResult(events).usage.input_tokens).toBe(2);
+    expect(projectSessionInitialization(events).model).toBe("root-model");
+    expect(observedSessionModel(events)).toBe("root-model");
+    expect(observedSessionModel(child, { includeNested: true })).toBe("child-model");
+    const groups = scopedAgentSessions(events);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].events).toEqual(root);
+    expect(groups[1].events).toEqual(child);
+    expect(groups[1].label).toContain("agentId=legacy:pi:worker:1");
+    expect(groups[1].label).not.toContain("parentToolUseId");
+    for (const render of [generatePlainTextSummary, generateCopilotCliStyleSummary]) {
+      const output = render(events);
+      expect(output).toContain("agentId=legacy:pi:worker:1");
+      expect(output.indexOf("root answer")).toBeLessThan(output.indexOf("agentId=legacy:pi:worker:1"));
+      expect(output.indexOf("child answer")).toBeGreaterThan(output.indexOf("agentId=legacy:pi:worker:1"));
+      expect(render(child)).toContain("child answer");
+      expect(render(child)).toContain("99");
+    }
+  });
+
+  it("does not aggregate agentId-only Claude child snapshots into root sessions", () => {
+    const events = [
+      { type: "session.result", data: { sourceEngine: "claude", sessionId: "first", usage: { input_tokens: 2 } } },
+      { type: "session.result", data: { sourceEngine: "claude", sessionId: "second", usage: { input_tokens: 3 } } },
+      { type: "session.result", data: { sourceEngine: "claude", sessionId: "child", agentId: "worker", usage: { input_tokens: 99 }, errors: ["child-only"] } },
+    ];
+    expect(projectSessionResult(events).usage.input_tokens).toBe(5);
+    expect(projectSessionResult(events).errors).toBeUndefined();
+  });
+
   it("keeps Pi parent tool-call relationships in the root session group", () => {
     const events = [
       { type: "session.init", data: { sourceEngine: "pi", sessionId: "pi-root" } },
@@ -410,8 +474,9 @@ describe("Unified Agent Session 1.0.0 conformance", () => {
   describe.each(parsers)("%s engine canonical interoperability", (_engine, parser) => {
     it("T-UAS-004/006/008/025/029/036-041: accepts canonical arrays without losing extensions", () => {
       const result = parser(JSON.stringify(canonical));
+      const expected = _engine === "claude" || _engine === "custom" ? canonical.map(event => ({ ...event, type: `claude.${event.type}`, data: { ...event.data, sourceEngine: "claude" } })) : canonical;
       // An adapter may recover an absent tool name from its exact matching start.
-      expect(result.logEntries).toMatchObject(canonical);
+      expect(result.logEntries).toMatchObject(expected);
       expect(parser(JSON.stringify(result.logEntries)).logEntries).toEqual(result.logEntries);
       expect(result.logEntries.every(e => typeof e.type === "string" && e.data && typeof e.data === "object")).toBe(true);
     });
@@ -425,7 +490,7 @@ describe("Unified Agent Session 1.0.0 conformance", () => {
         JSON.stringify({ type: "result", num_turns: 0, usage: { input_tokens: 0 } }),
       ].join("\n");
       const result = parser(input);
-      expect(result.logEntries.map(e => e.type)).toEqual(["vendor.progress", "assistant.message", "session.result"]);
+      expect(result.logEntries.map(e => e.type)).toEqual([_engine === "claude" || _engine === "custom" ? "claude.vendor.progress" : "vendor.progress", "assistant.message", "session.result"]);
       expect(result.logEntries[1].data.content).toBe(" \n");
       expect(result.logEntries[2].data.numTurns).toBe(0);
     });
