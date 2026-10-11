@@ -215,11 +215,16 @@ func extractDefaultAiCreditsPricingFromObject(pricingObj map[string]any) *AiCred
 	if v, ok := toFloat64(pricingObj["cache_write"]); ok {
 		cacheWrite = &v
 	}
+	var reasoning *float64
+	if v, ok := toFloat64(pricingObj["reasoning"]); ok {
+		reasoning = &v
+	}
 	return &AiCreditsPricingConfig{
 		Input:       input,
 		Output:      output,
 		CachedInput: cachedInput,
 		CacheWrite:  cacheWrite,
+		Reasoning:   reasoning,
 	}
 }
 

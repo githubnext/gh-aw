@@ -119,8 +119,8 @@ const AWFTokenSteeringMinVersion Version = "v0.25.44"
 // (gh-aw-firewall#9790). Below this version the compiler only emits
 // container.agentTimeout for the Cloud Hypervisor and NVX runtimes.
 //
-// v0.28.51 is the first release after v0.28.50; it was not yet published when
-// this gate was added.
+// v0.28.51 is the first default-version release after v0.28.50 and is the
+// earliest release with the runtime steering behavior this gate protects.
 const AWFAgentTimeoutSteeringMinVersion Version = "v0.28.51"
 
 // AWFChrootConfigMinVersion is the minimum AWF version that supports
