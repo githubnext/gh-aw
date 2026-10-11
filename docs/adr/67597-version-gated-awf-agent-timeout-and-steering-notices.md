@@ -1,0 +1,116 @@
+# ADR-67597: Version-Gated AWF `agentTimeout` and First-Class Steering Notices in the Unified Session
+
+**Date**: 2026-10-11
+**Status**: Proposed
+**Deciders**: the gh-aw maintainers
+
+---
+
+### Context
+
+The agentic firewall (AWF) can steer a running agent by warning it at 80/90/95/99% of its AI-credit budget,
+token budget, or runtime deadline. In gh-aw, the runtime (deadline) warnings never fire on the default Docker
+runtime, because `container.agentTimeout` is only emitted for the Cloud Hypervisor and NVX runtimes
+(`pkg/workflow/awf_config_build.go`). Separately, the per-request `steering` record that AWF writes into its
+token-usage stream is dropped by the unified-session projection (`actions/setup/js/unified_session_payload.cjs`),
+so `gh aw audit` and `gh aw logs` cannot show which warnings were actually delivered to the agent. Two
+constraints shape the fix: AWF's deadline is counted from agent start while GitHub's `timeout-minutes` is
+counted from step start, so a naive copy of the step timeout would let AWF's `exit 124` truncate the agent's
+final output; and the behaviour depends on an AWF release (v0.28.51) that is not published yet, so it must not
+change any currently compiled workflow. Fixes #67596.
+
+### Decision
+
+We will (a) emit `container.agentTimeout` on all runtimes behind an AWF version gate, and (b) promote AWF
+steering notices to a first-class, schema-described field of the unified session that flows through to audit
+and logs output.
+
+For (a), a new `AWFAgentTimeoutSteeringMinVersion` constant plus an `awfSupportsAgentTimeoutSteering` check
+follow the existing AWF feature-flag pattern (`pkg/workflow/awf_feature_flags.go`). `agentTimeout` is derived
+from the resolved `timeout-minutes` when that value is a **literal**, and the value is raised to the step
+timeout so the GitHub step timeout always fires first. When the step timeout is an expression (including the
+`vars.GH_AW_DEFAULT_TIMEOUT_MINUTES` default), the config omits `agentTimeout`; instead, under the same version
+gate, the agent step exposes the expression as `GH_AW_ENGINE_STEP_TIMEOUT_MINUTES` and the `awf` invocation passes
+`--agent-timeout "$GH_AW_ENGINE_STEP_TIMEOUT_MINUTES"`, so AWF receives the step timeout resolved at run time. Threat detection gets its own detection-job timeout.
+
+For (b), `firewall.token_usage` (and its `usage.report` alias) retains `steering`, projected to
+`{type, threshold}` with unknown or malformed values dropped; `ai_credit_steering` event-log lines map to a
+dedicated `firewall.steering` event instead of the generic `firewall.event`. The unified-session spec is bumped
+to 1.8.0 with requirement **T-UAS-071** (a missing field means "no notice recorded", not "no notice delivered"),
+and a new `steering_notices` list is surfaced in `gh aw audit` and `gh aw logs --json`, with the audit and logs
+JSON schemas updated to match.
+
+Two further rules keep `steering_notices` meaningful:
+
+- **Exact thresholds.** The Go decoder accepts only thresholds that are exactly 80, 90, 95 or 99, matching the
+  unified-session schema and the JS projector. Other values (for example `79.6`, `94.6`, `100` or the string
+  `"90"`) are rejected rather than rounded, so malformed telemetry is never reported as a budget warning. The same
+  rule applies to `threshold` on gateway steering events.
+- **Visible read failures.** If `aw_session.jsonl` cannot be read or parsed (for example, a truncated record), the
+  CLI does not report "no notices". It sets `steering_notices_unavailable: true` in audit and logs output and adds
+  a token usage warning, so the only outcomes are notices present, no notices, or an explicit unavailable state.
+
+The `awfVersionAtLeast` semantics are shared by every AWF feature flag and are unchanged: `version: latest` is
+treated as satisfying the gate, and `latest` resolves to v0.28.51 or newer once that release is published.
+
+The compiled behaviour is documented in `docs/src/content/docs/reference/sandbox.md`: a literal `timeout-minutes`
+produces `container.agentTimeout`; an expression (including the default) produces the runtime `--agent-timeout`
+from the step timeout; AWF older than v0.28.51 gets neither (outside Cloud Hypervisor and NVX). Notices arrive on
+the next eligible model request after a threshold, and the GitHub step timeout fires before AWF's deadline.
+
+### Alternatives Considered
+
+#### Alternative 1: Always send `agentTimeout`, including for expression-valued timeouts
+
+We could approximate non-literal `timeout-minutes` at compile time (for example, defaulting to 20 minutes as
+the issue suggested). This was rejected because the compiler cannot know the value of
+`${{ vars.GH_AW_DEFAULT_TIMEOUT_MINUTES }}` at compile time; guessing would either under-shoot the real step
+timeout — letting AWF kill the agent before GitHub does, truncating final output — or over-shoot and make the
+warnings meaningless. Passing the runtime-resolved step timeout through `--agent-timeout` avoids the guess.
+
+#### Alternative 2: Read steering records directly from `token-usage.jsonl` in the CLI
+
+The audit/logs commands could parse AWF's raw `token-usage.jsonl` artifact when rendering, leaving the unified
+session untouched. This was rejected because it reintroduces a second, undocumented ingestion path for firewall
+data, bypasses the unified-session schema and its versioned contract, and would not be available to any other
+consumer of the session artifact. Keeping the projection in `unified_session_payload.cjs` means one producer,
+one schema, and one validated shape.
+
+#### Alternative 3: Keep `agentTimeout` restricted to Cloud Hypervisor/NVX and document the gap
+
+The smallest change is to leave the Docker runtime without runtime steering and simply document that timeout
+warnings require a microVM runtime. This was rejected because Docker is the default runtime, so the feature
+would remain effectively unreachable for most users, and the issue explicitly asks for parity.
+
+### Consequences
+
+#### Positive
+- Runtime budget warnings now reach agents on the default Docker runtime, so agents can wrap up work before the
+  deadline instead of being cut off.
+- Delivered steering notices become visible and queryable in `gh aw audit` and `gh aw logs --json`, closing the
+  observability gap between "AWF warned the agent" and "we can prove it".
+- The version gate and the unchanged default AWF version (v0.28.50) mean recompiling this repository's workflows
+  produces no lock-file changes, so the rollout is inert until AWF v0.28.51 ships.
+- The steering shape is schema-described (`unified-session.schema.json`, `audit.schema.json`, `logs.schema.json`)
+  and spec-versioned (1.8.0, T-UAS-071), so downstream consumers have a stable contract.
+
+#### Negative
+- Expression timeouts reach AWF through a CLI flag rather than the config file, so the deadline lives in two
+  places depending on whether `timeout-minutes` is a literal.
+- The behaviour depends on an unreleased AWF version, so the code path is untestable end-to-end until v0.28.51
+  is published, and the min-version constant may need correcting if the release slips or renumbers.
+- Another AWF feature flag plus a spec version bump adds to the growing version-compatibility matrix that every
+  future AWF integration must reason about.
+- Notices attached to requests that never produced a usage record (for example a failed upstream call) are not
+  reported, so `steering_notices` under-counts in failure scenarios.
+- Workflows pinned to `version: latest` take the new path before v0.28.51 is published, because the shared
+  `latest` handling is not special-cased for this flag.
+- A runtime notice whose next eligible model request would come after the GitHub step timeout is never delivered.
+
+#### Neutral
+- `pkg/cli/token_usage_subagent_session.go` was refactored to split helpers out of the session reader; this is
+  structural only and does not change the reading semantics.
+- A new synthetic golden case (`claude-awf-steering-notices`) was added; existing `expected*.json` files are
+  unchanged and `logs_expected.json` changes only because it enumerates the new case.
+- Runs without a `steering` field serialize exactly as before, so existing artifacts and dashboards are
+  unaffected until AWF starts emitting the field.

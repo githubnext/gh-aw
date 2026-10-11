@@ -232,6 +232,14 @@ sandbox:
     token-steering: false
 ```
 
+With steering enabled, AWF adds a notice to the next eligible model request after the run crosses 80, 90, 95 or 99% of its AI-credit budget, its effective-token budget or its runtime deadline. Runtime notices need an agent deadline, which gh-aw sends with AWF v0.28.51 or newer on runtimes other than Cloud Hypervisor and NVX:
+
+- **Literal `timeout-minutes`** (for example `timeout-minutes: 30`): the AWF config gets `container.agentTimeout` set to that value.
+- **Expression timeout**, including the default that workflows without `timeout-minutes` compile to (`${{ fromJSON(vars.GH_AW_DEFAULT_TIMEOUT_MINUTES || '20') }}`): the agent step gets the step timeout in `GH_AW_ENGINE_STEP_TIMEOUT_MINUTES`, and `awf` receives it at run time as `--agent-timeout`. The AWF config has no `agentTimeout`.
+- **AWF older than v0.28.51**: neither is emitted, so no runtime notices are sent. Cloud Hypervisor and NVX keep their existing `container.agentTimeout` on every AWF version.
+
+The deadline is never shorter than the agent step timeout, and AWF counts it from agent start, after the step has started. The GitHub Actions step timeout therefore fires before AWF's deadline (AWF exit code 124), so a notice whose next eligible model request would come after the step timeout is never delivered. The threat-detection run uses its own job timeout. Delivered notices are listed in `gh aw audit` and `gh aw logs --json` (see [Artifacts](/gh-aw/reference/artifacts/)); when the unified session cannot be read, these outputs report `steering_notices_unavailable: true` instead of an empty list.
+
 #### Custom infrastructure images (`sandbox.agent.images`)
 
 Self-hosted and air-gapped deployments can mirror, scan, approve, and preload every privileged image AWF launches. Set `sandbox.agent.images` to select digest-pinned replacements for AWF's infrastructure images (requires AWF v0.28.4 or newer):
