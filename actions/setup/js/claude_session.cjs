@@ -17,21 +17,57 @@ const { getMessageRefusal } = require("./provider_refusal.cjs");
 const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs");
 const CLAUDE_STATUS_TYPES = new Set(["thinking_tokens", "vcs_state_changed", "status", "compact_boundary"]);
 
+/** @param {any} source @param {any} id @returns {string} */
+const bashTaskKey = (source, id) => JSON.stringify([sessionScopeKey(source), id]);
+
+/** @param {Array<any>} records @returns {Map<string, any>} */
+function collectClaudeBashTasks(records) {
+  const tasks = new Map();
+  for (const record of records) {
+    if (!record || typeof record !== "object") continue;
+    const fields = sourceFields(record);
+    if (
+      (record.type === "system" || record.type === DYNAMIC_WORKFLOW_EVENT_TYPES.task_started) &&
+      fields.subtype === "task_started" &&
+      fields.task_type === "local_bash" &&
+      typeof fields.task_id === "string" &&
+      (fields.sourceEngine === undefined || fields.sourceEngine === "claude")
+    ) {
+      tasks.set(bashTaskKey(record, fields.task_id), fields);
+    }
+  }
+  return tasks;
+}
+
 /**
- * Migrate supported saved status wrappers without replaying conversation snapshots.
+ * Migrate supported saved observations without replaying conversation snapshots.
  * @param {Array<any>} records
  * @param {(event: import("./types/agent_session").SessionEvent) => import("./types/agent_session").SessionEvent} [mapEvent]
  * @returns {Array<any>}
  */
 function normalizeClaudeObservations(records, mapEvent = event => event) {
+  const bashTasks = collectClaudeBashTasks(records);
+  const bashTask = record => {
+    const fields = sourceFields(record);
+    return (
+      [DYNAMIC_WORKFLOW_EVENT_TYPES.task_started, DYNAMIC_WORKFLOW_EVENT_TYPES.task_notification].includes(record.type) &&
+      (fields.task_type === "local_bash" || (fields.task_type === undefined && bashTasks.has(bashTaskKey(record, fields.task_id))))
+    );
+  };
   const legacy = record =>
     isSessionEvent(record) &&
     (record.data.sourceEngine === undefined || record.data.sourceEngine === "claude") &&
-    ((record.type === "claude.system" && CLAUDE_STATUS_TYPES.has(record.data.subtype)) || ["claude.tool_progress", "claude.tool_use_summary", "claude.rate_limit_event", "claude.auth_status"].includes(record.type));
+    ((record.type === "claude.system" && CLAUDE_STATUS_TYPES.has(record.data.subtype)) || ["claude.tool_progress", "claude.tool_use_summary", "claude.rate_limit_event", "claude.auth_status"].includes(record.type) || bashTask(record));
   if (!records.some(legacy)) return records;
   return records.flatMap(record => {
     if (!legacy(record)) return [record];
-    const source = { ...record, ...sourceFields(record), type: record.type.slice("claude.".length) };
+    const isBashTask = bashTask(record);
+    const source = {
+      ...record,
+      ...sourceFields(record),
+      type: isBashTask ? "system" : record.type.slice("claude.".length),
+      ...(isBashTask ? { task_type: "local_bash", tool_use_id: record.data.tool_use_id ?? bashTasks.get(bashTaskKey(record, record.data.task_id))?.tool_use_id } : {}),
+    };
     delete source.data;
     // Saved status wrappers can already have a separate compatibility text event.
     return normalizeClaudeSession([source])
@@ -86,6 +122,7 @@ function normalizeClaudeSession(records) {
   const denialReports = [];
   const agentTasks = new Map();
   const agentsByTool = new Map();
+  const bashTasks = collectClaudeBashTasks(records);
 
   const channelKey = sessionScopeKey;
   const messageKey = (source, id) => JSON.stringify([channelKey(source), id]);
@@ -442,13 +479,15 @@ function normalizeClaudeSession(records) {
       terminalResults.push(emit(source, "session.result", data));
     } else if (source.type === "system" && typeof source.subtype === "string") {
       const task = agentTasks.get(taskKey(source, source.task_id));
+      const bashTask = bashTasks.get(bashTaskKey(source, source.task_id));
+      const isBashLifecycle = ["task_started", "task_notification"].includes(source.subtype) && (source.task_type === "local_bash" || (source.task_type === undefined && bashTask));
       if (source.subtype === "permission_denied") {
         const denial = sourceFields(source);
         const event = emit(source, "session.result", { ...denial, sourceEngine: "claude", sourceType: source.type, permissionDenials: [denial] });
         denialReports.push({ event, denial: event.data.permissionDenials[0] });
       } else if (source.subtype === "api_retry" && source.error != null) {
         reportError(source, { error: source.error, error_status: source.error_status, attempt: source.attempt });
-      } else if (source.error != null && !task) {
+      } else if (source.error != null && !task && !isBashLifecycle) {
         reportError(source, source.error);
       } else if (task && source.subtype === "task_started") {
         emitSubagent(source, "subagent.started", task, {
@@ -464,6 +503,18 @@ function normalizeClaudeSession(records) {
           totalTokens: isTokenCount(source.usage?.total_tokens) ? source.usage.total_tokens : undefined,
           totalToolCalls: isTokenCount(source.usage?.tool_uses) ? source.usage.tool_uses : undefined,
           ...(source.status === "stopped" ? { cancelled: true } : {}),
+        });
+      } else if (isBashLifecycle) {
+        const toolCallId = source.tool_use_id ?? bashTask?.tool_use_id;
+        emit(source, "tool.execution_update", {
+          ...sourceFields(source),
+          ...toolFields({ name: source.tool_name }, tools.get(toolKey(source, toolCallId))),
+          toolCallId,
+          taskId: source.task_id,
+          taskType: "local_bash",
+          sourceType: source.subtype,
+          partial: true,
+          ...(typeof source.summary === "string" ? { output: source.summary } : {}),
         });
       } else if (CLAUDE_STATUS_TYPES.has(source.subtype)) {
         emit(source, "session.info", {
@@ -494,6 +545,8 @@ function normalizeClaudeSession(records) {
       } else emit(source, "session.info", { ...sourceFields(source), sourceType: source.type, ...(Object.hasOwn(source, "summary") ? { content: source.summary } : {}) });
     } else if (source.type === "error" && source.error != null) {
       reportError(source, source.error);
+    } else if (typeof source.type === "string") {
+      native(source, source.type.includes(".") ? source.type : `claude.${source.type}`);
     }
   }
 

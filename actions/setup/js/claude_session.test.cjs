@@ -48,7 +48,8 @@ describe("Claude CI session shapes", () => {
     });
     expect(completions[1].data).toMatchObject({ toolCallId: "tool-failed", toolName: "Read", success: false, output: "Example file does not exist." });
     expect(events.filter(event => event.type === "session.info").map(event => event.data.sourceType)).toEqual(["thinking_tokens"]);
-    expect(events.filter(event => event.type.startsWith("dynamicWorkflows.task_")).map(event => event.data.subtype)).toEqual(["task_started", "task_notification"]);
+    expect(events.filter(event => event.type === "tool.execution_update").map(event => event.data.subtype)).toEqual(["task_started", "task_notification"]);
+    expect(events.some(event => event.type.startsWith("dynamicWorkflows.task_"))).toBe(false);
   });
 
   it("uses authoritative terminal usage once, including Claude's disjoint cache inputs", () => {
