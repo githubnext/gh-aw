@@ -4,6 +4,9 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestToolsetPermissionsLoadedFromJSON(t *testing.T) {
@@ -49,5 +52,30 @@ func TestToolsetPermissionsLoadedFromJSON(t *testing.T) {
 	}
 	if len(contextPerms.Tools) == 0 {
 		t.Error("context toolset should have tools listed")
+	}
+}
+
+func TestGitHubMCPGovernanceAndAutomationToolsets(t *testing.T) {
+	toolsets := getToolsetPermissionsMap()
+
+	governance, ok := toolsets["governance"]
+	require.True(t, ok, "governance toolset must be mapped")
+	assert.ElementsMatch(t, []string{
+		"custom_properties_read",
+		"custom_properties_write",
+		"repository_ruleset_read",
+	}, governance.Tools)
+
+	copilot, ok := toolsets["copilot"]
+	require.True(t, ok, "copilot toolset must be mapped")
+	for _, tool := range []string{
+		"get_automation",
+		"get_automation_revision",
+		"list_automation_revisions",
+		"list_automations",
+		"list_available_automation_tools",
+		"list_available_automation_triggers",
+	} {
+		assert.Contains(t, copilot.Tools, tool)
 	}
 }

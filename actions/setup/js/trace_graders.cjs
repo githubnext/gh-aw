@@ -1003,17 +1003,43 @@ function withAllBuiltinGraders(graders) {
   return [...graders, ...missing];
 }
 
+/** @param {string} prefix @returns {any} */
+function readGraderEnvironment(prefix) {
+  const countText = process.env[`${prefix}_CHUNKS`];
+  const count = Number(countText);
+  if (!countText || !Number.isSafeInteger(count) || count < 1 || count > 10000) throw new Error(`invalid ${prefix}_CHUNKS`);
+  const chunks = [];
+  for (let index = 0; index < count; index++) {
+    const chunk = process.env[`${prefix}_${index}`];
+    if (chunk === undefined) throw new Error(`missing ${prefix}_${index}`);
+    chunks.push(chunk);
+  }
+  return JSON.parse(chunks.join(""));
+}
+
+async function mainFromEnvironment() {
+  let manifest;
+  let execSpec;
+  try {
+    manifest = readGraderEnvironment("GH_AW_GRADER_MANIFEST");
+    execSpec = readGraderEnvironment("GH_AW_GRADER_EXEC");
+  } catch (err) {
+    core.setFailed(`Graders: failed to parse environment payloads: ${getErrorMessage(err)}`);
+    return;
+  }
+  await main(manifest, execSpec);
+}
+
 /**
- * Main entry point. Called from the github-script step with base64 manifest and exec spec.
- * @param {string} manifestB64 - Base64-encoded JSON manifest
- * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script|run}
+ * Main entry point. Older compiled workflows may still supply base64 JSON.
+ * @param {{version: number, graders: any[]}|string} manifestInput
+ * @param {any[]|string} [execSpecInput]
  */
-async function main(manifestB64, execSpecB64) {
+async function main(manifestInput, execSpecInput) {
   /** @type {{version: number, graders: any[]}} */
   let manifest;
   try {
-    const manifestJson = Buffer.from(manifestB64, "base64").toString("utf-8");
-    manifest = JSON.parse(manifestJson);
+    manifest = typeof manifestInput === "string" ? JSON.parse(Buffer.from(manifestInput, "base64").toString("utf-8")) : manifestInput;
   } catch (err) {
     core.setFailed(`Graders: failed to parse manifest: ${getErrorMessage(err)}`);
     return;
@@ -1022,10 +1048,9 @@ async function main(manifestB64, execSpecB64) {
   // Decode trusted executable payloads for custom graders.
   /** @type {Record<string, {script?: string, run?: string}>} */
   const executionMap = {};
-  if (execSpecB64) {
+  if (execSpecInput) {
     try {
-      const specJson = Buffer.from(execSpecB64, "base64").toString("utf-8");
-      const specs = JSON.parse(specJson);
+      const specs = typeof execSpecInput === "string" ? JSON.parse(Buffer.from(execSpecInput, "base64").toString("utf-8")) : execSpecInput;
       for (const s of specs) {
         if (s.id && (s.script || s.run)) executionMap[s.id] = { script: s.script, run: s.run };
       }
@@ -1154,6 +1179,8 @@ async function main(manifestB64, execSpecB64) {
 }
 
 module.exports = {
+  mainFromEnvironment,
+  readGraderEnvironment,
   main,
   preprocessTrace,
   findAgentEventsFiles,

@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.90"
+//	const DefaultCopilotVersion Version = "1.0.95"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -32,30 +32,30 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.288"
+const DefaultClaudeCodeVersion Version = "2.1.296"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.90"
+const DefaultCopilotVersion Version = "1.0.95"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.16"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.159.3"
+const DefaultCodexVersion Version = "0.162.1"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.62.0"
 
-const DefaultAgyVersion Version = "1.3.1"
+const DefaultAgyVersion Version = "1.3.3"
 
 const AgyDefaultModel = "gemini-3.8-flash-medium"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "1.0.0"
+const DefaultPiVersion Version = "1.1.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.12.2"
@@ -68,7 +68,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.12.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.50"
+const DefaultFirewallVersion Version = "v0.28.51"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
@@ -119,8 +119,8 @@ const AWFTokenSteeringMinVersion Version = "v0.25.44"
 // (gh-aw-firewall#9790). Below this version the compiler only emits
 // container.agentTimeout for the Cloud Hypervisor and NVX runtimes.
 //
-// v0.28.51 is the first release after v0.28.50; it was not yet published when
-// this gate was added.
+// v0.28.51 is the first default-version release after v0.28.50 and is the
+// earliest release with the runtime steering behavior this gate protects.
 const AWFAgentTimeoutSteeringMinVersion Version = "v0.28.51"
 
 // AWFChrootConfigMinVersion is the minimum AWF version that supports

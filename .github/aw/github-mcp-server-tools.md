@@ -27,13 +27,21 @@ Full tool reference for each toolset. See [github-mcp-server.md](github-mcp-serv
 ---
 
 ### copilot
-**Description**: GitHub Copilot assignment, review, and coding agent tools
+**Description**: GitHub Copilot assignment, review, coding agent, and Automation tools
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `assign_copilot_to_issue` | Assign GitHub Copilot to an issue | `owner`, `repo`, `issue_number` |
 | `create_pull_request_with_copilot` | Ask Copilot to create a pull request | `owner`, `repo`, `issue_number` |
+| `get_automation` | Get a Copilot Automation | `owner`, `repo`, `automation_id` |
+| `get_automation_revision` | Get a Copilot Automation revision | `owner`, `repo`, `automation_id`, `revision_id` |
+| `list_automation_revisions` | List Copilot Automation revisions | `owner`, `repo`, `automation_id` |
+| `list_automations` | List Copilot Automations | `owner`, `repo` |
+| `list_available_automation_tools` | List available Copilot Automation tools | None |
+| `list_available_automation_triggers` | List available Copilot Automation triggers | None |
 | `request_copilot_review` | Request a Copilot review on a pull request | `owner`, `repo`, `pullNumber` |
+
+> **Note**: Automation tools are exposed by the remote GitHub MCP service; their placement under `copilot` has not been confirmed against public upstream toolset registration.
 
 ---
 
@@ -108,6 +116,19 @@ Full tool reference for each toolset. See [github-mcp-server.md](github-mcp-serv
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `github_support_docs_search` | Search GitHub support documentation | `query` |
+
+---
+
+### governance
+**Description**: Custom properties and repository rulesets
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `custom_properties_read` | Read repository custom property values or organization/enterprise definitions | `level`; `owner`, `repo` (repository) or `org`/`enterprise` |
+| `custom_properties_write` | Update custom property values or definitions | `level`, `properties`; `owner`, `repo` (repository) or `org`/`enterprise` |
+| `repository_ruleset_read` | Read repository, organization, or enterprise rulesets | `level`, `method`; `owner`, `repo` (repository) or `org`/`enterprise` |
+
+> **Note**: Organization and enterprise operations require suitable token access; enabling the toolset alone does not grant it.
 
 ---
 

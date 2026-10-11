@@ -819,7 +819,12 @@ describe("Unified conclusion session", () => {
     const lines = content.trimEnd().split("\n");
     for (const line of lines) expect(line).toBe(JSON.stringify(JSON.parse(line)));
     const agent = lines.map(JSON.parse).filter(event => event.provenance.component === "agent");
-    expect(agent.map(({ provenance, ...event }) => event)).toEqual(native.map(normalizeUnifiedSessionEvent));
+    expect(agent.map(({ provenance, ...event }) => event)).toEqual(
+      native.map(event => ({
+        type: `claude.${event.type}`,
+        data: { ...event.data, sourceEngine: "claude" },
+      }))
+    );
     expect(lines.some(line => line.includes("\\nsecond line\\t\\n"))).toBe(true);
   });
 
@@ -1165,7 +1170,7 @@ describe("Unified conclusion session", () => {
     if (nativePresent) write("sandbox/agent/logs/copilot-session-state/uuid/events.jsonl", "{bad\n");
     write("agent-stdio.log", JSON.stringify([{ type: "assistant.message", data: { content: "raw fallback" } }]));
     const { events } = collectUnifiedSession({ rootDir: root, engine: "custom", warn: vi.fn() });
-    expect(events.filter(event => event.provenance.component === "agent")).toEqual([expect.objectContaining({ data: { content: "raw fallback" }, provenance: expect.objectContaining({ path: "agent-stdio.log" }) })]);
+    expect(events.filter(event => event.provenance.component === "agent")).toMatchObject([{ type: "claude.assistant.message", data: { content: "raw fallback", sourceEngine: "claude" }, provenance: { path: "agent-stdio.log" } }]);
   });
 
   it.each([

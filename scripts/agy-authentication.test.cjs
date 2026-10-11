@@ -12,6 +12,10 @@ const eventResult = result => JSON.stringify({ event: "result", result }) + "\n"
 const completed = stdout => ({ code: 0, signal: null, stdout, stderr: "", timedOut: false, outputLimit: false, interrupted: false });
 const failed = message => ({ ...completed(eventResult({ status: "ERROR", error: message })), code: 1 });
 
+test("the native authentication probe targets the latest verified release", () => {
+  assert.equal(VERSION, "1.3.3");
+});
+
 test("parses native streams and startup failure envelopes, rejects malformed events", () => {
   assert.deepEqual(parseEvents(eventResult({ status: "SUCCESS" })), [{ event: "result", result: { status: "SUCCESS" } }]);
   assert.deepEqual(parseEvents('{"status":"ERROR","error":"invalid model"}'), [{ event: "result", result: { status: "ERROR", error: "invalid model" } }]);

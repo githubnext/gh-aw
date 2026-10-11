@@ -201,6 +201,9 @@ const EVENT_FIELDS = {
     durationMs: ["durationMs"],
     status: ["status"],
     command: ["command"],
+    taskId: ["taskId", "task_id"],
+    taskType: ["taskType", "task_type"],
+    error: ["error"],
   },
   "tool.execution_complete": {
     ...TOOL_FIELDS,

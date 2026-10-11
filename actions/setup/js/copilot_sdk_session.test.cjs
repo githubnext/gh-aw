@@ -6,6 +6,7 @@ import os from "node:os";
 
 const require = createRequire(import.meta.url);
 const { runWithCopilotSDK, resolveCopilotSDKWorkingDirectory } = require("./copilot_sdk_session.cjs");
+const { normalizeCopilotSession } = require("./copilot_session.cjs");
 const models = [
   { id: "gpt-5.4", provider: "openai" },
   { id: "claude-sonnet-4.6", provider: "anthropic" },
@@ -191,6 +192,58 @@ describe("copilot_sdk_session runtime configuration", () => {
     expect(captured[2].data.agentMetrics.main).toEqual({ totalNanoAiu: 1 });
     expect(events[0].data.agentDisplayName).toBe("readme-summarizer");
     expect(events[2].data.agentMetrics.child.agentDisplayName).toBe("readme-summarizer");
+  });
+
+  it("captures native tool evidence once and enriches only in the canonical adapter", async () => {
+    let handler;
+    // Native arguments and nameless completion shapes rechecked against Copilot
+    // 1.0.90 run 38099607416, artifact 11686649002, copilot-session-state events.jsonl.
+    // SDK transport, aliases and child interleaving are synthetic compatibility cases.
+    const events = [
+      { type: "tool.execution_start", id: "main-start", data: { toolCallId: "same", toolName: "bash", arguments: { command: "echo sanitized" }, toolTitle: "Sanitized title" } },
+      { type: "tool.execution_start", id: "child-start", data: { parentToolCallId: "launch", toolCallId: "same", toolName: "read", mcpServerName: "", parameters: { path: "example.txt" } } },
+      { type: "tool.execution_complete", id: "child-end", data: { parentToolCallId: "launch", toolCallId: "same", success: false, error: { code: "DENIED" } } },
+      { type: "tool.execution_complete", id: "main-end", data: { toolCallId: "same", success: true, shellExecution: { exitCode: 0 }, result: { content: "sanitized" } } },
+      { type: "tool.execution_complete", id: "orphan", data: { toolCallId: "orphan", toolDescription: { name: "observed-name" } } },
+      { type: "vendor.observation", id: "unknown", data: { native: [null, false, 0] } },
+    ];
+    const original = structuredClone(events);
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "native-tools",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => {
+          events.forEach(event => handler(event));
+          return { data: { content: "done" } };
+        },
+        disconnect: async () => {},
+      });
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const captured = fs.readFileSync(path.join(base, "native-tools/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(captured.slice(0, events.length)).toEqual(original);
+    expect(events).toEqual(original);
+    const normalized = normalizeCopilotSession(captured);
+    const byId = id => normalized.find(event => event.id === id);
+    expect(byId("main-start").data).toMatchObject({ input: { command: "echo sanitized" }, command: "echo sanitized", toolTitle: "Sanitized title" });
+    expect(byId("child-start").data.input).toEqual({ path: "example.txt" });
+    expect(byId("child-end").data).toMatchObject({ toolName: "read", mcpServerName: "", parentToolUseId: "launch", success: false, error: { code: "DENIED" } });
+    expect(byId("main-end").data).toMatchObject({ toolName: "bash", exitCode: 0, success: true, result: { content: "sanitized" } });
+    expect(byId("orphan").data.toolName).toBe("observed-name");
+    expect(byId("orphan").data.success).toBeUndefined();
+    expect(byId("unknown")).toEqual(original.at(-1));
+    expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
   });
 
   it.each(["routing", "environment", "fallback", "reflect"])("qualifies the %s model before createSession", async source => {

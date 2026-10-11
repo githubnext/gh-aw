@@ -273,13 +273,21 @@ function normalizeCopilotSession(entries) {
         cwd: data.cwd,
       });
     } else if (event.type === "tool.execution_start") {
-      if (!Object.hasOwn(data, "input") && !Object.hasOwn(data, "parameters") && Object.hasOwn(data, "arguments")) {
-        event.data.input = structuredClone(data.arguments);
+      if (!Object.hasOwn(data, "input")) {
+        for (const key of ["arguments", "parameters", "args", "toolInput"]) {
+          if (!Object.hasOwn(data, key)) continue;
+          data.input = structuredClone(data[key]);
+          break;
+        }
       }
+      if (!Object.hasOwn(data, "command") && typeof data.input?.command === "string") data.command = data.input.command;
       if (data.toolCallId !== undefined) tools.set(JSON.stringify([summaryScope, data.toolCallId]), data);
     } else if (event.type === "tool.execution_complete") {
       const start = data.toolCallId !== undefined ? tools.get(JSON.stringify([summaryScope, data.toolCallId])) : undefined;
-      if (!Object.hasOwn(data, "toolName") && start?.toolName !== undefined) data.toolName = start.toolName;
+      for (const key of ["toolName", "mcpServerName"]) {
+        if (!Object.hasOwn(data, key) && start && Object.hasOwn(start, key)) data[key] = start[key];
+      }
+      if (!Object.hasOwn(data, "toolName") && data.toolDescription?.name !== undefined) data.toolName = data.toolDescription.name;
       if (!Object.hasOwn(data, "exitCode") && Number.isSafeInteger(data.shellExecution?.exitCode)) data.exitCode = data.shellExecution.exitCode;
     } else if ((event.type === "assistant.message" || event.type === "assistant.refusal") && typeof data.reasoningText === "string") {
       project("assistant.reasoning", { content: data.reasoningText });

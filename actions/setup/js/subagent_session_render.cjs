@@ -1,6 +1,6 @@
 // @ts-check
 
-const { isMetric, isTokenCount, sessionOutputText, sessionContext } = require("./agent_session.cjs");
+const { isMetric, isTokenCount, sessionOutputText, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collectArtifactSecretValues, redactManifestValue } = require("./safe_output_manifest.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -16,15 +16,15 @@ const object = value => value !== null && typeof value === "object" && !Array.is
  * @param {Array<any>} events
  * @returns {string[]}
  */
-function renderSubagentSummary(events) {
-  const redacted = redactManifestValue(events, collectArtifactSecretValues());
+function renderSubagentSummary(events, secrets = collectArtifactSecretValues()) {
+  const redacted = redactManifestValue(events, secrets);
   if (!Array.isArray(redacted)) throw new Error(`${ERR_VALIDATION}: Expected subagent session events`);
   const agents = new Map();
   let metrics;
   let sessionId;
   for (const event of redacted) {
     const data = event.data ?? {};
-    const nested = !!sessionContext(event).parentToolUseId;
+    const nested = isNestedSessionEvent(event);
     if (["session.start", "session.init"].includes(event.type) && !event.agentId && !nested) {
       if ((data.sessionId !== undefined && data.sessionId !== sessionId) || (event.type === "session.init" && data.sessionId === undefined && data.sourceEngine === "copilot")) {
         agents.clear();

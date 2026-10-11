@@ -65,7 +65,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 | 20 | `tool-wise-score` | Reference trajectory | Implemented |
 | 21 | `trajectory-ndtw` | Reference trajectory + state distance | Implemented |
 | 22 | `code-search-recall` | Reference patch | Implemented |
-| 23 | `code-read-precision` | Reference patch + symbol extraction | Not started |
+| 23 | `code-read-precision` | Reference patch + file read/inspection actions | Implemented |
 | 24 | `code-edit-precision` | Reference patch | Not started |
 | 25 | `process-alignment-fitness` | Process model | Not started |
 
@@ -93,7 +93,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 20. **`tool-wise-score`** — longest correct execution prefix vs. a reference trajectory, incorporating parameter correctness.
 21. **`trajectory-ndtw`** — normalized dynamic time warping distance between the observed path and a reference trajectory.
 22. **`code-search-recall`** — fraction of files required by a reference patch that were ever located during the run.
-23. **`code-read-precision`** — fraction of read/inspected symbols that were actually relevant to the reference patch (agents often over-inspect).
+23. **`code-read-precision`** — fraction of distinct read/inspected files touched by the reference patch (agents often over-inspect). File-level only: the IR has no symbol records.
 24. **`code-edit-precision`** — fraction of edited lines/hunks that overlap the reference patch's actual changes.
 25. **`process-alignment-fitness`** — process-mining conformance score between the observed trace and an allowed workflow/process model.
 
