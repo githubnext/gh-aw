@@ -1,7 +1,7 @@
 // @ts-check
 
 const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
-const { normalizeSessionUsage, sessionTokenTotal, sessionOutputText, observedSessionModel, projectSessionResult, sessionContext, isSingleNestedSession } = require("./agent_session.cjs");
+const { normalizeSessionUsage, sessionTokenTotal, sessionOutputText, observedSessionModel, projectSessionResult, isNestedSessionEvent, isSingleNestedSession } = require("./agent_session.cjs");
 const { collapseStreamedMessages, escapeSummaryText, renderInitializationLines, toolOutcome, boundSummaryLines } = require("./agent_session_render.cjs");
 const { isUnifiedSessionTrace, publicationAgentSessions, renderUnifiedSession } = require("./unified_session_render.cjs");
 const { renderSubagentSummary } = require("./subagent_session_render.cjs");
@@ -190,7 +190,7 @@ function createLogParserFormatters(deps) {
     }
 
     const groups = publicationAgentSessions(logEntries);
-    if (groups.length > 1 && groups.some(group => group.events.some(event => sessionContext(event).parentToolUseId))) {
+    if (groups.length > 1 && groups.some(group => group.events.some(isNestedSessionEvent))) {
       const commandSummary = [];
       for (const group of groups) {
         const section = generateConversationMarkdown(group.events, { ...options, summaryTracker: createSummaryTracker() });
@@ -672,7 +672,7 @@ function createLogParserFormatters(deps) {
 
   function generateSummaryLines(logEntries, includeStatistics = true) {
     const groups = publicationAgentSessions(logEntries);
-    if (groups.length > 1 && groups.some(group => group.events.some(event => sessionContext(event).parentToolUseId))) {
+    if (groups.length > 1 && groups.some(group => group.events.some(isNestedSessionEvent))) {
       return groups.flatMap(group => [`Agent conversation: ${group.label.replace(/[\r\n]/g, " ")}`, "", ...generateSummaryLines(group.events, includeStatistics), ""]);
     }
     const renderEntries = normalizeEntriesForRendering(logEntries);

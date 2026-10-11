@@ -427,6 +427,9 @@ export interface UnifiedSessionEventDataMap {
     durationMs?: JsonValue;
     status?: JsonValue;
     command?: JsonValue;
+    taskId?: string;
+    taskType?: string;
+    error?: JsonValue;
   } & UnifiedSessionContextData;
   "tool.execution_complete": Pick<
     ToolExecutionCompleteData,
