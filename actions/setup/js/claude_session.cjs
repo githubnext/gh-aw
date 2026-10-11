@@ -321,13 +321,16 @@ function normalizeClaudeSession(records) {
         } else if (raw.type === "content_block_stop") {
           const block = state.blocks.get(raw.index);
           if (block?.type === "tool_use" && block.argumentText && block.event) {
+            let input;
             try {
-              block.event.data.input = JSON.parse(block.argumentText);
+              input = JSON.parse(block.argumentText);
+            } catch {
+              input = undefined;
+            }
+            if (input !== undefined) {
+              block.event.data.input = input;
               retainSnapshot(block.event, source);
               mappedTransport = true;
-            } catch {
-              // Malformed/truncated arguments retain exact argumentText; recover at the next record.
-              continue;
             }
           }
         } else if (raw.type === "message_stop" && state.refusalEvent) {
@@ -469,7 +472,7 @@ function normalizeClaudeSession(records) {
           ...(source.subtype === "thinking_tokens" ? { estimatedTokens: source.estimated_tokens, estimatedTokensDelta: source.estimated_tokens_delta } : {}),
         });
       } else native(source, !task && Object.hasOwn(DYNAMIC_WORKFLOW_EVENT_TYPES, source.subtype) ? DYNAMIC_WORKFLOW_EVENT_TYPES[source.subtype] : "claude.system");
-      if (source.subtype !== "permission_denied" && source.error == null) {
+      if (source.subtype !== "permission_denied" && !CLAUDE_STATUS_TYPES.has(source.subtype) && source.error == null) {
         const content = typeof source.message === "string" ? source.message : (source.message?.content ?? source.content);
         if (typeof content === "string") emitBlock(source, { type: "text", text: content });
         else if (Array.isArray(content)) {

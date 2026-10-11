@@ -228,6 +228,40 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     state[kind].set(index, previous);
   };
 
+  const reconcileContentIndex = (state, index, kind) => {
+    const history = [];
+    const removed = new Set();
+    for (const [category, values] of [
+      ["text", state.text],
+      ["thinking", state.thinking],
+      ["calls", state.calls],
+      ["blocks", state.blocks],
+    ]) {
+      if (category === kind) continue;
+      const previous = values.get(index);
+      if (!previous) continue;
+      values.delete(index);
+      const previousEvents = category === "text" || category === "thinking" ? previous.segments : [previous];
+      for (const event of previousEvents) {
+        removed.add(event);
+        if (Array.isArray(event.data.nativeSnapshots)) history.push(...structuredClone(event.data.nativeSnapshots));
+      }
+      const content = category === "text" || category === "thinking" ? previous.content : Object.hasOwn(previous.data, "content") ? previous.data.content : previous.data.input;
+      if (content !== undefined && ((category !== "text" && category !== "thinking") || previous.segments.length > 0)) {
+        history.push({ content: structuredClone(content) });
+      }
+      if (category === "calls" && previous.data.toolCallId !== undefined && calls.get(previous.data.toolCallId) === previous) {
+        calls.delete(previous.data.toolCallId);
+      }
+    }
+    if (removed.size) {
+      for (let eventIndex = events.length - 1; eventIndex >= 0; eventIndex--) {
+        if (removed.has(events[eventIndex])) events.splice(eventIndex, 1);
+      }
+    }
+    return history.length ? history : undefined;
+  };
+
   const emitCall = (raw, part, state = assistantState, index = raw.assistantMessageEvent?.contentIndex ?? 0) => {
     const indexed = state.calls.get(index);
     const previous = part.id !== undefined ? (calls.get(part.id) ?? (indexed?.data.toolCallId === undefined ? indexed : undefined)) : indexed;
@@ -280,9 +314,12 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     const content = typeof message.content === "string" ? [{ type: "text", text: message.content }] : message.content;
     const parts = Array.isArray(content) ? content : content !== undefined ? [content] : [];
     for (const [index, part] of parts.entries()) {
+      const kind = part?.type === "text" ? "text" : part?.type === "thinking" ? "thinking" : part?.type === "toolCall" ? "calls" : "blocks";
+      const nativeSnapshots = reconcileContentIndex(state, index, kind);
+      const metadata = nativeSnapshots && part && typeof part === "object" && !Array.isArray(part) ? { ...part, nativeSnapshots: [...(Array.isArray(part.nativeSnapshots) ? part.nativeSnapshots : []), ...nativeSnapshots] } : part;
       if (part?.type === "text" || part?.type === "thinking") {
-        emitText(raw, state, part.type, index, part.type === "text" ? part.text : part.thinking, false, message.role, part);
-      } else if (part?.type === "toolCall") emitCall(raw, part, state, index);
+        emitText(raw, state, part.type, index, part.type === "text" ? part.text : part.thinking, false, message.role, metadata);
+      } else if (part?.type === "toolCall") emitCall(raw, metadata, state, index);
       else {
         const previous = state.blocks.get(index);
         if (previous) {
@@ -290,7 +327,15 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
             (previous.data.nativeSnapshots ??= []).push({ content: structuredClone(previous.data.content) });
             previous.data.content = structuredClone(part);
           }
-        } else state.blocks.set(index, emit(raw, message.role === "user" ? "user.message" : "assistant.message", { content: part, contentIndex: index }));
+        } else
+          state.blocks.set(
+            index,
+            emit(raw, message.role === "user" ? "user.message" : "assistant.message", {
+              content: part,
+              contentIndex: index,
+              ...(nativeSnapshots ? { nativeSnapshots } : {}),
+            })
+          );
       }
     }
     const messageMetadata = { ...message };

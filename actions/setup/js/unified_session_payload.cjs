@@ -423,7 +423,7 @@ function resolveUsageAic(source, data, usage) {
 function normalizeUnifiedSessionEvent(event, phase) {
   /** @type {any} */
   const source = event.data;
-  const known = Object.hasOwn(EVENT_FIELDS, event.type) && (event.type !== "assistant.message_update" || ["message_start", "message_delta", "message_stop", "content_block_stop"].includes(source.sourceType));
+  const known = Object.hasOwn(EVENT_FIELDS, event.type);
   const data = known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "workflow.info") {
     const modelRouting = source.modelRouting ?? source.model_routing;

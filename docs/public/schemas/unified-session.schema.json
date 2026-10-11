@@ -18,6 +18,7 @@
           "properties": {
             "data": {
               "type": "object",
+              "additionalProperties": false,
               "properties": {
                 "sourceType": { "$ref": "#/definitions/JsonValue" },
                 "content": { "$ref": "#/definitions/JsonValue" },

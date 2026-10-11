@@ -200,7 +200,10 @@ function normalizeCodexSession(records, model = null) {
         const previous = key === undefined ? undefined : starts.get(key);
         const { start, output, hasInvocation } = toolObservation(item, previous);
         const invocation = record.type === "item.started" || hasInvocation;
-        if (!previous && invocation) {
+        if (record.type === "item.updated") {
+          emit("tool.execution_update", { ...item, ...start, output, partial: true, sourceType: record.type });
+          if (key !== undefined) starts.set(key, start);
+        } else if (!previous && invocation) {
           emit("tool.execution_start", { ...item, ...start });
           if (key !== undefined) starts.set(key, start);
         } else if (!completed) {
@@ -234,12 +237,12 @@ function normalizeCodexSession(records, model = null) {
         const snapshotKey = itemKey(record, index);
         const selected = snapshotKey !== undefined ? messageSnapshots.get(snapshotKey) : undefined;
         if (snapshotKey !== undefined && selected !== undefined && selected !== index) continue;
-        if (content === undefined && !refusal) emit("assistant.message_update", { ...item, messageId: item.id, sourceType: record.type, partial: !completed });
+        if (content === undefined && !refusal && item.type === "agent_message") emit("assistant.message_update", { ...item, messageId: item.id, sourceType: record.type, partial: !completed });
         else
           emit(refusal ? "assistant.refusal" : item.type === "reasoning" ? "assistant.reasoning" : item.type === "user_message" ? "user.message" : "assistant.message", {
             ...item,
             messageId: item.id,
-            content,
+            ...(content !== undefined ? { content } : {}),
             ...(refusal ?? {}),
             ...(completed ? {} : { partial: true }),
             ...(snapshotKey !== undefined && messageHistory.get(snapshotKey).length > 1

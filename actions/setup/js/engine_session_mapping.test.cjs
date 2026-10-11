@@ -7,7 +7,7 @@ import { normalizeCopilotSession } from "./copilot_session.cjs";
 import { parseAgyLog } from "./parse_agy_log.cjs";
 import { parsePiLog } from "./parse_pi_log.cjs";
 import { mergeSessionSources } from "./unified_session.cjs";
-import { projectSessionResult } from "./agent_session.cjs";
+import { normalizeAgentSession, projectSessionResult } from "./agent_session.cjs";
 import { collapseStreamedMessages } from "./agent_session_render.cjs";
 import { createSessionValidator } from "./scripts/validate_session.cjs";
 
@@ -36,6 +36,13 @@ describe("shared engine event mappings", () => {
     expect(projectSessionResult(events)).toBeUndefined();
     expect(normalizeClaudeSession(events)).toEqual(events);
     expect(records).toEqual(original);
+    validate(events);
+  });
+
+  it("keeps mapped Claude status notices out of conversational messages", () => {
+    const events = normalizeClaudeSession([{ type: "system", subtype: "status", session_id: "session", message: "provider notice" }]);
+    expect(events.map(event => event.type)).toEqual(["session.info"]);
+    expect(unified(events)[0].data).toMatchObject({ sourceType: "status", message: "provider notice" });
     validate(events);
   });
 
@@ -128,9 +135,9 @@ describe("shared engine event mappings", () => {
     validate(events);
   });
 
-  it("does not discard opaque historical Pi or future message updates in the unified projection", () => {
+  it("projects historical Pi and future message updates through the shared allowlist", () => {
     const event = { type: "assistant.message_update", data: { sourceType: "message_update", type: "future_delta", delta: { flag: false }, usage: { input: 3 }, contentIndex: 0 } };
-    expect(normalizeUnifiedSessionEvent(event).data).toEqual(event.data);
+    expect(normalizeUnifiedSessionEvent(event).data).toEqual({ sourceType: "message_update", delta: { flag: false }, contentIndex: 0 });
     validate([event]);
   });
 
@@ -165,6 +172,17 @@ describe("shared engine event mappings", () => {
     validate(events);
   });
 
+  it.each([
+    ["user_message", "user.message"],
+    ["reasoning", "assistant.reasoning"],
+  ])("keeps content-free Codex %s boundaries on the correct speaker", (itemType, eventType) => {
+    const events = normalizeCodexSession([{ type: "item.started", item: { id: "message", type: itemType } }]);
+    expect(events.map(event => event.type)).toEqual([eventType]);
+    expect(events[0].data).toMatchObject({ messageId: "message", partial: true });
+    expect(events[0].data).not.toHaveProperty("content");
+    validate(events);
+  });
+
   it.each([false, 0, null, { type: "image", source: { data: "sanitized" } }, { type: "future_block", value: false }])("retains Pi non-text content once across message and transcript snapshots (%j)", content => {
     const message = { role: "user", id: "user", content: [content] };
     const records = [
@@ -178,6 +196,39 @@ describe("shared engine event mappings", () => {
     expect(unified(events)[0].data).toEqual({ content, contentIndex: 0, messageId: "user" });
     expect(records).toEqual(original);
     validate(events);
+  });
+
+  it("reconciles Pi content snapshots when a block changes category", () => {
+    const image = { type: "image", source: { data: "observed" } };
+    const records = [
+      { type: "message_start", message: { role: "user", id: "snapshot", content: [image] } },
+      { type: "message_end", message: { role: "user", id: "snapshot", content: [{ type: "text", text: "final" }] } },
+    ];
+    const original = structuredClone(records);
+    const events = parse(parsePiLog, records);
+    const messages = events.filter(event => event.type === "user.message");
+    expect(messages).toHaveLength(1);
+    expect(messages[0].data).toMatchObject({ content: "final", nativeSnapshots: [{ content: image }] });
+    expect(normalizeAgentSession(events)).toEqual(events);
+    expect(records).toEqual(original);
+    validate(events);
+  });
+
+  it("projects Codex, Pi, and future message updates through the shared allowlist", () => {
+    const events = [
+      ...normalizeCodexSession([{ type: "item.updated", item: { id: "codex", type: "agent_message", privateExtension: "omit" } }]),
+      { type: "assistant.message_update", data: { sourceType: "message_update", delta: "Pi", privateExtension: "omit" } },
+      { type: "assistant.message_update", data: { sourceType: "future_delta", delta: "future", privateExtension: "omit" } },
+    ];
+    const projected = unified(events);
+    expect(projected.map(event => event.data)).toEqual([
+      { messageId: "codex", sourceType: "item.updated", partial: true },
+      { sourceType: "message_update", delta: "Pi" },
+      { sourceType: "future_delta", delta: "future" },
+    ]);
+    const validateUnified = createSessionValidator("unified").event;
+    for (const event of projected) expect(validateUnified(event), JSON.stringify(validateUnified.errors)).toBe(true);
+    expect(validateUnified({ ...projected[0], data: { ...projected[0].data, privateExtension: "unexpected" } })).toBe(false);
   });
 
   it("preserves divergent Pi atomic content as snapshot history without mutating source blocks", () => {

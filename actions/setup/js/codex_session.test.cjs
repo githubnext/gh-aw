@@ -427,8 +427,17 @@ describe("Codex normalization contract", () => {
       { type: "item.completed", item: { id: "call", type: "command_execution", aggregated_output: "", exit_code: 0 } },
     ]);
     expect(ofType(events, "tool.execution_start")).toHaveLength(1);
+    expect(ofType(events, "tool.execution_update")).toHaveLength(1);
     expect(events.at(-1).data).toMatchObject({ toolCallId: "call", command: " exact command\n", input: { command: " exact command\n" }, success: true });
     expect(events[0].data.input).toBeUndefined();
+
+    const orphan = normalizeCodexSession([
+      { type: "item.updated", item: { id: "orphan", type: "command_execution", command: "cached command" } },
+      { type: "item.completed", item: { id: "orphan", type: "command_execution", aggregated_output: "", exit_code: 0 } },
+    ]);
+    expect(ofType(orphan, "tool.execution_start")).toHaveLength(0);
+    expect(orphan.map(event => event.type)).toEqual(["tool.execution_update", "tool.execution_complete"]);
+    expect(orphan.at(-1).data).toMatchObject({ command: "cached command", input: { command: "cached command" }, success: true });
   });
 
   it.each([{ refusal: " exact refusal\n" }, { content: [{ type: "refusal", refusal: " exact refusal\n" }] }, { finish_reason: "content_filter", content: null }])(

@@ -408,7 +408,7 @@ export interface UnifiedSessionEventDataMap {
   "assistant.message": UnifiedMessageData;
   "assistant.refusal": Pick<AssistantRefusalData, "reason" | "content" | "policyCategory" | "explanation" | "partial"> & UnifiedMessageData;
   "assistant.reasoning": UnifiedMessageData;
-  "assistant.message_update": UnifiedMessageData & { sourceType?: JsonValue; [key: string]: unknown };
+  "assistant.message_update": UnifiedMessageData & { sourceType?: JsonValue };
   "tool.execution_start": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "inputTruncated" | "command" | "mcpServerName"> & UnifiedSessionContextData;
   "tool.execution_update": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "mcpServerName"> & {
     output?: JsonValue;

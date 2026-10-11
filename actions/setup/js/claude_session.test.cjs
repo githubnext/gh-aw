@@ -263,6 +263,8 @@ describe("Claude partial streaming transport", () => {
     expect(start.id).toBeUndefined();
     expect(start.data.argumentText).toBe('{"command":"partial');
     expect(start.data.input).toEqual({});
+    expect(events.filter(event => event.type === "assistant.message_update").map(event => event.data.sourceType)).toContain("content_block_stop");
+    expect(events.some(event => event.type === "claude.stream_event")).toBe(false);
     expect(text(events, "assistant.message")).toBe("Recovered");
     expect(events.some(event => event.type === "tool.execution_complete" || event.type === "session.result")).toBe(false);
   });
