@@ -78,11 +78,11 @@ function futurePolicy(state) {
 }
 
 function serializeDeployments(state) {
-  return Object.fromEntries([...(state.deployments ?? [])].map(([pool, workers]) => [pool, Object.fromEntries(workers)]));
+  return structuredClone(Object.fromEntries([...(state.deployments ?? [])].map(([pool, workers]) => [pool, Object.fromEntries(workers)])));
 }
 
 function restoreDeployments(state, value) {
-  state.deployments = new Map(Object.entries(value ?? {}).map(([pool, workers]) => [pool, new Map(Object.entries(workers))]));
+  state.deployments = new Map(Object.entries(structuredClone(value ?? {})).map(([pool, workers]) => [pool, new Map(Object.entries(workers))]));
   for (const [pool, workers] of state.deployments)
     for (const [name, worker] of workers) {
       closed(worker, ["current_ref", "current_contract", "revisions"], [], "deployment checkpoint", "checkpoint_invalid");

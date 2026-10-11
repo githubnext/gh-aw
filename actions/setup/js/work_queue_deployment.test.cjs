@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { canonical } from "./work_queue_codec.cjs";
-import { futurePolicy, executionProfile, serializeDeployments } from "./work_queue_deployment.cjs";
-import { compactTransactions, replayTransactions } from "./work_queue_replay.cjs";
+import { applyDeployment, futurePolicy, executionProfile, serializeDeployments } from "./work_queue_deployment.cjs";
+import { compactTransactions, generateRequestOperations, newRequest, replayTransactions } from "./work_queue_replay.cjs";
 import { assignmentOnly, planNext, planDispatch } from "./work_queue_scheduler.cjs";
 import { normalizeSubmitParameters } from "./work_queue_intents.cjs";
 import { launchAssignment, acceptedSubmissionParameters } from "./work_queue_dispatch.cjs";
@@ -54,6 +54,37 @@ function deploy(f, name = "default", ref = NEW_REF, contract = CONTRACT, availab
 }
 
 describe("prospective drain-free worker evolution", () => {
+  it("keeps checkpoint and serialized deployments immutable while publishing subsequent worker updates", () => {
+    const f = fixture();
+    const checkpoint = compactTransactions(f.transactions, "c".repeat(40), f.administrator, f.at);
+    const original = canonical(checkpoint);
+    const restored = replayTransactions(checkpoint);
+    const worker = restored.deployments.get("default").get("default");
+    const operation = {
+      kind: "Deployment",
+      pool: "default",
+      worker_profile: "default",
+      expected_ref: worker.current_ref,
+      expected_contract: worker.current_contract,
+      profile: { ...worker.revisions[worker.current_ref].profile, ref: NEW_REF },
+      available: true,
+      reason: "compiler_deployment",
+    };
+    const request = newRequest("post-checkpoint-deployment", "deployment", f.dispatcher, { operations: [operation] });
+    const at = f.at + 1;
+    const id = "post-checkpoint-deployment";
+    const decision = generateRequestOperations(restored, request, f.dispatcher, at, id);
+    const transaction = { version: 3, id, previous: restored.tip, request, actor: f.dispatcher, policy_epoch: restored.policy_epoch, at, operations: decision.operations };
+    const updated = replayTransactions([...checkpoint, transaction]);
+    expect(canonical(checkpoint)).toBe(original);
+    expect(updated.deployments.get("default").get("default").current_ref).toBe(NEW_REF);
+    expect(() => replayTransactions([...checkpoint, transaction])).not.toThrow();
+    const snapshot = serializeDeployments(updated);
+    applyDeployment(updated, { ...operation, expected_ref: NEW_REF, available: false });
+    expect(snapshot.default.default.revisions[NEW_REF].available).toBe(true);
+    expect(updated.deployments.get("default").get("default").revisions[NEW_REF].available).toBe(false);
+  });
+
   it("propagates metadata authentication, rate-limit, service and transport failures instead of publishing unavailable defaults", async () => {
     for (const endpoint of ["content", "registration"])
       for (const status of [401, 403, 429, 500, undefined]) {
