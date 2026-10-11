@@ -168,6 +168,24 @@ describe("unified session publication views", () => {
     expect(events[3].data.delta).toEqual(delta);
   });
 
+  it.each(["PRIVATE_SESSION_CONTENT", { payload: "PRIVATE_SESSION_CONTENT" }, ["PRIVATE_SESSION_CONTENT"]])("omits opaque session content %j and structured metadata", content => {
+    const events = [
+      header,
+      event("session.info", { content, status: "retrying", isAuthenticating: false, message: { private: "PRIVATE_INFO_MESSAGE" }, rateLimitInfo: ["PRIVATE_RATE_LIMIT"] }, "agent", 0),
+      event("session.error", { content, code: 0, exitCode: 1, message: ["PRIVATE_ERROR_MESSAGE"], error: { code: "provider_error", message: "Provider unavailable", type: { private: "PRIVATE_ERROR_TYPE" } } }, "agent", 1),
+      event("session.error", { content, error: ["PRIVATE_ERROR_ARRAY"] }, "agent", 2),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      expect(output).toContain("session.info status=retrying isAuthenticating=false");
+      expect(output).toContain("session.error code=0 exitCode=1 code=provider_error message=Provider unavailable");
+      expect(output).not.toContain("PRIVATE_");
+      expect(output).not.toContain("content=");
+      expect(output).not.toContain("rateLimitInfo=");
+    }
+    expect(events).toEqual(original);
+  });
+
   it("renders episode lineage in both sinks without dumping the caller context", () => {
     const events = [
       header,
@@ -429,6 +447,106 @@ describe("unified session publication views", () => {
       expect(first).toContain("first source result");
       expect(first).not.toContain("second source result");
     }
+  });
+
+  it.each([
+    [{ stepIndex: 0 }, { stepIndex: 0 }],
+    [
+      { toolCallId: "", stepIndex: 1 },
+      { toolCallId: "", stepIndex: 2 },
+    ],
+    [{ toolCallId: 123, stepIndex: 0 }, { stepIndex: 0 }],
+    [{}, {}],
+    [{ toolName: "bash" }, { toolName: "Bash" }],
+    [{ toolName: "lookup", mcpServerName: "github" }, { toolName: "mcp__github__lookup" }],
+  ])("pairs tools using scoped ID, step, or unique normalized name: %j / %j", (startData, completeData) => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "lookup", ...startData, input: { command: "printf fixture", query: "paired-input" } }, "agent", 0, 2000),
+      event("tool.execution_complete", { toolName: "lookup", ...completeData, success: true, output: "paired-output" }, "agent", 1, 1000),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events), generateConversationMarkdown(events, { formatToolCallback: formatToolUse, formatInitCallback: formatInitializationSummary }).markdown]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const completion = timeline.slice(timeline.indexOf("[3]"));
+      expect(completion).toContain("✓");
+      expect(completion).toContain("paired-output");
+      expect(completion).toContain(startData.toolName?.toLowerCase() === "bash" ? "printf fixture" : "paired-input");
+      expect(completion).not.toContain("[start unavailable]");
+      expect(completion).not.toContain("[pending]");
+    }
+    expect(events).toEqual(original);
+  });
+
+  it.each([{ toolCallId: "missing", stepIndex: 0 }, { stepIndex: 1 }, {}, { stepIndex: -1 }, { stepIndex: 0.5 }])("does not guess a tool pairing for unmatched identities or ambiguous names: %j", completionData => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "lookup", stepIndex: 0, input: "first-input" }, "agent", 0, 0),
+      event("tool.execution_start", { toolName: "lookup", stepIndex: 2, input: "second-input" }, "agent", 1, 1),
+      event("tool.execution_complete", { toolName: "lookup", ...completionData, success: true, output: "orphan-output" }, "agent", 2, 2),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const completion = timeline.slice(timeline.indexOf("[4]"));
+      expect(completion).toContain("[start unavailable]");
+      expect(completion).toContain("orphan-output");
+      expect(completion).not.toContain("first-input");
+      expect(completion).not.toContain("second-input");
+    }
+  });
+
+  it.each([{ stepIndex: 0 }, {}])("isolates fallback pairing by source, phase and conversation: %j", correlation => {
+    const scopes = [
+      { path: "first.jsonl", phase: "agent", sessionId: "root", parentToolUseId: null },
+      { path: "other.jsonl", phase: "agent", sessionId: "root", parentToolUseId: null },
+      { path: "first.jsonl", phase: "retry", sessionId: "root", parentToolUseId: null },
+      { path: "first.jsonl", phase: "agent", sessionId: "second", parentToolUseId: null },
+      { path: "first.jsonl", phase: "agent", sessionId: "root", parentToolUseId: "child" },
+    ];
+    const scoped = (scope, index, type, data) => ({
+      ...event(type, { toolName: "lookup", ...correlation, sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId, ...data }, "agent", index, index, scope.path),
+      provenance: { ...event(type, {}, "agent", index, index, scope.path).provenance, phase: scope.phase },
+    });
+    const events = [
+      header,
+      ...scopes.map((scope, index) => scoped(scope, 0, "tool.execution_start", { input: `scope-input-${index}` })),
+      ...scopes.map((scope, index) => scoped(scope, 1, "tool.execution_complete", { success: true, output: `scope-output-${index}` })),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      for (const index of scopes.keys()) {
+        const completion = timeline.split(`[${index + 7}]`)[1].split(/\n\[\d+\]/)[0];
+        expect(completion).toContain(`✓ lookup("scope-input-${index}")`);
+        expect(completion).toContain(`scope-output-${index}`);
+        expect(completion).not.toContain("[start unavailable]");
+        for (const other of scopes.keys()) {
+          if (other !== index) expect(completion).not.toContain(`scope-input-${other}`);
+        }
+      }
+    }
+  });
+
+  it("keeps the display clock monotonic across regressions, omitted prompts and untimed records", () => {
+    const events = [
+      header,
+      event("assistant.message", { content: "First" }, "agent", 0, 5000),
+      event("assistant.message", { content: "Regressed" }, "agent", 1, 3000),
+      event("vendor.progress", {}, "agent", 2),
+      event("user.message", { content: "PRIVATE_PROMPT" }, "agent", 3, 20000),
+      event("assistant.message", { content: "Still behind" }, "agent", 4, 4000),
+      event("assistant.message", { content: "Caught up" }, "agent", 5, 6000),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      expect(timeline.match(/assistant\.message \+\d+s/g)).toEqual(["assistant.message +0s", "assistant.message +0s", "assistant.message +0s", "assistant.message +1s"]);
+      expect(timeline).toContain("vendor.progress [extension payload omitted] [untimed]");
+      expect(timeline.indexOf("First")).toBeLessThan(timeline.indexOf("Regressed"));
+      expect(timeline.indexOf("Regressed")).toBeLessThan(timeline.indexOf("Still behind"));
+      expect(timeline).not.toMatch(/ -\d+(?:\.\d+)?s/);
+      expect(timeline).not.toContain("PRIVATE_PROMPT");
+    }
+    expect(events).toEqual(original);
   });
 
   it("interleaves runtime events and messages, showing results only at completion with elapsed suffixes", () => {

@@ -78,6 +78,14 @@ function fields(value, keys) {
     .join(" ");
 }
 
+/** @param {any} value @param {string[]} keys @returns {string} */
+function scalarFields(value, keys) {
+  return fields(
+    value,
+    keys.filter(key => ["string", "number", "boolean"].includes(typeof value?.[key]))
+  );
+}
+
 /** @param {any} event @returns {string | undefined} */
 function eventDetail(event) {
   /** @type {Record<string, any>} */
@@ -102,11 +110,11 @@ function eventDetail(event) {
     case "session.start":
       return fields(data, ["sourceEngine", "model", "sessionId", "reasoningEffort", "cwd"]);
     case "session.error": {
-      const error = data.error && typeof data.error === "object" ? fields(data.error, ["code", "type", "message"]) : data.error === undefined ? "" : inline(data.error);
-      return `${fields(data, ["severity", "status", "code", "errorType", "statusCode", "model", "message", "content", "exitCode"])}${error ? ` ${error}` : ""}`;
+      const error = data.error && typeof data.error === "object" ? scalarFields(data.error, ["code", "type", "message"]) : scalarFields(data, ["error"]);
+      return `${scalarFields(data, ["severity", "status", "code", "errorType", "statusCode", "model", "message", "exitCode"])}${error ? ` ${error}` : ""}`;
     }
     case "session.info":
-      return fields(data, ["status", "model", "message", "content", "sourceType", "kind", "isAuthenticating", "rateLimitInfo"]);
+      return scalarFields(data, ["status", "model", "message", "sourceType", "kind", "isAuthenticating", "rateLimitInfo"]);
     case "session.shutdown":
       return fields(data, ["shutdownType", "errorReason", "currentModel", "premiumRequests", "totalApiDurationMs", "totalNanoAiu"]);
     case "session.task_complete":
@@ -276,11 +284,15 @@ function publicationAgentSessions(events) {
   }));
 }
 
-/** @param {any} event @returns {string | undefined} */
-function timelineToolKey(event) {
+/** @param {any} event @returns {{callKey: string | undefined, nameKey: string}} */
+function timelineToolKeys(event) {
   const data = normalizeUnifiedSessionEvent({ ...event, data: event.data ?? {} }).data;
-  if (data.toolCallId === undefined) return undefined;
-  return JSON.stringify([event.provenance?.component, event.provenance?.phase, event.provenance?.path, sessionScopeKey(event), data.toolCallId]);
+  const scope = [event.provenance?.component, event.provenance?.phase, event.provenance?.path, sessionScopeKey(event)];
+  const correlation = typeof data.toolCallId === "string" ? ["id", data.toolCallId] : typeof data.stepIndex === "number" && Number.isSafeInteger(data.stepIndex) && data.stepIndex >= 0 ? ["step", data.stepIndex] : undefined;
+  let name = typeof data.toolName === "string" && data.toolName.trim() ? data.toolName.trim() : "unknown";
+  const server = typeof data.mcpServerName === "string" ? data.mcpServerName.trim() : "";
+  if (!name.startsWith("mcp__")) name = server ? `mcp__${server}__${name}` : name.toLowerCase() === "bash" ? "Bash" : name;
+  return { callKey: correlation === undefined ? undefined : JSON.stringify([...scope, correlation]), nameKey: JSON.stringify([...scope, name]) };
 }
 
 /**
@@ -310,15 +322,24 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
   const overview = [...lines];
   const traceLines = ["Chronological trace (user prompts omitted; untimed observations follow):"];
   const toolStarts = new Map();
+  const toolStartsByName = new Map();
   const pairedStarts = new WeakMap();
   // Pair using private identities and source-local order, never the merged clock.
   for (const event of [...events].sort((left, right) => (left.provenance?.index ?? 0) - (right.provenance?.index ?? 0))) {
-    const key = timelineToolKey(event);
-    if (key === undefined) continue;
-    if (event.type === "tool.execution_start") toolStarts.set(key, event);
-    if (event.type === "tool.execution_complete" && toolStarts.has(key)) {
-      pairedStarts.set(event, toolStarts.get(key));
-      toolStarts.delete(key);
+    if (!["tool.execution_start", "tool.execution_complete"].includes(event.type)) continue;
+    const { callKey, nameKey } = timelineToolKeys(event);
+    if (event.type === "tool.execution_start") {
+      if (callKey !== undefined) toolStarts.set(callKey, event);
+      if (!toolStartsByName.has(nameKey)) toolStartsByName.set(nameKey, new Set());
+      toolStartsByName.get(nameKey).add(event);
+    } else {
+      const names = toolStartsByName.get(nameKey);
+      const start = callKey !== undefined ? toolStarts.get(callKey) : names?.size === 1 ? [...names][0] : undefined;
+      if (!start) continue;
+      pairedStarts.set(event, start);
+      const startKeys = timelineToolKeys(start);
+      if (startKeys.callKey !== undefined && toolStarts.get(startKeys.callKey) === start) toolStarts.delete(startKeys.callKey);
+      toolStartsByName.get(startKeys.nameKey)?.delete(start);
     }
   }
   const timelineIndex = Symbol("timelineIndex");
@@ -346,9 +367,10 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     const metadata = event.type === "session.format" && component === "collector";
     let elapsed = metadata ? " [file metadata]" : " [untimed]";
     if (!metadata && typeof observedTime === "number" && Number.isFinite(observedTime) && Math.abs(observedTime) <= 8640000000000000) {
-      const seconds = (observedTime - (previousTime ?? observedTime)) / 1000;
-      elapsed = ` ${seconds < 0 ? "" : "+"}${Number(seconds.toFixed(3))}s`;
-      previousTime = observedTime;
+      const displayTime = Math.max(observedTime, previousTime ?? observedTime);
+      const seconds = (displayTime - (previousTime ?? displayTime)) / 1000;
+      elapsed = ` +${Number(seconds.toFixed(3))}s`;
+      previousTime = displayTime;
     }
     const context = sessionContext(event);
     const identity = fields({ path: source?.path, ...context }, ["path", "agentId", "sessionId", "parentToolUseId"]);

@@ -1291,8 +1291,12 @@ The unified-session view shows source-scoped accounting followed by one full
 timeline, interleaving assistant text, reasoning, tool starts and completions,
 subagent activity, and runtime observations in merged record order. Tool output
 appears at the completion, with source-local identities used for pairing even
-when source timestamps disagree. Each timed entry ends with an elapsed `+...s`
-suffix relative to the preceding displayed timed entry; the first uses `+0s`.
+when source timestamps disagree. Pairing prefers a string `toolCallId`, then a
+non-negative safe-integer `stepIndex`; without either, only a unique pending
+normalized tool name in the same source and conversation can match.
+Each timed entry ends with an elapsed `+...s` suffix relative to the preceding
+displayed clock; the first uses `+0s`. The display clock never moves backward:
+regressing timestamps use `+0s` until the source clock exceeds the previous maximum.
 Untimed observations are labeled rather than assigned a clock. Message bodies
 retain multiline terminal-style formatting, and the Actions view fences the
 overview and timeline separately. Stream fragments reconcile within each private
@@ -1305,6 +1309,7 @@ rather than displaying HTML entities; source text cannot close those fences.
 | --- | --- |
 | `session.init` | Merge supplied initialization observations for the display header: engine, observed model, session ID, cwd, tools, MCP status, slash commands, and model information. Missing inventories remain unavailable, not empty. |
 | `user.message` | Retained in the canonical trace; omitted from default publication. |
+| `session.info`, `session.error` | Whitelisted scalar diagnostic metadata and error code/type/message; generic `content` and structured metadata payloads are omitted. |
 | `assistant.message` | Assistant answer, including supported structured native content. |
 | `assistant.reasoning` | Distinct reasoning channel, not converted into an answer or tool output. |
 | `assistant.message_update` | Stream boundary, message/block identity, partial markers, and observed usage; opaque update payloads are omitted. |
