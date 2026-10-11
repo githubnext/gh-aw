@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/linters"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +20,7 @@ import (
 var (
 	docBulletRe   = regexp.MustCompile(`^//\s+-\s+([a-z0-9_-]+)\s+—`)
 	readmeTableRe = regexp.MustCompile(`^\|\s+` + "`" + `([a-z0-9_-]+)` + "`" + `\s+\|`)
-	linterFlagsRe = regexp.MustCompile(`LINTER_FLAGS="([^"]+)"`)
+	linterFlagsRe = regexp.MustCompile(`LINTER_FLAGS=["']([^"']+)["']`)
 )
 
 var notYetEnforced = map[string]string{
@@ -121,17 +122,11 @@ func TestCIEnforcedLintersMatchRegistry(t *testing.T) {
 	workflowBytes, err := os.ReadFile("../../.github/workflows/cgo.yml")
 	require.NoError(t, err, "cgo.yml must be present")
 
-	flagMatches := linterFlagsRe.FindAllStringSubmatch(string(workflowBytes), -1)
-	require.Len(t, flagMatches, 3, "cgo.yml must define native, console-stream, and wasm LINTER_FLAGS values")
-
+	native, wasm := parseCIEnforcedLinterSets(t, workflowBytes)
 	enforced := make(map[string]struct{})
-	for _, match := range flagMatches {
-		for flag := range strings.FieldsSeq(match[1]) {
-			if flag == "-test=false" {
-				continue
-			}
-			require.Truef(t, strings.HasPrefix(flag, "-"), "LINTER_FLAGS entry %q must be a flag", flag)
-			enforced[strings.TrimPrefix(flag, "-")] = struct{}{}
+	for _, target := range []map[string]struct{}{native, wasm} {
+		for name := range target {
+			enforced[name] = struct{}{}
 		}
 	}
 
@@ -150,6 +145,91 @@ func TestCIEnforcedLintersMatchRegistry(t *testing.T) {
 		assert.NotContainsf(t, enforced, name, "remove %q from notYetEnforced once CI enforces it", name)
 		assert.NotEmptyf(t, reason, "notYetEnforced analyzer %q must have a reason", name)
 	}
+	for name := range enforced {
+		assert.Containsf(t, registry, name, "CI-enforced analyzer %q must be registered", name)
+	}
+}
+
+func TestCIEnforcedLintersMatchTargets(t *testing.T) {
+	t.Parallel()
+	workflowBytes, err := os.ReadFile("../../.github/workflows/cgo.yml")
+	require.NoError(t, err, "cgo.yml must be present")
+
+	native, wasm := parseCIEnforcedLinterSets(t, workflowBytes)
+	require.NotEmpty(t, native, "cgo.yml must enforce custom linters on native Go code")
+	require.NotEmpty(t, wasm, "cgo.yml must enforce custom linters on WebAssembly code")
+
+	// Track the pre-existing asymmetry separately from analyzers not enforced at all.
+	nativeOnly := map[string]string{
+		"contextcancelnotdeferred": "existing native-only enforcement is tracked in #65753; remove this exception when wasm enables it",
+	}
+	expectedNativeOnly := make(map[string]struct{}, len(nativeOnly))
+	for name, reason := range nativeOnly {
+		assert.NotEmptyf(t, reason, "native-only analyzer %q must have a reason", name)
+		expectedNativeOnly[name] = struct{}{}
+	}
+	assert.Equal(t, sortedKeys(expectedNativeOnly), linterSetDifference(native, wasm),
+		"native and wasm CI must enforce the same custom linters except documented native-only exceptions; "+
+			"mirror dedicated steps as well as bulk flags, and remove exceptions once parity is restored")
+	assert.Empty(t, linterSetDifference(wasm, native),
+		"wasm CI must not enforce custom linters missing from native CI")
+}
+
+func parseCIEnforcedLinterSets(t *testing.T, workflowBytes []byte) (map[string]struct{}, map[string]struct{}) {
+	t.Helper()
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Run string            `yaml:"run"`
+				Env map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal(workflowBytes, &workflow), "CI workflow must be valid YAML")
+	job, ok := workflow.Jobs["lint-go-custom"]
+	require.True(t, ok, "CI workflow must define the lint-go-custom job")
+
+	native := make(map[string]struct{})
+	wasm := make(map[string]struct{})
+	for _, step := range job.Steps {
+		goos, goarch := step.Env["GOOS"], step.Env["GOARCH"]
+		for field := range strings.FieldsSeq(step.Run) {
+			key, value, ok := strings.Cut(field, "=")
+			if !ok {
+				continue
+			}
+			switch key {
+			case "GOOS":
+				goos = strings.Trim(value, `"'`)
+			case "GOARCH":
+				goarch = strings.Trim(value, `"'`)
+			}
+		}
+		target := native
+		if goos == "js" && goarch == "wasm" {
+			target = wasm
+		}
+		for _, match := range linterFlagsRe.FindAllStringSubmatch(step.Run, -1) {
+			for flag := range strings.FieldsSeq(match[1]) {
+				if flag == "-test=false" {
+					continue
+				}
+				require.Truef(t, strings.HasPrefix(flag, "-"), "LINTER_FLAGS entry %q must be a flag", flag)
+				target[strings.TrimPrefix(flag, "-")] = struct{}{}
+			}
+		}
+	}
+	return native, wasm
+}
+
+func linterSetDifference(left, right map[string]struct{}) []string {
+	difference := make(map[string]struct{})
+	for name := range left {
+		if _, ok := right[name]; !ok {
+			difference[name] = struct{}{}
+		}
+	}
+	return sortedKeys(difference)
 }
 
 func parseDocBulletSet(t *testing.T) map[string]struct{} {
