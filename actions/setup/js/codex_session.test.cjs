@@ -102,8 +102,9 @@ describe("Codex real CI trace regression", () => {
     expect(unified.at(-1).provenance).toMatchObject({ component: "agent", path: "agent-session.jsonl", index: 4 });
   });
 
-  // Sanitized repeated-thread/error shape from github/gh-aw/actions/runs/37863790523,
-  // agent/agent-stdio.log; all four real harness attempts failed before any model usage.
+  // Sanitized repeated-thread/error shape from github/gh-aw/actions/runs/37863790523
+  // and /38097853255 (Codex 0.159.3), agent/agent-stdio.log; all four real harness
+  // attempts failed before any model usage. The latter reused one native thread ID.
   it("keeps all four inspected retry failures without inferring turns, usage or refusals", () => {
     const error = '{"type":"unknown_model_ai_credits","message":"No model pricing is configured.","model":"example-model"}';
     const records = Array.from({ length: 4 }, (_, index) => [
@@ -124,6 +125,21 @@ describe("Codex real CI trace regression", () => {
     expect(ofType(events, "assistant.refusal")).toEqual([]);
     expect(ofType(events, "tool.execution_start")).toEqual([]);
   });
+
+  it("retains the latest live run's repeated thread ID without merging retry failures", () => {
+    const error = '{"type":"unknown_model_ai_credits","message":"No model pricing is configured.","model":"example-model"}';
+    const attempt = [{ type: "thread.started", thread_id: "sanitized-repeated-thread" }, { type: "turn.started" }, { type: "error", message: error }, { type: "turn.failed", error: { message: error } }];
+    const events = parse(Array.from({ length: 4 }, () => attempt).flat());
+    expect(ofType(events, "session.init")).toHaveLength(4);
+    expect(ofType(events, "session.result")).toHaveLength(8);
+    expect(events.every(event => event.data.sessionId === "sanitized-repeated-thread")).toBe(true);
+    expect(selectSessionResult(events)).toMatchObject({ status: "failed", errors: Array.from({ length: 4 }, () => [error, { message: error }]).flat() });
+    expect(selectSessionResult(events).usage).toBeUndefined();
+    expect(selectSessionResult(events).numTurns).toBeUndefined();
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events }]);
+    expect(unified.filter(event => event.type === "session.result")).toHaveLength(8);
+    expect(unified.every(event => event.data.sessionId === "sanitized-repeated-thread")).toBe(true);
+  });
 });
 
 describe("Codex normalization contract", () => {
@@ -132,12 +148,43 @@ describe("Codex normalization contract", () => {
     const record = { type: "item.completed", timestamp: 0, item: { id: "item_0", type, status: "failed", extension: { retained: true } } };
     const events = normalizeCodexSession([record]);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "codex.item_snapshot", timestamp: 0, data: { item: record.item } });
+    expect(events[0]).toMatchObject({ type: "session.info", timestamp: 0, data: { sourceType: type, content: record.item } });
+    expect(normalizeUnifiedSessionEvent(events[0], "agent").data).toEqual(events[0].data);
     expect(normalizeCodexSession(events)).toEqual(events);
   });
 
+  it("preserves unknown native events through mixed JSONL and unified publication", () => {
+    const record = { type: "thread.progress", id: "native-event", timestamp: 0, extension: { retained: false } };
+    const records = [{ type: "thread.started", thread_id: "thread" }, record, { type: "turn.failed", error: { message: "interrupted" } }];
+    const events = parse(records);
+    expect(events.map(event => event.type)).toEqual(["session.init", "session.info", "session.result"]);
+    expect(events[1]).toMatchObject({ id: record.id, timestamp: 0, data: { sessionId: "thread", sourceType: record.type, content: record } });
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events }]);
+    expect(unified[1].data).toEqual(events[1].data);
+    expect(unified[1].provenance).toMatchObject({ component: "agent", path: "agent-session.jsonl", index: 1 });
+    expect(parseCodexLog(JSON.stringify(records)).logEntries).toEqual(events);
+    expect(normalizeCodexSession(events)).toEqual(events);
+    expect(selectSessionResult(events)).toMatchObject({ status: "failed", errors: [{ message: "interrupted" }] });
+    expect(ofType(events, "tool.execution_complete")).toEqual([]);
+  });
+
+  it("keeps historical custom snapshot artifacts readable without remapping their payloads", () => {
+    const record = { type: "codex.item_snapshot", data: { sessionId: "thread", item: { type: "future_item", extension: null } } };
+    expect(normalizeCodexSession([record])).toEqual([record]);
+    expect(parse([record])).toEqual([record]);
+  });
+
+  it("keeps unknown dotted event data opaque rather than nesting it in another observation", () => {
+    const record = { type: "vendor.progress", id: "native-event", timestamp: 0, data: { extension: { retained: false } } };
+    const events = parse([{ type: "thread.started", thread_id: "thread" }, record]);
+    expect(events[1]).toEqual(record);
+    expect(normalizeUnifiedSessionEvent(events[1], "agent")).toEqual(record);
+  });
+
   // Protocol-shaped synthetic cases, not observations from the sampled runs:
-  // openai/codex codex-rs/exec/src/exec_events.rs at f8c6026c38682c628e71d1ae4978ba643499250a.
+  // openai/codex codex-rs/exec/src/exec_events.rs at rust-v0.162.1
+  // (092d3acd6bec3e3a14bdc7e7a2810ab628ab759d); identical to rust-v0.160.0,
+  // the latest stable version available through the npm installer when inspected.
   it("maps observed patches to orphan tool completions without inventing patch arguments", () => {
     const changes = [{ path: " example.txt ", kind: "update" }];
     const record = { type: "item.completed", id: "event-patch", timestamp: 0, item: { id: "patch", type: "file_change", changes, status: "failed" } };
@@ -174,12 +221,30 @@ describe("Codex normalization contract", () => {
     const item = { id: "collab", type: "collab_tool_call", tool: "spawn_agent", sender_thread_id: "parent", receiver_thread_ids: ["child"], prompt: " exact prompt\n", agents_states: {}, status: "in_progress" };
     const agents_states = { child: { status: "running", message: null } };
     const events = normalizeCodexSession([
+      { type: "thread.started", thread_id: "parent" },
       { type: "item.started", item },
       { type: "item.completed", item: { ...item, agents_states, status: "completed" } },
     ]);
-    expect(events.map(event => event.type)).toEqual(["tool.execution_start", "tool.execution_complete"]);
-    expect(events[0].data).toMatchObject({ toolName: "spawn_agent", toolCallId: "collab", input: { receiver_thread_ids: ["child"], prompt: item.prompt } });
-    expect(events[1].data).toMatchObject({ toolName: "spawn_agent", toolCallId: "collab", success: true, output: agents_states });
+    expect(events.map(event => event.type)).toEqual(["session.init", "tool.execution_start", "tool.execution_complete"]);
+    expect(events[1].data).toMatchObject({ sessionId: "parent", toolName: "spawn_agent", toolCallId: "collab", input: { receiver_thread_ids: ["child"], prompt: item.prompt } });
+    expect(events[2].data).toMatchObject({ sessionId: "parent", toolName: "spawn_agent", toolCallId: "collab", success: true, output: agents_states });
+    const unified = events.map(event => normalizeUnifiedSessionEvent(event, "agent"));
+    expect(unified[1].data).toMatchObject({ sessionId: "parent", input: { receiver_thread_ids: ["child"] } });
+    expect(unified[2].data).toMatchObject({ sessionId: "parent", output: agents_states });
+    expect(unified.some(event => event.type.startsWith("subagent."))).toBe(false);
+    expect(ofType(events, "session.result")).toEqual([]);
+  });
+
+  it("preserves the latest release's MCP result metadata without treating it as session metadata", () => {
+    const result = { content: [{ type: "text", text: " exact result\n" }], _meta: { extension: false }, structured_content: null };
+    const events = normalizeCodexSession([
+      { type: "thread.started", thread_id: "thread" },
+      { type: "item.completed", item: { id: "mcp", type: "mcp_tool_call", server: "example", tool: "lookup", arguments: null, result, error: null, status: "completed" } },
+    ]);
+    const complete = ofType(events, "tool.execution_complete")[0];
+    expect(normalizeUnifiedSessionEvent(ofType(events, "tool.execution_start")[0], "agent").data.input).toBeNull();
+    expect(normalizeUnifiedSessionEvent(complete, "agent").data).toMatchObject({ toolCallId: "mcp", mcpServerName: "example", output: result, result, success: true });
+    expect(ofType(events, "session.info")).toEqual([]);
     expect(ofType(events, "session.result")).toEqual([]);
   });
 

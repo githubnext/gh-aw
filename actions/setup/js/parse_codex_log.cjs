@@ -14,7 +14,7 @@ const {
   formatToolUse,
 } = require("./log_parser_shared.cjs");
 const { normalizeCodexSession, isCodexRecord } = require("./codex_session.cjs");
-const { projectSessionResult, createSessionEvent, sessionToolSuccess } = require("./agent_session.cjs");
+const { projectSessionResult, createSessionEvent, sessionToolSuccess, normalizeAgentSession } = require("./agent_session.cjs");
 const {
   CODEX_LEGACY_OUTCOME,
   CODEX_LEGACY_METADATA,
@@ -220,7 +220,7 @@ function extractCodexModel(logContent) {
  * @returns {boolean} True if at least one Codex JSONL event line is present
  */
 function isCodexJsonlFormat(lines, entries = collectCodexJSONRecords(lines.join("\n"))) {
-  return entries.some(entry => isCodexRecord(entry) || normalizeCodexSession([entry]).length > 0);
+  return entries.some(entry => isCodexRecord(entry) || normalizeAgentSession([entry], { sourceEngine: "codex" }).length > 0);
 }
 
 /**
@@ -248,7 +248,7 @@ function parseCodexJsonl(logContent, entries = collectCodexJSONRecords(logConten
 }
 
 /**
- * Keep recognized text observations beside JSON records without splitting the
+ * Keep typed JSON records and recognized text observations without splitting the
  * native normalizer's lifecycle/accounting state into independent sessions.
  * @param {string} logContent
  * @param {Array<any>} [entries]
@@ -286,7 +286,7 @@ function collectCodexMixedRecords(logContent, entries = collectCodexJSONRecords(
       continue;
     }
     const parsed = parseLogEntries(line);
-    if (parsed && isCodexJsonlFormat([], parsed)) {
+    if (parsed?.some(record => typeof record?.type === "string" && record.type.length > 0)) {
       flushText();
       records.push(...parsed);
     } else text.push(line);
