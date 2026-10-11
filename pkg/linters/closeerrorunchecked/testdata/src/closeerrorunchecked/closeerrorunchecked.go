@@ -71,8 +71,9 @@ func BadBufferReaderClose() error {
 	return nil
 }
 
-// GoodDeferClose uses defer, which is the best practice — not flagged.
-func GoodDeferClose() error {
+// DeferredCloseUnchecked is outside this analyzer's scope, not an approved idiom.
+// unchecked_deferredclose reports the discarded error.
+func DeferredCloseUnchecked() error {
 	f, _ := os.Open("file.txt")
 	defer f.Close()
 	return nil
@@ -129,8 +130,8 @@ func BadCustomCloserClose() {
 	_ = c.Close() // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 }
 
-// GoodCustomCloserDefer defers custom type Close — not flagged.
-func GoodCustomCloserDefer() {
+// DeferredCustomCloserUnchecked is diagnosed by unchecked_deferredclose.
+func DeferredCustomCloserUnchecked() {
 	c := &CustomCloser{}
 	defer c.Close()
 }

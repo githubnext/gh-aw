@@ -84,6 +84,7 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `ResolvedWorkflow` | struct | Metadata and fetched content for a single resolved workflow source. |
 | `ResolvedWorkflows` | struct | Batch resolution result for `gh aw add`, including warnings and bootstrap profile metadata. |
 | `RunOptions` | struct | Options for triggering workflows on GitHub, including enable/push/wait/dry-run behavior. |
+| `WorkflowRunFlags` | struct | Shared run flags embedded in `RunOptions` and `RunWorkflowOptions`. |
 | `WorkflowRunResult` | struct | JSON-friendly result for a triggered or simulated workflow run. |
 | `HealthConfig` | struct | Configuration for workflow health analysis. |
 | `WorkflowHealth` | struct | Per-workflow health metrics computed from historical runs. |
@@ -474,10 +475,60 @@ data, err := cli.CompileWorkflows(ctx, cli.CompileConfig{
 
 ```go
 err := cli.RunWorkflowOnGitHub(ctx, "my-workflow", cli.RunOptions{
-    Repo:    "owner/repo",
-    Verbose: true,
+    WorkflowRunFlags: cli.WorkflowRunFlags{
+        RepoOverride: "owner/repo",
+        Verbose:      true,
+    },
 })
 ```
+
+#### Migrating workflow run option literals
+
+`RunOptions` and `RunWorkflowOptions` now embed `WorkflowRunFlags`, as requested
+by issue [#67198](https://github.com/github/gh-aw/issues/67198). This is a breaking
+Go source API change: promoted fields cannot be keys in an outer struct's
+composite literal.
+
+Before (no longer compiles):
+
+```go
+runOpts := cli.RunOptions{
+    RepoOverride: "owner/repo",
+    Verbose:      true,
+    Enable:       true,
+}
+interactiveOpts := cli.RunWorkflowOptions{
+    WorkflowName: "my-workflow",
+    RepoOverride: "owner/repo",
+    Verbose:      true,
+}
+```
+
+After:
+
+```go
+runOpts := cli.RunOptions{
+    WorkflowRunFlags: cli.WorkflowRunFlags{
+        RepoOverride: "owner/repo",
+        Verbose:      true,
+    },
+    Enable: true,
+}
+interactiveOpts := cli.RunWorkflowOptions{
+    WorkflowRunFlags: cli.WorkflowRunFlags{
+        RepoOverride: "owner/repo",
+        Verbose:      true,
+    },
+    WorkflowName: "my-workflow",
+}
+```
+
+Move `Verbose`, `EngineOverride`, `RepoOverride`, `RefOverride`, `AutoMergePRs`,
+`Push`, `DryRun`, and `Approve` into the nested `WorkflowRunFlags` literal.
+Keep mode-specific fields on the outer struct. Field selectors and assignments
+(for example, `runOpts.RepoOverride` and `interactiveOpts.Verbose = true`),
+zero-value defaults, and flat JSON serialization remain unchanged. CLI flags
+and runtime behavior are unchanged; CLI users do not need to migrate.
 
 ### Auditing a run
 
@@ -632,7 +683,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `outcome_evaluation.go` | `EvidenceStrength` | `type EvidenceStrength string` | EvidenceStrength describes how confidently the outcome can be inferred. |
 | `outcome_evaluation.go` | `OutcomeStatus` | `type OutcomeStatus string` | OutcomeStatus is the normalized classification for a safe output outcome. |
 | `packages.go` | `IncludeDependency` | `type IncludeDependency struct { SourcePath string // Path in the source (local) TargetPath string // Relative path where it should be copied in .github/workflows IsOptional bool // Whether this is an optional include (@include?) }` | IncludeDependency represents a file dependency from @include directives |
-| `run_interactive.go` | `RunWorkflowOptions` | `type RunWorkflowOptions struct { WorkflowName string Verbose bool EngineOverride string RepoOverride string RefOverride string AutoMergePRs bool Push bool DryRun bool }` | RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively. |
+| `run_interactive.go` | `RunWorkflowOptions` | `type RunWorkflowOptions struct { WorkflowRunFlags WorkflowName string requiredInputsOnly bool }` | RunWorkflowOptions holds parameters for interactive workflow runs. |
 | `token_usage_types.go` | `SubagentModelActual` | `type SubagentModelActual struct { Model string `json:"model"` Provider string `json:"provider,omitempty"` Requests int `json:"requests"` }` | SubagentModelActual captures model usage observed in token-usage logs. |
 | `token_usage_types.go` | `SubagentModelRequest` | `type SubagentModelRequest struct { AgentName string `json:"agent_name"` RequestedModel string `json:"requested_model"` InvocationCount int `json:"invocation_count"` EffectiveModel string `json:"effective_model,omitempty"` ReasonCode string `json:"reason_code,omitempty"` }` | SubagentModelRequest captures requested/effective model attribution for a sub-agent. |
 | `audit_report.go` | `AuditData` | `type AuditData struct { ... }` | AuditData is the top-level audit report payload assembled from all extracted artifacts and analyses. |
