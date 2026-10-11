@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mergeSessionSources, sessionTimestamp } from "./unified_session.cjs";
-import { sessionTimestampNs } from "./unified_session_order.cjs";
+import { orderSessionSources, sessionTimestampNs } from "./unified_session_order.cjs";
 import { validateSession } from "./scripts/validate_session.cjs";
 
 const event = (id, timestamp) => ({ id, type: "vendor.observation", data: {}, ...(timestamp !== undefined ? { timestamp } : {}) });
@@ -9,6 +9,96 @@ const header = { type: "session.format", data: { version: 1 }, provenance: { com
 const jsonl = events => [header, ...events].map(JSON.stringify).join("\n") + "\n";
 
 describe("Unified trace ordering", () => {
+  it.each([[], [source("agent", [])], [source("agent", []), source("otel", [], "nanoseconds")]].map(sources => [sources]))("accepts empty source collections without inventing observations: %j", sources => {
+    expect(mergeSessionSources(sources)).toEqual([]);
+  });
+
+  it.each([1, 7, 42, 2026, 65535])("matches an independent head-selection merge for generated mixed traces (seed %i)", seed => {
+    let state = seed;
+    const random = limit => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state % limit;
+    };
+    const queues = [];
+    const sources = ["agent", "firewall", "mcp", "github_api", "otel", "workflow"].map((component, sourceIndex) => {
+      const observations = Array.from({ length: 30 + random(20) }, (_, index) => {
+        const kind = random(5);
+        const time = component === "workflow" || kind === 0 || kind === 1 ? undefined : random(100);
+        const timestamp = time === undefined ? (kind === 1 ? "invalid" : undefined) : component === "otel" ? String(time * 1000000) : component === "firewall" ? time / 1000 : time;
+        return { event: { ...event("repeated-native-id", timestamp), data: { observation: `${sourceIndex}:${index}` } }, time, index };
+      });
+      let anchor = observations.find(record => record.time !== undefined)?.time;
+      const queue = observations.map(record => {
+        if (record.time !== undefined) anchor = anchor === undefined ? record.time : Math.max(anchor, record.time);
+        return { ...record, key: component === "otel" ? record.time : anchor, sourceIndex };
+      });
+      if (component === "otel") queue.sort((left, right) => (left.key ?? Infinity) - (right.key ?? Infinity));
+      queues.push(queue);
+      return source(
+        component,
+        observations.map(record => record.event),
+        component === "otel" ? "nanoseconds" : component === "firewall" ? "seconds" : "milliseconds"
+      );
+    });
+    const original = structuredClone(sources);
+    const expected = [];
+    while (queues.some(queue => queue.length)) {
+      let selected;
+      for (const [index, queue] of queues.entries()) {
+        if (queue.length && (selected === undefined || (queue[0].key ?? Infinity) < (queues[selected][0].key ?? Infinity))) selected = index;
+      }
+      expected.push(queues[selected].shift());
+    }
+    const merged = mergeSessionSources(sources);
+    expect(merged.map(record => record.data.observation)).toEqual(expected.map(record => record.event.data.observation));
+    expect(merged.map(record => record.provenance.index)).toEqual(expected.map(record => record.index));
+    expect(merged.map(record => record.timestamp)).toEqual(expected.map(record => record.event.timestamp));
+    expect(new Set(merged.map(record => record.data.observation)).size).toBe(expected.length);
+    expect(sources).toEqual(original);
+    expect(mergeSessionSources(sources)).toEqual(merged);
+    const summary = {
+      type: "session.collection",
+      data: { sources: sources.map(({ events, ...rest }) => ({ ...rest, events: events.length })), warnings: 0, untimedEvents: expected.filter(record => record.time === undefined).length, absentComponents: [] },
+      provenance: header.provenance,
+    };
+    expect(validateSession(jsonl([...merged, summary]))).toBe(expected.length + 2);
+  });
+
+  it("merges 32000 observations across 16 sources without losing payloads, indices, or nanosecond order", () => {
+    const sourceCount = 16;
+    const eventsPerSource = 2000;
+    const start = 1790899200000000000n;
+    const sources = Array.from({ length: sourceCount }, (_, sourceIndex) => {
+      const events = Array.from({ length: eventsPerSource }, (_, index) => ({
+        ...event("repeated-native-id", String(start + BigInt(index * sourceCount + sourceIndex))),
+        data: { observation: index * sourceCount + sourceIndex, nested: { zero: 0, flag: false, text: "  retained\npayload  " } },
+      })).reverse();
+      return { ...source("otel", events, "nanoseconds"), path: `otel/source-${sourceIndex}.jsonl` };
+    });
+    const merged = mergeSessionSources(sources);
+    const expected = Array.from({ length: sourceCount * eventsPerSource }, (_, index) => index);
+    expect(merged.map(record => record.data.observation)).toEqual(expected);
+    expect(merged.map(record => record.provenance.index)).toEqual(expected.map(index => eventsPerSource - 1 - Math.floor(index / sourceCount)));
+    expect(merged.map(record => record.provenance.path)).toEqual(expected.map(index => `otel/source-${index % sourceCount}.jsonl`));
+    expect(merged.every(record => record.timestamp === String(start + BigInt(record.data.observation)) && record.data.nested.text === "  retained\npayload  " && record.data.nested.flag === false)).toBe(true);
+    expect(sources.every(item => item.events[0].data.observation > item.events.at(-1).data.observation)).toBe(true);
+  });
+
+  it("reads each observation clock once when computing anchors and sorting", () => {
+    let reads = 0;
+    const count = 10000;
+    const events = Array.from({ length: count }, (_, index) => ({
+      index,
+      get timestamp() {
+        reads++;
+        return index % 5 === 0 ? undefined : count - index;
+      },
+    }));
+    const ordered = orderSessionSources([source("agent", events)]);
+    expect(reads).toBe(count);
+    expect(ordered.map(record => record.index)).toEqual(Array.from({ length: count }, (_, index) => index));
+  });
+
   it("interleaves agent, AWF, MCPG and GitHub API events without moving untimed lifecycle observations to the tail", () => {
     const sources = [
       source("agent", [event("init"), event("start", 1000), event("tool"), event("answer", 3000), event("done")]),

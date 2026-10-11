@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -60,6 +60,8 @@ describe("Unified OTel observations", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-unified-otel-"));
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     fs.rmSync(root, { recursive: true, force: true });
   });
   const write = (root, file, entries) => {
@@ -159,5 +161,121 @@ describe("Unified OTel observations", () => {
     const events = collectUnifiedSession({ rootDir: root, warn: warning => warnings.push(warning) }).events;
     expect(events.some(event => event.provenance.component === "otel")).toBe(false);
     expect(warnings).toEqual([expect.stringContaining("symlink_not_read")]);
+  });
+
+  it("keeps missing and invalid span-event clocks untimed instead of inheriting their span start", () => {
+    write(root, "otel.jsonl", [
+      {
+        resourceSpans: [
+          {
+            scopeSpans: [
+              {
+                spans: [
+                  {
+                    traceId,
+                    spanId,
+                    name: "parent",
+                    startTimeUnixNano: "1000000",
+                    events: [{ name: "missing" }, { name: "invalid", timeUnixNano: "invalid" }, { name: "observed", timeUnixNano: "2000000" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const events = collectUnifiedSession({ rootDir: root }).events;
+    const observed = events.filter(event => event.provenance.component === "otel");
+    expect(observed.map(event => event.data.name)).toEqual(["parent", "observed", "missing", "invalid"]);
+    expect(observed[2]).not.toHaveProperty("timestamp");
+    expect(observed[2].provenance).not.toHaveProperty("timestampMs");
+    expect(observed[3].timestamp).toBe("invalid");
+    expect(observed[3].provenance).not.toHaveProperty("timestampMs");
+    expect(observed.filter(event => event.type === "otel.span_event").every(event => event.data.traceId === traceId && event.data.spanId === spanId)).toBe(true);
+    expect(events.at(-1).data.untimedEvents).toBe(2);
+    expect(validateSession(events.map(JSON.stringify).join("\n") + "\n")).toBe(events.length);
+  });
+
+  it("preserves explicit zero log clocks instead of replacing them with observation clocks", () => {
+    write(root, "otel.jsonl", [
+      {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  { timeUnixNano: "0", observedTimeUnixNano: "9000000", body: { stringValue: "epoch" }, severityNumber: 0 },
+                  { observedTimeUnixNano: "1000000", body: { stringValue: "observed" } },
+                  { body: { stringValue: "untimed" } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const events = collectUnifiedSession({ rootDir: root }).events;
+    const logs = events.filter(event => event.type === "otel.log");
+    expect(logs[0]).toMatchObject({ timestamp: "0", data: { timeUnixNano: "0", observedTimeUnixNano: "9000000", severityNumber: 0 }, provenance: { timestampMs: 0 } });
+    expect(logs[1]).toMatchObject({ timestamp: "1000000", provenance: { timestampMs: 1 } });
+    expect(logs[2]).not.toHaveProperty("timestamp");
+    expect(logs[2].provenance).not.toHaveProperty("timestampMs");
+    expect(events.at(-1).data.untimedEvents).toBe(1);
+  });
+
+  it("redacts decoded secrets and registered masks in OTel bodies, attributes and correlation identifiers before persistence", () => {
+    const secret = "otel-private-value";
+    const mask = "otel-registered-mask";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "OTEL_TEST_SECRET");
+    vi.stubEnv("SECRET_OTEL_TEST_SECRET", secret);
+    vi.stubGlobal("core", { info: vi.fn(), debug: vi.fn(), warning: vi.fn() });
+    write(root, "otel.jsonl", [
+      {
+        resourceLogs: [
+          {
+            resource: { attributes: [{ key: "custom.resource", value: { stringValue: secret } }] },
+            scopeLogs: [
+              {
+                scope: { name: "logger", version: secret },
+                logRecords: [
+                  {
+                    traceId: secret,
+                    spanId: mask,
+                    timeUnixNano: "1000000",
+                    body: { stringValue: `  ${secret}\n${mask}  ` },
+                    attributes: [{ key: "custom.message", value: { stringValue: secret } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    fs.writeFileSync(path.join(root, "agent-stdio.log"), `::add-mask::${mask}\n`);
+    write(root, "agent-session.jsonl", [{ type: "assistant.message", data: { content: "observed answer" } }]);
+    writeUnifiedSession({
+      rootDir: root,
+      warn: warning => {
+        throw new Error(warning);
+      },
+    });
+    const content = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(content).not.toContain(secret);
+    expect(content).not.toContain(mask);
+    const log = content
+      .trimEnd()
+      .split("\n")
+      .map(JSON.parse)
+      .find(event => event.type === "otel.log");
+    expect(log.data.traceId).toBe("***REDACTED***");
+    expect(log.data.spanId).toBe("***");
+    expect(log.data.body.stringValue).toBe("  ***REDACTED***\n***  ");
+    expect(log.data.resource.attributes[0].value.stringValue).toBe("***REDACTED***");
+    expect(log.data.attributes[0].value.stringValue).toBe("***REDACTED***");
+    expect(log.data.scope.version).toBe("***REDACTED***");
+    expect(log.provenance.timestampMs).toBe(1);
+    expect(validateSession(content)).toBe(content.trimEnd().split("\n").length);
   });
 });
