@@ -10,7 +10,7 @@ const { observationRefreshBudget } = require("./work_queue_limits.cjs");
 const { assignmentsForRequest, generateRequestOperations, validateWorkerContinuation } = require("./work_queue_replay.cjs");
 const store = require("./work_queue_store.cjs");
 const { normalizeAssignment, normalizeClaimScope, readClaimScopeContext } = require("./work_queue_claim_scope.cjs");
-const { readStagedIntentBatch, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters } = require("./work_queue_intents.cjs");
+const { readStagedIntentBatch, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, validatePreparedPlanIntentBatch } = require("./work_queue_intents.cjs");
 const { assertPolicyProposal, loadQueue, policyProposalFor, publishOperations, validateStoredAssignment, expectedWorkerRun, bindingForRun } = require("./work_queue_binding.cjs");
 const { authenticatePublisher, authenticateIntentPublisher, immutableRef, fetchNativeRun, postQueueDispatch, validateNativeRun } = require("./work_queue_native.cjs");
 const { dependencyKey, allowedScope, resolveDependencies, resolveExternalEdges } = require("./work_queue_dependency_resolver.cjs");
@@ -484,6 +484,13 @@ async function processWorkQueueIntents(options) {
 
 async function processParsedWorkQueueIntents(options, runtime, intents, errors) {
   log.debug("intents.process.start", { intents: intents.length, parse_errors: errors.length });
+  if (runtime.role === "dispatcher" && intents.length === 0 && errors.length === 0) {
+    errors = [{ reason: "work_queue_dispatcher_intents_missing" }];
+  }
+  const invalidPreparedBatch = validatePreparedPlanIntentBatch(intents, errors);
+  if (invalidPreparedBatch) {
+    return { version: 3, receipts: [{ reason: invalidPreparedBatch, status: "blocked" }], remaining_dispatches: options.maxDispatches ?? 1 };
+  }
   let remaining = options.maxDispatches ?? 1;
   /** @type {Array<{status: string, intent_id?: string, reason?: string, line?: number, claim_handle?: string, request_id?: string, commit_id?: string, success?: boolean, staged?: boolean, dispatches?: number, recovered?: boolean, launches?: object[], acknowledgement_only?: boolean, control?: object | null}>} */
   const receipts = errors.map(error => ({ ...error, status: "blocked" }));
@@ -582,9 +589,6 @@ async function main(options = {}) {
   try {
     const runtime = assertQueueControlRole({ ...options, context });
     const { intents, errors } = readStagedIntentBatch(options.intentPath || process.env.GH_AW_WORK_QUEUE_INTENTS || DEFAULT_INTENT_PATH);
-    if (runtime.role === "dispatcher" && intents.length === 0 && errors.length === 0) {
-      errors.push({ reason: "work_queue_dispatcher_intents_missing" });
-    }
     const preview = isStagedMode(options) || isStagedMode(config);
     const launching = intents.some(intent => intent.kind === "dispatch_next") && !preview;
     if (launching && !options.validateDispatchCredential) normalizeDispatchCredential(config.work_queue_dispatch_credential);

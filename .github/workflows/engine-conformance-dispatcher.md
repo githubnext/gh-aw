@@ -6,6 +6,8 @@ on:
   schedule: daily around 09:00
   workflow_dispatch:
 if: github.run_attempt == 1
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -78,13 +80,6 @@ step selects three distinct engines: a supported engine first, a recently
 changed engine (or a second supported engine), and a rotating coverage engine.
 Use the exact date, nodes and budget from the plan. The 7-day change window
 is a scheduling signal, not a new conformance requirement.
-
-The preparation step has already staged one submission with the exact stored
-nodes followed by one bounded dispatch request. Do not submit, dispatch, edit
-the intent files, or reconstruct the plan. Read the snapshot and explain the
-staged cohort only. Trusted processing after this agent run admits and dispatches
-it. Do not call ordinary safe outputs, including `noop` or `report_incomplete`:
-an unassigned dispatcher has no worker Claim.
 
 Read the queue with `work_queue_read` using
 `{"pool":"engine-conformance","limit":32}`. An uninitialized queue is an empty
