@@ -104,6 +104,33 @@ func TestBuiltinGraderRegistry_WorkingSetRebuildFactor(t *testing.T) {
 	}
 }
 
+func TestBuiltinGraderRegistry_MatchesSetupMetadata(t *testing.T) {
+	data, err := os.ReadFile("../../actions/setup/js/builtin_graders.json")
+	require.NoError(t, err)
+	var metadata map[string]struct {
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Unit        string   `json:"unit"`
+		Direction   string   `json:"direction"`
+		Threshold   *float64 `json:"threshold"`
+		Min         *float64 `json:"min"`
+		Max         *float64 `json:"max"`
+	}
+	require.NoError(t, json.Unmarshal(data, &metadata))
+	require.Len(t, metadata, len(BuiltinGraderRegistry))
+	for _, grader := range BuiltinGraderRegistry {
+		entry, ok := metadata[grader.ID]
+		require.True(t, ok, "missing setup metadata for %s", grader.ID)
+		assert.Equal(t, grader.Name, entry.Name)
+		assert.Equal(t, grader.Description, entry.Description)
+		assert.Equal(t, grader.Unit, entry.Unit)
+		assert.Equal(t, grader.Direction, entry.Direction)
+		assert.Equal(t, grader.Threshold, entry.Threshold)
+		assert.Equal(t, grader.Min, entry.Min)
+		assert.Equal(t, grader.Max, entry.Max)
+	}
+}
+
 // TestParseGradersFromFrontmatter_DisableOne verifies selective disable.
 func TestParseGradersFromFrontmatter_DisableOne(t *testing.T) {
 	var c Compiler
@@ -656,6 +683,27 @@ func TestBuildGraderManifest(t *testing.T) {
 	if len(decoded.Graders) != 3 {
 		t.Fatalf("expected 3 decoded entries, got %d", len(decoded.Graders))
 	}
+}
+
+func TestBuildGraderManifest_OmitsDefaultBuiltins(t *testing.T) {
+	var compiler Compiler
+	cfg, err := compiler.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{
+			"loops":             map[string]any{"enabled": false},
+			"tool-success-rate": map[string]any{"threshold": 0.95},
+		},
+	})
+	require.NoError(t, err)
+	manifest := buildGraderManifest(cfg)
+	require.Len(t, manifest.Graders, 2)
+	assert.Equal(t, "tool-success-rate", manifest.Graders[0].ID)
+	assert.InDelta(t, 0.95, *manifest.Graders[0].Threshold, 0.001)
+	assert.Equal(t, "loops", manifest.Graders[1].ID)
+	assert.False(t, manifest.Graders[1].Enabled)
+
+	cfg, err = compiler.parseGradersFromFrontmatter(map[string]any{"graders": map[string]any{}})
+	require.NoError(t, err)
+	assert.Empty(t, buildGraderManifest(cfg).Graders)
 }
 
 func TestBuildGraderManifest_OperationalValueGrader(t *testing.T) {

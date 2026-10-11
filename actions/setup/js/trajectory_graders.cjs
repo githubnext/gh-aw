@@ -1484,33 +1484,6 @@ function gradeCodeReadPrecision(trace, config) {
   };
 }
 
-/** @type {Record<string, {name: string, description: string, unit: string, direction: string, threshold?: number, min?: number, max?: number}>} */
-const TRAJECTORY_GRADER_META = {
-  "policy-near-miss": { name: "Policy Near-Miss Rate", description: "Fraction of successful traces that left guard or policy objectives unsatisfied", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "skill-constraint-coverage": { name: "Skill Constraint Coverage", description: "Fraction of configured skill constraints that were exercised and passed", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "exploration-error": { name: "Exploration Error", description: "Unmet objectives attributable to insufficient search", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "exploitation-error": { name: "Exploitation Error", description: "Unmet objectives attributable to gathered evidence that was never used", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "state-revisit-probability-rep": { name: "State Revisit Probability REP", description: "Fraction of canonical state visits that revisit an already visited state", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "recurrence-determinism": { name: "Recurrence Determinism (RQA DET)", description: "RQA DET: fraction of recurrent points forming diagonal (repeated-subsequence) lines", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "recurrence-laminarity": { name: "Recurrence Laminarity (RQA LAM)", description: "RQA LAM: fraction of recurrent points forming vertical (stagnation) lines", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "recurrence-trapping-time": { name: "Recurrence Trapping Time (RQA TT)", description: "RQA TT: average length of vertical recurrence lines", unit: "steps", direction: "lower_is_better", min: 0 },
-  "recurrence-rate": { name: "Recurrence Rate (RQA RR)", description: "RQA RR: density of recurrent state pairs across the run", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "event-entropy-rate": { name: "Event Entropy Rate", description: "Normalized conditional Shannon entropy rate of the ordered event sequence", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "lempel-ziv-trajectory-complexity": { name: "Lempel-Ziv Trajectory Complexity", description: "Normalized LZ76 complexity of the canonical event sequence", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "tool-output-consumption-rate": { name: "Tool Output Consumption Rate", description: "Fraction of tool outputs referenced by a later action", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "end-to-end-lineage-completeness": { name: "End-to-End Lineage Completeness", description: "Fraction of final outputs traceable to tool or observation evidence roots", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "action-provenance-coverage": { name: "Action Provenance Coverage", description: "Fraction of consequential actions with a provenance path to tool or observation evidence", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "premature-termination-gap": { name: "Premature Termination Gap", description: "Declared completion conditions still unsatisfied at termination", unit: "count", direction: "lower_is_better", min: 0 },
-  "evidence-saturation-stopping-lag": { name: "Evidence Saturation Stopping Lag", description: "Events elapsed between all objectives being satisfied and the run stopping", unit: "count", direction: "lower_is_better", min: 0 },
-  "dependency-order-violation-rate": { name: "Dependency Order Violation Rate", description: "Fraction of dependent objectives satisfied before their prerequisites", unit: "ratio", direction: "lower_is_better", min: 0, max: 1 },
-  "objective-coverage": { name: "Objective Coverage", description: "Fraction of declared objectives that were completed", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "grounding-accuracy": { name: "Grounding Accuracy", description: "Fraction of actions that were valid in the state in which they were issued", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "tool-wise-score": { name: "Tool-Wise Score", description: "Longest correct execution prefix against a reference trajectory, with parameter credit", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "trajectory-ndtw": { name: "Trajectory nDTW", description: "Normalized dynamic time warping similarity to a reference state trajectory", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "code-search-recall": { name: "Code Search Recall", description: "Fraction of reference patch files located during the run", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-  "code-read-precision": { name: "Code Read Precision", description: "Fraction of distinct read or inspected files touched by the reference patch", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
-};
-
 /** @type {Record<string, (trace: any, config?: Record<string, any>) => any>} */
 const TRAJECTORY_GRADERS = {
   "policy-near-miss": withTrajectoryLimits(gradePolicyNearMiss),
@@ -1537,6 +1510,9 @@ const TRAJECTORY_GRADERS = {
   "code-search-recall": withTrajectoryLimits(gradeCodeSearchRecall),
   "code-read-precision": withTrajectoryLimits(gradeCodeReadPrecision),
 };
+
+const builtinMeta = require("./builtin_graders.json");
+const TRAJECTORY_GRADER_META = Object.fromEntries(Object.keys(TRAJECTORY_GRADERS).map(id => [id, builtinMeta[id]]));
 
 module.exports = {
   MAX_TRAJECTORY_ITEMS,
