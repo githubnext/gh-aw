@@ -175,7 +175,7 @@ Threat-detection jobs are not routed; they use their configured detection model 
 
 ### Steering notices
 
-With AWF v0.28.51 or later, the run's AI-credit budget and timeout produce advisory steering notices, which `gh aw audit` lists as `steering_notices` ([gh-aw#67597](https://github.com/github/gh-aw/pull/67597)). This matters for routing because runs routed to expensive models can approach the default 1,000-credit budget. gh-aw's default AWF version is still v0.28.50, so these notices need an explicit `sandbox.agent.version` until the default is bumped. See [Token steering](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
+With AWF v0.28.51 or later, the run's AI-credit budget and timeout produce advisory steering notices, which `gh aw audit` lists as `steering_notices` ([gh-aw#67597](https://github.com/github/gh-aw/pull/67597)). This matters for routing because runs routed to expensive models can approach the default 1,000-credit budget. gh-aw's default AWF version is still v0.28.50; routed workflows get the notices once that default moves to v0.28.51 or later. Opting in earlier means setting `sandbox.agent.version` together with digest-pinned `sandbox.agent.images` for every AWF image (see [Sandbox image overrides](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages)), because routed workflows require digest pins. See [Token steering](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
 
 Claude, Codex, and pi log the selected model, effort, and effective endpoint before starting inference. When a runtime uses its own API instead of AWF's selected endpoint, `selected_endpoint` records AWF's original choice. Copilot CLI retains its existing model-and-effort log:
 
