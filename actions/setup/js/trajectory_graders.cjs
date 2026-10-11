@@ -9,6 +9,8 @@
 // the trace as unavailable, keeping the O(n^2) graders computationally cheap.
 const MAX_TRAJECTORY_ITEMS = 5000;
 
+const MAX_DIAGNOSTIC_PATH_LENGTH = 120;
+
 // Maximum length of the text each skill constraint pattern is matched against.
 const MAX_CONSTRAINT_TEXT_LENGTH = 4096;
 
@@ -1390,22 +1392,42 @@ function normalizeFilePath(value) {
 }
 
 /**
+ * @param {any} trace
+ * @returns {{ir: Record<string, any>, required: string[]} | {error: string}}
+ */
+function resolveReferencePatchFiles(trace) {
+  const candidates = irCandidates(trace, { includeTrace: true });
+  const ir = candidates.find(value => isRecord(value.reference) && isRecord(value.reference.patch) && Array.isArray(value.reference.patch.files));
+  if (!ir || ir.reference.patch.files.length === 0) {
+    return { error: "not applicable: no reference patch files" };
+  }
+  const required = ir.reference.patch.files.map(file => (typeof file === "string" ? file : isRecord(file) && typeof file.path === "string" ? file.path : ""));
+  if (required.some(file => normalizeFilePath(file) === "")) {
+    return { error: "unavailable: reference patch file is missing a path" };
+  }
+  return { ir, required };
+}
+
+/**
+ * @param {string} path
+ * @returns {string}
+ */
+function truncateDiagnosticPath(path) {
+  if (path.length <= MAX_DIAGNOSTIC_PATH_LENGTH) return path;
+  return `${path.slice(0, MAX_DIAGNOSTIC_PATH_LENGTH - 3)}...`;
+}
+
+/**
  * code-search-recall: Fraction of reference patch files located during the run.
  * @param {any} trace
  * @param {Record<string, any>} config
  * @returns {any}
  */
 function gradeCodeSearchRecall(trace, config) {
-  const candidates = irCandidates(trace, { includeTrace: true });
-  const ir = candidates.find(value => isRecord(value.reference) && isRecord(value.reference.patch) && Array.isArray(value.reference.patch.files));
-  if (!ir || ir.reference.patch.files.length === 0) {
-    return { value: null, passed: null, message: "not applicable: no reference patch files" };
-  }
+  const resolved = resolveReferencePatchFiles(trace);
+  if ("error" in resolved) return { value: null, passed: null, message: resolved.error };
+  const { ir, required } = resolved;
   const normalize = normalizeFilePath;
-  const required = ir.reference.patch.files.map(file => (typeof file === "string" ? file : isRecord(file) && typeof file.path === "string" ? file.path : ""));
-  if (required.some(file => normalize(file) === "")) {
-    return { value: null, passed: null, message: "unavailable: reference patch file is missing a path" };
-  }
   if (!Array.isArray(ir.resources) || !ir.resources.every(isRecord)) {
     return { value: null, passed: null, message: "unavailable: trace lacks well-formed resources" };
   }
@@ -1430,15 +1452,9 @@ function gradeCodeSearchRecall(trace, config) {
  * @returns {any}
  */
 function gradeCodeReadPrecision(trace, config) {
-  const candidates = irCandidates(trace, { includeTrace: true });
-  const ir = candidates.find(value => isRecord(value.reference) && isRecord(value.reference.patch) && Array.isArray(value.reference.patch.files));
-  if (!ir || ir.reference.patch.files.length === 0) {
-    return { value: null, passed: null, message: "not applicable: no reference patch files" };
-  }
-  const required = ir.reference.patch.files.map(file => (typeof file === "string" ? file : isRecord(file) && typeof file.path === "string" ? file.path : ""));
-  if (required.some(file => normalizeFilePath(file) === "")) {
-    return { value: null, passed: null, message: "unavailable: reference patch file is missing a path" };
-  }
+  const resolved = resolveReferencePatchFiles(trace);
+  if ("error" in resolved) return { value: null, passed: null, message: resolved.error };
+  const { ir, required } = resolved;
   if (!Array.isArray(ir.actions) || !ir.actions.every(isRecord)) {
     return { value: null, passed: null, message: "unavailable: trace lacks well-formed actions" };
   }
@@ -1464,7 +1480,7 @@ function gradeCodeReadPrecision(trace, config) {
   const relevant = readFiles.size - irrelevant.length;
   return {
     value: helpers.ratio(relevant, readFiles.size),
-    details: `referenceFiles=${requiredSet.size} readFiles=${readFiles.size} relevant=${relevant}${irrelevant.length === 0 ? "" : `; unrelated reads: ${irrelevant.slice(0, 5).join(", ")}`}`,
+    details: `referenceFiles=${requiredSet.size} readFiles=${readFiles.size} relevant=${relevant}${irrelevant.length === 0 ? "" : `; unrelated reads: ${irrelevant.slice(0, 5).map(truncateDiagnosticPath).join(", ")}`}`,
   };
 }
 

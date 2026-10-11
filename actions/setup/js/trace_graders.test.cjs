@@ -1534,14 +1534,18 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
 
     it("computes at the size limit with bounded diagnostic output", () => {
-      const actions = Array.from({ length: MAX_TRAJECTORY_ITEMS }, (_, index) => read(`pkg/${index}.go`));
+      const longPath = `pkg/${"x".repeat(10_000)}.go`;
+      const actions = [read(longPath), ...Array.from({ length: MAX_TRAJECTORY_ITEMS - 1 }, (_, index) => read(`pkg/${index}.go`))];
       const files = actions.map(action => action.target);
       const started = performance.now();
       expect(run({ reference: { patch: { files } }, actions }).value).toBe(1);
       const unrelated = run({ reference, actions });
       expect(unrelated.value).toBe(0);
-      expect(unrelated.details).toContain("pkg/4.go");
-      expect(unrelated.details).not.toContain("pkg/5.go");
+      expect(unrelated.details).toContain(`${longPath.slice(0, 117)}...`);
+      expect(unrelated.details).not.toContain(longPath);
+      expect(unrelated.details).toContain("pkg/3.go");
+      expect(unrelated.details).not.toContain("pkg/4.go");
+      expect(unrelated.details.length).toBeLessThan(1000);
       expect(performance.now() - started).toBeLessThan(1000);
     });
   });
