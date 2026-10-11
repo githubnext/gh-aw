@@ -84,6 +84,21 @@ describe("no-git-command-logging", () => {
           output: `const opts = { silent: true }; opts.silent = false; exec.exec("git", args, { ...(opts), silent: true });`,
           errors: [{ messageId: "silent" }],
         },
+        {
+          code: `const silent = false; exec.exec("git", args, { silent });`,
+          output: `const silent = false; exec.exec("git", args, { silent: true });`,
+          errors: [{ messageId: "silent" }],
+        },
+        {
+          code: `exec.exec("git", args, { get silent() { return false; } });`,
+          output: `exec.exec("git", args, { silent: true });`,
+          errors: [{ messageId: "silent" }],
+        },
+        {
+          code: `exec.exec("git", args, { silent() { return false; } });`,
+          output: `exec.exec("git", args, { silent: true });`,
+          errors: [{ messageId: "silent" }],
+        },
       ],
     });
   });
@@ -94,16 +109,28 @@ describe("no-git-command-logging", () => {
         `const { spawnSync } = require("child_process"); spawnSync("git", args);`,
         `const cp = require("node:child_process"); cp.spawnSync("git", args, { stdio: "pipe" });`,
         `const cp = require("child_process"); cp.execSync("git status", { stdio: ["ignore", "pipe", "ignore"] });`,
+        `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: "ignore" });`,
+        `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: [0, "pipe", "pipe", ...extraDescriptors] });`,
+        `const cp = require("child_process"); cp.exec("git status", (error, stdout, stderr) => {});`,
+        `const cp = require("child_process"); cp.execFile("git", args, (error, stdout, stderr) => {});`,
+        `const cp = require("child_process"); cp.execFile("git", { stdio: "pipe" }, (error, stdout, stderr) => {});`,
+        `const cp = require("child_process"); const callback = () => {}; cp.execFile("git", args, callback);`,
+        `const cp = require("child_process"); function callback() {} cp.exec("git status", callback);`,
         `const cp = require("child_process"); cp.spawnSync("node", args, { stdio: "inherit" });`,
       ],
       invalid: [
         { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
         { code: `const cp = require("child_process"); const run = cp.spawnSync; run("git", args, { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); const spawnSync = "unrelated"; const run = cp.spawnSync; run("git", args, { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
         { code: `const { execSync: run } = require("node:child_process"); run("git diff", { stdio: [0, 1, 2] });`, errors: [{ messageId: "stdio" }] },
         { code: `const { spawnSync } = require("child_process"); spawnSync("git", args, { stdio: ["ignore", fileFd, "pipe"] });`, errors: [{ messageId: "stdio" }] },
         { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: "pipe", ...options });`, errors: [{ messageId: "stdio" }] },
         { code: `const cp = require("child_process"); cp.spawnSync("git", args, options);`, errors: [{ messageId: "stdio" }] },
         { code: `const cp = require("child_process"); cp.execFileSync("git", { stdio: "inherit" });`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); cp.execFile("git", { stdio: "inherit" }, () => {});`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: [...fileDescriptors] });`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: [0, ...fileDescriptors] });`, errors: [{ messageId: "stdio" }] },
+        { code: `const cp = require("child_process"); cp.spawnSync("git", args, { stdio: [0, "pipe", ...fileDescriptors] });`, errors: [{ messageId: "stdio" }] },
       ],
     });
   });

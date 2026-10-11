@@ -104,7 +104,7 @@ function methodFor(node: TSESTree.CallExpression, source: TSESLint.SourceCode): 
     }
     const init = initializer(callee, source);
     if (init?.type === AST_NODE_TYPES.MemberExpression) {
-      const name = staticString(init.property, source) ?? (init.property.type === AST_NODE_TYPES.Identifier && !init.computed ? init.property.name : undefined);
+      const name = !init.computed && init.property.type === AST_NODE_TYPES.Identifier ? init.property.name : staticString(init.property, source);
       if (name && childMethods.has(name) && init.object.type === AST_NODE_TYPES.Identifier && isChildProcessObjectBinding(init.object.name, init.object, source)) return { name, child: true };
       if (name === "exec" || name === "getExecOutput") return { name, child: false };
     }
@@ -185,18 +185,29 @@ export const noGitCommandLoggingRule = createRule({
         const method = methodFor(node, source);
         const command = staticString(node.arguments[0], source);
         if (!method || !command || !/^(?:.*[/\\])?git(?:\.exe)?(?:\s|$)/.test(command)) return;
-        const secondIsOptions = method.child && node.arguments.length === 2 && resolve(node.arguments[1], source)?.type === AST_NODE_TYPES.ObjectExpression;
+        const secondIsOptions = method.child && resolve(node.arguments[1], source)?.type === AST_NODE_TYPES.ObjectExpression;
         const index = method.child && (method.name === "exec" || method.name === "execSync" || secondIsOptions) ? 1 : 2;
-        const options = node.arguments[index];
+        let options: TSESTree.CallExpressionArgument | undefined = node.arguments[index];
+        if (method.child && (method.name === "exec" || method.name === "execFile")) {
+          const candidate = resolve(options, source);
+          const callbackVariable = candidate?.type === AST_NODE_TYPES.Identifier ? variableFor(candidate, source) : undefined;
+          if (
+            candidate?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+            candidate?.type === AST_NODE_TYPES.FunctionExpression ||
+            (callbackVariable && !hasWrites(callbackVariable) && callbackVariable.defs.some(def => def.type === "FunctionName"))
+          )
+            options = undefined;
+        }
         if (method.child) {
           const stdio = propertyValue(options, "stdio", source);
           // child_process defaults to pipes. Explicit descriptors must also keep
           // stdout/stderr off inherited streams and arbitrary file descriptors.
           const object = resolve(options, source);
           if (!stdio && (!options || (object?.type === AST_NODE_TYPES.ObjectExpression && object.properties.every(prop => prop.type === AST_NODE_TYPES.Property && !prop.computed)))) return;
-          if (staticString(stdio, source) === "pipe") return;
+          if (["pipe", "ignore"].includes(staticString(stdio, source) ?? "")) return;
           if (
             stdio?.type === AST_NODE_TYPES.ArrayExpression &&
+            !stdio.elements.slice(0, 3).some(element => element?.type === AST_NODE_TYPES.SpreadElement) &&
             [1, 2].every(i => {
               const value = stdio.elements[i];
               return !value || (value.type === AST_NODE_TYPES.Literal && value.value == null) || ["pipe", "ignore"].includes(staticString(value, source) ?? "");
@@ -220,7 +231,7 @@ export const noGitCommandLoggingRule = createRule({
             }
             if (options.type === AST_NODE_TYPES.ObjectExpression) {
               const silentProperties = options.properties.filter((prop): prop is TSESTree.Property => prop.type === AST_NODE_TYPES.Property && staticKey(prop) === "silent");
-              if (silentProperties.length === 1 && options.properties[options.properties.length - 1] === silentProperties[0]) return fixer.replaceText(silentProperties[0].value, "true");
+              if (silentProperties.length === 1 && options.properties[options.properties.length - 1] === silentProperties[0]) return fixer.replaceText(silentProperties[0], "silent: true");
               const text = source.getText(options).slice(0, -1).trimEnd();
               return fixer.replaceText(options, `${text}${options.properties.length && !text.endsWith(",") ? "," : ""} silent: true }`);
             }

@@ -121,7 +121,9 @@ values and output listeners. The rule resolves local option constants and
 checks spread order, and can automatically add the silent option.
 
 For `child_process`, keep stdout/stderr piped (the default) or ignored; do not
-inherit them or send them to file descriptors. `execGitSync` enforces pipes
+inherit them or send them to file descriptors. Callback overloads keep the
+default pipes; stdio array spreads before stdout/stderr require review and are
+rejected. `execGitSync` enforces pipes
 itself while retaining runner-redacted `core` diagnostics.
 
 The rule also rejects sending locally captured Git stdout/stderr to raw/file-backed
