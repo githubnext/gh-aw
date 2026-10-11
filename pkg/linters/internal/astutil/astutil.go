@@ -96,7 +96,9 @@ func MatchDiscardedErrorCall(pass *analysis.Pass, stmt ast.Stmt) (call *ast.Call
 }
 
 // PackageCall resolves a package-qualified call, including calls through a
-// local function-value alias, and returns its import path and function name.
+// local function-value alias with no writes or address escapes, and returns its
+// import path and function name. Mutable aliases are conservatively unresolved,
+// even at calls before a later write.
 func PackageCall(pass *analysis.Pass, call *ast.CallExpr) (pkgPath, funcName string, ok bool) {
 	if pass == nil || pass.TypesInfo == nil || call == nil {
 		return "", "", false
@@ -115,15 +117,26 @@ func packageFunction(pass *analysis.Pass, expr ast.Expr, seen map[types.Object]b
 		if !ok || pkgName.Imported() == nil {
 			return "", "", false
 		}
-		return pkgName.Imported().Path(), expr.Sel.Name, true
+		fn, ok := pass.TypesInfo.Uses[expr.Sel].(*types.Func)
+		if !ok || fn.Pkg() != pkgName.Imported() {
+			return "", "", false
+		}
+		return fn.Pkg().Path(), fn.Name(), true
 	case *ast.Ident:
+		if fn, ok := pass.TypesInfo.Uses[expr].(*types.Func); ok && fn.Pkg() != nil {
+			signature, ok := fn.Type().(*types.Signature)
+			if ok && signature.Recv() == nil {
+				return fn.Pkg().Path(), fn.Name(), true
+			}
+		}
 		return packageFunctionAlias(pass, pass.TypesInfo.Uses[expr], seen)
 	}
 	return "", "", false
 }
 
 func packageFunctionAlias(pass *analysis.Pass, obj types.Object, seen map[types.Object]bool) (string, string, bool) {
-	if obj == nil {
+	variable, ok := obj.(*types.Var)
+	if !ok || !IsLocalObject(variable) {
 		return "", "", false
 	}
 	if seen == nil {
@@ -133,28 +146,41 @@ func packageFunctionAlias(pass *analysis.Pass, obj types.Object, seen map[types.
 		return "", "", false
 	}
 	seen[obj] = true
+	var initializer ast.Expr
+	mutable := false
 	for _, file := range pass.Files {
-		if pkgPath, funcName, ok := packageFunctionAliasInFile(pass, file, obj, seen); ok {
-			return pkgPath, funcName, true
-		}
-	}
-	return "", "", false
-}
-
-func packageFunctionAliasInFile(pass *analysis.Pass, file *ast.File, obj types.Object, seen map[types.Object]bool) (string, string, bool) {
-	var pkgPath, funcName string
-	ast.Inspect(file, func(node ast.Node) bool {
-		if node == nil || pkgPath != "" {
-			return false
-		}
-		value := packageFunctionAliasInitializer(pass, node, obj)
-		if value == nil {
+		ast.Inspect(file, func(node ast.Node) bool {
+			if mutable {
+				return false
+			}
+			if value := packageFunctionAliasInitializer(pass, node, obj); value != nil {
+				initializer = value
+			}
+			switch node := node.(type) {
+			case *ast.AssignStmt:
+				for _, lhs := range node.Lhs {
+					if ident, ok := UnwrapParenExpr(lhs).(*ast.Ident); ok && pass.TypesInfo.Uses[ident] == obj {
+						mutable = true
+					}
+				}
+			case *ast.RangeStmt:
+				for _, lhs := range []ast.Expr{node.Key, node.Value} {
+					if ident, ok := UnwrapParenExpr(lhs).(*ast.Ident); ok && pass.TypesInfo.Uses[ident] == obj {
+						mutable = true
+					}
+				}
+			case *ast.UnaryExpr:
+				if ident, ok := UnwrapParenExpr(node.X).(*ast.Ident); ok && node.Op == token.AND && pass.TypesInfo.Uses[ident] == obj {
+					mutable = true
+				}
+			}
 			return true
-		}
-		pkgPath, funcName, _ = packageFunction(pass, value, seen)
-		return false
-	})
-	return pkgPath, funcName, pkgPath != ""
+		})
+	}
+	if mutable || initializer == nil {
+		return "", "", false
+	}
+	return packageFunction(pass, initializer, seen)
 }
 
 func packageFunctionAliasInitializer(pass *analysis.Pass, node ast.Node, obj types.Object) ast.Expr {

@@ -52,7 +52,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `packagelevelmutableslicemap` — reports package-level (file/package-scope) `var` slice/map declarations mutated from inside a function body via `append()` re-assignment, index assignment, or `delete()`. Mutations inside a top-level `init()` are exempt.
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
 - `rawloginlib` — reports direct usage of the standard `log` package in library packages, where `pkg/logger` should be used.
-- `reflectdeepequalusage` — reports `reflect.DeepEqual()` calls that should use typed equality operators or type-specific comparison functions.
+- `reflectdeepequalusage` — reports `reflect.DeepEqual()` calls, including calls through local function-value aliases, that should use typed equality operators or type-specific comparison functions. Alias resolution is conservative: aliases must have a declaration initializer and no reassignment or address escape; package-level aliases are not resolved.
 - `regexpcompileinfunction` — reports `regexp.Compile` / `regexp.MustCompile` and their POSIX variants called inside functions that should be package-level.
 - `regexpdynamicpattern` — reports regexp compile calls whose pattern is not a compile-time constant string.
 - `seenmapbool` — reports `map[string]bool` used as a set (values always `true`) that should use `map[string]struct{}` instead.
