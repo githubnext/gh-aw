@@ -69,7 +69,104 @@ func TestGatewayServerMetricsUnmarshalPreservesExistingValues(t *testing.T) {
 	assert.Equal(t, 2, server.FilteredCount)
 	require.NoError(t, json.Unmarshal([]byte(`{"ErrorCount":null,"ErrorCount":2}`), &server))
 	assert.Equal(t, 2, server.ErrorCount)
+	before := server
 	require.Error(t, json.Unmarshal([]byte(`{"ToolCallCount":"invalid"}`), &server))
+	assert.Equal(t, before, server)
+}
+
+func TestGatewayServerMetricsUnmarshalErrorLeavesReceiverUnchanged(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		data string
+	}{
+		{"shared field type", `{"ServerName":"other","ToolCallCount":"bad","ErrorCount":9}`},
+		{"gateway field type", `{"ServerName":"other","RequestCount":"bad","FilteredCount":9}`},
+		{"tools type", `{"ServerName":"other","Tools":[]}`},
+		{"nested tool field type", `{"Tools":{"existing":{"CallCount":9,"ErrorCount":"bad"},"new":{"CallCount":2}}}`},
+		{"nested tool type", `{"Tools":{"existing":false,"new":{"CallCount":2}}}`},
+		{"tools updated before error", `{"Tools":{"existing":{"CallCount":9},"new":{"CallCount":2},"nil":null},"ErrorCount":"bad"}`},
+		{"tools cleared before error", `{"Tools":null,"ErrorCount":"bad"}`},
+		{"duplicate tools before error", `{"Tools":{"existing":null},"Tools":{"new":{"CallCount":2}},"ErrorCount":"bad"}`},
+		{"duplicate scalar before error", `{"ServerName":"other","ServerName":false,"ToolCallCount":9}`},
+		{"syntax error", `{"ServerName":"other","Tools":{"existing":{"CallCount":9}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tool := GatewayToolMetrics{ToolName: "existing", CallCount: 3, ErrorCount: 1, TotalDuration: 15}
+			existing := tool
+			server := GatewayServerMetrics{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1},
+				RequestCount:       4,
+				TotalDuration:      15,
+				FilteredCount:      2,
+				GuardPolicyBlocked: 1,
+				Tools:              map[string]*GatewayToolMetrics{"existing": &tool, "nil": nil},
+			}
+			before := server
+			before.Tools = map[string]*GatewayToolMetrics{"existing": &existing, "nil": nil}
+			originalTools := server.Tools
+
+			require.Error(t, json.Unmarshal([]byte(tt.data), &server))
+			assert.Equal(t, before, server)
+			assert.Equal(t, before.Tools, originalTools, "existing map aliases must remain unchanged")
+			assert.Same(t, &tool, server.Tools["existing"])
+			assert.Equal(t, existing, tool, "existing tool pointers must remain unchanged")
+		})
+	}
+}
+
+func TestGatewayServerMetricsUnmarshalToolsCompatibility(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		data string
+		want map[string]*GatewayToolMetrics
+	}{
+		{"absent", `{}`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"top-level null", `null`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"empty object", `{"Tools":{}}`, map[string]*GatewayToolMetrics{
+			"existing": {ToolName: "existing", CallCount: 3}, "nil": nil,
+		}},
+		{"null map", `{"Tools":null}`, nil},
+		{"replace existing tool", `{"tools":{"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "nil": nil,
+		}},
+		{"null tool", `{"Tools":{"existing":null}}`, map[string]*GatewayToolMetrics{
+			"existing": nil, "nil": nil,
+		}},
+		{"duplicate tool values replace", `{"Tools":{"existing":{"ToolName":"new"},"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "nil": nil,
+		}},
+		{"duplicate maps merge", `{"Tools":{"new":{"CallCount":2}},"Tools":{"existing":{"CallCount":5}}}`, map[string]*GatewayToolMetrics{
+			"existing": {CallCount: 5}, "new": {CallCount: 2}, "nil": nil,
+		}},
+		{"null then object resets map", `{"Tools":null,"Tools":{"new":{"CallCount":2}}}`, map[string]*GatewayToolMetrics{
+			"new": {CallCount: 2},
+		}},
+		{"object then null clears map", `{"Tools":{"new":{"CallCount":2}},"Tools":null}`, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tool := GatewayToolMetrics{ToolName: "existing", CallCount: 3}
+			server := GatewayServerMetrics{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1},
+				RequestCount:       4,
+				Tools:              map[string]*GatewayToolMetrics{"existing": &tool, "nil": nil},
+			}
+			require.NoError(t, json.Unmarshal([]byte(tt.data), &server))
+			assert.Equal(t, tt.want, server.Tools)
+			assert.Equal(t, MCPServerStatsBase{ServerName: "github", ToolCallCount: 3, ErrorCount: 1}, server.MCPServerStatsBase)
+			assert.Equal(t, 4, server.RequestCount)
+			assert.Equal(t, GatewayToolMetrics{ToolName: "existing", CallCount: 3}, tool)
+		})
+	}
 }
 
 func TestGetOrCreateServerSharedStats(t *testing.T) {

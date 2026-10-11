@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"maps"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -110,6 +111,9 @@ func (s GatewayServerMetrics) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON maps the gateway's JSON keys into the shared MCP statistics.
 func (s *GatewayServerMetrics) UnmarshalJSON(data []byte) error {
 	type gatewayServerMetrics GatewayServerMetrics
+	staged := gatewayServerMetrics(*s)
+	// JSON replaces map values rather than decoding into existing tool pointers.
+	staged.Tools = maps.Clone(s.Tools)
 	decoded := struct {
 		ServerName    string
 		ToolCallCount int
@@ -119,13 +123,16 @@ func (s *GatewayServerMetrics) UnmarshalJSON(data []byte) error {
 		ServerName:           s.ServerName,
 		ToolCallCount:        s.ToolCallCount,
 		ErrorCount:           s.ErrorCount,
-		gatewayServerMetrics: (*gatewayServerMetrics)(s),
+		gatewayServerMetrics: &staged,
 	}
-	err := json.Unmarshal(data, &decoded)
-	s.ServerName = decoded.ServerName
-	s.ToolCallCount = decoded.ToolCallCount
-	s.ErrorCount = decoded.ErrorCount
-	return err
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	staged.ServerName = decoded.ServerName
+	staged.ToolCallCount = decoded.ToolCallCount
+	staged.ErrorCount = decoded.ErrorCount
+	*s = GatewayServerMetrics(staged)
+	return nil
 }
 
 // GatewayToolMetrics represents usage metrics for a specific tool
