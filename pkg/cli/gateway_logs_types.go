@@ -83,14 +83,49 @@ type GuardPolicyEvent struct {
 
 // GatewayServerMetrics represents usage metrics for a single MCP server
 type GatewayServerMetrics struct {
-	ServerName         string
+	MCPServerStatsBase `json:"-" console:"-"`
 	RequestCount       int
-	ToolCallCount      int
 	TotalDuration      float64 // in milliseconds
-	ErrorCount         int
-	FilteredCount      int // number of DIFC_FILTERED events for this server
-	GuardPolicyBlocked int // number of tool calls blocked by guard policies for this server
+	FilteredCount      int     // number of DIFC_FILTERED events for this server
+	GuardPolicyBlocked int     // number of tool calls blocked by guard policies for this server
 	Tools              map[string]*GatewayToolMetrics
+}
+
+// MarshalJSON preserves the gateway's capitalized JSON keys and zero-valued counts.
+func (s GatewayServerMetrics) MarshalJSON() ([]byte, error) {
+	type gatewayServerMetrics GatewayServerMetrics
+	return json.Marshal(struct {
+		ServerName    string
+		ToolCallCount int
+		ErrorCount    int
+		gatewayServerMetrics
+	}{
+		ServerName:           s.ServerName,
+		ToolCallCount:        s.ToolCallCount,
+		ErrorCount:           s.ErrorCount,
+		gatewayServerMetrics: gatewayServerMetrics(s),
+	})
+}
+
+// UnmarshalJSON maps the gateway's JSON keys into the shared MCP statistics.
+func (s *GatewayServerMetrics) UnmarshalJSON(data []byte) error {
+	type gatewayServerMetrics GatewayServerMetrics
+	decoded := struct {
+		ServerName    string
+		ToolCallCount int
+		ErrorCount    int
+		*gatewayServerMetrics
+	}{
+		ServerName:           s.ServerName,
+		ToolCallCount:        s.ToolCallCount,
+		ErrorCount:           s.ErrorCount,
+		gatewayServerMetrics: (*gatewayServerMetrics)(s),
+	}
+	err := json.Unmarshal(data, &decoded)
+	s.ServerName = decoded.ServerName
+	s.ToolCallCount = decoded.ToolCallCount
+	s.ErrorCount = decoded.ErrorCount
+	return err
 }
 
 // GatewayToolMetrics represents usage metrics for a specific tool
@@ -265,8 +300,8 @@ func getOrCreateServer(metrics *GatewayMetrics, serverName string) *GatewayServe
 	}
 
 	server := &GatewayServerMetrics{
-		ServerName: serverName,
-		Tools:      make(map[string]*GatewayToolMetrics),
+		MCPServerStatsBase: MCPServerStatsBase{ServerName: serverName},
+		Tools:              make(map[string]*GatewayToolMetrics),
 	}
 	metrics.Servers[serverName] = server
 	return server
