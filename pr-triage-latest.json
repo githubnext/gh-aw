@@ -1,40 +1,25 @@
 {
-  "run_date": "2026-10-11T06:39:34.075000Z",
-  "run_id": "38118674137",
+  "run_date": "2026-10-11T12:38:02.849000Z",
+  "run_id": "38139687905",
   "source": "pr-triage-agent",
-  "eligible_total": 2,
-  "cooldown_skipped": 2,
-  "category_counts": {"test": 1, "bug": 1},
-  "risk_counts": {"low": 1, "medium": 1},
-  "priority_counts": {"low": 1, "medium": 1},
-  "action_counts": {"auto_merge": 0, "fast_track": 0, "batch_review": 2, "defer": 0, "close": 0},
+  "eligible_total": 4,
+  "cooldown_skipped": 0,
+  "category_counts": {"test": 1, "bug": 3},
+  "risk_counts": {"low": 1, "medium": 2, "high": 1},
+  "priority_counts": {"low": 1, "medium": 2, "high": 1},
+  "action_counts": {"auto_merge": 0, "fast_track": 0, "batch_review": 4, "defer": 0, "close": 0},
   "batches": [],
   "selected_candidates": [
-    {
-      "number": 67623,
-      "title": "Add race-detector coverage for concurrent Go packages",
-      "category": "test",
-      "risk": "low",
-      "priority_score": 42,
-      "score_breakdown": {"impact": 18, "urgency": 10, "quality": 14},
-      "action": "batch_review"
-    },
-    {
-      "number": 56568,
-      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 62,
-      "score_breakdown": {"impact": 30, "urgency": 18, "quality": 14},
-      "action": "batch_review"
-    }
+    {"number": 67597, "title": "Emit AWF agentTimeout for literal timeouts and show delivered steering notices in audit/logs", "category": "bug", "risk": "high", "priority_score": 68, "score_breakdown": {"impact": 36, "urgency": 18, "quality": 14}, "action": "batch_review"},
+    {"number": 67595, "title": "Fix routing smoke assertions: attribute agent traffic by model instead of nonexistent `purpose` values", "category": "bug", "risk": "medium", "priority_score": 59, "score_breakdown": {"impact": 29, "urgency": 16, "quality": 14}, "action": "batch_review"},
+    {"number": 67623, "title": "Add race-detector coverage for concurrent Go packages", "category": "test", "risk": "low", "priority_score": 42, "score_breakdown": {"impact": 18, "urgency": 10, "quality": 14}, "action": "batch_review"},
+    {"number": 56568, "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`", "category": "bug", "risk": "medium", "priority_score": 58, "score_breakdown": {"impact": 29, "urgency": 14, "quality": 15}, "action": "batch_review"}
   ],
-  "skipped_prs": [
-    {"number": 67597, "title": "Emit AWF agentTimeout for literal timeouts and show delivered steering notices in audit/logs", "reason": "cooldown"},
-    {"number": 67595, "title": "Fix routing smoke assertions: attribute agent traffic by model instead of nonexistent `purpose` values", "reason": "cooldown"}
-  ],
+  "skipped_prs": [],
   "prs": [
+    {"number": 67597, "title": "Emit AWF agentTimeout for literal timeouts and show delivered steering notices in audit/logs", "state": "open", "user": "Copilot", "draft": false, "created_at": "2026-10-11T03:03:45Z", "updated_at": "2026-10-11T10:25:27Z", "category": "bug", "risk": "high", "priority_score": 68, "action": "batch_review"},
+    {"number": 67595, "title": "Fix routing smoke assertions: attribute agent traffic by model instead of nonexistent `purpose` values", "state": "open", "user": "Copilot", "draft": false, "created_at": "2026-10-11T03:01:51Z", "updated_at": "2026-10-11T06:30:19Z", "category": "bug", "risk": "medium", "priority_score": 59, "action": "batch_review"},
     {"number": 67623, "title": "Add race-detector coverage for concurrent Go packages", "state": "open", "user": "Copilot", "draft": true, "created_at": "2026-10-11T05:22:23Z", "updated_at": "2026-10-11T05:35:12Z", "category": "test", "risk": "low", "priority_score": 42, "action": "batch_review"},
-    {"number": 56568, "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`", "state": "open", "user": "Copilot", "draft": false, "created_at": "2026-08-28T09:25:56Z", "updated_at": "2026-09-13T14:48:36Z", "category": "bug", "risk": "medium", "priority_score": 62, "action": "batch_review"}
+    {"number": 56568, "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`", "state": "open", "user": "Copilot", "draft": false, "created_at": "2026-08-28T09:25:56Z", "updated_at": "2026-09-13T14:48:36Z", "category": "bug", "risk": "medium", "priority_score": 58, "action": "batch_review"}
   ]
 }
