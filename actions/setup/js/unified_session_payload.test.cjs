@@ -74,6 +74,23 @@ describe("essential unified session payloads", () => {
     expect(source).toEqual(original);
   });
 
+  it.each([
+    [{ runId: "123" }, "123"],
+    [{ runid: "123" }, "123"],
+    [{ run_id: "123" }, "123"],
+    [{ runId: "123", runid: "122", run_id: "121" }, "123"],
+    [{ runid: "123", run_id: "122" }, "123"],
+    [{ runId: undefined, runid: "123" }, "123"],
+    [{ runId: null, runid: "123" }, null],
+    [{ runid: null, run_id: "123" }, null],
+    [{ runId: 0, runid: "123" }, 0],
+    [{ runId: "", runid: "123" }, ""],
+  ])("preserves explicit eval run attribution from %j", (attribution, runId) => {
+    const event = normalizeUnifiedSessionEvent({ type: "eval.result", data: attribution });
+    expect(event.data).toEqual({ runId });
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+  });
+
   it.each([true, false])("retains final model result and BYOK=%s through persisted unified projection", isByok => {
     const source = {
       type: "model.call_final_result",

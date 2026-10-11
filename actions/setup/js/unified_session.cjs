@@ -6,7 +6,7 @@ const { isSessionEvent } = require("./agent_session.cjs");
 const { hasCopilotConversation, deduplicateCopilotFallback, normalizeCopilotSession } = require("./copilot_session.cjs");
 const { collectAddMaskedValues, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
+const { normalizeUnifiedSessionEvent, evalResultRunId } = require("./unified_session_payload.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAgentExecution, parseAgentExitCode, validateAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { normalizeEngineLogEntries, normalizeEngineSessionEvents, parseEngineLog } = require("./engine_log_parser.cjs");
@@ -218,6 +218,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     if (!exists(file)) return 0;
     const events = [];
     const indices = [];
+    // These result types imply run-scoped files; do not reuse them for unscoped sources.
     const isRunResult = type === "grader.result" || type === "eval.result";
     const input = component === "agent" ? normalizeEngineSessionEvents(records(file), engine ?? "custom") : records(file);
     const normalized = component === "agent" ? normalizeEngineLogEntries(input, engine ?? "custom") : [];
@@ -230,7 +231,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       }
       if (isRunResult) {
         const line = recordLines.get(file)?.[index];
-        const runId = type === "grader.result" ? record.run?.id : (record.runId ?? record.runid ?? record.run_id);
+        const runId = type === "grader.result" ? record.run?.id : evalResultRunId(record);
         if (!currentRunId || runId === undefined || runId === null || String(runId) === "") {
           report(file, "unattributed_run_result", line);
           continue;

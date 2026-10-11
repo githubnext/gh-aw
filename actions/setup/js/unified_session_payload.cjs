@@ -404,6 +404,11 @@ function selectFields(value, fields) {
   return result;
 }
 
+/** @param {Record<string, any>} record @returns {any} */
+function evalResultRunId(record) {
+  return EVENT_FIELDS["eval.result"].runId.reduce((runId, alias) => runId ?? record[alias], undefined);
+}
+
 /** @param {any} source @param {Record<string, any>} data @param {Record<string, any>} usage */
 function resolveUsageAic(source, data, usage) {
   if (data.aic !== undefined || data.totalAic !== undefined) return;
@@ -550,4 +555,4 @@ function normalizeUnifiedSessionEvent(event, phase) {
   };
 }
 
-module.exports = { normalizeUnifiedSessionEvent };
+module.exports = { normalizeUnifiedSessionEvent, evalResultRunId };

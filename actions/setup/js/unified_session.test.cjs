@@ -91,6 +91,31 @@ describe("Unified conclusion session", () => {
     expect(writeUnifiedSession({ rootDir: root, warn })).toEqual(events);
   });
 
+  it.each(["runId", "runid", "run_id"])("collects and projects eval run attribution through %s", alias => {
+    write("evals.jsonl", [
+      { id: "current", [alias]: "123" },
+      { id: "previous", [alias]: "122" },
+    ]);
+    const { events } = collectUnifiedSession({ rootDir: root });
+    expect(events.filter(event => event.type === "eval.result").map(event => event.data)).toEqual([{ id: "current", runId: "123" }]);
+  });
+
+  it.each([
+    { attribution: { runId: "123", runid: "122", run_id: "121" }, currentRunId: "123", included: true, projectedRunId: "123" },
+    { attribution: { runId: "122", runid: "123", run_id: "123" }, currentRunId: "123", included: false },
+    { attribution: { runid: "123", run_id: "122" }, currentRunId: "123", included: true, projectedRunId: "123" },
+    { attribution: { runId: null, runid: "123", run_id: "122" }, currentRunId: "123", included: true, projectedRunId: null },
+    { attribution: { runId: null, runid: null, run_id: "123" }, currentRunId: "123", included: true, projectedRunId: null },
+    { attribution: { runId: "", runid: "123" }, currentRunId: "123", included: false },
+    { attribution: { runId: 0, runid: "123" }, currentRunId: "123", included: false },
+    { attribution: { runId: 0, runid: "123" }, currentRunId: "0", included: true, projectedRunId: 0 },
+    { attribution: { runId: null, runid: null, run_id: null }, currentRunId: "123", included: false },
+  ])("preserves eval alias precedence for $attribution with current run $currentRunId", ({ attribution, currentRunId, included, projectedRunId }) => {
+    write("evals.jsonl", [{ id: "quality", ...attribution }]);
+    const events = writeUnifiedSession({ rootDir: root, dailyAIC: { GITHUB_RUN_ID: currentRunId } });
+    expect(events.filter(event => event.type === "eval.result").map(event => event.data)).toEqual(included ? [{ id: "quality", runId: projectedRunId }] : []);
+  });
+
   it.each(["agent/graders/grader_results.json", "usage/graders/grader_results.json"])("imports only the current-run grader snapshot from %s", file => {
     write(file, [
       { run: { id: "122", attempt: 2 }, results: [{ id: "previous" }] },
