@@ -381,7 +381,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
     if (!bundleGenerated) {
       debugLog(`Strategy 2: Checking commits since GITHUB_SHA`);
       const currentHead = execGitSync(["rev-parse", "HEAD"], { cwd }).trim();
-      debugLog(`Strategy 2: currentHead=${currentHead}, GITHUB_SHA=${githubSha || "(not set)"}`);
+      debugLog("Strategy 2: Resolved current HEAD (Git output omitted)");
 
       if (!githubSha) {
         debugLog(`Strategy 2: GITHUB_SHA not set, cannot use this strategy`);

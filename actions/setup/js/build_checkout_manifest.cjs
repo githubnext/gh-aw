@@ -49,9 +49,9 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
     options.runGit ||
     ((args, execOptions = {}) => {
       try {
-        return execFileSync("git", args, { encoding: "utf8", ...execOptions });
+        return execFileSync("git", args, { encoding: "utf8", ...execOptions, stdio: "pipe" });
       } catch (err) {
-        throw new Error(`Failed to run git ${args.join(" ")}: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error("Failed to run git (arguments and output omitted)");
       }
     });
   const runGH =

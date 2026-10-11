@@ -454,10 +454,10 @@ async function main() {
       core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const fetchArgs = await depthArgs(fetchDepth);
       core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs]);
+      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs], { silent: true });
 
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", branchName]);
+      await exec.exec("git", ["checkout", branchName], { silent: true });
 
       await exportPRHeadBaseline({
         branchName,
@@ -502,11 +502,11 @@ async function main() {
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const prFetchArgs = await depthArgs(fetchDepth);
       core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs]);
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs], { silent: true });
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
+      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"], { silent: true });
 
       await exportPRHeadBaseline({
         branchName,
@@ -616,13 +616,13 @@ Pull request #${pullRequest.number} was merged after this workflow was triggered
     // Log current git state for debugging
     try {
       core.info("Current git status:");
-      await exec.exec("git", ["status"]);
+      await exec.exec("git", ["status"], { silent: true });
 
       core.info("Available remotes:");
-      await exec.exec("git", ["remote", "-v"]);
+      await exec.exec("git", ["remote", "-v"], { silent: true });
 
       core.info("Current branch:");
-      await exec.exec("git", ["branch", "--show-current"]);
+      await exec.exec("git", ["branch", "--show-current"], { silent: true });
     } catch (gitError) {
       core.warning(`Could not retrieve git state: ${getErrorMessage(gitError)}`);
     }

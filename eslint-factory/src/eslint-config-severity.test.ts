@@ -21,4 +21,8 @@ describe("eslint.config.cjs", () => {
   it("keeps non-promoted custom rules at warning severity", () => {
     expect(getRuleSeverity("gh-aw-custom/no-throw-plain-object")).toBe("warn");
   });
+
+  it("enforces no-git-command-logging at error severity", () => {
+    expect(getRuleSeverity("gh-aw-custom/no-git-command-logging")).toBe("error");
+  });
 });

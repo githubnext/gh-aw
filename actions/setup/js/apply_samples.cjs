@@ -39,6 +39,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION, ERR_PARSE, ERR_SYSTEM, ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
+const { execGitSync } = require("./git_helpers.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
@@ -96,15 +97,7 @@ function loadSamples() {
  * @returns {string}
  */
 function runGit(args, cwd) {
-  const { spawnSync } = require("child_process");
-  const result = spawnSync("git", args, { cwd, encoding: "utf8", timeout: GIT_COMMAND_TIMEOUT_MS });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`${ERR_SYSTEM}: git ${args.join(" ")} failed (exit ${result.status}): ${result.stderr || result.stdout}`);
-  }
-  return result.stdout;
+  return execGitSync(args, { cwd, timeout: GIT_COMMAND_TIMEOUT_MS });
 }
 
 /**

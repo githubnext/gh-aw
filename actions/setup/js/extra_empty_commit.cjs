@@ -172,8 +172,8 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // before we know whether a git push will actually be needed.
       try {
         core.info(`Fetching and syncing with remote branch ${branchName}`);
-        await exec.exec("git", ["fetch", remoteUrl, branchName]);
-        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
+        await exec.exec("git", ["fetch", remoteUrl, branchName], { silent: true });
+        await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], { silent: true });
         core.info(`Synced local branch with remote ${branchName}`);
       } catch (error) {
         // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
@@ -228,8 +228,8 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
           // Update the local branch HEAD to the API-created commit so that any
           // downstream git state reads see the new OID rather than stale data.
           try {
-            await exec.exec("git", ["fetch", remoteUrl, branchName]);
-            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"]);
+            await exec.exec("git", ["fetch", remoteUrl, branchName], { silent: true });
+            await exec.exec("git", ["reset", "--hard", "FETCH_HEAD"], { silent: true });
             core.info(`Updated local branch to API-created commit ${newOid}`);
           } catch (updateErr) {
             core.info(`Could not update local branch to API-created commit: ${getErrorMessage(updateErr)}`);
@@ -244,15 +244,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         // Add a named remote only when a git push is actually needed.
         core.info(`Setting up temporary ci-trigger remote: ${remoteUrl}`);
         try {
-          await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+          await exec.exec("git", ["remote", "remove", "ci-trigger"], { silent: true });
           core.info("Removed pre-existing ci-trigger remote");
         } catch {
           // Remote doesn't exist yet — removal failure is ignored, that's fine.
         }
-        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
-        await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
+        await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl], { silent: true });
+        await exec.exec("git", ["commit", "--allow-empty", "-m", message], { silent: true });
         await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: "ci-trigger", branch: branchName });
-        await exec.exec("git", ["push", "ci-trigger", branchName]);
+        await exec.exec("git", ["push", "ci-trigger", branchName], { silent: true });
       }
 
       core.info(`Extra empty commit pushed to ${branchName} successfully`);
@@ -261,7 +261,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     } finally {
       // Clean up the temporary remote and restore previous checkout auth state.
       try {
-        await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+        await exec.exec("git", ["remote", "remove", "ci-trigger"], { silent: true });
         core.info("Removed ci-trigger remote");
       } catch {
         // Non-fatal cleanup error

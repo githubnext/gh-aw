@@ -113,7 +113,7 @@ describe("git_auth_helpers.cjs", () => {
       // Exit code 4 = file write error (permission denied, config lock, etc.)
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 4, stdout: "", stderr: "error: could not lock config file" });
 
-      await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY)).rejects.toThrow(/--unset-all.*failed \(exit 4\)/);
+      await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY)).rejects.toThrow(/--unset-all.*failed \(exit 4;/);
     });
 
     it("should also unset the key from includeIf.gitdir-referenced config files (checkout v7 case)", async () => {

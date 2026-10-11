@@ -116,7 +116,7 @@ function parsePositiveInteger(value) {
  * @returns {Promise<string[]>}
  */
 async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef) {
-  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], gitOptions);
+  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], { ...gitOptions, silent: true });
   return bundleDiffResult.stdout.split("\0").filter(Boolean);
 }
 
@@ -132,7 +132,7 @@ async function fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, pre
   if (useBlobFilter) {
     core.info(`${logPrefix}using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)`);
   }
-  await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
+  await exec.exec("git", prerequisiteFetchArgs, { ...prereqGitOpts, silent: true });
   core.info(`${logPrefix}fetched prerequisite commits from origin successfully`);
 }
 
@@ -217,7 +217,7 @@ async function detectWorkflowFileChanges(exec, gitOptions, baseBranch, coreLogge
 
   for (const baseline of baselines) {
     try {
-      const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", baseline, "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true });
+      const result = await exec.getExecOutput("git", ["log", "--name-only", "--pretty=format:", "HEAD", "--not", baseline, "--", ".github/workflows/"], { ...gitOptions, ignoreReturnCode: true, silent: true });
       if (result.exitCode !== 0) {
         // Non-zero exit means the baseline ref was not resolvable (e.g. shallow clone
         // without the named remote ref fetched); try the next fallback.
@@ -898,6 +898,7 @@ async function main(config = {}) {
             env: { ...process.env, ...gitAuthEnv },
             ...baseGitOpts,
             ignoreReturnCode: true,
+            silent: true,
           }),
         baseGitOpts.cwd
       );
@@ -938,6 +939,7 @@ async function main(config = {}) {
           exec.exec("git", ["fetch", branchRemoteName, `${branchName}:${branchRemoteRef}`], {
             env: { ...process.env, ...gitAuthEnv },
             ...baseGitOpts,
+            silent: true,
           }),
         baseGitOpts.cwd
       );
@@ -953,7 +955,7 @@ async function main(config = {}) {
 
     // Check if branch exists on origin
     try {
-      await exec.exec("git", ["rev-parse", "--verify", branchRemoteRef], baseGitOpts);
+      await exec.exec("git", ["rev-parse", "--verify", branchRemoteRef], { ...baseGitOpts, silent: true });
     } catch (verifyError) {
       const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
       if (ignoreMissingBranchFailure) {
@@ -965,7 +967,7 @@ async function main(config = {}) {
 
     // Checkout the branch from origin
     try {
-      await exec.exec("git", ["checkout", "-B", branchName, branchRemoteRef], baseGitOpts);
+      await exec.exec("git", ["checkout", "-B", branchName, branchRemoteRef], { ...baseGitOpts, silent: true });
       core.info(`Checked out existing branch from ${pushRepo}: ${branchName}`);
     } catch (checkoutError) {
       return { success: false, error: `Failed to checkout branch ${branchName}: ${getErrorMessage(checkoutError)}` };
@@ -982,7 +984,7 @@ async function main(config = {}) {
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
-        const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], baseGitOpts);
+        const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { ...baseGitOpts, silent: true });
         remoteHeadBeforePatch = stdout.trim();
         if (remoteHeadBeforePatch) {
           rangeBaseRef = remoteHeadBeforePatch;
@@ -1004,19 +1006,20 @@ async function main(config = {}) {
               await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"], {
                 env: { ...process.env, ...gitAuthEnv },
                 ...baseGitOpts,
+                silent: true,
               });
             } catch (fetchError) {
               core.info(`Note: could not fetch base_commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
             }
-            await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], baseGitOpts);
-            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, branchRemoteRef], { ...baseGitOpts, ignoreReturnCode: true });
+            await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], { ...baseGitOpts, silent: true });
+            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, branchRemoteRef], { ...baseGitOpts, ignoreReturnCode: true, silent: true });
             if (ancestryCheck.exitCode !== 0) {
               throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of ${branchRemoteRef}; cannot safely re-anchor patch apply`);
             }
             if (remoteHeadBeforePatch && remoteHeadBeforePatch !== recordedBaseCommit) {
               core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
             }
-            await exec.exec("git", ["reset", "--hard", recordedBaseCommit], baseGitOpts);
+            await exec.exec("git", ["reset", "--hard", recordedBaseCommit], { ...baseGitOpts, silent: true });
             rangeBaseRef = recordedBaseCommit;
             core.info(`Reset branch to recorded base_commit before patch apply: ${recordedBaseCommit}`);
           } catch (baseCommitError) {
@@ -1045,7 +1048,7 @@ async function main(config = {}) {
           // exec() only throws "The process '...' failed with exit code 1" which loses the
           // "lacks these prerequisite commits" text needed for the recovery path below.
           const bundleFetchRef = `refs/heads/${branchName}:${bundleRef}`;
-          const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
+          const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true, silent: true });
           if (initialBundleFetch.exitCode !== 0) {
             const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
 
@@ -1057,11 +1060,11 @@ async function main(config = {}) {
             const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
             if (prerequisiteCommits.length > 0) {
               await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits);
-              await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
+              await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, silent: true });
               core.info("Bundle fetch retry succeeded after prerequisite recovery");
             } else {
               core.warning(`Bundle fetch from refs/heads/${branchName} failed: ${initialFetchErrorOutput}; resolving source ref from bundle heads`);
-              const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath], baseGitOpts);
+              const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath], { ...baseGitOpts, silent: true });
               const bundleHeads = bundleHeadsOutput
                 .split("\n")
                 .map(line => line.trim().split(/\s+/))
@@ -1072,7 +1075,7 @@ async function main(config = {}) {
                   .filter(([, ref]) => ref.startsWith("refs/heads/"))
                   .map(async ([, ref]) => ({
                     ref,
-                    isValid: (await exec.getExecOutput("git", ["check-ref-format", ref], { ...baseGitOpts, ignoreReturnCode: true })).exitCode === 0,
+                    isValid: (await exec.getExecOutput("git", ["check-ref-format", ref], { ...baseGitOpts, ignoreReturnCode: true, silent: true })).exitCode === 0,
                   }))
               );
               const branchRefs = branchRefChecks.filter(({ isValid }) => isValid).map(({ ref }) => ref);
@@ -1092,16 +1095,16 @@ async function main(config = {}) {
 
               core.info(`Fetching resolved bundle source ${bundleSourceRef} into ${bundleRef}`);
               const resolvedBundleFetchRef = `${bundleSourceRef}:${bundleRef}`;
-              const resolvedBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
+              const resolvedBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true, silent: true });
               if (resolvedBundleFetch.exitCode !== 0) {
                 const resolvedFetchErrorOutput = resolvedBundleFetch.stderr || `exit code ${resolvedBundleFetch.exitCode}`;
                 const resolvedPrerequisiteCommits = extractBundlePrerequisiteCommits(resolvedFetchErrorOutput);
                 if (resolvedPrerequisiteCommits.length === 0) {
-                  throw new Error(`Failed to fetch resolved bundle source ${bundleSourceRef}: ${resolvedFetchErrorOutput}`);
+                  throw new Error(`Failed to fetch resolved bundle source ${bundleSourceRef}: exit code ${resolvedBundleFetch.exitCode} (Git output omitted)`);
                 }
 
                 await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, resolvedPrerequisiteCommits, "[resolved] ");
-                await exec.exec("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], baseGitOpts);
+                await exec.exec("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], { ...baseGitOpts, silent: true });
                 core.info("Resolved bundle fetch retry succeeded after prerequisite recovery");
               }
             }
@@ -1143,13 +1146,13 @@ async function main(config = {}) {
           if (remoteHeadBeforePatch) {
             updateRefArgs.push(remoteHeadBeforePatch);
           }
-          await exec.exec("git", updateRefArgs, baseGitOpts);
-          await exec.exec("git", ["reset", "--hard"], baseGitOpts);
+          await exec.exec("git", updateRefArgs, { ...baseGitOpts, silent: true });
+          await exec.exec("git", ["reset", "--hard"], { ...baseGitOpts, silent: true });
           core.info(`Updated branch to bundle tip from ${bundleRef}`);
 
           // Clean up the temporary ref
           try {
-            await exec.exec("git", ["update-ref", "-d", bundleRef], baseGitOpts);
+            await exec.exec("git", ["update-ref", "-d", bundleRef], { ...baseGitOpts, silent: true });
           } catch {
             // Non-fatal cleanup
           }
@@ -1157,7 +1160,7 @@ async function main(config = {}) {
           core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
           // Clean up temp ref if it exists
           try {
-            await exec.exec("git", ["update-ref", "-d", bundleRef], baseGitOpts);
+            await exec.exec("git", ["update-ref", "-d", bundleRef], { ...baseGitOpts, silent: true });
           } catch {
             // Ignore
           }
@@ -1181,7 +1184,6 @@ async function main(config = {}) {
             core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
           }
 
-          // Log first 100 lines of patch for debugging
           const finalPatchContent = fs.readFileSync(patchFilePath, "utf8");
           const patchLines = finalPatchContent.split("\n");
           const previewLineCount = Math.min(100, patchLines.length);
@@ -1192,7 +1194,7 @@ async function main(config = {}) {
 
           // Use --3way to handle cross-repo patches where the patch base may differ from target repo
           // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
-          await exec.exec("git", ["am", "--3way", patchFilePath], baseGitOpts);
+          await exec.exec("git", ["am", "--3way", patchFilePath], { ...baseGitOpts, silent: true });
           core.info("Patch applied successfully");
         } catch (error) {
           core.warning(`Initial patch apply failed, attempting add/add recovery: ${getErrorMessage(error)}`);
@@ -1202,14 +1204,14 @@ async function main(config = {}) {
           // when a patch created from the base branch tries to "add" a file that
           // already exists on the PR branch, prefer the patch version and continue.
           try {
-            const unresolvedFilesResult = await exec.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U"], baseGitOpts);
+            const unresolvedFilesResult = await exec.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U"], { ...baseGitOpts, silent: true });
             const unresolvedFiles = unresolvedFilesResult.stdout
               .split("\n")
               .map(line => line.trim())
               .filter(Boolean);
 
             if (unresolvedFiles.length > 0) {
-              const statusPorcelainResult = await exec.getExecOutput("git", ["status", "--porcelain"], baseGitOpts);
+              const statusPorcelainResult = await exec.getExecOutput("git", ["status", "--porcelain"], { ...baseGitOpts, silent: true });
               const addAddFiles = new Set(
                 statusPorcelainResult.stdout
                   .split("\n")
@@ -1222,10 +1224,10 @@ async function main(config = {}) {
               if (allConflictsAreAddAdd) {
                 core.warning(`Detected add/add conflict(s) for ${unresolvedFiles.join(", ")}; preferring patch version and continuing`);
                 for (const file of unresolvedFiles) {
-                  await exec.exec("git", ["checkout", "--theirs", "--", file], baseGitOpts);
-                  await exec.exec("git", ["add", "--", file], baseGitOpts);
+                  await exec.exec("git", ["checkout", "--theirs", "--", file], { ...baseGitOpts, silent: true });
+                  await exec.exec("git", ["add", "--", file], { ...baseGitOpts, silent: true });
                 }
-                await exec.exec("git", ["am", "--continue"], baseGitOpts);
+                await exec.exec("git", ["am", "--continue"], { ...baseGitOpts, silent: true });
                 core.info("Patch applied successfully after resolving add/add conflict(s)");
                 recoveredFromAddAddConflict = true;
               }
@@ -1238,27 +1240,21 @@ async function main(config = {}) {
             // Continue with normal push flow
           } else {
             core.error(`Failed to apply patch: ${getErrorMessage(error)}`);
-            // Investigate patch failure
             try {
               core.info("Investigating patch failure...");
-
-              const statusResult = await exec.getExecOutput("git", ["status"], baseGitOpts);
+              const statusResult = await exec.getExecOutput("git", ["status"], { ...baseGitOpts, silent: true });
               core.info("Git status output:");
               core.info(statusResult.stdout);
-
-              const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"], baseGitOpts);
+              const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"], { ...baseGitOpts, silent: true });
               core.info("Recent commits (last 5):");
               core.info(logResult.stdout);
-
-              const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"], baseGitOpts);
+              const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"], { ...baseGitOpts, silent: true });
               core.info("Uncommitted changes:");
               core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
-
-              const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"], baseGitOpts);
+              const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"], { ...baseGitOpts, silent: true });
               core.info("Failed patch diff:");
               core.info(patchDiffResult.stdout);
-
-              const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"], baseGitOpts);
+              const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"], { ...baseGitOpts, silent: true });
               core.info("Failed patch (full):");
               core.info(patchFullResult.stdout);
             } catch (investigateError) {
@@ -1277,7 +1273,7 @@ async function main(config = {}) {
       // (see github/agentic-workflows#539)
       let agentChangedFiles = [];
       {
-        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..HEAD`], baseGitOpts);
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..HEAD`], { ...baseGitOpts, silent: true });
         const actualFiles = diffResult.stdout.split("\0").filter(Boolean);
         agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
@@ -1288,12 +1284,12 @@ async function main(config = {}) {
             const msg = `SECURITY: Post-apply file-protection check failed. ` + `The patch applied files that were not detected by the pre-apply parser: ${filesStr}. ` + `This may indicate a patch-parser bypass attempt. Aborting push.`;
             core.error(msg);
             // Reset to pre-apply state
-            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], { ...baseGitOpts, silent: true });
             return { success: false, error: msg };
           }
           if (postApplyProtection.action === "fallback") {
             core.warning(`Post-apply: Protected file protection triggered (fallback-to-issue): ${postApplyProtection.files.join(", ")}`);
-            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], { ...baseGitOpts, silent: true });
             return await createProtectedFilesFallbackIssue(postApplyProtection.files);
           }
 
@@ -1302,7 +1298,7 @@ async function main(config = {}) {
           core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
           if (changedBlobSizeKb > maxSizeKb) {
             const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], { ...baseGitOpts, silent: true });
             return { success: false, error: msg };
           }
         }
@@ -1331,7 +1327,7 @@ async function main(config = {}) {
           if (preflightError) return preflightError;
 
           // Rename current local branch to review branch
-          await exec.exec("git", ["checkout", "-b", reviewBranchName], baseGitOpts);
+          await exec.exec("git", ["checkout", "-b", reviewBranchName], { ...baseGitOpts, silent: true });
           core.info(`Created review branch: ${reviewBranchName}`);
 
           // Push the review branch — use getExecOutput to capture stderr so we
@@ -1347,6 +1343,7 @@ async function main(config = {}) {
                 env: { ...process.env, ...gitAuthEnv },
                 ...baseGitOpts,
                 ignoreReturnCode: true,
+                silent: true,
               }),
             baseGitOpts.cwd
           );
@@ -1436,7 +1433,7 @@ async function main(config = {}) {
       if (signedCommits && hasChanges) {
         const squashBase = rangeBaseRef;
         try {
-          const { stdout: mergeCountOut } = await exec.getExecOutput("git", ["rev-list", "--merges", "--count", `${squashBase}..HEAD`], baseGitOpts);
+          const { stdout: mergeCountOut } = await exec.getExecOutput("git", ["rev-list", "--merges", "--count", `${squashBase}..HEAD`], { ...baseGitOpts, silent: true });
           const mergeCount = parseInt(mergeCountOut.trim(), 10);
           if (Number.isFinite(mergeCount) && mergeCount > 0) {
             core.warning(
@@ -1448,10 +1445,10 @@ async function main(config = {}) {
             // the most meaningful description of the actual work.  Fall back to the last
             // commit's message (which may be the merge commit itself) if no regular commit
             // exists, and finally to a generic label.
-            const { stdout: firstNonMergeOut } = await exec.getExecOutput("git", ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`], baseGitOpts);
+            const { stdout: firstNonMergeOut } = await exec.getExecOutput("git", ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`], { ...baseGitOpts, silent: true });
             let squashMessage = firstNonMergeOut.trim();
             if (!squashMessage) {
-              const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], baseGitOpts);
+              const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], { ...baseGitOpts, silent: true });
               squashMessage = lastMsgOut.trim() || "Merge changes";
             }
             await linearizeRangeAsCommit(squashBase, squashMessage, exec, { gitOpts: baseGitOpts, commitFlags: ["--allow-empty", "--no-verify"] });
@@ -1517,6 +1514,7 @@ async function main(config = {}) {
             env: { ...process.env, ...gitAuthEnv },
             ...baseGitOpts,
             ignoreReturnCode: true,
+            silent: true,
           });
 
           if (lsRemoteAfterPushResult.exitCode === 2) {
@@ -1544,7 +1542,7 @@ async function main(config = {}) {
             const preflightError = await runWorkflowScopePreflightCheck(exec, baseGitOpts, allowWorkflows, pullRequest?.base?.ref, "Fallback branch", core, agentChangedFiles);
             if (preflightError) return preflightError;
 
-            await exec.exec("git", ["checkout", "-b", fallbackBranchName], baseGitOpts);
+            await exec.exec("git", ["checkout", "-b", fallbackBranchName], { ...baseGitOpts, silent: true });
             // Use getExecOutput to capture stderr for 'workflows' scope diagnostics.
             // For fork-backed PRs, push to the head repo remote instead of origin.
             const fallbackPushRemote = pushRemoteUrl || "origin";
@@ -1556,6 +1554,7 @@ async function main(config = {}) {
                   env: { ...process.env, ...gitAuthEnv },
                   ...baseGitOpts,
                   ignoreReturnCode: true,
+                  silent: true,
                 }),
               baseGitOpts.cwd
             );
@@ -1625,7 +1624,7 @@ async function main(config = {}) {
       // Count new commits pushed for the CI trigger decision
       if (remoteHeadBeforePatch) {
         try {
-          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `${remoteHeadBeforePatch}..HEAD`], baseGitOpts);
+          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `${remoteHeadBeforePatch}..HEAD`], { ...baseGitOpts, silent: true });
           newCommitCount = parseInt(countStr.trim(), 10);
           core.info(`${newCommitCount} new commit(s) pushed to branch`);
         } catch {
@@ -1655,7 +1654,7 @@ async function main(config = {}) {
     // Fall back to local HEAD only if the helper did not return one.
     let commitSha = pushedCommitSha;
     if (!commitSha) {
-      const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"], baseGitOpts);
+      const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"], { ...baseGitOpts, silent: true });
       if (commitShaRes.exitCode !== 0) {
         return { success: false, error: "Failed to get commit SHA" };
       }
@@ -1683,7 +1682,7 @@ async function main(config = {}) {
       let isEmptyCommit = false;
       if (rangeBaseRef) {
         try {
-          const { stdout: diffStat } = await exec.getExecOutput("git", ["diff", "--stat", rangeBaseRef, "HEAD"], baseGitOpts);
+          const { stdout: diffStat } = await exec.getExecOutput("git", ["diff", "--stat", rangeBaseRef, "HEAD"], { ...baseGitOpts, silent: true });
           isEmptyCommit = !diffStat.trim();
           if (isEmptyCommit) {
             core.info("Skipping activation comment: pushed commit has no file changes (empty commit)");

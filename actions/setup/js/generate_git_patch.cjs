@@ -452,7 +452,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     if (!patchGenerated) {
       debugLog(`Strategy 2: Checking commits since GITHUB_SHA`);
       const currentHead = execGitSync(["rev-parse", "HEAD"], { cwd }).trim();
-      debugLog(`Strategy 2: currentHead=${currentHead}, GITHUB_SHA=${githubSha || "(not set)"}`);
+      debugLog("Strategy 2: Resolved current HEAD (Git output omitted)");
 
       if (!githubSha) {
         debugLog(`Strategy 2: GITHUB_SHA not set, cannot use this strategy`);
@@ -520,7 +520,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         if (remoteRefsOutput) {
           // Build exclusion list from all remote refs
           const remoteRefs = remoteRefsOutput.split("\n").filter(r => r);
-          debugLog(`Strategy 3: Found ${remoteRefs.length} remote refs: ${remoteRefs.slice(0, 5).join(", ")}${remoteRefs.length > 5 ? "..." : ""}`);
+          debugLog(`Strategy 3: Found ${remoteRefs.length} remote refs (Git output omitted)`);
 
           if (remoteRefs.length > 0) {
             // Find commits on current branch not reachable from any remote ref
@@ -549,7 +549,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
                   const candidateCommitCount = parseInt(execGitSync(["rev-list", "--count", `${candidateBase}..${branchName}`], { cwd }).trim(), 10);
                   if (Number.isNaN(candidateCommitCount)) {
-                    debugLog(`Strategy 3: Ignoring merge-base ${candidateBase} from ref ${ref} due to invalid commit count`);
+                    debugLog("Strategy 3: Ignoring merge-base due to invalid commit count (Git output omitted)");
                     continue;
                   }
                   if (candidateCommitCount <= 0) {
@@ -683,7 +683,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               // mb is not an ancestor of baseCommitSha — probe failure is ignored.
             }
             if (!mbIsAncestorOfBase) {
-              debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base ${mb} as diff base instead of PR head ${baseCommitSha}`);
+              debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base as diff base (Git output omitted)`);
               diffBaseForSize = mb;
             }
           }

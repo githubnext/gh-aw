@@ -94,6 +94,7 @@ negative controls and validated readable traces without live effects.
 | [`no-core-error-then-process-exit`](#no-core-error-then-process-exit) | Disallow `core.error()` immediately followed by `process.exit(nonzero)` |
 | [`no-core-error-then-process-exitcode`](#no-core-error-then-process-exitcode) | Disallow `core.error()` immediately followed by `process.exitCode = nonzero` |
 | [`no-exec-interpolated-command`](#no-exec-interpolated-command) | Disallow interpolated command strings passed to `@actions/exec` |
+| [`no-git-command-logging`](#no-git-command-logging) | Require silent Git execution and prevent inherited or file-directed subprocess output |
 | [`no-setfailed-then-exit-zero`](#no-setfailed-then-exit-zero) | Disallow resetting the exit code to success after `core.setFailed()` |
 | [`no-err-stack-then-string-fallback`](#no-err-stack-then-string-fallback) | Disallow the `err.stack \|\| String(err)` fallback pattern |
 | [`no-caught-error-interpolation`](#no-caught-error-interpolation) | Disallow directly interpolating a caught error in a template literal |
@@ -105,6 +106,35 @@ negative controls and validated readable traces without live effects.
 | [`prefer-actions-exec-over-child-process`](#prefer-actions-exec-over-child-process) | Prefer `@actions/exec` over `child_process` to spawn processes that run to completion |
 | [`no-unguarded-async-timer-callback`](#no-unguarded-async-timer-callback) | Require async timer callbacks to wrap their entire body in try/catch |
 | [`require-finite-check-before-date-toisostring`](#require-finite-check-before-date-toisostring) | Validate dynamic dates before calling `toISOString()` or `toJSON()` |
+
+### `no-git-command-logging`
+
+Git command lines, stdout, and stderr can contain credentials, remote URLs,
+configuration headers, and repository contents. Runner secret masking does not
+protect raw log files, so Git output must not be written to those files.
+Logging through `core.info`, `core.debug`, and other `@actions/core` methods
+is allowed: the GitHub Actions runner redacts those logs.
+
+Use `silent: true` for `@actions/exec` calls, after any option spreads. This keeps
+the command line and output off the runner streams while preserving return
+values and output listeners. The rule resolves local option constants and
+checks spread order, and can automatically add the silent option.
+
+For `child_process`, keep stdout/stderr piped (the default) or ignored; do not
+inherit them or send them to file descriptors. `execGitSync` enforces pipes
+itself while retaining runner-redacted `core` diagnostics.
+
+The rule also rejects sending locally captured Git stdout/stderr to raw/file-backed
+loggers (including MCP `server.debug`) and log-file writes. It follows
+constant aliases, string formatting, and output from `execGitSync`. Fixed
+diagnostics, exit codes, and byte/character counts remain allowed.
+
+This is an error-level rule. It recognizes static `git` command strings,
+paths, constant aliases, injected exec APIs, and common imported subprocess
+functions. It is not interprocedural taint analysis: dynamically built commands,
+shell wrappers, mutable aliases, and output forwarded across functions still require review.
+Output listeners must not write Git output to raw log files. Intentional patch and bundle
+artifacts are outputs, not diagnostic logs, and remain supported.
 
 ### `no-empty-catch-block`
 

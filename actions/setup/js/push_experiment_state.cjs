@@ -560,7 +560,7 @@ async function main() {
         // Refresh baseRef and fetch the updated remote history so that
         // pushSignedCommits can resolve the new baseRef in git rev-list.
         try {
-          const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], { cwd: workspaceDir });
+          const { stdout: lsOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], { cwd: workspaceDir, silent: true });
           const remoteHead = lsOut.trim().split(/\s+/)[0] || "";
           if (remoteHead && remoteHead !== currentBaseRef) {
             currentBaseRef = remoteHead;

@@ -101,7 +101,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     // embedded-credential URL configure_git_credentials.sh may have set, leaving the
     // persisted extraheader as the single source of auth.
     core.info(`Configuring remote origin to: ${repoSlug}`);
-    await exec.exec("git", ["remote", "set-url", "origin", remoteUrl]);
+    await exec.exec("git", ["remote", "set-url", "origin", remoteUrl], { silent: true });
 
     // Trust the persisted credential rather than injecting a second one. git treats
     // http.<url>.extraheader as multi-valued, so adding our own header on top of the
@@ -122,19 +122,19 @@ async function checkoutRepo(repoSlug, token, options = {}) {
 
     // Fetch the new repo
     core.info(`Fetching repository: ${repoSlug}`);
-    await exec.exec("git", ["fetch", "origin", "--prune"]);
+    await exec.exec("git", ["fetch", "origin", "--prune"], { silent: true });
 
     // Reset to the base branch of the new repo
     core.info(`Checking out base branch: ${baseBranch}`);
     try {
-      await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`]);
+      await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`], { silent: true });
     } catch {
       throw new Error(`${ERR_NOT_FOUND}: Base branch ${baseBranch} not found in ${repoSlug}`);
     }
 
     // Clean up any local changes
-    await exec.exec("git", ["clean", "-fd"]);
-    await exec.exec("git", ["reset", "--hard", "HEAD"]);
+    await exec.exec("git", ["clean", "-fd"], { silent: true });
+    await exec.exec("git", ["reset", "--hard", "HEAD"], { silent: true });
 
     core.info(`Successfully switched to repository: ${repoSlug}`);
 

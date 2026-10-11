@@ -31,6 +31,7 @@ import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-proce
 import { noCoreErrorThenProcessExitCodeRule } from "./rules/no-core-error-then-process-exitcode";
 import { noChildProcessInterpolatedCommandRule } from "./rules/no-child-process-interpolated-command";
 import { noExecInterpolatedCommandRule } from "./rules/no-exec-interpolated-command";
+import { noGitCommandLoggingRule } from "./rules/no-git-command-logging";
 import { requireExecSyncTryCatchRule } from "./rules/require-execsync-try-catch";
 import { requireExecFileSyncTryCatchRule } from "./rules/require-execfilesync-try-catch";
 import { requireFsIoTryCatchRule } from "./rules/require-fs-io-try-catch";
@@ -105,6 +106,7 @@ const plugin = {
     "no-core-error-then-process-exitcode": noCoreErrorThenProcessExitCodeRule,
     "no-child-process-interpolated-command": noChildProcessInterpolatedCommandRule,
     "no-exec-interpolated-command": noExecInterpolatedCommandRule,
+    "no-git-command-logging": noGitCommandLoggingRule,
     "require-execsync-try-catch": requireExecSyncTryCatchRule,
     "require-execfilesync-try-catch": requireExecFileSyncTryCatchRule,
     "require-fs-io-try-catch": requireFsIoTryCatchRule,

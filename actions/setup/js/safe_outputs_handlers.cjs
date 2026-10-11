@@ -1192,7 +1192,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             .toString()
             .trim();
           if (currentSha !== pinnedSha) {
-            server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation (was ${pinnedSha}, now ${currentSha}). Aborting.`);
+            server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation. Aborting.`);
             return {
               content: [
                 {
@@ -1747,7 +1747,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             .toString()
             .trim();
           if (currentSha !== pushPinnedSha) {
-            server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation (was ${pushPinnedSha}, now ${currentSha}). Aborting.`);
+            server.debug(`SECURITY: Branch '${entry.branch}' SHA changed during transport generation. Aborting.`);
             return {
               content: [
                 {
