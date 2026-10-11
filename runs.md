@@ -10,3 +10,4 @@
 2026-10-08: reviewed gh-aw-wizard (6), gh-aw-canvas (4); no blog; backlog 0.
 2026-10-09: discovery run; reviewed storyplan (6), agentic-workflow-observatory (6), cnotv/agentic-extension (5); no blog; backlog 0.
 2026-10-10: discovery run; reviewed gh-aw-test (4); no new candidates otherwise; no blog; backlog 0.
+2026-10-11: discovery run; reviewed githubnext/ado-aw (7); no blog; backlog 0.

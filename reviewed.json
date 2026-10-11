@@ -352,5 +352,17 @@
    "README.md: e2e runner exercising issue/PR/comment-creating workflows"
   ],
   "blogged": false
+ },
+ "githubnext/ado-aw": {
+  "kind": "tool",
+  "reviewed": "2026-10-11",
+  "score": 7,
+  "summary": "Compiles gh-aw-style markdown agents into multi-stage Azure DevOps pipelines (agent, threat detection, safe-outputs executor); active, v0.53.0.",
+  "highlights": [
+   "README.md: three-stage Agent/Detection/SafeOutputs pipeline",
+   "Agent never gets write token; AWF network sandbox",
+   "prompts/ for create/update/debug by AI agents"
+  ],
+  "blogged": false
  }
 }

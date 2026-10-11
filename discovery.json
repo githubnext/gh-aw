@@ -39,6 +39,10 @@
   {
    "q": "gh-aw (plain search)",
    "last_run": "2026-10-10"
+  },
+  {
+   "q": "\"safe-outputs\" agentic workflow in:readme fork:false archived:false pushed:>2026-09-20",
+   "last_run": "2026-10-11"
   }
  ]
 }
