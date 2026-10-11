@@ -5,7 +5,7 @@ description: Configure the experimental Google Antigravity CLI engine with Gemin
 
 > [!WARNING]
 > Agy is an experimental built-in engine, not a Gemini alias or a feature-equivalent
-> replacement. Initial support is Linux x64 with native CLI v1.3.1 and Gemini
+> replacement. Support is Linux x64 with native CLI v1.3.3 and Gemini
 > API-key authentication. ADC, Google WIF and Vertex AI are not supported.
 
 ## Selection and authentication
@@ -27,7 +27,7 @@ engine: agy
 engine:
   id: agy
   model: gemini-3.8-flash-medium
-  version: "1.3.1"
+  version: "1.3.3"
 ```
 
 Configure `GEMINI_API_KEY` as a repository secret, for example with
@@ -48,8 +48,9 @@ not `google/`, `gemini/` or Copilot provider prefixes. Availability depends on
 the native release and the API key's access; an unknown or inaccessible model
 fails the run.
 
-The harness downloads the native Linux x64 v1.3.1 release, verifies its published
+The harness downloads the native Linux x64 v1.3.3 release, verifies its published
 SHA-256 checksum, extracts only `antigravity`, and verifies the executable version.
+An explicit `version: "1.3.1"` retains the previous verified release.
 Other releases and architectures are not supported. A custom `engine.command`
 must report the same verified version. Installation and settings are temporary
 and removed after execution; no inherited user authentication profile is used.
@@ -89,12 +90,20 @@ remain absent. Unrecognized native events retain their payloads as extensions.
 
 The parser regression fixture samples the native transcript and published
 artifacts from [Smoke Agy run 37848575608](https://github.com/github/gh-aw/actions/runs/37848575608).
+All 17 per-step accounting observations are also retained in a sanitized fixture;
+their token sums match the native cumulative result. The appended legacy summary
+does not override native accounting. The run's historical `agent-session.jsonl`
+omits observations and incorrectly marks input as including cache; raw native
+stdio is required to reconstruct those observations.
 Native inference succeeded, but the workflow's conformance checker failed; this
 is not evidence of a passing production gate. The successful
 [authentication run 37732637929](https://github.com/github/gh-aw/actions/runs/37732637929)
 publishes only a sanitized receipt, including negative-probe status and usage,
 not the native transcript. Reasoning, refusal, and additional failure cases in
 the parser tests are synthetic, not observations from these runs.
+The [v1.3.3 release](https://github.com/google-antigravity/antigravity-cli/releases/tag/1.3.3)
+and current headless documentation retain the streaming envelope and token fields.
+The parser's live evidence remains v1.3.1; no v1.3.3 workflow execution is claimed.
 
 Agent writes to `GITHUB_STEP_SUMMARY` use an isolated file that is appended to
 the runner's step summary only after secret redaction, matching other built-in engines.
@@ -117,6 +126,8 @@ scoped `permissions.allow` rules, but this integration does not yet translate
 workflow tool restrictions into that native policy. Without advance grants,
 approval-required tools are soft-denied in headless mode, which the gh-aw harness
 treats as a failure. See the [native headless permission documentation](https://antigravity.google/docs/cli/headless).
+Since v1.3.2, `--dangerously-skip-permissions` does not auto-approve plans in
+`/plan` mode. The built-in headless profile does not select that mode.
 Per-command bash restrictions, `bash: false`,
 empty bash allowlists, and disabling native editing or web tools are rejected
 rather than silently ignored. The fixed native timeout is five minutes, with
@@ -193,7 +204,7 @@ engine is an explicit choice, not an automatic migration:
 | Gemini configuration | Experimental Agy configuration |
 |---|---|
 | `engine: gemini` | `engine: agy` |
-| Gemini CLI version pin | Verified native `version: "1.3.1"` only |
+| Gemini CLI version pin | Verified native `version: "1.3.3"`; explicit `"1.3.1"` remains supported |
 | Gemini model name | Native Agy slug, such as `gemini-3.8-flash-medium` |
 | `GEMINI_API_KEY` | Same secret name; private `modelProvider: gemini` settings |
 | Gemini settings, hooks or customizations | Not copied; review native configuration differences |
