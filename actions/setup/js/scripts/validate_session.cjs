@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Ajv } = require("ajv");
 const { validateSessionFileHeader } = require("../unified_session_render.cjs");
-const { sessionOrderingEntries } = require("../unified_session_order.cjs");
+const { sessionOrderingEntries, sessionTimestampNs } = require("../unified_session_order.cjs");
 
 const SCHEMA_DIRECTORY = path.resolve(__dirname, "../../../../docs/public/schemas");
 
@@ -69,7 +69,9 @@ function validateSession(content, kind = "unified", format = "jsonl") {
       const key = sourceKey(event.provenance);
       let source = sources.get(key);
       if (!source) {
-        source = { component: event.provenance.component, timestampUnit: units.get(key) ?? (event.provenance.component === "otel" ? "nanoseconds" : "milliseconds"), events: [] };
+        const timestampUnit = units.get(key);
+        const component = event.provenance.component;
+        source = { component, timestampUnit: timestampUnit ?? (component === "otel" ? "nanoseconds" : "milliseconds"), useProvenanceTimestamp: timestampUnit === undefined && component !== "otel", events: [] };
         sources.set(key, source);
       }
       if (source.component !== "otel" && source.events.at(-1)?.provenance.index > event.provenance.index) throw new Error(`Unified session is not source ordered at record ${index + 1}`);
@@ -79,7 +81,7 @@ function validateSession(content, kind = "unified", format = "jsonl") {
       [...sources.values()].map(source => ({
         ...source,
         events: source.events.map(event => ({
-          timestamp: event.timestamp ?? event.provenance.timestampMs,
+          timestamp: source.useProvenanceTimestamp && !(typeof event.timestamp === "string" && sessionTimestampNs(event) !== undefined) ? event.provenance.timestampMs : (event.timestamp ?? event.provenance.timestampMs),
           event,
         })),
       }))

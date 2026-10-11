@@ -176,7 +176,7 @@ describe("Unified OTel observations", () => {
                     spanId,
                     name: "parent",
                     startTimeUnixNano: "1000000",
-                    events: [{ name: "missing" }, { name: "invalid", timeUnixNano: "invalid" }, { name: "observed", timeUnixNano: "2000000" }],
+                    events: [{ name: "missing" }, { name: "invalid", timeUnixNano: "invalid" }, { name: "null", timeUnixNano: null }, { name: "observed", timeUnixNano: "2000000" }],
                   },
                 ],
               },
@@ -187,13 +187,15 @@ describe("Unified OTel observations", () => {
     ]);
     const events = collectUnifiedSession({ rootDir: root }).events;
     const observed = events.filter(event => event.provenance.component === "otel");
-    expect(observed.map(event => event.data.name)).toEqual(["parent", "observed", "missing", "invalid"]);
+    expect(observed.map(event => event.data.name)).toEqual(["parent", "observed", "missing", "invalid", "null"]);
     expect(observed[2]).not.toHaveProperty("timestamp");
     expect(observed[2].provenance).not.toHaveProperty("timestampMs");
     expect(observed[3].timestamp).toBe("invalid");
     expect(observed[3].provenance).not.toHaveProperty("timestampMs");
+    expect(observed[4]).not.toHaveProperty("timestamp");
+    expect(observed[4].provenance).not.toHaveProperty("timestampMs");
     expect(observed.filter(event => event.type === "otel.span_event").every(event => event.data.traceId === traceId && event.data.spanId === spanId)).toBe(true);
-    expect(events.at(-1).data.untimedEvents).toBe(2);
+    expect(events.at(-1).data.untimedEvents).toBe(3);
     expect(validateSession(events.map(JSON.stringify).join("\n") + "\n")).toBe(events.length);
   });
 
@@ -208,6 +210,7 @@ describe("Unified OTel observations", () => {
                   { timeUnixNano: "0", observedTimeUnixNano: "9000000", body: { stringValue: "epoch" }, severityNumber: 0 },
                   { observedTimeUnixNano: "1000000", body: { stringValue: "observed" } },
                   { body: { stringValue: "untimed" } },
+                  { timeUnixNano: null, observedTimeUnixNano: "2000000", body: { stringValue: "explicit null" } },
                 ],
               },
             ],
@@ -219,9 +222,13 @@ describe("Unified OTel observations", () => {
     const logs = events.filter(event => event.type === "otel.log");
     expect(logs[0]).toMatchObject({ timestamp: "0", data: { timeUnixNano: "0", observedTimeUnixNano: "9000000", severityNumber: 0 }, provenance: { timestampMs: 0 } });
     expect(logs[1]).toMatchObject({ timestamp: "1000000", provenance: { timestampMs: 1 } });
-    expect(logs[2]).not.toHaveProperty("timestamp");
-    expect(logs[2].provenance).not.toHaveProperty("timestampMs");
-    expect(events.at(-1).data.untimedEvents).toBe(1);
+    const untimed = logs.filter(log => !Object.hasOwn(log, "timestamp"));
+    const explicitNull = untimed.find(log => log.data.body?.stringValue === "explicit null");
+    expect(explicitNull).toBeDefined();
+    expect(explicitNull).not.toHaveProperty("timestamp");
+    expect(explicitNull.provenance).not.toHaveProperty("timestampMs");
+    expect(untimed).toHaveLength(2);
+    expect(events.at(-1).data.untimedEvents).toBe(2);
   });
 
   it("redacts decoded secrets and registered masks in OTel bodies, attributes and correlation identifiers before persistence", () => {

@@ -48,12 +48,12 @@ function normalizeOtelEvents(payload, report) {
             ...(resource.schemaUrl !== undefined ? { resourceSchemaUrl: resource.schemaUrl } : {}),
             ...(scope.schemaUrl !== undefined ? { scopeSchemaUrl: scope.schemaUrl } : {}),
           };
-          const timestamp = record[clock] ?? (type === "otel.log" ? record.observedTimeUnixNano : undefined);
+          const timestamp = Object.hasOwn(record, clock) ? record[clock] : type === "otel.log" ? record.observedTimeUnixNano : undefined;
           /** @type {SessionEvent} */
           const observation = {
             type: type === "otel.span" ? "otel.span" : "otel.log",
             data: { ...structuredClone(record), ...context },
-            ...(timestamp !== undefined ? { timestamp } : {}),
+            ...(timestamp !== undefined && timestamp !== null ? { timestamp } : {}),
           };
           events.push(observation);
           if (type === "otel.span" && record.events !== undefined) {
@@ -67,7 +67,7 @@ function normalizeOtelEvents(payload, report) {
               events.push({
                 type: "otel.span_event",
                 data: { ...structuredClone(event), ...context, ...(record.traceId !== undefined ? { traceId: record.traceId } : {}), ...(record.spanId !== undefined ? { spanId: record.spanId } : {}) },
-                ...(event.timeUnixNano !== undefined ? { timestamp: event.timeUnixNano } : {}),
+                ...(event.timeUnixNano !== undefined && event.timeUnixNano !== null ? { timestamp: event.timeUnixNano } : {}),
               });
             }
           }
