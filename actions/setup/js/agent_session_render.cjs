@@ -27,10 +27,9 @@ function messageSourceScope(source) {
  * @param {Array<any>} events
  * @returns {Array<any>}
  */
-function collapseStreamedMessages(events) {
+function collapseStreamedMessages(events, secrets = collectArtifactSecretValues()) {
   const output = [];
   const projections = new Set();
-  const secrets = collectArtifactSecretValues();
   const claudeMessages = new Map();
   let sequence = 0;
   let geminiSnapshot;

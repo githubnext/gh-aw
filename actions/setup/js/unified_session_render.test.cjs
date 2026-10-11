@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { generatePlainTextSummary, generateCopilotCliStyleSummary, generateConversationMarkdown, formatToolUse, formatInitializationSummary, MAX_STEP_SUMMARY_SIZE } from "./log_parser_shared.cjs";
 import { publishUnifiedSessionSummary, validateSessionFileHeader } from "./unified_session_render.cjs";
+import { MCP_GATEWAY_CONFIG_PATHS } from "./redact_secrets.cjs";
 import { main, mergeSessionSources } from "./unified_session.cjs";
 import { normalizeClaudeSession } from "./claude_session.cjs";
 import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
@@ -695,6 +696,19 @@ describe("unified session publication views", () => {
       expect(output).toContain("summary truncated: byte limit reached");
     }
     expect(events.at(-1).data.content).toHaveLength(2000);
+  });
+
+  it("keeps the timeline section visible when the overview uses the byte budget and collects secrets once", () => {
+    const existsSync = vi.spyOn(fs, "existsSync");
+    const events = [header, ...Array.from({ length: 128 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(9000)}.jsonl`))];
+    const output = generateCopilotCliStyleSummary(events);
+    const gatewayConfigChecks = existsSync.mock.calls.filter(([candidate]) => MCP_GATEWAY_CONFIG_PATHS.includes(candidate)).length;
+
+    expect(Buffer.byteLength(output)).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
+    expect(output).toContain("#### Session overview");
+    expect(output).toContain("#### Full timeline");
+    expect(output).toContain("Full timeline omitted: byte limit reached");
+    expect(gatewayConfigChecks).toBe(MCP_GATEWAY_CONFIG_PATHS.length);
   });
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {

@@ -16,8 +16,8 @@ const object = value => value !== null && typeof value === "object" && !Array.is
  * @param {Array<any>} events
  * @returns {string[]}
  */
-function renderSubagentSummary(events) {
-  const redacted = redactManifestValue(events, collectArtifactSecretValues());
+function renderSubagentSummary(events, secrets = collectArtifactSecretValues()) {
+  const redacted = redactManifestValue(events, secrets);
   if (!Array.isArray(redacted)) throw new Error(`${ERR_VALIDATION}: Expected subagent session events`);
   const agents = new Map();
   let metrics;

@@ -270,8 +270,7 @@ function scopedAgentSessions(events) {
 }
 
 /** @param {Array<any>} events @returns {Array<{label: string, events: Array<any>}>} */
-function publicationAgentSessions(events) {
-  const secrets = collectArtifactSecretValues();
+function publicationAgentSessions(events, secrets = collectArtifactSecretValues()) {
   /** @param {string} value @returns {string} */
   const redact = value => {
     const redacted = redactManifestValue(value, secrets);
@@ -298,14 +297,15 @@ function timelineToolKeys(event) {
 /**
  * Known runtime fields are display projections, never raw request/response dumps.
  * @param {Array<any>} events
- * @param {{markdown: boolean, maxBytes: number, maxLineBytes: number, agentStatistics: (events: Array<any>) => string[], agentConversation: (events: Array<any>) => string[]}} options
+ * @param {{markdown: boolean, maxBytes: number, maxLineBytes: number, agentStatistics: (events: Array<any>, secrets: string[]) => string[], agentConversation: (events: Array<any>, secrets: string[]) => string[]}} options
  * @returns {string}
  */
 function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentStatistics, agentConversation }) {
   const headers = events.filter(event => event?.type === "session.format" && event.provenance?.component === "collector");
   if (headers.length) validateSessionFileHeader(events);
   if (headers.length > 1) throw new Error(`${ERR_VALIDATION}: Unified session file contains multiple collector format headers`);
-  const redacted = redactManifestValue(events, collectArtifactSecretValues());
+  const secrets = collectArtifactSecretValues();
+  const redacted = redactManifestValue(events, secrets);
   if (!Array.isArray(redacted)) throw new Error(`${ERR_VALIDATION}: Expected unified session events`);
   const lines = markdown ? [] : ["=== Unified session ==="];
   if (headers.length) lines.push(`File format version: ${headers[0].data.version}`);
@@ -315,9 +315,9 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     counts.set(component, (counts.get(component) ?? 0) + 1);
   }
   lines.push(`Records: ${redacted.length} (${[...counts].map(([name, count]) => `${inline(name)}=${count}`).join(", ")})`);
-  const agentSessions = publicationAgentSessions(events);
+  const agentSessions = publicationAgentSessions(events, secrets);
   for (const group of agentSessions) {
-    lines.push("", `Agent source: ${inline(group.label)}`, ...agentStatistics(group.events));
+    lines.push("", `Agent source: ${inline(group.label)}`, ...agentStatistics(group.events, secrets));
   }
   const overview = [...lines];
   const traceLines = ["Chronological trace (user prompts omitted; untimed observations follow):"];
@@ -352,10 +352,16 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
   }
   // Reconcile each private conversation before restoring merged timeline order.
   const displayEvents = [...streamScopes.values()]
-    .flatMap(entries => collapseStreamedMessages(entries.sort((left, right) => (left.provenance?.index ?? 0) - (right.provenance?.index ?? 0))))
+    .flatMap(entries =>
+      collapseStreamedMessages(
+        entries.sort((left, right) => (left.provenance?.index ?? 0) - (right.provenance?.index ?? 0)),
+        secrets
+      )
+    )
     .sort((left, right) => left[timelineIndex] - right[timelineIndex]);
-  const trace = redactManifestValue(displayEvents, collectArtifactSecretValues());
+  const trace = redactManifestValue(displayEvents, secrets);
   if (!Array.isArray(trace)) throw new Error(`${ERR_VALIDATION}: Expected unified session display events`);
+  const displayEventsBySource = new Map(displayEvents.map((entry, index) => [events[entry[timelineIndex]], trace[index]]));
   let previousTime;
   for (const [index, event] of trace.entries()) {
     const detail = eventDetail(event);
@@ -381,8 +387,8 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     if (conversational) {
       const original = displayEvents[index];
       const start = pairedStarts.get(events[original[timelineIndex]]);
-      const entries = publicationAgentSessions(start ? [start, original] : [original]).flatMap(group => group.events);
-      const content = agentConversation(entries).map(line => line.replace(/^\[\d+\] /, ""));
+      const entries = [...(start && displayEventsBySource.has(start) ? [displayEventsBySource.get(start)] : []), event].map(({ provenance, ...entry }) => entry);
+      const content = agentConversation(entries, secrets).map(line => line.replace(/^\[\d+\] /, ""));
       traceLines.push(...content);
     }
   }
@@ -411,16 +417,17 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     bodyBudget,
     maxLineBytes
   );
-  let offset = 0;
-  const blocks = [];
-  for (const section of bounded) {
-    if (offset >= visible.length) break;
-    const content = visible.slice(offset, offset + section.lines.length);
-    offset += content.length;
-    if (section === bounded.at(-1) && offset < visible.length) content.push(...visible.slice(offset));
-    blocks.push(block(section, content));
+  const truncationNotice = "... (summary truncated: byte limit reached)";
+  const timelineNotice = "... (Full timeline omitted: byte limit reached)";
+  const overviewContent = visible.slice(0, bounded[0].lines.length);
+  const timelineContent = visible.slice(bounded[0].lines.length);
+  const timelineVisible = timelineContent.some(line => line !== truncationNotice);
+  if (!timelineVisible) {
+    const timelineNoticeBytes = Buffer.byteLength(timelineNotice, "utf8") + 1;
+    const boundedOverview = boundSummaryLines(bounded[0].lines, bodyBudget - timelineNoticeBytes, maxLineBytes);
+    return preamble + block(bounded[0], boundedOverview) + block(bounded[1], [timelineNotice]) + tail;
   }
-  return preamble + blocks.join("") + tail;
+  return preamble + block(bounded[0], overviewContent) + block(bounded[1], timelineContent) + tail;
 }
 
 /** @param {string} filePath @returns {Promise<void>} */
