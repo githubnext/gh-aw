@@ -5,7 +5,7 @@ import path from "node:path";
 import { parseAgyLog } from "./parse_agy_log.cjs";
 import { collectUnifiedSession, parseEngineSession } from "./unified_session.cjs";
 import { writeSessionArtifact } from "./session_artifact.cjs";
-import { agySmoke } from "./fixtures/agy_ci_sessions.cjs";
+import { agySmoke, agyAccounting, agyLegacySummary } from "./fixtures/agy_ci_sessions.cjs";
 import { validateSession } from "./scripts/validate_session.cjs";
 
 const jsonl = records => records.map(record => JSON.stringify(record)).join("\n") + "\n";
@@ -13,6 +13,23 @@ const roots = [];
 afterEach(() => roots.splice(0).forEach(root => fs.rmSync(root, { recursive: true, force: true })));
 
 describe("run-backed AGY canonical session", () => {
+  it("reconciles all observed step accounting with the native terminal, not the appended legacy summary", () => {
+    const terminal = agySmoke.at(-1);
+    const records = [agySmoke[0], ...agyAccounting, terminal, agyLegacySummary];
+    const events = parseAgyLog(jsonl(records)).logEntries;
+    const reports = events.filter(event => event.type === "usage.report");
+    expect(reports).toHaveLength(17);
+    const result = events.find(event => event.type === "session.result");
+    for (const field of ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "total_tokens"]) {
+      expect(reports.reduce((sum, report) => sum + report.data.usage[field], 0)).toBe(result.data.usage[field]);
+    }
+    expect(result.data.usage).toMatchObject({ input_tokens: 79491, cache_read_input_tokens: 298918, input_tokens_include_cache: false });
+    expect(events.filter(event => event.type === "session.result")).toHaveLength(1);
+    expect(events.filter(event => event.type === "session.collection_warning")).toEqual([]);
+    expect(parseAgyLog(jsonl(events)).logEntries).toEqual(events);
+    expect(validateSession(jsonl(events), "agent")).toBe(events.length);
+  });
+
   it("maps observed initialization, contentless messages, outputless completions and per-step accounting", () => {
     const events = parseAgyLog(jsonl(agySmoke)).logEntries;
     expect(events.find(event => event.type === "session.init").data).toMatchObject({
@@ -69,6 +86,25 @@ describe("run-backed AGY canonical session", () => {
 });
 
 describe("AGY source-dependent observations (synthetic edge cases)", () => {
+  it("uses shared cumulative reconciliation for canonical usage additions and explicit overflow", () => {
+    const records = [
+      { event: "result", result: { status: "SUCCESS", usage: { input_tokens: 10, thinking_tokens: 2, cache_read_tokens: 4, cache_creation_input_tokens: 1, billing: { measured: true } } } },
+      { event: "result", result: { status: "ERROR", usage: { reasoning_output_tokens: 3, cache_creation_input_tokens: 2, overflowed_tokens: ["input_tokens"] } } },
+    ];
+    const events = parseAgyLog(jsonl(records)).logEntries;
+    const result = events.find(event => event.type === "session.result");
+    expect(result.data.usage).toEqual({
+      reasoning_output_tokens: 3,
+      cache_read_input_tokens: 4,
+      cache_creation_input_tokens: 2,
+      billing: { measured: true },
+      input_tokens_include_cache: false,
+      overflowed_tokens: ["input_tokens"],
+    });
+    expect(result.data.nativeSnapshots).toEqual([records[0]]);
+    expect(validateSession(jsonl(events), "agent")).toBe(events.length);
+  });
+
   it("preserves native identities, empty content, user/reasoning channels and unknown extensions", () => {
     const records = [
       { event: "user", id: "user-native", parentId: null, timestamp: 0, message: { content: [{ type: "text", text: "  prompt\n" }] } },

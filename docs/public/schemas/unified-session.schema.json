@@ -515,7 +515,14 @@
     },
     "EvalResultData": {
       "type": "object",
-      "properties": { "id": { "$ref": "#/definitions/JsonValue" }, "answer": { "$ref": "#/definitions/JsonValue" }, "model": { "$ref": "#/definitions/JsonValue" }, "error": { "$ref": "#/definitions/JsonValue" } },
+      "properties": {
+        "id": { "$ref": "#/definitions/JsonValue" },
+        "answer": { "$ref": "#/definitions/JsonValue" },
+        "model": { "$ref": "#/definitions/JsonValue" },
+        "error": { "$ref": "#/definitions/JsonValue" },
+        "runId": { "$ref": "#/definitions/JsonValue" },
+        "assignments": { "$ref": "#/definitions/JsonValue" }
+      },
       "additionalProperties": false
     },
     "EventMetadata": { "type": "object", "properties": { "id": { "type": "string" }, "parentId": { "type": ["string", "null"] }, "timestamp": { "type": ["string", "number"] } }, "additionalProperties": {} },
@@ -578,11 +585,48 @@
         "passed": { "$ref": "#/definitions/JsonValue" },
         "direction": { "$ref": "#/definitions/JsonValue" },
         "threshold": { "$ref": "#/definitions/JsonValue" },
-        "error": { "$ref": "#/definitions/JsonValue" }
+        "error": { "$ref": "#/definitions/JsonValue" },
+        "source": { "$ref": "#/definitions/JsonValue" },
+        "enabled": { "$ref": "#/definitions/JsonValue" },
+        "min": { "$ref": "#/definitions/JsonValue" },
+        "max": { "$ref": "#/definitions/JsonValue" },
+        "digest": { "$ref": "#/definitions/JsonValue" },
+        "severity": { "$ref": "#/definitions/JsonValue" },
+        "message": { "$ref": "#/definitions/JsonValue" }
       },
       "additionalProperties": false
     },
-    "GraderManifestData": { "type": "object", "properties": { "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } } }, "additionalProperties": false },
+    "GraderManifestData": { "type": "object", "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } } }, "additionalProperties": false },
+    "GraderMeasurementData": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/definitions/JsonValue" },
+        "name": { "$ref": "#/definitions/JsonValue" },
+        "status": { "$ref": "#/definitions/JsonValue" },
+        "value": { "$ref": "#/definitions/JsonValue" },
+        "score": { "$ref": "#/definitions/JsonValue" },
+        "unit": { "$ref": "#/definitions/JsonValue" },
+        "passed": { "$ref": "#/definitions/JsonValue" },
+        "direction": { "$ref": "#/definitions/JsonValue" },
+        "threshold": { "$ref": "#/definitions/JsonValue" },
+        "error": { "$ref": "#/definitions/JsonValue" },
+        "source": { "$ref": "#/definitions/JsonValue" },
+        "enabled": { "$ref": "#/definitions/JsonValue" },
+        "min": { "$ref": "#/definitions/JsonValue" },
+        "max": { "$ref": "#/definitions/JsonValue" },
+        "digest": { "$ref": "#/definitions/JsonValue" },
+        "severity": { "$ref": "#/definitions/JsonValue" },
+        "message": { "$ref": "#/definitions/JsonValue" },
+        "implementation": {
+          "anyOf": [
+            { "type": "object", "properties": { "id": { "$ref": "#/definitions/JsonValue" }, "version": { "$ref": "#/definitions/JsonValue" }, "digest": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false },
+            { "type": "null" }
+          ]
+        },
+        "metrics": { "type": "array", "items": { "type": "object", "properties": { "id": { "$ref": "#/definitions/JsonValue" }, "value": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false } }
+      },
+      "additionalProperties": false
+    },
     "GraderResultData": {
       "type": "object",
       "properties": {
@@ -596,7 +640,39 @@
         "direction": { "$ref": "#/definitions/JsonValue" },
         "threshold": { "$ref": "#/definitions/JsonValue" },
         "error": { "$ref": "#/definitions/JsonValue" },
-        "results": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } }
+        "source": { "$ref": "#/definitions/JsonValue" },
+        "enabled": { "$ref": "#/definitions/JsonValue" },
+        "min": { "$ref": "#/definitions/JsonValue" },
+        "max": { "$ref": "#/definitions/JsonValue" },
+        "digest": { "$ref": "#/definitions/JsonValue" },
+        "severity": { "$ref": "#/definitions/JsonValue" },
+        "message": { "$ref": "#/definitions/JsonValue" },
+        "implementation": {
+          "anyOf": [
+            { "type": "object", "properties": { "id": { "$ref": "#/definitions/JsonValue" }, "version": { "$ref": "#/definitions/JsonValue" }, "digest": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false },
+            { "type": "null" }
+          ]
+        },
+        "metrics": { "type": "array", "items": { "type": "object", "properties": { "id": { "$ref": "#/definitions/JsonValue" }, "value": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false } },
+        "version": { "$ref": "#/definitions/JsonValue" },
+        "run": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": { "$ref": "#/definitions/JsonValue" },
+                "attempt": { "$ref": "#/definitions/JsonValue" },
+                "graderCount": { "$ref": "#/definitions/JsonValue" },
+                "passed": { "$ref": "#/definitions/JsonValue" },
+                "failed": { "$ref": "#/definitions/JsonValue" },
+                "errors": { "$ref": "#/definitions/JsonValue" }
+              },
+              "additionalProperties": false
+            },
+            { "type": "null" }
+          ]
+        },
+        "results": { "type": "array", "items": { "$ref": "#/definitions/GraderMeasurementData" } }
       },
       "additionalProperties": false
     },
