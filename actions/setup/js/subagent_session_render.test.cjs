@@ -121,7 +121,7 @@ describe("subagent session summaries", () => {
       await publishUnifiedSessionSummary(path.join(root, "usage/aw_session.jsonl"));
       const output = fs.readFileSync(summaryPath, "utf8");
       expect(output).toContain("Existing summary");
-      expect(output).toContain("Research &lt;routing&gt;");
+      expect(output).toContain("Research <routing>");
       expect(output).toContain("child credits: 3.000 (75.0% of agent credits)");
       expect(output).toContain("reasoningEffort=xhigh executionMode=background");
       expect(output).toContain("cacheWriteTokens=0");

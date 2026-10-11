@@ -1285,6 +1285,8 @@ suffix relative to the preceding displayed timed entry; the first uses `+0s`.
 Untimed observations are labeled rather than assigned a clock. Message bodies
 retain multiline terminal-style formatting, and the Actions view fences the
 overview and timeline separately.
+Literal command operators and HTML stay readable inside payload-safe fences,
+rather than displaying HTML entities; source text cannot close those fences.
 
 | Source event | Display |
 | --- | --- |
@@ -1323,8 +1325,9 @@ Publication creates redacted copies before shortening previews, so truncation
 cannot expose the prefix of a recognized credential or registered add-mask value.
 Private tool pairing keys remain available internally for correct correlation;
 the final publication text is redacted as well. Source events are unchanged.
-Formatted tool output uses a fence longer than its payload's backtick runs, and
-untrusted inline HTML is escaped rather than treated as summary structure.
+Formatted tool output uses a fence longer than its payload's backtick runs.
+Untrusted inline HTML outside fenced code is escaped rather than treated as
+summary structure.
 
 Both text publication views have a 1000 KiB byte budget, below GitHub Actions'
 1024 KiB hard limit. UTF-8-safe clipping and explicit notices distinguish partial

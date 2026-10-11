@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const { sessionOutputText, sessionContext, sessionScopeKey } = require("./agent_session.cjs");
-const { collapseStreamedMessages, boundSummaryLines, escapeSummaryText, redactSessionForPublication } = require("./agent_session_render.cjs");
+const { collapseStreamedMessages, boundSummaryLines, redactSessionForPublication } = require("./agent_session_render.cjs");
 const { collectArtifactSecretValues, redactManifestValue } = require("./safe_output_manifest.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
@@ -108,7 +108,7 @@ function eventDetail(event) {
     case "session.info":
       return fields(data, ["status", "model", "message", "content", "sourceType", "kind", "isAuthenticating", "rateLimitInfo"]);
     case "session.shutdown":
-      return fields(data, ["shutdownType", "errorReason", "currentModel", "premiumRequests", "totalApiDurationMs", "totalNanoAiu", "sessionStartTime"]);
+      return fields(data, ["shutdownType", "errorReason", "currentModel", "premiumRequests", "totalApiDurationMs", "totalNanoAiu"]);
     case "session.task_complete":
       return fields(data, ["success"]);
     case "session.mode_changed":
@@ -220,7 +220,7 @@ function eventDetail(event) {
     case "eval.result":
       return fields(data, ["id", "answer", "model", "error"]);
     case "execution.result":
-      return fields(data, ["outcome", "conclusion", "exitCode", "durationMs", "startedAt", "finishedAt"]);
+      return fields(data, ["outcome", "conclusion", "exitCode", "durationMs"]);
     case "detection.result":
       return fields(data, ["jobResult", "conclusion", "reason", "promptInjection", "secretLeak", "maliciousPatch"]);
     case "workflow.info":
@@ -361,29 +361,30 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     { title: "Session overview", lines: overview },
     { title: "Full timeline", lines: traceLines },
   ];
-  const escaped = sections.map(section => ({ ...section, lines: boundSummaryLines(section.lines.map(escapeSummaryText), Number.MAX_SAFE_INTEGER, maxLineBytes) }));
+  const bounded = sections.map(section => ({ ...section, lines: boundSummaryLines(section.lines, Number.MAX_SAFE_INTEGER, maxLineBytes) }));
   let longest = 2;
-  for (const section of escaped) for (const line of section.lines) for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
+  // Fenced code treats HTML as literal text; escaping here would print entities.
+  for (const section of bounded) for (const line of section.lines) for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
   const fence = "`".repeat(longest + 1);
   /** @param {{title: string}} section @param {string[]} content */
   const block = (section, content) => {
     return `#### ${section.title}\n\n${fence}\n${content.join("\n")}\n${fence}\n\n`;
   };
-  const shellBytes = Buffer.byteLength(preamble + tail + escaped.map(section => block(section, [])).join(""), "utf8");
+  const shellBytes = Buffer.byteLength(preamble + tail + bounded.map(section => block(section, [])).join(""), "utf8");
   const bodyBudget = maxBytes - shellBytes;
   if (bodyBudget < 128) return "Unified session summary omitted: remaining step-summary byte limit reached.\n";
   const visible = boundSummaryLines(
-    escaped.flatMap(section => section.lines),
+    bounded.flatMap(section => section.lines),
     bodyBudget,
     maxLineBytes
   );
   let offset = 0;
   const blocks = [];
-  for (const section of escaped) {
+  for (const section of bounded) {
     if (offset >= visible.length) break;
     const content = visible.slice(offset, offset + section.lines.length);
     offset += content.length;
-    if (section === escaped.at(-1) && offset < visible.length) content.push(...visible.slice(offset));
+    if (section === bounded.at(-1) && offset < visible.length) content.push(...visible.slice(offset));
     blocks.push(block(section, content));
   }
   return preamble + blocks.join("") + tail;

@@ -105,7 +105,7 @@ describe("unified session publication views", () => {
     }
   });
 
-  it("escapes and redacts hostile mismatch model, endpoint, and detail values", () => {
+  it("fences and redacts hostile mismatch model, endpoint, and detail values", () => {
     process.env.GH_AW_SECRET_NAMES = "MISMATCH_TEST";
     process.env.SECRET_MISMATCH_TEST = "mismatch-secret-fixture";
     const hostile = "````\n# heading\n<img src=x>\n::error::oops mismatch-secret-fixture";
@@ -135,7 +135,7 @@ describe("unified session publication views", () => {
     const markdown = generateCopilotCliStyleSummary(events);
     const plain = generatePlainTextSummary(events);
     for (const summary of [markdown, plain]) expect(summary).not.toContain("mismatch-secret-fixture");
-    expect(markdown).not.toContain("<img");
+    expect(markdown).toContain("<img src=x>");
     const opening = markdown.match(/^(`{3,})$/m)?.[1];
     expect(opening.length).toBeGreaterThan(4);
     expect(plain).not.toContain("::error::");
@@ -233,7 +233,7 @@ describe("unified session publication views", () => {
     }
     expect(trace).toEqual(original);
     const markdown = generateCopilotCliStyleSummary(trace);
-    expect(markdown).toContain("Done &lt;details&gt;");
+    expect(markdown).toContain("Done <details>");
     expect(markdown).toContain("<details><summary>Unified session</summary>");
     expect(markdown).not.toContain("### Unified session");
     expect(markdown).not.toContain("=== Unified session ===");
@@ -416,6 +416,7 @@ describe("unified session publication views", () => {
       event("assistant.reasoning", { content: "Waiting for the command" }, "agent", 2, 2500),
       event("tool.execution_complete", { toolCallId: "shell", success: true, output: "Command finished" }, "agent", 3, 4500),
       event("vendor.progress", { content: "PRIVATE_EXTENSION" }, "agent", 4),
+      event("execution.result", { outcome: "success", startedAt: "2026-10-11T00:00:00Z", finishedAt: "2026-10-11T00:01:00Z", durationMs: 60000 }, "execution", 0),
     ];
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
       const timeline = output.slice(output.indexOf("Chronological trace"));
@@ -521,10 +522,28 @@ describe("unified session publication views", () => {
       expect(output).toContain("DENIED: ***REDACTED***");
       expect(output).not.toMatch(/^::warning::/m);
     }
-    expect(markdown).toContain("&lt;/details&gt;");
+    expect(markdown).toContain("\n  </details>\n");
     expect(markdown).toContain("\n``````````\n");
     expect(plain).not.toContain("::warning::");
     expect(events).toEqual(original);
+  });
+
+  it("keeps command operators and hostile markup literal inside balanced, payload-safe fences", () => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shell", input: { command: "test -f file && cat file 2>/dev/null" } }, "agent", 0, 0),
+      event("assistant.message", { content: "</details>\n<script>alert('fixture')</script>\n````\n# not a heading" }, "agent", 1, 1),
+    ];
+    const markdown = generateCopilotCliStyleSummary(events);
+    const fences = [...markdown.matchAll(/^(`{5,})$/gm)];
+    expect(fences).toHaveLength(4);
+    expect(new Set(fences.map(match => match[1])).size).toBe(1);
+    expect(markdown).toContain("&&");
+    expect(markdown).toContain("2>/dev/null");
+    expect(markdown).not.toContain("&amp;");
+    expect(markdown).not.toContain("&gt;");
+    expect(markdown.slice(fences[2].index, fences[3].index)).toContain("<script>");
+    expect(markdown.slice(fences[3].index + fences[3][0].length).trim()).toBe("</details>");
   });
 
   it("clips oversized views with explicit notices without trimming the source artifact", () => {
