@@ -300,6 +300,21 @@ describe("getCurrentCheckoutRepo URL parsing", () => {
     expect(result).toBe("owner/repo");
   });
 
+  it("should not log stdout from the credential-bearing remote URL", async () => {
+    const remoteUrl = `https://${["user", "placeholder"].join(":")}@github.com/owner/repo.git\n`;
+    /** @param {string} _command @param {string[]} _args @param {import("@actions/exec").ExecOptions} options */
+    const getExecOutput = vi.fn((_command, _args, options) => {
+      options.listeners?.stdout?.(Buffer.from(remoteUrl));
+      return Promise.resolve({ stdout: remoteUrl, stderr: "", exitCode: 0 });
+    });
+    global.exec = { getExecOutput };
+
+    const result = await getCurrentCheckoutRepo();
+
+    expect(result).toBe("owner/repo");
+    expect(mockCore.info).not.toHaveBeenCalled();
+  });
+
   it("should parse HTTPS URL without .git suffix", async () => {
     global.exec = {
       getExecOutput: vi.fn().mockResolvedValue({

@@ -19,7 +19,7 @@ const { maskSecret } = require("./actions_secret_masking.cjs");
  */
 async function getCurrentCheckoutRepo() {
   try {
-    const result = await exec.getExecOutput("git", ["config", "--get", "remote.origin.url"], gitLoggingOptions({ silent: true }));
+    const result = await exec.getExecOutput("git", ["config", "--get", "remote.origin.url"], gitLoggingOptions({ silent: true }, false));
     const url = result.stdout.trim();
 
     // Extract repo slug from URL

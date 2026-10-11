@@ -155,6 +155,28 @@ describe("git_helpers.cjs", () => {
       }
     });
 
+    it("should not log Git output when suppressLogs is true", async () => {
+      const { execGitSync } = await import("./git_helpers.cjs");
+
+      const infoLogs = [];
+      const originalCore = global.core;
+      global.core = {
+        debug: () => {},
+        error: () => {},
+        info: msg => infoLogs.push(msg),
+      };
+
+      try {
+        const secret = "git-suppressed-output";
+        const stdout = execGitSync(["-c", `test.output=${secret}`, "config", "--get", "test.output"], { suppressLogs: true });
+
+        expect(stdout.trim()).toBe(secret);
+        expect(infoLogs).toHaveLength(0);
+      } finally {
+        global.core = originalCore;
+      }
+    });
+
     it("should call core.error when suppressLogs is false (default)", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");
 

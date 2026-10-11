@@ -139,8 +139,10 @@ function execGitSync(args, options = {}) {
     stdio: "pipe",
   });
 
-  if (result.stdout) core.info(String(result.stdout));
-  if (result.stderr) core.info(String(result.stderr));
+  if (!suppressLogs) {
+    if (result.stdout) core.info(String(result.stdout));
+    if (result.stderr) core.info(String(result.stderr));
+  }
 
   if (result.error) {
     // Detect ENOBUFS (buffer overflow) and provide a more actionable message

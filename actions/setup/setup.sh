@@ -360,6 +360,7 @@ SAFE_OUTPUTS_FILES=(
   "error_codes.cjs"
   "constants.cjs"
   "git_helpers.cjs"
+  "git_logging.cjs"
   "git_auth_env.cjs"
   "error_recovery.cjs"
   "checkout_manifest.cjs"
