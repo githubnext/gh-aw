@@ -13,7 +13,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `bufioscannererunchecked` — reports `bufio.Scanner` loops that do not check `Err()` after scanning completes.
 - `bytescomparestring` — reports `string(a) == string(b)` and `string(a) != string(b)` comparisons where `a` and `b` are `[]byte` values; use `bytes.Equal(a, b)` for `==` and `!bytes.Equal(a, b)` for `!=`.
 - `bytesbufferstring` — reports `string(buf.Bytes())` calls where `buf` is a `bytes.Buffer` value receiver, suggesting `buf.String()` instead.
-- `closeerrorunchecked` — reports `Close()` method calls where the error return value is explicitly discarded.
+- `closeerrorunchecked` — reports `Close()` expression statements and assignments where the error return value is discarded, including inside deferred closures.
 - `consolestderr` — checks console formatter destinations in direct `fmt.Fprint*` stdout and stderr writes, with suggested fixes. Default names use stderr styling; intentional stdout output uses `*Stdout` variants. `RenderStructWithOptions` requires an option literal matching the destination; unknown option variables are reported without an automatic fix. It resolves imported packages and exempts stream-neutral helpers; indirect writer/formatter aliases are outside its scope.
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
@@ -85,6 +85,31 @@ This package currently provides custom Go analyzers in the following subpackages
 - `wgdonenotdeferred` — reports non-deferred `sync.WaitGroup.Done()` calls that can deadlock on panics or early returns.
 - `writebytestring` — reports `w.Write([]byte(s))` calls where `s` is a string, which can be replaced with `io.WriteString` to avoid an unnecessary `[]byte` allocation.
 - `internal` — shared helper packages for analyzers (file checks, `nolint` handling, and coverage-aware perf gating).
+
+## Close error policy
+
+Deferred cleanup and error handling are separate requirements. A bare `defer c.Close()`
+ensures cleanup runs, but still discards the error; it is not an approved error-handling
+idiom simply because `closeerrorunchecked` does not report it.
+
+The two analyzers are complementary: `unchecked_deferredclose` diagnoses direct deferred
+`Close()` calls, while `closeerrorunchecked` diagnoses expression statements and
+blank-identifier assignments, including inside deferred closures. Wrapping an unchecked
+call in a closure does not fix it. Use a deferred closure that propagates or reports the
+cleanup error. For example, a function with a named `err error` result can preserve both
+the operation error and the cleanup error using `errors.Join`:
+
+```go
+defer func() {
+    err = errors.Join(err, c.Close())
+}()
+```
+
+Methods that return no error remain valid as bare deferred calls. Intentional exceptions
+require the appropriate analyzer's `nolint` directive with a justification. Neither
+analyzer proves that resources are closed or that an assigned error is eventually
+handled. Their separate CI rollout exclusions remain unchanged pending remediation
+of existing findings.
 
 ## Coverage-aware perf gating
 
