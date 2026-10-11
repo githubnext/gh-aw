@@ -56,6 +56,29 @@ func TestParseGradersFromFrontmatter_ZeroConfig(t *testing.T) {
 	}
 }
 
+func TestParseGradersFromFrontmatter_CodeReadPrecision(t *testing.T) {
+	var c Compiler
+	cfg, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{"code-read-precision": map[string]any{}},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	grader := cfg.Graders["code-read-precision"]
+	if grader == nil || grader.Script != "" || grader.Name != "Code Read Precision" {
+		t.Fatalf("expected code-read-precision built-in metadata, got %+v", grader)
+	}
+	if grader.Unit != "ratio" || grader.Direction != "higher_is_better" || grader.Min == nil || *grader.Min != 0 || grader.Max == nil || *grader.Max != 1 {
+		t.Fatalf("unexpected code-read-precision bounds or direction: %+v", grader)
+	}
+	_, err = c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{"code-read-precision": map[string]any{"script": "return 1;"}},
+	})
+	if err == nil {
+		t.Fatal("expected built-in script override to be rejected")
+	}
+}
+
 func TestBuiltinGraderRegistry_WorkingSetRebuildFactor(t *testing.T) {
 	meta, ok := builtinGraderMetaByID["working-set-rebuild-factor"]
 	if !ok {

@@ -1384,6 +1384,11 @@ function gradeTrajectoryNdtw(trace, config) {
   };
 }
 
+/** @param {string} value @returns {string} */
+function normalizeFilePath(value) {
+  return value.trim().replace(/^\.\//, "").replace(/^\/+/, "");
+}
+
 /**
  * code-search-recall: Fraction of reference patch files located during the run.
  * @param {any} trace
@@ -1396,7 +1401,7 @@ function gradeCodeSearchRecall(trace, config) {
   if (!ir || ir.reference.patch.files.length === 0) {
     return { value: null, passed: null, message: "not applicable: no reference patch files" };
   }
-  const normalize = value => value.trim().replace(/^\.\//, "").replace(/^\/+/, "");
+  const normalize = normalizeFilePath;
   const required = ir.reference.patch.files.map(file => (typeof file === "string" ? file : isRecord(file) && typeof file.path === "string" ? file.path : ""));
   if (required.some(file => normalize(file) === "")) {
     return { value: null, passed: null, message: "unavailable: reference patch file is missing a path" };
@@ -1415,6 +1420,51 @@ function gradeCodeSearchRecall(trace, config) {
   return {
     value: helpers.ratio(found, requiredSet.length),
     details: `referenceFiles=${requiredSet.length} located=${found}${missed.length === 0 ? "" : `; never located: ${missed.slice(0, 5).join(", ")}`}`,
+  };
+}
+
+/**
+ * code-read-precision: Fraction of distinct read or inspected files touched by the reference patch.
+ * @param {any} trace
+ * @param {Record<string, any>} config
+ * @returns {any}
+ */
+function gradeCodeReadPrecision(trace, config) {
+  const candidates = irCandidates(trace, { includeTrace: true });
+  const ir = candidates.find(value => isRecord(value.reference) && isRecord(value.reference.patch) && Array.isArray(value.reference.patch.files));
+  if (!ir || ir.reference.patch.files.length === 0) {
+    return { value: null, passed: null, message: "not applicable: no reference patch files" };
+  }
+  const required = ir.reference.patch.files.map(file => (typeof file === "string" ? file : isRecord(file) && typeof file.path === "string" ? file.path : ""));
+  if (required.some(file => normalizeFilePath(file) === "")) {
+    return { value: null, passed: null, message: "unavailable: reference patch file is missing a path" };
+  }
+  if (!Array.isArray(ir.actions) || !ir.actions.every(isRecord)) {
+    return { value: null, passed: null, message: "unavailable: trace lacks well-formed actions" };
+  }
+  const readFiles = new Set();
+  for (const action of ir.actions) {
+    if (typeof action.type !== "string" || action.type.trim() === "") {
+      return { value: null, passed: null, message: "unavailable: action is missing a type" };
+    }
+    if (typeof action.consequential !== "boolean") {
+      return { value: null, passed: null, message: "unavailable: action is missing a consequential flag" };
+    }
+    if (action.consequential || (action.type !== "read" && action.type !== "inspect")) continue;
+    if (typeof action.target !== "string" || normalizeFilePath(action.target) === "") {
+      return { value: null, passed: null, message: "unavailable: read/inspect action is missing a file target" };
+    }
+    readFiles.add(normalizeFilePath(action.target));
+  }
+  if (readFiles.size === 0) {
+    return { value: null, passed: null, message: "unavailable: trace has no file reads or inspections" };
+  }
+  const requiredSet = new Set(required.map(normalizeFilePath));
+  const irrelevant = [...readFiles].filter(file => !requiredSet.has(file));
+  const relevant = readFiles.size - irrelevant.length;
+  return {
+    value: helpers.ratio(relevant, readFiles.size),
+    details: `referenceFiles=${requiredSet.size} readFiles=${readFiles.size} relevant=${relevant}${irrelevant.length === 0 ? "" : `; unrelated reads: ${irrelevant.slice(0, 5).join(", ")}`}`,
   };
 }
 
@@ -1442,6 +1492,7 @@ const TRAJECTORY_GRADER_META = {
   "tool-wise-score": { name: "Tool-Wise Score", description: "Longest correct execution prefix against a reference trajectory, with parameter credit", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
   "trajectory-ndtw": { name: "Trajectory nDTW", description: "Normalized dynamic time warping similarity to a reference state trajectory", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
   "code-search-recall": { name: "Code Search Recall", description: "Fraction of reference patch files located during the run", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
+  "code-read-precision": { name: "Code Read Precision", description: "Fraction of distinct read or inspected files touched by the reference patch", unit: "ratio", direction: "higher_is_better", min: 0, max: 1 },
 };
 
 /** @type {Record<string, (trace: any, config?: Record<string, any>) => any>} */
@@ -1468,6 +1519,7 @@ const TRAJECTORY_GRADERS = {
   "tool-wise-score": withTrajectoryLimits(gradeToolWiseScore),
   "trajectory-ndtw": withTrajectoryLimits(gradeTrajectoryNdtw),
   "code-search-recall": withTrajectoryLimits(gradeCodeSearchRecall),
+  "code-read-precision": withTrajectoryLimits(gradeCodeReadPrecision),
 };
 
 module.exports = {
@@ -1498,4 +1550,5 @@ module.exports = {
   gradeToolWiseScore,
   gradeTrajectoryNdtw,
   gradeCodeSearchRecall,
+  gradeCodeReadPrecision,
 };

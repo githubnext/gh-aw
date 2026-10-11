@@ -171,6 +171,7 @@ The implementation MUST recognize the following built-in grader IDs:
 - `tool-wise-score`
 - `trajectory-ndtw`
 - `code-search-recall`
+- `code-read-precision`
 
 These IDs are reserved for built-ins. A built-in grader MUST NOT accept a custom `script`.
 
