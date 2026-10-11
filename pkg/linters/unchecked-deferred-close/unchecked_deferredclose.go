@@ -1,5 +1,6 @@
-// Package unchecked deferredclose implements a Go analysis linter that flags
-// defer close() calls without error checking, which can hide resource cleanup failures.
+// Package unchecked_deferredclose implements a Go analysis linter that flags
+// deferred Close() calls without error checking, which can hide resource cleanup failures.
+// Close() calls inside deferred closures are checked by closeerrorunchecked.
 package unchecked_deferredclose
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 // Analyzer is the unchecked-deferred-close analysis pass.
-var Analyzer = analyzerutil.New("unchecked_deferredclose", "reports defer close() calls without error checking that may hide resource cleanup failures", run)
+var Analyzer = analyzerutil.New("unchecked_deferredclose", "reports direct deferred Close() calls that discard errors; use a deferred closure that handles the Close() error", run)
 
 var builtinErrorType = types.Universe.Lookup("error").Type()
 
@@ -80,7 +81,7 @@ func analyzeDeferClose(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	// Report: defer close() ignores error return
 	pass.Reportf(
 		deferStmt.Pos(),
-		"defer close() call ignores error return value; consider handling errors explicitly",
+		"defer close() call ignores error return value; use a deferred closure that handles the Close() error",
 	)
 }
 

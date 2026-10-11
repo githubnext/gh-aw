@@ -44,7 +44,17 @@ describe("trusted stable intent ingestion", () => {
   it("rejects invalid or conflicting prepared plans without replacing staged work", () => {
     const file = filename();
     const plan = buildESLintFactoryPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });
-    for (const invalid of [null, {}, { ...plan, version: 3 }, { ...plan, nodes: [] }, { ...plan, dispatch: { ...plan.dispatch, max_claims: 0 } }, { ...plan, dispatch: { ...plan.dispatch, pool: "other" } }]) {
+    for (const invalid of [
+      null,
+      {},
+      { ...plan, version: 3 },
+      { ...plan, nodes: [] },
+      { ...plan, nodes: [{ ...plan.nodes[0], payload: null }] },
+      { ...plan, nodes: [{ ...plan.nodes[0], payload: [] }] },
+      { ...plan, nodes: [{ ...plan.nodes[0], unexpected: true }] },
+      { ...plan, dispatch: { ...plan.dispatch, max_claims: 0 } },
+      { ...plan, dispatch: { ...plan.dispatch, pool: "other" } },
+    ]) {
       expect(() => stagePlanIntents(file, invalid)).toThrow();
       expect(fs.existsSync(file)).toBe(false);
     }

@@ -4,6 +4,8 @@ description: Admits daily ESLint factory tasks and dispatches queued work to the
 on:
   schedule: daily
   workflow_dispatch:
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -17,7 +19,6 @@ tools:
 safe-outputs:
   dispatch-workflow:
     workflows: [eslint-miner, eslint-refiner, eslint-monster]
-    github-token: ${{ secrets.GITHUB_TOKEN }}
     target-ref: ${{ github.event.repository.default_branch }}
     max: 3
   noop:
@@ -52,21 +53,13 @@ defines one independent task for each approved worker: miner, refiner, and
 monster. Use the exact stored UTC date, nodes, profiles, contracts, and budgets.
 Do not invent additional tasks or broaden resource scopes.
 
-The preparation step has already staged exactly one submission containing all
-three stored nodes, followed by one bounded dispatch request. Do not submit,
-dispatch, edit the intent files, or reconstruct the plan. Your role is to read
-the snapshot and explain the staged cohort; trusted processing after this agent
-run performs admission and launch. Do not call ordinary safe outputs, including
-`noop` or `report_incomplete`: an unassigned dispatcher has no worker Claim.
-
 Read the activation snapshot first with `work_queue_read`, using
 `{"pool":"default","limit":32}`. Check `queue_state`, not just `total`:
 `"uninitialized"` with a null snapshot SHA means the queue branch does not
 exist yet. Treat it as an empty backlog; the first trusted producer submission
 will atomically bootstrap the branch with its compiler-approved Policy and Work.
-Trusted processing admits the staged submission before dispatch. Surface read/tool
-errors explicitly; never turn an error or an existing policyless ledger into an
-empty-backlog report.
+Surface read/tool errors explicitly; never report an existing policyless ledger
+as an empty backlog.
 
 When `<mcp-clis>` advertises the wrappers, invoke their subcommands with one JSON
 argument through the shell tool:

@@ -4,6 +4,8 @@ description: Admits a bounded discussion-report cohort with daily rotation and w
 on:
   schedule: daily around 10:00
 if: github.run_attempt == 1
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -68,13 +70,6 @@ profiles without skipping a member. DeepReport is independent Work, not a
 same-cohort fan-in: it analyzes prior published evidence and never waits inside
 its run for other workers. Use the exact stored date, node definitions and budgets; never invent
 additional candidates or admission identities.
-
-The preparation step has already staged one submission with the exact stored
-nodes followed by one bounded dispatch request. Do not submit, dispatch, edit
-the intent files, or reconstruct the plan. Read the snapshot and explain the
-staged cohort only. Trusted processing after this agent run admits and dispatches
-it. Do not call ordinary safe outputs, including `noop` or `report_incomplete`:
-an unassigned dispatcher has no worker Claim.
 
 1. Call `work_queue_read` with `{"pool":"daily-reports","limit":32}`. An absent
    queue is an empty backlog; the first trusted submission atomically publishes

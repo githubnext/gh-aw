@@ -118,7 +118,7 @@ describe("ESLint factory producer and dispatcher", () => {
     expect(source).toContain("run.created_at");
     expect(source).toContain("cat /tmp/gh-aw/agent/eslint-factory-plan.json");
     expect(source).toContain("stagePlanIntents(");
-    expect(source).toContain("Do not submit,");
+    expect(source).toContain("shared/work-queue-staged-plan.md");
     expect(source).toContain("will atomically bootstrap the branch with its compiler-approved Policy and Work.");
     expect(source).toContain("Safe-output processing uses only the compiler-approved Policy proposal; never");
     expect(source).toContain("no administrator seed is required.");
@@ -148,14 +148,17 @@ describe("ESLint factory producer and dispatcher", () => {
         expect(proposal.pools.default.profiles[worker].logical_contract).toMatch(/^[a-f0-9]{64}$/);
       }
     }
-    expect(source).not.toContain("github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}");
-    expect(source).toContain("github-token: ${{ secrets.GITHUB_TOKEN }}");
-    const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
-    expect(configMatch).not.toBeNull();
-    const config = JSON.parse(JSON.parse(configMatch[1]));
-    expect(config["github-token"]).toBe("${{ secrets.GITHUB_TOKEN }}");
-    expect(config.work_queue_dispatch_credential).toEqual({ kind: "github_token" });
-    expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
+    expect(source).not.toMatch(/github-token:/);
+    const configs = [...compiled.matchAll(/(?:GH_AW_WORK_QUEUE_CONTROL_CONFIG|GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG): ("[^\n]+")/g)].map(([, value]) => {
+      const config = JSON.parse(JSON.parse(value));
+      return config.dispatch_workflow || config;
+    });
+    expect(configs.length).toBeGreaterThan(1);
+    for (const config of configs) {
+      expect(config["github-token"]).toBe("${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}");
+      expect(config.work_queue_dispatch_credential).toEqual({ kind: "${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'authenticated' || 'github_token' }}" });
+      expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
+    }
   });
 
   it.each(["authenticated", "github_token"])("bootstraps an absent queue and launches all three workers with %s credentials without duplicate launches", async kind => {
@@ -246,7 +249,7 @@ describe("ESLint factory producer and dispatcher", () => {
         config: {
           ...dispatchConfig,
           "github-token": "fixture-token",
-          work_queue_dispatch_credential: kind === "github_token" ? dispatchConfig.work_queue_dispatch_credential : { kind },
+          work_queue_dispatch_credential: { kind },
         },
       };
       const result = await processControls(controls);

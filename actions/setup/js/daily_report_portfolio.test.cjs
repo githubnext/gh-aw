@@ -167,7 +167,8 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(dispatcher).toContain("if: github.run_attempt == 1");
     expect(dispatcher).toContain("Date.parse(run.created_at) - 86400000");
     expect(dispatcher).toContain("stagePlanIntents(");
-    expect(dispatcher).toContain("Do not submit, dispatch, edit");
+    expect(dispatcher).toContain("shared/work-queue-staged-plan.md");
+    expect(fs.readFileSync(new URL("../../../.github/workflows/shared/work-queue-staged-plan.md", import.meta.url), "utf8")).toContain("Do not submit, dispatch, edit intent files");
     expect(dispatcher).not.toMatch(/^\s+workflow_dispatch:/m);
     expect(dispatcher).toContain("    max: 3");
     const lock = fs.readFileSync(new URL("../../../.github/workflows/daily-report-dispatcher.lock.yml", import.meta.url), "utf8");
