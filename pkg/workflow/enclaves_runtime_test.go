@@ -58,7 +58,7 @@ func TestValidateCloudHypervisorEnclaves(t *testing.T) {
 		}, "cannot be mixed"},
 		{"ARC DinD", func(data *WorkflowData) { data.RunnerConfig = &RunnerConfig{Topology: RunnerTopologyArcDind} }, "runner.topology: arc-dind"},
 		{"primary sbx", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = "sbx" }, "sandbox.agent.runtime: sbx"},
-		{"primary VM", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor }, "sandbox.agent.runtime: cloud-hypervisor"},
+		{"primary VM", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor }, ""},
 		{"primary NVX", func(data *WorkflowData) { data.SandboxConfig.Agent.Runtime = "nvx" }, "sandbox.agent.runtime: nvx"},
 		{"primary docker-sudo-iptables", func(data *WorkflowData) {
 			data.SandboxConfig.Agent.Runtime = AgentRuntimeDockerSudoIptables
@@ -96,6 +96,22 @@ func TestValidateCloudHypervisorEnclaves(t *testing.T) {
 		data := dynamicEnclaveWorkflowData()
 		data.Enclaves[0].Runtime = string(AgentRuntimeCloudHypervisor)
 		require.ErrorContains(t, validateEnclavesConfig(data), ".dynamic is incompatible")
+	})
+	t.Run("primary VM requires static script enclave", func(t *testing.T) {
+		data := cloudHypervisorEnclaveWorkflowData(false, true)
+		data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+		require.ErrorContains(t, validateEnclavesConfig(data), "use a static script enclave")
+	})
+	t.Run("primary VM rejects conflicting AWF container runtime", func(t *testing.T) {
+		data := cloudHypervisorEnclaveWorkflowData(true, false)
+		data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
+		data.SandboxConfig.Agent.Args = []string{"--container-runtime", "docker"}
+		require.ErrorContains(t, validateEnclavesConfig(data), "requires --container-runtime cloud-hypervisor")
+	})
+	t.Run("Docker primary rejects conflicting AWF container runtime", func(t *testing.T) {
+		data := cloudHypervisorEnclaveWorkflowData(true, false)
+		data.SandboxConfig.Agent.Args = []string{"--container-runtime=cloud-hypervisor"}
+		require.ErrorContains(t, validateEnclavesConfig(data), "requires --container-runtime docker")
 	})
 	t.Run("Docker remains supported", func(t *testing.T) {
 		data := enclaveWorkflowData(true, true, 30, 120)

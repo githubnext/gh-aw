@@ -31,7 +31,7 @@ func validateCloudHypervisorEnclavePrimaryRuntime(workflowData *WorkflowData) er
 	switch agent.Runtime {
 	case AgentRuntimeDockerSudoIptables:
 		return errors.New("enclaves cloud-hypervisor runtime is incompatible with sandbox.agent.runtime: docker-sudo-iptables; use sandbox.agent.runtime: docker")
-	case "sbx", AgentRuntimeCloudHypervisor, "nvx":
+	case "sbx", "nvx":
 		return fmt.Errorf("enclaves cloud-hypervisor runtime is incompatible with sandbox.agent.runtime: %s; use a Docker primary agent runtime", agent.Runtime)
 	default:
 		return nil
@@ -49,27 +49,19 @@ func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
 		return errors.New("enclaves cloud-hypervisor runtime is incompatible with tools.github.mode: gh-proxy and integrity-reactions; remove those settings")
 	}
 	args := customAWFArgs(workflowData)
-	if hasEnabledAWFArg(args, "--enable-dind") {
-		return errors.New("enclaves cloud-hypervisor runtime is incompatible with --enable-dind; remove DinD")
+	primaryRuntime := string(AgentRuntimeDocker)
+	if isCloudHypervisorRuntime(workflowData) {
+		primaryRuntime = string(AgentRuntimeCloudHypervisor)
 	}
-	for index, arg := range args {
-		if arg == "--docker-host-path-prefix" || strings.HasPrefix(arg, "--docker-host-path-prefix=") {
-			return errors.New("enclaves cloud-hypervisor runtime is incompatible with --docker-host-path-prefix; remove the Docker host path prefix")
-		}
-		name, runtime, _ := strings.Cut(arg, "=")
-		if name == "--container-runtime" {
-			if nextIndex := index + 1; arg == name && nextIndex >= 0 && nextIndex < len(args) {
-				runtime = args[nextIndex]
-			}
-			switch runtime {
-			case "sbx", "cloud-hypervisor", "nvx":
-				return fmt.Errorf("enclaves cloud-hypervisor runtime is incompatible with --container-runtime %s; use a Docker primary agent runtime", runtime)
-			}
-		}
+	if err := validateCloudHypervisorEnclaveAWFArgs(args, primaryRuntime); err != nil {
+		return err
 	}
 	for i, enclave := range workflowData.Enclaves {
 		if enclave.Runtime != string(AgentRuntimeCloudHypervisor) {
 			return errors.New("enclaves cloud-hypervisor runtime cannot be mixed with Docker or default enclave runtimes; set runtime: cloud-hypervisor on every enclave entry")
+		}
+		if isCloudHypervisorRuntime(workflowData) && enclave.Agent != nil {
+			return fmt.Errorf("enclaves[%d] agent runtime: cloud-hypervisor is not supported with a cloud-hypervisor primary; use a static script enclave", i)
 		}
 		if enclave.Image != "" {
 			return fmt.Errorf("enclaves[%d].image is incompatible with runtime: cloud-hypervisor; remove the image override to use release-attested enclave artifacts", i)
@@ -96,6 +88,32 @@ func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
 		}
 	}
 	return validateCloudHypervisorEnclaveVersion(getFirewallConfig(workflowData))
+}
+
+func validateCloudHypervisorEnclaveAWFArgs(args []string, primaryRuntime string) error {
+	if hasEnabledAWFArg(args, "--enable-dind") {
+		return errors.New("enclaves cloud-hypervisor runtime is incompatible with --enable-dind; remove DinD")
+	}
+	for index, arg := range args {
+		if arg == "--docker-host-path-prefix" || strings.HasPrefix(arg, "--docker-host-path-prefix=") {
+			return errors.New("enclaves cloud-hypervisor runtime is incompatible with --docker-host-path-prefix; remove the Docker host path prefix")
+		}
+		name, runtime, _ := strings.Cut(arg, "=")
+		if name == "--container-runtime" {
+			if nextIndex := index + 1; arg == name && nextIndex >= 0 && nextIndex < len(args) {
+				runtime = args[nextIndex]
+			}
+			switch runtime {
+			case "sbx", "nvx":
+				return fmt.Errorf("enclaves cloud-hypervisor runtime is incompatible with --container-runtime %s; use a Docker primary agent runtime", runtime)
+			case "docker", "cloud-hypervisor":
+				if runtime != primaryRuntime {
+					return fmt.Errorf("enclaves cloud-hypervisor runtime requires --container-runtime %s to match sandbox.agent.runtime", primaryRuntime)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func validateCloudHypervisorEnclaveVersion(firewallConfig *FirewallConfig) error {

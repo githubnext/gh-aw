@@ -149,6 +149,65 @@ Run exactly one enclave script to build and test the repository.
 	}
 }
 
+func TestCompileCloudHypervisorPrimaryWithScriptEnclave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "enclave.md")
+	content := `---
+on: workflow_dispatch
+runs-on: ubuntu-24.04
+strict: false
+network: defaults
+engine: copilot
+sandbox:
+  agent:
+    id: awf
+    runtime: cloud-hypervisor
+    version: v0.28.47
+enclaves:
+  - script:
+    runtime: cloud-hypervisor
+    repos:
+      - repo: github/gh-aw
+        sensitivity: internal
+    max-invocations: 1
+---
+Run exactly one enclave script to inspect the repository.
+`
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	compiler := NewCompiler()
+	compiler.SetStrictMode(false)
+	require.NoError(t, compiler.CompileWorkflow(path))
+	lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(path))
+	require.NoError(t, err)
+	lock := string(lockBytes)
+
+	assert.Contains(t, lock, `"runtime\":\"cloud-hypervisor\"`)
+	assert.Contains(t, lock, `"mountPolicy\":\"workspace-and-tool-cache\"`)
+	assert.Contains(t, lock, `"cloudHypervisor\":{\"previewEnabled\":true`)
+	assert.Contains(t, lock, "--container-runtime cloud-hypervisor")
+	assert.NotContains(t, lock, "--container-runtime docker")
+	assert.Contains(t, lock, `\"topologyAttach\":[\"awmg-mcpg\"]`)
+
+	bundle := strings.Index(lock, "- name: Download and verify cloud-hypervisor bundle")
+	enclaveArtifacts := strings.Index(lock, "- name: Download and verify cloud-hypervisor enclave artifacts")
+	gateway := strings.Index(lock, "- name: Start MCP Gateway")
+	awf := strings.Index(lock, "awf --config")
+	require.GreaterOrEqual(t, bundle, 0)
+	require.GreaterOrEqual(t, enclaveArtifacts, 0)
+	require.GreaterOrEqual(t, gateway, 0)
+	require.GreaterOrEqual(t, awf, 0)
+	assert.Less(t, bundle, enclaveArtifacts)
+	assert.Less(t, enclaveArtifacts, gateway)
+	assert.Less(t, gateway, awf)
+	assert.Contains(t, lock, "GH_AW_AWF_VERSION: v0.28.47")
+	assert.Contains(t, lock, "GH_AW_AWF_VERSION: ${{ steps.cloud-hypervisor-bundle.outputs.release_tag }}")
+
+	assert.Contains(t, lock, `"awf-enclave"`)
+	assert.Contains(t, lock, `AWF_ENCLAVE_MCP_CAPABILITY`)
+	assert.Contains(t, lock, `AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT`)
+	assert.Contains(t, lock, `--exclude-env AWF_ENCLAVE_MCP_CAPABILITY`)
+	assert.Contains(t, lock, `--exclude-env AWF_CLOUD_HYPERVISOR_ENCLAVE_SCRIPT_ROOTFS`)
+}
+
 func TestCloudHypervisorEnclaveArtifactInstaller(t *testing.T) {
 	script, err := filepath.Abs("../../actions/setup/sh/cloud_hypervisor_setup_enclave_artifacts.sh")
 	require.NoError(t, err)
