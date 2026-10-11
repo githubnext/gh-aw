@@ -4,6 +4,8 @@ description: Admits a bounded discussion-report cohort with daily rotation and w
 on:
   schedule: daily around 10:00
 if: github.run_attempt == 1
+imports:
+  - shared/work-queue-staged-plan.md
 permissions:
   contents: read
   actions: read
@@ -41,6 +43,7 @@ steps:
         const fs = require("node:fs");
         const path = require("node:path");
         const { buildDailyReportPlan } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/daily_report_portfolio.cjs"));
+        const { stagePlanIntents } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/work_queue_intents.cjs"));
         const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: context.runId });
         const { data: repository } = await github.rest.repos.get(context.repo);
         const plan = buildDailyReportPlan({
@@ -50,6 +53,7 @@ steps:
         });
         fs.mkdirSync("/tmp/gh-aw/agent", { recursive: true });
         fs.writeFileSync("/tmp/gh-aw/agent/daily-report-plan.json", JSON.stringify(plan));
+        stagePlanIntents(path.join(process.env.RUNNER_TEMP, "gh-aw/safeoutputs/work-queue/work-queue.intents.jsonl"), plan);
         core.info(`Daily report cohort ${plan.date}: ${plan.selected.join(", ")}`);
 timeout-minutes: 15
 strict: true
@@ -70,10 +74,10 @@ additional candidates or admission identities.
 1. Call `work_queue_read` with `{"pool":"daily-reports","limit":32}`. An absent
    queue is an empty backlog; the first trusted submission atomically publishes
    Policy and Work. Reads never seed the queue. Surface queue errors explicitly.
-2. Call `work_queue_submit` once with `{"nodes": <the plan.nodes array>}`.
+2. The staged submission contains `{"nodes": <the plan.nodes array>}`.
    Date-keyed graph/node identities make an identical submission idempotent.
    Do not edit payloads on a retry or replace immutable admitted Work.
-3. Call `work_queue_dispatch_next` once with the exact `plan.dispatch`:
+3. The staged dispatch request contains the exact `plan.dispatch`:
    `{"pool":"daily-reports","max_claims":3,"max_dispatches":3}`.
    Do not select winning Work IDs, workflows or revisions from the snapshot.
    The trusted scheduler selects the eligible fair prefix against fresh state
@@ -92,5 +96,6 @@ reruns cannot admit another cohort. At most three native launches are permitted
 in its original daily activation; capacity, pauses or uncertain old launches may
 permit fewer, and older eligible cohorts may run before newly admitted reports.
 Do not force-release reservations to make a target count. Three launches are not
-a guarantee of three successfully published discussions. Use `noop` if there is
-no eligible grant; never label a staged intent as a completed report.
+a guarantee of three successfully published discussions. Report only the staged
+request; never label it as a completed report or infer
+that a stale snapshot guarantees no eligible grant.
