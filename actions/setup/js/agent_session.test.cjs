@@ -474,8 +474,9 @@ describe("Unified Agent Session 1.0.0 conformance", () => {
   describe.each(parsers)("%s engine canonical interoperability", (_engine, parser) => {
     it("T-UAS-004/006/008/025/029/036-041: accepts canonical arrays without losing extensions", () => {
       const result = parser(JSON.stringify(canonical));
+      const expected = _engine === "claude" || _engine === "custom" ? canonical.map(event => ({ ...event, type: `claude.${event.type}`, data: { ...event.data, sourceEngine: "claude" } })) : canonical;
       // An adapter may recover an absent tool name from its exact matching start.
-      expect(result.logEntries).toMatchObject(canonical);
+      expect(result.logEntries).toMatchObject(expected);
       expect(parser(JSON.stringify(result.logEntries)).logEntries).toEqual(result.logEntries);
       expect(result.logEntries.every(e => typeof e.type === "string" && e.data && typeof e.data === "object")).toBe(true);
     });
@@ -489,7 +490,7 @@ describe("Unified Agent Session 1.0.0 conformance", () => {
         JSON.stringify({ type: "result", num_turns: 0, usage: { input_tokens: 0 } }),
       ].join("\n");
       const result = parser(input);
-      expect(result.logEntries.map(e => e.type)).toEqual(["vendor.progress", "assistant.message", "session.result"]);
+      expect(result.logEntries.map(e => e.type)).toEqual([_engine === "claude" || _engine === "custom" ? "claude.vendor.progress" : "vendor.progress", "assistant.message", "session.result"]);
       expect(result.logEntries[1].data.content).toBe(" \n");
       expect(result.logEntries[2].data.numTurns).toBe(0);
     });
