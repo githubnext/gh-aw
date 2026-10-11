@@ -20,6 +20,12 @@ env: &shared
     Authorization=private
     X-Tenant=private
   GH_AW_OTLP_ENDPOINTS: '[{"url":"https://traces.example.com"}]'
+  GITHUB_AW_OTEL_TRACE_ID: private-trace
+  GITHUB_AW_OTEL_PARENT_SPAN_ID: private-span
+  TRACEPARENT: private-parent
+  TRACESTATE: private-state
+  BAGGAGE: private-baggage
+  CLAUDE_CODE_ENABLE_TELEMETRY: "1"
   START_DATE: 2026-01-01
   ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"
   KEEP: |
@@ -30,16 +36,18 @@ jobs:
     env: *shared
     container:
       image: node:24
-      env: {OTEL_SERVICE_NAME: container, KEEP: container}
+      env: {OTEL_SERVICE_NAME: container, TRACEPARENT: private-parent, KEEP: container}
     services:
       server:
         image: node:24
         env:
           OTEL_TRACES_EXPORTER: otlp
+          TRACESTATE: private-state
           KEEP: service
     steps:
       - env:
           OTEL_SERVICE_NAME: first
+          BAGGAGE: private-baggage
           KEEP: first
         run: echo first
       - run: |
@@ -90,6 +98,11 @@ jobs:
 	assert.Equal(t, map[string]string{"OTEL_SERVICE_NAME": "action-input"}, job.Steps[2].With.Env)
 	assert.Empty(t, job.Steps[3].Env)
 	assert.NotContains(t, content, "Authorization=private")
+	assert.NotContains(t, content, "private-trace")
+	assert.NotContains(t, content, "private-span")
+	assert.NotContains(t, content, "private-parent")
+	assert.NotContains(t, content, "private-state")
+	assert.NotContains(t, content, "private-baggage")
 	assert.Contains(t, content, `echo "OTEL_SERVICE_NAME: this is script content"`)
 	assert.Contains(t, content, "env: &shared")
 	assert.Contains(t, content, `ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"`)
@@ -134,12 +147,18 @@ func TestDryRunTelemetryConfiguration(t *testing.T) {
 		}}},
 		OTLPEndpoint: "https://traces.example.com", OTLPHeaders: "Authorization=private",
 		OTLPEndpoints: `[{"url":"https://traces.example.com"}]`, OTLPUsesEnterpriseDefaults: true,
-		Env: "env:\n  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}\n  GH_AW_OTLP_ATTRIBUTES: '{}'\n  KEEP: preserved\n",
+		Env: "env:\n  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}\n  GH_AW_OTLP_ATTRIBUTES: '{}'\n  TRACEPARENT: private-parent\n  KEEP: preserved\n",
 		EnvSources: map[string]string{
 			"OTEL_EXPORTER_OTLP_HEADERS": "(main workflow)",
 			"GH_AW_OTLP_ATTRIBUTES":      "(main workflow)",
+			"TRACEPARENT":                "(main workflow)",
 			"KEEP":                       "(main workflow)",
 		},
+		EngineConfig: &EngineConfig{Env: map[string]string{
+			"TRACEPARENT":                  "${{ secrets.TRACE_PARENT }}",
+			"CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+			"ENGINE_KEEP":                  "preserved",
+		}},
 	}
 	compiler.SetDryRun(true)
 	result, err := compiler.prepareDryRunWorkflowData(data)
@@ -155,12 +174,14 @@ func TestDryRunTelemetryConfiguration(t *testing.T) {
 	assert.False(t, isOTLPEnabled(result))
 	assert.Equal(t, map[string]string{"KEEP": "(main workflow)"}, result.EnvSources)
 	assert.Contains(t, result.Env, "KEEP: preserved")
+	assert.Equal(t, map[string]string{"ENGINE_KEEP": "preserved"}, result.EngineConfig.Env)
+	assert.Len(t, data.EngineConfig.Env, 3)
 	assert.Contains(t, data.RawFrontmatter, "observability")
 	assert.NotNil(t, data.ParsedFrontmatter.Observability)
 	assert.Equal(t, "https://traces.example.com", data.OTLPEndpoint)
 	assert.True(t, isOTLPHeadersPresent(data))
 	assert.True(t, isOTLPAttributesPresent(data))
-	assert.Len(t, data.EnvSources, 3)
+	assert.Len(t, data.EnvSources, 4)
 	compiler.SetDryRun(false)
 	normal, err := compiler.prepareDryRunWorkflowData(data)
 	require.NoError(t, err)
@@ -183,9 +204,12 @@ func TestPrepareDryRunWorkflowDataInvalidEnv(t *testing.T) {
 func TestDryRunCompiledTelemetryEnv(t *testing.T) {
 	for _, tc := range []struct {
 		name, config string
+		engine       string
 		reusable     bool
 	}{
 		{name: "defaults"},
+		{name: "claude", engine: "claude"},
+		{name: "codex", engine: "codex"},
 		{name: "explicit", config: "observability:\n  otlp:\n    endpoint: https://traces.example.com\n    headers: ${{ secrets.OTLP_HEADERS }}\n"},
 		{name: "imported", config: "imports: [shared.md]\n"},
 		{name: "github-app", config: "observability:\n  otlp:\n    endpoint: https://traces.example.com\n    github-app:\n      audience: collector\n"},
@@ -204,6 +228,8 @@ engine:
   id: copilot
   env:
     OTEL_SERVICE_NAME: engine
+    TRACEPARENT: engine-parent
+    CLAUDE_CODE_ENABLE_TELEMETRY: "1"
     ENGINE_KEEP: preserved
     START_DATE: "2026-01-01"
     ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"
@@ -212,24 +238,32 @@ env:
   OTEL_USER_SECRET: ${{ secrets.USER_TELEMETRY_ONLY }}
   GH_AW_OTLP_ENDPOINTS: '[{"url":"https://manual.example.com"}]'
   GH_AW_OTLP_ATTRIBUTES: '{"test": "value"}'
+  GITHUB_AW_OTEL_TRACE_ID: private-trace
+  GITHUB_AW_OTEL_PARENT_SPAN_ID: private-span
+  TRACEPARENT: private-parent
+  TRACESTATE: private-state
+  BAGGAGE: private-baggage
   KEEP: preserved
   KEEP_LITERAL: OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_HEADERS GH_AW_OTLP_ATTRIBUTES
 tools:
   github: false
 pre-steps:
   - run: echo pre
-    env: {OTEL_SERVICE_NAME: pre, KEEP: pre}
+    env: {OTEL_SERVICE_NAME: pre, TRACEPARENT: pre-parent, KEEP: pre}
 post-steps:
   - run: echo post
-    env: {OTEL_SERVICE_NAME: post, KEEP: post}
+    env: {OTEL_SERVICE_NAME: post, TRACESTATE: post-state, KEEP: post}
 jobs:
   custom:
     runs-on: ubuntu-latest
-    env: {OTEL_SERVICE_NAME: job, KEEP: job}
+    env: {OTEL_SERVICE_NAME: job, BAGGAGE: job-baggage, KEEP: job}
     steps:
       - run: echo custom
-        env: {OTEL_SERVICE_NAME: step, KEEP: step}
+        env: {OTEL_SERVICE_NAME: step, GITHUB_AW_OTEL_TRACE_ID: step-trace, KEEP: step}
 ` + tc.config + "---\nTest dry-run telemetry isolation.\n"
+			if tc.engine != "" {
+				source = strings.Replace(source, "id: copilot", "id: "+tc.engine, 1)
+			}
 			if tc.reusable {
 				source = strings.Replace(source, "on: workflow_dispatch", "on: workflow_call", 1)
 			}
@@ -245,7 +279,13 @@ jobs:
 				content, err := os.ReadFile(filepath.Join(dir, "telemetry.lock.yml"))
 				require.NoError(t, err)
 				compiled := string(content)
+				metadata, legacy, err := ExtractMetadataFromLockFile(compiled)
+				require.NoError(t, err)
+				require.NotNil(t, metadata)
+				assert.False(t, legacy)
+				assert.Equal(t, enabled, metadata.DryRun)
 				if enabled {
+					assert.Contains(t, strings.SplitN(compiled, "\n", 2)[0], `"dry_run":true`)
 					var workflow map[string]any
 					require.NoError(t, yaml.Unmarshal(content, &workflow))
 					assertNoDryRunTelemetryEnv(t, workflow)
@@ -257,6 +297,9 @@ jobs:
 					assert.NotContains(t, compiled, "Mint OTLP")
 					assert.NotContains(t, compiled, "Generate observability summary")
 					assert.NotContains(t, compiled, `"opentelemetry":`)
+					for _, name := range []string{"TRACEPARENT", "TRACESTATE", "BAGGAGE", "GITHUB_AW_OTEL_", "CLAUDE_CODE_ENABLE_TELEMETRY"} {
+						assert.NotContains(t, compiled, name)
+					}
 					assert.NotContains(t, compiled, "#   - OTEL_")
 					assert.NotContains(t, compiled, "#   - GH_AW_OTLP_")
 					assert.Contains(t, compiled, "ENGINE_KEEP: preserved")
@@ -265,8 +308,10 @@ jobs:
 					assert.Contains(t, compiled, `ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"`)
 					assertDryRunEngineDate(t, content)
 				} else {
+					assert.NotContains(t, strings.SplitN(compiled, "\n", 2)[0], `"dry_run"`)
 					assert.Contains(t, compiled, "OTEL_EXPORTER_OTLP_ENDPOINT:")
 					assert.Contains(t, compiled, "OTEL_SERVICE_NAME: engine")
+					assert.Contains(t, compiled, "TRACEPARENT: engine-parent")
 					assert.Contains(t, compiled, "Mask OTLP telemetry headers")
 					assert.Contains(t, compiled, "Mask OTLP custom attribute values")
 					assert.Contains(t, compiled, "USER_TELEMETRY_ONLY")

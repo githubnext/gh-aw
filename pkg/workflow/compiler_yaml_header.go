@@ -72,15 +72,16 @@ func (c *Compiler) generateLockMetadataHeader(yaml *strings.Builder, data *Workf
 		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
 		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
 		metadata.Docs = data.Docs
+		metadata.DryRun = data.DryRun
 		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {
 			metadata.CompilerVersion = c.GetVersion()
 		}
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
-			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		} else {
-			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
+			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 }
@@ -104,7 +105,7 @@ func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowD
 	manifest.MCPServers = collectMCPServersForManifest(data)
 	manifest.ThreatDetection = collectDetectionPolicyForManifest(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
-		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
+		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	} else {
 		compilerYamlHeaderLog.Printf("Failed to serialize gh-aw-manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
 	}
@@ -126,7 +127,7 @@ func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData) {
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.SplitSeq(strings.TrimSpace(cleanDescription), "\n")
 		for line := range descriptionLines {
-			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
+			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 
@@ -140,12 +141,12 @@ func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData) {
 		first := true
 		for line := range intentLines {
 			if first {
-				fmt.Fprintf(yaml, "# Intent: %s\n", strings.TrimSpace(line))
+				fmt.Fprintf(yaml, "# Intent: %s\n", strings.TrimSpace(line)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 				first = false
 				continue
 			}
 			// Indent continuation lines so they stay visually attached to the intent block
-			fmt.Fprintf(yaml, "#         %s\n", strings.TrimSpace(line))
+			fmt.Fprintf(yaml, "#         %s\n", strings.TrimSpace(line)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 }
@@ -157,7 +158,7 @@ func generateSourceHeader(yaml *strings.Builder, data *WorkflowData) {
 		cleanSource := stringutil.StripANSI(data.Source)
 		// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 		cleanSource = filepath.ToSlash(cleanSource)
-		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource)
+		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	}
 
 	// Add manifest of imported/included files if any exist
@@ -180,7 +181,7 @@ func generateSourceHeader(yaml *strings.Builder, data *WorkflowData) {
 				cleanFile := stringutil.StripANSI(file)
 				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 				cleanFile = filepath.ToSlash(cleanFile)
-				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
+				fmt.Fprintf(yaml, "#     - %s\n", cleanFile) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 			}
 		}
 
@@ -190,7 +191,7 @@ func generateSourceHeader(yaml *strings.Builder, data *WorkflowData) {
 				cleanFile := stringutil.StripANSI(file)
 				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 				cleanFile = filepath.ToSlash(cleanFile)
-				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
+				fmt.Fprintf(yaml, "#     - %s\n", cleanFile) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 			}
 		}
 	}
@@ -211,7 +212,7 @@ func generateConfigHeader(yaml *strings.Builder, data *WorkflowData, secrets, ac
 		// Sort keys for deterministic output
 		keys := sliceutil.SortedKeys(data.EnvSources)
 		for _, k := range keys {
-			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k])
+			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k]) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 
@@ -220,7 +221,7 @@ func generateConfigHeader(yaml *strings.Builder, data *WorkflowData, secrets, ac
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Secrets used:\n")
 		for _, s := range secrets {
-			fmt.Fprintf(yaml, "#   - %s\n", s)
+			fmt.Fprintf(yaml, "#   - %s\n", s) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 
@@ -229,7 +230,7 @@ func generateConfigHeader(yaml *strings.Builder, data *WorkflowData, secrets, ac
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Custom actions used:\n")
 		for _, a := range actions {
-			fmt.Fprintf(yaml, "#   - %s\n", a)
+			fmt.Fprintf(yaml, "#   - %s\n", a) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 
@@ -238,7 +239,7 @@ func generateConfigHeader(yaml *strings.Builder, data *WorkflowData, secrets, ac
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Container images used:\n")
 		for _, img := range data.DockerImages {
-			fmt.Fprintf(yaml, "#   - %s\n", img)
+			fmt.Fprintf(yaml, "#   - %s\n", img) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
 }
@@ -248,14 +249,14 @@ func generateApprovalHeader(yaml *strings.Builder, data *WorkflowData) {
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
 		cleanStopTime := stringutil.StripANSI(data.StopTime)
-		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime)
+		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	}
 
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
 		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
-		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
+		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	}
 
 	yaml.WriteString("\n")

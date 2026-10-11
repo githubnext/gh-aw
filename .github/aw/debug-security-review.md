@@ -1,5 +1,5 @@
 ---
-description: Gate local debug/dry-run changes with 2-3 independent cheap security judges.
+description: Gate local debug/dry-run changes with one read-only security reviewer and an annotated Markdown-source overview.
 disable-model-invocation: true
 ---
 
@@ -29,12 +29,12 @@ security checks. A passing dry-run still grants no live-dispatch permission.
 ## Agent Ownership
 
 The agent performs the review: capture intent, inspect source and reachable
-runtime dependencies, prepare the evidence packet, run independent judges,
+runtime dependencies, prepare the evidence packet, engage one security reviewer,
 resolve findings and missing coverage, execute permitted compilation/scanners,
 and record the result. Do not hand these steps to the user as a checklist.
-An incomplete judge response is missing review evidence, not a confirmed
+An incomplete reviewer response is missing review evidence, not a confirmed
 vulnerability or a reason to ask the user to inspect code. Gather the missing
-evidence within the judge limits below; never turn UNKNOWN into PASS.
+evidence with the same reviewer; never turn UNKNOWN into PASS.
 
 The agent also prepares exact revisions, hashes, credential-source/destination
 metadata, permissions, protections and run bounds for any required human
@@ -91,7 +91,7 @@ The agent may run the installed, trusted `gh aw compile WORKFLOW --dry-run`
 to obtain emitted locks and compiler/scanner evidence before the final
 source/lock review. This permission covers compilation, not execution of
 workflow scripts, changed compiler code, build hooks, harnesses or MCP servers.
-Review those separately before running them. The judges remain read-only.
+Review those separately before running them. The reviewer remains read-only.
 
 Emission is required: do not combine `--dry-run` with `--no-emit`. Compilation
 may run in the current checkout; a disposable checkout is optional, not a
@@ -113,8 +113,8 @@ the diagnostic lock's review verdict to a different live lock.
   request: goal, permitted scope/effects, preserved behavior and acceptance
   criteria. For an existing session, capture before further edits/execution.
 - Cite the originating user message and subsequent explicit user clarifications.
-  Store the concise intent record in session artifacts; give every judge the
-  same record. Do not copy unrelated or sensitive conversation content.
+  Store the concise intent record in session artifacts; give the reviewer that
+  record. Do not copy unrelated or sensitive conversation content.
 - Clarification optional: if goal/scope/authorization is unclear and the user is
   available, ask one focused question. Do not wait indefinitely for an absent
   user. Record unresolved intent as UNKNOWN; continue static diagnosis and
@@ -139,24 +139,22 @@ the diagnostic lock's review verdict to a different live lock.
 - No execution, installs, server startup or destination contact. Missing/truncated
   relevant code = UNKNOWN coverage.
 
-## Judges
+## Single Reviewer
 
-- Select smallest/cheapest available code-classification models through supported
-  runtime controls. No guessed IDs or silent expensive defaults. Record actual
-  models; prefer distinct cheap models.
-- Launch two independent read-only subagents in parallel: same packet/questions,
-  one bounded pass each, small response budget, runtime-supported timeout.
-  No nested agents, execution, external writes or shared answers.
-- Disagreement/abstention: third independent cheap judge reviews disputed questions
-  against the same packet, blind to earlier votes. Maximum three judges/revision,
-  not per question. No favorable-vote retries.
-- Cheap selection/read-only agents unavailable: gate UNAVAILABLE, never PASS.
+- Require exactly one read-only security-review agent for the current revision.
+  Give it the intent, evidence packet and questions below for one bounded pass.
+  No parallel judges, voting, tie-breakers, nested agents, execution or external writes.
+- Use the configured runtime model defaults; do not guess or require model IDs.
+  Record the actual model if exposed, otherwise report it as unavailable.
+- Resolve incomplete coverage or questions through bounded follow-ups with the
+  same reviewer. Do not launch replacement reviewers to obtain a favorable verdict.
+- If a read-only reviewer is unavailable, the gate is UNAVAILABLE, never PASS.
   Continue static diagnosis/editing; no unreviewed execution.
 
 ## Binary Questions
 
 [BinEval-style](evals.md): one falsifiable claim/question; YES = property holds.
-Judge code evidence, not reported success. Local prompts, not workflow `evals:`
+Review code evidence, not reported success. Local prompts, not workflow `evals:`
 or hosted runs. Scope every question to reachable changed behavior.
 
 | ID | Question (YES = safe property) |
@@ -176,7 +174,7 @@ Seek exfiltration (encoded/covert included), malware, download-and-execute,
 obfuscation, backdoors, unauthorized persistence, destructive effects and
 suspicious/insecure code. Unfamiliar syntax alone proves no maliciousness.
 
-Each judge returns one record/question:
+The reviewer returns one record/question:
 
 ```text
 question_id: <ID>
@@ -185,21 +183,19 @@ evidence: path:lines; credential source -> sink/destination or relevant control
 reason: <one evidence-grounded sentence>
 ```
 
-UNKNOWN = abstention: missing evidence/unresolved applicability, never success.
+UNKNOWN = missing evidence/unresolved applicability, never success.
 Absent path: YES only with code-grounded not-applicable explanation.
 
 ## Decision
 
-- Compare 2-3 answers/question side by side: model, vote, evidence, disagreement.
-  Agreement (2/2 or 2/3) = triage signal, not security proof.
 - Parent inspects every NO: trace source-to-sink/unsafe effect; resolve through
-  code evidence or fix. Never outvote credible minority findings. Resolve UNKNOWN
-  coverage explicitly; third YES cannot supply missing evidence.
-- PASS only if every question has two evidence-backed YES votes, all negative
+  code evidence or fix. Resolve UNKNOWN coverage explicitly with the same reviewer;
+  an unsupported affirmative answer cannot supply missing evidence.
+- PASS only if every question has an evidence-backed YES from the single reviewer, all negative
   findings resolved, relevant coverage complete.
 - Otherwise block affected execution/upload; continue read-only diagnosis/fixes.
-  Unresolved suspicion: focused security review, not endless judge debate.
-- Report session intent/provenance, base/hashes, models, votes, confirmed findings with paths/lines,
+  Unresolved suspicion remains blocked; do not retry reviewers or debate indefinitely.
+- Report session intent/provenance, base/hashes, reviewer/model, answers, confirmed findings with paths/lines,
   unresolved evidence and PASS/BLOCKED/UNAVAILABLE. Store in session artifacts;
   never commit raw logs.
 - Intent/code/import/dependency/lock changes invalidate affected verdicts. Review new
@@ -214,13 +210,41 @@ Report this even when nothing was found; incomplete coverage is not a clean bill
 of health. Include it in the user handoff, not only in private artifacts or judge
 replies, and do not imply that review authorizes execution.
 
+### Annotated Markdown Change Overview
+
+Alongside every review result, show the user an annotated overview of changed
+authored `.md` sources, including workflow frontmatter, executable snippets,
+prompts, imports, and review guidance. Ignore generated `.lock.yml` files in
+this overview; do not reproduce their diffs or annotate generated YAML lines.
+Generated locks remain execution-review evidence, not the user-facing source overview.
+
+For each security-relevant source change, provide a revision-pinned Markdown
+link and line range, the before/after behavior, and a plain-language annotation
+explaining its security impact: credentials and recipients, permissions, output
+limits, untrusted-input boundaries, executable provenance, persistence, sandbox
+controls or approval requirements. Distinguish improved, unchanged and weakened
+controls from unresolved evidence. Explain the practical effect rather than merely
+restating the changed text. Redact secret values.
+
+Use a compact table:
+
+| Markdown source | Change | Security impact |
+| --- | --- | --- |
+| [workflow.md:10–14](<revision-pinned-source-url>) | Custom-token-only launch becomes Actions-token fallback. | Removes the custom-secret dependency; approved routes and privileged-job permission checks remain required. |
+
+If no authored Markdown changed, say so and summarize the relevant code changes
+without inventing a source diff. This overview is required even when there are
+no findings or the review is blocked; it does not replace the evidence or findings.
+Show it in the user response, not only in a private artifact, and do not modify
+reviewed workflow Markdown merely to insert annotations.
+
 Example: "Security review passed for the emitted dry-run lock: credential flows,
 executable provenance, and sandbox controls were checked, with no confirmed issues."
 
 ### Explain Blocked or Unavailable Debugging
 
 A refusal must explain **why** the requested execution or upload is blocked.
-"Security review failed", "inconsistent judgments", or "missing coverage" alone
+"Security review failed" or "missing coverage" alone
 is not an actionable explanation. After the result sentence, identify each
 material blocker:
 
@@ -243,13 +267,13 @@ Metadata alone does not establish a missing firewall; inspect the actual AWF
 configuration and invocation. Distinguish unchanged intentional controls from
 new regressions. Apply the [dry-run dangerous-feature filter](#dry-run-dangerous-features)
 to authored workflow configuration, not built-in engine implementation flags.
-Explain contradictory vote/reason pairs without silently changing votes or
+Explain contradictory answer/reason pairs without silently changing answers or
 counting them as a passed gate.
 
 When no code defect is confirmed, say so. Link the gate that requires withholding
 execution and identify the unresolved question and missing evidence instead of
 inventing a problematic source line. For example: "Live dispatch is blocked by
-the [two-affirmative-vote requirement](#decision): `secret_disclosure` has unresolved
+the [single-reviewer evidence requirement](#decision): `secret_disclosure` has unresolved
 review coverage for the [artifact redaction path](<revision-pinned-source-url>).
 No credential leak is confirmed. The agent must resolve that source coverage
 before dispatch; additional user authorization cannot replace the review."

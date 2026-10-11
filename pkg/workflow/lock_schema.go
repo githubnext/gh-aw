@@ -40,6 +40,7 @@ type LockMetadata struct {
 	CompilerVersion string            `json:"compiler_version,omitempty"`
 	Docs            string            `json:"docs,omitempty"`
 	Strict          bool              `json:"strict,omitempty"`
+	DryRun          bool              `json:"dry_run,omitempty"`
 	// AgentMetadataInfo is embedded so agent fields are declared once and
 	// serialized inline in the lock metadata JSON.
 	AgentMetadataInfo
@@ -77,7 +78,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 	matches := lockMetadataPattern.FindStringSubmatch(content)
 
 	if len(matches) >= 2 {
-		jsonStr := matches[1]
+		jsonStr := matches[1] //nolint:uncheckedsliceindex // The length check above guarantees this capture exists.
 		var metadata LockMetadata
 		if err := json.Unmarshal([]byte(jsonStr), &metadata); err != nil {
 			return nil, false, fmt.Errorf("lock metadata JSON should be a single valid JSON object; recompile the workflow with gh aw compile to regenerate the lock file: %w", err)
@@ -90,7 +91,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 	if matches := lockHashPattern.FindStringSubmatch(content); len(matches) >= 2 {
 		lockSchemaLog.Print("Legacy lock file detected (no schema version)")
 		// Return a minimal metadata struct with just the hash for legacy files
-		return &LockMetadata{FrontmatterHash: matches[1]}, true, nil
+		return &LockMetadata{FrontmatterHash: matches[1]}, true, nil //nolint:uncheckedsliceindex // The length check guarantees this capture exists.
 	}
 
 	// No metadata found at all
@@ -101,7 +102,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 func formatSupportedVersions() string {
 	versions := make([]string, len(SupportedSchemaVersions))
 	for i, v := range SupportedSchemaVersions {
-		versions[i] = string(v)
+		versions[i] = string(v) //nolint:uncheckedsliceindex // versions has the same length as SupportedSchemaVersions.
 	}
 	return strings.Join(versions, ", ")
 }

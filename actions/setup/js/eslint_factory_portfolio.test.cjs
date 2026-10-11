@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { ESLINT_WORKERS, buildESLintFactoryPlan, buildESLintFactoryPolicy } from "./eslint_factory_portfolio.cjs";
-import { normalizeDispatchParameters, normalizeSubmitParameters } from "./work_queue_intents.cjs";
+import { normalizeDispatchParameters, normalizeSubmitParameters, stagePlanIntents } from "./work_queue_intents.cjs";
 import { newState, newRequest, generateRequestOperations, replayTransactions } from "./work_queue_replay.cjs";
 import { frozenResourceScope } from "./work_queue_resource_scope.cjs";
 import { validateDeliveryContract } from "./work_queue_delivery.cjs";
@@ -117,7 +117,8 @@ describe("ESLint factory producer and dispatcher", () => {
     expect(source).toContain("buildESLintFactoryPlan");
     expect(source).toContain("run.created_at");
     expect(source).toContain("cat /tmp/gh-aw/agent/eslint-factory-plan.json");
-    expect(source.indexOf("Call `work_queue_submit` once")).toBeLessThan(source.indexOf("request the trusted scheduler"));
+    expect(source).toContain("stagePlanIntents(");
+    expect(source).toContain("shared/work-queue-staged-plan.md");
     expect(source).toContain("will atomically bootstrap the branch with its compiler-approved Policy and Work.");
     expect(source).toContain("Safe-output processing uses only the compiler-approved Policy proposal; never");
     expect(source).toContain("no administrator seed is required.");
@@ -147,16 +148,20 @@ describe("ESLint factory producer and dispatcher", () => {
         expect(proposal.pools.default.profiles[worker].logical_contract).toMatch(/^[a-f0-9]{64}$/);
       }
     }
-    expect(source).toContain("github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}");
-    const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
-    expect(configMatch).not.toBeNull();
-    const config = JSON.parse(JSON.parse(configMatch[1]));
-    expect(config["github-token"]).toBe("${{ secrets.GH_AW_GITHUB_TOKEN }}");
-    expect(config.work_queue_dispatch_credential).toEqual({ kind: "authenticated" });
-    expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
+    expect(source).not.toMatch(/github-token:/);
+    const configs = [...compiled.matchAll(/(?:GH_AW_WORK_QUEUE_CONTROL_CONFIG|GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG): ("[^\n]+")/g)].map(([, value]) => {
+      const config = JSON.parse(JSON.parse(value));
+      return config.dispatch_workflow || config;
+    });
+    expect(configs.length).toBeGreaterThan(1);
+    for (const config of configs) {
+      expect(config["github-token"]).toBe("${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}");
+      expect(config.work_queue_dispatch_credential).toEqual({ kind: "${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'authenticated' || 'github_token' }}" });
+      expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
+    }
   });
 
-  it("bootstraps an absent queue and launches all three workers through the real trusted control adapter without duplicate launches", async () => {
+  it.each(["authenticated", "github_token"])("bootstraps an absent queue and launches all three workers with %s credentials without duplicate launches", async kind => {
     const directory = path.resolve(`.gh-aw-eslint-dispatch-${randomUUID()}`);
     fs.mkdirSync(directory);
     const fixture = queueFixture({ granted: false, workerPrincipal: "12" });
@@ -165,6 +170,9 @@ describe("ESLint factory producer and dispatcher", () => {
     const posts = [];
     const failures = [];
     const compiled = fs.readFileSync(new URL("../../../.github/workflows/eslint-factory-dispatcher.lock.yml", import.meta.url), "utf8");
+    const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
+    expect(configMatch).not.toBeNull();
+    const dispatchConfig = JSON.parse(JSON.parse(configMatch[1]));
     const [environment] = compiledFactoryPolicyEnvironments(compiled);
     expect(environment).toBeDefined();
     const policy = JSON.parse(readWorkQueuePolicyConfig(environment).replaceAll("${{ github.repository }}", REPOSITORY).replaceAll("${{ github.sha }}", REF));
@@ -178,6 +186,11 @@ describe("ESLint factory producer and dispatcher", () => {
       return { ...response, data: { ...response.data, ref: `refs/${parameters.ref}` } };
     };
     fake.githubClient.rest.users = fixture.githubClient.rest.users;
+    fake.githubClient.rest.users.getByUsername = async ({ username }) => {
+      expect(username).toBe("github-actions[bot]");
+      return { status: 200, data: { id: "12", type: "Bot", login: username } };
+    };
+    fake.githubClient.auth = async () => ({ type: "token", token: "fixture-token" });
     const workerFiles = ESLINT_WORKERS.flatMap(profile => [`.github/workflows/${profile}.md`, `.github/workflows/${profile}.lock.yml`]);
     const fileReads = [];
     fake.githubClient.rest.repos.getContent = async ({ path: filename, ref }) => {
@@ -224,15 +237,7 @@ describe("ESLint factory producer and dispatcher", () => {
       expect(fake.refs.has("work-queue")).toBe(false);
       const plan = buildESLintFactoryPlan(planOptions);
       const intentPath = path.join(directory, "intents.jsonl");
-      fs.writeFileSync(
-        intentPath,
-        [
-          { version: 3, intent_id: "factory-submit", kind: "submit", parameters: { nodes: plan.nodes } },
-          { version: 3, intent_id: "factory-dispatch", kind: "dispatch_next", parameters: plan.dispatch },
-        ]
-          .map(intent => JSON.stringify(intent))
-          .join("\n") + "\n"
-      );
+      stagePlanIntents(intentPath, plan);
       const controls = {
         ...options,
         intentOrigin: snapshot.origin,
@@ -241,7 +246,11 @@ describe("ESLint factory producer and dispatcher", () => {
           expect(token).toBe("fixture-token");
           return fake.githubClient;
         },
-        config: { max: 3, work_queue_enabled: true, work_queue_workflows: ESLINT_WORKERS, aw_context_workflows: ESLINT_WORKERS, "github-token": "fixture-token", work_queue_dispatch_credential: { kind: "authenticated" } },
+        config: {
+          ...dispatchConfig,
+          "github-token": "fixture-token",
+          work_queue_dispatch_credential: { kind },
+        },
       };
       const result = await processControls(controls);
       expect(result.success, JSON.stringify({ result, failures })).toBe(true);
@@ -274,6 +283,7 @@ describe("ESLint factory producer and dispatcher", () => {
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     const calls = [];
     const files = new Map();
+    const intents = [];
     const fakeRequire = name => {
       if (name === "node:fs")
         return {
@@ -282,6 +292,13 @@ describe("ESLint factory producer and dispatcher", () => {
         };
       if (name === "node:path") return { join: (...parts) => parts.join("/") };
       if (name === "/fixture/gh-aw/actions/eslint_factory_portfolio.cjs") return { buildESLintFactoryPlan };
+      if (name === "/fixture/gh-aw/actions/work_queue_intents.cjs")
+        return {
+          stagePlanIntents: (filename, plan) => {
+            expect(filename).toBe("/fixture/gh-aw/safeoutputs/work-queue/work-queue.intents.jsonl");
+            intents.push(plan);
+          },
+        };
       throw new Error(`Unreviewed preparation dependency: ${name}`);
     };
     const github = {
@@ -306,6 +323,7 @@ describe("ESLint factory producer and dispatcher", () => {
     expect(calls).toEqual(["run", "repository"]);
     expect(files.size).toBe(1);
     expect(JSON.parse(files.get("/tmp/gh-aw/agent/eslint-factory-plan.json"))).toEqual(buildESLintFactoryPlan(planOptions));
+    expect(intents).toEqual([buildESLintFactoryPlan(planOptions)]);
   });
 
   it("keeps clean scans and absent rule ideas from claiming write-capable no-write Results", () => {

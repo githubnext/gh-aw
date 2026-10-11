@@ -63,7 +63,7 @@ describe("work-queue deployment documentation", () => {
     expect(instructions).not.toContain("```json");
     expect(instructions).toContain("issue-backed WorkQueueOps");
     expect(instructions).toContain("`uninitialized` plus null SHA is empty");
-    expect(instructions).toContain("Existing policyless ledgers are failures");
+    expect(instructions).toContain("Policyless ledgers fail");
     expect(readRepositoryFile(referencePath)).toContain("Work queues can be Git-backed or issue-backed");
     for (const file of [deploymentPath, referencePath, specificationPath]) {
       expect(instructions).toContain(file.replace(/^docs\//, "../../docs/"));
@@ -97,9 +97,10 @@ describe("work-queue deployment documentation", () => {
     expect(dispatcher).toContain('work-queue work_queue_read \'{"pool":"default","limit":32}\'');
     expect(dispatcher).toContain("Check `queue_state`, not just `total`");
     expect(dispatcher).toContain("Treat it as an empty backlog; the first trusted producer submission");
-    expect(dispatcher).toContain("Do not dispatch until that submission has been admitted");
+    expect(dispatcher).toContain("shared/work-queue-staged-plan.md");
+    expect(readRepositoryFile(".github/workflows/shared/work-queue-staged-plan.md")).toContain("Trusted processing verifies the exact batch");
     expect(dispatcher).toContain("existing policyless ledger");
-    expect(dispatcher).toContain('work-queue work_queue_dispatch_next \'{"pool":"default","max_claims":3,"max_dispatches":3}\'');
+    expect(dispatcher).toContain('{"pool":"default","max_claims":3,"max_dispatches":3}');
     expect(dispatcher).toContain('`status: "staged"`');
     expect(dispatcher).toContain("an empty snapshot or a prediction of no eligible Work can be stale");
     expect(dispatcher).toContain("Do not call ordinary `dispatch_workflow`");
