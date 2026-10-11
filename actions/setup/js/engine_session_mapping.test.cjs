@@ -137,8 +137,21 @@ describe("shared engine event mappings", () => {
 
   it("projects historical Pi and future message updates through the shared allowlist", () => {
     const event = { type: "assistant.message_update", data: { sourceType: "message_update", type: "future_delta", delta: { flag: false }, usage: { input: 3 }, contentIndex: 0 } };
-    expect(normalizeUnifiedSessionEvent(event).data).toEqual({ sourceType: "message_update", delta: { flag: false }, contentIndex: 0 });
+    expect(normalizeUnifiedSessionEvent(event).data).toEqual({ sourceType: "message_update", type: "future_delta", delta: { flag: false }, usageSnapshot: { input: 3 }, contentIndex: 0 });
     validate([event]);
+  });
+
+  it.each(["text_delta", "thinking_delta", "text_end", "thinking_end"])("preserves essential historical Pi %s observations without admitting extension fields", type => {
+    const record = { type: "pi.message_update", data: { type, contentIndex: 0, delta: "", content: false, usage: { input: 0 }, privateExtension: "native evidence" } };
+    const original = structuredClone(record);
+    const events = normalizeEngineSessionEvents([record], "pi");
+    expect(events[0].data.privateExtension).toBe("native evidence");
+    const projected = unified(events);
+    expect(projected[0].data).toEqual({ sourceType: "message_update", type, contentIndex: 0, delta: "", content: false, usageSnapshot: { input: 0 } });
+    expect(normalizeUnifiedSessionEvent(projected[0]).data).toEqual(projected[0].data);
+    expect(projectSessionResult(events)).toBeUndefined();
+    expect(record).toEqual(original);
+    validate(events);
   });
 
   it("maps Codex snapshots and todo lists to standard events while preserving partial output and history", () => {
@@ -222,13 +235,13 @@ describe("shared engine event mappings", () => {
     ];
     const projected = unified(events);
     expect(projected.map(event => event.data)).toEqual([
-      { messageId: "codex", sourceType: "item.updated", partial: true },
+      { messageId: "codex", sourceType: "item.updated", type: "agent_message", partial: true },
       { sourceType: "message_update", delta: "Pi" },
       { sourceType: "future_delta", delta: "future" },
     ]);
     const validateUnified = createSessionValidator("unified").event;
     for (const event of projected) expect(validateUnified(event), JSON.stringify(validateUnified.errors)).toBe(true);
-    expect(validateUnified({ ...projected[0], data: { ...projected[0].data, privateExtension: "unexpected" } })).toBe(false);
+    for (const event of projected) expect(validateUnified({ ...event, data: { ...event.data, privateExtension: "unexpected" } })).toBe(false);
   });
 
   it("preserves divergent Pi atomic content as snapshot history without mutating source blocks", () => {

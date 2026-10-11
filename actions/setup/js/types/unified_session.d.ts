@@ -408,7 +408,13 @@ export interface UnifiedSessionEventDataMap {
   "assistant.message": UnifiedMessageData;
   "assistant.refusal": Pick<AssistantRefusalData, "reason" | "content" | "policyCategory" | "explanation" | "partial"> & UnifiedMessageData;
   "assistant.reasoning": UnifiedMessageData;
-  "assistant.message_update": UnifiedMessageData & { sourceType?: JsonValue };
+  "assistant.message_update": UnifiedMessageData & {
+    sourceType?: JsonValue;
+    /** Native update subtype distinguishes historical Pi text and thinking controls. */
+    type?: JsonValue;
+    /** Observed native usage, not an additive accounting contribution. */
+    usageSnapshot?: JsonValue;
+  };
   "tool.execution_start": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "inputTruncated" | "command" | "mcpServerName"> & UnifiedSessionContextData;
   "tool.execution_update": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "mcpServerName"> & {
     output?: JsonValue;

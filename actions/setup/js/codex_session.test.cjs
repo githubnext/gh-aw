@@ -440,6 +440,40 @@ describe("Codex normalization contract", () => {
     expect(orphan.at(-1).data).toMatchObject({ command: "cached command", input: { command: "cached command" }, success: true });
   });
 
+  it.each([
+    ["command_execution", { command: "cached command" }, "bash", { command: "cached command" }],
+    ["mcp_tool_call", { tool: "lookup", server: "github", arguments: false }, "lookup", false],
+    ["web_search", { query: "" }, "web_search", { query: "" }],
+    ["collab_tool_call", { tool: "send", prompt: "", receiver_thread_ids: [] }, "send", { receiver_thread_ids: [], prompt: "" }],
+    ["file_change", { changes: [] }, "apply_patch", undefined],
+  ])("does not invent a start for orphan %s updates and caches invocation observations", (type, fields, toolName, input) => {
+    const records = [
+      { type: "item.updated", item: { id: "orphan", type, ...fields, privateExtension: false } },
+      { type: "item.completed", item: { id: "orphan", type, status: "completed" } },
+    ];
+    const original = structuredClone(records);
+    const events = normalizeCodexSession(records);
+    expect(events.map(event => event.type)).toEqual(["tool.execution_update", "tool.execution_complete"]);
+    expect(events[0].data).toMatchObject({ partial: true, sourceType: "item.updated", privateExtension: false });
+    expect(events[1].data).toMatchObject({ toolCallId: "orphan", toolName, success: true });
+    expect(events[1].data.input).toEqual(input);
+    if (type === "mcp_tool_call") expect(events[1].data.mcpServerName).toBe("github");
+    expect(normalizeCodexSession(events)).toEqual(events);
+    expect(records).toEqual(original);
+  });
+
+  it.each(["item.started", "item.updated", "item.completed"])("keeps content-free user and reasoning %s observations on their own event types", type => {
+    const events = normalizeCodexSession([
+      { type, item: { id: "user", type: "user_message" } },
+      { type, item: { id: "reasoning", type: "reasoning" } },
+    ]);
+    expect(events.map(event => event.type)).toEqual(["user.message", "assistant.reasoning"]);
+    for (const event of events) {
+      expect(event.data).not.toHaveProperty("content");
+      expect(event.data.partial).toBe(type === "item.completed" ? undefined : true);
+    }
+  });
+
   it.each([{ refusal: " exact refusal\n" }, { content: [{ type: "refusal", refusal: " exact refusal\n" }] }, { finish_reason: "content_filter", content: null }])(
     "maps signal-only assistant refusals rather than opaque snapshots: %j",
     fields => {

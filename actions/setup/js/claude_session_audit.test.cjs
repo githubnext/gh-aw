@@ -12,6 +12,19 @@ const project = events => mergeSessionSources([{ component: "agent", phase: "age
 const stream = event => ({ type: "stream_event", session_id: "audit-session", parent_tool_use_id: null, event });
 
 describe("Claude canonical diagnostics from live run shapes", () => {
+  it.each(["thinking_tokens", "vcs_state_changed", "status", "compact_boundary"])("keeps mapped %s status text out of assistant messages", subtype => {
+    for (const payload of [{ message: "Status text" }, { message: { content: "Status text" } }, { content: [{ type: "text", text: "Status text" }] }]) {
+      const record = { type: "system", subtype, session_id: "audit-session", ...payload };
+      const events = parse([record]);
+      expect(events.map(event => event.type)).toEqual(["session.info"]);
+      expect(events[0].data).toMatchObject({ sourceType: subtype, ...payload });
+      const unified = project(events);
+      expect(unified.map(event => event.type)).toEqual(["session.info"]);
+      expect(normalizeClaudeSession(events)).toEqual(events);
+      expect(createSessionValidator("unified").event(unified[0])).toBe(true);
+    }
+  });
+
   // Existing failed run 36762044297 and docs run 37623157868, sanitized in the imported fixtures.
   it("retains API failures and retries once, as canonical errors rather than duplicate opaque envelopes", () => {
     const events = parse(failure);

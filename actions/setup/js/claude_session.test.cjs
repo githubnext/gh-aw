@@ -251,19 +251,22 @@ describe("Claude partial streaming transport", () => {
     expect(projectSessionResult(events).usage).toMatchObject({ input_tokens: 2, output_tokens: 9, cache_read_input_tokens: 4 });
   });
 
-  it("keeps dangling starts and incomplete JSON arguments without inventing results or IDs", () => {
+  it.each(['{"command":"partial', '{"command":invalid}'])("keeps dangling starts and malformed JSON arguments %j without inventing results or IDs", argumentText => {
     const events = normalizeClaudeSession([
       stream({ type: "content_block_start", index: 0, content_block: { type: "tool_use", name: "Bash", input: {} } }),
-      stream({ type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"command":"partial' } }),
-      stream({ type: "content_block_stop", index: 0 }),
+      stream({ type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: argumentText } }),
+      stream({ type: "content_block_stop", index: 0 }, "malformed-stop"),
       stream({ type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Recovered" } }),
     ]);
     const start = events.find(event => event.type === "tool.execution_start");
     expect(start.data.toolCallId).toBeUndefined();
     expect(start.id).toBeUndefined();
-    expect(start.data.argumentText).toBe('{"command":"partial');
+    expect(start.data.argumentText).toBe(argumentText);
     expect(start.data.input).toEqual({});
-    expect(events.filter(event => event.type === "assistant.message_update").map(event => event.data.sourceType)).toContain("content_block_stop");
+    expect(events.find(event => event.uuid === "malformed-stop")).toMatchObject({
+      type: "assistant.message_update",
+      data: { sourceType: "content_block_stop", contentIndex: 0, delta: true, event: { type: "content_block_stop", index: 0 } },
+    });
     expect(events.some(event => event.type === "claude.stream_event")).toBe(false);
     expect(text(events, "assistant.message")).toBe("Recovered");
     expect(events.some(event => event.type === "tool.execution_complete" || event.type === "session.result")).toBe(false);

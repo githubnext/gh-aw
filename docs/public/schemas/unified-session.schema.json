@@ -21,6 +21,8 @@
               "additionalProperties": false,
               "properties": {
                 "sourceType": { "$ref": "#/definitions/JsonValue" },
+                "type": { "$ref": "#/definitions/JsonValue", "description": "Native update subtype distinguishes historical Pi text and thinking controls." },
+                "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Observed native usage, not an additive accounting contribution." },
                 "content": { "$ref": "#/definitions/JsonValue" },
                 "delta": { "$ref": "#/definitions/JsonValue" },
                 "partial": { "$ref": "#/definitions/JsonValue" },

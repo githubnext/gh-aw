@@ -140,6 +140,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
   const legacyCallIds = new Map();
   const executionEnds = new Set(records.filter(r => r.type === "tool_execution_end" && r.toolCallId !== undefined).map(r => r.toolCallId));
   const calls = new Map();
+  const executionStarts = new Set();
   const completions = new Set();
   /** @type {Map<string, MessageState>} */
   const messageStates = new Map();
@@ -243,14 +244,15 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
       values.delete(index);
       const previousEvents = category === "text" || category === "thinking" ? previous.segments : [previous];
       for (const event of previousEvents) {
-        removed.add(event);
+        // Replaced message observations must not erase an observed execution.
+        if (!executionStarts.has(event)) removed.add(event);
         if (Array.isArray(event.data.nativeSnapshots)) history.push(...structuredClone(event.data.nativeSnapshots));
       }
       const content = category === "text" || category === "thinking" ? previous.content : Object.hasOwn(previous.data, "content") ? previous.data.content : previous.data.input;
       if (content !== undefined && ((category !== "text" && category !== "thinking") || previous.segments.length > 0)) {
         history.push({ content: structuredClone(content) });
       }
-      if (category === "calls" && previous.data.toolCallId !== undefined && calls.get(previous.data.toolCallId) === previous) {
+      if (category === "calls" && !executionStarts.has(previous) && previous.data.toolCallId !== undefined && calls.get(previous.data.toolCallId) === previous) {
         calls.delete(previous.data.toolCallId);
       }
     }
@@ -277,11 +279,12 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
         previous.data.input = structuredClone(part.arguments);
       }
       state.calls.set(index, previous);
-      return;
+      return previous;
     }
     const event = emit(raw, "tool.execution_start", { ...part, toolCallId: part.id, toolName: part.name, input: part.arguments });
     if (part.id !== undefined) calls.set(part.id, event);
     state.calls.set(index, event);
+    return event;
   };
 
   const emitCompletion = (raw, message) => {
@@ -364,7 +367,10 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     if (isSessionEvent(raw)) {
       const event = structuredClone(raw);
       events.push(legacyObservation ? mapLegacyEvent(event) : event);
-      if (event.type === "tool.execution_start" && event.data.toolCallId !== undefined) calls.set(event.data.toolCallId, event);
+      if (event.type === "tool.execution_start") {
+        executionStarts.add(event);
+        if (event.data.toolCallId !== undefined) calls.set(event.data.toolCallId, event);
+      }
     } else if (raw.type === "gh_aw_subagent_dispatch") {
       const invocationId = invocationIdentity(raw, true);
       const agentName = raw.agent ?? raw.agentName ?? "unknown";
@@ -433,7 +439,9 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
       assistantState = newMessageState();
       partialAssistant = false;
     } else if (raw.type === "tool_execution_start") {
-      emitCall(raw, { id: raw.toolCallId, name: raw.toolName, ...(raw.parentToolCallId !== undefined ? { parentToolCallId: raw.parentToolCallId } : {}), ...(Object.hasOwn(raw, "args") ? { arguments: raw.args } : {}) }, newMessageState());
+      executionStarts.add(
+        emitCall(raw, { id: raw.toolCallId, name: raw.toolName, ...(raw.parentToolCallId !== undefined ? { parentToolCallId: raw.parentToolCallId } : {}), ...(Object.hasOwn(raw, "args") ? { arguments: raw.args } : {}) }, newMessageState())
+      );
     } else if (raw.type === "tool_execution_end") {
       if (raw.toolCallId !== undefined && completions.has(raw.toolCallId)) continue;
       if (raw.toolCallId !== undefined) completions.add(raw.toolCallId);

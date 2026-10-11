@@ -176,7 +176,7 @@ const EVENT_FIELDS = {
   "assistant.message": MESSAGE_FIELDS,
   "assistant.refusal": { ...MESSAGE_FIELDS, reason: ["reason"], policyCategory: ["policyCategory"], explanation: ["explanation"] },
   "assistant.reasoning": MESSAGE_FIELDS,
-  "assistant.message_update": { ...MESSAGE_FIELDS, sourceType: ["sourceType"] },
+  "assistant.message_update": { ...MESSAGE_FIELDS, sourceType: ["sourceType"], type: ["type"], usageSnapshot: ["usageSnapshot", "usage"] },
   "tool.execution_start": { ...TOOL_FIELDS, input: ["input", "parameters", "arguments", "argumentText"], inputTruncated: ["inputTruncated"], command: ["command"] },
   "tool.execution_update": {
     ...TOOL_FIELDS,

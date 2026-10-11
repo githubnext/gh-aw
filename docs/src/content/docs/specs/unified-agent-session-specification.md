@@ -996,7 +996,7 @@ redaction, escaping, and byte limits.
 | Source signature | Canonical mapping |
 | --- | --- |
 | `thread.started` with `thread_id` | Initialization/session identity; reported model/workdir metadata retained when available. |
-| Supported `item.started` / `item.updated` / `item.completed` with `item.type: "agent_message"` or `"reasoning"` | Message/reasoning observations; distinguish partial text from full snapshots to avoid duplication. |
+| Supported `item.started` / `item.updated` / `item.completed` with `item.type: "agent_message"`, `"user_message"`, or `"reasoning"` | Message/reasoning observations; retain the source speaker even before content arrives, and distinguish partial text from full snapshots to avoid duplication. |
 | Same item envelope with `item.type: "mcp_tool_call"` | Start/completion according to observed lifecycle; preserve item/call ID, `server`, `tool`, `arguments`, `result`, `error`, `status`. |
 | Same item envelope with `item.type: "command_execution"` | Preserve ID, command, `aggregated_output`, status, and `exit_code`; nonzero exit is failure. |
 | Recognized patch, web-search, or collaboration items | Standard tool observations with supplied inputs, outputs, identities, and lifecycle. Summary-only file changes supply an orphan `apply_patch` completion, not invented patch arguments or a start. |
@@ -1007,7 +1007,7 @@ redaction, escaping, and byte limits.
 | Legacy `thinking`, recognized tool/exec call and outcome lines | Exact payload text and independently observed tool lifecycle; no source ID if none is exposed. |
 | Legacy `ERROR:` / recognized reconnect diagnostics | Session errors, separately from successful tool activity. |
 
-An item carrying a complete invocation and result can expand to a start and completion at that item position. An unfinished item or a legacy call lacking an outcome does not supply a successful completion. Declined commands are failures and retain a reported unavailable exit code as `null`. Repeated or revised accounting snapshots reconcile before subsequent turn reports; overflow remains unavailable until a valid authoritative replacement. Recognized model headers and harness spawn metadata can supply a model, but arbitrary text does not establish a Codex session.
+An item carrying a complete invocation and result can expand to a start and completion at that item position, except `item.updated`, which remains a partial update even without a prior start. An unfinished item or a legacy call lacking an outcome does not supply a successful completion. Declined commands are failures and retain a reported unavailable exit code as `null`. Repeated or revised accounting snapshots reconcile before subsequent turn reports; overflow remains unavailable until a valid authoritative replacement. Recognized model headers and harness spawn metadata can supply a model, but arbitrary text does not establish a Codex session.
 
 Supported message-item snapshots retain their native history on the selected
 core message instead of adding `codex.item_snapshot` wrappers. Unknown items
@@ -1087,7 +1087,7 @@ and CLI code do not import Pi-specific migration logic.
 | --- | --- |
 | `pi.message_snapshot` | `session.info` with `sourceType: "message_snapshot"`, role/model/correlation metadata, and `usageSnapshot`. |
 | Argument `pi.message_update` | `tool.execution_update` retaining the native update subtype, argument fragments or finalized input, correlation, and optional `usageSnapshot`. |
-| Other `pi.message_update` | `assistant.message_update`, retaining the supplied boundary or update payload without inventing text. |
+| Other `pi.message_update` | `assistant.message_update`, retaining supported boundary/update fields through the shared essential projection without inventing text; the canonical trace retains native additions. |
 | `pi.tool_execution_update` | `tool.execution_update` with partial output and the observed input and identities. |
 | `pi.error` | `session.error`. |
 | Recognized Pi lifecycle or subagent wrappers | The corresponding engine-independent `session.*` or `subagent.*` events. |
