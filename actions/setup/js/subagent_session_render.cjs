@@ -1,6 +1,6 @@
 // @ts-check
 
-const { isMetric, isTokenCount, sessionOutputText, sessionContext } = require("./agent_session.cjs");
+const { isMetric, isTokenCount, sessionOutputText, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collectArtifactSecretValues, redactManifestValue } = require("./safe_output_manifest.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -24,7 +24,7 @@ function renderSubagentSummary(events) {
   let sessionId;
   for (const event of redacted) {
     const data = event.data ?? {};
-    const nested = !!sessionContext(event).parentToolUseId;
+    const nested = isNestedSessionEvent(event);
     if (["session.start", "session.init"].includes(event.type) && !event.agentId && !nested) {
       if ((data.sessionId !== undefined && data.sessionId !== sessionId) || (event.type === "session.init" && data.sessionId === undefined && data.sourceEngine === "copilot")) {
         agents.clear();
