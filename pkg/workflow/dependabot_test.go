@@ -123,6 +123,17 @@ func TestCollectNpmDependencies(t *testing.T) {
 			},
 		},
 		{
+			name: "sorted dependencies preserve package and workflow precedence",
+			workflows: []*WorkflowData{
+				{CustomSteps: "npx zod@3.0.0\nnpx @scope/alpha@1.0.0\nnpx zod@2.0.0"},
+				{CustomSteps: "npx @scope/alpha"},
+			},
+			expectedDeps: []NpmDependency{
+				{Name: "@scope/alpha", Version: "latest"},
+				{Name: "zod", Version: "2.0.0"},
+			},
+		},
+		{
 			name:         "no npm dependencies",
 			workflows:    []*WorkflowData{},
 			expectedDeps: []NpmDependency{},
@@ -943,6 +954,17 @@ func TestCollectPipDependencies(t *testing.T) {
 			},
 		},
 		{
+			name: "sorted dependencies preserve package and workflow precedence",
+			workflows: []*WorkflowData{
+				{CustomSteps: "pip install requests==2.28.0\npip install django>=3.2.0\npip install requests==2.27.0"},
+				{CustomSteps: "pip install django"},
+			},
+			expectedDeps: []PipDependency{
+				{Name: "django", Version: ""},
+				{Name: "requests", Version: "==2.27.0"},
+			},
+		},
+		{
 			name:         "no pip dependencies",
 			workflows:    []*WorkflowData{},
 			expectedDeps: []PipDependency{},
@@ -1098,6 +1120,17 @@ func TestCollectGoDependencies(t *testing.T) {
 			},
 		},
 		{
+			name: "sorted dependencies preserve package and workflow precedence",
+			workflows: []*WorkflowData{
+				{CustomSteps: "go install golang.org/x/tools@v0.2.0\ngo get github.com/user/tool@v1.0.0\ngo install golang.org/x/tools@v0.1.0"},
+				{CustomSteps: "go install github.com/user/tool"},
+			},
+			expectedDeps: []GoDependency{
+				{Path: "github.com/user/tool", Version: "latest"},
+				{Path: "golang.org/x/tools", Version: "v0.1.0"},
+			},
+		},
+		{
 			name:         "no go dependencies",
 			workflows:    []*WorkflowData{},
 			expectedDeps: []GoDependency{},
@@ -1121,6 +1154,32 @@ func TestCollectGoDependencies(t *testing.T) {
 				if dep.Version != expected.Version {
 					t.Errorf("dependency %d: expected version %q, got %q", i, expected.Version, dep.Version)
 				}
+			}
+		})
+	}
+}
+
+func TestCollectDependenciesEmpty(t *testing.T) {
+	compiler := NewCompiler()
+	tests := []struct {
+		name      string
+		workflows []*WorkflowData
+	}{
+		{name: "nil workflows"},
+		{name: "empty workflows", workflows: []*WorkflowData{}},
+		{name: "no packages", workflows: []*WorkflowData{{CustomSteps: "echo hello"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if deps := compiler.collectNpmDependencies(tt.workflows); deps != nil {
+				t.Errorf("expected nil npm dependencies, got %v", deps)
+			}
+			if deps := compiler.collectPipDependencies(tt.workflows); deps != nil {
+				t.Errorf("expected nil pip dependencies, got %v", deps)
+			}
+			if deps := compiler.collectGoDependencies(tt.workflows); deps != nil {
+				t.Errorf("expected nil Go dependencies, got %v", deps)
 			}
 		})
 	}
