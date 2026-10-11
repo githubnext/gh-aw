@@ -329,6 +329,79 @@ describe("Pi CI stream regressions", () => {
     expect(byType(events, "assistant.message")[0]).toMatchObject({ id: "answer", data: { content: "complete answer\n", signature: "answer-metadata" } });
   });
 
+  const snapshotParts = [
+    { type: "image", data: "image-data", mimeType: "image/png" },
+    { type: "text", text: "answer" },
+    { type: "thinking", thinking: "reasoning" },
+    { type: "toolCall", id: "call", name: "lookup", arguments: { query: "answer" } },
+  ];
+
+  it.each(snapshotParts.flatMap(previous => snapshotParts.filter(part => part.type !== previous.type).map(part => [previous.type, part.type, previous, part])))(
+    "reconciles index zero from %s to %s across repeated finalized snapshots",
+    (_, __, previous, part) => {
+      const message = { role: "assistant", id: "same-message", content: [part] };
+      const records = [
+        { type: "message_start", message: { ...message, content: [previous] } },
+        { type: "message_end", message },
+        { type: "turn_end", message },
+        { type: "agent_end", messages: [message] },
+      ];
+      const original = structuredClone(records);
+      const events = transformPiV3Entries(records);
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe(part.type === "thinking" ? "assistant.reasoning" : part.type === "toolCall" ? "tool.execution_start" : "assistant.message");
+      expect(events[0].data.nativeSnapshots).toEqual([{ content: previous.type === "text" ? previous.text : previous.type === "thinking" ? previous.thinking : previous.type === "toolCall" ? previous.arguments : previous }]);
+      if (part.type === "toolCall") expect(events[0].data.input).toEqual(part.arguments);
+      else expect(events[0].data.content).toEqual(part.type === "text" ? part.text : part.type === "thinking" ? part.thinking : part);
+      expect(byType(events, "tool.execution_complete")).toHaveLength(0);
+      const saved = JSON.parse(JSON.stringify(events));
+      expect(transformPiV3Entries(saved)).toEqual(saved);
+      expect(normalizeAgentSession(saved)).toEqual(saved);
+      expect(records).toEqual(original);
+    }
+  );
+
+  it.each(snapshotParts.filter(part => part.type !== "toolCall"))("retains actual tool execution when a later $type snapshot replaces its content index", part => {
+    const call = snapshotParts[3];
+    const message = { role: "assistant", id: "same-message", content: [part] };
+    const events = transformPiV3Entries([
+      { type: "message_start", message: { ...message, content: [call] } },
+      { type: "tool_execution_start", toolCallId: "call", toolName: "lookup", args: { query: "executed" } },
+      { type: "message_end", message },
+      { type: "tool_execution_end", toolCallId: "call", toolName: "lookup", result: "found", isError: false },
+      { type: "turn_end", message },
+      { type: "agent_end", messages: [message] },
+    ]);
+    expect(events.map(event => event.type)).toEqual(["tool.execution_start", part.type === "thinking" ? "assistant.reasoning" : "assistant.message", "tool.execution_complete"]);
+    expect(events[0].data).toMatchObject({ toolCallId: "call", input: { query: "executed" } });
+    expect(events[1].data).toMatchObject({ content: part.type === "text" ? part.text : part.type === "thinking" ? part.thinking : part, nativeSnapshots: [{ content: { query: "executed" } }] });
+    expect(events[2].data).toMatchObject({ toolCallId: "call", output: "found", success: true });
+    const saved = JSON.parse(JSON.stringify(events));
+    expect(transformPiV3Entries(saved)).toEqual(saved);
+    expect(normalizeAgentSession(saved)).toEqual(saved);
+  });
+
+  it("preserves chained native snapshot history without manufacturing a start for an orphan completion", () => {
+    const parts = snapshotParts.slice(0, 3);
+    const message = { role: "assistant", id: "same-message", content: [snapshotParts[0]] };
+    const events = transformPiV3Entries([
+      { type: "message_start", message: { ...message, content: [parts[0]] } },
+      { type: "message_end", message: { ...message, content: [parts[1]] } },
+      { type: "turn_end", message: { ...message, content: [parts[2]] } },
+      { type: "tool_execution_end", toolCallId: "orphan", result: "found", isError: false },
+      { type: "agent_end", messages: [message] },
+      { type: "agent_end", messages: [message] },
+    ]);
+    expect(events.map(event => event.type)).toEqual(["tool.execution_complete", "assistant.message"]);
+    expect(events[1].data).toMatchObject({
+      content: parts[0],
+      nativeSnapshots: [{ content: parts[0] }, { content: parts[1].text }, { content: parts[2].thinking }],
+    });
+    const saved = JSON.parse(JSON.stringify(events));
+    expect(transformPiV3Entries(saved)).toEqual(saved);
+    expect(normalizeAgentSession(saved)).toEqual(saved);
+  });
+
   it("does not merge content block indices or text and reasoning at the same index", () => {
     const events = transformPiV3Entries([
       { type: "message_update", assistantMessageEvent: { type: "thinking_delta", contentIndex: 0, delta: "reason" } },

@@ -17,6 +17,7 @@ const SCOPED_AGENT_TYPES = new Set([
   "user.message",
   "assistant.message",
   "assistant.reasoning",
+  "assistant.message_update",
   "assistant.refusal",
   "tool.execution_start",
   "tool.execution_update",
@@ -88,6 +89,13 @@ const GRADER_FIELDS = {
   direction: ["direction"],
   threshold: ["threshold"],
   error: ["error"],
+  source: ["source"],
+  enabled: ["enabled"],
+  min: ["min"],
+  max: ["max"],
+  digest: ["digest"],
+  severity: ["severity"],
+  message: ["message"],
 };
 const MODEL_ROUTING_FIELDS = {
   status: ["status"],
@@ -179,6 +187,7 @@ const EVENT_FIELDS = {
   "assistant.message": MESSAGE_FIELDS,
   "assistant.refusal": { ...MESSAGE_FIELDS, reason: ["reason"], policyCategory: ["policyCategory"], explanation: ["explanation"] },
   "assistant.reasoning": MESSAGE_FIELDS,
+  "assistant.message_update": { ...MESSAGE_FIELDS, sourceType: ["sourceType"], type: ["type"], usageSnapshot: ["usageSnapshot", "usage"] },
   "tool.execution_start": { ...TOOL_FIELDS, input: ["input", "parameters", "arguments", "argumentText"], inputTruncated: ["inputTruncated"], command: ["command"] },
   "tool.execution_update": {
     ...TOOL_FIELDS,
@@ -189,6 +198,9 @@ const EVENT_FIELDS = {
     contentIndex: ["contentIndex"],
     sourceType: ["sourceType"],
     usageSnapshot: ["usageSnapshot"],
+    durationMs: ["durationMs"],
+    status: ["status"],
+    command: ["command"],
   },
   "tool.execution_complete": {
     ...TOOL_FIELDS,
@@ -240,6 +252,14 @@ const EVENT_FIELDS = {
     toolCallId: ["toolCallId"],
     toolName: ["toolName"],
     usageSnapshot: ["usageSnapshot"],
+    estimatedTokens: ["estimatedTokens"],
+    estimatedTokensDelta: ["estimatedTokensDelta"],
+    cwd: ["cwd"],
+    branch: ["branch"],
+    kind: ["kind"],
+    rateLimitInfo: ["rateLimitInfo", "rate_limit_info"],
+    isAuthenticating: ["isAuthenticating", "is_authenticating"],
+    output: ["output"],
   },
   "mcp.rpc.request": MCP_FIELDS,
   "mcp.rpc.response": MCP_FIELDS,
@@ -305,9 +325,9 @@ const EVENT_FIELDS = {
   "safe_output.result": SAFE_OUTPUT_FIELDS,
   "safe_output.error": SAFE_OUTPUT_FIELDS,
   "experiment.state": { runId: ["runId", "run_id"], assignments: ["assignments"], counts: ["counts"] },
-  "grader.manifest": {},
+  "grader.manifest": { version: ["version"] },
   "grader.result": GRADER_FIELDS,
-  "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"] },
+  "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"], runId: ["runId", "runid"], assignments: ["assignments", "experiments"] },
   "github_api.rate_limit": {
     source: ["source"],
     credentialSource: ["credentialSource", "credential_source"],
@@ -504,7 +524,17 @@ function normalizeUnifiedSessionEvent(event, phase) {
     data.assignments = structuredClone(source.assignments ?? source);
   }
   if (event.type === "grader.manifest" && Array.isArray(source.graders)) data.graders = source.graders.map(grader => selectFields(grader, GRADER_FIELDS));
-  if (event.type === "grader.result" && Array.isArray(source.results)) data.results = source.results.map(result => selectFields(result, GRADER_FIELDS));
+  if (event.type === "grader.result") {
+    if (source.version !== undefined) data.version = structuredClone(source.version);
+    if (source.run !== undefined) data.run = source.run === null ? null : selectFields(source.run, { id: ["id"], attempt: ["attempt"], graderCount: ["graderCount"], passed: ["passed"], failed: ["failed"], errors: ["errors"] });
+    const projectResult = result => ({
+      ...selectFields(result, GRADER_FIELDS),
+      ...(result?.implementation !== undefined ? { implementation: result.implementation === null ? null : selectFields(result.implementation, { id: ["id"], version: ["version"], digest: ["digest"] }) } : {}),
+      ...(Array.isArray(result?.metrics) ? { metrics: result.metrics.map(metric => selectFields(metric, { id: ["id"], value: ["value"] })) } : {}),
+    });
+    Object.assign(data, projectResult(source));
+    if (Array.isArray(source.results)) data.results = source.results.map(projectResult);
+  }
   if (event.type === "safe_output.error") {
     const errors = source.errors ?? source.failures;
     if (Array.isArray(errors)) data.errors = errors.map(error => (error && typeof error === "object" && !Array.isArray(error) ? selectFields(error, SAFE_OUTPUT_FIELDS) : structuredClone(error)));

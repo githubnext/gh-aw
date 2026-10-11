@@ -1641,8 +1641,26 @@ The following exported types were verified against source (`pkg/workflow/*.go`) 
 | `PullRequestEventTransition` | struct | Pull-request event transition description |
 | `ShellScriptResource` | struct | Embedded shell script resource |
 | `WorkflowFile`, `WorkflowFileJob`, `WorkflowFilePermissions` | struct | Parsed GitHub Actions workflow file model |
+| `HostedWebCapabilities` | struct | Hosted web-search support, `max-uses` support, and unsupported reason |
+| `HostedWebCapabilityProvider` | interface | Reports hosted web-search support for a workflow via `GetHostedWebCapabilities` |
+| `AWFNVXConfig`, `AgentNVXConfig` | struct | NVX preview runtime config for the AWF config file and agent sandbox overrides |
+| `MemoryJSONSchemaConfig` | struct | JSON schema file/format settings for memory validation |
+| `AgyEngine` | struct | Agy engine (constructed with `NewAgyEngine`) |
+| `WorkQueueClaimAdapter`, `WorkQueueGraphQL`, `WorkQueueGitTree`, `WorkQueueRestRequest`, `WorkQueueRestVerifier` | struct | Work-queue claim adapter binding custom output to a verified effect |
+| `WorkQueueIssuesConfig`, `WorkQueueMemoryConfig`, `WorkQueuePolicyConfig` | struct | Work-queue issues, memory, and policy configuration (policy is a proposal; the installed ledger policy grants authority) |
+
+### Additional exported functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `NewAgyEngine` | `func NewAgyEngine() *AgyEngine` | Creates the Agy engine |
+| `ParseStaleCheckMode` | `func ParseStaleCheckMode(frontmatter map[string]any) (disabled, full bool)` | Reads the `on` stale-check mode from frontmatter |
+| `ScanResourceSecurity` | `func ScanResourceSecurity(content []byte) []SecurityFinding` | Scans non-Markdown resources for Unicode obfuscation; returns nil for invalid UTF-8 |
+| `ValidateEnvironmentOverride` | `func ValidateEnvironmentOverride(name string) error` | Validates a literal Actions environment name; empty means no override |
 
 ## Source Synchronization
+
+Reviewed against source on 2026-10-11: added previously-undocumented hosted-web, NVX, Agy, memory schema, and work-queue types plus `NewAgyEngine`, `ParseStaleCheckMode`, `ScanResourceSecurity`, and `ValidateEnvironmentOverride`.
 
 Reviewed against source on 2026-10-04: added `PostConfigPluginInstallationProvider` and `GHAWManifestDetectionPolicy` to the "Additional Exported Types" table.
 

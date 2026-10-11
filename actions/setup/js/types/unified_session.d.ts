@@ -266,14 +266,40 @@ export interface GraderData {
   direction?: JsonValue;
   threshold?: JsonValue;
   error?: JsonValue;
+  source?: JsonValue;
+  enabled?: JsonValue;
+  min?: JsonValue;
+  max?: JsonValue;
+  digest?: JsonValue;
+  severity?: JsonValue;
+  message?: JsonValue;
 }
 
 export interface GraderManifestData {
+  version?: JsonValue;
   graders?: GraderData[];
 }
 
-export interface GraderResultData extends GraderData {
-  results?: GraderData[];
+export interface GraderMeasurementData extends GraderData {
+  implementation?: {
+    id?: JsonValue;
+    version?: JsonValue;
+    digest?: JsonValue;
+  } | null;
+  metrics?: { id?: JsonValue; value?: JsonValue }[];
+}
+
+export interface GraderResultData extends GraderMeasurementData {
+  version?: JsonValue;
+  run?: {
+    id?: JsonValue;
+    attempt?: JsonValue;
+    graderCount?: JsonValue;
+    passed?: JsonValue;
+    failed?: JsonValue;
+    errors?: JsonValue;
+  } | null;
+  results?: GraderMeasurementData[];
 }
 
 export interface EvalResultData {
@@ -281,6 +307,8 @@ export interface EvalResultData {
   answer?: JsonValue;
   model?: JsonValue;
   error?: JsonValue;
+  runId?: JsonValue;
+  assignments?: JsonValue;
 }
 
 export interface ExecutionResultData {
@@ -394,6 +422,15 @@ export interface UnifiedSessionEventDataMap {
     toolName?: JsonValue;
     /** Repeated observed metadata, never additive inference usage. */
     usageSnapshot?: JsonValue;
+    /** Native estimates, not measured or additive token usage. */
+    estimatedTokens?: JsonValue;
+    estimatedTokensDelta?: JsonValue;
+    cwd?: JsonValue;
+    branch?: JsonValue;
+    kind?: JsonValue;
+    rateLimitInfo?: JsonValue;
+    isAuthenticating?: JsonValue;
+    output?: JsonValue;
   } & UnifiedSessionContextData;
   "session.shutdown": {
     shutdownType?: JsonValue;
@@ -411,6 +448,13 @@ export interface UnifiedSessionEventDataMap {
   "assistant.message": UnifiedMessageData;
   "assistant.refusal": Pick<AssistantRefusalData, "reason" | "content" | "policyCategory" | "explanation" | "partial"> & UnifiedMessageData;
   "assistant.reasoning": UnifiedMessageData;
+  "assistant.message_update": UnifiedMessageData & {
+    sourceType?: JsonValue;
+    /** Native update subtype distinguishes historical Pi text and thinking controls. */
+    type?: JsonValue;
+    /** Observed native usage, not an additive accounting contribution. */
+    usageSnapshot?: JsonValue;
+  };
   "tool.execution_start": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "inputTruncated" | "command" | "mcpServerName"> & UnifiedSessionContextData;
   "tool.execution_update": Pick<ToolExecutionStartData, "toolCallId" | "stepIndex" | "toolName" | "input" | "mcpServerName"> & {
     output?: JsonValue;
@@ -420,6 +464,9 @@ export interface UnifiedSessionEventDataMap {
     sourceType?: JsonValue;
     /** Repeated observed metadata, never additive inference usage. */
     usageSnapshot?: JsonValue;
+    durationMs?: JsonValue;
+    status?: JsonValue;
+    command?: JsonValue;
   } & UnifiedSessionContextData;
   "tool.execution_complete": Pick<
     ToolExecutionCompleteData,

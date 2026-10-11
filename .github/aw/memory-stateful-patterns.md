@@ -138,4 +138,4 @@ after `push_ledger_changes` succeeds. Never modify SQLite or ledger shards
 directly. Use stable application keys to identify duplicate events.
 
 For built-in types, script restrictions, and persistence behavior, see
-[memory.md](memory.md#structured-event-history-standalone-ledger-experimental).
+[ledger.md](ledger.md).

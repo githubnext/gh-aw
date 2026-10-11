@@ -14,6 +14,66 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it("preserves grader attribution and unavailable diagnostics without executable payloads", () => {
+    const result = {
+      id: "coverage",
+      source: "builtin",
+      status: "unavailable",
+      value: null,
+      passed: null,
+      message: "No trajectory evidence available",
+      severity: "warning",
+      implementation: { id: "gh-aw/graders", version: 1, digest: "", script: "PRIVATE_SCRIPT" },
+      metrics: [{ id: "observed", value: 0, trace: "PRIVATE_TRACE" }],
+      diagnostics: { private: "PRIVATE_DIAGNOSTICS" },
+      script: "PRIVATE_SCRIPT",
+    };
+    const manifest = { version: 1, graders: [{ id: "coverage", source: "builtin", enabled: false, min: 0, max: 1, digest: "", script: "PRIVATE_SCRIPT" }] };
+    const run = { id: "123", attempt: 2, graderCount: 1, passed: 0, failed: 0, errors: 0 };
+    const records = [
+      { type: "grader.manifest", data: manifest },
+      { type: "grader.result", data: { version: 1, run: { ...run, script: "PRIVATE_SCRIPT" }, results: [result] } },
+      { type: "grader.result", data: { ...result, implementation: null, metrics: [] } },
+      { type: "grader.result", data: { run: null, results: [] } },
+    ];
+    const original = structuredClone(records);
+    const unified = mergeSessionSources([{ component: "grader", phase: "agent", path: "agent/graders/grader_results.json", events: records }]);
+    expect(unified[0].data).toEqual({ version: 1, graders: [{ id: "coverage", source: "builtin", enabled: false, min: 0, max: 1, digest: "" }] });
+    const expected = {
+      id: "coverage",
+      source: "builtin",
+      status: "unavailable",
+      value: null,
+      passed: null,
+      message: result.message,
+      severity: "warning",
+      implementation: { id: "gh-aw/graders", version: 1, digest: "" },
+      metrics: [{ id: "observed", value: 0 }],
+    };
+    expect(unified[1].data).toEqual({ version: 1, run, results: [expected] });
+    expect(unified[2].data).toEqual({ ...expected, implementation: null, metrics: [] });
+    expect(unified[3].data).toEqual({ run: null, results: [] });
+    const validate = createSessionValidator("unified").event;
+    for (const event of unified) {
+      expect(normalizeUnifiedSessionEvent(event).data).toEqual(event.data);
+      expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    }
+    expect(JSON.stringify(unified)).not.toContain("PRIVATE_");
+    expect(records).toEqual(original);
+  });
+
+  it("preserves eval run and experiment attribution without evaluation questions", () => {
+    const assignments = { variant: { value: "baseline" } };
+    const source = { type: "eval.result", timestamp: "2026-10-11T00:00:00Z", data: { id: "quality", answer: "UNKNOWN", model: "fixture", runid: "123", experiments: assignments, question: "PRIVATE_QUESTION" } };
+    const original = structuredClone(source);
+    const event = normalizeUnifiedSessionEvent(source);
+    expect(event).toEqual({ type: source.type, timestamp: source.timestamp, data: { id: "quality", answer: "UNKNOWN", model: "fixture", runId: "123", assignments } });
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+    const [unified] = mergeSessionSources([{ component: "eval", phase: "evals", path: "evals/evals.jsonl", events: [source] }]);
+    expect(createSessionValidator("unified").event(unified)).toBe(true);
+    expect(source).toEqual(original);
+  });
+
   it.each([true, false])("retains final model result and BYOK=%s through persisted unified projection", isByok => {
     const source = {
       type: "model.call_final_result",

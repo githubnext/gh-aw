@@ -12,6 +12,19 @@ const project = events => mergeSessionSources([{ component: "agent", phase: "age
 const stream = event => ({ type: "stream_event", session_id: "audit-session", parent_tool_use_id: null, event });
 
 describe("Claude canonical diagnostics from live run shapes", () => {
+  it.each(["thinking_tokens", "vcs_state_changed", "status", "compact_boundary"])("keeps mapped %s status text out of assistant messages", subtype => {
+    for (const payload of [{ message: "Status text" }, { message: { content: "Status text" } }, { content: [{ type: "text", text: "Status text" }] }]) {
+      const record = { type: "system", subtype, session_id: "audit-session", ...payload };
+      const events = parse([record]);
+      expect(events.map(event => event.type)).toEqual(["session.info"]);
+      expect(events[0].data).toMatchObject({ sourceType: subtype, ...payload });
+      const unified = project(events);
+      expect(unified.map(event => event.type)).toEqual(["session.info"]);
+      expect(normalizeClaudeSession(events)).toEqual(events);
+      expect(createSessionValidator("unified").event(unified[0])).toBe(true);
+    }
+  });
+
   // Existing failed run 36762044297 and docs run 37623157868, sanitized in the imported fixtures.
   it("retains API failures and retries once, as canonical errors rather than duplicate opaque envelopes", () => {
     const events = parse(failure);
@@ -84,7 +97,8 @@ describe("Claude observed partials and structured payloads", () => {
     expect(text.map(event => event.data.content)).toEqual(["  start", "\r\n"]);
     expect(text[0]).toMatchObject({ id: "native-start", parentId: null, timestamp: 0, data: { snapshots: [{ uuid: "final-snapshot" }] } });
     expect(text[0].event).toEqual(records[1].event);
-    expect(events.filter(event => event.type === "claude.stream_event").map(event => event.data.event.type)).toEqual(["message_start", "future_transport_event"]);
+    expect(events.filter(event => event.type === "claude.stream_event").map(event => event.data.event.type)).toEqual(["future_transport_event"]);
+    expect(events.find(event => event.type === "assistant.message_update").data).toMatchObject({ sourceType: "message_start", messageId: "streamed", model: "fixture-model" });
     expect(events.some(event => event.type === "claude.assistant_snapshot")).toBe(false);
     const persisted = JSON.parse(JSON.stringify(events));
     expect(normalizeClaudeSession(persisted)).toEqual(persisted);
@@ -202,7 +216,7 @@ describe("Claude observed partials and structured payloads", () => {
     const events = parse([{ type: "auth_status", isAuthenticating: false, output: [], error: "Sanitized authentication failure." }]);
     expect(events.map(event => event.type)).toEqual(["session.result"]);
     expect(events[0].data).toMatchObject({ sourceType: "auth_status", isAuthenticating: false, output: [], errors: ["Sanitized authentication failure."] });
-    expect(parse([{ type: "auth_status", isAuthenticating: true, output: [] }])[0].type).toBe("claude.auth_status");
+    expect(parse([{ type: "auth_status", isAuthenticating: true, output: [] }])[0]).toMatchObject({ type: "session.info", data: { sourceType: "auth_status", isAuthenticating: true, output: [] } });
   });
 
   it("correlates finalized snapshots after missing block starts, without losing reasoning deltas or signatures", () => {

@@ -38,6 +38,36 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it.each(["evals-job", "conclusion", "usage-only"])("persists grader and eval evidence from the %s layout exactly once", layout => {
+    const gradersDir = layout === "usage-only" ? "usage/graders" : "agent/graders";
+    const evalsPath = layout === "evals-job" ? "evals.jsonl" : layout === "conclusion" ? "evals/evals.jsonl" : "usage/evals.jsonl";
+    const tokenPath = layout === "evals-job" ? "evals_token_usage.jsonl" : layout === "conclusion" ? "evals/evals_token_usage.jsonl" : "usage/evals/token_usage.jsonl";
+    const manifest = { version: 1, graders: [{ id: "coverage", enabled: true, source: "builtin", threshold: 0 }] };
+    const result = { id: "coverage", status: "unavailable", value: null, passed: null, source: "builtin", message: "No evidence", implementation: { id: "gh-aw/graders", version: 1 } };
+    const run = { id: "123", attempt: 2, graderCount: 1, passed: 0, failed: 0, errors: 0 };
+    write(`${gradersDir}/grader_manifest.json`, manifest);
+    write(`${gradersDir}/grader_results.json`, { version: 1, run, results: [result] });
+    write(evalsPath, [{ id: "quality", answer: "NO", model: "fixture", runid: "123", timestamp: "2026-10-11T00:00:00Z", question: "PRIVATE_QUESTION" }]);
+    write(tokenPath, [{ model: "fixture", input_tokens: 0, output_tokens: 0 }]);
+    if (layout !== "usage-only") {
+      write("usage/graders/grader_manifest.json", manifest);
+      write("usage/graders/grader_results.json", { results: [{ id: "stale" }] });
+      write("usage/evals.jsonl", [{ id: "stale" }]);
+      write("usage/evals/token_usage.jsonl", [{ model: "stale" }]);
+    }
+    const events = writeUnifiedSession({ rootDir: root, dailyAIC: {} });
+    expect(events.filter(event => event.type === "grader.manifest").map(event => event.data)).toEqual([manifest]);
+    expect(events.filter(event => event.type === "grader.result").map(event => event.data)).toEqual([{ version: 1, run, results: [result] }]);
+    expect(events.filter(event => event.type === "eval.result")).toMatchObject([{ data: { id: "quality", answer: "NO", model: "fixture", runId: "123" }, provenance: { phase: "evals", path: evalsPath } }]);
+    expect(events.filter(event => event.type === "usage.report" && event.provenance.phase === "evals")).toMatchObject([{ data: { model: "fixture", usage: { inputTokens: 0, outputTokens: 0 } }, provenance: { path: tokenPath } }]);
+    expect(events.at(-1).data.absentComponents).not.toContain("grader");
+    expect(events.at(-1).data.absentComponents).not.toContain("eval");
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(persisted).not.toContain("stale");
+    expect(writeUnifiedSession({ rootDir: root, dailyAIC: {} })).toEqual(events);
+  });
+
   it.each(["startup", "runtime"])("collects a single model/endpoint mismatch record in the %s phase", phase => {
     const data = {
       category: "model_endpoint_mismatch",
@@ -913,8 +943,9 @@ describe("Unified conclusion session", () => {
     const published = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8").trimEnd().split("\n").map(JSON.parse);
     const agent = published.filter(event => event.provenance.component === "agent");
     expect(agent.map(event => event.type)).toEqual(["session.init", "session.result", "turn.started", "assistant.message", "assistant.message", "session.result"]);
-    expect(agent[1].data).toEqual({ errors: ["Model metadata unavailable; using fallback metadata."] });
+    expect(agent[1].data).toEqual({ sessionId: "sanitized-no-tools-thread", errors: ["Model metadata unavailable; using fallback metadata."] });
     expect(agent.at(-1).data).toEqual({
+      sessionId: "sanitized-no-tools-thread",
       status: "completed",
       sourceType: "turn.completed",
       numTurns: 1,

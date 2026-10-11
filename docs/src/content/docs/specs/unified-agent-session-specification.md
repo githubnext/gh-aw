@@ -244,7 +244,7 @@ opaque because its essential fields are not defined by this specification.
 | Firewall | Host, method, status, decision, byte count, duration; steering/tracker event, level, message, reason, and request ID. |
 | Safe outputs | Operation type, repository/number, provider/identifier/URL, status, and errors; no requested title/body or arbitrary operation payload. |
 | Experiments | Run ID, assignments, and counts. |
-| Graders and evals | Grader IDs/names, values, units, statuses, decisions, thresholds, and errors; eval ID, answer, model, and error. No grader scripts or eval questions. |
+| Graders and evals | Grader IDs/names, sources, enabled flags, bounds, values, units, statuses, decisions, thresholds, errors, severity, and diagnostic messages. Manifest/result versions, run ID/attempt and counts, implementation ID/version/digest, and metric ID/value pairs are retained when supplied. Eval ID, answer, model, error, run ID, and experiment assignments are retained. No grader scripts, opaque diagnostics, or eval questions. |
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
@@ -918,6 +918,9 @@ All mappings inherit Sections 3–6. The tables identify supported signatures an
 | Agent launch tool result with `agentId` and `resolvedModel` | Retain the tool completion and emit `subagent.configured` for the observed target model. |
 | `system/task_notification` for an observed local agent | `subagent.completed` or `subagent.failed`; retain observed token/tool/duration counters, and mark stopped tasks as cancelled. Other local-agent statuses remain native observations rather than dynamic-workflow events. |
 | Recognized non-init system status with textual message/content | Retain status metadata; use the established assistant-text compatibility view only for actual status text, not user prompts, permission-denial notices, or provider errors. |
+| `system/thinking_tokens`, VCS state, compaction boundary, or status notices | `session.info`; reasoning estimates remain `estimatedTokens`/`estimatedTokensDelta`, never measured usage. VCS kind, branch, and working directory remain available. |
+| `tool_progress` | Partial `tool.execution_update` with supplied tool identity and elapsed duration; not an inferred completion. |
+| Tool summaries, authentication status, and rate-limit notices | `session.info` with source subtype and observed content/status payloads. Authentication errors retain the error mapping above. |
 
 Claude `usage.output_tokens_details.thinking_tokens` maps to
 `usage.reasoning_output_tokens` in parser traces and `usage.reasoningOutputTokens`
@@ -938,6 +941,11 @@ outcome remains unknown.
 Mapped stream envelopes and finalized snapshots remain metadata on the core
 observations they describe; they do not introduce duplicated engine-specific
 message events. Unknown controls and native extensions remain opaque.
+Recognized stream-only boundaries use `assistant.message_update`, preserving
+message identity and source subtype without introducing another answer.
+Argument and signature fragments remain snapshots on their corresponding tool
+or reasoning event. Supported historical Claude status wrappers migrate through
+the same mappings when reconstructing or normalizing saved sessions.
 
 Nested SDK sessions can share the root `session_id`. Available `sessionId`,
 `parentToolUseId`, and caller `agentId` remain on messages, tools, initialization,
@@ -1030,16 +1038,23 @@ redaction, escaping, and byte limits.
 | Source signature | Canonical mapping |
 | --- | --- |
 | `thread.started` with `thread_id` | Initialization/session identity; reported model/workdir metadata retained when available. |
-| Supported `item.started` / `item.updated` / `item.completed` with `item.type: "agent_message"` or `"reasoning"` | Message/reasoning observations; distinguish partial text from full snapshots to avoid duplication. |
+| Supported `item.started` / `item.updated` / `item.completed` with `item.type: "agent_message"`, `"user_message"`, or `"reasoning"` | Message/reasoning observations; retain the source speaker even before content arrives, and distinguish partial text from full snapshots to avoid duplication. |
 | Same item envelope with `item.type: "mcp_tool_call"` | Start/completion according to observed lifecycle; preserve item/call ID, `server`, `tool`, `arguments`, `result`, `error`, `status`. |
 | Same item envelope with `item.type: "command_execution"` | Preserve ID, command, `aggregated_output`, status, and `exit_code`; nonzero exit is failure. |
 | Recognized patch, web-search, or collaboration items | Standard tool observations with supplied inputs, outputs, identities, and lifecycle. Summary-only file changes supply an orphan `apply_patch` completion, not invented patch arguments or a start. |
+| Supported tool `item.updated` and repeated completion snapshots | `tool.execution_update` retains partial output and invocation context without another execution or inferred completion. |
+| `todo_list` items | `session.info` with the supplied todo items as structured content. |
 | `turn.completed` with `usage` | Accumulate `input_tokens`, `output_tokens`, `cached_input_tokens` → `cache_read_input_tokens`, and `cache_write_input_tokens` → `cache_creation_input_tokens`; count distinct completed turns. |
 | Supported `turn.failed`, top-level `error`, or completed error item | Session/provider errors in `session.result.errors`, retaining supplied error structure and metadata. |
 | Legacy `thinking`, recognized tool/exec call and outcome lines | Exact payload text and independently observed tool lifecycle; no source ID if none is exposed. |
 | Legacy `ERROR:` / recognized reconnect diagnostics | Session errors, separately from successful tool activity. |
 
-An item carrying a complete invocation and result can expand to a start and completion at that item position. An unfinished item or a legacy call lacking an outcome does not supply a successful completion. Declined commands are failures and retain a reported unavailable exit code as `null`. Repeated or revised accounting snapshots reconcile before subsequent turn reports; overflow remains unavailable until a valid authoritative replacement. Recognized model headers and harness spawn metadata can supply a model, but arbitrary text does not establish a Codex session.
+An item carrying a complete invocation and result can expand to a start and completion at that item position, except `item.updated`, which remains a partial update even without a prior start. An unfinished item or a legacy call lacking an outcome does not supply a successful completion. Declined commands are failures and retain a reported unavailable exit code as `null`. Repeated or revised accounting snapshots reconcile before subsequent turn reports; overflow remains unavailable until a valid authoritative replacement. Recognized model headers and harness spawn metadata can supply a model, but arbitrary text does not establish a Codex session.
+
+Supported message-item snapshots retain their native history on the selected
+core message instead of adding `codex.item_snapshot` wrappers. Unknown items
+remain extensions. Observed thread identity scopes messages, diagnostics, and
+tools in the unified trace.
 
 ### 7.4 Gemini
 
@@ -1096,7 +1111,7 @@ repeated anonymous text does not establish snapshot coverage.
 | Flat `init`, `assistant`, `tool_use`, `tool_result` | Initialization, assistant content/deltas, starts, and completions, preserving native fields. |
 | Flat `result.stats` | Map supplied input/output usage, `turns`, and `duration_ms`; retain other supported statistics. |
 | v3 `session` with numeric source `version` and native `id` | Initialization with `sessionId` from the source ID, retaining timestamp/cwd/version as source metadata. |
-| Recognized `message_start`, `message_update`, `message_end` / `turn_end.message.content` | Text, thinking, and `toolCall` observations; finalized content is a snapshot, not another copy of streaming text. |
+| Recognized `message_start`, `message_update`, `message_end` / `turn_end.message.content` | Text, thinking, and `toolCall` observations; structured non-text blocks remain message content. Finalized content is a snapshot, not another copy of streaming text or atomic content. |
 | `tool_execution_start` / `tool_execution_end` | Independent start/completion using `toolCallId`, tool name/arguments, `result`, and `isError`; keep orphan ends and dangling starts. |
 | `toolcall_start` / `toolcall_delta` / `toolcall_end` message updates | One `tool.execution_start`, reconciled with partial argument text and finalized arguments. An orphan argument delta remains a partial `tool.execution_update`; boundary-only updates and repeated snapshots do not introduce message wrappers. |
 | `tool_execution_update` | `tool.execution_update` with canonical `input`, partial `output`, correlation IDs, and `partial: true`, not a Pi-specific message. |
@@ -1114,7 +1129,7 @@ and CLI code do not import Pi-specific migration logic.
 | --- | --- |
 | `pi.message_snapshot` | `session.info` with `sourceType: "message_snapshot"`, role/model/correlation metadata, and `usageSnapshot`. |
 | Argument `pi.message_update` | `tool.execution_update` retaining the native update subtype, argument fragments or finalized input, correlation, and optional `usageSnapshot`. |
-| Other `pi.message_update` | `assistant.message_update`, retaining the supplied boundary or update payload without inventing text. |
+| Other `pi.message_update` | `assistant.message_update`, retaining supported boundary/update fields through the shared essential projection without inventing text; the canonical trace retains native additions. |
 | `pi.tool_execution_update` | `tool.execution_update` with partial output and the observed input and identities. |
 | `pi.error` | `session.error`. |
 | Recognized Pi lifecycle or subagent wrappers | The corresponding engine-independent `session.*` or `subagent.*` events. |
@@ -1354,7 +1369,7 @@ timeline, and the disclosure does not repeat its title as a standalone heading.
 | MCPG | Method, server, RPC ID, tool name, observed responses/errors, and filter/block diagnostics. Raw RPC arguments and response bodies are omitted. |
 | AWF | Network host/method/status/decision, observed token usage, steering messages, and tracker event names. |
 | Safe outputs | Requested versus execution-recorded operations, target metadata, and structured error counts. Requests are not displayed as successes. |
-| Experiments, graders, evals | Assignments/state, grader value/unit/outcome, and eval ID/answer/model. Grader scripts and raw evaluation questions are omitted. |
+| Experiments, graders, evals | Assignments/state, grader value/unit/outcome, implementation identity, diagnostic messages and metrics, and eval ID/answer/model with run and experiment attribution. Grader scripts, opaque diagnostics, and raw evaluation questions are omitted. |
 | Execution, detection, collection | Recorded outcomes/verdict flags, detection job result/conclusion/categorical reason, source coverage, warnings, untimed counts, and absent components. No detector transcript or free-form reasons. |
 | Unknown extensions | Type and provenance only; opaque payloads are not dumped. |
 
