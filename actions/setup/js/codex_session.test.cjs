@@ -183,8 +183,9 @@ describe("Codex normalization contract", () => {
 
   // Protocol-shaped synthetic cases, not observations from the sampled runs:
   // openai/codex codex-rs/exec/src/exec_events.rs at rust-v0.162.1
-  // (092d3acd6bec3e3a14bdc7e7a2810ab628ab759d); identical to rust-v0.160.0,
-  // the latest stable version available through the npm installer when inspected.
+  // (092d3acd6bec3e3a14bdc7e7a2810ab628ab759d); identical to rust-v0.160.0.
+  // The official codex-npm-0.162.1.tgz manifest confirms the stable npm version;
+  // the local corporate registry mirror was stale when inspected.
   it("maps observed patches to orphan tool completions without inventing patch arguments", () => {
     const changes = [{ path: " example.txt ", kind: "update" }];
     const record = { type: "item.completed", id: "event-patch", timestamp: 0, item: { id: "patch", type: "file_change", changes, status: "failed" } };
