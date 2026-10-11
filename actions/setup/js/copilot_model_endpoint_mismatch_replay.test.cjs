@@ -133,7 +133,8 @@ describe("Copilot startup model/endpoint mismatch replay (run 38105198559)", () 
     vi.stubEnv("GH_AW_WORKFLOW_NAME", "routing-test-pr67487-mismatch");
     vi.stubEnv("GH_AW_WORKFLOW_ID", "routing-test-pr67487-mismatch");
     vi.stubEnv("GH_AW_RUN_URL", "https://github.com/owner/repo/actions/runs/38105198559");
-    vi.stubEnv("GITHUB_HEAD_REF", "");
+    vi.stubEnv("GITHUB_HEAD_REF", "feature/model-endpoint-mismatch-replay");
+    vi.stubEnv("GITHUB_REF_NAME", "feature/model-endpoint-mismatch-replay");
     global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
     global.context = { repo: { owner: "owner", repo: "repo" } };
   });
