@@ -19,6 +19,7 @@ Each scanner speaks its own native JSON dialect, with severities spelled in a di
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `NewFinding` | `func NewFinding(params NewFindingParams) Finding` | Maps scanner-adapted fields, normalizes severity, and attaches source context |
 | `ParseSeverity` | `func ParseSeverity(raw string) SeverityLevel` | Normalizes a native severity label (case-insensitive) |
 | `SeverityLevel.String` | `func (s SeverityLevel) String() string` | Canonical lowercase severity name |
 | `SeverityLevel.Rank` | `func (s SeverityLevel) Rank() int` | Relative ordering, higher is more severe |
@@ -33,6 +34,11 @@ Each scanner speaks its own native JSON dialect, with severities spelled in a di
 
 ## Usage Examples
 
+Keep native wire structs and scanner-specific messages, location selection, and
+defaults in the integration. Use `NewFinding` for the common conversion once
+those fields are resolved. It preserves the supplied message and coordinates;
+missing positions are defaulted only when rendering through `CompilerError`.
+
 `Render` uses stderr terminal/color detection for scanner diagnostics, even when
 `w` is a buffer for testing. It does not redirect writes: pass `os.Stderr` for
 the production diagnostic stream.
@@ -40,14 +46,14 @@ the production diagnostic stream.
 ```go
 import "github.com/github/gh-aw/pkg/scanfindings"
 
-findings := []scanfindings.Finding{{
-    RuleID:   "template-injection",
-    Severity: scanfindings.ParseSeverity("High"),
-    Message:  scanfindings.FormatMessage("High", "template-injection", "template injection with untrusted input"),
-    File:     ".github/workflows/demo.lock.yml",
-    Line:     12,
-    Column:   24,
-}}
+findings := []scanfindings.Finding{scanfindings.NewFinding(scanfindings.NewFindingParams{
+    RuleID: "template-injection",
+    SeverityLabel: "High",
+    Message: scanfindings.FormatMessage("High", "template-injection", "template injection with untrusted input"),
+    File: ".github/workflows/demo.lock.yml",
+    Line: 12,
+    Column: 24,
+})}
 
 scanfindings.Sort(findings)
 scanfindings.Render(os.Stderr, findings)

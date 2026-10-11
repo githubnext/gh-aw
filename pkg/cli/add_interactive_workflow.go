@@ -189,10 +189,12 @@ func (c *AddInteractiveConfig) runAddedWorkflowOnce(ctx context.Context) error {
 	c.updateLocalBranchBeforeWorkflowRun()
 
 	if err := RunSpecificWorkflowInteractively(ctx, RunWorkflowOptions{
+		WorkflowRunFlags: WorkflowRunFlags{
+			Verbose:        c.Verbose,
+			EngineOverride: c.EngineOverride,
+			RepoOverride:   c.RepoOverride,
+		},
 		WorkflowName:       workflowName,
-		Verbose:            c.Verbose,
-		EngineOverride:     c.EngineOverride,
-		RepoOverride:       c.RepoOverride,
 		requiredInputsOnly: true,
 	}); err != nil {
 		return err
