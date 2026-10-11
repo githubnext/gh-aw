@@ -13,6 +13,7 @@ describe("empty output outcome", () => {
 
   beforeEach(() => {
     rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "empty-output-outcome-"));
+    vi.stubEnv("RUNNER_TEMP", rootDir);
     global.core = { info: vi.fn(), debug: vi.fn(), warning: vi.fn() };
   });
 
@@ -25,13 +26,17 @@ describe("empty output outcome", () => {
   });
 
   it("records incomplete rather than claiming an intentional noop without evidence", () => {
-    expect(buildEmptyOutputOutcome([], rootDir)).toEqual({
+    expect(buildEmptyOutputOutcome([], rootDir)).toMatchObject({
       type: "report_incomplete",
       reason: "missing_terminal_safe_output",
-      failureCause: "unknown",
+      failureCause: "missing_terminal_safe_output",
       retryCount: 0,
-      details: "Agent finished without emitting a terminal safe output; task completion could not be confirmed.\nFailure classification: unknown\nRetry attempts observed: 0",
     });
+    const { details } = buildEmptyOutputOutcome([], rootDir);
+    expect(details).toContain("Driver exit code: not recorded");
+    expect(details).toContain("Last tool call: not recorded");
+    expect(details).toContain("Token budget state: unknown");
+    expect(details).toContain("Safe-output tools: unknown");
   });
 
   it.each(["metadata", "environment"])("does not classify rejected Aider JSON as an engine failure with trusted %s attribution", attribution => {
@@ -42,7 +47,7 @@ describe("empty output outcome", () => {
     fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), JSON.stringify(rejected));
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("missing_terminal_safe_output");
-    expect(outcome.failureCause).toBe("unknown");
+    expect(outcome.failureCause).toBe("missing_terminal_safe_output");
     expect(outcome.driverExitCode).toBe(0);
     expect(outcome).not.toHaveProperty("engineErrorType");
     expect(outcome.details).not.toContain("InjectedError");
@@ -64,7 +69,7 @@ describe("empty output outcome", () => {
     writeEvents(events);
     fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), JSON.stringify(diagnostic));
     const quoted = buildEmptyOutputOutcome([], rootDir);
-    expect(quoted.failureCause).toBe("unknown");
+    expect(quoted.failureCause).toBe("missing_terminal_safe_output");
     expect(quoted.driverExitCode).toBe(0);
     expect(quoted).not.toHaveProperty("engineErrorType");
     writeEvents([...events, diagnostic]);
@@ -107,6 +112,72 @@ describe("empty output outcome", () => {
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.driverExitCode).toBe(0);
     expect(outcome.details).toContain("Driver exit code: 0");
+    expect(outcome.failureCause).toBe("missing_terminal_safe_output");
+  });
+
+  it("reports the last tool identifier without copying sensitive arguments or successful results", () => {
+    writeEvents([
+      { type: "tool.execution_start", data: { toolCallId: "first", toolName: "bash", input: { command: "private-command" } } },
+      { type: "tool.execution_start", data: { toolCallId: "last", toolName: "get_file_contents", mcpServerName: "github", arguments: { token: "private-token" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "last", success: true, result: "private-result" } },
+    ]);
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.details).toContain("Last tool call: github.get_file_contents");
+    expect(outcome.details).not.toContain("private-");
+  });
+
+  it("does not copy malformed tool identifiers into the last-call summary", () => {
+    writeEvents([{ type: "tool.execution_start", data: { toolName: "bash\nprivate-tool-payload", input: "private-input" } }]);
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.details).toContain("Last tool call: identifier unavailable");
+    expect(outcome.details).not.toContain("private-");
+  });
+
+  it("reports token exhaustion only when the execution collector records it", () => {
+    writeEvents([{ type: "agent.execution", data: { categories: ["effective_tokens_limit_exceeded"], errorCodes: [], errorTypes: [], exitCode: 0 } }]);
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("prompt_exhaustion");
+    expect(outcome.details).toContain("Token budget state: exceeded");
+    expect(outcome.details).toContain("Step budget state (LLM invocations): unknown");
+  });
+
+  it.each([
+    [[], "unavailable at setup"],
+    [[{ name: "noop", inputSchema: { private: "private-schema" } }], "available at setup"],
+    [{ tools: [] }, "unknown (invalid registration evidence)"],
+  ])("reports observed safe-output registration without copying schemas: %j", (tools, expected) => {
+    const toolsDir = path.join(rootDir, "gh-aw/mcp-cli/tools");
+    fs.mkdirSync(toolsDir, { recursive: true });
+    fs.writeFileSync(path.join(toolsDir, "safeoutputs.json"), JSON.stringify(tools));
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.details).toContain(`Safe-output tools: ${expected}`);
+    expect(outcome.details).not.toContain("private-schema");
+  });
+
+  it("reports the existing zero-tools flag without inventing a gateway root cause", () => {
+    const flagDir = path.join(rootDir, "gh-aw/safeoutputs");
+    fs.mkdirSync(flagDir, { recursive: true });
+    fs.writeFileSync(path.join(flagDir, "gateway_empty.flag"), "");
+    expect(buildEmptyOutputOutcome([], rootDir).details).toContain("Safe-output tools: unavailable (gateway registered zero tools)");
+  });
+
+  it("surfaces unreadable registration evidence without copying its contents or masking the outcome", () => {
+    const toolsDir = path.join(rootDir, "gh-aw/mcp-cli/tools");
+    fs.mkdirSync(toolsDir, { recursive: true });
+    fs.writeFileSync(path.join(toolsDir, "safeoutputs.json"), "private-malformed-json");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("missing_terminal_safe_output");
+    expect(outcome.details).toContain("Safe-output tools: unknown (registration evidence could not be read)");
+    expect(outcome.details).not.toContain("private-malformed-json");
+  });
+
+  it("keeps core diagnostics even when validation errors fill the detail limit", () => {
+    const outcome = buildEmptyOutputOutcome(
+      Array.from({ length: 30 }, (_, i) => `Invalid output ${i}`),
+      rootDir
+    );
+    expect(outcome.details).toContain("Failure classification: request_rejection");
+    expect(outcome.details).toContain("Last tool call: not recorded");
   });
 
   it("preserves CLI parse classification when the bridge exits non-zero without copying payloads", () => {
@@ -232,6 +303,7 @@ describe("empty output outcome", () => {
     expect(outcome.failureCause).toBe(failureCause);
     expect(outcome.driverExitCode).toBe(1);
     expect(outcome.details).toContain(`Failure classification: ${failureCause}`);
+    expect(outcome.details).toContain(`Step budget state (LLM invocations): ${category === "invocation_cap_exceeded" ? "exceeded" : "unknown"}`);
   });
 
   it("captures retry count and HTTP status without copying retry messages", () => {

@@ -800,6 +800,7 @@ describe("handle_agent_failure", () => {
       ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
       ["unknown", "[aw] Test Workflow finished without a clear failure cause"],
     ])("uses the classified terminal-output cause %s in the issue title", (terminalOutputFailureCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
@@ -5505,15 +5506,22 @@ describe("handle_agent_failure", () => {
   describe("buildReportIncompleteContext", () => {
     it("explains collector-generated incompletion without assuming a prompt or infrastructure failure", () => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
-      const { mkdtempSync, rmSync } = require("fs");
+      const { mkdtempSync, rmSync, writeFileSync } = require("fs");
       const { tmpdir } = require("os");
       const rootDir = mkdtempSync(join(tmpdir(), "failure-incomplete-wording-"));
       try {
+        writeFileSync(join(rootDir, "agent_execution_exit_code.txt"), "0");
+        writeFileSync(join(rootDir, "agent-session.jsonl"), JSON.stringify({ type: "tool.execution_start", data: { toolName: "read", toolCallId: "last", input: { path: "private-path" } } }));
         const result = buildReportIncompleteContext([buildEmptyOutputOutcome([], rootDir)]);
         expect(result).toContain("The workflow recorded a `report_incomplete` signal");
         expect(result).toContain("completion could not be confirmed");
         expect(result).toContain("missing_terminal_safe_output");
-        expect(result).toContain("Failure classification: unknown");
+        expect(result).toContain("Failure classification: missing_terminal_safe_output");
+        expect(result).toContain("Last tool call: read");
+        expect(result).toContain("Driver exit code: 0");
+        expect(result).toContain("Token budget state: unknown");
+        expect(result).toContain("Safe-output tools: unknown");
+        expect(result).not.toContain("private-path");
         expect(result).not.toContain("exhausted its prompt");
         expect(result).not.toContain("due to an infrastructure or tool failure");
       } finally {

@@ -21,6 +21,7 @@ const EMPTY_OUTPUT_FAILURE_CAUSES = Object.freeze({
   engine_outage: "experienced an engine outage",
   request_rejection: "had a request rejected",
   prompt_exhaustion: "reported incomplete result",
+  missing_terminal_safe_output: "finished without a terminal safe output",
   unknown: "finished without a clear failure cause",
 });
 
@@ -97,6 +98,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     // Ignore missing CLI audit evidence for workflows using MCP directly.
   }
   let driverExitCode;
+  let lastToolCall = "not recorded";
   let executionCategories = [];
   let executionErrorCodes = [];
   for (const event of events) {
@@ -114,6 +116,14 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     /** @type {any} */
     const data = event.data;
     const key = `${event.provenance.path}:${event.session_id || ""}:${data.toolCallId}`;
+    if (event.type === "tool.execution_start" || event.type === "tool.execution_complete") {
+      const start = starts.get(key);
+      const toolName = data.toolName || start?.toolName;
+      const server = data.mcpServerName || start?.mcpServerName;
+      // Only identifiers, never tool arguments or results, belong in this summary.
+      const identifier = [server, toolName].filter(Boolean).join(".");
+      lastToolCall = identifier && identifier.length <= 200 && /^[a-zA-Z0-9_.:/-]+$/.test(identifier) ? identifier : "identifier unavailable";
+    }
     if (event.type === "tool.execution_start") {
       starts.set(key, data);
     } else if (
@@ -168,9 +178,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const isPromptExhaustion = executionCategories.some(category => PROMPT_EXHAUSTION_ERROR_CATEGORIES.has(category));
   const isRequestRejection = ["invalid_safe_outputs", "safeoutputs_cli_error"].includes(reason) || executionCategories.some(category => REQUEST_REJECTION_ERROR_CATEGORIES.has(category)) || errorCodes.some(code => code >= 400 && code < 500);
   const isEngineOutage = reason === "engine_driver_failure" || executionCategories.some(category => ["agentic_engine_timeout", "capi_server_error", "sandbox_runtime_crash"].includes(category)) || errorCodes.some(code => code >= 500);
-  // Absence of evidence is not evidence of prompt exhaustion: without a matched category
-  // or status code, classify as "unknown" instead of guessing prompt_exhaustion.
-  const failureCause = isPromptExhaustion ? "prompt_exhaustion" : isRequestRejection ? "request_rejection" : isEngineOutage ? "engine_outage" : "unknown";
+  // Missing completion is an observed outcome, not evidence of budget exhaustion or an outage.
+  const failureCause = isPromptExhaustion ? "prompt_exhaustion" : isRequestRejection ? "request_rejection" : isEngineOutage ? "engine_outage" : reason === "missing_terminal_safe_output" ? "missing_terminal_safe_output" : "unknown";
   const retryEvents = events.filter(event => event.type === "claude.api_retry" || (event.type === "system" && event.data.subtype === "api_retry"));
   const harnessRetryLines = stdio.split(/\r?\n/).filter(line => /^\[(?:copilot|claude|codex)-harness\].*\bretrying\b/i.test(line));
   const harnessRetryCount = harnessRetryLines.length;
@@ -182,14 +191,44 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
       )
     ),
   ];
-  diagnostics.add(`Failure classification: ${failureCause}`);
+  let safeOutputAvailability = "unknown (registration evidence not recorded)";
+  const runnerTemp = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
+  try {
+    if (fs.existsSync(path.join(runnerTemp, "gh-aw/safeoutputs/gateway_empty.flag"))) {
+      safeOutputAvailability = "unavailable (gateway registered zero tools)";
+    } else {
+      const toolsPath = path.join(runnerTemp, "gh-aw/mcp-cli/tools/safeoutputs.json");
+      if (fs.existsSync(toolsPath)) {
+        const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
+        safeOutputAvailability =
+          Array.isArray(tools) && tools.every(tool => typeof tool?.name === "string" && tool.name.length > 0)
+            ? tools.length
+              ? "available at setup (registered tools)"
+              : "unavailable at setup (registered zero tools)"
+            : "unknown (invalid registration evidence)";
+      }
+    }
+  } catch {
+    safeOutputAvailability = "unknown (registration evidence could not be read)";
+  }
+  const summary = [
+    `Failure classification: ${failureCause}`,
+    `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+    `Last tool call: ${redact(lastToolCall)}`,
+    `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
+    `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
+    `Safe-output tools: ${safeOutputAvailability}`,
+  ];
+  if (failureCause === "missing_terminal_safe_output") {
+    summary.push("Check the last tool call and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.");
+  }
   if (engineErrorType) {
     diagnostics.add(`Last engine error type: ${engineErrorType}`);
   } else if (reason === "engine_driver_failure") {
     diagnostics.add("Last engine error type: unknown");
   }
   diagnostics.add(`Retry attempts observed: ${retryCount}${retryStatusCodes.length ? ` (HTTP ${retryStatusCodes.join(", HTTP ")})` : ""}`);
-  const details = [...diagnostics].slice(0, 20).join("\n");
+  const details = [...summary, ...diagnostics].slice(0, 20).join("\n");
   const sanitized = redactAndBoundDiagnostics(details, { secrets, maskedValues });
   return {
     type: "report_incomplete",
