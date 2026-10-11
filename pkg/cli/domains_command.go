@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -25,10 +26,24 @@ type WorkflowDomainsSummary struct {
 
 // WorkflowDomainsDetail represents the detailed domain configuration for a single workflow
 type WorkflowDomainsDetail struct {
-	Workflow       string   `json:"workflow"`
-	Engine         string   `json:"engine"`
-	AllowedDomains []string `json:"allowed_domains"`
-	BlockedDomains []string `json:"blocked_domains"`
+	Workflow string `json:"workflow"`
+	Engine   string `json:"engine"`
+	DomainBuckets
+}
+
+// MarshalJSON keeps empty domain lists in the output, unlike DomainBuckets' omitempty fields.
+func (d WorkflowDomainsDetail) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Workflow       string   `json:"workflow"`
+		Engine         string   `json:"engine"`
+		AllowedDomains []string `json:"allowed_domains"`
+		BlockedDomains []string `json:"blocked_domains"`
+	}{
+		Workflow:       d.Workflow,
+		Engine:         d.Engine,
+		AllowedDomains: d.AllowedDomains,
+		BlockedDomains: d.BlockedDomains,
+	})
 }
 
 // DomainItem represents a single domain entry for tabular display
@@ -149,10 +164,12 @@ func RunWorkflowDomains(workflowArg string, jsonOutput bool) error {
 
 	if jsonOutput {
 		detail := WorkflowDomainsDetail{
-			Workflow:       name,
-			Engine:         engineID,
-			AllowedDomains: allowedDomains,
-			BlockedDomains: blockedDomains,
+			Workflow: name,
+			Engine:   engineID,
+			DomainBuckets: DomainBuckets{
+				AllowedDomains: allowedDomains,
+				BlockedDomains: blockedDomains,
+			},
 		}
 		jsonBytes, err := marshalIndentJSONOrWrap(detail, "domain details")
 		if err != nil {
