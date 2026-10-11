@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestParseGradersFromFrontmatter_Absent verifies nil return when graders absent.
@@ -54,6 +54,14 @@ func TestParseGradersFromFrontmatter_ZeroConfig(t *testing.T) {
 	if len(ids) != len(BuiltinGraderIDs) {
 		t.Fatalf("expected %d enabled graders, got %d", len(BuiltinGraderIDs), len(ids))
 	}
+}
+
+const graderInvocationPattern = `await main\(JSON.parse\(("(?:\\.|[^"\\])*")\), JSON.parse\(("(?:\\.|[^"\\])*")\)\);`
+
+func decodeGraderJSONLiteral(literal string) ([]byte, error) {
+	var payload string
+	err := json.Unmarshal([]byte(literal), &payload)
+	return []byte(payload), err
 }
 
 func TestParseGradersFromFrontmatter_CodeReadPrecision(t *testing.T) {
@@ -394,11 +402,11 @@ imports:
 		t.Fatal("expected imported graders to emit the grader step")
 	}
 
-	match := regexp.MustCompile(`await main\('([^']+)', '([^']+)'\);`).FindStringSubmatch(yaml)
+	match := regexp.MustCompile(graderInvocationPattern).FindStringSubmatch(yaml)
 	if len(match) != 3 {
 		t.Fatal("expected encoded grader manifest and execution spec in compiled workflow")
 	}
-	manifestJSON, err := base64.StdEncoding.DecodeString(match[1])
+	manifestJSON, err := decodeGraderJSONLiteral(match[1])
 	if err != nil {
 		t.Fatalf("failed to decode manifest: %v", err)
 	}
@@ -758,11 +766,11 @@ func TestGenerateGradersStep_Present(t *testing.T) {
 	if !strings.Contains(output, "actions/github-script") {
 		t.Fatal("expected actions/github-script usage")
 	}
-	if !strings.Contains(output, "await main('") {
-		t.Fatal("expected main invocation with encoded payloads")
+	if !strings.Contains(output, "await main(JSON.parse(") {
+		t.Fatal("expected main invocation with JSON payloads")
 	}
 	if strings.Contains(output, "{\"version\"") {
-		t.Fatal("expected manifest to be encoded, not embedded as raw JSON")
+		t.Fatal("expected manifest to be safely escaped JSON")
 	}
 }
 
@@ -792,12 +800,37 @@ func TestGenerateGradersStep_LargeOperationalValueEvaluatorStaysWithinExpression
 
 	c.generateGradersStep(&yaml, data)
 
-	assert.Contains(t, yaml.String(), "await main(graderManifestB64, graderExecB64)")
+	assert.Contains(t, yaml.String(), "await main(JSON.parse(graderManifest), JSON.parse(graderExec))")
 	for lineNumber, line := range strings.Split(yaml.String(), "\n") {
 		if len(line) > MaxExpressionSize {
 			t.Fatalf("generated line %d is %d bytes; maximum is %d", lineNumber+1, len(line), MaxExpressionSize)
 		}
 	}
+}
+
+func TestGraderJSONPayloadRoundTrip(t *testing.T) {
+	script := "return '${{ secrets.TOKEN }}';\n// ' \" \\\\ \u2028 café 世界\n"
+	payload, err := json.Marshal([]graderExecEntry{{ID: "custom", Script: strings.Repeat(script, 2000)}})
+	require.NoError(t, err)
+	escaped := escapeGraderJSON(payload)
+	assert.NotContains(t, escaped, "${{")
+	var yaml strings.Builder
+	require.NoError(t, writeChunkedGraderPayload(&yaml, "graderExec", escaped))
+	var reconstructed strings.Builder
+	for line := range strings.SplitSeq(yaml.String(), "\n") {
+		require.LessOrEqual(t, len(line), MaxExpressionSize)
+		if !strings.HasSuffix(line, "\",") {
+			continue
+		}
+		literal := strings.TrimSuffix(strings.TrimSpace(line), ",")
+		chunk, err := decodeGraderJSONLiteral(literal)
+		require.NoError(t, err)
+		reconstructed.Write(chunk)
+	}
+	var decoded []graderExecEntry
+	require.NoError(t, json.Unmarshal([]byte(reconstructed.String()), &decoded))
+	require.Len(t, decoded, 1)
+	assert.Equal(t, strings.Repeat(script, 2000), decoded[0].Script)
 }
 
 // TestGenerateGradersStep_BeforeArtifactUpload verifies ordering.

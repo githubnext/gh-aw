@@ -1004,16 +1004,15 @@ function withAllBuiltinGraders(graders) {
 }
 
 /**
- * Main entry point. Called from the github-script step with base64 manifest and exec spec.
- * @param {string} manifestB64 - Base64-encoded JSON manifest
- * @param {string} [execSpecB64] - Base64-encoded JSON array of {id, script|run}
+ * Main entry point. Older compiled workflows may still supply base64 JSON.
+ * @param {{version: number, graders: any[]}|string} manifestInput
+ * @param {any[]|string} [execSpecInput]
  */
-async function main(manifestB64, execSpecB64) {
+async function main(manifestInput, execSpecInput) {
   /** @type {{version: number, graders: any[]}} */
   let manifest;
   try {
-    const manifestJson = Buffer.from(manifestB64, "base64").toString("utf-8");
-    manifest = JSON.parse(manifestJson);
+    manifest = typeof manifestInput === "string" ? JSON.parse(Buffer.from(manifestInput, "base64").toString("utf-8")) : manifestInput;
   } catch (err) {
     core.setFailed(`Graders: failed to parse manifest: ${getErrorMessage(err)}`);
     return;
@@ -1022,10 +1021,9 @@ async function main(manifestB64, execSpecB64) {
   // Decode trusted executable payloads for custom graders.
   /** @type {Record<string, {script?: string, run?: string}>} */
   const executionMap = {};
-  if (execSpecB64) {
+  if (execSpecInput) {
     try {
-      const specJson = Buffer.from(execSpecB64, "base64").toString("utf-8");
-      const specs = JSON.parse(specJson);
+      const specs = typeof execSpecInput === "string" ? JSON.parse(Buffer.from(execSpecInput, "base64").toString("utf-8")) : execSpecInput;
       for (const s of specs) {
         if (s.id && (s.script || s.run)) executionMap[s.id] = { script: s.script, run: s.run };
       }

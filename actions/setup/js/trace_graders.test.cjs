@@ -2002,10 +2002,10 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
       global.core = originalCore;
     });
 
-    it("runs every built-in grader even when the manifest lists only custom graders", async () => {
+    it.each(["json", "legacy-base64"])("runs every built-in grader with %s inputs even when the manifest lists only custom graders", async format => {
       const manifest = { version: 1, graders: [{ id: "my-metric", name: "My Metric", source: "inline", enabled: true, unit: "count" }] };
       const execSpec = [{ id: "my-metric", script: "return { value: 1 };" }];
-      await main(Buffer.from(JSON.stringify(manifest)).toString("base64"), Buffer.from(JSON.stringify(execSpec)).toString("base64"));
+      await main(format === "json" ? manifest : Buffer.from(JSON.stringify(manifest)).toString("base64"), format === "json" ? execSpec : Buffer.from(JSON.stringify(execSpec)).toString("base64"));
 
       const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
       const ids = output.results.map(r => r.id);
