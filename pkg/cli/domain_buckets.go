@@ -8,8 +8,8 @@ import (
 var domainBucketsLog = logger.New("cli:domain_buckets")
 
 // DomainBuckets holds allowed and blocked domain lists with accessor methods.
-// This struct is embedded by DomainAnalysis and FirewallAnalysis to share
-// domain management functionality and eliminate code duplication.
+// CLI reporting types embed it to share domain management functionality
+// and eliminate code duplication.
 type DomainBuckets struct {
 	AllowedDomains []string `json:"allowed_domains,omitempty"`
 	BlockedDomains []string `json:"blocked_domains,omitempty"`

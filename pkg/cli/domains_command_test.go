@@ -101,8 +101,29 @@ network:
 	err = os.WriteFile(workflowPath, []byte(workflowContent), 0600)
 	require.NoError(t, err, "Failed to write workflow file")
 
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Stdout = oldStdout
+		r.Close()
+		w.Close()
+	})
+	os.Stdout = w
+
 	err = RunWorkflowDomains("my-workflow", true)
 	require.NoError(t, err, "RunWorkflowDomains JSON should not error")
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	var detail WorkflowDomainsDetail
+	require.NoError(t, json.Unmarshal(output, &detail))
+	assert.Equal(t, "my-workflow", detail.Workflow)
+	assert.Equal(t, "copilot", detail.Engine)
+	assert.Contains(t, detail.GetAllowedDomains(), "github.com")
+	assert.Equal(t, []string{"malicious.example.com"}, detail.GetBlockedDomains())
 }
 
 func TestRunWorkflowDomains_TextOutput(t *testing.T) {
@@ -133,23 +154,58 @@ network:
 }
 
 func TestWorkflowDomainsDetail_JSONMarshaling(t *testing.T) {
-	detail := WorkflowDomainsDetail{
-		Workflow:       "my-workflow",
-		Engine:         "copilot",
-		AllowedDomains: []string{"api.github.com", "github.com"},
-		BlockedDomains: []string{"malicious.example.com"},
+	tests := []struct {
+		name     string
+		buckets  DomainBuckets
+		expected string
+	}{
+		{
+			name: "populated lists",
+			buckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com", "github.com"},
+				BlockedDomains: []string{"malicious.example.com"},
+			},
+			expected: `{"workflow":"my-workflow","engine":"copilot","allowed_domains":["api.github.com","github.com"],"blocked_domains":["malicious.example.com"]}`,
+		},
+		{
+			name: "empty lists",
+			buckets: DomainBuckets{
+				AllowedDomains: []string{},
+				BlockedDomains: []string{},
+			},
+			expected: `{"workflow":"my-workflow","engine":"copilot","allowed_domains":[],"blocked_domains":[]}`,
+		},
+		{
+			name:     "nil lists",
+			expected: `{"workflow":"my-workflow","engine":"copilot","allowed_domains":null,"blocked_domains":null}`,
+		},
+		{
+			name: "allowed only",
+			buckets: DomainBuckets{
+				AllowedDomains: []string{"api.github.com"},
+			},
+			expected: `{"workflow":"my-workflow","engine":"copilot","allowed_domains":["api.github.com"],"blocked_domains":null}`,
+		},
 	}
 
-	jsonBytes, err := json.MarshalIndent(detail, "", "  ")
-	require.NoError(t, err, "Should marshal WorkflowDomainsDetail to JSON")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			detail := WorkflowDomainsDetail{
+				Workflow:      "my-workflow",
+				Engine:        "copilot",
+				DomainBuckets: tt.buckets,
+			}
+			jsonBytes, err := json.Marshal(detail)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.expected, string(jsonBytes))
 
-	jsonStr := string(jsonBytes)
-	assert.Contains(t, jsonStr, `"workflow": "my-workflow"`, "JSON should contain workflow name")
-	assert.Contains(t, jsonStr, `"engine": "copilot"`, "JSON should contain engine")
-	assert.Contains(t, jsonStr, `"allowed_domains"`, "JSON should contain allowed_domains key")
-	assert.Contains(t, jsonStr, `"blocked_domains"`, "JSON should contain blocked_domains key")
-	assert.Contains(t, jsonStr, `"api.github.com"`, "JSON should contain allowed domain")
-	assert.Contains(t, jsonStr, `"malicious.example.com"`, "JSON should contain blocked domain")
+			var decoded WorkflowDomainsDetail
+			require.NoError(t, json.Unmarshal(jsonBytes, &decoded))
+			assert.Equal(t, detail, decoded)
+			assert.Equal(t, tt.buckets.AllowedDomains, decoded.GetAllowedDomains())
+			assert.Equal(t, tt.buckets.BlockedDomains, decoded.GetBlockedDomains())
+		})
+	}
 }
 
 func TestWorkflowDomainsSummary_JSONMarshaling(t *testing.T) {
