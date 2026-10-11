@@ -102,7 +102,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 `graders` executes as a post-agent step in the existing `agent` job:
 
 1. Parse and validate frontmatter `graders`.
-2. Build grader manifest and execution spec.
+2. Build grader manifest and execution spec as JSON in step environment variables (`GH_AW_GRADER_MANIFEST_*` and `GH_AW_GRADER_EXEC_*`), read by the JavaScript runtime. Escape dollar signs to prevent Actions expression interpolation, and chunk payloads without splitting Unicode characters. The runtime retains legacy base64 input support for older compiled workflows.
 3. Preprocess trace artifacts once.
 4. Execute enabled graders (built-in, custom inline, and operational value).
 5. Write normalized outputs to grader artifact files.
@@ -171,6 +171,7 @@ The implementation MUST recognize the following built-in grader IDs:
 - `tool-wise-score`
 - `trajectory-ndtw`
 - `code-search-recall`
+- `code-read-precision`
 
 These IDs are reserved for built-ins. A built-in grader MUST NOT accept a custom `script`.
 

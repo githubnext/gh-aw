@@ -1,10 +1,9 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -13,7 +12,7 @@ import (
 
 var compilerYamlGradersLog = logger.New("workflow:compiler_yaml_graders")
 
-const graderPayloadChunkSize = 12 * 1024
+const graderPayloadChunkSize = 2 * 1024
 
 // generateGradersStep emits an always() post-agent step that runs deterministic
 // graders. The step executes after secret redaction / summary steps and before
@@ -34,51 +33,50 @@ func (c *Compiler) generateGradersStep(yaml *strings.Builder, data *WorkflowData
 		compilerYamlGradersLog.Printf("Failed to marshal grader manifest: %v", err)
 		return
 	}
-	manifestB64 := base64.StdEncoding.EncodeToString(manifestJSON)
-
-	// Build execution spec (scripts) separately, base64 encoded for safety.
+	// Keep trusted executable content separate from public metadata.
 	execSpec := buildGraderExecSpec(data.Graders)
 	execJSON, err := json.Marshal(execSpec)
 	if err != nil {
 		compilerYamlGradersLog.Printf("Failed to marshal grader exec spec: %v", err)
 		return
 	}
-	execB64 := base64.StdEncoding.EncodeToString(execJSON)
 
 	yaml.WriteString("      - name: Run graders\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
-	invocation := fmt.Sprintf("            await main('%s', '%s');\n", manifestB64, execB64)
-	if len(invocation) <= MaxExpressionSize {
-		yaml.WriteString(invocation)
-	} else {
-		writeChunkedGraderPayload(yaml, "graderManifestB64", manifestB64)
-		writeChunkedGraderPayload(yaml, "graderExecB64", execB64)
-		yaml.WriteString("            await main(graderManifestB64, graderExecB64);\n")
-	}
+	yaml.WriteString("            const { mainFromEnvironment } = require('" + SetupActionDestination + "/trace_graders.cjs');\n")
+	yaml.WriteString("            await mainFromEnvironment();\n")
+	yaml.WriteString("        env:\n")
+	writeGraderEnvironment(yaml, "GH_AW_GRADER_MANIFEST", manifestJSON)
+	writeGraderEnvironment(yaml, "GH_AW_GRADER_EXEC", execJSON)
 	if operationalValueGrader, ok := data.Graders.Graders["operational-value"]; ok && (operationalValueGrader.Enabled == nil || *operationalValueGrader.Enabled) {
-		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		yaml.WriteString("          GH_AW_RUN_CREATED_AT: ${{ needs.activation.outputs.run_created_at }}\n")
 	}
-
 	compilerYamlGradersLog.Print("Generated graders step")
 }
 
-func writeChunkedGraderPayload(yaml *strings.Builder, variable, payload string) {
-	fmt.Fprintf(yaml, "            const %s = [\n", variable)
-	for payload != "" {
-		chunkSize := min(len(payload), graderPayloadChunkSize)
-		fmt.Fprintf(yaml, "              '%s',\n", payload[:chunkSize])
-		payload = payload[chunkSize:]
+func escapeGraderJSON(payload []byte) string {
+	// Prevent Actions expression evaluation before JavaScript receives the data.
+	return strings.ReplaceAll(string(payload), "$", `\u0024`)
+}
+
+func writeGraderEnvironment(yaml *strings.Builder, variable string, payload []byte) {
+	runes := []rune(escapeGraderJSON(payload))
+	index := 0
+	for len(runes) > 0 {
+		chunkSize := min(len(runes), graderPayloadChunkSize)
+		chunk := strings.ReplaceAll(string(runes[:chunkSize]), "'", "''")
+		yaml.WriteString("          " + variable + "_" + strconv.Itoa(index) + ": '" + chunk + "'\n")
+		runes = runes[chunkSize:]
+		index++
 	}
-	yaml.WriteString("            ].join('');\n")
+	yaml.WriteString("          " + variable + "_CHUNKS: '" + strconv.Itoa(index) + "'\n")
 }
 
 // graderManifestEntry represents a single grader in the serialized manifest.
@@ -182,7 +180,7 @@ func buildGraderManifest(cfg *GradersConfig) *graderManifest { //nolint:largefun
 }
 
 // buildGraderExecSpec builds the execution spec: an array of {id, script}
-// entries for custom graders only. This is base64-encoded to avoid JS/YAML injection.
+// entries for custom graders only. JSON escaping protects the generated JavaScript.
 func buildGraderExecSpec(cfg *GradersConfig) []graderExecEntry {
 	if cfg == nil {
 		return nil
@@ -219,24 +217,24 @@ func (c *Compiler) generateGraderRedactionStep(yaml *strings.Builder, yamlConten
 	yaml.WriteString("      - name: Redact grader outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { redactFilesInDir } = require('" + SetupActionDestination + "/redact_secrets.cjs');\n")
-	fmt.Fprintf(yaml, "            await redactFilesInDir('%s');\n", constants.GradersDir)
+	yaml.WriteString("            await redactFilesInDir('" + constants.GradersDir + "');\n")
 
 	if len(secretReferences) > 0 {
 		yaml.WriteString("        env:\n")
-		escapedRefs := make([]string, len(secretReferences))
-		for i, ref := range secretReferences {
-			escapedRefs[i] = escapeSingleQuoteBackslash(ref)
+		escapedRefs := make([]string, 0, len(secretReferences))
+		for _, ref := range secretReferences {
+			escapedRefs = append(escapedRefs, escapeSingleQuoteBackslash(ref))
 		}
-		fmt.Fprintf(yaml, "          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ","))
+		yaml.WriteString("          GH_AW_SECRET_NAMES: '" + strings.Join(escapedRefs, ",") + "'\n")
 		for _, secretName := range secretReferences {
 			escapedSecretName := escapeSingleQuoteBackslash(secretName)
-			fmt.Fprintf(yaml, "          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName)
+			yaml.WriteString("          SECRET_" + escapedSecretName + ": ${{ secrets." + secretName + " }}\n")
 		}
 	}
 }
