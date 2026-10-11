@@ -281,15 +281,15 @@ describe("unified session publication views", () => {
     expect(first + second).not.toContain("999");
   });
 
-  it("collapses streamed text into one conversation and timeline message, preserving the native record count", () => {
+  it("collapses streamed text into one timeline message, preserving the native record count", () => {
     const events = [header, ...["Hello", " ", "world."].map((content, index) => event("assistant.message", { content, delta: true, messageId: "answer" }, "agent", index, index + 1))];
     const original = structuredClone(events);
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      const conversation = output.slice(output.indexOf("Agent conversation:"), output.indexOf("Chronological trace"));
-      expect(conversation).toContain("Hello world.");
-      expect(output.match(/assistant\.message Hello world\./g)).toHaveLength(1);
+      expect(output.match(/◆ Hello world\./g)).toHaveLength(1);
+      expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(1);
       expect(output).toContain("Records: 4");
-      expect(output).toContain("1970-01-01T00:00:00.001Z agent/agent assistant.message");
+      expect(output).toContain("agent/agent assistant.message +0s");
+      expect(output).not.toContain("1970-01-01");
     }
     expect(events).toEqual(original);
   });
@@ -352,7 +352,7 @@ describe("unified session publication views", () => {
     expect(result.markdown).not.toContain("PRIVATE_");
   });
 
-  it("renders multiline agent conversations with tool arguments, output and errors before runtime observations", () => {
+  it("renders multiline messages, tool arguments, output and errors in the full timeline", () => {
     const events = [
       header,
       event("user.message", { content: "PRIVATE_USER_PROMPT" }, "agent", 0, 0),
@@ -366,7 +366,8 @@ describe("unified session publication views", () => {
     ];
     const original = structuredClone(events);
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events), generateConversationMarkdown(events, { formatToolCallback: formatToolUse, formatInitCallback: formatInitializationSummary }).markdown]) {
-      expect(output).toContain("Agent conversation: agent/agent.jsonl");
+      expect(output).toContain("Chronological trace");
+      expect(output).toContain("path=agent.jsonl");
       expect(output).toContain("◐ First thought\n  Second thought");
       expect(output).toContain("◆ First answer\n  Second answer");
       expect(output).toContain("✗ $ printf fixture-command");
@@ -378,13 +379,14 @@ describe("unified session publication views", () => {
       expect(output).toContain("[pending]");
       expect(output).toContain("[start unavailable]");
       expect(output).toContain("[empty output]");
-      expect(output.indexOf("Agent conversation:")).toBeLessThan(output.indexOf("Chronological trace"));
+      expect(output.indexOf("assistant.reasoning")).toBeLessThan(output.indexOf("assistant.message"));
+      expect(output.indexOf("fixture-output")).toBeLessThan(output.indexOf("mcp.rpc.request"));
       expect(output).not.toContain("PRIVATE_");
     }
     expect(events).toEqual(original);
   });
 
-  it("keeps conversation tool pairing and source order independent of merged timestamps", () => {
+  it("keeps tool pairing source-local while displaying the merged timeline order", () => {
     const events = [
       header,
       event("tool.execution_complete", { toolCallId: "shared", success: true, output: "second source result" }, "agent", 1, 0, "second.jsonl"),
@@ -393,8 +395,9 @@ describe("unified session publication views", () => {
       event("tool.execution_start", { toolCallId: "shared", toolName: "second", input: null }, "agent", 0, 3, "second.jsonl"),
     ];
     for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      const second = output.slice(output.indexOf("Agent conversation: agent/second.jsonl"), output.indexOf("Agent conversation: agent/first.jsonl"));
-      const first = output.slice(output.indexOf("Agent conversation: agent/first.jsonl"), output.indexOf("Chronological trace"));
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      const second = timeline.slice(timeline.indexOf("[2]"), timeline.indexOf("[3]"));
+      const first = timeline.slice(timeline.indexOf("[3]"), timeline.indexOf("[4]"));
       expect(second).toContain("✓ second(null)");
       expect(second).toContain("second source result");
       expect(second).not.toContain("first source result");
@@ -402,6 +405,66 @@ describe("unified session publication views", () => {
       expect(first).toContain("first source result");
       expect(first).not.toContain("second source result");
     }
+  });
+
+  it("interleaves runtime events and messages, showing results only at completion with elapsed suffixes", () => {
+    const events = [
+      header,
+      event("assistant.message", { content: "Starting work" }, "agent", 0, 1000),
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shell", input: { command: "printf done" } }, "agent", 1, 1250),
+      event("firewall.http_access", { host: "example.com", decision: "allowed" }, "firewall", 0, 2500),
+      event("assistant.reasoning", { content: "Waiting for the command" }, "agent", 2, 2500),
+      event("tool.execution_complete", { toolCallId: "shell", success: true, output: "Command finished" }, "agent", 3, 4500),
+      event("vendor.progress", { content: "PRIVATE_EXTENSION" }, "agent", 4),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      const timeline = output.slice(output.indexOf("Chronological trace"));
+      expect(timeline.indexOf("Starting work")).toBeLessThan(timeline.indexOf("tool.execution_start"));
+      expect(timeline.indexOf("tool.execution_start")).toBeLessThan(timeline.indexOf("firewall.http_access"));
+      expect(timeline.indexOf("firewall.http_access")).toBeLessThan(timeline.indexOf("Waiting for the command"));
+      expect(timeline.indexOf("Waiting for the command")).toBeLessThan(timeline.indexOf("tool.execution_complete"));
+      expect(timeline.indexOf("tool.execution_complete")).toBeLessThan(timeline.indexOf("Command finished"));
+      expect(timeline.slice(0, timeline.indexOf("tool.execution_complete"))).not.toContain("✓");
+      expect(timeline).toContain("assistant.message +0s");
+      expect(timeline).toContain("[started] +0.25s");
+      expect(timeline).toContain("decision=allowed +1.25s");
+      expect(timeline).toContain("assistant.reasoning +0s");
+      expect(timeline).toContain("[succeeded] +2s");
+      expect(timeline).toContain("vendor.progress [extension payload omitted] [untimed]");
+      expect(timeline).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+      expect(timeline).not.toContain("PRIVATE_EXTENSION");
+      expect(output).not.toContain("Agent conversation:");
+    }
+  });
+
+  it("renders update, model, guardrail, permission and skill observations without their private envelopes", () => {
+    const events = [
+      header,
+      event("assistant.message_update", { sourceType: "content_block_delta", contentIndex: 0, partial: true, content: "PRIVATE_UPDATE", usageSnapshot: { inputTokens: 0, outputTokens: 2 } }, "agent", 0),
+      event("model.call_final_result", { model: "fixture", isByok: false, result: { status: "success", stopReason: "end_turn", usage: { inputTokens: 0, outputTokens: 42 }, content: "PRIVATE_MODEL" } }, "agent", 1),
+      event("guardrail.daily_aic", { status: "checked", exceeded: false, total: 0, estimated: 2, threshold: 10 }, "guardrail", 0),
+      event("session.mode_changed", { previousMode: "plan", newMode: "interactive" }, "agent", 2),
+      event("assistant.turn_start", { turnId: "turn-1", interactionId: "interaction-1" }, "agent", 3),
+      event("assistant.turn_end", { turnId: "turn-1" }, "agent", 4),
+      event("permission.requested", { requestId: "request-1", permissionRequest: { kind: "shell", toolCallId: "shell", fullCommandText: "PRIVATE_PERMISSION" } }, "agent", 5),
+      event("permission.completed", { requestId: "request-1", toolCallId: "shell", result: { kind: "approved" }, decisionSource: "user" }, "agent", 6),
+      event("skill.invoked", { name: "developer", content: "PRIVATE_SKILL", source: "project" }, "agent", 7),
+      event("skill.context_delivered_ref", { contentId: "skill-1", prefix: "PRIVATE_PREFIX" }, "agent", 8),
+      event("system.message", { content: "PRIVATE_SYSTEM" }, "agent", 9),
+    ];
+    const original = structuredClone(events);
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      for (const record of events) expect(output).toContain(record.type);
+      expect(output).toContain("sourceType=content_block_delta contentIndex=0 partial=true");
+      expect(output).toContain("model=fixture isByok=false status=success stopReason=end_turn inputTokens=0 outputTokens=42");
+      expect(output).toContain("exceeded=false total=0 estimated=2 threshold=10");
+      expect(output).toContain("previousMode=plan newMode=interactive");
+      expect(output).toContain("kind=approved");
+      expect(output).toContain("name=developer source=project");
+      expect(output).not.toContain("PRIVATE_");
+      expect(output).not.toContain("[extension payload omitted]");
+    }
+    expect(events).toEqual(original);
   });
 
   it("keeps distinct source scopes when redaction makes their publication labels identical", () => {

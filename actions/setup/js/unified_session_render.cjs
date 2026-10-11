@@ -44,6 +44,7 @@ const RUNTIME_TYPES = new Set([
   "detection.result",
   "workflow.info",
   "github_api.rate_limit",
+  "guardrail.daily_aic",
   "otel.span",
   "otel.span_event",
   "otel.log",
@@ -79,6 +80,7 @@ function fields(value, keys) {
 
 /** @param {any} event @returns {string | undefined} */
 function eventDetail(event) {
+  /** @type {Record<string, any>} */
   const data = normalizeUnifiedSessionEvent({ ...event, data: event.data ?? {} }).data;
   if (COPILOT_WORKFLOW_EVENT_TYPES.has(event.type)) {
     return fields({ ...data, agentId: event.agentId }, ["agentId", ...Object.keys(COPILOT_WORKFLOW_EVENT_FIELDS[event.type])]);
@@ -98,17 +100,34 @@ function eventDetail(event) {
       return `version=${inline(data.version)}`;
     case "session.init":
     case "session.start":
-      return fields(data, ["sourceEngine", "model", "sessionId"]);
+      return fields(data, ["sourceEngine", "model", "sessionId", "reasoningEffort", "cwd"]);
     case "session.error": {
       const error = data.error && typeof data.error === "object" ? fields(data.error, ["code", "type", "message"]) : data.error === undefined ? "" : inline(data.error);
-      return `${fields(data, ["severity", "status", "code", "errorType", "statusCode", "model", "message", "exitCode"])}${error ? ` ${error}` : ""}`;
+      return `${fields(data, ["severity", "status", "code", "errorType", "statusCode", "model", "message", "content", "exitCode"])}${error ? ` ${error}` : ""}`;
     }
     case "session.info":
-      return fields(data, ["status", "model", "message", "content"]);
+      return fields(data, ["status", "model", "message", "content", "sourceType", "kind", "isAuthenticating", "rateLimitInfo"]);
     case "session.shutdown":
-      return fields(data, ["shutdownType", "errorReason", "currentModel", "premiumRequests", "totalApiDurationMs"]);
+      return fields(data, ["shutdownType", "errorReason", "currentModel", "premiumRequests", "totalApiDurationMs", "totalNanoAiu", "sessionStartTime"]);
     case "session.task_complete":
       return fields(data, ["success"]);
+    case "session.mode_changed":
+      return fields(data, ["previousMode", "newMode"]);
+    case "assistant.turn_start":
+    case "assistant.turn_end":
+    case "turn.started":
+    case "turn.completed":
+      return fields(data, ["turnId", "interactionId", "status"]);
+    case "permission.requested":
+      return fields(data, ["requestId", "agentMode", "permissionMode"]) + " " + fields(data.permissionRequest, ["kind", "toolCallId"]);
+    case "permission.completed":
+      return fields(data, ["requestId", "toolCallId", "decisionSource"]) + " " + fields(data.result, ["kind"]);
+    case "skill.invoked":
+      return fields(data, ["name", "path", "source", "trigger", "model", "invokedAtTurn"]);
+    case "skill.context_delivered_ref":
+      return fields(data, ["interactionId", "source", "contentId"]) + " [skill instructions omitted]";
+    case "system.message":
+      return "[system instructions omitted]";
     case "user.message":
     case "prompt.system":
     case "prompt.user":
@@ -116,6 +135,16 @@ function eventDetail(event) {
     case "assistant.message":
     case "assistant.reasoning":
       return inline(data.content);
+    case "assistant.message_update":
+      return (
+        fields(data, ["sourceType", "type", "messageId", "contentIndex", "partial", "delta", "channel"]) +
+        (data.usageSnapshot ? ` usage=${fields(data.usageSnapshot, ["inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"])}` : "")
+      );
+    case "model.call_final_result":
+      return (
+        fields(data, ["model", "isByok", "agentId", "parentToolCallId"]) +
+        (data.result ? ` ${fields(data.result, ["status", "stopReason"])} ${fields(data.result.usage, ["inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"])}` : "")
+      );
     case "assistant.refusal":
       return `[Policy refusal: ${inline(data.reason)}] ${fields(data, ["policyCategory", "partial", "content", "explanation"])}`;
     case "tool.execution_start":
@@ -130,7 +159,7 @@ function eventDetail(event) {
       return `${fields(data, ["toolName", "mcpServerName", "toolCallId", "stepIndex", "durationMs"])} [${outcome}]`;
     }
     case "session.result":
-      return fields(data, ["numTurns", "durationMs", "totalCostUsd"]);
+      return fields(data, ["numTurns", "durationMs", "totalCostUsd", "status", "sourceType"]);
     case "agent.execution":
       return fields({ ...data, categories: JSON.stringify(data.categories), errorCodes: JSON.stringify(data.errorCodes), errorTypes: JSON.stringify(data.errorTypes) }, ["categories", "errorCodes", "errorTypes", "exitCode"]);
     case "mcp.rpc.request":
@@ -148,7 +177,11 @@ function eventDetail(event) {
       return fields(data, ["event", "message", "reason"]);
     case "firewall.token_usage":
     case "usage.report":
-      return fields(data, ["provider", "model", "aic", "totalAic", "premiumRequests", "durationMs"]) + " " + fields(data.usage, ["inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"]);
+      return (
+        fields(data, ["provider", "model", "aic", "totalAic", "premiumRequests", "durationMs"]) +
+        " " +
+        fields(data.usage, ["inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens", "totalTokens", "reasoningOutputTokens", "overflowedTokens"])
+      );
     case "firewall.model_routing":
       return fields(data, ["stage", "routed", "outcome", "selectedModel", "selectedEffort", "router"]);
     case "model_routing.outcome":
@@ -156,14 +189,17 @@ function eventDetail(event) {
     case "model_endpoint.mismatch":
       return `${fields(data, ["category", "phase", "configured_model", "resolved_model", "wire_api", "wire_api_source", "supported_endpoints", "model", "endpoint"])} cause=${inline(data.detail)} fix=${inline(data.fix)}`;
     case "mcp.event":
-      return fields(data, ["event", "serverName", "level", "status"]);
+      return fields(data, ["event", "serverName", "level", "status", "message", "reason"]);
     case "firewall.event":
-      return fields(data, ["event", "level", "status"]);
+      return fields(data, ["event", "level", "status", "message", "reason"]);
+    case "guardrail.daily_aic":
+      return fields(data, ["status", "exceeded", "total", "estimated", "threshold"]);
     case "github_api.rate_limit":
       return fields(data, ["source", "operation", "resource", "status", "remaining", "limit", "attempt", "delayMs"]);
     case "otel.span":
     case "otel.span_event":
     case "otel.log":
+      // OTLP bodies and attributes can contain prompts and tool payloads.
       return fields(data, ["name", "traceId", "spanId", "parentSpanId", "severityText", "severityNumber"]) + (data.status ? ` ${fields(data.status, ["code", "message"])}` : "");
     case "safe_output.request":
       return `${fields(data, ["type", "repo", "number"])} [requested, not executed]`;
@@ -194,7 +230,7 @@ function eventDetail(event) {
         fields(data.episode, ["episodeId", "hopId", "parentHopId", "originEvent", "rootRepo", "rootWorkflowId", "rootRunId"])
       );
     case "session.collection_warning":
-      return fields(data, ["path", "line", "code"]);
+      return fields(data, ["path", "line", "code", "message"]);
     case "session.collection":
       return `sources=${Array.isArray(data.sources) ? data.sources.length : "unavailable"} ${fields(data, ["warnings", "untimedEvents", "absentComponents"])}`;
     default:
@@ -240,6 +276,13 @@ function publicationAgentSessions(events) {
   }));
 }
 
+/** @param {any} event @returns {string | undefined} */
+function timelineToolKey(event) {
+  const data = normalizeUnifiedSessionEvent({ ...event, data: event.data ?? {} }).data;
+  if (data.toolCallId === undefined) return undefined;
+  return JSON.stringify([event.provenance?.component, event.provenance?.phase, event.provenance?.path, sessionScopeKey(event), data.toolCallId]);
+}
+
 /**
  * Known runtime fields are display projections, never raw request/response dumps.
  * @param {Array<any>} events
@@ -264,12 +307,24 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
   for (const group of agentSessions) {
     lines.push("", `Agent source: ${inline(group.label)}`, ...agentStatistics(group.events));
   }
-  for (const group of agentSessions) {
-    lines.push("", `Agent conversation: ${inline(group.label)}`, "", ...agentConversation(group.events));
+  const overview = [...lines];
+  const traceLines = ["Chronological trace (user prompts omitted; untimed observations follow):"];
+  const toolStarts = new Map();
+  const pairedStarts = new WeakMap();
+  // Pair using private identities and source-local order, never the merged clock.
+  for (const event of [...events].sort((left, right) => (left.provenance?.index ?? 0) - (right.provenance?.index ?? 0))) {
+    const key = timelineToolKey(event);
+    if (key === undefined) continue;
+    if (event.type === "tool.execution_start") toolStarts.set(key, event);
+    if (event.type === "tool.execution_complete" && toolStarts.has(key)) {
+      pairedStarts.set(event, toolStarts.get(key));
+      toolStarts.delete(key);
+    }
   }
-  lines.push("", "Chronological trace (user prompts omitted; untimed observations follow):");
-  const trace = redactManifestValue(collapseStreamedMessages(events), collectArtifactSecretValues());
+  const displayEvents = collapseStreamedMessages(events);
+  const trace = redactManifestValue(displayEvents, collectArtifactSecretValues());
   if (!Array.isArray(trace)) throw new Error(`${ERR_VALIDATION}: Expected unified session display events`);
+  let previousTime;
   for (const [index, event] of trace.entries()) {
     const detail = eventDetail(event);
     if (detail === undefined) continue;
@@ -277,19 +332,61 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     const component = source?.component ?? "agent";
     const phase = source?.phase ?? "agent";
     const observedTime = source?.timestampMs;
-    const time = typeof observedTime === "number" && Number.isFinite(observedTime) && Math.abs(observedTime) <= 8640000000000000 ? new Date(observedTime).toISOString() : "untimed";
-    lines.push(`[${index + 1}] ${event.type === "session.format" && component === "collector" ? "file metadata" : time} ${inline(component)}/${inline(phase)} ${inline(event.type)} ${detail.trim()}`);
+    const metadata = event.type === "session.format" && component === "collector";
+    let elapsed = metadata ? " [file metadata]" : " [untimed]";
+    if (!metadata && typeof observedTime === "number" && Number.isFinite(observedTime) && Math.abs(observedTime) <= 8640000000000000) {
+      const seconds = (observedTime - (previousTime ?? observedTime)) / 1000;
+      elapsed = ` ${seconds < 0 ? "" : "+"}${Number(seconds.toFixed(3))}s`;
+      previousTime = observedTime;
+    }
+    const context = sessionContext(event);
+    const identity = fields({ path: source?.path, ...context }, ["path", "agentId", "sessionId", "parentToolUseId"]);
+    const conversational = ["assistant.message", "assistant.reasoning", "assistant.refusal", "tool.execution_start", "tool.execution_complete"].includes(event.type) && component === "agent";
+    const message = ["assistant.message", "assistant.reasoning", "assistant.refusal"].includes(event.type);
+    traceLines.push("", `[${index + 1}] ${inline(component)}/${inline(phase)} ${inline(event.type)}${message && conversational ? "" : ` ${detail.trim()}`}${elapsed}`);
+    if (identity) traceLines.push(`  ${identity}`);
+    if (conversational) {
+      const original = displayEvents[index];
+      const start = pairedStarts.get(original);
+      const entries = publicationAgentSessions(start ? [start, original] : [original]).flatMap(group => group.events);
+      const content = agentConversation(entries).map(line => line.replace(/^\[\d+\] /, ""));
+      traceLines.push(...content);
+    }
   }
+  lines.push("", ...traceLines);
   const preamble = markdown ? "<details><summary>Unified session</summary>\n\n" : "";
   const tail = markdown ? "\n\n</details>" : "";
-  const bodyBudget = maxBytes - Buffer.byteLength(preamble + tail, "utf8") - 2 * (maxLineBytes + 1) - 3;
-  if (bodyBudget < 128) return markdown ? "Unified session summary omitted: remaining step-summary byte limit reached.\n" : "Unified session summary omitted: byte limit reached.\n";
-  const visible = boundSummaryLines(markdown ? lines.map(escapeSummaryText) : lines, bodyBudget, maxLineBytes);
-  if (!markdown) return visible.join("\n").replace(/::/g, ": :");
+  if (!markdown) return boundSummaryLines(lines, maxBytes, maxLineBytes).join("\n").replace(/::/g, ": :");
+  const sections = [
+    { title: "Session overview", lines: overview },
+    { title: "Full timeline", lines: traceLines },
+  ];
+  const escaped = sections.map(section => ({ ...section, lines: boundSummaryLines(section.lines.map(escapeSummaryText), Number.MAX_SAFE_INTEGER, maxLineBytes) }));
   let longest = 2;
-  for (const line of visible) for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
+  for (const section of escaped) for (const line of section.lines) for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
   const fence = "`".repeat(longest + 1);
-  return `${preamble}${fence}\n${visible.join("\n")}\n${fence}${tail}`;
+  /** @param {{title: string}} section @param {string[]} content */
+  const block = (section, content) => {
+    return `#### ${section.title}\n\n${fence}\n${content.join("\n")}\n${fence}\n\n`;
+  };
+  const shellBytes = Buffer.byteLength(preamble + tail + escaped.map(section => block(section, [])).join(""), "utf8");
+  const bodyBudget = maxBytes - shellBytes;
+  if (bodyBudget < 128) return "Unified session summary omitted: remaining step-summary byte limit reached.\n";
+  const visible = boundSummaryLines(
+    escaped.flatMap(section => section.lines),
+    bodyBudget,
+    maxLineBytes
+  );
+  let offset = 0;
+  const blocks = [];
+  for (const section of escaped) {
+    if (offset >= visible.length) break;
+    const content = visible.slice(offset, offset + section.lines.length);
+    offset += content.length;
+    if (section === escaped.at(-1) && offset < visible.length) content.push(...visible.slice(offset));
+    blocks.push(block(section, content));
+  }
+  return preamble + blocks.join("") + tail;
 }
 
 /** @param {string} filePath @returns {Promise<void>} */
