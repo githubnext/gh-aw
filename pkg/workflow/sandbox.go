@@ -124,6 +124,8 @@ type AiCreditsPricingConfig struct {
 	CachedInput *float64 `yaml:"cache_read,omitempty" json:"cachedInput,omitempty"`
 	// CacheWrite is the cache-write token price per 1M tokens in dollars.
 	CacheWrite *float64 `yaml:"cache_write,omitempty" json:"cacheWrite,omitempty"`
+	// Reasoning is the reasoning-token price per 1M tokens in dollars.
+	Reasoning *float64 `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
 
 // AgentAPIProxyTargetConfig configures a single LLM provider's API proxy target.

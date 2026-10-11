@@ -68,7 +68,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.12.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.50"
+const DefaultFirewallVersion Version = "v0.28.51"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
@@ -119,8 +119,8 @@ const AWFTokenSteeringMinVersion Version = "v0.25.44"
 // (gh-aw-firewall#9790). Below this version the compiler only emits
 // container.agentTimeout for the Cloud Hypervisor and NVX runtimes.
 //
-// v0.28.51 is the first release after v0.28.50; it was not yet published when
-// this gate was added.
+// v0.28.51 is the first default-version release after v0.28.50 and is the
+// earliest release with the runtime steering behavior this gate protects.
 const AWFAgentTimeoutSteeringMinVersion Version = "v0.28.51"
 
 // AWFChrootConfigMinVersion is the minimum AWF version that supports

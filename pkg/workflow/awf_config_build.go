@@ -648,6 +648,7 @@ func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AiCreditsPricin
 		Output:      p.Output,
 		CachedInput: p.CachedInput,
 		CacheWrite:  p.CacheWrite,
+		Reasoning:   p.Reasoning,
 	}
 }
 

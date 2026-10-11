@@ -2139,8 +2139,16 @@ func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricingNonZero(t *testing.T
 }
 
 func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricingCachedFields(t *testing.T) {
-	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":3,"output":15,"cachedInput":0.3,"cacheWrite":3}}}`)
-	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing should allow cachedInput and cacheWrite fields")
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":3,"output":15,"cachedInput":0.3,"cacheWrite":3,"reasoning":15}}}`)
+	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing should allow cachedInput, cacheWrite, and reasoning fields")
+}
+
+func TestValidateAWFConfigJSON_AllowsModelPricingCatalog(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"modelPricingCatalog":{"schemaVersion":1,"unit":"USD_PER_1M_TOKENS","catalogId":"test/catalog","version":"sha256:abc123","providers":{"github-copilot":{"models":{"gpt-5":{"input":1,"output":2,"cachedInput":0.1,"cacheWrite":null,"reasoning":2}}}}}}}`)
+	require.NoError(t, err, "apiProxy.modelPricingCatalog should accept a complete versioned model pricing catalog")
+
+	err = validateAWFConfigJSON(`{"apiProxy":{"modelPricingCatalog":{"schemaVersion":1,"unit":"USD_PER_1M_TOKENS","catalogId":"test/catalog","version":"sha256:abc123","providers":{"github-copilot":{"models":{"gpt-5":{"input":1,"output":2,"cachedInput":0.1,"cacheWrite":null}}}}}}}`)
+	require.Error(t, err, "model pricing catalog entries should require explicit reasoning prices")
 }
 
 func TestValidateAWFConfigJSON_GitHubAPIPointBudgets(t *testing.T) {
