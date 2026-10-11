@@ -159,20 +159,50 @@ func TestCIEnforcedLintersMatchTargets(t *testing.T) {
 	require.NotEmpty(t, native, "cgo.yml must enforce custom linters on native Go code")
 	require.NotEmpty(t, wasm, "cgo.yml must enforce custom linters on WebAssembly code")
 
-	// Track the pre-existing asymmetry separately from analyzers not enforced at all.
-	nativeOnly := map[string]string{
-		"contextcancelnotdeferred": "existing native-only enforcement is tracked in #65753; remove this exception when wasm enables it",
-	}
-	expectedNativeOnly := make(map[string]struct{}, len(nativeOnly))
-	for name, reason := range nativeOnly {
-		assert.NotEmptyf(t, reason, "native-only analyzer %q must have a reason", name)
-		expectedNativeOnly[name] = struct{}{}
-	}
-	assert.Equal(t, sortedKeys(expectedNativeOnly), linterSetDifference(native, wasm),
-		"native and wasm CI must enforce the same custom linters except documented native-only exceptions; "+
-			"mirror dedicated steps as well as bulk flags, and remove exceptions once parity is restored")
+	assert.Empty(t, linterSetDifference(native, wasm),
+		"native and wasm CI must enforce the same custom linters; mirror dedicated steps as well as bulk flags")
 	assert.Empty(t, linterSetDifference(wasm, native),
 		"wasm CI must not enforce custom linters missing from native CI")
+}
+
+func TestParseCIEnforcedLinterSetsDetectsTargetDrift(t *testing.T) {
+	t.Parallel()
+	const workflow = `
+jobs:
+  lint-go-custom:
+    steps:
+      - run: make golint-custom LINTER_FLAGS="-contextcancelnotdeferred -test=false"
+      - run: make golint-custom LINTER_FLAGS="-consolestderr -test=false"
+      - run: |
+          # make golint-custom LINTER_FLAGS="-contextcancelnotdeferred -consolestderr"
+          GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="WASM_FLAGS -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
+      - env:
+          GOOS: js
+          GOARCH: wasm
+        run: make golint-custom LINTER_FLAGS='WASM_CONSOLE_FLAGS -test=false'
+`
+	tests := []struct {
+		name         string
+		wasmFlags    string
+		consoleFlags string
+		missing      []string
+	}{
+		{"parity", "-contextcancelnotdeferred", "-consolestderr", []string{}},
+		{"missing bulk analyzer", "", "-consolestderr", []string{"contextcancelnotdeferred"}},
+		{"missing dedicated analyzer", "-contextcancelnotdeferred", "", []string{"consolestderr"}},
+		{"missing both analyzers", "", "", []string{"consolestderr", "contextcancelnotdeferred"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fixture := strings.ReplaceAll(workflow, "WASM_FLAGS", tt.wasmFlags)
+			fixture = strings.ReplaceAll(fixture, "WASM_CONSOLE_FLAGS", tt.consoleFlags)
+			native, wasm := parseCIEnforcedLinterSets(t, []byte(fixture))
+			assert.Equal(t, []string{"consolestderr", "contextcancelnotdeferred"}, sortedKeys(native))
+			assert.Equal(t, tt.missing, linterSetDifference(native, wasm))
+			assert.Empty(t, linterSetDifference(wasm, native))
+		})
+	}
 }
 
 func parseCIEnforcedLinterSets(t *testing.T, workflowBytes []byte) (map[string]struct{}, map[string]struct{}) {
