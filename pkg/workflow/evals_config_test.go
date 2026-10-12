@@ -80,6 +80,55 @@ func TestParseEvalsFromFrontmatter_ExtendedForm_WithModel(t *testing.T) {
 	assert.Equal(t, "openai/gpt-4o-mini", cfg.Model)
 }
 
+func TestParseEvalsFromFrontmatter_StructuredCheck(t *testing.T) {
+	c := NewCompiler()
+	frontmatter := map[string]any{
+		"evals": map[string]any{
+			"include-assistant-text": true,
+			"questions": []any{
+				map[string]any{
+					"id":       "choice-correct",
+					"question": "Is the choice correct?",
+					"structured_check": map[string]any{
+						"item_type":  "test_environment",
+						"result_key": "structured_choice_correct",
+						"expected_by_utc_weekday": map[string]any{
+							"1": map[string]any{"environment": "staging", "test_type": "smoke"},
+						},
+					},
+				},
+			},
+		},
+	}
+	cfg, err := c.parseEvalsFromFrontmatter(frontmatter)
+	require.NoError(t, err)
+	assert.True(t, cfg.IncludeAssistantText)
+	require.NotNil(t, cfg.Questions[0].StructuredCheck)
+	assert.Equal(t, "test_environment", cfg.Questions[0].StructuredCheck.ItemType)
+	assert.Equal(t, "structured_choice_correct", cfg.Questions[0].StructuredCheck.ResultKey)
+	assert.Equal(t, map[string]string{"environment": "staging", "test_type": "smoke"}, cfg.Questions[0].StructuredCheck.ExpectedByUTCWeekday["1"])
+}
+
+func TestParseEvalsFromFrontmatter_StructuredCheckRejectsInvalidWeekday(t *testing.T) {
+	c := NewCompiler()
+	_, err := c.parseEvalsFromFrontmatter(map[string]any{
+		"evals": []any{
+			map[string]any{
+				"id":       "choice-correct",
+				"question": "Is the choice correct?",
+				"structured_check": map[string]any{
+					"item_type":  "test_environment",
+					"result_key": "structured_choice_correct",
+					"expected_by_utc_weekday": map[string]any{
+						"7": map[string]any{"environment": "staging"},
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "UTC weekday from 0 to 6")
+}
+
 func TestParseEvalsFromFrontmatter_PerQuestionModel(t *testing.T) {
 	c := NewCompiler()
 	frontmatter := map[string]any{

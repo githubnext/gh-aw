@@ -4,6 +4,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -16,9 +17,19 @@ var evalsConfigLog = logger.New("workflow:evals_config")
 type EvalDefinition struct {
 	ID       string
 	Question string
+	// StructuredCheck optionally derives deterministic evidence from a structured output item.
+	StructuredCheck *EvalStructuredCheck
 	// Model is an optional per-question model override. When set, it takes precedence over
 	// EvalsConfig.Model. Use a model alias such as "small" or a full model ID.
 	Model string
+}
+
+// EvalStructuredCheck compares one structured output item against the configured values
+// for the run's UTC weekday.
+type EvalStructuredCheck struct {
+	ItemType             string                       `json:"item_type"`
+	ResultKey            string                       `json:"result_key"`
+	ExpectedByUTCWeekday map[string]map[string]string `json:"expected_by_utc_weekday"`
 }
 
 // EvalsConfig holds the configuration for BinEval-style evaluations declared in workflow
@@ -26,6 +37,8 @@ type EvalDefinition struct {
 type EvalsConfig struct {
 	// Questions is the ordered list of binary evaluation questions.
 	Questions []EvalDefinition
+	// IncludeAssistantText adds the agent's final assistant message to evaluation context.
+	IncludeAssistantText bool
 	// Model is the default LLM model to use for evaluations. Use a model alias such as
 	// "small" or a full model ID. Per-question Model fields override this value.
 	// When empty, the compiler default ("evals") is used.
@@ -49,11 +62,12 @@ func (ec *EvalsConfig) HasEvals() bool {
 //	  - id: builds
 //	    question: Does the generated code compile?
 //
-//	# Extended — object with questions list and optional model/runs-on
+//	# Extended — object with questions list and optional execution settings
 //	evals:
 //	  questions:
 //	    - id: builds
 //	      question: Does the generated code compile?
+//	  include-assistant-text: true
 //	  model: small
 func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*EvalsConfig, error) {
 	raw, exists := frontmatter["evals"]
@@ -85,19 +99,8 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 			}
 			cfg.Questions = questions
 		}
-
-		// Parse optional top-level model (default for all questions)
-		if modelRaw, ok := v["model"]; ok {
-			modelStr, ok := modelRaw.(string)
-			if !ok {
-				return nil, fmt.Errorf("evals.model must be a string, got %T. Example:\nevals:\n  model: small", modelRaw)
-			}
-			cfg.Model = strings.TrimSpace(modelStr)
-		}
-
-		// Parse optional runs-on override
-		if runsOnRaw, ok := v["runs-on"]; ok {
-			cfg.RunsOn = renderRunsOnSnippet(runsOnRaw)
+		if err := parseEvalsOptions(v, cfg); err != nil {
+			return nil, err
 		}
 
 	default:
@@ -116,6 +119,29 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 	}
 	evalsConfigLog.Printf("Parsed %d eval definitions (model: %q, per-question overrides: %d)", len(cfg.Questions), cfg.Model, perQuestionOverrides)
 	return cfg, nil
+}
+
+func parseEvalsOptions(values map[string]any, cfg *EvalsConfig) error {
+	if includeAssistantTextRaw, ok := values["include-assistant-text"]; ok {
+		includeAssistantText, ok := includeAssistantTextRaw.(bool)
+		if !ok {
+			return fmt.Errorf("evals.include-assistant-text must be a boolean, got %T", includeAssistantTextRaw)
+		}
+		cfg.IncludeAssistantText = includeAssistantText
+	}
+
+	if modelRaw, ok := values["model"]; ok {
+		modelStr, ok := modelRaw.(string)
+		if !ok {
+			return fmt.Errorf("evals.model must be a string, got %T. Example:\nevals:\n  model: small", modelRaw)
+		}
+		cfg.Model = strings.TrimSpace(modelStr)
+	}
+
+	if runsOnRaw, ok := values["runs-on"]; ok {
+		cfg.RunsOn = renderRunsOnSnippet(runsOnRaw)
+	}
+	return nil
 }
 
 // parseEvalDefinitions converts a []any YAML list into []EvalDefinition.
@@ -162,6 +188,14 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 		Question: strings.TrimSpace(question),
 	}
 
+	if checkRaw, ok := m["structured_check"]; ok {
+		check, err := parseEvalStructuredCheck(checkRaw, idx)
+		if err != nil {
+			return EvalDefinition{}, err
+		}
+		def.StructuredCheck = check
+	}
+
 	// Optional per-question model override.
 	if modelRaw, ok := m["model"]; ok {
 		modelStr, ok := modelRaw.(string)
@@ -172,6 +206,52 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	}
 
 	return def, nil
+}
+
+func parseEvalStructuredCheck(raw any, idx int) (*EvalStructuredCheck, error) {
+	check, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("evals item %d 'structured_check' must be an object", idx)
+	}
+	itemType, ok := check["item_type"].(string)
+	if !ok || strings.TrimSpace(itemType) == "" {
+		return nil, fmt.Errorf("evals item %d 'structured_check.item_type' must be a non-empty string", idx)
+	}
+	resultKey, ok := check["result_key"].(string)
+	if !ok || strings.TrimSpace(resultKey) == "" {
+		return nil, fmt.Errorf("evals item %d 'structured_check.result_key' must be a non-empty string", idx)
+	}
+	expectedRaw, ok := check["expected_by_utc_weekday"].(map[string]any)
+	if !ok || len(expectedRaw) == 0 {
+		return nil, fmt.Errorf("evals item %d 'structured_check.expected_by_utc_weekday' must be a non-empty object", idx)
+	}
+
+	expectedByUTCWeekday := make(map[string]map[string]string, len(expectedRaw))
+	for weekday, valuesRaw := range expectedRaw {
+		day, err := strconv.Atoi(weekday)
+		if err != nil || day < 0 || day > 6 || strconv.Itoa(day) != weekday {
+			return nil, fmt.Errorf("evals item %d 'structured_check.expected_by_utc_weekday' key %q must be a UTC weekday from 0 to 6", idx, weekday)
+		}
+		values, ok := valuesRaw.(map[string]any)
+		if !ok || len(values) == 0 {
+			return nil, fmt.Errorf("evals item %d 'structured_check.expected_by_utc_weekday.%s' must be a non-empty object", idx, weekday)
+		}
+		expectedValues := make(map[string]string, len(values))
+		for field, valueRaw := range values {
+			value, ok := valueRaw.(string)
+			if !ok || strings.TrimSpace(field) == "" || strings.TrimSpace(value) == "" {
+				return nil, fmt.Errorf("evals item %d 'structured_check.expected_by_utc_weekday.%s' values must use non-empty fields and string values", idx, weekday)
+			}
+			expectedValues[strings.TrimSpace(field)] = value
+		}
+		expectedByUTCWeekday[weekday] = expectedValues
+	}
+
+	return &EvalStructuredCheck{
+		ItemType:             strings.TrimSpace(itemType),
+		ResultKey:            strings.TrimSpace(resultKey),
+		ExpectedByUTCWeekday: expectedByUTCWeekday,
+	}, nil
 }
 
 // validateEvals checks for duplicate IDs and non-empty questions after parsing.

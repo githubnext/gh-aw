@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -11,6 +12,41 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
+
+func TestMarshalEvalsQuestionsIncludesStructuredCheck(t *testing.T) {
+	check := &EvalStructuredCheck{
+		ItemType:  "test_environment",
+		ResultKey: "structured_choice_correct",
+		ExpectedByUTCWeekday: map[string]map[string]string{
+			"1": {"environment": "staging", "test_type": "smoke"},
+		},
+	}
+	encoded := marshalEvalsQuestions([]EvalDefinition{{ID: "choice-correct", Question: "Is the choice correct?", StructuredCheck: check}})
+	var questions []struct {
+		ID              string              `json:"id"`
+		StructuredCheck EvalStructuredCheck `json:"structured_check"`
+	}
+	if err := json.Unmarshal([]byte(encoded), &questions); err != nil {
+		t.Fatal(err)
+	}
+	if len(questions) != 1 || questions[0].StructuredCheck.ItemType != check.ItemType || questions[0].StructuredCheck.ResultKey != check.ResultKey {
+		t.Fatalf("structured check was not serialized with the eval question: %s", encoded)
+	}
+	if got := questions[0].StructuredCheck.ExpectedByUTCWeekday["1"]; len(got) != 2 || got["environment"] != "staging" || got["test_type"] != "smoke" {
+		t.Fatalf("unexpected serialized structured check values: %#v", got)
+	}
+}
+
+func TestBuildPrepareEvalsFilesStepCopiesAgentSession(t *testing.T) {
+	stepsWithoutAssistantText := strings.Join(buildPrepareEvalsFilesStep(false), "")
+	if strings.Contains(stepsWithoutAssistantText, "agent-session.jsonl") {
+		t.Fatalf("agent session should not be copied unless configured:\n%s", stepsWithoutAssistantText)
+	}
+	steps := strings.Join(buildPrepareEvalsFilesStep(true), "")
+	if !strings.Contains(steps, "cp /tmp/gh-aw/agent-session.jsonl /tmp/gh-aw/evals/agent-session.jsonl") {
+		t.Fatalf("expected evals setup to copy the agent session artifact:\n%s", steps)
+	}
+}
 
 func TestDailyAICEvalsAccountingTransport(t *testing.T) {
 	compiler := NewCompiler()
@@ -53,11 +89,18 @@ func TestEvalsExecutionEvidence(t *testing.T) {
 	data := &WorkflowData{
 		AI: "copilot",
 		Evals: &EvalsConfig{
-			Questions: []EvalDefinition{{ID: "example", Question: "Is the result valid?"}},
+			Questions:            []EvalDefinition{{ID: "example", Question: "Is the result valid?"}},
+			IncludeAssistantText: true,
 		},
 	}
 
 	steps := strings.Join(compiler.buildEvalsJobSteps(data), "")
+	if !strings.Contains(steps, "cp /tmp/gh-aw/agent-session.jsonl /tmp/gh-aw/evals/agent-session.jsonl") {
+		t.Fatalf("expected configured evals to copy the agent session artifact:\n%s", steps)
+	}
+	if !strings.Contains(steps, "GH_AW_EVALS_INCLUDE_ASSISTANT_TEXT: 'true'") {
+		t.Fatalf("expected configured evals to enable assistant text context:\n%s", steps)
+	}
 	initialize := strings.Index(steps, "name: Initialize evals execution evidence")
 	install := strings.Index(steps, "name: Install AWF binary")
 	execution := strings.Index(steps, "id: evals_agentic_execution")

@@ -36,10 +36,21 @@ experiments:
     start_date: "2026-10-12"
     issue: 67698
 evals:
-  - id: emoji_assignment_followed
-    question: "Using the independent assignment in run_evidence, does the final paragraph contain zero emoji when assigned minimal, or exactly three emoji when assigned heavy, while spelling out the environment, test type, and weekday rationale in words? If the assignment is unavailable, answer UNKNOWN."
-  - id: choice_correct
-    question: "Using the UTC run date and structured_choice_correct in run_evidence, does exactly one test_environment declaration select staging/smoke on Monday, Wednesday, or Friday, or production/integration on Tuesday or Thursday, with an explanation that agrees with the declaration? If the deterministic check is UNKNOWN, answer UNKNOWN; do not infer the declaration from prose."
+  include-assistant-text: true
+  questions:
+    - id: emoji_assignment_followed
+      question: "Using the independent assignment in run_evidence, does the final paragraph contain zero emoji when assigned minimal, or exactly three emoji when assigned heavy, while spelling out the environment, test type, and weekday rationale in words? If the assignment is unavailable, answer UNKNOWN."
+    - id: choice_correct
+      question: "Using the UTC run date and structured_choice_correct in run_evidence, does exactly one test_environment declaration select staging/smoke on Monday, Wednesday, or Friday, or production/integration on Tuesday or Thursday, with an explanation that agrees with the declaration? If the deterministic check is UNKNOWN, answer UNKNOWN; do not infer the declaration from prose."
+      structured_check:
+        item_type: test_environment
+        result_key: structured_choice_correct
+        expected_by_utc_weekday:
+          "1": { environment: staging, test_type: smoke }
+          "2": { environment: production, test_type: integration }
+          "3": { environment: staging, test_type: smoke }
+          "4": { environment: production, test_type: integration }
+          "5": { environment: staging, test_type: smoke }
 
 network:
   allowed:

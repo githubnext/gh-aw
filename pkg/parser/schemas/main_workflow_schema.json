@@ -14269,7 +14269,7 @@
       }
     },
     "evals": {
-      "description": "\u26a0\ufe0f Experimental. BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, model, and runs-on fields.",
+      "description": "\u26a0\ufe0f Experimental. BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, model, runs-on, and include-assistant-text fields.",
       "oneOf": [
         {
           "type": "array",
@@ -14290,6 +14290,25 @@
               "model": {
                 "type": "string",
                 "description": "Optional model override for this specific question. Overrides the top-level model setting. Use a model alias such as \"small\" or a full model ID."
+              },
+              "structured_check": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["item_type", "result_key", "expected_by_utc_weekday"],
+                "properties": {
+                  "item_type": { "type": "string", "minLength": 1 },
+                  "result_key": { "type": "string", "minLength": 1 },
+                  "expected_by_utc_weekday": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": { "pattern": "^[0-6]$" },
+                    "additionalProperties": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": { "type": "string", "minLength": 1 }
+                    }
+                  }
+                }
               }
             }
           }
@@ -14318,6 +14337,25 @@
                   "model": {
                     "type": "string",
                     "description": "Optional model override for this specific question. Overrides the top-level model setting. Use a model alias such as \"small\" or a full model ID."
+                  },
+                  "structured_check": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["item_type", "result_key", "expected_by_utc_weekday"],
+                    "properties": {
+                      "item_type": { "type": "string", "minLength": 1 },
+                      "result_key": { "type": "string", "minLength": 1 },
+                      "expected_by_utc_weekday": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "propertyNames": { "pattern": "^[0-6]$" },
+                        "additionalProperties": {
+                          "type": "object",
+                          "minProperties": 1,
+                          "additionalProperties": { "type": "string", "minLength": 1 }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -14328,6 +14366,10 @@
             },
             "runs-on": {
               "$ref": "#/$defs/github_actions_runs_on"
+            },
+            "include-assistant-text": {
+              "type": "boolean",
+              "description": "Include the agent's final assistant message in evaluation context."
             }
           }
         }

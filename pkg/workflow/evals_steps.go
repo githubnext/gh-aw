@@ -50,7 +50,7 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	}
 
 	// Step 3: Copy agent output files into the evals working directory.
-	steps = append(steps, buildPrepareEvalsFilesStep()...)
+	steps = append(steps, buildPrepareEvalsFilesStep(data.Evals.IncludeAssistantText)...)
 
 	// Step 4: Setup evals – writes the multi-question BinEval prompt via JS.
 	steps = append(steps, c.buildSetupEvalsStep(data)...)
@@ -97,15 +97,21 @@ func (c *Compiler) buildParseMCPGatewayLogStep(data *WorkflowData) []string {
 
 // buildPrepareEvalsFilesStep creates a step that copies agent output files into the
 // evals working directory so the JS harness can read them for context.
-func buildPrepareEvalsFilesStep() []string {
-	return []string{
+func buildPrepareEvalsFilesStep(includeAssistantText bool) []string {
+	steps := []string{
 		"      - name: Prepare evals files\n",
 		"        run: |\n",
 		fmt.Sprintf("          mkdir -p %s\n", evalsDir),
 		"          cp /tmp/gh-aw/agent_output.json " + evalsDir + "/agent_output.json 2>/dev/null || true\n",
-		"          cp /tmp/gh-aw/aw-prompts/prompt.txt " + evalsDir + "/prompt.txt 2>/dev/null || true\n",
-		fmt.Sprintf("          ls -la %s/ 2>/dev/null || true\n", evalsDir),
 	}
+	if includeAssistantText {
+		steps = append(steps, "          cp /tmp/gh-aw/agent-session.jsonl "+evalsDir+"/agent-session.jsonl 2>/dev/null || true\n")
+	}
+	steps = append(steps,
+		"          cp /tmp/gh-aw/aw-prompts/prompt.txt "+evalsDir+"/prompt.txt 2>/dev/null || true\n",
+		fmt.Sprintf("          ls -la %s/ 2>/dev/null || true\n", evalsDir),
+	)
+	return steps
 }
 
 // buildEnsureEvalsDirStep creates a step that ensures the evals directory and log
@@ -140,6 +146,9 @@ await main();`
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
+	}
+	if data.Evals.IncludeAssistantText {
+		steps = append(steps, "          GH_AW_EVALS_INCLUDE_ASSISTANT_TEXT: 'true'\n")
 	}
 	steps = appendEvalsModelEnvLines(steps, c.getEvalsEngineID(data), model)
 	steps = append(steps,
@@ -573,7 +582,12 @@ func marshalEvalsQuestions(questions []EvalDefinition) string {
 		// Use json.Marshal for robust string quoting (handles all JSON escape sequences)
 		idJSON, _ := json.Marshal(q.ID)             //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		questionJSON, _ := json.Marshal(q.Question) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		sb.WriteString(`{"id":` + string(idJSON) + `,"question":` + string(questionJSON) + `}`)
+		sb.WriteString(`{"id":` + string(idJSON) + `,"question":` + string(questionJSON))
+		if q.StructuredCheck != nil {
+			checkJSON, _ := json.Marshal(q.StructuredCheck) //nolint:jsonmarshalignoredeerror // the config contains only JSON-serializable values
+			sb.WriteString(`,"structured_check":` + string(checkJSON))
+		}
+		sb.WriteString("}")
 	}
 	sb.WriteString("]")
 	return sb.String()

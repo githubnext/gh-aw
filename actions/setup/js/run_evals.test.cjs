@@ -8,6 +8,18 @@ const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
 const EXPERIMENT_ASSIGNMENTS_PATH = "/tmp/gh-aw/experiments/assignments.json";
 const EXPERIMENT_STATE_PATH = "/tmp/gh-aw/experiments/state.jsonl";
 const AGENT_OUTPUT_PATH = `${EVALS_DIR}/agent_output.json`;
+const AGENT_SESSION_PATH = `${EVALS_DIR}/agent-session.jsonl`;
+const CHOICE_CHECK = {
+  item_type: "test_environment",
+  result_key: "structured_choice_correct",
+  expected_by_utc_weekday: {
+    1: { environment: "staging", test_type: "smoke" },
+    2: { environment: "production", test_type: "integration" },
+    3: { environment: "staging", test_type: "smoke" },
+    4: { environment: "production", test_type: "integration" },
+    5: { environment: "staging", test_type: "smoke" },
+  },
+};
 const require = createRequire(import.meta.url);
 const { MODEL_FALLBACK_ENV_VAR } = require("./model_fallback.cjs");
 const { setupMain, parseMain, extractAssistantTextFromJsonlLog } = require("./run_evals.cjs");
@@ -44,6 +56,9 @@ describe("run_evals.cjs", () => {
     if (fs.existsSync(AGENT_OUTPUT_PATH)) {
       fs.unlinkSync(AGENT_OUTPUT_PATH);
     }
+    if (fs.existsSync(AGENT_SESSION_PATH)) {
+      fs.unlinkSync(AGENT_SESSION_PATH);
+    }
   });
 
   afterEach(() => {
@@ -62,6 +77,9 @@ describe("run_evals.cjs", () => {
     }
     if (fs.existsSync(AGENT_OUTPUT_PATH)) {
       fs.unlinkSync(AGENT_OUTPUT_PATH);
+    }
+    if (fs.existsSync(AGENT_SESSION_PATH)) {
+      fs.unlinkSync(AGENT_SESSION_PATH);
     }
   });
 
@@ -136,7 +154,7 @@ describe("run_evals.cjs", () => {
   });
 
   it("provides independently recorded assignment, UTC date and structured choice evidence", async () => {
-    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?" }]));
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?", structured_check: CHOICE_CHECK }]));
     vi.stubEnv("GITHUB_RUN_ID", "123");
     fs.mkdirSync("/tmp/gh-aw/experiments", { recursive: true });
     fs.writeFileSync(EXPERIMENT_ASSIGNMENTS_PATH, '{"emoji_density":"heavy"}\n');
@@ -152,7 +170,7 @@ describe("run_evals.cjs", () => {
   });
 
   it("keeps declaration evidence UNKNOWN when structured output or run date is unavailable", async () => {
-    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?" }]));
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?", structured_check: CHOICE_CHECK }]));
     vi.stubEnv("GITHUB_RUN_ID", "123");
     fs.mkdirSync("/tmp/gh-aw/experiments", { recursive: true });
     fs.writeFileSync(EXPERIMENT_ASSIGNMENTS_PATH, '{"emoji_density":"minimal"}\n');
@@ -166,7 +184,7 @@ describe("run_evals.cjs", () => {
   });
 
   it("rejects duplicate or incorrect structured declarations", async () => {
-    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?" }]));
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "choice_correct", question: "Is the choice correct?", structured_check: CHOICE_CHECK }]));
     vi.stubEnv("GITHUB_RUN_ID", "123");
     fs.mkdirSync("/tmp/gh-aw/experiments", { recursive: true });
     fs.writeFileSync(EXPERIMENT_ASSIGNMENTS_PATH, '{"emoji_density":"minimal"}\n');
@@ -177,6 +195,34 @@ describe("run_evals.cjs", () => {
 
     const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
     expect(prompt).toContain('"structured_choice_correct":"NO"');
+  });
+
+  it("keeps deterministic checks neutral when a workflow supplies no structured check", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "other-check", question: "Is the output valid?" }]));
+    vi.stubEnv("GITHUB_RUN_ID", "123");
+    fs.mkdirSync("/tmp/gh-aw/experiments", { recursive: true });
+    fs.writeFileSync(EXPERIMENT_ASSIGNMENTS_PATH, '{"other_experiment":"control"}\n');
+    fs.writeFileSync(EXPERIMENT_STATE_PATH, '{"run_id":"123","timestamp":"2026-10-12T12:00:00Z","assignments":{"other_experiment":"control"}}\n');
+    fs.writeFileSync(AGENT_OUTPUT_PATH, '{"items":[]}');
+
+    await setupMain();
+
+    const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
+    expect(prompt).not.toContain('"structured_choice_correct"');
+    expect(prompt).not.toContain('"other-check":"NO"');
+  });
+
+  it("includes the final assistant text from the session artifact in the eval context", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "emoji_assignment_followed", question: "Did the answer follow its emoji assignment?" }]));
+    vi.stubEnv("GH_AW_EVALS_INCLUDE_ASSISTANT_TEXT", "true");
+    const assistantText = "I selected staging with smoke tests for Monday. 🧪";
+    fs.writeFileSync(AGENT_SESSION_PATH, JSON.stringify({ type: "assistant.message", data: { content: assistantText } }) + "\n");
+
+    await setupMain();
+
+    const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
+    expect(prompt).toContain("<assistant_text>");
+    expect(prompt).toContain(JSON.stringify(assistantText));
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (positional format)", async () => {
