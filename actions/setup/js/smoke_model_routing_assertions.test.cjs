@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { checkDetectionEvidence, checkModelRoutingEvidence, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel } from "./smoke_model_routing_assertions.cjs";
 
 const TOKEN_USAGE = "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
@@ -447,6 +448,75 @@ describe("smoke_model_routing_assertions", () => {
       write("agent/awf-routing-outcome.json", { status: "selected", wire_model: "gpt-5.6-luna" });
       const { failures } = checkModelRoutingEvidence({ rootDir: root, engine: "copilot", allowedModels: ROUTED_ALLOWED });
       expect(failures).toContainEqual(expect.stringMatching(/^FAIL R1 routing not selected: runner-written routing status is missing.*ignored agent-written model_routing\.outcome \(status=selected\)$/));
+    });
+  });
+
+  // Claude engine: real records from pkg/cli/testdata/model_routing_golden/claude-awf-selected-messages
+  // (run 37971713032). AWF selects /chat/completions; Claude Code calls /v1/messages.
+  describe("claude engine (real record shapes)", () => {
+    const goldenDir = fileURLToPath(new URL("../../../pkg/cli/testdata/model_routing_golden/claude-awf-selected-messages/", import.meta.url));
+    const claudeExpectations = { engine: "claude", allowedModels: ["claude-sonnet-5"], mainEndpoint: "/v1/messages", executionOutcome: "success" };
+    // /reflect routing_models from sandbox run 38003537540 (sandbox/firewall/awf-reflect.json).
+    const claudeReflect = {
+      endpoints: [
+        {
+          provider: "copilot",
+          routing_models: [
+            { model_id: "claude-haiku-4.5", supported_endpoints: ["/chat/completions", "/v1/messages"] },
+            { model_id: "claude-sonnet-5", supported_endpoints: ["/v1/messages", "/chat/completions"] },
+            { model_id: "claude-opus-5", supported_endpoints: ["/v1/messages", "/chat/completions"] },
+          ],
+        },
+      ],
+    };
+    const ROUTING = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
+    const golden = file => fs.readFileSync(path.join(goldenDir, file), "utf8");
+    // The golden capture dropped `event`; AWF v0.28.50 writes `"event":"model_routing"`
+    // on every record (see the unredacted copilot-routed-gpt-responses golden).
+    const routingRecords = () =>
+      golden(ROUTING)
+        .split("\n")
+        .filter(Boolean)
+        .map(line => ({ event: "model_routing", ...JSON.parse(line) }));
+
+    function claudeFixture({ awInfo = JSON.parse(golden("aw_info.json")), tokenUsage = golden(TOKEN_USAGE) } = {}) {
+      write("aw_info.json", awInfo);
+      write(ROUTING, routingRecords());
+      write(TOKEN_USAGE, tokenUsage);
+      write("agent/awf-routing-outcome.json", golden("agent/awf-routing-outcome.json"));
+      write("sandbox/firewall/awf-reflect.json", claudeReflect);
+    }
+
+    const claudeCheck = () => checkModelRoutingEvidence({ rootDir: root, ...claudeExpectations });
+
+    it("passes every check for a routed Claude run on /v1/messages", () => {
+      claudeFixture();
+      const results = claudeCheck();
+      expect(results.failures).toEqual([]);
+      expect(results.passes).toEqual([
+        "PASS E2 evidence: unified session and api-proxy token usage present",
+        "PASS E1 agent execution outcome is success",
+        "PASS R1 routing selected claude-sonnet-5 (runner status=selected, endpoint=/chat/completions)",
+        "PASS R2 one routing_classification request: claude-opus-5 /chat/completions 200",
+        "PASS R3 main-agent request on selected model: claude-sonnet-5 /v1/messages 200",
+        "PASS R4 all 3 main-agent request(s) used allowed models",
+        "PASS M1 all 3 main-agent request(s) used /v1/messages",
+      ]);
+    });
+
+    it("fails only M1 when main-agent traffic ran on /chat/completions", () => {
+      claudeFixture({ tokenUsage: golden(TOKEN_USAGE).replaceAll('"path":"/v1/messages?beta=true"', '"path":"/chat/completions"') });
+      const { passes, failures } = claudeCheck();
+      expect(failures).toEqual(["FAIL M1 main-agent request(s) not on /v1/messages; observed: claude-sonnet-5 /chat/completions 200, claude-sonnet-5 /chat/completions 200, claude-sonnet-5 /chat/completions 200"]);
+      expect(passes).toContain("PASS R3 main-agent request on selected model: claude-sonnet-5 /chat/completions 200");
+    });
+
+    it("fails R1 when the runner records the #67012 rejected shape and the agent-written outcome says selected", () => {
+      const awInfo = JSON.parse(golden("aw_info.json"));
+      awInfo.model = "agent";
+      awInfo.model_routing = { status: "rejected", failure_code: "unsupported_endpoint", detail: "AWF model routing endpoint /chat/completions is not supported by this engine" };
+      claudeFixture({ awInfo });
+      expect(claudeCheck().failures).toEqual(["FAIL R1 routing not selected: runner-written routing status is rejected, expected selected; ignored agent-written model_routing.outcome (status=selected)"]);
     });
   });
 

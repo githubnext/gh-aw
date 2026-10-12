@@ -163,14 +163,9 @@ func (b Branch) verifyWorkerRoutes(ctx context.Context, policy Policy) error {
 	seen := identitySet{}
 	for _, pool := range policy.Pools {
 		for _, profile := range pool.Profiles {
-			key := profile.Workflow + "\n" + profile.Ref
-			if seen.contains(key) {
-				continue
-			}
-			if err := b.verifyWorkerRoute(ctx, profile); err != nil {
+			if err := b.verifyWorkerRouteOnce(ctx, profile, seen); err != nil {
 				return err
 			}
-			seen.add(key)
 		}
 	}
 	return nil
@@ -199,15 +194,22 @@ func (b Branch) verifyAssignmentWorkerRoutes(ctx context.Context, policy Policy,
 		if !ok {
 			return queueError("profile_invalid", "selected worker profile is not approved")
 		}
-		key := profile.Workflow + "\n" + profile.Ref
-		if seen.contains(key) {
-			continue
-		}
-		if err := b.verifyWorkerRoute(ctx, profile); err != nil {
+		if err := b.verifyWorkerRouteOnce(ctx, profile, seen); err != nil {
 			return err
 		}
-		seen.add(key)
 	}
+	return nil
+}
+
+func (b Branch) verifyWorkerRouteOnce(ctx context.Context, profile WorkerProfile, seen identitySet) error {
+	key := profile.Workflow + "\n" + profile.Ref
+	if seen.contains(key) {
+		return nil
+	}
+	if err := b.verifyWorkerRoute(ctx, profile); err != nil {
+		return err
+	}
+	seen.add(key)
 	return nil
 }
 

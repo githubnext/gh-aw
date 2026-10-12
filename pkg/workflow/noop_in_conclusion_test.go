@@ -11,6 +11,18 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+func TestNoopCommentBodyOutputRequiresNoopStep(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{NoOp: &NoOpConfig{}},
+		Tools: map[string]any{
+			"work-queue": map[string]any{"worker": true},
+		},
+	}
+	if _, exists := buildConclusionJobOutputs(data)["noop_comment_body"]; exists {
+		t.Error("Work-queue participants have no noop step and must not export its categorized body")
+	}
+}
+
 func TestNoopStepInConclusionJob(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "noop-in-conclusion-test")
@@ -20,6 +32,7 @@ func TestNoopStepInConclusionJob(t *testing.T) {
 on:
   issues:
     types: [opened]
+  status-comment: true
 permissions:
   contents: read
 engine: copilot
@@ -72,6 +85,12 @@ Test that noop step is generated inside the conclusion job.
 	// Verify that conclusion job has noop_message output
 	if !strings.Contains(conclusionSection, "noop_message:") {
 		t.Error("Conclusion job should have 'noop_message' output")
+	}
+	if !strings.Contains(conclusionSection, "noop_comment_body: ${{ steps.noop.outputs.noop_comment_body }}") {
+		t.Error("Conclusion job should expose the categorized no-op comment body")
+	}
+	if !strings.Contains(conclusionSection, "GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}") {
+		t.Error("Completion status comment should consume the categorized no-op body")
 	}
 
 	// Verify that conclusion job does NOT depend on noop job

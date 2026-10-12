@@ -172,6 +172,7 @@ The implementation MUST recognize the following built-in grader IDs:
 - `trajectory-ndtw`
 - `code-search-recall`
 - `code-read-precision`
+- `code-edit-precision`
 
 These IDs are reserved for built-ins. A built-in grader MUST NOT accept a custom `script`.
 

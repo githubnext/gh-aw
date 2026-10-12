@@ -7,6 +7,41 @@ const { ERR_API, ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
+
+/**
+ * Classify the warning/failure reasons emitted by parse_threat_detection_results.
+ * Other detection metadata (such as detection_skipped) is not a problem reason.
+ * @param {string} reason
+ * @returns {{category: string, reason: string, description: string}}
+ */
+function classifyDetectionOutcome(reason) {
+  switch (reason) {
+    case "threat_detected":
+      return {
+        category: "threat_finding",
+        reason,
+        description: "The detector reported a potential security threat. This is a finding, not a detector execution failure.",
+      };
+    case "agent_failure":
+      return {
+        category: "detector_execution_failure",
+        reason,
+        description: "The detector failed to complete. Security assessment is incomplete; this is not evidence of a threat or a clean result.",
+      };
+    case "parse_error":
+      return {
+        category: "detector_result_invalid",
+        reason,
+        description: "The detector did not produce a valid result. Security assessment is incomplete; this is not evidence of a threat or a clean result.",
+      };
+    default:
+      return {
+        category: "detection_outcome_unknown",
+        reason: "unknown",
+        description: "Detection produced a warning or failure without a recognized reason. Security assessment remains unconfirmed.",
+      };
+  }
+}
 /**
  * Search for or create the parent issue for all agentic workflow detection runs.
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -79,19 +114,21 @@ async function ensureDetectionRunsIssue() {
  */
 async function main() {
   try {
-    const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+    const rawConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+    const detectionConclusion = ["success", "skipped", "cancelled", "warning", "failure"].includes(rawConclusion) ? rawConclusion : "unknown";
     const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
     const runUrl = process.env.GH_AW_RUN_URL || "";
+    const outcome = classifyDetectionOutcome(detectionReason);
 
     core.info(`Detection conclusion: ${detectionConclusion}`);
-    core.info(`Detection reason: ${detectionReason}`);
+    core.info(`Detection category: ${outcome.category}`);
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Run URL: ${runUrl}`);
 
     // Only log when detection produced a warning or failure
     if (detectionConclusion !== "warning" && detectionConclusion !== "failure") {
-      core.info(`Detection conclusion is "${detectionConclusion}", no issue comment needed`);
+      core.info("Detection did not produce a warning or failure, no issue comment needed");
       return;
     }
 
@@ -114,7 +151,9 @@ async function main() {
     const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
       conclusion: detectionConclusion,
-      reason: detectionReason || "unknown",
+      reason: outcome.reason,
+      category: outcome.category,
+      description: outcome.description,
       run_url: runUrl,
     });
 
@@ -140,4 +179,4 @@ async function main() {
   }
 }
 
-module.exports = { main, ensureDetectionRunsIssue };
+module.exports = { main, ensureDetectionRunsIssue, classifyDetectionOutcome };

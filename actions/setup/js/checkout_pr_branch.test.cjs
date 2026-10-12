@@ -431,7 +431,7 @@ If the pull request is still open, verify that:
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Internal Server Error"));
       });
 
-      it.each(["workflow_dispatch", "issue_comment", "pull_request_review_comment"])("should reject bot actor without write-or-higher permission for %s events", async eventName => {
+      it.each(["workflow_dispatch", "issue_comment", "pull_request_review_comment", "pull_request_review"])("should reject bot actor without write-or-higher permission for %s events", async eventName => {
         mockContext.eventName = eventName;
         mockContext.actor = "third-party-bot[bot]";
         mockContext.payload.sender = { login: "third-party-bot[bot]", type: "Bot" };
@@ -462,13 +462,13 @@ If the pull request is still open, verify that:
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("requires write or higher"));
       });
 
-      it.each(["issue_comment", "pull_request_review_comment"].flatMap(eventName => ["my-app", "my-app[bot]"].flatMap(actor => ["my-app", "my-app[bot]"].map(login => [eventName, actor, login]))))(
-        "should allow an allow-listed App comment on a same-repository PR for %s with actor %s and login %s",
+      it.each(["issue_comment", "pull_request_review_comment", "pull_request_review"].flatMap(eventName => ["my-app", "my-app[bot]"].flatMap(actor => ["my-app", "my-app[bot]"].map(login => [eventName, actor, login]))))(
+        "should allow an allow-listed App comment or review on a same-repository PR for %s with actor %s and login %s",
         async (eventName, actor, login) => {
           mockContext.eventName = eventName;
           mockContext.actor = actor;
           mockContext.payload.sender = { login, type: "Bot" };
-          mockContext.payload.comment = { user: { login } };
+          mockContext.payload[eventName === "pull_request_review" ? "review" : "comment"] = { user: { login } };
           mockContext.payload.repository.id = 42;
           mockContext.payload.pull_request = { number: 123, state: "open" };
           if (eventName === "issue_comment") {
@@ -648,13 +648,13 @@ If the pull request is still open, verify that:
         },
       ];
 
-      it.each(["issue_comment", "pull_request_review_comment"].flatMap(eventName => commentCheckoutConformanceCases.map(testCase => ({ eventName, ...testCase }))))(
-        "conforms to the comment checkout policy for $eventName: $name",
+      it.each(["issue_comment", "pull_request_review_comment", "pull_request_review"].flatMap(eventName => commentCheckoutConformanceCases.map(testCase => ({ eventName, ...testCase }))))(
+        "conforms to the comment and review checkout policy for $eventName: $name",
         async testCase => {
           mockContext.eventName = testCase.eventName;
           mockContext.actor = testCase.actor;
           mockContext.payload.sender = { login: testCase.sender, type: testCase.senderType };
-          mockContext.payload.comment = { user: { login: testCase.commentAuthor } };
+          mockContext.payload[testCase.eventName === "pull_request_review" ? "review" : "comment"] = { user: { login: testCase.commentAuthor } };
           mockContext.payload.repository.id = 42;
           mockContext.payload.pull_request = { number: 123, state: "open" };
           if (testCase.eventName === "issue_comment") {
@@ -688,6 +688,24 @@ If the pull request is still open, verify that:
           }
         }
       );
+
+      it("does not trust a review using a matching comment author instead of the review author", async () => {
+        mockContext.eventName = "pull_request_review";
+        mockContext.actor = "my-app[bot]";
+        mockContext.payload.sender = { login: "my-app[bot]", type: "Bot" };
+        mockContext.payload.review = { user: { login: "other[bot]" } };
+        mockContext.payload.comment = { user: { login: "my-app[bot]" } };
+        mockContext.payload.repository.id = 42;
+        mockContext.payload.pull_request = { number: 123, state: "open" };
+        process.env.GH_AW_ALLOWED_BOTS = "my-app";
+        mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "none" } });
+
+        await runScript();
+
+        expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
+        expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["fetch"]));
+      });
 
       it("should validate centralized workflow_dispatch using the originating aw_context actor", async () => {
         mockContext.eventName = "workflow_dispatch";

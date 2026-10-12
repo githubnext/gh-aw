@@ -971,8 +971,9 @@ This documentation provides:
    - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green
    - For features that deeply impact the engine, add the `smoke` label and approve workflows
    - If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
-   - For changes to model routing (`engine.model-routing`), add the `smoke-routing` label and approve workflows. It runs three routed smokes on the PR's code:
+   - For changes to model routing (`engine.model-routing`), add the `smoke-routing` label and approve workflows. It runs four routed smokes on the PR's code:
      - `smoke-copilot-routed`: Copilot CLI with routing and no sub-agents. It also runs the default threat-detection engine on a pinned model, and a detection-job post-step checks that detection completed on that model without routing (`D1`–`D3`)
+     - `smoke-claude-routed`: Claude Code with routing on `model-provider: github`; AWF selects `/chat/completions` and the main agent must use `/v1/messages`
      - `smoke-pi-routed`: pi with routing and two cross-family declared sub-agents (Claude and GPT)
      - `smoke-copilot-sdk-routed`: Copilot SDK with routing and a Claude sub-agent under a GPT main agent
    - Each routed smoke's post-step (`actions/setup/js/smoke_model_routing_assertions.cjs`) checks runner- and proxy-written evidence, not the agent's reply. Every failed check logs its ID (`R1`–`R4`, `S1`–`S4`, `M1`, `E1`, `E2`) with the observed model, endpoint, status and event, so the step log is enough to diagnose a failure

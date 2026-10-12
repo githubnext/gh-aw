@@ -1,7 +1,7 @@
 # Security Architecture Specification Validation
 
 **Document**: Validation of `security-architecture-spec.md` against compiled `.lock.yml` files  
-**Date**: October 9, 2026<br>
+**Date**: October 12, 2026<br>
 **Last targeted validation**: v1.1.1 (RS-05a revalidation) / 2026-10-09
 **Validator**: GitHub Copilot Agent  
 **Scope**: Cross-reference specification requirements with actual implementation
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (full validation on 2026-07-15; RS-05a targeted revalidation on 2026-10-09). This targeted review does not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
+⚠️ **VALIDATION STATUS**: The specification reflected the implementation at the time of full validation on 2026-07-15 and RS-05a targeted revalidation on 2026-10-09. The v1.1.2 review-checkout update has not yet received targeted revalidation (see §7b); this document does not claim that it has. These validations do not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
@@ -476,10 +476,10 @@ async function assertTrustedCheckoutRuntime() {
 | missing, null, string, or numeric `repository.fork` rejected before permission/git operations | fork-runtime rejection (malformed metadata) |
 | coercible/non-canonical `item_number` values rejected before actor/API/git operations | item_number validation |
 | bot/app actor with write-or-higher repository permission allowed | actor trust |
-| bot/app actor without write-or-higher repository permission rejected for `workflow_dispatch`, `issue_comment`, and `pull_request_review_comment` | actor trust |
+| bot/app actor without write-or-higher repository permission rejected for `workflow_dispatch`, `issue_comment`, `pull_request_review_comment`, and `pull_request_review` | actor trust |
 | same-repository bot `opened` / `synchronize` PR branch events allowed only when sender and runtime, head, and base repository IDs match | actor trust exception |
-| allow-listed App comments on `issue_comment` and `pull_request_review_comment` allowed only when sender and comment author match, sender and runtime actor are canonically equivalent, and runtime, head, and base repository IDs match | actor trust exception |
-| unlisted bot comments, differing sender/comment author identities, fork PRs, and missing or mismatched repository IDs retain the collaborator permission floor | actor trust exception (negative cases) |
+| allow-listed App comments on `issue_comment` and `pull_request_review_comment`, and reviews on `pull_request_review`, allowed only when sender and matching comment/review author match, sender and runtime actor are canonically equivalent, and runtime, head, and base repository IDs match | actor trust exception |
+| unlisted bot comments/reviews, differing sender/comment/review author identities, fork PRs, and missing or mismatched repository IDs retain the collaborator permission floor | actor trust exception (negative cases) |
 | bot exception rejected for forked heads, missing runtime ID, mismatched sender, non-bot sender, metadata-only action, and missing or mismatched base ID | actor trust exception (independent negative cases) |
 | centralized `workflow_dispatch` validates the originating `aw_context.actor`, not `github-actions[bot]` | actor trust |
 | centralized `workflow_dispatch` without `aw_context.actor` is rejected | actor trust (fail closed) |
@@ -498,6 +498,8 @@ async function assertTrustedCheckoutRuntime() {
 | `checkout_requires_write_or_same_repo_bot_pr` | `unsat` | no PR checkout exists without either a verifiable write-or-higher actor or one of the verified same-repository bot exceptions |
 | `unlisted_same_repo_bot_comment_requires_write_permission` | `unsat` | an unlisted bot cannot bypass the permission floor even when its comment identity and repository provenance otherwise match |
 | `allowlisted_same_repo_bot_comment_can_checkout` | `sat` | the model admits the narrowly scoped allow-listed same-repository App comment exception without repository write permission |
+| `review_with_mismatched_author_requires_write_permission` | `unsat` | a review whose author differs from the Bot sender cannot bypass the permission floor |
+| `allowlisted_same_repo_bot_review_can_checkout` | `sat` | the model admits the narrowly scoped allow-listed same-repository App review exception without repository write permission |
 | `centralized_dispatch_requires_platform_bot_identity` | `unsat` | centralized dispatch cannot proceed without GitHub-provided bot identity |
 | `centralized_dispatch_requires_command_or_label_marker` | `unsat` | centralized dispatch cannot proceed without command/label provenance marker |
 | `centralized_dispatch_requires_originating_actor` | `unsat` | centralized dispatch cannot proceed without an originating actor |
@@ -507,7 +509,7 @@ async function assertTrustedCheckoutRuntime() {
 | `workflow_dispatch_uses_refs_pull_checkout` | `unsat` | workflow_dispatch PR replay cannot reach checkout without `refs/pull/N/head` isolation |
 | `non_dispatch_pr_trigger_allows_forked_runtime_after_trust` | `sat` | the model admits non-workflow_dispatch PR triggers from structurally forked runtime repositories once actor trust holds |
 
-**Status**: ✅ **TARGETED REVALIDATION** — RS-05a comment-checkout requirements match the implementation and are covered by regression tests for both comment events, both App identity forms, unlisted bots, mismatched actors/authors, and fork or incomplete repository provenance. The updated Z3 model proves the unlisted-bot case cannot bypass the permission floor and admits the explicitly allow-listed same-repository case. Existing branch-event, `workflow_dispatch`, ref-isolation, and fork-runtime checks remain in place. This targeted review does not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
+**Status**: **EVIDENCE UPDATED; TARGETED REVALIDATION PENDING** — The RS-05a coverage mapping now includes `pull_request_review`, with distinct review-author mismatch and allow-listed review cases in the Z3 proof artifact and review-author guards in the TLA+ model. This update records the v1.1.2 evidence scope but does not claim a solver run or targeted revalidation. Existing branch-event, `workflow_dispatch`, ref-isolation, and fork-runtime evidence remains applicable; the full revalidation policy is in `security-architecture-spec.md` §11.
 
 ---
 
