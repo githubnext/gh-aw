@@ -18,6 +18,8 @@ set +o histexpand
 #
 # Environment overrides (testing):
 #   COPILOT_INSTALL_DIR - Override the install directory (default: /usr/local/bin).
+#   GH_AW_COPILOT_GUEST_LIBC - Optional NVX guest ABI contract: glibc or musl.
+#   GH_AW_COPILOT_GUEST_INSTALL_DIR - Compiler-controlled directory for the guest package.
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
@@ -154,6 +156,72 @@ sha256_hash() {
     echo "ERROR: No sha256sum or shasum found" >&2
     exit 1
   fi
+}
+
+install_guest_copilot() {
+  local version="$1"
+  local guest_libc="${GH_AW_COPILOT_GUEST_LIBC:-}"
+  local guest_install_dir="${GH_AW_COPILOT_GUEST_INSTALL_DIR:-}"
+  local guest_platform=""
+  local guest_tarball=""
+  local guest_base_url=""
+  local expected_checksum=""
+  local actual_checksum=""
+
+  if [[ -z "$guest_libc" ]]; then
+    return 0
+  fi
+  if [[ "$OS" != "Linux" ]]; then
+    echo "ERROR: NVX Copilot guest packages require a Linux host" >&2
+    exit 1
+  fi
+  case "$guest_libc" in
+    glibc) return 0 ;;
+    musl) guest_platform="linuxmusl" ;;
+    *) echo "ERROR: Unsupported NVX guest libc ABI: ${guest_libc}" >&2; exit 1 ;;
+  esac
+  if [[ -z "$guest_install_dir" || "$guest_install_dir" != /* || "$guest_install_dir" == *$'\n'* || "$guest_install_dir" == *$'\r'* ]]; then
+    echo "ERROR: GH_AW_COPILOT_GUEST_INSTALL_DIR must be an absolute path without control characters" >&2
+    exit 1
+  fi
+  if [[ -L "$guest_install_dir" ]]; then
+    echo "ERROR: NVX Copilot guest install directory must not be a symlink" >&2
+    exit 1
+  fi
+  mkdir -p "$guest_install_dir"
+  chmod 700 "$guest_install_dir"
+
+  if [[ "$version" == "latest" ]]; then
+    guest_base_url="https://github.com/${COPILOT_REPO}/releases/latest/download"
+  else
+    case "$version" in
+      v*) ;;
+      *) version="v$version" ;;
+    esac
+    guest_base_url="https://github.com/${COPILOT_REPO}/releases/download/${version}"
+  fi
+  guest_tarball="copilot-${guest_platform}-${ARCH_NAME}.tar.gz"
+  echo "Downloading verified Copilot CLI for NVX guest ABI ${guest_libc}: ${guest_tarball}"
+  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/guest-SHA256SUMS.txt" "${guest_base_url}/SHA256SUMS.txt"
+  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/${guest_tarball}" "${guest_base_url}/${guest_tarball}"
+  expected_checksum="$(awk -v fname="${guest_tarball}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/guest-SHA256SUMS.txt" | tr 'A-F' 'a-f')"
+  if [[ -z "$expected_checksum" ]]; then
+    echo "ERROR: Could not find checksum for ${guest_tarball} in SHA256SUMS.txt" >&2
+    exit 1
+  fi
+  actual_checksum="$(sha256_hash "${TEMP_DIR}/${guest_tarball}" | tr 'A-F' 'a-f')"
+  if [[ "$expected_checksum" != "$actual_checksum" ]]; then
+    echo "ERROR: Checksum verification failed for NVX guest package ${guest_tarball}" >&2
+    exit 1
+  fi
+  rm -f -- "${guest_install_dir}/copilot" "${guest_install_dir}/abi"
+  tar -xz -C "$guest_install_dir" -f "${TEMP_DIR}/${guest_tarball}"
+  if [[ ! -f "${guest_install_dir}/copilot" || -L "${guest_install_dir}/copilot" || ! -x "${guest_install_dir}/copilot" ]]; then
+    echo "ERROR: Verified NVX guest package did not contain a regular executable Copilot CLI" >&2
+    exit 1
+  fi
+  printf '%s\n' "$guest_libc" > "${guest_install_dir}/abi"
+  chmod 600 "${guest_install_dir}/abi"
 }
 
 # Normalize Copilot versions so toolcache lookups can match both v-prefixed and bare versions.
@@ -622,6 +690,8 @@ else
   fi
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
 fi
+
+install_guest_copilot "$VERSION"
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
 if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then

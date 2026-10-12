@@ -53,7 +53,7 @@ func TestNVXGuestCommandPreservesShellArguments(t *testing.T) {
 
 func TestNVXDefaultGuestWorkDir(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.NVX = nil
+	data.SandboxConfig.Agent.NVX = &AgentNVXConfig{GuestLibC: "musl"}
 	command := BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", WorkflowData: data})
 	assert.Contains(t, command, "--container-workdir /workspace")
 	assert.NotContains(t, command, `--container-workdir "${GITHUB_WORKSPACE}"`)
@@ -146,6 +146,7 @@ sandbox:
       preview: true
       network-isolation: true
       api-proxy: true
+      guest-libc: musl
       layer-path: /tmp/nvx/guest-layer
       openvmm-path: /tmp/nvx/openvmm
       kernel-path: /tmp/nvx/vmlinux
@@ -163,6 +164,9 @@ Read the workspace and report completion.
 			require.NoError(t, err)
 			content := string(lock)
 			assert.Contains(t, content, nvxGuestRuntimeDir+"/actions/copilot_harness.cjs")
+			assert.Contains(t, content, "GH_AW_COPILOT_GUEST_LIBC: musl")
+			assert.Contains(t, content, `GH_AW_COPILOT_GUEST_INSTALL_DIR: "${{ runner.temp }}/gh-aw/nvx-engine"`)
+			assert.Contains(t, content, "export GH_AW_NVX_GUEST_LIBC=musl")
 			stageIndex := strings.Index(content, `nvx_assets.cjs" stage`)
 			collectIndex := strings.Index(content, "Collect NVX guest outputs")
 			cleanupIndex := strings.Index(content, "name: Remove staged NVX artifacts")

@@ -6,8 +6,8 @@ import (
 
 var copilotInstallerLog = logger.New("workflow:copilot_installer")
 
-func generateCopilotInstallerSteps(version, stepName string, rootless bool, compiledVersion, copilotMinVersion string) []GitHubActionStep {
-	copilotInstallerLog.Printf("Generating Copilot installer steps using install_copilot_cli.sh: version=%q, rootless=%v, compiledVersion=%q, copilotMinVersion=%q", version, rootless, compiledVersion, copilotMinVersion)
+func generateCopilotInstallerSteps(version, stepName string, rootless bool, compiledVersion, copilotMinVersion, guestLibC string) []GitHubActionStep {
+	copilotInstallerLog.Printf("Generating Copilot installer steps using install_copilot_cli.sh: version=%q, rootless=%v, compiledVersion=%q, copilotMinVersion=%q, guestLibC=%q", version, rootless, compiledVersion, copilotMinVersion, guestLibC)
 
 	rootlessFlag := ""
 	if rootless {
@@ -35,6 +35,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 			"          ENGINE_VERSION: " + version,
 		}
 		stepLines = appendCopilotInstallerVersionEnv(stepLines, compiledVersion, copilotMinVersion)
+		stepLines = appendCopilotInstallerGuestABIEnv(stepLines, guestLibC)
 		return []GitHubActionStep{GitHubActionStep(stepLines)}
 	}
 
@@ -50,6 +51,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 			"          GH_HOST: github.com",
 		}
 		stepLines = appendCopilotInstallerVersionEnv(stepLines, compiledVersion, copilotMinVersion)
+		stepLines = appendCopilotInstallerGuestABIEnv(stepLines, guestLibC)
 		return []GitHubActionStep{GitHubActionStep(stepLines)}
 	}
 
@@ -59,6 +61,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 		"        env:",
 		"          GH_HOST: github.com",
 	}
+	stepLines = appendCopilotInstallerGuestABIEnv(stepLines, guestLibC)
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }
@@ -69,6 +72,17 @@ func appendCopilotInstallerVersionEnv(stepLines []string, compiledVersion, copil
 	}
 	if copilotMinVersion != "" {
 		stepLines = append(stepLines, "          GH_AW_COPILOT_MIN_VERSION: "+copilotMinVersion)
+	}
+	return stepLines
+}
+
+func appendCopilotInstallerGuestABIEnv(stepLines []string, guestLibC string) []string {
+	if guestLibC == "" {
+		return stepLines
+	}
+	stepLines = append(stepLines, "          GH_AW_COPILOT_GUEST_LIBC: "+guestLibC)
+	if guestLibC == "musl" {
+		stepLines = append(stepLines, `          GH_AW_COPILOT_GUEST_INSTALL_DIR: "${{ runner.temp }}/gh-aw/nvx-engine"`)
 	}
 	return stepLines
 }

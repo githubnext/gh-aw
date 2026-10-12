@@ -86,6 +86,9 @@ func validateNVXPathInputs(nvx *AgentNVXConfig) error {
 }
 
 func validateNVXResourceOptions(nvx *AgentNVXConfig) error {
+	if nvx.GuestLibC != "glibc" && nvx.GuestLibC != "musl" {
+		return nvxValidationError("sandbox.agent.nvx.guest-libc", nvx.GuestLibC, "NVX requires an explicit supported guest libc ABI", "Set guest-libc to musl for Alpine/musl layers or glibc for glibc-based layers.")
+	}
 	if nvx.MountPolicy != "" && nvx.MountPolicy != "workspace-only" && nvx.MountPolicy != "workspace-and-tool-cache" {
 		return nvxValidationError("sandbox.agent.nvx.mount-policy", nvx.MountPolicy, "unsupported NVX mount policy", "Choose workspace-only or workspace-and-tool-cache.")
 	}
@@ -255,6 +258,7 @@ func generateNVXSetupStep(nvx *AgentNVXConfig, awfVersion string) GitHubActionSt
 		"GH_AW_NVX_ARTIFACT_MANIFEST_BUNDLE_SOURCE": effective.ArtifactManifestBundlePath,
 		"GH_AW_NVX_SIGNER_WORKFLOW":                 effective.SignerWorkflow,
 		"GH_AW_NVX_MOUNT_POLICY":                    effective.MountPolicy,
+		"GH_AW_NVX_GUEST_LIBC":                      effective.GuestLibC,
 	}
 	keys := make([]string, 0, len(env))
 	for key := range env {

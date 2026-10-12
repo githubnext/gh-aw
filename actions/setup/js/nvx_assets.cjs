@@ -132,6 +132,8 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       const source = path.join(hostRoot, name);
       if (fs.existsSync(source)) copyTree(source, path.join(runtime, name));
     }
+    const guestLibc = environment.GH_AW_NVX_GUEST_LIBC;
+    if (guestLibc !== "glibc" && guestLibc !== "musl") throw new Error("NVX asset staging requires an explicit supported guest libc ABI");
     const mcpConfig = environment.GH_AW_MCP_CONFIG;
     const mcpConfigDir = path.join(hostRoot, "mcp-config");
     if (mcpConfig && path.dirname(mcpConfig) === mcpConfigDir && fs.existsSync(mcpConfig)) {
@@ -147,6 +149,24 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       const guestRuntime = path.join(guestRoot, "gh-aw");
       stageExecutableLibraries(path.join(runtime, "bin"), runtime, guestRuntime);
       if (fs.existsSync(path.join(runtime, "engine-cli"))) stageExecutableLibraries(path.join(runtime, "engine-cli"), runtime, guestRuntime);
+    }
+    if (guestLibc === "musl" && fs.existsSync(path.join(runtime, "bin", "copilot"))) {
+      const guestEngineRoot = path.join(hostRoot, "nvx-engine");
+      const abiMarker = path.join(guestEngineRoot, "abi");
+      const guestCopilot = path.join(guestEngineRoot, "copilot");
+      if (!fs.lstatSync(guestEngineRoot).isDirectory() || fs.lstatSync(guestEngineRoot).isSymbolicLink()) {
+        throw new Error("NVX Copilot guest package directory must not be a symlink");
+      }
+      if (!fs.lstatSync(abiMarker).isFile() || fs.lstatSync(abiMarker).isSymbolicLink()) {
+        throw new Error("NVX Copilot guest package ABI marker must be a regular file");
+      }
+      if (fs.readFileSync(abiMarker, "utf8").trim() !== "musl") throw new Error("NVX Copilot guest package ABI does not match the declared musl guest");
+      const guestCopilotStat = fs.lstatSync(guestCopilot);
+      if (!guestCopilotStat.isFile() || guestCopilotStat.isSymbolicLink() || (guestCopilotStat.mode & 0o111) === 0) {
+        throw new Error("NVX musl Copilot package must be a regular executable");
+      }
+      fs.copyFileSync(guestCopilot, path.join(runtime, "bin", "copilot"));
+      fs.chmodSync(path.join(runtime, "bin", "copilot"), 0o755);
     }
     for (const name of STATE_INPUTS) {
       const source = path.join(stateRoot, name);

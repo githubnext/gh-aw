@@ -33,7 +33,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     fs.writeFileSync(path.join(state, "aw-prompts", "prompt.txt"), "fixture prompt");
     fs.writeFileSync(path.join(hostRoot, "provider-token"), "must not be exported");
     fs.writeFileSync(path.join(state, "gateway-secret"), "must not be exported");
-    environment = { GITHUB_WORKSPACE: workspace, RUNNER_TEMP: path.dirname(hostRoot) };
+    environment = { GITHUB_WORKSPACE: workspace, RUNNER_TEMP: path.dirname(hostRoot), GH_AW_NVX_GUEST_LIBC: "glibc" };
   });
 
   afterEach(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -46,6 +46,54 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(fs.existsSync(path.join(root, "gh-aw", "provider-token"))).toBe(false);
     expect(fs.existsSync(path.join(root, "state", "gateway-secret"))).toBe(false);
   });
+
+  it("fails closed without a guest libc ABI contract", () => {
+    delete environment.GH_AW_NVX_GUEST_LIBC;
+    expect(() => stage(environment, state)).toThrow(/explicit supported guest libc ABI/);
+    collect(environment, state);
+  });
+
+  it("stages the compiler-selected musl Copilot package", () => {
+    fs.mkdirSync(path.join(hostRoot, "bin"));
+    fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "#!/bin/sh\necho host-glibc\n", { mode: 0o755 });
+    fs.mkdirSync(path.join(hostRoot, "nvx-engine"));
+    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "abi"), "musl\n", { mode: 0o600 });
+    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "copilot"), "#!/bin/sh\necho guest-musl\n", { mode: 0o755 });
+    environment.GH_AW_NVX_GUEST_LIBC = "musl";
+    stage(environment, state);
+    expect(fs.readFileSync(path.join(workspace, ".gh-aw-nvx", "gh-aw", "bin", "copilot"), "utf8")).toContain("guest-musl");
+  });
+
+  it.runIf(process.platform === "linux" && process.env.GH_AW_RUN_NVX_MUSL_INTEGRATION === "1")(
+    "starts the staged native Copilot runtime in Alpine without glibc compatibility packages",
+    () => {
+      const home = path.join(temp, "home");
+      fs.mkdirSync(home);
+      const installer = path.join(import.meta.dirname, "..", "sh", "install_copilot_cli.sh");
+      const install = spawnSync("bash", [installer, "1.0.95", "--rootless"], {
+        env: {
+          ...process.env,
+          HOME: home,
+          GH_AW_COPILOT_GUEST_LIBC: "musl",
+          GH_AW_COPILOT_GUEST_INSTALL_DIR: path.join(hostRoot, "nvx-engine"),
+        },
+        encoding: "utf8",
+      });
+      expect(install.status, install.stderr).toBe(0);
+      fs.mkdirSync(path.join(hostRoot, "bin"));
+      fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+      environment.GH_AW_NVX_GUEST_LIBC = "musl";
+      stage(environment, state);
+      const root = path.join(workspace, ".gh-aw-nvx");
+      const result = spawnSync("docker", ["run", "--rm", "--platform", "linux/amd64", "--read-only", "--tmpfs", "/root", "-v", `${root}:/workspace/.gh-aw-nvx:ro`, "alpine:3.22", "/workspace/.gh-aw-nvx/gh-aw/bin/copilot", "--version"], {
+        encoding: "utf8",
+        timeout: 120_000,
+      });
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      expect(result.stdout).toMatch(/copilot/i);
+    },
+    180_000
+  );
 
   it("exports only the selected native MCP config at its remapped guest path", () => {
     const dir = path.join(hostRoot, "mcp-config");

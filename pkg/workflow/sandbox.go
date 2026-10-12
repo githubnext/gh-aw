@@ -97,6 +97,7 @@ type AgentNVXConfig struct {
 	PreviewEnabled             bool   `yaml:"preview,omitempty" json:"preview,omitempty"`
 	NetworkIsolation           bool   `yaml:"network-isolation,omitempty" json:"network-isolation,omitempty"`
 	APIProxy                   bool   `yaml:"api-proxy,omitempty" json:"api-proxy,omitempty"`
+	GuestLibC                  string `yaml:"guest-libc,omitempty" json:"guest-libc,omitempty"`
 	MountPolicy                string `yaml:"mount-policy,omitempty" json:"mount-policy,omitempty"`
 	LayerPath                  string `yaml:"layer-path,omitempty" json:"layer-path,omitempty"`
 	OpenVMMPath                string `yaml:"openvmm-path,omitempty" json:"openvmm-path,omitempty"`

@@ -4145,6 +4145,11 @@
                           "const": true,
                           "description": "API proxy credential isolation is always enabled."
                         },
+                        "guest-libc": {
+                          "type": "string",
+                          "enum": ["glibc", "musl"],
+                          "description": "Required libc ABI contract for the workload guest layer. Copilot NVX runs stage the matching verified native package and fail closed on an unsupported or missing value."
+                        },
                         "mount-policy": {
                           "type": "string",
                           "enum": ["workspace-only", "workspace-and-tool-cache"],
@@ -4223,7 +4228,7 @@
                           "description": "Optional guest working directory, restricted to /workspace or a descendant."
                         }
                       },
-                      "required": ["preview", "network-isolation", "api-proxy", "layer-path", "openvmm-path", "kernel-path", "initramfs-path", "artifact-manifest-path", "artifact-manifest-bundle-path"]
+                      "required": ["guest-libc"]
                     },
                     "config": {
                       "type": "object",

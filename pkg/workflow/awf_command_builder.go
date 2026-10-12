@@ -60,7 +60,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	engineCommand := rewriteEngineCommandForRuntime(config.EngineCommand, isArcDind)
 	if isNVXRuntime(config.WorkflowData) {
 		engineCommand = rewriteNVXEngineCommand(engineCommand)
-		modelsJSONPathExport += "\n" + buildNVXAssetSetup()
+		modelsJSONPathExport += "\n" + buildNVXAssetSetup(getAgentConfig(config.WorkflowData).NVX)
 	}
 	shellWrappedCommand := WrapCommandInShell(engineCommand)
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))

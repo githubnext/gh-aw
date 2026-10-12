@@ -26,6 +26,7 @@ func validNVXWorkflowData() *WorkflowData {
 					PreviewEnabled:             true,
 					NetworkIsolation:           true,
 					APIProxy:                   true,
+					GuestLibC:                  "musl",
 					LayerPath:                  "${{ runner.temp }}/nvx/guest-layer",
 					OpenVMMPath:                "${{ runner.temp }}/nvx/openvmm",
 					KernelPath:                 "${{ runner.temp }}/nvx/vmlinux",
@@ -80,6 +81,24 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "mount policy")
 	})
 
+	t.Run("rejects a missing guest libc contract", func(t *testing.T) {
+		data := validNVXWorkflowData()
+		data.SandboxConfig.Agent.NVX.GuestLibC = ""
+
+		err := validateNVXRuntimeConfig(data, data.SandboxConfig.Agent)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "guest-libc")
+	})
+
+	t.Run("rejects an unsupported guest libc contract", func(t *testing.T) {
+		data := validNVXWorkflowData()
+		data.SandboxConfig.Agent.NVX.GuestLibC = "uclibc"
+
+		err := validateNVXRuntimeConfig(data, data.SandboxConfig.Agent)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "guest-libc")
+	})
+
 	t.Run("rejects memory ceilings below guest memory", func(t *testing.T) {
 		data := validNVXWorkflowData()
 		data.SandboxConfig.Agent.NVX.MemoryMiB = 1024
@@ -109,13 +128,13 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 	})
 }
 
-func TestNVXRuntimeDefaultsWithoutConfiguration(t *testing.T) {
+func TestNVXRuntimeDefaultsWithExplicitGuestABI(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.NVX = nil
+	data.SandboxConfig.Agent.NVX = &AgentNVXConfig{GuestLibC: "musl"}
 
 	require.NoError(t, validateNVXRuntimeConfig(data, data.SandboxConfig.Agent))
 
-	effective := effectiveNVXConfig(nil)
+	effective := effectiveNVXConfig(data.SandboxConfig.Agent.NVX)
 	assert.True(t, effective.PreviewEnabled)
 	assert.True(t, effective.NetworkIsolation)
 	assert.True(t, effective.APIProxy)
@@ -125,6 +144,7 @@ func TestNVXRuntimeDefaultsWithoutConfiguration(t *testing.T) {
 	assert.Equal(t, "${{ runner.temp }}/nvx/initramfs.cpio.gz", effective.InitramfsPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/nvx-test-x86_64.manifest.json", effective.ArtifactManifestPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/nvx-test-x86_64.manifest.sigstore.jsonl", effective.ArtifactManifestBundlePath)
+	assert.Equal(t, "musl", effective.GuestLibC)
 
 	config := AWFCommandConfig{EngineName: "copilot", WorkflowData: data}
 	command := BuildAWFCommand(config)
