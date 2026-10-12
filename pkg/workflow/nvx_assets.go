@@ -21,16 +21,14 @@ func rewriteNVXEngineCommand(command string) string {
 }
 
 func buildNVXAssetSetup(nvx *AgentNVXConfig) string {
-	effective := effectiveNVXConfig(nvx)
-	return fmt.Sprintf(`export GH_AW_NVX_GUEST_LIBC=%s
-if [ ! -x /usr/bin/patchelf ]; then
+	return `if [ ! -x /usr/bin/patchelf ]; then
   sudo apt-get update || exit $?
   sudo apt-get install -y --no-install-recommends patchelf || exit $?
 fi
 node "${RUNNER_TEMP}/gh-aw/actions/nvx_assets.cjs" stage || exit $?
 export GH_AW_NVX_HOST_ROOT="${RUNNER_TEMP}/gh-aw"
 export GH_AW_NVX_HOST_WORKSPACE="${GITHUB_WORKSPACE}"
-export GH_AW_NVX_HOST_HOME="${HOME}"`, shellEscapeArg(effective.GuestLibC))
+export GH_AW_NVX_HOST_HOME="${HOME}"`
 }
 
 func generateNVXAssetCollectionStep(data *WorkflowData) GitHubActionStep {

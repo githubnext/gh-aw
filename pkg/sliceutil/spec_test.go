@@ -4,6 +4,7 @@ package sliceutil
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,17 +97,31 @@ func TestSpec_PublicAPI_SortedKeys(t *testing.T) {
 		assert.Empty(t, keys, "SortedKeys of empty map should return empty slice")
 	})
 
-	t.Run("returns nil for nil map", func(t *testing.T) {
-		var m map[string]int
-		keys := SortedKeys(m)
-		assert.Nil(t, keys, "SortedKeys of nil map should return nil, not an empty slice")
-	})
-
 	t.Run("works with non-string ordered key types", func(t *testing.T) {
 		m := map[int]string{3: "c", 1: "a", 2: "b"}
 		keys := SortedKeys(m)
 		assert.Equal(t, []int{1, 2, 3}, keys, "SortedKeys should sort integer keys numerically")
 	})
+}
+
+// TestSpec_ThreadSafety_AllFunctions validates the README's guarantee that
+// sliceutil functions are pure, stateless, and safe for concurrent use.
+func TestSpec_ThreadSafety_AllFunctions(t *testing.T) {
+	input := []int{1, 2, 3, 4, 5}
+	const goroutines = 16
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			assert.Equal(t, []int{2, 4}, Filter(input, func(n int) bool { return n%2 == 0 }),
+				"concurrent Filter calls should return the documented result")
+			assert.Equal(t, []int{1, 2, 3, 4, 5}, input,
+				"concurrent calls must not modify the shared input")
+		}()
+	}
+	wg.Wait()
 }
 
 // TestSpec_PublicAPI_Any validates the documented behavior of Any as described

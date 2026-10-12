@@ -22,7 +22,7 @@ func TestDefaultCLIMCPVersions(t *testing.T) {
 		{"Gemini CLI", DefaultGeminiVersion, "0.62.0"},
 		{"Agy CLI", DefaultAgyVersion, "1.3.3"},
 		{"Pi CLI", DefaultPiVersion, "1.1.0"},
-		{"GitHub MCP Server", DefaultGitHubMCPServerVersion, "v1.12.2"},
+		{"GitHub MCP Server", DefaultGitHubMCPServerVersion, "v2.0.2"},
 		{"Firewall", DefaultFirewallVersion, "v0.28.51"},
 		{"Router", DefaultRouterVersion, "0.1.3"},
 		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.30"},
@@ -71,8 +71,8 @@ func TestDefaultThreatDetectReleasePins(t *testing.T) {
 func TestDefaultPlaywrightCLIVersionOutsideCooldownWindow(t *testing.T) {
 	t.Parallel()
 	const (
-		expectedVersion    Version = "0.1.21"
-		publishedAtRFC3339         = "2026-09-18T23:35:59.288Z"
+		expectedVersion    Version = "0.1.22"
+		publishedAtRFC3339         = "2026-09-28T23:24:31.286Z"
 		minReleaseAge              = 72 * time.Hour
 	)
 

@@ -635,6 +635,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	if safeOutputs.UploadAssets != nil {
 		tools = append(tools, toolWithMaxBudget("upload_asset", safeOutputs.UploadAssets.Max))
 	}
+	if safeOutputs.UploadCodeCoverage != nil {
+		tools = append(tools, toolWithMaxBudget("upload_code_coverage", safeOutputs.UploadCodeCoverage.Max))
+	}
 	if safeOutputs.UpdateRelease != nil {
 		tools = append(tools, toolWithMaxBudget("update_release", safeOutputs.UpdateRelease.Max))
 	}

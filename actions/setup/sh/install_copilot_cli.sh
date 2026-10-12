@@ -18,8 +18,7 @@ set +o histexpand
 #
 # Environment overrides (testing):
 #   COPILOT_INSTALL_DIR - Override the install directory (default: /usr/local/bin).
-#   GH_AW_COPILOT_GUEST_LIBC - Optional NVX guest ABI contract: glibc or musl.
-#   GH_AW_COPILOT_GUEST_INSTALL_DIR - Compiler-controlled directory for the guest package.
+#   GH_AW_COPILOT_GUEST_LIBC - Optional compiler-controlled NVX guest ABI.
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
@@ -42,6 +41,7 @@ DEFAULT_COPILOT_VERSION="1.0.95"
 COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
 COPILOT_MIN_VERSION_OVERRIDE="${GH_AW_COPILOT_MIN_VERSION:-}"
+COPILOT_GUEST_LIBC="${GH_AW_COPILOT_GUEST_LIBC:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
@@ -71,6 +71,14 @@ case "$OS" in
     IS_WINDOWS=true
     ROOTLESS=true
     INSTALL_DIR="${HOME}/.local/bin"
+    ;;
+esac
+
+case "$COPILOT_GUEST_LIBC" in
+  ""|glibc|musl) ;;
+  *)
+    echo "ERROR: Unsupported GH_AW_COPILOT_GUEST_LIBC '${COPILOT_GUEST_LIBC}'; expected glibc or musl." >&2
+    exit 1
     ;;
 esac
 
@@ -156,72 +164,6 @@ sha256_hash() {
     echo "ERROR: No sha256sum or shasum found" >&2
     exit 1
   fi
-}
-
-install_guest_copilot() {
-  local version="$1"
-  local guest_libc="${GH_AW_COPILOT_GUEST_LIBC:-}"
-  local guest_install_dir="${GH_AW_COPILOT_GUEST_INSTALL_DIR:-}"
-  local guest_platform=""
-  local guest_tarball=""
-  local guest_base_url=""
-  local expected_checksum=""
-  local actual_checksum=""
-
-  if [[ -z "$guest_libc" ]]; then
-    return 0
-  fi
-  if [[ "$OS" != "Linux" ]]; then
-    echo "ERROR: NVX Copilot guest packages require a Linux host" >&2
-    exit 1
-  fi
-  case "$guest_libc" in
-    glibc) return 0 ;;
-    musl) guest_platform="linuxmusl" ;;
-    *) echo "ERROR: Unsupported NVX guest libc ABI: ${guest_libc}" >&2; exit 1 ;;
-  esac
-  if [[ -z "$guest_install_dir" || "$guest_install_dir" != /* || "$guest_install_dir" == *$'\n'* || "$guest_install_dir" == *$'\r'* ]]; then
-    echo "ERROR: GH_AW_COPILOT_GUEST_INSTALL_DIR must be an absolute path without control characters" >&2
-    exit 1
-  fi
-  if [[ -L "$guest_install_dir" ]]; then
-    echo "ERROR: NVX Copilot guest install directory must not be a symlink" >&2
-    exit 1
-  fi
-  mkdir -p "$guest_install_dir"
-  chmod 700 "$guest_install_dir"
-
-  if [[ "$version" == "latest" ]]; then
-    guest_base_url="https://github.com/${COPILOT_REPO}/releases/latest/download"
-  else
-    case "$version" in
-      v*) ;;
-      *) version="v$version" ;;
-    esac
-    guest_base_url="https://github.com/${COPILOT_REPO}/releases/download/${version}"
-  fi
-  guest_tarball="copilot-${guest_platform}-${ARCH_NAME}.tar.gz"
-  echo "Downloading verified Copilot CLI for NVX guest ABI ${guest_libc}: ${guest_tarball}"
-  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/guest-SHA256SUMS.txt" "${guest_base_url}/SHA256SUMS.txt"
-  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/${guest_tarball}" "${guest_base_url}/${guest_tarball}"
-  expected_checksum="$(awk -v fname="${guest_tarball}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/guest-SHA256SUMS.txt" | tr 'A-F' 'a-f')"
-  if [[ -z "$expected_checksum" ]]; then
-    echo "ERROR: Could not find checksum for ${guest_tarball} in SHA256SUMS.txt" >&2
-    exit 1
-  fi
-  actual_checksum="$(sha256_hash "${TEMP_DIR}/${guest_tarball}" | tr 'A-F' 'a-f')"
-  if [[ "$expected_checksum" != "$actual_checksum" ]]; then
-    echo "ERROR: Checksum verification failed for NVX guest package ${guest_tarball}" >&2
-    exit 1
-  fi
-  rm -f -- "${guest_install_dir}/copilot" "${guest_install_dir}/abi"
-  tar -xz -C "$guest_install_dir" -f "${TEMP_DIR}/${guest_tarball}"
-  if [[ ! -f "${guest_install_dir}/copilot" || -L "${guest_install_dir}/copilot" || ! -x "${guest_install_dir}/copilot" ]]; then
-    echo "ERROR: Verified NVX guest package did not contain a regular executable Copilot CLI" >&2
-    exit 1
-  fi
-  printf '%s\n' "$guest_libc" > "${guest_install_dir}/abi"
-  chmod 600 "${guest_install_dir}/abi"
 }
 
 # Normalize Copilot versions so toolcache lookups can match both v-prefixed and bare versions.
@@ -662,6 +604,70 @@ EOF
   echo "  Wrapper installed at ${INSTALL_DIR}/copilot"
 }
 
+# Stage a checksum-verified Copilot CLI variant for a musl NVX guest while
+# retaining the host-compatible CLI for setup steps such as plugin installation.
+stage_musl_guest_copilot() {
+  local version="${1:-}"
+  local base_url=""
+  local guest_tarball=""
+  local checksums_file="${TEMP_DIR}/guest-SHA256SUMS.txt"
+  local guest_archive=""
+  local expected_checksum=""
+  local actual_checksum=""
+  local extract_dir="${TEMP_DIR}/guest-copilot"
+  local destination=""
+
+  if [ "$COPILOT_GUEST_LIBC" != "musl" ]; then
+    return 0
+  fi
+  if [ "$OS" != "Linux" ]; then
+    echo "ERROR: A musl NVX guest requires a Linux host installation step." >&2
+    return 1
+  fi
+  if [ -z "${RUNNER_TEMP:-}" ]; then
+    echo "ERROR: RUNNER_TEMP is required to stage the musl Copilot CLI for NVX." >&2
+    return 1
+  fi
+
+  if [ -z "$version" ] || [ "$version" = "latest" ]; then
+    base_url="https://github.com/${COPILOT_REPO}/releases/latest/download"
+  else
+    case "$version" in
+      v*) ;;
+      *) version="v$version" ;;
+    esac
+    base_url="https://github.com/${COPILOT_REPO}/releases/download/${version}"
+  fi
+
+  guest_tarball="copilot-linuxmusl-${ARCH_NAME}.tar.gz"
+  guest_archive="${TEMP_DIR}/${guest_tarball}"
+  echo "Staging checksum-verified ${guest_tarball} for the musl NVX guest..."
+  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$checksums_file" "${base_url}/SHA256SUMS.txt"
+  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$guest_archive" "${base_url}/${guest_tarball}"
+
+  expected_checksum="$(awk -v fname="$guest_tarball" '$2 == fname {print $1; exit}' "$checksums_file" | tr 'A-F' 'a-f')"
+  if [ -z "$expected_checksum" ]; then
+    echo "ERROR: Could not find checksum for ${guest_tarball} in SHA256SUMS.txt" >&2
+    return 1
+  fi
+  actual_checksum="$(sha256_hash "$guest_archive" | tr 'A-F' 'a-f')"
+  if [ "$expected_checksum" != "$actual_checksum" ]; then
+    echo "ERROR: Checksum verification failed for ${guest_tarball}" >&2
+    return 1
+  fi
+
+  mkdir -p "$extract_dir"
+  tar -xzf "$guest_archive" -C "$extract_dir"
+  if [ ! -f "${extract_dir}/copilot" ] || [ -L "${extract_dir}/copilot" ]; then
+    echo "ERROR: The musl Copilot CLI archive did not contain a regular copilot binary." >&2
+    return 1
+  fi
+  destination="${RUNNER_TEMP}/gh-aw/nvx-engine/copilot"
+  mkdir -p "$(dirname "$destination")"
+  install -m 0755 "${extract_dir}/copilot" "$destination"
+  echo "✓ Staged musl Copilot CLI at ${destination}"
+}
+
 # Create temp directory with cleanup on exit
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -691,8 +697,6 @@ else
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
 fi
 
-install_guest_copilot "$VERSION"
-
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
 if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then
   echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
@@ -711,6 +715,8 @@ if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_
     echo "  Resolved copilot binary: ${RESOLVED_COPILOT}"
     echo "  Canonical install path: ${INSTALL_DIR}/copilot"
     "$RESOLVED_COPILOT" --version
+    CACHED_COPILOT_VERSION="$(basename "$(dirname "$(dirname "$(dirname "$CACHED_COPILOT_BIN")")")")"
+    stage_musl_guest_copilot "$CACHED_COPILOT_VERSION"
     echo "✓ Copilot CLI installation complete (cached)"
     exit 0
   fi
@@ -800,6 +806,7 @@ echo "Verifying Copilot CLI installation..."
 if [ "$ROOTLESS" = "true" ]; then
   if [ -x "${INSTALL_DIR}/copilot" ]; then
     "${INSTALL_DIR}/copilot" --version
+    stage_musl_guest_copilot "$VERSION"
     echo "✓ Copilot CLI installation complete"
   else
     echo "ERROR: Copilot CLI installation failed - binary not found at ${INSTALL_DIR}/copilot"
@@ -807,6 +814,7 @@ if [ "$ROOTLESS" = "true" ]; then
   fi
 elif command -v copilot >/dev/null 2>&1; then
   copilot --version
+  stage_musl_guest_copilot "$VERSION"
   echo "✓ Copilot CLI installation complete"
 else
   echo "ERROR: Copilot CLI installation failed - command not found"

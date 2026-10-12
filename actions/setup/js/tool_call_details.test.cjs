@@ -1,7 +1,24 @@
 // @ts-check
 
 import { describe, it, expect } from "vitest";
-import { extractShellCommandFromToolData } from "./tool_call_details.cjs";
+import { extractShellCommandFromToolData, formatShellArguments } from "./tool_call_details.cjs";
+
+describe("formatShellArguments", () => {
+  it.each([
+    [["build"], "build"],
+    [["test", "./...", "-run", "Test One"], "test ./... -run 'Test One'"],
+    [["", "  ", "a  b"], "'' '  ' 'a  b'"],
+    [["it's", '"quoted"'], "'it'\\''s' '\"quoted\"'"],
+    [["$HOME", "$(id)", "`id`", ";", "|", "&&", "*", "~", "\\", "#"], "'$HOME' '$(id)' '`id`' ';' '|' '&&' '*' '~' '\\' '#'"],
+    [[], ""],
+  ])("formats %j without losing argument boundaries", (args, expected) => {
+    expect(formatShellArguments(args)).toBe(expected);
+  });
+
+  it.each([null, "build", ["build", 42], ["build", null], ["build", {}], ["build", ["nested"]], ["build", undefined], new Array(2)].map(args => [args]))("rejects malformed argument vectors: %j", args => {
+    expect(formatShellArguments(args)).toBeUndefined();
+  });
+});
 
 describe("extractShellCommandFromToolData", () => {
   // --- null / non-object inputs ---
@@ -42,6 +59,26 @@ describe("extractShellCommandFromToolData", () => {
 
   it("returns value from top-level `args` field", () => {
     expect(extractShellCommandFromToolData({ args: "go test ./..." })).toBe("go test ./...");
+  });
+
+  it("formats array args from top-level and wrapped payloads", () => {
+    const args = ["build", "a  b", "", "it's"];
+    const expected = "build 'a  b' '' 'it'\\''s'";
+    expect(extractShellCommandFromToolData({ args })).toBe(expected);
+    for (const field of ["input", "arguments", "toolInput", "parameters"]) {
+      expect(extractShellCommandFromToolData({ [field]: { args } })).toBe(expected);
+    }
+  });
+
+  it("preserves command priority over array args", () => {
+    expect(extractShellCommandFromToolData({ command: "original", args: ["build"] })).toBe("original");
+    expect(extractShellCommandFromToolData({ input: { command: "original", args: ["build"] } })).toBe("original");
+  });
+
+  it("does not display a partial command for malformed arrays", () => {
+    expect(extractShellCommandFromToolData({ args: ["build", 42] })).toBe("");
+    expect(extractShellCommandFromToolData({ input: { args: ["build", null] } })).toBe("");
+    expect(extractShellCommandFromToolData({ args: ["build", {}], toolInput: "fallback" })).toBe("fallback");
   });
 
   it("returns value from top-level `toolInput` field", () => {

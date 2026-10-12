@@ -84,6 +84,9 @@ function stageExecutableLibraries(entry, runtime, guestRuntime) {
     if (!stat.isFile() || (stat.mode & 0o111) === 0) return;
     const interpreter = readELFInterpreter(entry);
     if (!interpreter) return;
+    // Musl engine artifacts are selected explicitly for musl guests and must
+    // retain the guest's loader instead of being rewritten with host glibc.
+    if (path.basename(interpreter).startsWith("ld-musl-")) return;
     const output = execFileSync("/usr/bin/ldd", [entry], { encoding: "utf8", timeout: 15_000, env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
     if (/=>\s+not found/.test(output)) throw new Error(`NVX executable has missing host libraries: ${entry}`);
     const libraries = [interpreter, ...Array.from(output.matchAll(/^\s*(?:\S+\s+=>\s+)?(\/.+?)\s+\(0x[0-9a-f]+\)/gm), match => match[1])];
@@ -132,8 +135,13 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       const source = path.join(hostRoot, name);
       if (fs.existsSync(source)) copyTree(source, path.join(runtime, name));
     }
-    const guestLibc = environment.GH_AW_NVX_GUEST_LIBC;
-    if (guestLibc !== "glibc" && guestLibc !== "musl") throw new Error("NVX asset staging requires an explicit supported guest libc ABI");
+    const guestCopilot = path.join(hostRoot, "nvx-engine", "copilot");
+    if (fs.existsSync(guestCopilot)) {
+      copyTree(guestCopilot, path.join(runtime, "bin", "copilot"));
+      fs.chmodSync(path.join(runtime, "bin", "copilot"), 0o755);
+      fs.unlinkSync(guestCopilot);
+      fs.rmdirSync(path.dirname(guestCopilot));
+    }
     const mcpConfig = environment.GH_AW_MCP_CONFIG;
     const mcpConfigDir = path.join(hostRoot, "mcp-config");
     if (mcpConfig && path.dirname(mcpConfig) === mcpConfigDir && fs.existsSync(mcpConfig)) {
@@ -149,24 +157,6 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       const guestRuntime = path.join(guestRoot, "gh-aw");
       stageExecutableLibraries(path.join(runtime, "bin"), runtime, guestRuntime);
       if (fs.existsSync(path.join(runtime, "engine-cli"))) stageExecutableLibraries(path.join(runtime, "engine-cli"), runtime, guestRuntime);
-    }
-    if (guestLibc === "musl" && fs.existsSync(path.join(runtime, "bin", "copilot"))) {
-      const guestEngineRoot = path.join(hostRoot, "nvx-engine");
-      const abiMarker = path.join(guestEngineRoot, "abi");
-      const guestCopilot = path.join(guestEngineRoot, "copilot");
-      if (!fs.lstatSync(guestEngineRoot).isDirectory() || fs.lstatSync(guestEngineRoot).isSymbolicLink()) {
-        throw new Error("NVX Copilot guest package directory must not be a symlink");
-      }
-      if (!fs.lstatSync(abiMarker).isFile() || fs.lstatSync(abiMarker).isSymbolicLink()) {
-        throw new Error("NVX Copilot guest package ABI marker must be a regular file");
-      }
-      if (fs.readFileSync(abiMarker, "utf8").trim() !== "musl") throw new Error("NVX Copilot guest package ABI does not match the declared musl guest");
-      const guestCopilotStat = fs.lstatSync(guestCopilot);
-      if (!guestCopilotStat.isFile() || guestCopilotStat.isSymbolicLink() || (guestCopilotStat.mode & 0o111) === 0) {
-        throw new Error("NVX musl Copilot package must be a regular executable");
-      }
-      fs.copyFileSync(guestCopilot, path.join(runtime, "bin", "copilot"));
-      fs.chmodSync(path.join(runtime, "bin", "copilot"), 0o755);
     }
     for (const name of STATE_INPUTS) {
       const source = path.join(stateRoot, name);

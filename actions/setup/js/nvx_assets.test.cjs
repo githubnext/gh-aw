@@ -34,7 +34,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     fs.writeFileSync(path.join(state, "aw-prompts", "prompt.txt"), "fixture prompt");
     fs.writeFileSync(path.join(hostRoot, "provider-token"), "must not be exported");
     fs.writeFileSync(path.join(state, "gateway-secret"), "must not be exported");
-    environment = { GITHUB_WORKSPACE: workspace, RUNNER_TEMP: path.dirname(hostRoot), GH_AW_NVX_GUEST_LIBC: "glibc" };
+    environment = { GITHUB_WORKSPACE: workspace, RUNNER_TEMP: path.dirname(hostRoot) };
   });
 
   afterEach(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -48,136 +48,19 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(fs.existsSync(path.join(root, "state", "gateway-secret"))).toBe(false);
   });
 
-  it("fails closed without a guest libc ABI contract", () => {
-    delete environment.GH_AW_NVX_GUEST_LIBC;
-    expect(() => stage(environment, state)).toThrow(/explicit supported guest libc ABI/);
-    collect(environment, state);
-  });
-
-  it("stages the compiler-selected musl Copilot package", () => {
+  it("selects the separately staged guest Copilot variant", () => {
     fs.mkdirSync(path.join(hostRoot, "bin"));
-    fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "#!/bin/sh\necho host-glibc\n", { mode: 0o755 });
+    fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "host-glibc-copilot", { mode: 0o755 });
     fs.mkdirSync(path.join(hostRoot, "nvx-engine"));
-    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "abi"), "musl\n", { mode: 0o600 });
-    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "copilot"), "#!/bin/sh\necho guest-musl\n", { mode: 0o755 });
-    environment.GH_AW_NVX_GUEST_LIBC = "musl";
+    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "copilot"), "guest-musl-copilot", { mode: 0o755 });
+
     stage(environment, state);
-    expect(fs.readFileSync(path.join(workspace, ".gh-aw-nvx", "gh-aw", "bin", "copilot"), "utf8")).toContain("guest-musl");
+
+    const stagedCopilot = path.join(workspace, ".gh-aw-nvx", "gh-aw", "bin", "copilot");
+    expect(fs.readFileSync(stagedCopilot, "utf8")).toBe("guest-musl-copilot");
+    expect(fs.statSync(stagedCopilot).mode & 0o111).not.toBe(0);
+    expect(fs.existsSync(path.join(hostRoot, "nvx-engine"))).toBe(false);
   });
-
-  it.runIf(process.platform === "linux" && process.env.GH_AW_RUN_NVX_MUSL_INTEGRATION === "1")(
-    "sends a Copilot inference request through the proxy in Alpine without gcompat",
-    async () => {
-      const home = path.join(temp, "home");
-      fs.mkdirSync(home);
-      const installer = path.join(import.meta.dirname, "..", "sh", "install_copilot_cli.sh");
-      const install = spawnSync("bash", [installer, "1.0.95", "--rootless"], {
-        env: {
-          ...process.env,
-          HOME: home,
-          GH_AW_COPILOT_GUEST_LIBC: "musl",
-          GH_AW_COPILOT_GUEST_INSTALL_DIR: path.join(hostRoot, "nvx-engine"),
-        },
-        encoding: "utf8",
-      });
-      expect(install.status, install.stderr).toBe(0);
-      fs.mkdirSync(path.join(hostRoot, "bin"));
-      fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-      environment.GH_AW_NVX_GUEST_LIBC = "musl";
-      stage(environment, state);
-      const root = path.join(workspace, ".gh-aw-nvx");
-
-      /** @type {Record<string, unknown>|undefined} */
-      let completionRequest;
-      const usage = { prompt_tokens: 5, completion_tokens: 1, total_tokens: 6 };
-      const server = http.createServer((request, response) => {
-        response.setHeader("Content-Type", "application/json");
-        if (request.url?.endsWith("/models")) {
-          response.end(JSON.stringify({ object: "list", data: [{ id: "test-model", object: "model", owned_by: "test" }] }));
-          return;
-        }
-        if (request.url?.endsWith("/chat/completions")) {
-          let body = "";
-          request.setEncoding("utf8");
-          request.on("data", chunk => (body += chunk));
-          request.on("end", () => {
-            completionRequest = JSON.parse(body);
-            response.end(
-              JSON.stringify({
-                id: "chatcmpl-test",
-                object: "chat.completion",
-                created: 1,
-                model: "test-model",
-                choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
-                usage,
-              })
-            );
-          });
-          return;
-        }
-        response.writeHead(404).end();
-      });
-      await new Promise(resolve => server.listen(0, "0.0.0.0", resolve));
-
-      try {
-        const address = server.address();
-        if (!address || typeof address === "string") throw new Error("proxy test server did not bind to a TCP port");
-        const result = await new Promise(resolve => {
-          const args = [
-            "run",
-            "--rm",
-            "--platform",
-            "linux/amd64",
-            "--read-only",
-            "--tmpfs",
-            "/tmp:exec",
-            "--add-host",
-            "host.docker.internal:host-gateway",
-            "-v",
-            `${workspace}:/workspace:ro`,
-            "-e",
-            "HOME=/tmp/awf-home",
-            "-e",
-            `COPILOT_PROVIDER_BASE_URL=http://host.docker.internal:${address.port}/v1`,
-            "-e",
-            "COPILOT_PROVIDER_API_KEY=test-only",
-            "-e",
-            "COPILOT_MODEL=test-model",
-            "alpine:3.22",
-            "/workspace/.gh-aw-nvx/gh-aw/bin/copilot",
-            "-p",
-            "Reply with ok",
-            "--allow-all-tools",
-            "--no-ask-user",
-            "--silent",
-          ];
-          const child = spawn("docker", args, { stdio: ["ignore", "pipe", "pipe"] });
-          let stdout = "";
-          let stderr = "";
-          const timeout = setTimeout(() => child.kill("SIGTERM"), 120_000);
-          child.stdout.on("data", chunk => (stdout += chunk));
-          child.stderr.on("data", chunk => (stderr += chunk));
-          child.once("error", error => {
-            clearTimeout(timeout);
-            resolve({ status: null, stdout, stderr: `${stderr}\n${error.message}` });
-          });
-          child.once("close", status => {
-            clearTimeout(timeout);
-            resolve({ status, stdout, stderr });
-          });
-        });
-
-        expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-        expect(result.stdout).toContain("ok");
-        expect(completionRequest).toBeDefined();
-        expect(JSON.stringify(completionRequest)).toContain("Reply with ok");
-        expect(usage.total_tokens).toBeGreaterThan(0);
-      } finally {
-        await new Promise(resolve => server.close(resolve));
-      }
-    },
-    180_000
-  );
 
   it("exports only the selected native MCP config at its remapped guest path", () => {
     const dir = path.join(hostRoot, "mcp-config");

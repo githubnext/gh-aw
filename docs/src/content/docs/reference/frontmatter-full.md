@@ -2375,11 +2375,9 @@ sandbox:
     # (optional)
     runtime: "docker"
 
-    # Required when runtime is 'nvx'; optional for other runtime selections. The
-    # guest-libc ABI is required within this block; remaining overrides are optional
-    # and use safe defaults when omitted. Artifact paths may be GitHub Actions
-    # expressions; setup verifies release provenance and stages trusted files before
-    # AWF starts.
+    # Optional overrides for AWF's fail-closed NVX preview runtime. Safe defaults
+    # apply when omitted. Artifact paths may be GitHub Actions expressions; setup
+    # verifies release provenance and stages trusted files before AWF starts.
     # (optional)
     nvx:
       # NVX preview is always enabled.
@@ -2393,11 +2391,6 @@ sandbox:
       # API proxy credential isolation is always enabled.
       # (optional)
       api-proxy: true
-
-      # Required libc ABI contract for the workload guest layer. Copilot NVX runs stage
-      # the matching verified native package and fail closed on an unsupported or
-      # missing value.
-      guest-libc: "glibc"
 
       # (optional)
       mount-policy: "workspace-only"
