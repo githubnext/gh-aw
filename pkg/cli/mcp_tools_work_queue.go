@@ -60,6 +60,7 @@ Returns the selected CLI operation's JSON output. Git-only storage uses the serv
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "invalid work-queue arguments: "+err.Error(), nil)
 		}
 		mcpLog.Printf("Executing work-queue tool: operation=%s", args.Operation)
+		notifyProgress(ctx, req, 0, 100, "Reading work queue...")
 		stdout, stderr, err := runMCPExecOutputWithStderr(ctx, execCmd, cmdArgs...)
 		if err != nil {
 			detail := strings.TrimSpace(string(stderr))
@@ -71,6 +72,7 @@ Returns the selected CLI operation's JSON output. Git-only storage uses the serv
 		if !json.Valid(stdout) {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "work-queue command returned invalid JSON", nil)
 		}
+		notifyProgress(ctx, req, 100, 100, "Work queue read complete")
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: string(stdout)}}}, nil, nil
 	})
 	return nil
