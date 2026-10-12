@@ -36,9 +36,25 @@ safe-outputs:
     close-older-issues: true
     close-older-key: "smoke-copilot-routed"
     labels: [automation, testing]
+  threat-detection:
+    model: claude-haiku-5.5
+    post-steps:
+      - name: Assert threat-detection evidence
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SMOKE_DETECTION_EXECUTION: ${{ steps.detection_agentic_execution.outcome }}
+        with:
+          script: |
+            const path = require("node:path");
+            const { detectionMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
+            await detectionMain({
+              core,
+              executionOutcome: process.env.SMOKE_DETECTION_EXECUTION,
+              detectionModel: "claude-haiku-5.5",
+              allowedModels: ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"],
+            });
 timeout-minutes: 10
-features:
-  gh-aw-detection: false
 sandbox:
   agent:
     id: awf
