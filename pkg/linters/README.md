@@ -215,8 +215,8 @@ environment variable and gates findings on the recorded execution hit count for 
 | `unchecked_deferredclose` | Custom `go/analysis` analyzer that flags deferred `Close()` calls whose error return is ignored |
 | `uncheckedtypeassertion` | Custom `go/analysis` analyzer that flags unchecked single-value type assertions |
 | `uncheckedflushreturn` | Custom `go/analysis` analyzer that flags `Flush()` method calls where the error return is discarded |
+| `walkdirignoredeerror` | Custom `go/analysis` analyzer in `walk-dir-ignored-error` that flags `filepath.Walk`/`filepath.WalkDir` calls where the error return is discarded |
 | `walkfuncerrshadow` | Custom `go/analysis` analyzer that flags `filepath.Walk`/`filepath.WalkDir` callbacks whose `err` parameter shadows an outer `err` variable assigned from the walk call |
-| `walkdirignoredeerror` | Custom `go/analysis` analyzer in `walk-dir-ignored-error` that flags `filepath.Walk` and `filepath.WalkDir` calls where the error return is discarded |
 | `wgdonenotdeferred` | Custom `go/analysis` analyzer that flags non-deferred `sync.WaitGroup.Done()` calls |
 | `writebytestring` | Custom `go/analysis` analyzer that flags `w.Write([]byte(s))` calls where `s` is a string that can be replaced with `io.WriteString` |
 | `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`, `internal/resourcetracker`) |
@@ -360,6 +360,7 @@ _ = typeassertionnil.Analyzer
 - `github.com/github/gh-aw/pkg/linters/unchecked-slice-index` — unchecked-slice-index analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion` — unchecked-type-assertion analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedflushreturn` — unchecked-flush-return analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/walk-dir-ignored-error` — walk-dir-ignored-error analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/walkfuncerrshadow` — walk-func-err-shadow analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/wgdonenotdeferred` — wg-done-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/writebytestring` — write-byte-string analyzer subpackage
@@ -381,6 +382,7 @@ _ = typeassertionnil.Analyzer
 - `consolestderr` has dedicated blocking steps on both targets. `TestCIEnforcedLintersMatchTargets` compares the combined bulk and dedicated analyzer sets per target, independently of the registry guard; the pre-existing native-only `contextcancelnotdeferred` exception is tracked in #65753 and must be removed when WebAssembly enables it.
 - `typeassertionnil` is registered but excluded from CI enforcement pending a cross-platform enforcement-readiness audit.
 - `unchecked_deferredclose` is registered but excluded from CI enforcement until existing deferred `Close()` findings are remediated.
+- `walkdirignoredeerror` is registered but excluded from CI enforcement until existing discarded `WalkDir` errors in `pkg/cli/audit_threat_detection.go` and `pkg/cli/model_routing.go` are remediated.
 - `excessivefuncparams` exposes a `-max-params` analyzer flag and defaults to `8` parameters (`DefaultMaxParams`).
 - `largefunc` exposes a `-max-lines` analyzer flag, defaults to `60` lines (`DefaultMaxLines`), and skips `_test.go` files.
 - `osexitinlibrary` helps enforce separation between library logic and process-level termination.

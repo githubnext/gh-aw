@@ -78,7 +78,7 @@
 //   - unchecked_deferredclose — reports defer Close() calls that ignore error return values
 //   - uncheckedtypeassertion — flags unchecked single-value type assertions
 //   - uncheckedflushreturn — flags Flush() method calls where the error return is discarded
-//   - walkdirignoredeerror — flags filepath.Walk and filepath.WalkDir calls where the error return is discarded
+//   - walkdirignoredeerror — flags filepath.Walk/WalkDir calls where the error return is discarded
 //   - walkfuncerrshadow — flags filepath.Walk/WalkDir callbacks whose err parameter shadows an outer err variable assigned from the walk call
 //   - wgdonenotdeferred — flags non-deferred sync.WaitGroup.Done() calls
 //   - writebytestring — flags w.Write([]byte(s)) calls where s is a string that can be replaced with io.WriteString(w, s)
