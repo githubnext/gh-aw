@@ -12,7 +12,9 @@ import (
 // BadExprStmtClose is a bare Close() call with error ignored.
 func BadExprStmtClose() {
 	f, _ := os.Open("file.txt")
-	f.Close() // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
+	f.Close()   // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
+	(f.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
+	(f.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 }
 
 // BadBlankAssignClose assigns Close() error to blank identifier.
@@ -49,6 +51,7 @@ func BadMultiReturnClose() {
 	_ = value
 	value, _ = (closer.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 	_ = value
+	(closer.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 }
 
 // BadReaderClose flags io.Reader Close error ignored.
@@ -164,6 +167,7 @@ func GoodCloseReturningNamedError() {
 func GoodNonCloserNoError() {
 	nc := &NonCloser{}
 	nc.Close()
+	(nc.Close())
 	_ = nc
 }
 
@@ -171,6 +175,7 @@ func GoodNonCloserNoError() {
 func SuppressedWithNolint() error {
 	f, _ := os.Open("file.txt")
 	_ = f.Close() //nolint:closeerrorunchecked
+	(f.Close())   //nolint:closeerrorunchecked
 	return nil
 }
 

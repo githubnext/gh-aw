@@ -8,11 +8,17 @@ func Bad() {
 	f := Foo{X: 1}
 	val, _ := json.Marshal(f) // want `error return from json\.Marshal is discarded`
 	_ = val
-	json.Marshal(f) // want `error return from json\.Marshal is discarded`
+	json.Marshal(f)          // want `error return from json\.Marshal is discarded`
+	(json.Marshal(f))        // want `error return from json\.Marshal is discarded`
+	(json.Marshal(f))        // want `error return from json\.Marshal is discarded`
+	_, _ = (json.Marshal(f)) // want `error return from json\.Marshal is discarded`
 
 	var f2 Foo
-	_ = json.Unmarshal([]byte(`{}`), &f2) // want `error return from json\.Unmarshal is discarded`
-	json.Unmarshal([]byte(`{}`), &f2) // want `error return from json\.Unmarshal is discarded`
+	_ = json.Unmarshal([]byte(`{}`), &f2)   // want `error return from json\.Unmarshal is discarded`
+	json.Unmarshal([]byte(`{}`), &f2)       // want `error return from json\.Unmarshal is discarded`
+	(json.Unmarshal([]byte(`{}`), &f2))     // want `error return from json\.Unmarshal is discarded`
+	(json.Unmarshal([]byte(`{}`), &f2))     // want `error return from json\.Unmarshal is discarded`
+	_ = (json.Unmarshal([]byte(`{}`), &f2)) // want `error return from json\.Unmarshal is discarded`
 }
 
 func Good() error {
@@ -34,5 +40,6 @@ func Suppressed() {
 	f := Foo{X: 1}
 	val, _ := json.Marshal(f) //nolint:jsonmarshalignoredeerror // Foo contains only JSON-safe types
 	_ = val
-	json.Marshal(f)            //nolint:jsonmarshalignoredeerror // Foo contains only JSON-safe types
+	json.Marshal(f)   //nolint:jsonmarshalignoredeerror // Foo contains only JSON-safe types
+	(json.Marshal(f)) //nolint:jsonmarshalignoredeerror // Foo contains only JSON-safe types
 }

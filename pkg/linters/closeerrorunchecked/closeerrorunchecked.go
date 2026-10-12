@@ -98,7 +98,7 @@ func analyzeAssignStmt(pass *analysis.Pass, assign *ast.AssignStmt, generatedFil
 // analyzeExprStmt checks for patterns like:
 // file.Close()  (bare call with error ignored)
 func analyzeExprStmt(pass *analysis.Pass, exprStmt *ast.ExprStmt, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
-	call, ok := exprStmt.X.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(exprStmt.X).(*ast.CallExpr)
 	if !ok {
 		return
 	}
