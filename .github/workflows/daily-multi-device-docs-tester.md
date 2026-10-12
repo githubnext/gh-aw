@@ -115,7 +115,7 @@ pre-agent-steps:
       AGENTICS_WORKFLOWS_DIR: ${{ github.workspace }}/.agentics/workflows
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
-      npm install
+      npm ci
       npm run build
 features:
   gh-aw-detection: true
