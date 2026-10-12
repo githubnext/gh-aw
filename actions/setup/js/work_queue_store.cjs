@@ -9,16 +9,20 @@ const { actorFromContext, validatePolicy, validateRequestRole, validateTrustedCo
 const { assignmentsForRequest } = require("./work_queue_scheduler.cjs");
 const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
 const { verifyWorkerRoute, verifyWorkerRoutes } = require("./work_queue_provisioning.cjs");
+const { serializeDeployments } = require("./work_queue_deployment.cjs");
 const { writeWorkQueueUpdateSummary } = require("./work_queue_summary_renderer.cjs");
 const {
   appendCommit,
+  causalChain,
   compactTransactions,
   generateRequestOperations,
   newRequest,
   newState,
+  parseTransactionRecords,
   prepareCheckpoint,
   proposedCommitId,
   replayTransactionLog,
+  replayTransactions,
   validateClaimAuthority,
   validateRequest,
   validateRequestContext,
@@ -123,7 +127,7 @@ async function readWorkQueueLog({ githubClient, owner, repo, branch = WORK_QUEUE
   return readVerifiedQueueAtSHA({ githubClient, owner, repo, branch, repository, coreApi }, sha);
 }
 
-async function readVerifiedQueueAtSHA(options, sha, verify = true) {
+async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = true) {
   const { githubClient, owner, repo, branch, repository, coreApi } = options;
   const commit = await githubClient.rest.git.getCommit({ owner, repo, commit_sha: sha });
   const treeSha = commit?.data?.tree?.sha;
@@ -151,13 +155,52 @@ async function readVerifiedQueueAtSHA(options, sha, verify = true) {
   } catch {
     throw queueError("ledger_invalid", "queue blob contains malformed UTF-8");
   }
-  const state = replayTransactionLog(contents);
+  const { state, checkpointRecovered } = await replayVerifiedQueueLog(options, sha, contents, verify, recover);
   const transactions = state.transactions;
-  if (transactions.some(transaction => transaction.actor.repository.toLowerCase() !== repository.full_name.toLowerCase())) throw queueError("actor_unauthorized", "queue log contains an actor from another repository");
-  if (verify && transactions[0]?.operations[0]?.kind === "Checkpoint") await verifyCheckpointGitHistory(options, sha, transactions[0]);
   coreApi?.info(`Work queue: validated ${transactions.length} causal commits`);
   log.debug("ledger.read.complete", { bytes: bytes.length, transactions: transactions.length, works: state.works.size, claims: state.claims.size });
-  return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH };
+  return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH, ...(checkpointRecovered ? { checkpointRecovered: true } : {}) };
+}
+
+async function replayVerifiedQueueLog(options, sha, contents, verify = true, recover = true) {
+  let state;
+  let checkpointRecovered = false;
+  try {
+    state = replayTransactionLog(contents);
+  } catch (error) {
+    if (!recover || !(error instanceof Error) || !("code" in error) || error.code !== "checkpoint_invalid") throw error;
+    state = await recoverDeploymentCheckpoint(options, sha, contents, error);
+    checkpointRecovered = true;
+  }
+  if (state.transactions.some(transaction => transaction.actor.repository.toLowerCase() !== options.repository.full_name.toLowerCase())) throw queueError("actor_unauthorized", "queue log contains an actor from another repository");
+  if (verify && !checkpointRecovered && state.transactions[0]?.operations[0]?.kind === "Checkpoint") await verifyCheckpointGitHistory(options, sha, state.transactions[0]);
+  return { state, checkpointRecovered };
+}
+
+async function recoverDeploymentCheckpoint(options, sha, contents, failure) {
+  const transactions = causalChain(parseTransactionRecords(contents));
+  const damaged = transactions[0];
+  if (damaged?.operations[0]?.kind !== "Checkpoint" || transactions.length < 2) throw failure;
+  const { githubClient, owner, repo, coreApi } = options;
+  const commit = await githubClient.rest.git.getCommit({ owner, repo, commit_sha: sha });
+  const parents = commit?.data?.parents;
+  if (!Array.isArray(parents) || parents.length !== 1 || typeof parents[0]?.sha !== "string" || parents[0].sha === sha) throw failure;
+  const parent = parents[0].sha;
+  const original = await readVerifiedQueueAtSHA({ ...options, coreApi: undefined }, parent, false, false);
+  const root = original.transactions[0];
+  if (root?.id !== damaged.id || root.operations[0]?.kind !== "Checkpoint") throw failure;
+  const normalized = structuredClone(damaged);
+  normalized.operations[0].state.deployments = structuredClone(root.operations[0].state.deployments);
+  if (canonical(normalized) !== canonical(root)) throw failure;
+  const repaired = [root, ...transactions.slice(1)];
+  validateExtendingPrefix(original.transactions, repaired, "checkpoint recovery cannot change accepted history");
+  const state = replayTransactions(repaired);
+  if (canonical(damaged.operations[0].state.deployments) !== canonical(serializeDeployments(state))) throw failure;
+  await verifyCheckpointGitHistory(options, parent, root);
+  const message = "Work queue: recovered aliased checkpoint deployments from its verified Git parent; the next checked publication will persist the unchanged checkpoint and retained requests.";
+  if (typeof coreApi?.warning === "function") coreApi.warning(message);
+  else coreApi?.info(message);
+  return state;
 }
 
 async function verifyCheckpointGitHistory(options, head, root) {
@@ -549,6 +592,7 @@ module.exports = {
   initializeWorkQueue,
   publishWorkQueueRequest,
   readWorkQueueLog,
+  replayVerifiedQueueLog,
   stableRequestResult,
   verifyRepository,
   verifyCheckpointGitHistory,

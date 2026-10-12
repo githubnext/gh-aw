@@ -13,7 +13,7 @@ const NEXT_CONTRACT = "b".repeat(64);
 const SOURCE = "---\ntools:\n  work-queue:\n    worker: true\n---\nExecute approved instructions.\n";
 const lock = (contract = CONTRACT) => `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${contract}"\n`;
 
-function fixture() {
+function fixture({ otherPool = false } = {}) {
   const f = queueFixture({
     count: 3,
     batch: 1,
@@ -25,6 +25,7 @@ function fixture() {
       delete profile.principal;
       profile.logical_contract = CONTRACT;
       policy.pools.default.profiles.other = { ...profile, workflow: ".github/workflows/other.lock.yml" };
+      if (otherPool) policy.pools.unrelated = structuredClone(policy.pools.default);
     },
     configureWork: (work, index) => {
       if (index === 1) work.execution_ref = REF;
@@ -51,6 +52,23 @@ function fixture() {
 }
 
 describe("verified default worker deployment authority", () => {
+  it("reconciles only the requested pools without publishing unrelated worker changes", async () => {
+    const { f, options, trusted } = fixture({ otherPool: true });
+    const unrelated = canonical([...f.state.deployments.get("unrelated")]);
+    await synchronizeDeployments(options, trusted, ["default"]);
+    expect(f.state.deployments.get("default").get("default").current_ref).toBe(DEFAULT_REF);
+    expect(canonical([...f.state.deployments.get("unrelated")])).toBe(unrelated);
+    expect(
+      f.transactions
+        .filter(transaction => transaction.request.kind === "deployment")
+        .flatMap(transaction => transaction.operations)
+        .every(operation => operation.pool === "default")
+    ).toBe(true);
+    const before = canonical(f.transactions);
+    await synchronizeDeployments(options, trusted, []);
+    expect(canonical(f.transactions)).toBe(before);
+  });
+
   it.each([
     ["identical branch contract", {}],
     ["altered branch authority", { workflow: ".github/workflows/branch-worker.lock.yml", max_claims: 16, logical_contract: NEXT_CONTRACT }],

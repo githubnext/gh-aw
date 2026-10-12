@@ -1,0 +1,36 @@
+{
+  "endpoints": [
+    {
+      "provider": "openai",
+      "configured": false
+    },
+    {
+      "provider": "anthropic",
+      "configured": false
+    },
+    {
+      "provider": "copilot",
+      "configured": true,
+      "routing_models": [
+        {
+          "model_id": "gpt-5.6-luna",
+          "candidate_metadata_complete": true,
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-5.6-luna-utility",
+          "candidate_metadata_complete": false,
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        }
+      ]
+    },
+    {
+      "provider": "gemini",
+      "configured": false
+    },
+    {
+      "provider": "vertex",
+      "configured": false
+    }
+  ]
+}

@@ -353,8 +353,8 @@ func (e *CopilotEngine) resolveCopilotCommand(workflowData *WorkflowData, sandbo
 		return customEngineCommandScriptPath, buildEngineCommandScriptSetup(workflowData.EngineConfig.Command)
 	}
 	if sandboxEnabled {
-		// Every AWF runtime receives RUNNER_TEMP/gh-aw as a read-only mount. Standard,
-		// Cloud Hypervisor runs stage the activated binary in the execution step;
+		// Docker and Cloud Hypervisor mount RUNNER_TEMP/gh-aw read-only; NVX
+		// exports the staged binary through its workspace asset handoff.
 		// ARC/DinD stages it during installation so the remote daemon can see it.
 		return `"` + constants.GhAwRootDirShell + `/bin/copilot"`, ""
 	}

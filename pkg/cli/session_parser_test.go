@@ -187,7 +187,11 @@ func TestSessionParserEngines(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, validateSessionJSONL(session))
 			require.Contains(t, string(session), "Engine session text")
-			require.Contains(t, string(session), `"type":"assistant.message"`)
+			expectedEventType := "assistant.message"
+			if test.engine == "custom" {
+				expectedEventType = "claude.assistant.message"
+			}
+			require.Contains(t, string(session), `"type":"`+expectedEventType+`"`)
 		})
 	}
 }

@@ -231,9 +231,9 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 			},
 		)
 
-		// Cloud Hypervisor cannot see the globally installed
+		// MicroVM runtimes cannot rely on the globally installed
 		// CLI in the hosted tool cache, so stage a second copy under RUNNER_TEMP.
-		if isCloudHypervisorRuntime(workflowData) {
+		if isCloudHypervisorRuntime(workflowData) || isNVXRuntime(workflowData) {
 			npmSteps = append(npmSteps, GenerateMicroVMNpmCLIInstallStep(
 				"@earendil-works/pi-coding-agent",
 				version,
