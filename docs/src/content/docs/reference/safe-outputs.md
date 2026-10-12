@@ -427,7 +427,7 @@ safe-outputs:
 
 When `target: "*"` is configured, the agent may update an existing issue or pull request comment by passing `comment_id` only if that ID appears in `allows-comment-ids`. Populate `allows-comment-ids` from trusted workflow state (for example, an earlier step output) rather than agent output.
 
-Set `replace-older-comments: true` to update the newest comment on the target issue or PR bearing this caller workflow's `gh-aw-workflow-call-id` marker, instead of posting a new comment on every run. If no matching comment exists, a new comment is posted. The replacement includes a fresh footer and run link; staged mode only previews the comment and never edits it. When no caller workflow ID is available, matching uses the workflow ID marker. This option cannot be enabled together with `hide-older-comments`.
+Set `replace-older-comments: true` to update the newest comment from the workflow's authenticated author on the target issue or PR bearing this caller workflow's `gh-aw-workflow-call-id` marker, instead of posting a new comment on every run. If no matching comment exists, a new comment is posted. The replacement includes a fresh footer and run link; staged mode only previews the comment and never edits it. When no caller workflow ID is available, matching uses the workflow ID marker. This option cannot be combined with `hide-older-comments`.
 
 #### Normalize closing keywords
 

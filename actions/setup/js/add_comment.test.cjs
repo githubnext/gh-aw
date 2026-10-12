@@ -3556,12 +3556,19 @@ describe("add_comment", () => {
       process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
       process.env.GH_AW_WORKFLOW_ID = "shared-workflow";
       try {
+        mockGithub.rest.users = { getAuthenticated: vi.fn(async () => ({ data: { login: "workflow[bot]" } })) };
         mockGithub.rest.issues.listComments = vi.fn(async ({ page }) => ({
           data:
             page === 1
-              ? [{ id: 1, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" }, ...Array.from({ length: 99 }, (_, index) => ({ id: index + 2, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" }))]
+              ? [
+                  { id: 1, user: { login: "workflow[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" },
+                  ...Array.from({ length: 99 }, (_, index) => ({ id: index + 2, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" })),
+                ]
               : page === 2
-                ? [{ id: 101, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" }]
+                ? [
+                    { id: 101, user: { login: "workflow[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" },
+                    { id: 102, user: { login: "attacker", type: "User" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" },
+                  ]
                 : [],
         }));
         mockGithub.rest.issues.updateComment = vi.fn(async ({ comment_id }) => ({
@@ -3595,8 +3602,9 @@ describe("add_comment", () => {
       const oldCaller = process.env.GH_AW_CALLER_WORKFLOW_ID;
       process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
       try {
+        mockGithub.rest.users = { getAuthenticated: vi.fn(async () => ({ data: { login: "workflow[bot]" } })) };
         mockGithub.rest.issues.listComments = vi.fn(async () => ({
-          data: [{ id: 2, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" }],
+          data: [{ id: 2, user: { login: "workflow[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" }],
         }));
         mockGithub.rest.issues.updateComment = vi.fn();
         mockGithub.rest.issues.createComment = vi.fn(mockGithub.rest.issues.createComment);
@@ -3604,6 +3612,28 @@ describe("add_comment", () => {
         expect((await handler({ type: "add_comment", body: "Fresh rating" }, {})).success).toBe(true);
         expect(mockGithub.rest.issues.createComment).toHaveBeenCalledOnce();
         expect(mockGithub.rest.issues.updateComment).not.toHaveBeenCalled();
+      } finally {
+        if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;
+      }
+    });
+
+    it("updates instead of replying inline to a triggering PR review comment", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const oldCaller = process.env.GH_AW_CALLER_WORKFLOW_ID;
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
+      mockContext.eventName = "pull_request_review_comment";
+      mockContext.payload.comment = { id: 789 };
+      try {
+        mockGithub.rest.users = { getAuthenticated: vi.fn(async () => ({ data: { login: "workflow[bot]" } })) };
+        mockGithub.rest.issues.listComments = vi.fn(async () => ({
+          data: [{ id: 123, user: { login: "workflow[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" }],
+        }));
+        mockGithub.rest.issues.updateComment = vi.fn(async () => ({ data: { id: 123, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-123" } }));
+        mockGithub.rest.pulls.createReplyForReviewComment = vi.fn();
+        const handler = await eval(`(async () => { ${script}; return await main({ replace_older_comments: true }); })()`);
+        expect((await handler({ type: "add_comment", body: "New review digest" }, {})).commentId).toBe(123);
+        expect(mockGithub.rest.pulls.createReplyForReviewComment).not.toHaveBeenCalled();
       } finally {
         if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
         else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;

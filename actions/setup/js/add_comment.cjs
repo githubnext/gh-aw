@@ -272,10 +272,10 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue/PR number
  * @param {string[]} workflowIds - Workflow IDs to search for
- * @param {(body: string, id: string) => boolean} [matches] - Matching function
+ * @param {(comment: any, id: string) => boolean} [matches] - Matching function
  * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
  */
-async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds, matches = matchesWorkflowId) {
+async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds, matches = (comment, id) => matchesWorkflowId(comment.body, id)) {
   const comments = [];
   let page = 1;
   const perPage = 100;
@@ -294,7 +294,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    const filteredComments = data.filter(comment => workflowIds.some(id => matches(comment.body, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => workflowIds.some(id => matches(comment, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -497,7 +497,7 @@ async function main(config = {}) {
   const hideOlderCommentsConfig = isHideOlderCommentsObject(config.hide_older_comments) ? config.hide_older_comments : null;
   const hideOlderCommentsEnabled = parseBoolTemplatable(hideOlderCommentsConfig ? (hideOlderCommentsConfig.enabled ?? true) : config.hide_older_comments, false);
   const replaceOlderCommentsEnabled = parseBoolTemplatable(config.replace_older_comments, false);
-  if (hideOlderCommentsEnabled && replaceOlderCommentsEnabled) {
+  if (config.hide_older_comments !== undefined && config.replace_older_comments !== undefined) {
     throw new Error(`${ERR_CONFIG}: add-comment: replace-older-comments cannot be combined with hide-older-comments`);
   }
   const hideOlderCommentsMatch = Array.isArray(hideOlderCommentsConfig?.match)
@@ -946,14 +946,17 @@ async function main(config = {}) {
 
     try {
       if (replaceOlderCommentsEnabled && commentIdToReuse === null && !isDiscussion && (callerWorkflowId || workflowId)) {
-        const previous = await findCommentsWithTrackerId(
-          githubClient,
-          repoParts.owner,
-          repoParts.repo,
-          itemNumber,
-          [callerWorkflowId || workflowId],
-          callerWorkflowId ? (body, id) => typeof body === "string" && !body.includes("<!-- gh-aw-comment-type: reaction -->") && body.includes(generateWorkflowCallIdMarker(id)) : matchesWorkflowId
-        );
+        let authenticatedLogin;
+        try {
+          const { data } = await githubClient.rest.users.getAuthenticated();
+          authenticatedLogin = data.login;
+        } catch {
+          core.info("Could not resolve the authenticated comment author; considering bot-authored comments only");
+        }
+        const previous = await findCommentsWithTrackerId(githubClient, repoParts.owner, repoParts.repo, itemNumber, [callerWorkflowId || workflowId], (comment, id) => {
+          if (!comment.user?.login || (authenticatedLogin ? comment.user.login !== authenticatedLogin : comment.user.type !== "Bot")) return false;
+          return callerWorkflowId ? typeof comment.body === "string" && !comment.body.includes("<!-- gh-aw-comment-type: reaction -->") && comment.body.includes(generateWorkflowCallIdMarker(id)) : matchesWorkflowId(comment.body, id);
+        });
         if (previous.length > 0) {
           commentIdToReuse = previous[previous.length - 1].id;
         }
@@ -1006,7 +1009,7 @@ async function main(config = {}) {
         const shouldReplyToTriggeringPRReviewComment = !hasExplicitCommentId && effectiveContext.eventName === "pull_request_review_comment" && itemTargetResult.number == null;
         const triggeringReviewCommentId = Number(effectiveContext.payload?.comment?.id);
 
-        if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
+        if (commentIdToReuse === null && shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
           core.info(`Replying inline to triggering PR review comment ID: ${triggeringReviewCommentId}`);
           const { data } = await githubClient.rest.pulls.createReplyForReviewComment({
             owner: repoParts.owner,
