@@ -210,6 +210,11 @@ Report this even when nothing was found; incomplete coverage is not a clean bill
 of health. Include it in the user handoff, not only in private artifacts or judge
 replies, and do not imply that review authorizes execution.
 
+Show a findings table only when confirmed findings exist. With no confirmed
+findings, say "No confirmed vulnerabilities found" in the result sentence;
+do not render an empty table or a placeholder row. Report validation blockers
+and unresolved coverage separately, without labeling them as vulnerabilities.
+
 ### Annotated Markdown Change Overview
 
 Alongside every review result, show the user an annotated overview of changed
@@ -233,8 +238,9 @@ Use a compact table:
 | [workflow.md:10–14](<revision-pinned-source-url>) | Custom-token-only launch becomes Actions-token fallback. | Removes the custom-secret dependency; approved routes and privileged-job permission checks remain required. |
 
 If no authored Markdown changed, say so and summarize the relevant code changes
-without inventing a source diff. This overview is required even when there are
-no findings or the review is blocked; it does not replace the evidence or findings.
+without inventing a source diff or rendering an empty overview table. This
+overview is required even when there are no findings or the review is blocked;
+it does not replace the evidence or findings.
 Show it in the user response, not only in a private artifact, and do not modify
 reviewed workflow Markdown merely to insert annotations.
 

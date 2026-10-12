@@ -143,6 +143,23 @@ func TestDockerImageConstants(t *testing.T) {
 	}
 }
 
+func TestScannerImageReleasePins(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name, got, want string
+	}{
+		{"syft", SyftImage, "anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa"},
+		{"grype", GrypeImage, "anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("%s image = %q, want %q", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	useDockerFallback(t)
 	// Reset state before test

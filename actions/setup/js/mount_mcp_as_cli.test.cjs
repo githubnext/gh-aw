@@ -9,6 +9,8 @@ import { spawnSync } from "node:child_process";
 import {
   AWF_GATEWAY_IP,
   buildMCPCLIServersPromptList,
+  fetchMCPTools,
+  fetchMCPToolsResult,
   clearStaleSafeOutputsRegistrationEvidence,
   fetchMCPToolsWithRetry,
   generateCLIWrapperScript,
@@ -379,6 +381,174 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(warnings[0]).toContain("retrying");
     expect(warnings[1]).toContain("stopping empty tools/list retries");
   });
+});
+
+describe("fetchMCPToolsResult handshake and failure classification", () => {
+  let server;
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+      server = undefined;
+    }
+  });
+
+  async function serve(handler) {
+    server = http.createServer((req, res) => {
+      let data = "";
+      req.on("data", chunk => (data += chunk));
+      req.on("end", () => handler(req, res, JSON.parse(data)));
+    });
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    return `http://127.0.0.1:${server.address().port}/mcp`;
+  }
+
+  function reply(res, body, status = 200, headers = {}) {
+    res.writeHead(status, { "Content-Type": "application/json", ...headers });
+    res.end(body === undefined ? "" : JSON.stringify(body));
+  }
+
+  it.each([{}, { result: null }, { result: [] }, { result: "invalid" }, []])("rejects malformed initialization %j without requesting tools", async body => {
+    const methods = [];
+    const url = await serve((_req, res, request) => {
+      methods.push(request.method);
+      reply(res, body);
+    });
+    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: false, failure: { phase: "initialize", statusCode: 200 } });
+    expect(methods).toEqual(["initialize"]);
+  });
+
+  it.each(["initialize", "notifications/initialized", "tools/list"])("classifies failures at %s without continuing the handshake", async failedMethod => {
+    const failures = [
+      { status: 401, body: { message: "credential-sensitive" }, retryable: false },
+      { status: 403, body: {}, retryable: false },
+      { status: 404, body: {}, retryable: false },
+      { status: 429, body: {}, retryable: false },
+      { status: 500, body: {}, retryable: true },
+      { status: 503, body: {}, retryable: true },
+      { status: 200, body: { error: { code: -32600, message: "credential-sensitive" } }, retryable: false },
+      { status: 200, body: { error: { code: -32601, message: "credential-sensitive" } }, retryable: false },
+      { status: 200, body: { error: { code: -32602, message: "credential-sensitive" } }, retryable: false },
+      { status: 200, body: { error: { code: -32000, message: "credential-sensitive" } }, retryable: false },
+      { status: 200, body: { error: { code: -32603, message: "credential-sensitive" } }, retryable: true },
+      { status: 200, body: {}, retryable: false },
+      { status: 200, body: { result: null }, retryable: false },
+      { status: 200, body: { result: [] }, retryable: false },
+      { status: 200, body: "invalid response", retryable: false },
+    ];
+    let failure;
+    const methods = [];
+    const warnings = [];
+    const url = await serve((_req, res, request) => {
+      methods.push(request.method);
+      if (request.method === failedMethod) {
+        reply(res, failure.body, failure.status);
+      } else if (request.method === "notifications/initialized") {
+        reply(res, undefined, 204);
+      } else {
+        reply(res, { result: { tools: [{ name: "unexpected-tool" }] } });
+      }
+    });
+    for (failure of failures) {
+      methods.length = 0;
+      expect(await fetchMCPToolsResult(url, "credential-sensitive", { warning: msg => warnings.push(msg) })).toEqual({
+        tools: [],
+        emptyWasSuccessful: false,
+        retryable: failure.retryable,
+        failure: { phase: failedMethod, statusCode: failure.status },
+      });
+      expect(methods.at(-1)).toBe(failedMethod);
+    }
+    expect(warnings.join("\n")).not.toContain("credential-sensitive");
+  });
+
+  it.each(["initialize", "notifications/initialized", "tools/list"])("classifies transport failures at %s as retryable", async failedMethod => {
+    const methods = [];
+    const url = await serve((req, res, request) => {
+      methods.push(request.method);
+      if (request.method === failedMethod) {
+        req.socket.destroy();
+      } else if (request.method === "notifications/initialized") {
+        reply(res, undefined, 204);
+      } else {
+        reply(res, { result: {} });
+      }
+    });
+    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: failedMethod, code: "ECONNRESET" } });
+    expect(methods.at(-1)).toBe(failedMethod);
+  });
+
+  it.each(["ECONNREFUSED", "credential-sensitive"])("only preserves whitelisted transport codes: %s", async code => {
+    const request = vi.spyOn(http, "request").mockImplementation(() => {
+      throw Object.assign(new Error("http://credential-sensitive@localhost/private"), { code });
+    });
+    const warnings = [];
+    try {
+      const result = await fetchMCPToolsResult("http://localhost/mcp", "credential-sensitive", { warning: msg => warnings.push(msg) });
+      expect(result).toEqual({
+        tools: [],
+        emptyWasSuccessful: false,
+        retryable: true,
+        failure: { phase: "initialize", code: code === "ECONNREFUSED" ? code : undefined },
+      });
+      expect(JSON.stringify({ result, warnings })).not.toContain("credential-sensitive");
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it.each([200, 202, 204])("accepts an empty HTTP %i notification acknowledgment and propagates session headers", async notificationStatus => {
+    const requests = [];
+    const url = await serve((req, res, request) => {
+      requests.push({ method: request.method, headers: req.headers });
+      if (request.method === "initialize") {
+        reply(res, { result: {} }, 200, { "Mcp-Session-Id": "test-session" });
+      } else if (request.method === "notifications/initialized") {
+        reply(res, undefined, notificationStatus);
+      } else {
+        reply(res, { result: { tools: [{ name: "available" }] } });
+      }
+    });
+    expect(await fetchMCPToolsResult(url, "test-auth", { warning: () => {} })).toEqual({ tools: [{ name: "available" }], emptyWasSuccessful: true, retryable: false });
+    expect(requests.map(request => request.method)).toEqual(["initialize", "notifications/initialized", "tools/list"]);
+    expect(requests.map(request => request.headers.authorization)).toEqual(["test-auth", "test-auth", "test-auth"]);
+    expect(requests.map(request => request.headers["mcp-session-id"])).toEqual([undefined, "test-session", "test-session"]);
+  });
+
+  it("preserves successful-empty results and the legacy array API", async () => {
+    const url = await serve((_req, res, request) => {
+      reply(res, { result: request.method === "tools/list" ? { tools: [] } : {} });
+    });
+    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: true, retryable: false });
+    expect(await fetchMCPTools(url, "key", { warning: () => {} })).toEqual([]);
+  });
+
+  it("does not make CLI retries for transient failures", async () => {
+    const methods = [];
+    const url = await serve((_req, res, request) => {
+      methods.push(request.method);
+      reply(res, {}, 503);
+    });
+    const sleep = vi.fn();
+    expect(await fetchMCPToolsWithRetry(url, "key", "safeoutputs", { warning: () => {} }, { sleep })).toEqual([]);
+    expect(methods).toEqual(["initialize"]);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("bounds the entire response duration even while the body keeps arriving", async () => {
+    let interval;
+    const url = await serve((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.write(" ");
+      interval = setInterval(() => res.write(" "), 5);
+      res.on("close", () => clearInterval(interval));
+    });
+    try {
+      expect(await fetchMCPToolsResult(url, "key", { warning: () => {} }, 30)).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: "initialize", code: "ETIMEDOUT" } });
+    } finally {
+      clearInterval(interval);
+    }
+  }, 1000);
 });
 
 describe("mount_mcp_as_cli.cjs main() file permissions", () => {

@@ -58,7 +58,7 @@ const AgyDefaultModel = "gemini-3.8-flash-medium"
 const DefaultPiVersion Version = "1.1.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.12.2"
+const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -289,7 +289,7 @@ const MCPGDynamicRepositoryDelegationMinVersion Version = "v0.4.19"
 // Used when tools.playwright is enabled.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
 // generated Playwright CLI install steps. See TestDefaultPlaywrightCLIVersionOutsideCooldownWindow.
-const DefaultPlaywrightCLIVersion Version = "0.1.21"
+const DefaultPlaywrightCLIVersion Version = "0.1.22"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.30.0"
