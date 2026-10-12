@@ -4,6 +4,7 @@ package stringutil
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -601,20 +602,48 @@ func TestSpec_PublicAPI_SanitizePythonVariableName(t *testing.T) {
 // TestSpec_PublicAPI_SanitizeToolID validates the documented behavior of
 // SanitizeToolID as described in the package README.md.
 //
-// Specification: "Sanitizes a tool identifier for safe use in generated code.
-// Replaces characters that are not valid in identifiers with underscores."
-//
-// SPEC_AMBIGUITY: The README description is generic. We verify only that the
-// function returns a non-empty result for non-empty input and does not contain
-// characters typically invalid in code identifiers.
+// Specification: removes a leading "mcp-" prefix and trailing "-mcp" suffix,
+// preserves occurrences in the middle, and preserves the original identifier
+// if stripping would produce an empty result.
 func TestSpec_PublicAPI_SanitizeToolID(t *testing.T) {
 	t.Parallel()
-	t.Run("returns non-empty result for non-empty input", func(t *testing.T) {
-		t.Parallel()
-		result := SanitizeToolID("some-tool-id")
-		assert.NotEmpty(t, result,
-			"SanitizeToolID should return non-empty result for non-empty input")
-	})
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "removes trailing suffix", input: "notion-mcp", expected: "notion"},
+		{name: "removes leading prefix", input: "mcp-notion", expected: "notion"},
+		{name: "preserves middle occurrence", input: "some-mcp-server", expected: "some-mcp-server"},
+		{name: "preserves original when stripping would be empty", input: "mcp", expected: "mcp"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, SanitizeToolID(tt.input),
+				"SanitizeToolID(%q) should match the documented normalization", tt.input)
+		})
+	}
+}
+
+// TestSpec_ThreadSafety_PureFunctions validates the README's guarantee that
+// package functions are stateless and safe for concurrent goroutine calls.
+func TestSpec_ThreadSafety_PureFunctions(t *testing.T) {
+	t.Parallel()
+	const goroutines = 16
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			assert.Equal(t, "executor_workflow_agent",
+				NormalizeSafeOutputIdentifier("executor-workflow.agent"),
+				"concurrent calls should return the documented deterministic result")
+		}()
+	}
+	wg.Wait()
 }
 
 // TestSpec_PublicAPI_SanitizeForFilename validates the documented behavior of

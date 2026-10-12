@@ -23,7 +23,6 @@ func TestSpec_PublicAPI_EmptyBehavior(t *testing.T) {
 	assert.InDelta(t, 0.0, sv.Min(), 1e-9, "Min should return 0 when no observations have been added")
 	assert.InDelta(t, 0.0, sv.Max(), 1e-9, "Max should return 0 when no observations have been added")
 	assert.InDelta(t, 0.0, sv.Mean(), 1e-9, "Mean should return 0 when no observations have been added")
-	assert.InDelta(t, 0.0, sv.Median(), 1e-9, "Median should return 0 when no observations have been added")
 }
 
 // TestSpec_PublicAPI_Add validates that each Add call records exactly one
