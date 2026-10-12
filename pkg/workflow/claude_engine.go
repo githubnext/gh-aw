@@ -450,8 +450,7 @@ func (e *ClaudeEngine) claudeAllowedDomains(data *WorkflowData) string {
 	if data.NetworkPermissions != nil &&
 		slices.Contains(data.NetworkPermissions.Allowed, "claude") &&
 		e.ResolveLLMProvider(data) == LLMProviderAnthropic &&
-		!engineEnvHasNonEmptyValue(data, "ANTHROPIC_BASE_URL") &&
-		(data.EngineConfig == nil || data.EngineConfig.APITarget == "") {
+		!engineEnvHasNonEmptyValue(data, "ANTHROPIC_BASE_URL") {
 		domains = mergeAllowedDomainList(domains, "api.anthropic.com")
 	}
 	if data.EngineConfig != nil && data.EngineConfig.APITarget != "" {

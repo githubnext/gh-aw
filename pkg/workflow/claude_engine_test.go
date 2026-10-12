@@ -272,6 +272,7 @@ func TestClaudeEngineAllowedDomainsFollowEffectiveTarget(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{Allowed: []string{"claude"}},
 				EngineConfig:       &EngineConfig{APITarget: "relay.example.com"},
 			},
+			wantAPI:    true,
 			wantTarget: "relay.example.com",
 		},
 		{
