@@ -1019,7 +1019,7 @@ When no workflow is specified, lists all workflows with a summary of allowed and
 
 #### `work-queue`
 
-Inspect and publish the fair Git-backed DAG work queue. The alias `work` accepts the same subcommands and flags. Direct claims and operator finishes are not supported; `dispatch-next` grants scheduled work.
+This command is experimental. Inspect and publish the fair Git-backed DAG work queue. The alias `work` accepts the same subcommands and flags. Direct claims and operator finishes are not supported; `dispatch-next` grants scheduled work.
 
 ```bash wrap
 gh aw work-queue state --repo owner/repo --json
