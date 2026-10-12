@@ -1526,6 +1526,55 @@ function gradeCodeEditPrecision(trace, config) {
   };
 }
 
+/**
+ * process-alignment-fitness: Fraction of process-model checks satisfied by the observed tool sequence.
+ * @param {any} trace
+ * @param {Record<string, any>} config
+ * @returns {any}
+ */
+function gradeProcessAlignmentFitness(trace, config) {
+  if (config.model == null) {
+    return { value: null, passed: null, message: "not applicable: no process model configured" };
+  }
+  const model = config.model;
+  if (!isRecord(model) || typeof model.start !== "string" || !model.start || typeof model.end !== "string" || !model.end || !isRecord(model.transitions)) {
+    return { value: null, passed: null, message: "unavailable: malformed process model" };
+  }
+  const sources = Object.keys(model.transitions);
+  if (sources.length > MAX_TRAJECTORY_ITEMS) {
+    return { value: null, passed: null, message: "unavailable: process model exceeds transition limit" };
+  }
+  const transitions = new Map();
+  let edges = 0;
+  for (const from of sources) {
+    const destinations = model.transitions[from];
+    if (!from || !Array.isArray(destinations) || destinations.length > MAX_TRAJECTORY_ITEMS || !destinations.every(to => typeof to === "string" && to)) {
+      return { value: null, passed: null, message: "unavailable: malformed process model transitions" };
+    }
+    edges += destinations.length;
+    if (edges > MAX_TRAJECTORY_ITEMS) {
+      return { value: null, passed: null, message: "unavailable: process model exceeds transition limit" };
+    }
+    transitions.set(from, new Set(destinations));
+  }
+  const ir = irCandidates(trace).find(candidate => Object.hasOwn(candidate, "toolCalls"));
+  if (!ir || !Array.isArray(ir.toolCalls) || ir.toolCalls.length === 0 || !ir.toolCalls.every(call => isRecord(call) && typeof call.name === "string" && call.name && Number.isSafeInteger(call.eventIndex) && call.eventIndex >= 0)) {
+    return { value: null, passed: null, message: "unavailable: trace lacks well-formed indexed toolCalls" };
+  }
+  const calls = [...ir.toolCalls].sort((a, b) => a.eventIndex - b.eventIndex);
+  if (calls.some((call, index) => index > 0 && call.eventIndex === calls[index - 1].eventIndex)) {
+    return { value: null, passed: null, message: "unavailable: duplicate tool-call eventIndex" };
+  }
+  let allowed = Number(calls[0].name === model.start) + Number(calls[calls.length - 1].name === model.end);
+  for (let i = 1; i < calls.length; i++) {
+    if (transitions.get(calls[i - 1].name)?.has(calls[i].name)) allowed++;
+  }
+  return {
+    value: allowed / (calls.length + 1),
+    details: `observedSteps=${calls.length} allowedChecks=${allowed} totalChecks=${calls.length + 1}`,
+  };
+}
+
 /** @type {Record<string, (trace: any, config?: Record<string, any>) => any>} */
 const TRAJECTORY_GRADERS = {
   "policy-near-miss": withTrajectoryLimits(gradePolicyNearMiss),
@@ -1552,6 +1601,7 @@ const TRAJECTORY_GRADERS = {
   "code-search-recall": withTrajectoryLimits(gradeCodeSearchRecall),
   "code-read-precision": withTrajectoryLimits(gradeCodeReadPrecision),
   "code-edit-precision": withTrajectoryLimits(gradeCodeEditPrecision),
+  "process-alignment-fitness": withTrajectoryLimits(gradeProcessAlignmentFitness),
 };
 
 const builtinMeta = require("./builtin_graders.json");
@@ -1586,4 +1636,5 @@ module.exports = {
   gradeTrajectoryNdtw,
   gradeCodeSearchRecall,
   gradeCodeReadPrecision,
+  gradeProcessAlignmentFitness,
 };

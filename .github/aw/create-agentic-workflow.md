@@ -214,6 +214,13 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 
 Do not ask for the ecosystem if it can be inferred from the repository. See [network.md#inferring-ecosystem-from-repository-files](network.md#inferring-ecosystem-from-repository-files) for the manifest-to-ecosystem mapping. Never use `network: defaults` alone for workflows that build, test, or install packages.
 
+For policy/compliance audits that only inspect repository files and/or read GitHub via `gh-proxy`, enforce a "never probe externally" requirement structurally with `network.allowed: []`, rather than relying on prompt wording. Omit external web and MCP tools; for Claude or Codex, an explicit `network` setting also disables provider-hosted web tools unless enabled separately (see [network.md#hosted-web-policy-networkhosted-web](network.md#hosted-web-policy-networkhosted-web)).
+
+```yaml
+network:
+  allowed: []
+```
+
 ### 6. Configure safe outputs
 
 Map write behavior to `safe-outputs:`.

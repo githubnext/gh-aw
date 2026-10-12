@@ -13,7 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
 const { createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError } = require("./daily_aic_api_budget.cjs");
-const { loadBillableJobs, allBillableJobsNotStarted, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
+const { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
@@ -299,13 +299,26 @@ async function inspectLegacyAgentArtifact(artifactClient, artifacts, downloadRoo
  * @returns {Promise<number>}
  */
 async function getRunAIC(artifactClient, runId, token, owner, repo, run, inspection) {
-  const components = run ? await loadBillableJobs(inspection, owner, repo, run) : null;
+  const { components, priorJobs } = run ? await loadBillableJobs(inspection, owner, repo, run) : { components: null, priorJobs: null };
   if (components && allBillableJobsNotStarted(components)) {
     inspection.accountingReason = "confirmed_zero";
+    for (const [component, job] of components) {
+      core.info(
+        `[daily-workflow-aic] Computed component AIC: ${JSON.stringify({
+          runId,
+          component,
+          jobId: job.id,
+          runAttempt: job.run_attempt,
+          conclusion: job.conclusion,
+          aic: 0,
+          reason: job.conclusion === "skipped" ? "job_skipped" : "runner_not_assigned",
+        })}`
+      );
+    }
     logDailyGuardrail("Computed run AIC", {
       runId,
       aic: 0,
-      reason: components.size === 0 ? "no_billable_jobs" : "all_billable_jobs_not_started",
+      reason: components.size === 0 ? "no_billable_jobs" : allBillableJobsSkipped(components) ? "all_billable_jobs_skipped" : "all_billable_jobs_not_started",
     });
     return 0;
   }
@@ -391,7 +404,7 @@ async function getRunAIC(artifactClient, runId, token, owner, repo, run, inspect
     });
     const artifactRoot = download.downloadPath || downloadRoot;
     const legacyAgentEvidence = components ? await inspectLegacyAgentArtifact(artifactClient, artifacts, artifactRoot, token, owner, repo, run, components) : null;
-    const aic = components ? sumCoveredComponents(artifactRoot, components, artifact.createdAt.getTime(), artifacts, artifact.name, run.run_attempt, run.id, legacyAgentEvidence) : sumAICFromUsageJSONLFiles(usageJSONLFiles);
+    const aic = components ? sumCoveredComponents(artifactRoot, components, artifact.createdAt.getTime(), artifacts, artifact.name, run.run_attempt, run.id, legacyAgentEvidence, priorJobs) : sumAICFromUsageJSONLFiles(usageJSONLFiles);
     logDailyGuardrail("Computed run AIC from artifact", {
       runId,
       artifactId: artifact.id,
