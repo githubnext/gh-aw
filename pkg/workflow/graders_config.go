@@ -70,6 +70,7 @@ var BuiltinGraderRegistry = []BuiltinGraderMeta{
 	{ID: "code-search-recall", Name: "Code Search Recall", Description: "Fraction of reference patch files located during the run", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
 	{ID: "code-read-precision", Name: "Code Read Precision", Description: "Fraction of distinct read or inspected files touched by the reference patch", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
 	{ID: "code-edit-precision", Name: "Code Edit Precision", Description: "Fraction of distinct edited files touched by the reference patch", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
+	{ID: "process-alignment-fitness", Name: "Process Alignment Fitness", Description: "Fraction of observed tool-sequence checks allowed by a configured process model", Unit: "ratio", Direction: "higher_is_better", Min: new(0.0), Max: new(1.0)},
 }
 
 // BuiltinGraderIDs is the ordered list of built-in grader IDs (derived from registry).
