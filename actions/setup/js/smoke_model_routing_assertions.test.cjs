@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { checkModelRoutingEvidence, main, normalizeEndpoint, servedModel } from "./smoke_model_routing_assertions.cjs";
+import { checkDetectionEvidence, checkModelRoutingEvidence, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel } from "./smoke_model_routing_assertions.cjs";
 
 const TOKEN_USAGE = "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 const ROUTED_ALLOWED = ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"];
@@ -467,6 +467,200 @@ describe("smoke_model_routing_assertions", () => {
       expect(core.setFailed).not.toHaveBeenCalled();
       expect(core.error).not.toHaveBeenCalled();
       expect(core.info).toHaveBeenLastCalledWith("All 5 model-routing smoke assertions passed");
+    });
+  });
+});
+
+// Detection fixtures are copied from real records with request IDs and timestamps
+// redacted: the detection job's api-proxy token-usage.jsonl from run 38173405739
+// (Smoke Copilot Routed, schema token-usage/v0.28.51), the external engine's
+// detection_result.json from run 38174054652, and the detection and agent
+// awf-resolved-config.json / model-routing.jsonl from run 38173405739. The
+// classifier record is the agent-side classifier record from run 38173405739.
+const DETECTION_MODEL = "claude-haiku-5.5";
+const detectionUsage = (model = DETECTION_MODEL, extra = {}) => ({
+  _schema: "token-usage/v0.28.51",
+  timestamp: "<redacted>",
+  event: "token_usage",
+  request_id: "<redacted>",
+  provider: "copilot",
+  model,
+  path: "/chat/completions",
+  status: 200,
+  streaming: true,
+  input_tokens: 2271,
+  output_tokens: 191,
+  cache_read_tokens: 9290,
+  cache_write_tokens: 7932,
+  duration_ms: 2938,
+  response_bytes: 10983,
+  x_initiator: "user",
+  ...extra,
+});
+const detectionRequests = () => [detectionUsage(), detectionUsage(DETECTION_MODEL, { input_tokens: 2, output_tokens: 130, x_initiator: "agent" })];
+const agentClassifierRecord = () => ({
+  _schema: "token-usage/v0.28.51",
+  timestamp: "<redacted>",
+  event: "token_usage",
+  request_id: "<redacted>",
+  provider: "copilot",
+  model: "gpt-5.6-luna",
+  path: "/responses",
+  status: 200,
+  streaming: false,
+  input_tokens: 941,
+  output_tokens: 283,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  duration_ms: 3847,
+  response_bytes: 14005,
+  purpose: "routing_classification",
+  x_initiator: "agent",
+});
+const detectionResult = () => ({ prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [], warnings: [] });
+const detectionResolvedConfig = () => ({ enableApiProxy: true, maxAiCredits: 400, maxRuns: 500, maxCacheMisses: 5, enableTokenSteering: true });
+const agentRoutingConfig = () => ({
+  experimentalModelRouting: true,
+  modelRouting: {
+    objective: { goal: "cost", mode: "economy" },
+    task: { conversationFile: "/tmp/gh-aw/routing-conversation.json" },
+    candidateModels: ["github-copilot/gpt-5.4-mini", "github-copilot/gpt-5.6-luna", "github-copilot/claude-haiku-4.5"],
+  },
+});
+const agentRoutingSelection = () => ({
+  _schema: "model-routing/v0.28.51",
+  timestamp: "<redacted>",
+  event: "model_routing",
+  stage: "selection",
+  objective: { goal: "cost", mode: "economy" },
+  provider: "copilot",
+  selected_provider: "copilot",
+  wire_model: "gpt-5.6-luna",
+  endpoint: "/responses",
+  selected_model: "github-copilot/gpt-5.6-luna",
+});
+const detectionExpectations = { detectionModel: DETECTION_MODEL, allowedModels: ROUTED_ALLOWED, executionOutcome: "success" };
+const API_PROXY_LOGS = "sandbox/firewall/logs/api-proxy-logs";
+const RESOLVED_CONFIG = "sandbox/firewall/audit/awf-resolved-config.json";
+
+describe("smoke_model_routing_assertions detection", () => {
+  let root;
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-smoke-detection-"));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  function write(file, entries) {
+    const target = path.join(root, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, typeof entries === "string" ? entries : file.endsWith(".json") ? JSON.stringify(entries) : entries.map(entry => JSON.stringify(entry)).join("\n") + "\n");
+  }
+
+  function fixture({ result = detectionResult(), requests = detectionRequests(), config = detectionResolvedConfig() } = {}) {
+    if (result) write("detection_result.json", result);
+    if (requests) write(TOKEN_USAGE, requests);
+    if (config) write(RESOLVED_CONFIG, config);
+  }
+
+  const check = (expectations = detectionExpectations) => checkDetectionEvidence({ rootDir: root, ...expectations });
+  const checkIds = lines => lines.map(line => line.split(" ")[1]);
+
+  it("passes D1–D3 for an unrouted detection run on the pinned model", () => {
+    fixture();
+    const { passes, failures } = check();
+    expect(failures).toEqual([]);
+    expect(checkIds(passes)).toEqual(["D1", "D2", "D3"]);
+    expect(passes[1]).toBe("PASS D2 all 2 detection request(s) used claude-haiku-5.5, outside allowed-models [gpt-5.4-mini, gpt-5.6-luna, claude-haiku-4.5]");
+  });
+
+  it("passes D3 when model-routing.jsonl exists without selection events", () => {
+    fixture();
+    write(`${API_PROXY_LOGS}/model-routing.jsonl`, []);
+    expect(check().failures).toEqual([]);
+  });
+
+  it("fails D1 when the detection step did not succeed, without consulting execution.json", () => {
+    fixture();
+    write("execution.json", { version: 1, component: "detection", state: "started" });
+    expect(check({ ...detectionExpectations, executionOutcome: "failure" }).failures).toEqual(["FAIL D1 detection execution outcome is failure, expected success"]);
+  });
+
+  it("fails D1 when the result file is missing, unparseable, or lacks verdict keys", () => {
+    fixture({ result: null });
+    expect(check().failures).toEqual([expect.stringMatching(/^FAIL D1 missing .*detection_result\.json$/)]);
+    write("detection_result.json", "{not json");
+    expect(check().failures).toEqual([expect.stringMatching(/^FAIL D1 .*detection_result\.json is not valid JSON/)]);
+    write("detection_result.json", { prompt_injection: false, reasons: [] });
+    expect(check().failures).toEqual(["FAIL D1 detection_result.json is missing or has malformed verdict key(s) [secret_leak, malicious_patch, warnings]; observed keys: [prompt_injection, reasons]"]);
+  });
+
+  it("fails D2 when a detection request used the routed model", () => {
+    fixture({ requests: [detectionUsage(), detectionUsage("gpt-5.6-luna", { path: "/responses" })] });
+    const { failures } = check();
+    expect(failures).toEqual([
+      "FAIL D2 detection request(s) not on configured model claude-haiku-5.5: gpt-5.6-luna /responses 200; detection request(s) on allowed-models [gpt-5.4-mini, gpt-5.6-luna, claude-haiku-4.5]: gpt-5.6-luna /responses 200",
+    ]);
+  });
+
+  it("fails D2 when there are no detection requests or the token usage is missing", () => {
+    fixture({ requests: [] });
+    expect(check().failures).toEqual(["FAIL D2 no detection requests in the api-proxy token usage"]);
+    fs.rmSync(path.join(root, TOKEN_USAGE));
+    const { failures } = check();
+    expect(checkIds(failures)).toEqual(["D2", "D3"]);
+    expect(failures[0]).toMatch(/^FAIL D2 missing api-proxy token-usage\.jsonl/);
+  });
+
+  it("fails D2 when the configured detection model is a routing candidate", () => {
+    fixture({ requests: [detectionUsage("claude-haiku-4.5")] });
+    expect(check({ ...detectionExpectations, detectionModel: "claude-haiku-4.5" }).failures).toEqual([
+      "FAIL D2 configured detection model claude-haiku-4.5 is in allowed-models [gpt-5.4-mini, gpt-5.6-luna, claude-haiku-4.5]; it must be disjoint from the routing candidates; detection request(s) on allowed-models [gpt-5.4-mini, gpt-5.6-luna, claude-haiku-4.5]: claude-haiku-4.5 /chat/completions 200",
+    ]);
+  });
+
+  it("fails D3 when detection token usage contains a routing_classification record", () => {
+    fixture({ requests: [agentClassifierRecord(), ...detectionRequests()] });
+    const { failures } = check();
+    expect(checkIds(failures)).toEqual(["D2", "D3"]);
+    expect(failures[1]).toBe("FAIL D3 detection made 1 routing_classification request(s): gpt-5.6-luna /responses 200");
+  });
+
+  it("fails D3 when detection has a routing selection or a model-routing config block", () => {
+    fixture({ config: agentRoutingConfig() });
+    write(`${API_PROXY_LOGS}/model-routing.jsonl`, [agentRoutingSelection()]);
+    expect(check().failures).toEqual(["FAIL D3 detection model-routing.jsonl has 1 selection event(s): gpt-5.6-luna /responses; detection AWF resolved config has model-routing setting(s) [modelRouting, experimentalModelRouting]"]);
+  });
+
+  it("fails D3 when the resolved AWF config is missing", () => {
+    fixture({ config: null });
+    expect(check().failures).toEqual([expect.stringMatching(/^FAIL D3 missing .*awf-resolved-config\.json$/)]);
+  });
+
+  it("reports missing evidence without duplicate messages when evaluated directly", () => {
+    const { failures } = evaluateDetectionEvidence({ requests: [], expectations: detectionExpectations });
+    expect(failures).toEqual(["FAIL D1 no parsed detection_result.json", "FAIL D2 no detection requests in the api-proxy token usage", "FAIL D3 no parsed detection AWF resolved config"]);
+  });
+
+  describe("detectionMain", () => {
+    it("logs every check and fails the step on failure", async () => {
+      fixture({ requests: [agentClassifierRecord()] });
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await detectionMain({ core, rootDir: root, ...detectionExpectations });
+      expect(core.info).toHaveBeenCalledWith(expect.stringMatching(/^PASS D1 /));
+      expect(core.error).toHaveBeenCalledWith(expect.stringMatching(/^FAIL D3 /));
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(`Threat-detection smoke assertions failed (${results.failures.length}):\nFAIL D2`));
+    });
+
+    it("does not fail the step when every check passes", async () => {
+      fixture();
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      await detectionMain({ core, rootDir: root, ...detectionExpectations });
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(core.error).not.toHaveBeenCalled();
+      expect(core.info).toHaveBeenLastCalledWith("All 3 threat-detection smoke assertions passed");
     });
   });
 });
