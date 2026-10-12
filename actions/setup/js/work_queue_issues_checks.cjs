@@ -339,6 +339,26 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
     else process.env.GH_AW_PROMPTS_DIR = prompts;
   });
   describe("scoped Git-authoritative Issue projection", () => {
+    it("creates clear Issues with configurable titles and short Work IDs", async () => {
+      for (const [issues, prefix] of [
+        [true, "[work queue]"],
+        [{ title_prefix: "[tasks]" }, "[tasks]"],
+      ]) {
+        const f = fixture({ backing: false });
+        const m = mock(f);
+        assert.deepEqual((await main({ ...m.options, issues })).pending, []);
+        const shortId = f.nodes[0].work_id.slice(0, 7);
+        const issue = m.issues.get("1");
+        assert.equal(issue.title, `${prefix} ${shortId}`);
+        assert.match(issue.body, new RegExp(`Work ID \\| \`${shortId}\` \\(short ID\\)`));
+        assert.match(issue.body, /This Issue tracks a task admitted to the Git-backed work queue/);
+        assert.match(issue.body, /Editing or closing it does not cancel the task/);
+        assert.doesNotMatch(issue.body, new RegExp(f.nodes[0].work_id));
+        const summary = [...m.comments.values()][0].body;
+        assert.match(summary, new RegExp(`Work:\\*\\* \`${shortId}\` \\(short ID\\)`));
+        assert.doesNotMatch(summary, new RegExp(f.nodes[0].work_id));
+      }
+    });
     it("creates, binds, and recovers known native receipts without duplicate Issues or comments", async () => {
       const f = fixture({ backing: false });
       const m = mock(f);

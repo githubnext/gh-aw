@@ -158,15 +158,18 @@ require an already registered exact revision and the same native checks.
 ## Backing Issues
 
 ```json title=".github/workflows/aw.json"
-{"work_queue": {"issues": {"label": "cookie"}}}
+{"work_queue": {"issues": {"label": "cookie", "title_prefix": "[cookie queue]"}}}
 ```
 
-`issues: true` enables projection with the `work` tracking label and a
-`work:<status>` label. An object may override `label` (for example, `cookie`
-produces `cookie:queued`); an empty object uses defaults. Absent or false
-disables the integration. The label prefix must be a nonblank literal of at
-most 33 bytes, leaving room for the longest status suffix within GitHub's
-50-character label limit; unknown keys are rejected.
+`issues: true` enables projection with the `work` tracking label, a
+`work:<status>` label, and Issue titles like `[work queue] abc1234`. An object
+may override `label` (for example, `cookie` produces `cookie:queued`) and
+`title_prefix` (for example, `[cookie queue] abc1234`); an empty object uses
+defaults. Issue titles and summaries show the first seven characters of the
+Work ID. Absent or false disables the integration. The label prefix must be a
+nonblank literal of at most 33 UTF-8 bytes, leaving room for the longest status
+suffix within GitHub's 50-character label limit. The title prefix must be a
+nonblank literal of at most 80 UTF-8 bytes; unknown keys are rejected.
 
 Status labels are created as needed in the target repository with purple
 (`7057FF`). Statuses use lowercase, hyphenated names with no spaces (for

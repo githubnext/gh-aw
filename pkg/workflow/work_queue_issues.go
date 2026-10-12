@@ -8,7 +8,8 @@ import (
 )
 
 type WorkQueueIssuesConfig struct {
-	Label string `json:"label"`
+	Label       string `json:"label"`
+	TitlePrefix string `json:"title_prefix,omitempty"`
 }
 
 func workQueueProjectorPermissions() *Permissions {
@@ -62,6 +63,9 @@ func workQueueIssuesConfig(data *WorkflowData) *WorkQueueIssuesConfig {
 		if label, ok := fields["label"].(string); ok {
 			result.Label = label
 		}
+		if prefix, ok := fields["title_prefix"].(string); ok {
+			result.TitlePrefix = prefix
+		}
 	}
 	return result
 }
@@ -80,15 +84,19 @@ func validateWorkQueueIssuesConfig(data *WorkflowData) error {
 	}
 	fields, ok := value.(map[string]any)
 	if !ok {
-		return errors.New("tools.work-queue.issues must be true, false, or an object with label")
+		return errors.New("tools.work-queue.issues must be true, false, or an object with label and title_prefix")
 	}
 	for key, value := range fields {
-		if key != "label" {
-			return fmt.Errorf("tools.work-queue.issues: unsupported field %q; use label", key)
+		if key != "label" && key != "title_prefix" {
+			return fmt.Errorf("tools.work-queue.issues: unsupported field %q; use label or title_prefix", key)
 		}
 		text, ok := value.(string)
-		if !ok || strings.TrimSpace(text) == "" || len(text) > 33 || strings.Contains(text, "${{") || strings.IndexFunc(text, func(r rune) bool { return r < 32 || r == 127 }) >= 0 {
-			return fmt.Errorf("tools.work-queue.issues.%s must be a nonblank literal of at most 33 bytes", key)
+		maxBytes := 33
+		if key == "title_prefix" {
+			maxBytes = 80
+		}
+		if !ok || strings.TrimSpace(text) == "" || len(text) > maxBytes || strings.Contains(text, "${{") || strings.IndexFunc(text, func(r rune) bool { return r < 32 || (r >= 127 && r <= 159) }) >= 0 {
+			return fmt.Errorf("tools.work-queue.issues.%s must be a nonblank literal of at most %d bytes", key, maxBytes)
 		}
 	}
 	return nil

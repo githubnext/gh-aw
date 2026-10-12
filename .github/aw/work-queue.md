@@ -40,7 +40,7 @@ binds the actual immutable native run to each Claim; moving `target-ref` is igno
 
 Optional `.github/workflows/aw.json` `work_queue` contains global scheduling and
 Issues/label settings: concurrency, pending limit, retries, pools/fairness and
-`issues` with an optional `label`. Missing settings
+`issues` with optional `label` and `title_prefix`. Missing settings
 use one default pool, weighted-priority, concurrency 16, pending 4,096,
 singleton assignments and three attempts with 30-second backoff.
 First submit automatically installs compiled Policy and Work.
@@ -55,8 +55,10 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 ## Mirror admitted Work with Issues
 
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
-`work: <status>` labels. An object may customize the tracking label and status
-label prefix with `label`. No per-workflow override or enrollment is needed.
+`work: <status>` labels. An object may customize the tracking/status label
+with `label` and the Issue title prefix (default `[work queue]`) with
+`title_prefix`. Issue titles and summaries show seven-character Work IDs.
+No per-workflow override or enrollment is needed.
 Only protected AW hooks
 project their own admissions/original Claims. Immutable `backing_issue` binds
 one Work per Issue. Agents never write mirrors; human edits never establish

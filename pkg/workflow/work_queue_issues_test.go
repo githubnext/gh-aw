@@ -49,6 +49,7 @@ func TestWorkQueueIssuesConfiguration(t *testing.T) {
 		{"true", true, true, "work"},
 		{"false", false, true, ""},
 		{"object", map[string]any{"label": "cookie"}, true, "cookie"},
+		{"custom-title", map[string]any{"title_prefix": "[cookie queue]"}, true, "work"},
 		{"maximum-label-prefix", map[string]any{"label": strings.Repeat("x", 33)}, true, strings.Repeat("x", 33)},
 		{"empty-object", map[string]any{}, true, "work"},
 		{"blank-label", map[string]any{"label": " "}, false, ""},
@@ -57,6 +58,10 @@ func TestWorkQueueIssuesConfiguration(t *testing.T) {
 		{"unknown", map[string]any{"storage": "issues"}, false, ""},
 		{"null", nil, false, ""},
 		{"expression", map[string]any{"label": "${{ inputs.label }}"}, false, ""},
+		{"blank-title", map[string]any{"title_prefix": " "}, false, ""},
+		{"title-too-long", map[string]any{"title_prefix": strings.Repeat("x", 81)}, false, ""},
+		{"title-expression", map[string]any{"title_prefix": "${{ inputs.title }}"}, false, ""},
+		{"title-control", map[string]any{"title_prefix": "queue\n"}, false, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			data := &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{"worker": true, "issues": test.value}}}
@@ -70,6 +75,11 @@ func TestWorkQueueIssuesConfiguration(t *testing.T) {
 				require.Nil(t, config)
 			} else {
 				require.Equal(t, test.label, config.Label)
+				if test.name == "custom-title" {
+					require.Equal(t, "[cookie queue]", config.TitlePrefix)
+				} else {
+					require.Empty(t, config.TitlePrefix)
+				}
 			}
 		})
 	}
@@ -99,7 +109,7 @@ func TestWorkQueueIssuesCompilationUsesExistingJobs(t *testing.T) {
 		return compiled
 	}
 	baseline := compile("", false)
-	enabled := compile(`{"label":"cookie"}`, false)
+	enabled := compile(`{"label":"cookie","title_prefix":"[cookie queue]"}`, false)
 	baseJobs := baseline["jobs"].(map[string]any)
 	jobs := enabled["jobs"].(map[string]any)
 	require.Len(t, jobs, len(baseJobs))
@@ -126,7 +136,7 @@ func TestWorkQueueIssuesCompilationUsesExistingJobs(t *testing.T) {
 		if step["id"] == "work_queue_issues" {
 			require.Equal(t, "always()", step["if"])
 			env := step["env"].(map[string]any)
-			require.JSONEq(t, `{"label":"cookie"}`, env["GH_AW_WORK_QUEUE_ISSUES"].(string))
+			require.JSONEq(t, `{"label":"cookie","title_prefix":"[cookie queue]"}`, env["GH_AW_WORK_QUEUE_ISSUES"].(string))
 			seen = true
 		}
 	}

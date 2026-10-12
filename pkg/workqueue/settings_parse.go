@@ -9,9 +9,10 @@ import (
 )
 
 // IssuesSettings describes optional Issues projection, not queue authority.
-// Nil Settings.Issues means disabled; true or {} uses the default "work" label.
+// Nil Settings.Issues means disabled; true or {} uses the default label and title prefix.
 type IssuesSettings struct {
-	Label string `json:"label"`
+	Label       string `json:"label"`
+	TitlePrefix string `json:"title_prefix"`
 }
 
 func parseIssuesSettings(data []byte) (*IssuesSettings, error) {
@@ -19,13 +20,13 @@ func parseIssuesSettings(data []byte) (*IssuesSettings, error) {
 	case "false":
 		return nil, nil
 	case "true":
-		return &IssuesSettings{Label: "work"}, nil
+		return &IssuesSettings{Label: "work", TitlePrefix: "[work queue]"}, nil
 	}
-	fields, err := settingsObject(data, "work_queue.issues", []string{"label"})
+	fields, err := settingsObject(data, "work_queue.issues", []string{"label", "title_prefix"})
 	if err != nil {
-		return nil, fmt.Errorf("work_queue.issues: use true, false, or an object with an optional literal label: %w", err)
+		return nil, fmt.Errorf("work_queue.issues: use true, false, or an object with optional literal label and title_prefix: %w", err)
 	}
-	issues := &IssuesSettings{Label: "work"}
+	issues := &IssuesSettings{Label: "work", TitlePrefix: "[work queue]"}
 	if data, exists := fields["label"]; exists {
 		var label string
 		if json.Unmarshal(data, &label) != nil || strings.TrimSpace(label) == "" || len(label) > 33 ||
@@ -33,6 +34,14 @@ func parseIssuesSettings(data []byte) (*IssuesSettings, error) {
 			return nil, settingsError("work_queue.issues.label", "must be a nonblank literal of at most 33 UTF-8 bytes without control characters or expressions")
 		}
 		issues.Label = label
+	}
+	if data, exists := fields["title_prefix"]; exists {
+		var prefix string
+		if json.Unmarshal(data, &prefix) != nil || strings.TrimSpace(prefix) == "" || len(prefix) > 80 ||
+			strings.Contains(prefix, "${{") || strings.IndexFunc(prefix, unicode.IsControl) >= 0 {
+			return nil, settingsError("work_queue.issues.title_prefix", "must be a nonblank literal of at most 80 UTF-8 bytes without control characters or expressions")
+		}
+		issues.TitlePrefix = prefix
 	}
 	return issues, nil
 }
