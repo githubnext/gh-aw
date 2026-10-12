@@ -430,7 +430,8 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
   const credit80 = notices.filter(request => request.steering.type === "ai_credit" && Number(request.steering.threshold) === 80);
   if (!credit80.length) t1Problems.push(`no ai_credit@80 notice in token-usage.jsonl`);
   else if (!credit80.some(request => Number(request.status) === 200)) t1Problems.push(`ai_credit@80 notice only on non-200 response(s), so it never reached the model`);
-  const tokenIds = new Set(notices.map(requestId));
+  const noticeKey = (id, steering) => JSON.stringify([id, steeringKey(steering)]);
+  const tokenNoticeKeys = new Set(notices.map(request => noticeKey(requestId(request), request.steering)));
   for (const request of notices) {
     const id = requestId(request);
     const matching = sessionUsage.filter(event => eventRequestId(event) === id);
@@ -440,7 +441,7 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
       t1Problems.push(`session event for request=${id} carries steering ${matching.map(event => steeringKey(event.data?.steering)).join(", ")}, expected ${steeringKey(request.steering)}`);
     }
   }
-  const unmatchedSession = sessionNotices.filter(event => !tokenIds.has(eventRequestId(event)));
+  const unmatchedSession = sessionNotices.filter(event => !tokenNoticeKeys.has(noticeKey(eventRequestId(event), event.data.steering)));
   if (unmatchedSession.length) t1Problems.push(`session notice(s) with no matching token-usage.jsonl record: ${unmatchedSession.map(event => `${steeringKey(event.data.steering)} request=${eventRequestId(event) || "<none>"}`).join(", ")}`);
   const started = events.filter(event => event?.type === "subagent.started");
   if (started.length) t1Problems.push(`${started.length} subagent.started event(s), so a notice may have gone to a sub-agent: ${describeEvents(started)}`);

@@ -655,6 +655,14 @@ describe("smoke_model_routing_assertions", () => {
       expect(lineFor(steeringCheck().failures, "T1")).toMatch(/^FAIL T1 session event for request=run-38174216426-req-7 carries steering ai_credit@90, expected ai_credit@80;/);
     });
 
+    it("fails T1 when a session notice shares a request ID but has different steering", () => {
+      const requests = RUN_CREDITS.slice(0, 11).map(tokenRecord);
+      steeringFixture({
+        sessionRecords: [...requests, { ...requests[6], steering: { type: "ai_credit", threshold: 90 } }],
+      });
+      expect(lineFor(steeringCheck().failures, "T1")).toMatch(/^FAIL T1 session notice\(s\) with no matching token-usage\.jsonl record: ai_credit@90 request=run-38174216426-req-7; observed token-usage notices: /);
+    });
+
     it("fails T1 when the 80% notice was only on a rejected request", () => {
       const credits = RUN_CREDITS.slice(0, 11);
       steeringFixture({ credits });
