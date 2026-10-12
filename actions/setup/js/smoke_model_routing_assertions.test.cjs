@@ -665,9 +665,8 @@ describe("smoke_model_routing_assertions", () => {
   // copilot-subagent-failed-and-alias golden, on claude-haiku-4.5.
   describe("P1 for a model selected without an effort", () => {
     const haikuReflect = { endpoints: [{ provider: "copilot", routing_models: [{ model_id: "claude-haiku-4.5", source: "provider", supported_endpoints: ["/chat/completions", "/v1/messages"], supported_reasoning_efforts: [] }] }] };
-    const haikuSelection = (selectedEffort = null) => ({
-      type: "firewall.model_routing",
-      data: {
+    const haikuSelection = selectedEffort => {
+      const data = {
         schema: "model-routing/v0.28.50",
         stage: "selection",
         objective: { goal: "cost", mode: "economy" },
@@ -675,12 +674,16 @@ describe("smoke_model_routing_assertions", () => {
         mode: "balanced",
         selectedProvider: "copilot",
         selectedModel: "github-copilot/claude-haiku-4.5",
-        selectedEffort,
         wireModel: "claude-haiku-4.5",
         endpoint: "/chat/completions",
-      },
-      provenance: { component: "firewall", phase: "agent", path: "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl", index: 1 },
-    });
+      };
+      if (selectedEffort !== undefined) data.selectedEffort = selectedEffort;
+      return {
+        type: "firewall.model_routing",
+        data,
+        provenance: { component: "firewall", phase: "agent", path: "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl", index: 1 },
+      };
+    };
     const haikuFixture = selectedEffort => {
       write("usage/aw_session.jsonl", [workflowInfo("selected", "claude-haiku-4.5"), haikuSelection(selectedEffort)]);
       write(TOKEN_USAGE, [classifier(), usage("claude-haiku-4.5", "/chat/completions")]);
@@ -694,6 +697,11 @@ describe("smoke_model_routing_assertions", () => {
       expect(failures).toEqual([]);
       expect(passes).toContain("PASS P1 requested mode economy; recommended profile balanced and selected effort null are valid for claude-haiku-4.5");
       expect(info).toEqual(["INFO routing recommended profile=balanced requested mode=economy selected effort=<none>"]);
+    });
+
+    it("fails P1 when selectedEffort is absent from the selection record", () => {
+      haikuFixture(undefined);
+      expect(check(haikuExpectations).failures).toEqual(["FAIL P1 selected effort is undefined, expected null because /reflect lists no supported efforts for claude-haiku-4.5"]);
     });
 
     it("fails P1 when an effort was selected for a model without effort support", () => {

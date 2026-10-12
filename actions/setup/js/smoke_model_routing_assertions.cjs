@@ -335,7 +335,7 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
 
   // P1: requested mode, recommended profile and selected effort. The
   // recommendation and effort are not deterministic, so only their validity is checked.
-  const selectedEffort = selection?.selectedEffort ?? null;
+  const selectedEffort = selection?.selectedEffort;
   if (selection) results.info?.push(`INFO routing recommended profile=${selection.mode ?? "<none>"} requested mode=${selection.objective?.mode ?? "<none>"} selected effort=${selectedEffort ?? "<none>"}`);
   if (expectations.routingMode) {
     const p1Problems = [];
