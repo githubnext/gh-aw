@@ -1014,6 +1014,181 @@
       "published": "2026-10-01",
       "relevant": false,
       "analyzed_at": "2026-10-02-08-41-00"
+    },
+    {
+      "id": "2610.13889v1",
+      "title": "RATED: Reliability-Aware AI Agent Tool Retrieval via Execution Dynamics",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13886v1",
+      "title": "X-AgentRed: Red-Teaming Personal Agents in Evolving Multi-Service Ecosystems",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13841v1",
+      "title": "Returning to Development States: When Full Sandbox Snapshots Help Coding Agents",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13829v1",
+      "title": "MC-EvoBench: Auditing Experience-Driven Self-Improvement in Minecraft Agents",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13811v1",
+      "title": "QTestBench: A Test Framework for Evaluating LLM-Generated Quantum Code",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13772v1",
+      "title": "MARGoS: A Configuration-Driven Platform for Reproducible MARL Experiments in ARGoS",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13755v1",
+      "title": "Matched-Context Group Policy Optimization for LLM Agent Training",
+      "published": "2026-10-09",
+      "relevant": false,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13737v1",
+      "title": "SafeDiSTL: Decomposing Joint Constraints for Safe Multi-Agent Reinforcement Learning",
+      "published": "2026-10-09",
+      "relevant": false,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13703v1",
+      "title": "A Baseline Assessment for the Agentic Web Technology Stack",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13668v1",
+      "title": "(When) Should a Software Factory be Lights-off? Benchmarking Code Review Agents on Bug Detection",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13663v1",
+      "title": "A Multi-Agent LLM System for Automated Tuning of Specialized Neural Network Models",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13647v1",
+      "title": "A-SAW: The Agentic Software Architecture Workflow",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13632v1",
+      "title": "Humanize Olympiad Agents: A Multi-Session Workflow for Olympiad Problem Solving with Solve, Review, Wiki, Verify",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13594v1",
+      "title": "MENTOR: Learning from Failure with On-Policy Pedagogical Intervention",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13563v1",
+      "title": "Not All Correct Fixes Run Alike: An Empirical Study of Patch Performance in Repository-Level Issue Resolution",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13557v1",
+      "title": "Probabilistic Ship Trajectory Forecasting using Transformer Models on AIS Data",
+      "published": "2026-10-09",
+      "relevant": false,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13534v1",
+      "title": "MAGMA-Bench: Evaluating Long-Horizon Embodied Agents under Dynamic Tasks and Execution Failures",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13494v1",
+      "title": "Humanize MLE Agents: Multi-Agent Session Alternation Beyond Single-Agent Limits",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13481v1",
+      "title": "Branching On-Policy Distillation",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13479v1",
+      "title": "A Local Agentic AI Framework to Generate Edge Case Scenarios for Safety Assurance",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13461v1",
+      "title": "SqueezeBench: Saturation-Resilient Evaluation of Mathematical Capability",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13455v1",
+      "title": "Agentic Large Language Models",
+      "published": "2026-10-09",
+      "relevant": false,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13439v1",
+      "title": "Collective Autonomous Vehicle Routing Needs Social Awareness for Coexistence with Human Drivers",
+      "published": "2026-10-09",
+      "relevant": false,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13438v1",
+      "title": "Rollout-Time Intervention: Unlocking Agentic Reinforcement Learning Beyond Policy Limits",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.13421v1",
+      "title": "REINS: Agent-guided Thread Scheduling for Concurrency Bug Detection and Reproduction",
+      "published": "2026-10-09",
+      "relevant": true,
+      "analyzed_at": "2026-10-12-09-12-27"
     }
   ]
 }

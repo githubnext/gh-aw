@@ -172,3 +172,193 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 | 2610.01834v1 | Code Owns the Simulation, Jev Owns the Evaluation | 2026-10-01 | N | | |
 | 2610.01833v1 | Continuous Process-Level Evaluation for Evolving Enterprise AI Agent Skills | 2026-10-01 | Y | x | y |
 | 2610.01827v1 | Scientific Discovery under Validation Congestion via Multi-Fidelity Pairwise Rankings | 2026-10-01 | N | | |
+
+### [RATED: Reliability-Aware AI Agent Tool Retrieval via Execution Dynamics](https://arxiv.org/abs/2610.13889v1)
+- **ID**: 2610.13889v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.IR
+- **Relevant**: Yes
+- **Opportunity**: Add reliability-aware tool ranking using discounted execution outcomes.
+- **Area**: Tool routing and reliability
+
+### [X-AgentRed: Red-Teaming Personal Agents in Evolving Multi-Service Ecosystems](https://arxiv.org/abs/2610.13886v1)
+- **ID**: 2610.13886v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Generate bounded compositional abuse cases from tool effect and precondition graphs.
+- **Area**: Security testing
+
+### [Returning to Development States: When Full Sandbox Snapshots Help Coding Agents](https://arxiv.org/abs/2610.13841v1)
+- **ID**: 2610.13841v1
+- **Published**: 2026-10-09
+- **Categories**: cs.LG,cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Select lightweight or full retry checkpoints based on external runtime state.
+- **Area**: Failure recovery
+
+### [MC-EvoBench: Auditing Experience-Driven Self-Improvement in Minecraft Agents](https://arxiv.org/abs/2610.13829v1)
+- **ID**: 2610.13829v1
+- **Published**: 2026-10-09
+- **Categories**: cs.RO,cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Evaluate memory transfer with reset targets, controls, verifiers, and provenance.
+- **Area**: Memory evaluation
+
+### [QTestBench: A Test Framework for Evaluating LLM-Generated Quantum Code](https://arxiv.org/abs/2610.13811v1)
+- **ID**: 2610.13811v1
+- **Published**: 2026-10-09
+- **Categories**: cs.LG,cs.CL,quant-ph
+- **Relevant**: Yes
+- **Opportunity**: Score generated tests against independent oracles and verified mutants.
+- **Area**: Agent evaluation
+
+### [MARGoS: A Configuration-Driven Platform for Reproducible MARL Experiments in ARGoS](https://arxiv.org/abs/2610.13772v1)
+- **ID**: 2610.13772v1
+- **Published**: 2026-10-09
+- **Categories**: cs.SE,cs.MA,cs.RO
+- **Relevant**: Yes
+- **Opportunity**: Create portable run bundles with normalized inputs, metadata, fingerprints, and logs.
+- **Area**: Reproducibility and provenance
+
+### [Matched-Context Group Policy Optimization for LLM Agent Training](https://arxiv.org/abs/2610.13755v1)
+- **ID**: 2610.13755v1
+- **Published**: 2026-10-09
+- **Categories**: cs.LG,cs.AI
+- **Relevant**: No
+
+### [SafeDiSTL: Decomposing Joint Constraints for Safe Multi-Agent Reinforcement Learning](https://arxiv.org/abs/2610.13737v1)
+- **ID**: 2610.13737v1
+- **Published**: 2026-10-09
+- **Categories**: cs.LG,cs.AI
+- **Relevant**: No
+
+### [A Baseline Assessment for the Agentic Web Technology Stack](https://arxiv.org/abs/2610.13703v1)
+- **ID**: 2610.13703v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.ET,cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Benchmark engines by workflow class and recommend task-specific configurations.
+- **Area**: Engine benchmarking
+
+### [(When) Should a Software Factory be Lights-off? Benchmarking Code Review Agents on Bug Detection](https://arxiv.org/abs/2610.13668v1)
+- **ID**: 2610.13668v1
+- **Published**: 2026-10-09
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Add complexity-aware, repository-grounded review profiles with ranked findings.
+- **Area**: Review workflow orchestration
+
+### [A Multi-Agent LLM System for Automated Tuning of Specialized Neural Network Models](https://arxiv.org/abs/2610.13663v1)
+- **ID**: 2610.13663v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.CL,cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Provide an analyst-coder-recorder pattern with a persistent experiment ledger.
+- **Area**: Multi-agent workflow patterns
+
+### [A-SAW: The Agentic Software Architecture Workflow](https://arxiv.org/abs/2610.13647v1)
+- **ID**: 2610.13647v1
+- **Published**: 2026-10-09
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Validate documentation provenance and require approval for authoritative updates.
+- **Area**: Provenance and human oversight
+
+### [Humanize Olympiad Agents: A Multi-Session Workflow for Olympiad Problem Solving with Solve, Review, Wiki, Verify](https://arxiv.org/abs/2610.13632v1)
+- **ID**: 2610.13632v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Ship a worker-reviewer-repair template with knowledge and verification gates.
+- **Area**: Sub-agent orchestration
+
+### [MENTOR: Learning from Failure with On-Policy Pedagogical Intervention](https://arxiv.org/abs/2610.13594v1)
+- **ID**: 2610.13594v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Classify failures and issue tailored corrective prompts within bounded retries.
+- **Area**: Error recovery
+
+### [Not All Correct Fixes Run Alike: An Empirical Study of Patch Performance in Repository-Level Issue Resolution](https://arxiv.org/abs/2610.13563v1)
+- **ID**: 2610.13563v1
+- **Published**: 2026-10-09
+- **Categories**: cs.SE,cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Optionally detect statistically meaningful patch performance regressions.
+- **Area**: Patch validation
+
+### [Probabilistic Ship Trajectory Forecasting using Transformer Models on AIS Data](https://arxiv.org/abs/2610.13557v1)
+- **ID**: 2610.13557v1
+- **Published**: 2026-10-09
+- **Categories**: cs.LG,cs.RO
+- **Relevant**: No
+
+### [MAGMA-Bench: Evaluating Long-Horizon Embodied Agents under Dynamic Tasks and Execution Failures](https://arxiv.org/abs/2610.13534v1)
+- **ID**: 2610.13534v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.RO
+- **Relevant**: Yes
+- **Opportunity**: Checkpoint goals, assignments, progress, failures, and revisions.
+- **Area**: Persistent workflow state
+
+### [Humanize MLE Agents: Multi-Agent Session Alternation Beyond Single-Agent Limits](https://arxiv.org/abs/2610.13494v1)
+- **ID**: 2610.13494v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Hand long tasks to fresh sessions using structured persistent summaries.
+- **Area**: Sub-agent orchestration
+
+### [Branching On-Policy Distillation](https://arxiv.org/abs/2610.13481v1)
+- **ID**: 2610.13481v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Fork uncertain decisions from reproducible checkpoints and rank continuations.
+- **Area**: Token optimization
+
+### [A Local Agentic AI Framework to Generate Edge Case Scenarios for Safety Assurance](https://arxiv.org/abs/2610.13479v1)
+- **ID**: 2610.13479v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.RO
+- **Relevant**: Yes
+- **Opportunity**: Generate, critique, validate, and execute workflow edge cases iteratively.
+- **Area**: Workflow evaluation
+
+### [SqueezeBench: Saturation-Resilient Evaluation of Mathematical Capability](https://arxiv.org/abs/2610.13461v1)
+- **ID**: 2610.13461v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI,cs.LG,cs.LO
+- **Relevant**: Yes
+- **Opportunity**: Require validity, non-regression, and strict improvement for evaluation baselines.
+- **Area**: Continuous evaluation
+
+### [Agentic Large Language Models](https://arxiv.org/abs/2610.13455v1)
+- **ID**: 2610.13455v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Collective Autonomous Vehicle Routing Needs Social Awareness for Coexistence with Human Drivers](https://arxiv.org/abs/2610.13439v1)
+- **ID**: 2610.13439v1
+- **Published**: 2026-10-09
+- **Categories**: cs.MA,cs.AI
+- **Relevant**: No
+
+### [Rollout-Time Intervention: Unlocking Agentic Reinforcement Learning Beyond Policy Limits](https://arxiv.org/abs/2610.13438v1)
+- **ID**: 2610.13438v1
+- **Published**: 2026-10-09
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Repair failed trajectories using evaluator evidence and integrity constraints.
+- **Area**: Error recovery
+
+### [REINS: Agent-guided Thread Scheduling for Concurrency Bug Detection and Reproduction](https://arxiv.org/abs/2610.13421v1)
+- **ID**: 2610.13421v1
+- **Published**: 2026-10-09
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Provide typed hypothesis-testing workflows with reproducible evidence.
+- **Area**: Workflow patterns
