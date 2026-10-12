@@ -105,7 +105,6 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     if (event.type === "agent.execution" && event.provenance.component === "execution" && event.provenance.phase === "agent" && event.data.exitCode > 0) {
       // A CLI parse error itself makes the bridge exit non-zero; preserve that more specific cause.
       if (!safeoutputsCliError) reason = "engine_driver_failure";
-      diagnostics.add(`Driver exit code: ${event.data.exitCode}. The engine driver exited before a terminal safe output was recorded.`);
     }
     if (event.type === "agent.execution" && event.provenance.component === "execution" && event.provenance.phase === "agent") {
       if (Number.isSafeInteger(event.data.exitCode)) driverExitCode = event.data.exitCode;
@@ -171,9 +170,6 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const engineSummary = agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);
   const engineErrorType = engineSummary.match(/\(([a-z][a-z0-9_]*)\)/)?.[1] || "";
-  if (driverExitCode !== undefined && ![...diagnostics].some(diagnostic => diagnostic.startsWith("Driver exit code:"))) {
-    diagnostics.add(`Driver exit code: ${driverExitCode}`);
-  }
   const errorCodes = executionErrorCodes.filter(code => Number.isSafeInteger(code) && code >= 400 && code <= 599);
   const isPromptExhaustion = executionCategories.some(category => PROMPT_EXHAUSTION_ERROR_CATEGORIES.has(category));
   const isRequestRejection = ["invalid_safe_outputs", "safeoutputs_cli_error"].includes(reason) || executionCategories.some(category => REQUEST_REJECTION_ERROR_CATEGORIES.has(category)) || errorCodes.some(code => code >= 400 && code < 500);
@@ -213,7 +209,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   }
   const summary = [
     `Failure classification: ${failureCause}`,
-    `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+    reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
     `Last tool call: ${redact(lastToolCall)}`,
     `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
     `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,

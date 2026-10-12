@@ -98,6 +98,7 @@ describe("empty output outcome", () => {
     expect(outcome.failureCause).toBe("engine_outage");
     expect(outcome.driverExitCode).toBe(exitCode);
     expect(outcome.details).toContain(`Driver exit code: ${exitCode}`);
+    expect(outcome.details.match(/Driver exit code:/g)).toHaveLength(1);
     expect(outcome.details).toContain("Failure classification: engine_outage");
     expect(outcome.details).toContain("Last engine error type: unknown");
   });
@@ -112,6 +113,7 @@ describe("empty output outcome", () => {
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.driverExitCode).toBe(0);
     expect(outcome.details).toContain("Driver exit code: 0");
+    expect(outcome.details.match(/Driver exit code:/g)).toHaveLength(1);
     expect(outcome.failureCause).toBe("missing_terminal_safe_output");
   });
 

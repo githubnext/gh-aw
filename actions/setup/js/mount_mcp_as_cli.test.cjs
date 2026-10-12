@@ -8,6 +8,7 @@ import path from "path";
 import {
   AWF_GATEWAY_IP,
   buildMCPCLIServersPromptList,
+  clearStaleSafeOutputsRegistrationEvidence,
   fetchMCPToolsWithRetry,
   getSafeOutputsGatewayEmptyFlagPath,
   parseMCPResponseBody,
@@ -18,6 +19,26 @@ import {
 } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
+  it("clears stale safe-output registration evidence without removing other tool caches", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-cleanup-"));
+    const flagPath = path.join(tempDir, "gh-aw/safeoutputs/gateway_empty.flag");
+    const toolsPath = path.join(tempDir, "gh-aw/mcp-cli/tools/safeoutputs.json");
+    const otherToolsPath = path.join(tempDir, "gh-aw/mcp-cli/tools/github.json");
+    fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+    fs.mkdirSync(path.dirname(toolsPath), { recursive: true });
+    fs.writeFileSync(flagPath, "");
+    fs.writeFileSync(toolsPath, "[]");
+    fs.writeFileSync(otherToolsPath, "[]");
+    try {
+      clearStaleSafeOutputsRegistrationEvidence(tempDir);
+      expect(fs.existsSync(flagPath)).toBe(false);
+      expect(fs.existsSync(toolsPath)).toBe(false);
+      expect(fs.existsSync(otherToolsPath)).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("parses JSON object responses unchanged", () => {
     const body = { jsonrpc: "2.0", result: { tools: [{ name: "logs" }] } };
     expect(parseMCPResponseBody(body)).toEqual(body);
