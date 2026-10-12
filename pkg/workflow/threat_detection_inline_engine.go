@@ -112,9 +112,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 
 	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
-	// NetworkPermissions.Allowed preserves only literal user-specified domains when Copilot
-	// BYOK is enabled so secret-backed provider URLs can still be paired with an explicit
-	// provider hostname in network.allowed without re-opening whole ecosystem allow-lists.
+	// NetworkPermissions.Allowed preserves the explicit copilot-vendor opt-in and literal
+	// user-specified domains when Copilot BYOK is enabled, without re-opening other ecosystem
+	// allow-lists.
 	// No MCP servers are configured for detection.
 	// bash: ["*"] allows all shell commands — AWF's network firewall is the primary
 	// constraint, so restricting individual bash commands inside the sandbox adds friction
