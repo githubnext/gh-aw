@@ -217,6 +217,33 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
 
+    it("should validate continue_workflow hops dispatched by maintenance against the chain initiator", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.actor = "github-actions[bot]";
+      mockContext.payload = {
+        inputs: {
+          aw_context: JSON.stringify({
+            actor: "octocat",
+            origin_event: "continue_workflow",
+            continuation: { chain_id: "wf-1", hop: 1, dispatch_id: "dispatch-0001" },
+          }),
+        },
+      };
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read" },
+      });
+
+      await runScript();
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "octocat",
+      });
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "authorized");
+    });
+
     it("should deny centralized workflow_dispatch from fork-based pull requests", async () => {
       mockContext.eventName = "workflow_dispatch";
       mockContext.actor = "github-actions[bot]";

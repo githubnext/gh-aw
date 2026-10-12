@@ -94,6 +94,7 @@ type SafeOutputsConfig struct {
 	LinkSubIssue                           *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`               // Link issues as sub-issues
 	HideComment                            *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
 	SetIssueType                           *SetIssueTypeConfig                    `yaml:"set-issue-type,omitempty"`               // Set the type of an issue (empty string clears the type)
+	ContinueWorkflow                       *ContinueWorkflowConfig                `yaml:"continue-workflow,omitempty"`            // Opt-in: continue long-running work in fresh runs on one work branch
 	SetIssueField                          *SetIssueFieldConfig                   `yaml:"set-issue-field,omitempty"`              // Set a single issue field value by name/value
 	DispatchWorkflow                       *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
 	WorkQueueEnabled                       bool                                   `yaml:"-"`                                      // Internal work-queue dispatcher flag

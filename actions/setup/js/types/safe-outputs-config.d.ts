@@ -283,6 +283,14 @@ interface SetIssueTypeConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for continuing long-running work in fresh runs on one work branch
+ */
+interface ContinueWorkflowConfig extends SafeOutputConfig {
+  /** Maximum number of continuation runs after the first run (default: 3) */
+  max_hops?: number;
+}
+
+/**
  * Configuration for assigning agents to issues
  */
 interface AssignToAgentConfig extends SafeOutputConfig {
@@ -392,6 +400,7 @@ type SpecificSafeOutputConfig =
   | UploadAssetConfig
   | AssignMilestoneConfig
   | SetIssueTypeConfig
+  | ContinueWorkflowConfig
   | AssignToAgentConfig
   | UpdateReleaseConfig
   | NoOpConfig
@@ -431,6 +440,7 @@ export {
   UploadAssetConfig,
   AssignMilestoneConfig,
   SetIssueTypeConfig,
+  ContinueWorkflowConfig,
   AssignToAgentConfig,
   UpdateReleaseConfig,
   NoOpConfig,

@@ -206,8 +206,9 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	hasExpires, minExpires, triggerReason := scanWorkflowsForExpires(workflowDataList, repoConfig)
 	compactionLedgers := collectMaintenanceCompactionLedgers(workflowDataList)
 	hasWorkQueue := slices.ContainsFunc(workflowDataList, isWorkQueueEnabled)
+	hasContinuations := slices.ContainsFunc(workflowDataList, hasContinueWorkflow)
 
-	if !hasExpires && len(compactionLedgers) == 0 && !hasWorkQueue {
+	if !hasExpires && len(compactionLedgers) == 0 && !hasWorkQueue && !hasContinuations {
 		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
 
 		// No maintenance workflow means no scheduled close-expired-issues consumer.
@@ -266,6 +267,8 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	if triggerReason == "" {
 		if hasWorkQueue {
 			triggerReason = "work queue maintenance"
+		} else if hasContinuations {
+			triggerReason = "continue-workflow dispatch"
 		} else {
 			triggerReason = fmt.Sprintf("%d compaction-enabled ledger(s)", len(compactionLedgers))
 		}
@@ -286,6 +289,11 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	cronDays := minExpiresDays
 	if !hasExpires {
 		cronDays = 7 // maps to daily in generateMaintenanceCron (> 4 days)
+	}
+	// Continuation hops are dispatched immediately by the continue_workflow handler; the
+	// schedule only retries dispatches that failed, so it runs every 2 hours.
+	if hasContinuations {
+		cronDays = 1
 	}
 	cronSchedule, scheduleDesc := generateMaintenanceCron(cronDays)
 	maintenanceLog.Printf("Maintenance schedule: %s (%s)", cronSchedule, scheduleDesc)
@@ -326,6 +334,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		copilotOrgBilling:   copilotOrgBilling,
 		compactionLedgers:   compactionLedgers,
 		hasWorkQueue:        hasWorkQueue,
+		hasContinuations:    hasContinuations,
 		hasCacheMemory:      hasCacheMemory,
 	})
 	if err != nil {
@@ -429,6 +438,14 @@ func handleMaintenanceDisabled(workflowDataList []*WorkflowData, workflowDir str
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 				fmt.Sprintf("Workflow '%s' uses the 'expires' field but maintenance is disabled in aw.json. "+
 					"Expiration will not run until maintenance is re-enabled.", workflowData.Name)))
+		}
+	}
+
+	for _, workflowData := range workflowDataList {
+		if hasContinueWorkflow(workflowData) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Workflow '%s' uses continue-workflow but maintenance is disabled in aw.json. "+
+					"Continuation runs will not be dispatched until maintenance is re-enabled.", workflowData.Name)))
 		}
 	}
 

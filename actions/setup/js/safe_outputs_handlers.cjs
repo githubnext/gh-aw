@@ -419,6 +419,29 @@ function resolvePatchWorkspacePath(workspacePath) {
   return { success: true, absolutePath: resolved };
 }
 
+/** Context written by the continue_workflow checkout step of a continuation hop. */
+const CONTINUE_WORKFLOW_CONTEXT_FILE = "/tmp/gh-aw/continue-workflow/context.json";
+
+/**
+ * Reads the continuation context of this run, if any. The file is only a convenience for
+ * computing the incremental range: the safe-outputs job re-derives every trusted value from
+ * the continuation ledger.
+ * @returns {{branch: string, base_sha: string, base_branch: string, hop: number, max_hops: number, remaining_hops: number} | null}
+ */
+function readContinueWorkflowContext() {
+  if (!fs.existsSync(CONTINUE_WORKFLOW_CONTEXT_FILE)) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(CONTINUE_WORKFLOW_CONTEXT_FILE, "utf8"));
+  } catch (error) {
+    throw new Error(`${ERR_PARSE}: continuation context is not valid JSON: ${getErrorMessage(error)}`);
+  }
+  if (!parsed || typeof parsed.branch !== "string" || !/^[0-9a-f]{40}$/.test(String(parsed.base_sha)) || typeof parsed.base_branch !== "string") {
+    throw new Error(`${ERR_VALIDATION}: continuation context is incomplete`);
+  }
+  return parsed;
+}
+
 /**
  * Create handlers for safe output tools
  * @param {Object} server - The MCP server instance for logging
@@ -522,6 +545,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     appendSafeOutput(entry);
     if (type) operationCounts.set(scopedKey(type), (operationCounts.get(scopedKey(type)) || 0) + 1);
   };
+
+  // continue_workflow and create_pull_request are mutually exclusive within one run: a run
+  // either hands its progress to the next hop or opens the chain's single pull request.
+  /** @type {{continueWorkflow: boolean, createPullRequest: boolean}} */
+  const continuationOutputs = { continueWorkflow: false, createPullRequest: false };
+  const continuationExclusionError = (/** @type {string} */ message) => ({
+    content: [{ type: "text", text: JSON.stringify({ result: "error", error: message }) }],
+    isError: true,
+  });
 
   /**
    * Validate schema-declared explicit target parameters for wildcard-target tools.
@@ -846,6 +878,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const normalizedArgs = normalizeCombinedTitleBodyArgs(args);
     /** @type {any} */
     const entry = { ...normalizedArgs, type: "create_pull_request" };
+    if (continuationOutputs.continueWorkflow) {
+      return continuationExclusionError("continue_workflow was already called in this run. A run either continues the workflow or creates the final pull request, never both.");
+    }
+    /** @type {ReturnType<typeof readContinueWorkflowContext>} */
+    let continuationContext = null;
+    if (config.continue_workflow) {
+      try {
+        continuationContext = readContinueWorkflowContext();
+      } catch (error) {
+        return continuationExclusionError(getErrorMessage(error));
+      }
+    }
     if (config.create_pull_request?.require_temporary_id === true && !entry.temporary_id) {
       return buildIntentErrorResponse(buildMissingTemporaryIdError("create_pull_request", "create-pull-request"));
     }
@@ -961,6 +1005,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         });
       }
     }
+    if (continuationContext) {
+      baseBranch = continuationContext.base_branch;
+    }
 
     // Store the resolved base branch in the entry so the apply-time checkout step
     // can use it directly instead of inferring from event context.
@@ -1018,18 +1065,24 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    // The final hop of a continued workflow opens its pull request from the continuation branch.
+    if (continuationContext && entry.branch !== continuationContext.branch) {
+      return continuationExclusionError(`This run continues workflow branch '${continuationContext.branch}'. Commit the final changes on that branch and call create_pull_request with branch '${continuationContext.branch}'.`);
+    }
+
     const intentValidationError = validateCreatePullRequestIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
     }
 
     // Check if allow-empty is enabled in configuration
-    const allowEmpty = config.create_pull_request?.allow_empty === true;
+    const allowEmpty = config.create_pull_request?.allow_empty === true && !continuationContext;
 
     if (allowEmpty) {
       server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
       // Append the safe output entry without generating a patch
       appendSafeOutputCounted(entry);
+      continuationOutputs.createPullRequest = true;
       return {
         content: [
           {
@@ -1116,6 +1169,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Pass pinnedSha so patch generation uses the pinned commit, not a potentially-flipped ref
     if (pinnedSha) {
       patchOptions.pinnedSha = pinnedSha;
+    }
+    // In a continuation hop only the commits made since the recorded work-branch head are new.
+    if (continuationContext) {
+      patchOptions.mode = "incremental";
+      patchOptions.incrementalBaseSha = continuationContext.base_sha;
+      transportOptions.mode = "incremental";
+      transportOptions.incrementalBaseSha = continuationContext.base_sha;
     }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, patchOptions);
 
@@ -1236,6 +1296,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       appendSafeOutputCounted(entry);
+      continuationOutputs.createPullRequest = true;
       return {
         content: [
           {
@@ -1258,6 +1319,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     appendSafeOutputCounted(entry);
+    continuationOutputs.createPullRequest = true;
     return {
       content: [
         {
@@ -1290,6 +1352,125 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * contributor forks that cannot be written are rejected before persisting an
    * output. The apply-time handler still validates full PR data independently.
    */
+  /**
+   * Handler for continue_workflow: hands the committed progress of this run to a fresh
+   * workflow run on the same work branch. The commits must update plan.md so the next run
+   * knows where to resume; the safe-outputs job pushes the commits and schedules the hop.
+   */
+  const continueWorkflowHandler = async args => {
+    const toolError = (/** @type {string} */ message, /** @type {string} */ details = "") => continuationExclusionError(details ? `${message} ${details}` : message);
+    if (continuationOutputs.createPullRequest) {
+      return toolError("create_pull_request was already called in this run. A run either continues the workflow or creates the final pull request, never both.");
+    }
+    if (continuationOutputs.continueWorkflow) {
+      return toolError("continue_workflow may be called only once per run.");
+    }
+    const prConfig = config.create_pull_request || {};
+    const reason = typeof args?.reason === "string" ? args.reason.trim() : "";
+    if (!reason) {
+      return toolError("continue_workflow requires a 'reason' describing why another run is needed.");
+    }
+
+    let continuationContext;
+    try {
+      continuationContext = readContinueWorkflowContext();
+    } catch (error) {
+      return toolError(getErrorMessage(error));
+    }
+    if (continuationContext && Number(continuationContext.remaining_hops) <= 0) {
+      return toolError(`The continuation budget of ${continuationContext.max_hops} hops is exhausted. Finish the work, commit it on '${continuationContext.branch}', and call create_pull_request.`);
+    }
+
+    const gitCwd = process.env.GITHUB_WORKSPACE || process.cwd();
+    ensureSafeDirectoryTrust(gitCwd, server);
+    let baseBranch;
+    if (continuationContext) {
+      baseBranch = continuationContext.base_branch;
+    } else if (typeof prConfig.base_branch === "string" && prConfig.base_branch.trim()) {
+      baseBranch = prConfig.base_branch.trim();
+    } else {
+      const repoSlug = `${process.env.GITHUB_REPOSITORY || ""}`;
+      const manifestEntry = repoSlug ? lookupCheckout(repoSlug) : null;
+      const [owner = "", repo = ""] = repoSlug.split("/");
+      baseBranch = manifestEntry?.default_branch || (await getBaseBranch({ owner, repo }, { preferLocalDefaultBranchMetadata: true, cwd: gitCwd }));
+    }
+
+    let branch = typeof args?.branch === "string" ? args.branch.trim() : "";
+    if (!branch || branch === baseBranch) branch = getCurrentBranch(undefined);
+    if (continuationContext && branch !== continuationContext.branch) {
+      return toolError(`This run continues workflow branch '${continuationContext.branch}'. Commit your progress on that branch and call continue_workflow with branch '${continuationContext.branch}'.`);
+    }
+    if (!branch || branch === baseBranch) {
+      return toolError(`Commit your progress on a work branch other than the base branch '${baseBranch}' before calling continue_workflow.`);
+    }
+
+    let pinnedSha;
+    try {
+      pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+    } catch (error) {
+      return toolError(`Branch '${branch}' does not exist locally: ${getErrorMessage(error)}`);
+    }
+
+    /** @type {Record<string, any>} */
+    const transportOptions = { pinnedSha };
+    if (prConfig["github-token"]) transportOptions.token = prConfig["github-token"];
+    if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) transportOptions.excludedFiles = prConfig.excluded_files;
+    if (continuationContext) {
+      transportOptions.mode = "incremental";
+      transportOptions.incrementalBaseSha = continuationContext.base_sha;
+    }
+    const noCommitsDetails = "Commit your progress (including an updated plan.md) with git add and git commit before calling continue_workflow.";
+    const patchResult = await generateGitPatch(branch, baseBranch, { ...transportOptions });
+    if (!patchResult.success) {
+      return toolError(patchResult.error || "Failed to generate patch.", noCommitsDetails);
+    }
+
+    const rangeBase = continuationContext ? continuationContext.base_sha : patchResult.baseCommit;
+    if (rangeBase) {
+      let changedPlan = "";
+      try {
+        changedPlan = execGitSync(["diff", "--name-only", rangeBase, pinnedSha, "--", "plan.md"], { cwd: gitCwd }).toString().trim();
+      } catch (error) {
+        return toolError(`Failed to inspect the committed changes: ${getErrorMessage(error)}`);
+      }
+      if (!changedPlan) {
+        return toolError("The commits of this run do not update plan.md.", "Record completed work and the remaining steps in plan.md at the repository root, commit it, and call continue_workflow again.");
+      }
+    }
+
+    const bundleResult = await generateGitBundle(branch, baseBranch, transportOptions);
+    if (!bundleResult.success) {
+      return toolError(bundleResult.error || "Failed to generate bundle.", noCommitsDetails);
+    }
+    let currentSha;
+    try {
+      currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+    } catch (error) {
+      return toolError(`Failed to verify branch integrity after bundle generation: ${getErrorMessage(error)}`);
+    }
+    if (currentSha !== pinnedSha) {
+      return toolError("Branch ref changed during transport artifact generation. Please retry.");
+    }
+
+    /** @type {Record<string, any>} */
+    const entry = { type: "continue_workflow", branch, reason };
+    if (typeof args?.next_steps === "string" && args.next_steps.trim()) entry.next_steps = args.next_steps.trim();
+    appendSafeOutputCounted(entry);
+    continuationOutputs.continueWorkflow = true;
+    const nextHop = continuationContext ? Number(continuationContext.hop) + 1 : 1;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            message: `Progress on '${branch}' will be pushed and run ${nextHop} of this workflow will be scheduled to resume from plan.md. Do not call create_pull_request in this run.`,
+          }),
+        },
+      ],
+    };
+  };
+
   const pushToPullRequestBranchHandler = async args => {
     const entry = { ...(args || {}), type: "push_to_pull_request_branch" };
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
@@ -3409,6 +3590,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     uploadArtifactHandler,
     uploadCodeCoverageHandler,
     createPullRequestHandler,
+    continueWorkflowHandler,
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,
     createIssueHandler,

@@ -53,5 +53,5 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil || safeOutputs.ContinueWorkflow != nil
 }

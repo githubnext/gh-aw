@@ -219,6 +219,10 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		enabledTools["set_issue_type"] = struct {
 		}{}
 	}
+	if data.SafeOutputs.ContinueWorkflow != nil {
+		enabledTools["continue_workflow"] = struct {
+		}{}
+	}
 	if data.SafeOutputs.SetIssueField != nil {
 		enabledTools["set_issue_field"] = struct {
 		}{}

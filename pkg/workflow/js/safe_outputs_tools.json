@@ -586,6 +586,31 @@
     }
   },
   {
+    "name": "continue_workflow",
+    "description": "Hand the committed progress of this run to a fresh run of the same workflow on the same work branch, when the task cannot be finished within this run. Before calling it, commit your work on the work branch, including plan.md at the repository root recording completed work and the remaining steps. Do not call create_pull_request in the same run: the final run of the chain creates the single pull request. Calls are limited by the configured number of continuation hops.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Why another run is needed to finish the task (for example, the remaining work does not fit in this run).",
+          "maxLength": 2000
+        },
+        "branch": {
+          "type": "string",
+          "description": "Work branch containing the committed progress. If omitted, uses the current working branch. In a continued run it must be the branch this run resumed."
+        },
+        "next_steps": {
+          "type": "string",
+          "description": "Short summary of the next steps the following run should take; the full plan belongs in plan.md.",
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "create_pull_request",
     "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. This is a write-once declaration for a real intended PR, not a sandbox or probe: do not call it with placeholder content, test titles/bodies, or auth experiments. If you are not ready to open the real PR, use noop or report_incomplete instead. For code review comments on an existing PR, use create_pull_request_review_comment instead.",
     "inputSchema": {

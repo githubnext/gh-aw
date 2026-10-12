@@ -316,6 +316,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.SetIssueType = setIssueTypeConfig
 			}
 
+			// Handle continue-workflow
+			continueWorkflowConfig := c.parseContinueWorkflowConfig(outputMap)
+			if continueWorkflowConfig != nil {
+				config.ContinueWorkflow = continueWorkflowConfig
+			}
+
 			// Handle set-issue-field
 			setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap)
 			if setIssueFieldConfig != nil {

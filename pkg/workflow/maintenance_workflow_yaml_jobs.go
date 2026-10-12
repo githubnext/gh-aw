@@ -183,6 +183,9 @@ func maintenanceRunOperationExclusions(opts buildMaintenanceWorkflowYAMLOptions)
 	if len(opts.compactionLedgers) > 0 {
 		excluded = append(excluded, maintenanceCompactLedgerOperation)
 	}
+	if opts.hasContinuations {
+		excluded = append(excluded, maintenanceDispatchContinuationsOperation)
+	}
 	return excluded
 }
 

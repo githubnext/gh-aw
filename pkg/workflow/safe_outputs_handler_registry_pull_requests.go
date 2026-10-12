@@ -3,6 +3,7 @@ package workflow
 // pullRequestHandlerRegistry contains pull request lifecycle and review handler builders.
 var pullRequestHandlerRegistry = map[string]handlerBuilder{
 	"create_pull_request": buildCreatePullRequestHandlerConfig,
+	"continue_workflow":   buildContinueWorkflowHandlerConfig,
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.PushToPullRequestBranch == nil {
 			return nil

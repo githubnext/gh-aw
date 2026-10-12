@@ -47,7 +47,8 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 	}
 	createPRNeedsCheckout := safeOutputs.CreatePullRequests != nil && !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputs.CreatePullRequests.Staged)
 	pushToPRNeedsCheckout := safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputs.PushToPullRequestBranch.Staged)
-	result := createPRNeedsCheckout || pushToPRNeedsCheckout
+	continueNeedsCheckout := safeOutputs.ContinueWorkflow != nil && !isHandlerStaged(templatableBoolIsTrue(safeOutputs.Staged), safeOutputs.ContinueWorkflow.Staged)
+	result := createPRNeedsCheckout || pushToPRNeedsCheckout || continueNeedsCheckout
 	safeOutputsRuntimeLog.Printf("usesPatchesAndCheckouts: createPR=%v(needsCheckout=%v), pushToPRBranch=%v(needsCheckout=%v), result=%v",
 		safeOutputs.CreatePullRequests != nil, createPRNeedsCheckout,
 		safeOutputs.PushToPullRequestBranch != nil, pushToPRNeedsCheckout,
@@ -61,6 +62,16 @@ func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
 // OR of whichever of those two safe outputs are configured. Callers should only invoke this
 // when at least one of the two is configured (the default branch assumes push_to_pull_request_branch).
 func buildPRCheckoutCondition(safeOutputs *SafeOutputsConfig) ConditionNode {
+	if safeOutputs.ContinueWorkflow != nil {
+		types := []ConditionNode{BuildSafeOutputType("continue_workflow")}
+		if safeOutputs.CreatePullRequests != nil {
+			types = append(types, BuildSafeOutputType("create_pull_request"))
+		}
+		if safeOutputs.PushToPullRequestBranch != nil {
+			types = append(types, BuildSafeOutputType("push_to_pull_request_branch"))
+		}
+		return BuildDisjunction(false, types...)
+	}
 	switch {
 	case safeOutputs.CreatePullRequests != nil && safeOutputs.PushToPullRequestBranch != nil:
 		return BuildOr(

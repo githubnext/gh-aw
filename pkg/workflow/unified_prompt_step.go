@@ -569,6 +569,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	if safeOutputs.CreatePullRequests != nil {
 		tools = append(tools, toolWithMaxBudget("create_pull_request", safeOutputs.CreatePullRequests.Max))
 	}
+	if safeOutputs.ContinueWorkflow != nil {
+		tools = append(tools, toolWithMaxBudget("continue_workflow", safeOutputs.ContinueWorkflow.Max))
+	}
 	if safeOutputs.ClosePullRequests != nil {
 		tools = append(tools, toolWithMaxBudget("close_pull_request", safeOutputs.ClosePullRequests.Max))
 	}
@@ -773,6 +776,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 	// File sections for tools with multi-step instructions
 	if safeOutputs.CreatePullRequests != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
+	}
+	if safeOutputs.ContinueWorkflow != nil {
+		sections = append(sections, PromptSection{Content: safeOutputsContinueWorkflowFile, IsFile: true})
 	}
 	if isSteeringIssueEnabled(&WorkflowData{SafeOutputs: safeOutputs}) {
 		steeringContent := "<issue-steering>\nThe steering issue for this run is #${{ needs.activation.outputs.steering_issue_number }}.\n"

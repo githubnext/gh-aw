@@ -362,6 +362,19 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for continuing long-running work in a fresh run on the same work branch
+ */
+interface ContinueWorkflowItem extends BaseSafeOutputItem {
+  type: "continue_workflow";
+  /** Why another run is needed */
+  reason: string;
+  /** Work branch holding the committed progress (including plan.md) */
+  branch: string;
+  /** Optional summary of the next steps */
+  next_steps?: string;
+}
+
+/**
  * JSONL item for setting the type of a GitHub issue
  */
 interface SetIssueTypeItem extends BaseSafeOutputItem, IssueIntentMetadata {
@@ -535,6 +548,7 @@ type SafeOutputItem =
   | UploadAssetItem
   | AssignMilestoneItem
   | SetIssueTypeItem
+  | ContinueWorkflowItem
   | SetIssueFieldItem
   | AssignToAgentItem
   | UpdateReleaseItem
@@ -582,6 +596,7 @@ export {
   UploadAssetItem,
   AssignMilestoneItem,
   SetIssueTypeItem,
+  ContinueWorkflowItem,
   SetIssueFieldItem,
   AssignToAgentItem,
   UpdateReleaseItem,

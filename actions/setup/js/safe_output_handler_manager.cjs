@@ -47,6 +47,7 @@ const { withClaimEffectClients, wrapClaimEffectClient } = require("./work_queue_
 const { readClaimControlMessages } = require("./work_queue_control_delivery.cjs");
 const { readDeliveryControlInventory, inspectClaimDelivery, createClaimDeliveryVerifier, verifyBuiltinDeliveryOutput } = require("./work_queue_delivery.cjs");
 const { createClaimAdapterHandler, verifyClaimAdapterOutput, preparedAdapterPath, createDeclaredAdapterVerifier, wrapDeclaredBuiltinHandler } = require("./work_queue_claim_adapters.cjs");
+const { prepareContinueWorkflow, finalizeContinueWorkflow } = require("./continue_workflow.cjs");
 const GITHUB_TOKEN_CONFIG_KEY = "github-token";
 
 /**
@@ -80,6 +81,7 @@ const HANDLER_MAP = {
   reply_to_pull_request_review_comment: "./reply_to_pr_review_comment.cjs",
   resolve_pull_request_review_thread: "./resolve_pr_review_thread.cjs",
   create_pull_request: "./create_pull_request.cjs",
+  continue_workflow: "./continue_workflow.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
   merge_pull_request: "./merge_pull_request.cjs",
@@ -138,7 +140,7 @@ const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
  * Code-push safe output types that must succeed before remaining outputs are processed.
  * If any of these fail, the remaining non-code-push messages are cancelled with a clear reason.
  */
-const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
+const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request", "continue_workflow"]);
 
 /** @type {Set<string>} Project-safe-output handlers that should default to GH_AW_PROJECT_GITHUB_TOKEN when no per-handler github-token is configured. */
 const PROJECT_HANDLER_TYPES = new Set(["create_project", "create_project_status_update", "update_project"]);
@@ -241,6 +243,7 @@ const THREAT_WARNING_ABORT_TYPES = new Set([
   "dispatch_workflow",
   "dispatch_repository",
   "ledger_request_compaction",
+  "continue_workflow",
   "call_workflow",
   "autofix_code_scanning_alert",
   "create_agent_session",
@@ -383,6 +386,23 @@ function wrapWithClientRebinding(type, messageHandler, handlerGithubClient) {
       }
     }
   };
+}
+
+/**
+ * A run that continues the workflow must not also open a pull request: exactly one pull
+ * request is created, by the final hop of the chain. When both are emitted, the pull request
+ * is skipped (not deferred) and continue_workflow persists the progress instead.
+ * @param {Map<string, Function>} messageHandlers
+ * @param {Array<any>} messages
+ */
+function suppressPullRequestWhenContinuing(messageHandlers, messages) {
+  if (!messageHandlers.has("continue_workflow") || !messageHandlers.has("create_pull_request")) return;
+  if (!messages.some(message => message?.type === "continue_workflow")) return;
+  messageHandlers.set("create_pull_request", async () => ({
+    success: true,
+    skipped: true,
+    reason: "create_pull_request is skipped because this run continues the workflow; the final hop creates the single pull request",
+  }));
 }
 
 async function finalizeLedgerAppend(config, messageHandlers) {
@@ -2044,9 +2064,14 @@ async function main(options = {}) {
     const fileBackedCommentMemoryMessages = currentClaimHandle() ? [] : buildCommentMemoryMessagesFromFiles(agentOutputItems, config);
     const allMessages = [...agentOutputItems, ...fileBackedCommentMemoryMessages];
     if (currentClaimHandle()) setCollectedMissings({ missingTools: [], missingData: [], noopMessages: [], reportIncomplete: [] });
+    // Bind a dispatched continue_workflow hop to this run before anything is processed.
+    if (config.continue_workflow && !currentClaimHandle()) {
+      await prepareContinueWorkflow(config.continue_workflow);
+    }
     if (allMessages.length === 0) {
       core.info("No safe-output messages available - nothing to process");
       await finalizeLedgerAppend(config, new Map());
+      if (config.continue_workflow && !currentClaimHandle()) await finalizeContinueWorkflow(config.continue_workflow, []);
       if (!isStaged) ensureManifestExists();
       core.setOutput("processed_count", "0");
       setSafeOutputsStatusOutputs({ itemsSucceeded: 0, itemsFailed: 0, status: "success" });
@@ -2075,6 +2100,7 @@ async function main(options = {}) {
 
     // Load and initialize handlers based on configuration (factory pattern)
     const messageHandlers = await loadHandlers(config, prReviewBufferRegistry);
+    suppressPullRequestWhenContinuing(messageHandlers, allMessages);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
@@ -2099,6 +2125,9 @@ async function main(options = {}) {
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, allMessages, logCreatedItem);
     await finalizeLedgerAppend(config, messageHandlers);
+    if (config.continue_workflow && !currentClaimHandle()) {
+      await finalizeContinueWorkflow(config.continue_workflow, processingResult.results);
+    }
 
     // Finalize buffered PR reviews — one review submission per distinct PR
     const registryEntries = prReviewBufferRegistry.getAllEntries();
@@ -2381,4 +2410,5 @@ module.exports = {
   processSyntheticUpdates,
   rejectCrossClaimTemporaryReferences,
   settleClaimDelivery,
+  suppressPullRequestWhenContinuing,
 };

@@ -272,6 +272,14 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":             {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"continue_workflow": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"reason":     {Required: true, Type: "string", Sanitize: true, MaxLength: 2000},
+			"branch":     {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"next_steps": {Type: "string", Sanitize: true, MaxLength: 2000},
+		},
+	},
 	"set_issue_type": {
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{

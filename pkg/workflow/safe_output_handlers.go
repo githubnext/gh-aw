@@ -270,6 +270,22 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
+		Key:         "continue-workflow",
+		StructField: "ContinueWorkflow",
+		ToolName:    "continue_workflow",
+		NewConfig:   func() any { return &ContinueWorkflowConfig{} },
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ContinueWorkflow") {
+				return nil
+			}
+			// contents: write pushes the work branch and the continuation ledger;
+			// actions: write asks Agentic Maintenance to dispatch the next hop.
+			permissions := NewPermissionsContentsWrite()
+			permissions.Set(PermissionActions, PermissionWrite)
+			return permissions
+		},
+	},
+	{
 		Key:         "create-pull-request-review-comment",
 		StructField: "CreatePullRequestReviewComments",
 		ToolName:    "create_pull_request_review_comment",

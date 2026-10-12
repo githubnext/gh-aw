@@ -42,6 +42,7 @@ const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundleP
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
+const { getActiveContinuation, persistContinuationHop, noteFinalHead } = require("./continue_workflow.cjs");
 const {
   MANAGED_FALLBACK_ISSUE_LABEL,
   LABEL_MAX_RETRIES,
@@ -1050,6 +1051,30 @@ async function main(config = {}) {
     // is not available in GitHub Actions expressions and requires an API call
     // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
     let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
+    // In a continue_workflow run, the single final pull request is opened from the chain's
+    // stable work branch into the chain's base branch, both taken from the trusted ledger.
+    const activeContinuation = getActiveContinuation();
+    if (activeContinuation) {
+      const currentRepo = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
+      if (itemRepo.toLowerCase() !== currentRepo || pushRepo.toLowerCase() !== currentRepo) {
+        return { success: false, error: "A continued workflow can only create its pull request in the current repository" };
+      }
+      if (activeContinuation.settled) {
+        const recordedPullRequest = activeContinuation.pull_request;
+        if (activeContinuation.status === "completed" && recordedPullRequest?.url) {
+          return { success: true, skipped: true, reason: `continuation chain ${activeContinuation.chain_id} already created ${recordedPullRequest.url}`, number: recordedPullRequest.number, url: recordedPullRequest.url };
+        }
+        return { success: false, error: `continuation hop ${activeContinuation.hop} of chain ${activeContinuation.chain_id} was already settled` };
+      }
+      if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() && pullRequestItem.base.trim() !== activeContinuation.base_branch) {
+        return { success: false, error: `A continued workflow must target its original base branch ${activeContinuation.base_branch}` };
+      }
+      if (pullRequestItem.branch !== activeContinuation.branch) {
+        return { success: false, error: `A continued workflow must create its pull request from the continuation branch ${activeContinuation.branch}` };
+      }
+      baseBranch = activeContinuation.base_branch;
+    }
     const defaultBaseBranch = baseBranch;
 
     // Stacked pull request metadata declared by the agent (position/root/dependencies).
@@ -1767,6 +1792,10 @@ async function main(config = {}) {
         core.info(`Applied branch prefix: ${branchName}`);
       }
 
+      if (activeContinuation) {
+        branchName = activeContinuation.branch;
+      }
+
       core.info(`Generated branch name: ${branchName}`);
       core.info(`Base branch: ${baseBranch}`);
 
@@ -1803,7 +1832,40 @@ async function main(config = {}) {
       // to branches with exactly one new commit (security: prevents use of CI trigger
       // token on multi-commit branches where workflow files may have been modified).
       let newCommitCount = 0;
-      if (hasBundleFile) {
+      if (activeContinuation) {
+        // Final hop of a continued workflow: append the last commits to the stable work branch
+        // with the same compare-and-swap persistence as continue_workflow, then open the single
+        // pull request from that branch below.
+        if (!hasBundleFile) {
+          return { success: false, error: "A continued workflow requires bundle transport for its final commits" };
+        }
+        try {
+          const persisted = await persistContinuationHop({
+            bundlePath: bundleFilePath,
+            agentBranch: originalAgentBranch || activeContinuation.branch,
+            workBranch: activeContinuation.branch,
+            baseBranch,
+            expectedBase: activeContinuation.base_sha,
+            isInitial: false,
+            config,
+            githubClient: pushGithubClient,
+          });
+          noteFinalHead(persisted.headSha);
+          // Protected files touched by earlier hops still apply to the single final pull request.
+          const priorProtectedFiles = Array.isArray(activeContinuation.protected_files) ? activeContinuation.protected_files : [];
+          const protectedFiles = [...new Set([...priorProtectedFiles, ...persisted.protectedFiles])];
+          const protectedAction = persisted.protectedAction || activeContinuation.protected_action;
+          if (protectedFiles.length > 0 && protectedAction === "fallback") {
+            manifestProtectionFallback = [...new Set([...(manifestProtectionFallback || []), ...protectedFiles])];
+          } else if (protectedFiles.length > 0 && protectedAction === "request_review") {
+            manifestProtectionRequestReview = [...new Set([...(manifestProtectionRequestReview || []), ...protectedFiles])];
+          }
+        } catch (continuationError) {
+          const error = `Failed to persist the final continuation hop to ${activeContinuation.branch}: ${getErrorMessage(continuationError)}`;
+          core.error(error);
+          return { success: false, error };
+        }
+      } else if (hasBundleFile) {
         // Bundle transport: fetch commits directly from the bundle file.
         // This preserves merge commit topology and per-commit metadata (messages, authorship)
         // unlike git format-patch which flattens history and drops merge resolution content.

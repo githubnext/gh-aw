@@ -30,6 +30,7 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	copilotOrgBilling   bool // all Copilot workflows use copilot-requests: write (GITHUB_TOKEN); COPILOT_GITHUB_TOKEN is not required
 	compactionLedgers   []LedgerConfig
 	hasWorkQueue        bool
+	hasContinuations    bool
 	hasCacheMemory      bool
 }
 
@@ -70,6 +71,9 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(ledgerJobs)
 	if opts.hasWorkQueue {
 		yaml.WriteString(buildMaintenanceWorkQueueCompactionJobs(opts, setupActionRef))
+	}
+	if opts.hasContinuations {
+		yaml.WriteString(buildMaintenanceContinueWorkflowJob(opts, setupActionRef))
 	}
 	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
 	if err != nil {
@@ -131,8 +135,8 @@ func buildMaintenanceWorkflowTriggerYAML(
 		yaml.WriteString("  issues:\n    types: [labeled]\n")
 	}
 	hasLedgers := len(opts.compactionLedgers) > 0
-	yaml.WriteString(buildMaintenanceDispatchInputsYAML(hasLedgers, opts.hasCacheMemory))
-	yaml.WriteString(buildMaintenanceWorkflowCallYAML(appliedRunURLDescription, appliedRunURLValue, hasLedgers, opts.hasCacheMemory, opts.maintenanceConfig))
+	yaml.WriteString(buildMaintenanceDispatchInputsYAML(hasLedgers, opts.hasCacheMemory, opts.hasContinuations))
+	yaml.WriteString(buildMaintenanceWorkflowCallYAML(appliedRunURLDescription, appliedRunURLValue, hasLedgers, opts.hasCacheMemory, opts.hasContinuations, opts.maintenanceConfig))
 	yaml.WriteString("\n# Jobs request only the permissions needed for their individual maintenance operations.\npermissions: {}\n\n# Serialize maintenance runs to avoid overlapping writes to repository resources.\nconcurrency:\n  group: ${{ github.workflow }}-${{ github.repository }}\n  cancel-in-progress: false\n\njobs:\n")
 	return yaml.String()
 }
@@ -142,15 +146,18 @@ const maintenanceLedgerInputDescription = "Ledger name to compact when operation
 
 // buildMaintenanceDispatchInputsYAML returns the workflow_dispatch trigger block.
 // When compaction-enabled ledgers exist, it adds the compact_ledger operation and a ledger input.
-func buildMaintenanceDispatchInputsYAML(hasLedgers, hasCacheMemory bool) string {
+func buildMaintenanceDispatchInputsYAML(hasLedgers, hasCacheMemory, hasContinuations bool) string {
 	ledgerOption := ""
 	ledgerInput := ""
 	cacheOption := ""
 	if hasCacheMemory {
 		cacheOption = "          - 'clean_cache_memories'\n"
 	}
+	if hasContinuations {
+		ledgerOption = "          - '" + maintenanceDispatchContinuationsOperation + "'\n"
+	}
 	if hasLedgers {
-		ledgerOption = "          - '" + maintenanceCompactLedgerOperation + "'\n"
+		ledgerOption += "          - '" + maintenanceCompactLedgerOperation + "'\n"
 		ledgerInput = `      ledger:
         description: '` + maintenanceLedgerInputDescription + `'
         required: false
@@ -187,13 +194,16 @@ func buildMaintenanceDispatchInputsYAML(hasLedgers, hasCacheMemory bool) string 
 }
 
 // buildMaintenanceWorkflowCallYAML returns the workflow_call trigger block.
-func buildMaintenanceWorkflowCallYAML(appliedRunURLDescription, appliedRunURLValue string, hasLedgers, hasCacheMemory bool, config *MaintenanceConfig) string {
+func buildMaintenanceWorkflowCallYAML(appliedRunURLDescription, appliedRunURLValue string, hasLedgers, hasCacheMemory, hasContinuations bool, config *MaintenanceConfig) string {
 	operations := "disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues"
 	if hasCacheMemory {
 		operations += ", clean_cache_memories"
 	}
 	operations += ", update_pull_request_branches, validate, forecast"
-	completedOperation := maintenanceCompletedOperationExpression(hasLedgers, hasCacheMemory, config)
+	if hasContinuations {
+		operations += ", " + maintenanceDispatchContinuationsOperation
+	}
+	completedOperation := maintenanceCompletedOperationExpression(hasLedgers, hasCacheMemory, hasContinuations, config)
 	ledgerInput := ""
 	if hasLedgers {
 		operations += ", " + maintenanceCompactLedgerOperation
@@ -226,7 +236,7 @@ func buildMaintenanceWorkflowCallYAML(appliedRunURLDescription, appliedRunURLVal
 `
 }
 
-func maintenanceCompletedOperationExpression(hasLedgers, hasCacheMemory bool, config *MaintenanceConfig) string {
+func maintenanceCompletedOperationExpression(hasLedgers, hasCacheMemory, hasContinuations bool, config *MaintenanceConfig) string {
 	enabledOperations := []string{}
 	for _, operation := range []struct{ name, job string }{
 		{"safe_outputs", "apply_safe_outputs"},
@@ -246,6 +256,9 @@ func maintenanceCompletedOperationExpression(hasLedgers, hasCacheMemory bool, co
 	}
 	if hasLedgers {
 		enabledOperations = append(enabledOperations, "inputs.operation == '"+maintenanceCompactLedgerOperation+"'")
+	}
+	if hasContinuations {
+		enabledOperations = append(enabledOperations, "inputs.operation == '"+maintenanceDispatchContinuationsOperation+"'")
 	}
 	completion := "''"
 	if len(enabledOperations) > 0 {

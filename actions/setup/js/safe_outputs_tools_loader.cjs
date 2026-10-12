@@ -178,6 +178,7 @@ function attachHandlers(tools, handlers, logger) {
     jira_add_comment: handlers.jiraAddCommentHandler,
     jira_add_label: handlers.jiraAddLabelHandler,
     create_pull_request: handlers.createPullRequestHandler,
+    continue_workflow: handlers.continueWorkflowHandler,
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
     push_repo_memory: handlers.pushRepoMemoryHandler,
     upload_asset: handlers.uploadAssetHandler,
