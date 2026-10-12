@@ -17,6 +17,7 @@ tools:
   bash:
     - cat /tmp/gh-aw/agent/eslint-factory-plan.json
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   dispatch-workflow:
     workflows: [eslint-miner, eslint-refiner, eslint-monster]
     target-ref: ${{ github.event.repository.default_branch }}
@@ -107,6 +108,8 @@ not bypass it with `noop` or ordinary worker dispatch.
 Scheduling overrides are shared in `.github/workflows/aw.json` under
 `work_queue`. Trusted `safe-outputs.dispatch-workflow` processing uses the
 built-in Actions token with `actions: write`; no custom launch secret is required.
+Trusted queue admission and safe outputs use the same built-in token, not
+`GH_AW_GITHUB_TOKEN` or another custom secret.
 AW pins declared worker routes
 to the immutable workflow revision; it binds each actual native run to its
 Claim. The first accepted submission automatically creates the queue with

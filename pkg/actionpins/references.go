@@ -15,6 +15,7 @@ func getLatestActionPinReference(repo string) string {
 		actionPinsLog.Printf("No action pin found for repo=%s", repo)
 		return ""
 	}
+	actionPinsLog.Printf("Using latest action pin for repo=%s: version=%s", repo, pin.Version)
 	return FormatPinnedActionReference(repo, pin.SHA, pin.Version)
 }
 

@@ -159,6 +159,8 @@ func TestDockerfile_Exists(t *testing.T) {
 		"git",                                // Git package
 		"jq",                                 // jq package
 		"bash",                               // Bash package
+		"shellcheck",                         // Native strict compile scanner
+		"RUN shellcheck --version",           // Verify the scanner at build time
 		"ARG BINARY",                         // Build argument for binary
 		"ENTRYPOINT [\"gh-aw\"]",             // Entrypoint
 	}
@@ -358,7 +360,7 @@ func TestDockerImage_HasRequiredTools(t *testing.T) {
 	runDockerBuildWithRetry(t, repoRoot)
 
 	// Test required tools
-	requiredTools := []string{"gh", "git", "jq", "bash"}
+	requiredTools := []string{"gh", "git", "jq", "bash", "shellcheck"}
 
 	for _, tool := range requiredTools {
 		t.Run(tool, func(t *testing.T) {

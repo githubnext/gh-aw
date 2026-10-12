@@ -148,20 +148,25 @@ describe("ESLint factory producer and dispatcher", () => {
         expect(proposal.pools.default.profiles[worker].logical_contract).toMatch(/^[a-f0-9]{64}$/);
       }
     }
-    expect(source).not.toMatch(/github-token:/);
+    expect(source).toContain("github-token: ${{ secrets.GITHUB_TOKEN }}");
+    expect(source).not.toMatch(/secrets\.(?!GITHUB_TOKEN\b)/);
     const configs = [...compiled.matchAll(/(?:GH_AW_WORK_QUEUE_CONTROL_CONFIG|GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG): ("[^\n]+")/g)].map(([, value]) => {
       const config = JSON.parse(JSON.parse(value));
       return config.dispatch_workflow || config;
     });
     expect(configs.length).toBeGreaterThan(1);
     for (const config of configs) {
-      expect(config["github-token"]).toBe("${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}");
-      expect(config.work_queue_dispatch_credential).toEqual({ kind: "${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'authenticated' || 'github_token' }}" });
+      expect(config["github-token"]).toBe("${{ secrets.GITHUB_TOKEN }}");
+      expect(config.work_queue_dispatch_credential).toEqual({ kind: "github_token" });
       expect([...config.work_queue_workflows].sort()).toEqual([...ESLINT_WORKERS].sort());
     }
+    const controls = compiled.match(/      - name: Process trusted work queue controls\n([\s\S]*?)(?=      - name:)/);
+    expect(controls).not.toBeNull();
+    expect(controls[1]).toContain("github-token: ${{ secrets.GITHUB_TOKEN }}");
+    expect(controls[1]).not.toContain("secrets.GH_AW_GITHUB_TOKEN");
   });
 
-  it.each(["authenticated", "github_token"])("bootstraps an absent queue and launches all three workers with %s credentials without duplicate launches", async kind => {
+  it("bootstraps an absent queue and launches all three workers with only the Actions token without duplicate launches", async () => {
     const directory = path.resolve(`.gh-aw-eslint-dispatch-${randomUUID()}`);
     fs.mkdirSync(directory);
     const fixture = queueFixture({ granted: false, workerPrincipal: "12" });
@@ -249,7 +254,6 @@ describe("ESLint factory producer and dispatcher", () => {
         config: {
           ...dispatchConfig,
           "github-token": "fixture-token",
-          work_queue_dispatch_credential: { kind },
         },
       };
       const result = await processControls(controls);

@@ -188,6 +188,7 @@ Say Done.
 		require.Equal(t, []string{filepath.Join(filepath.Dir(source), "coverage.lock.yml")}, paths)
 		return nil
 	}
+
 	oldStdout := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
@@ -216,4 +217,34 @@ Say Done.
 	assert.Equal(t, "passed", results[1].DryRun.Scanners["shellcheck"].Status)
 	assert.Equal(t, "not_run", results[1].DryRun.Scanners["zizmor"].Status)
 	assert.False(t, results[1].DryRun.ExecutionAuthorized)
+}
+
+func TestDevelopmentCompileNativeShellcheck(t *testing.T) {
+	if !isShellcheckAvailable() {
+		t.Skip("native ShellCheck is not installed")
+	}
+	source := filepath.Join(t.TempDir(), "native.md")
+	require.NoError(t, os.WriteFile(source, []byte(`---
+on: workflow_dispatch
+engine: copilot
+safe-outputs:
+  noop:
+---
+Say Done.
+`), 0600))
+	stdout, _ := captureOutput(t, func() error {
+		_, err := CompileWorkflows(context.Background(), CompileConfig{
+			MarkdownFiles: []string{source}, DryRun: true, Strict: true,
+			JSONOutput: true, activeModels: &activeModelInventory{},
+		})
+		require.NoError(t, err)
+		return nil
+	})
+	var results []ValidationResult
+	require.NoError(t, json.Unmarshal([]byte(stdout), &results))
+	require.Len(t, results, 2)
+	assert.True(t, results[0].Valid)
+	require.NotNil(t, results[1].DryRun)
+	assert.Equal(t, "passed", results[1].DryRun.Gate)
+	assert.Equal(t, "passed", results[1].DryRun.Scanners["shellcheck"].Status)
 }

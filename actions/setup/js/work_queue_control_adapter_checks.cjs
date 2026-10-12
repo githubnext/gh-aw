@@ -105,9 +105,9 @@ function registerTests({ describe, it }) {
 
     it("selects the compiled default, App or PAT client for launches while preserving original requester and current START sender", async () => {
       for (const entry of [
-        { descriptor: { kind: "github_token" }, principal: "41898282", login: "github-actions[bot]", type: "Bot" },
-        { descriptor: { kind: "github_app", app_slug: "approved-worker" }, principal: "888", login: "approved-worker[bot]", type: "Bot" },
-        { descriptor: { kind: "authenticated" }, principal: "999", login: "approved-pat-owner", type: "User" },
+        { descriptor: { kind: "github_token" }, principal: "41898282", login: "github-actions[bot]", type: "Bot", credentialSource: "github_actions" },
+        { descriptor: { kind: "github_app", app_slug: "approved-worker" }, principal: "888", login: "approved-worker[bot]", type: "Bot", credentialSource: "app" },
+        { descriptor: { kind: "authenticated" }, principal: "999", login: "approved-pat-owner", type: "User", credentialSource: "unknown" },
       ]) {
         const root = temporaryDirectory("actual-dispatch-credential");
         const fixture = queueFixture({ granted: false, count: 1, workerPrincipal: entry.principal });
@@ -158,7 +158,7 @@ function registerTests({ describe, it }) {
           fs.writeFileSync(intentPath, `${JSON.stringify({ version: 3, intent_id: "launch-credential", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
           const result = await main({
             assignment: null,
-            env: {},
+            env: { GH_AW_GITHUB_TOKEN_SOURCE: entry.credentialSource },
             intentPath,
             githubClient: fixture.githubClient,
             context: fixture.dispatcherContext,
@@ -166,8 +166,9 @@ function registerTests({ describe, it }) {
             intentOrigin: fixture.dispatcher,
             readWorkQueueLog: fixture.readWorkQueueLog,
             publishWorkQueueRequest: fixture.publishWorkQueueRequest,
-            getOctokit: token => {
+            getOctokit: (token, options) => {
               assert.equal(token, "protected-selected-token");
+              assert.deepEqual(options, entry.credentialSource === "unknown" ? undefined : { credentialSource: entry.credentialSource });
               return dispatchClient;
             },
             config: { work_queue_enabled: true, work_queue_workflows: ["worker"], aw_context_workflows: ["worker"], "github-token": "protected-selected-token", work_queue_dispatch_credential: entry.descriptor },
