@@ -469,7 +469,7 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
   // T3: the run ended under budget, without a budget rejection, and succeeded.
   const t3Problems = [];
   const totals = requests.map(request => finiteNumber(request?.ai_credits_total)).filter(value => value !== undefined);
-  const finalTotal = totals.length ? Math.max(...totals) : undefined;
+  const finalTotal = totals.length ? totals.reduce((a, b) => Math.max(a, b), -Infinity) : undefined;
   if (!budgetValid) t3Problems.push(budgetProblem);
   if (finalTotal === undefined) t3Problems.push("no ai_credits_total in token-usage.jsonl");
   else if (budgetValid && finalTotal >= budget) t3Problems.push(`final ai_credits_total ${finalTotal} is at or above the budget ${budget}`);
