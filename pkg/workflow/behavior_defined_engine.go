@@ -229,15 +229,13 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 			CooldownEnabled:   install.Cooldown,
 		},
 	)
-	// Cloud Hypervisor does not mount the runner tool cache,
-	// so a global npm install is invisible inside the sandbox. Stage a second copy of the
-	// CLI under ${RUNNER_TEMP}/gh-aw/engine-cli, which is mounted into the sandbox, exactly
-	// as the Claude and Codex engines do.
+	// MicroVMs cannot rely on the global npm installation. Stage the CLI in
+	// the runtime tree mounted by Cloud Hypervisor or exported through NVX.
 	binaryName := install.BinaryName
 	if binaryName == "" && behavior.Execution != nil {
 		binaryName = behavior.Execution.CommandName
 	}
-	if binaryName != "" && isCloudHypervisorRuntime(workflowData) {
+	if binaryName != "" && (isCloudHypervisorRuntime(workflowData) || isNVXRuntime(workflowData)) {
 		npmSteps = append(npmSteps, GenerateMicroVMNpmCLIInstallStep(
 			install.PackageName,
 			version,

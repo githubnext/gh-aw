@@ -651,6 +651,10 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
+	for _, line := range generateNVXAssetCollectionStep(data) {
+		yaml.WriteString(line + "\n")
+	}
+
 	if step := generateNVXRuntimeCleanupStep(data); step != nil {
 		for _, line := range step {
 			yaml.WriteString(line)
