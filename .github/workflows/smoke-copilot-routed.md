@@ -36,9 +36,9 @@ safe-outputs:
     close-older-issues: true
     close-older-key: "smoke-copilot-routed"
     labels: [automation, testing]
+  threat-detection:
+    model: claude-haiku-5.5
 timeout-minutes: 10
-features:
-  gh-aw-detection: false
 sandbox:
   agent:
     id: awf
