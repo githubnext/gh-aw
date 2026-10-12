@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
-const { formatShellArguments } = require("./tool_call_details.cjs");
+const { redactMCPScriptLogMessage } = require("./diagnostic_sanitization.cjs");
 
 /**
  * Parses mcp-scripts MCP server logs and creates a step summary
@@ -108,11 +108,12 @@ function parseMCPScriptsLogLine(line) {
  * @returns {string} Plain text summary for console output
  */
 function generatePlainTextSummary(logEntries) {
+  logEntries = logEntries.map(entry => ({ ...entry, message: redactMCPScriptLogMessage(entry.message || "") }));
   const lines = [];
 
-  const truncate = (value, max = 120, preserveWhitespace = false) => {
+  const truncate = (value, max = 120) => {
     if (!value) return "";
-    const normalized = preserveWhitespace ? String(value) : String(value).replace(/\s+/g, " ").trim();
+    const normalized = String(value).replace(/\s+/g, " ").trim();
     if (normalized.length <= max) return normalized;
     return `${normalized.slice(0, max - 3)}...`;
   };
@@ -184,20 +185,7 @@ function generatePlainTextSummary(logEntries) {
     const invokingPayload = extractToolAndPayload(message, "Invoking handler with args:");
     if (invokingPayload) {
       const tool = invokingPayload.tool;
-      const parsedArgs = parseJSON(invokingPayload.payload);
-      let argsDisplay = "";
-      if (parsedArgs && typeof parsedArgs === "object" && parsedArgs !== null) {
-        const arrayArgs = formatShellArguments(parsedArgs.args);
-        if (typeof parsedArgs.args === "string" && parsedArgs.args.trim()) {
-          argsDisplay = ` · args: "${truncate(parsedArgs.args, 90)}"`;
-        } else if (arrayArgs !== undefined) {
-          argsDisplay = ` · args: "${truncate(arrayArgs, 90, true)}"`;
-        } else {
-          argsDisplay = ` · args: "${truncate(JSON.stringify(parsedArgs), 90)}"`;
-        }
-      } else {
-        argsDisplay = ` · args: "${truncate(invokingPayload.payload, 90)}"`;
-      }
+      const argsDisplay = " · args: [REDACTED]";
       const callIndex = renderedCalls.push({
         tool,
         serverName: entry.serverName || "mcpscripts",
@@ -210,16 +198,13 @@ function generatePlainTextSummary(logEntries) {
 
     // Parse: "callBackendTool ... toolName=gh, args=map[args:pr view ...]"
     const backendToolPrefix = "toolName=";
-    const backendArgsPrefix = "args=map[args:";
+    const backendArgsPrefix = "args=";
     const backendToolIndex = message.indexOf(backendToolPrefix);
     const backendArgsIndex = message.indexOf(backendArgsPrefix);
     if (backendToolIndex !== -1 && backendArgsIndex !== -1 && backendArgsIndex > backendToolIndex) {
       const toolPart = message.slice(backendToolIndex + backendToolPrefix.length, backendArgsIndex);
       const tool = toolPart.replace(",", "").trim();
-      const argsStart = backendArgsIndex + backendArgsPrefix.length;
-      const argsEnd = message.indexOf("]", argsStart);
-      const argsRaw = argsEnd === -1 ? message.slice(argsStart) : message.slice(argsStart, argsEnd);
-      const argsDisplay = ` · args: "${truncate(argsRaw, 90)}"`;
+      const argsDisplay = " · args: [REDACTED]";
       const callIndex = renderedCalls.push({
         tool,
         serverName: entry.serverName || "mcpscripts",
@@ -293,6 +278,7 @@ function generatePlainTextSummary(logEntries) {
  * @returns {string} Markdown summary
  */
 function generateMCPScriptsSummary(logEntries) {
+  logEntries = logEntries.map(entry => ({ ...entry, message: redactMCPScriptLogMessage(entry.message || "") }));
   const summary = [];
 
   // Count events by type

@@ -6139,6 +6139,25 @@ describe("handle_agent_failure", () => {
       ]);
     });
 
+    it("redacts inputs for recent Go, Make and shell MCP script calls", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "go", mcpServerName: "mcpscripts", input: { args: ["test", "./...", "-run", "a  b"] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "make", mcpServerName: "mcpscripts", arguments: { args: ["build", "it's", "`literal`", ""] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "shell", mcpServerName: "mcp-scripts", command: "secret-shell-input" } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "mcp__mcpscripts__bash", arguments: { args: ["secret-prefixed-input"] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "read", mcpServerName: "other", args: ["unrelated"] } }),
+          JSON.stringify({ type: "guard.tool_denials_exceeded", data: { denialCount: 5, threshold: 5, reason: "permission denied: make" } }),
+        ].join("\n") + "\n"
+      );
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0].recentToolCalls).toEqual(["mcpscripts.go([REDACTED])", "mcpscripts.make([REDACTED])", "mcp-scripts.shell([REDACTED])", "mcp__mcpscripts__bash([REDACTED])", "other.read"]);
+    });
+
     it("sanitizes backticks in shell command previews", () => {
       const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
       fs.mkdirSync(sessionDir, { recursive: true });
