@@ -393,7 +393,7 @@ describe("fetchMCPToolsResult handshake and failure classification", () => {
       methods.push(request.method);
       reply(res, body);
     });
-    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: false });
+    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: false, failure: { phase: "initialize", statusCode: 200 } });
     expect(methods).toEqual(["initialize"]);
   });
 
@@ -434,6 +434,7 @@ describe("fetchMCPToolsResult handshake and failure classification", () => {
         tools: [],
         emptyWasSuccessful: false,
         retryable: failure.retryable,
+        failure: { phase: failedMethod, statusCode: failure.status },
       });
       expect(methods.at(-1)).toBe(failedMethod);
     }
@@ -452,8 +453,27 @@ describe("fetchMCPToolsResult handshake and failure classification", () => {
         reply(res, { result: {} });
       }
     });
-    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true });
+    expect(await fetchMCPToolsResult(url, "key", { warning: () => {} })).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: failedMethod, code: "ECONNRESET" } });
     expect(methods.at(-1)).toBe(failedMethod);
+  });
+
+  it.each(["ECONNREFUSED", "credential-sensitive"])("only preserves whitelisted transport codes: %s", async code => {
+    const request = vi.spyOn(http, "request").mockImplementation(() => {
+      throw Object.assign(new Error("http://credential-sensitive@localhost/private"), { code });
+    });
+    const warnings = [];
+    try {
+      const result = await fetchMCPToolsResult("http://localhost/mcp", "credential-sensitive", { warning: msg => warnings.push(msg) });
+      expect(result).toEqual({
+        tools: [],
+        emptyWasSuccessful: false,
+        retryable: true,
+        failure: { phase: "initialize", code: code === "ECONNREFUSED" ? code : undefined },
+      });
+      expect(JSON.stringify({ result, warnings })).not.toContain("credential-sensitive");
+    } finally {
+      request.mockRestore();
+    }
   });
 
   it.each([200, 202, 204])("accepts an empty HTTP %i notification acknowledgment and propagates session headers", async notificationStatus => {
@@ -503,7 +523,7 @@ describe("fetchMCPToolsResult handshake and failure classification", () => {
       res.on("close", () => clearInterval(interval));
     });
     try {
-      expect(await fetchMCPToolsResult(url, "key", { warning: () => {} }, 30)).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true });
+      expect(await fetchMCPToolsResult(url, "key", { warning: () => {} }, 30)).toEqual({ tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: "initialize", code: "ETIMEDOUT" } });
     } finally {
       clearInterval(interval);
     }

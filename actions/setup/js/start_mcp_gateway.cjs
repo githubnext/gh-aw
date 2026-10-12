@@ -238,16 +238,26 @@ async function waitForSafeOutputsReadiness(config, gatewayPort, agentId, retryCo
   const deadline = startupStartMs + retryConfig.backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
   let attempts = 0;
   let permanentFailure = false;
+  let insufficientBudget = false;
+  let lastProbe = "shared startup deadline exceeded";
   core.info("Waiting for MCP gateway safeoutputs tool registration...");
   try {
     await retryGatewayStartup(
       async remainingMs => {
-        if (remainingMs < 3) {
-          throw new Error("safeoutputs readiness deadline exceeded");
+        // Reserve at least 250ms for each of the three handshake requests.
+        if (remainingMs < 750) {
+          insufficientBudget = true;
+          lastProbe = "insufficient startup budget for a readiness probe (requires at least 750ms)";
+          throw new Error(lastProbe);
         }
         attempts += 1;
         // Each probe performs at most three HTTP requests.
         const result = await fetchMCPToolsResult(serverUrl, agentId, core, Math.min(2000, Math.floor(remainingMs / 3)));
+        lastProbe = result.failure
+          ? `${result.failure.phase} failed (${result.failure.statusCode !== undefined ? `HTTP ${result.failure.statusCode}` : result.failure.code || "transport error"})`
+          : result.tools.length === 0
+            ? "tools/list has no registered tools"
+            : "shared startup deadline exceeded after tools/list";
         permanentFailure = !result.emptyWasSuccessful && !result.retryable;
         if (permanentFailure) {
           throw new Error("safeoutputs authentication or protocol failure");
@@ -262,14 +272,15 @@ async function waitForSafeOutputsReadiness(config, gatewayPort, agentId, retryCo
       retryConfig,
       deadline,
       "MCP gateway safeoutputs readiness",
-      () => !permanentFailure
+      () => !permanentFailure && !insufficientBudget
     );
   } catch (err) {
     throw new Error(
       `MCP gateway safeoutputs readiness failed after ${attempts} attempt(s): ` +
         (permanentFailure
           ? "permanent authentication or MCP protocol failure. The agent will not start. Check gateway credentials and MCP backend configuration."
-          : "no tools registered or backend unavailable. The agent will not start. Check MCP gateway startup logs for connection resets (ECONNRESET) or delayed backend registration."),
+          : "no tools registered or backend unavailable. The agent will not start. Check MCP gateway startup logs for connection resets (ECONNRESET) or delayed backend registration.") +
+        ` Last probe: ${lastProbe}.`,
       { cause: err }
     );
   }
@@ -1135,9 +1146,14 @@ async function main() {
   }
 
   if (succeeded) {
-    await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig, gatewayStartTime);
-    core.info("Gateway is ready!");
     printTiming(healthCheckStart, "Health check wait");
+    const safeOutputsReadinessStart = nowMs();
+    try {
+      await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig, gatewayStartTime);
+    } finally {
+      printTiming(safeOutputsReadinessStart, "Safe outputs readiness wait");
+    }
+    core.info("Gateway is ready!");
     writeGatewayStartupMarker(gatewayStartupMarker);
   } else {
     core.error("");

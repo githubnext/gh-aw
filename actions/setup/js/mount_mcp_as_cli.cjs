@@ -274,7 +274,7 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
 
     // Bound the entire response, not just socket inactivity between body chunks.
     const timer = setTimeout(() => {
-      req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms`));
+      req.destroy(Object.assign(new Error(`HTTP request timed out after ${timeoutMs}ms`), { code: "ETIMEDOUT" }));
     }, timeoutMs);
 
     req.write(bodyStr);
@@ -357,6 +357,18 @@ function isRetryableMCPFailure(statusCode, body) {
 }
 
 /**
+ * @param {unknown} err
+ * @returns {string | undefined}
+ */
+function safeMCPTransportCode(err) {
+  const codes = ["ECONNRESET", "ECONNREFUSED", "ECONNABORTED", "ETIMEDOUT", "EPIPE", "ENOTFOUND", "EAI_AGAIN", "ERR_STREAM_PREMATURE_CLOSE"];
+  if (err && typeof err === "object" && "code" in err && typeof err.code === "string" && codes.includes(err.code)) {
+    return err.code;
+  }
+  return undefined;
+}
+
+/**
  * Query the tools list from an MCP server via JSON-RPC.
  * Follows the standard MCP handshake: initialize → notifications/initialized → tools/list.
  *
@@ -366,8 +378,10 @@ function isRetryableMCPFailure(statusCode, body) {
  * @param {number} [timeoutMs=DEFAULT_HTTP_TIMEOUT_MS]
  * `emptyWasSuccessful` marks a valid tools/list response (including non-empty lists).
  * `retryable` marks transient failures only; successful responses set it to false.
+ * `failure` contains only the handshake phase, HTTP status, and whitelisted
+ * transport code, never response bodies or transport error messages.
  *
- * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean, retryable: boolean}>}
+ * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean, retryable: boolean, failure?: {phase: "initialize" | "notifications/initialized" | "tools/list", statusCode?: number, code?: string}}>}
  */
 async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
   const authHeaders = { Authorization: agentId };
@@ -394,15 +408,15 @@ async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT
     const initBody = parseMCPResponseBody(initResp.body);
     if (initResp.statusCode !== 200 || !hasMCPResult(initBody)) {
       core.warning(`  initialize did not succeed (HTTP ${initResp.statusCode})`);
-      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(initResp.statusCode, initBody) };
+      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(initResp.statusCode, initBody), failure: { phase: "initialize", statusCode: initResp.statusCode } };
     }
     const sessionId = initResp.headers["mcp-session-id"];
     if (sessionId && typeof sessionId === "string") {
       sessionHeader = { "Mcp-Session-Id": sessionId };
     }
-  } catch {
+  } catch (err) {
     core.warning("  initialize failed due to a transport error");
-    return { tools: [], emptyWasSuccessful: false, retryable: true };
+    return { tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: "initialize", code: safeMCPTransportCode(err) } };
   }
 
   // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
@@ -413,11 +427,11 @@ async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT
     const emptyBody = typeof notificationResp.body === "string" && notificationResp.body.trim() === "";
     if (notificationResp.statusCode < 200 || notificationResp.statusCode >= 300 || (!emptyBody && !hasMCPResult(notificationBody))) {
       core.warning(`  notifications/initialized did not succeed (HTTP ${notificationResp.statusCode})`);
-      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(notificationResp.statusCode, notificationBody) };
+      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(notificationResp.statusCode, notificationBody), failure: { phase: "notifications/initialized", statusCode: notificationResp.statusCode } };
     }
-  } catch {
+  } catch (err) {
     core.warning("  notifications/initialized failed due to a transport error");
-    return { tools: [], emptyWasSuccessful: false, retryable: true };
+    return { tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: "notifications/initialized", code: safeMCPTransportCode(err) } };
   }
 
   // Step 3: tools/list – get the available tool definitions
@@ -434,10 +448,10 @@ async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT
         };
       }
     }
-    return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(listResp.statusCode, respBody) };
-  } catch {
+    return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(listResp.statusCode, respBody), failure: { phase: "tools/list", statusCode: listResp.statusCode } };
+  } catch (err) {
     core.warning("  tools/list failed due to a transport error");
-    return { tools: [], emptyWasSuccessful: false, retryable: true };
+    return { tools: [], emptyWasSuccessful: false, retryable: true, failure: { phase: "tools/list", code: safeMCPTransportCode(err) } };
   }
 }
 
