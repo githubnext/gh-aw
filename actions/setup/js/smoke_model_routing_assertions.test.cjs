@@ -520,6 +520,188 @@ describe("smoke_model_routing_assertions", () => {
     });
   });
 
+  // Copilot CLI routed to Claude: real records from
+  // pkg/cli/testdata/model_routing_golden/legacy-no-session-routing (run 37505153056,
+  // Copilot CLI 1.0.90, mode auto, claude-opus-5:xhigh selected). That run predates
+  // runner-written routing status, so R1's status is supplied in aw_info.json the way
+  // the "builds the unified session" case does. Main-agent paths are set explicitly
+  // per case: /chat/completions is what routed Copilot CLI uses for Claude.
+  describe("copilot cli routed to claude (real record shapes)", () => {
+    const goldenDir = fileURLToPath(new URL("../../../pkg/cli/testdata/model_routing_golden/legacy-no-session-routing/", import.meta.url));
+    const ROUTING = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
+    const golden = file => fs.readFileSync(path.join(goldenDir, file), "utf8");
+    const jsonl = file =>
+      golden(file)
+        .split("\n")
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+    // supported_endpoints from sandbox run 38003537540; supported_reasoning_efforts
+    // from the /reflect routing_models shape in awf_model_routing.test.cjs.
+    const opusReflect = (efforts = ["low", "medium", "high", "xhigh", "max"]) => ({
+      endpoints: [{ provider: "copilot", routing_models: [{ model_id: "claude-opus-5", source: "provider", supported_endpoints: ["/v1/messages", "/chat/completions"], supported_reasoning_efforts: efforts }] }],
+    });
+    const cliExpectations = { engine: "copilot", allowedModels: ["claude-opus-5"], mainEndpoint: "/chat/completions", routingMode: "auto", executionOutcome: "success" };
+
+    function cliFixture({ mainPath = "/chat/completions", reflectData = opusReflect() } = {}) {
+      write("aw_info.json", { ...JSON.parse(golden("aw_info.json")), model_routing: { status: "selected", source: "awf-routing", wire_model: "claude-opus-5" } });
+      // The golden capture dropped `event`; AWF writes `"event":"model_routing"` on every record.
+      write(
+        ROUTING,
+        jsonl(ROUTING).map(record => ({ event: "model_routing", ...record }))
+      );
+      write(
+        TOKEN_USAGE,
+        jsonl(TOKEN_USAGE).map(record => (record.purpose === "routing_classification" ? record : { ...record, path: mainPath }))
+      );
+      write("sandbox/firewall/awf-reflect.json", reflectData);
+    }
+
+    const cliCheck = (overrides = {}) => checkModelRoutingEvidence({ rootDir: root, ...cliExpectations, ...overrides });
+
+    it("passes every check, including P1, for Claude main traffic on /chat/completions", () => {
+      cliFixture();
+      const { passes, failures, info } = cliCheck();
+      expect(failures).toEqual([]);
+      expect(checkIds(passes)).toEqual(["E2", "E1", "R1", "R2", "R3", "R4", "M1", "P1"]);
+      expect(passes).toContain("PASS R3 main-agent request on selected model: claude-opus-5 /chat/completions 200");
+      expect(passes).toContain("PASS P1 requested mode auto; recommended profile balanced and selected effort xhigh are valid for claude-opus-5");
+      expect(info).toEqual(["INFO routing recommended profile=balanced requested mode=auto selected effort=xhigh"]);
+    });
+
+    it("fails only R3 and M1 when Claude main-agent traffic ran on /responses", () => {
+      cliFixture({ mainPath: "/responses" });
+      const { failures } = cliCheck();
+      expect(checkIds(failures)).toEqual(["R3", "M1"]);
+      expect(failures[0]).toMatch(/^FAIL R3 no 200 request for claude-opus-5 on a supported endpoint \(\/v1\/messages, \/chat\/completions\); observed: claude-opus-5 \/responses 200, /);
+      expect(failures[1]).toMatch(/^FAIL M1 main-agent request\(s\) not on \/chat\/completions; observed: claude-opus-5 \/responses 200, .*\(101 total\)$/);
+    });
+
+    it("fails P1 when the requested mode differs from the configured mode", () => {
+      cliFixture();
+      expect(cliCheck({ routingMode: "robust" }).failures).toEqual(["FAIL P1 requested mode (objective.mode) is auto, expected robust"]);
+    });
+
+    it("fails P1 when the selected effort is not a /reflect supported effort", () => {
+      cliFixture({ reflectData: opusReflect(["low", "medium", "high"]) });
+      expect(cliCheck().failures).toEqual(["FAIL P1 selected effort xhigh is not among claude-opus-5's /reflect supported efforts [low, medium, high]"]);
+    });
+
+    it("fails P1 when /reflect lists no efforts but an effort was selected", () => {
+      cliFixture({ reflectData: opusReflect([]) });
+      expect(cliCheck().failures).toEqual(["FAIL P1 selected effort is xhigh, expected null because /reflect lists no supported efforts for claude-opus-5"]);
+    });
+
+    it("fails P1 when /reflect has no effort metadata for the selected model", () => {
+      cliFixture({ reflectData: { endpoints: [{ provider: "copilot", routing_models: [{ model_id: "claude-opus-5", supported_endpoints: ["/v1/messages", "/chat/completions"] }] }] } });
+      expect(cliCheck().failures).toEqual(["FAIL P1 no /reflect supported_reasoning_efforts for claude-opus-5 to check selected effort xhigh against"]);
+    });
+
+    it("fails P1 when the recommended profile is not economy, balanced or robust", () => {
+      cliFixture();
+      write(
+        ROUTING,
+        jsonl(ROUTING).map(record => ({ event: "model_routing", ...record, ...(record.stage === "selection" ? { mode: "auto" } : {}) }))
+      );
+      expect(cliCheck().failures).toEqual(["FAIL P1 recommended profile (mode) is auto, expected one of economy, balanced, robust"]);
+    });
+
+    it("fails P1 when there is no selection record", () => {
+      cliFixture();
+      write(ROUTING, []);
+      expect(cliCheck().failures).toContain("FAIL P1 no firewall model_routing selection record with a selected model");
+    });
+  });
+
+  // Copilot SDK reverse direction (Claude main, GPT sub-agent): the values quoted in
+  // gh-aw#68067 from run 38090505292 (pinned claude-sonnet-5 main agent; sub-agent
+  // file-summarizer on copilot-responses/gpt-5.4-mini, served as
+  // gpt-5.4-mini-2026-03-17), in the SDK event shape of run 38100426674. The run was
+  // pinned, so only C1, M1 and S1–S4 are asserted.
+  describe("copilot sdk reverse direction (real record shapes)", () => {
+    const SUMMARIZER = "file-summarizer";
+    const reverseSession = () => [
+      sdkEvent("subagent.started", SUMMARIZER, { agentType: SUMMARIZER, model: "copilot-responses/gpt-5.4-mini", modelSelectionSource: "agent_definition_default" }),
+      { type: "subagent.configured", agentId: SDK_AGENT_ID, data: { model: "copilot-responses/gpt-5.4-mini", multiTurn: true }, provenance: { component: "agent", phase: "agent", path: "events.jsonl", index: 1 } },
+      sdkEvent("subagent.selected", SUMMARIZER, { tools: null }),
+      sdkEvent("subagent.completed", SUMMARIZER, { model: "copilot-responses/gpt-5.4-mini" }),
+    ];
+    const reverseRequests = (subPath = "/responses") => [
+      usage("claude-sonnet-5", "/chat/completions", 200, { x_initiator: "user" }),
+      usage("gpt-5.4-mini-2026-03-17", subPath),
+      usage("gpt-5.4-mini-2026-03-17", subPath),
+      usage("claude-sonnet-5", "/chat/completions"),
+      usage("claude-sonnet-5", "/chat/completions"),
+    ];
+    const reverseExpectations = {
+      engine: "copilot",
+      allowedModels: ["claude-sonnet-5"],
+      mainEndpoint: "/chat/completions",
+      subAgents: [{ name: SUMMARIZER, model: "gpt-5.4-mini", endpoint: "/responses" }],
+      requireDeclaredAgentNames: true,
+    };
+    const ASSERTED = ["C1", "M1", "S1", "S2", "S3", "S4"];
+    const asserted = lines => lines.filter(line => ASSERTED.includes(line.split(" ")[1]));
+
+    it("passes C1, M1 and S1–S4 with the GPT sub-agent on /responses", () => {
+      fixture({ session: reverseSession(), requests: reverseRequests() });
+      const { passes, failures } = check(reverseExpectations);
+      expect(asserted(failures)).toEqual([]);
+      expect(checkIds(asserted(passes))).toEqual(["C1", "M1", "S1", "S2", "S3", "S4"]);
+      expect(passes).toContain("PASS M1 all 3 main-agent request(s) used /chat/completions");
+      expect(passes).toContain("PASS S3 sub-agent file-summarizer request gpt-5.4-mini /responses 200");
+    });
+
+    it("fails only S3 when the GPT sub-agent ran on /chat/completions", () => {
+      fixture({ session: reverseSession(), requests: reverseRequests("/chat/completions") });
+      const { passes, failures } = check(reverseExpectations);
+      expect(asserted(failures)).toEqual(["FAIL S3 sub-agent file-summarizer: no 200 request for gpt-5.4-mini on /responses; observed: /chat/completions 200, /chat/completions 200"]);
+      expect(checkIds(asserted(passes))).toEqual(["C1", "M1", "S1", "S2", "S4"]);
+    });
+  });
+
+  // A routed Claude model without effort support: /reflect lists no efforts for
+  // claude-haiku-4.5 (awf_model_routing.test.cjs) and the router selects it with a null
+  // effort. Selection record in the unified-session shape of the
+  // copilot-subagent-failed-and-alias golden, on claude-haiku-4.5.
+  describe("P1 for a model selected without an effort", () => {
+    const haikuReflect = { endpoints: [{ provider: "copilot", routing_models: [{ model_id: "claude-haiku-4.5", source: "provider", supported_endpoints: ["/chat/completions", "/v1/messages"], supported_reasoning_efforts: [] }] }] };
+    const haikuSelection = (selectedEffort = null) => ({
+      type: "firewall.model_routing",
+      data: {
+        schema: "model-routing/v0.28.50",
+        stage: "selection",
+        objective: { goal: "cost", mode: "economy" },
+        provider: "copilot",
+        mode: "balanced",
+        selectedProvider: "copilot",
+        selectedModel: "github-copilot/claude-haiku-4.5",
+        selectedEffort,
+        wireModel: "claude-haiku-4.5",
+        endpoint: "/chat/completions",
+      },
+      provenance: { component: "firewall", phase: "agent", path: "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl", index: 1 },
+    });
+    const haikuFixture = selectedEffort => {
+      write("usage/aw_session.jsonl", [workflowInfo("selected", "claude-haiku-4.5"), haikuSelection(selectedEffort)]);
+      write(TOKEN_USAGE, [classifier(), usage("claude-haiku-4.5", "/chat/completions")]);
+      write("sandbox/firewall/awf-reflect.json", haikuReflect);
+    };
+    const haikuExpectations = { engine: "copilot", allowedModels: ["claude-haiku-4.5"], mainEndpoint: "/chat/completions", routingMode: "economy" };
+
+    it("passes P1 with a null effort when /reflect lists no efforts", () => {
+      haikuFixture(null);
+      const { passes, failures, info } = check(haikuExpectations);
+      expect(failures).toEqual([]);
+      expect(passes).toContain("PASS P1 requested mode economy; recommended profile balanced and selected effort null are valid for claude-haiku-4.5");
+      expect(info).toEqual(["INFO routing recommended profile=balanced requested mode=economy selected effort=<none>"]);
+    });
+
+    it("fails P1 when an effort was selected for a model without effort support", () => {
+      haikuFixture("low");
+      expect(check(haikuExpectations).failures).toEqual(["FAIL P1 selected effort is low, expected null because /reflect lists no supported efforts for claude-haiku-4.5"]);
+    });
+  });
+
   describe("main", () => {
     it("logs every check and fails the step on failure", async () => {
       fixture({ session: [workflowInfo()], requests: copilotRequests() });
