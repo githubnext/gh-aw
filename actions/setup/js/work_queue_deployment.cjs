@@ -78,10 +78,12 @@ function futurePolicy(state) {
 }
 
 function serializeDeployments(state) {
+  // Checkpoint snapshots must not share nested deployment objects with mutable replay state.
   return structuredClone(Object.fromEntries([...(state.deployments ?? [])].map(([pool, workers]) => [pool, Object.fromEntries(workers)])));
 }
 
 function restoreDeployments(state, value) {
+  // Replay mutates restored deployments, so detach them from immutable checkpoint data.
   state.deployments = new Map(Object.entries(structuredClone(value ?? {})).map(([pool, workers]) => [pool, new Map(Object.entries(workers))]));
   for (const [pool, workers] of state.deployments)
     for (const [name, worker] of workers) {

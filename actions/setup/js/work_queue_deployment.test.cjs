@@ -79,6 +79,7 @@ describe("prospective drain-free worker evolution", () => {
     expect(canonical(checkpoint)).toBe(original);
     expect(updated.deployments.get("default").get("default").current_ref).toBe(NEW_REF);
     expect(() => replayTransactions([...checkpoint, transaction])).not.toThrow();
+    // A live serialized reference would be mutated by the deployment update below.
     const snapshot = serializeDeployments(updated);
     applyDeployment(updated, { ...operation, expected_ref: NEW_REF, available: false });
     expect(snapshot.default.default.revisions[NEW_REF].available).toBe(true);
