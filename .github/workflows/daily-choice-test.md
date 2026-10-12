@@ -15,6 +15,31 @@ tracker-id: daily-choice-test
 engine: claude
 strict: true
 timeout-minutes: 10
+experiments:
+  emoji_density:
+    variants: [minimal, heavy]
+    description: "Effect of emoji density on readability of weekday choice explanations"
+    hypothesis: "H0: no readability improvement. H1: heavy improves mean readability score by at least 0.5/5"
+    metric: readability_score
+    secondary_metrics: [run_duration_seconds, explanation_word_count, "eval:emoji_assignment_followed"]
+    guardrail_metrics:
+      - name: "eval:choice_correct"
+        direction: max
+        threshold: 1.0
+      - name: missing_explanation_rate
+        direction: min
+        threshold: 0.0
+      - name: failed_run_rate
+        direction: min
+        threshold: 0.0
+    min_samples: 50
+    start_date: "2026-10-12"
+    issue: 67698
+evals:
+  - id: emoji_assignment_followed
+    question: "Does the final paragraph contain zero emoji when assigned minimal, or exactly three emoji when assigned heavy, while spelling out the environment, test type, and weekday rationale in words? If the independent assignment is unavailable, answer UNKNOWN."
+  - id: choice_correct
+    question: "Does the output evidence show exactly one test_environment declaration selecting staging/smoke on Monday, Wednesday, or Friday, or production/integration on Tuesday or Thursday, with an explanation that agrees with the declaration and run's UTC weekday? If the structured declaration or UTC date is unavailable, answer UNKNOWN; do not infer the declaration from prose."
 
 network:
   allowed:
@@ -88,4 +113,14 @@ Provide a brief explanation of why you chose this configuration.
 
 ### Output Format
 
-Respond with a single short paragraph explaining the chosen environment, test type, and day-based rationale.
+Respond with one paragraph of 25–45 words explaining the chosen environment,
+test type, and the run's UTC weekday rationale. Spell out all three facts.
+{{#if experiments.emoji_density == "heavy" }}
+Assigned presentation variant: heavy.
+Include exactly three emoji: one adjacent to the environment, one adjacent
+to the test type, and one adjacent to the weekday rationale.
+{{else}}
+Assigned presentation variant: minimal.
+Use zero emoji in the explanation.
+{{/if}}
+Keep emoji out of test_environment tool arguments. Invoke the tool exactly once.
