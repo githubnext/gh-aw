@@ -51,9 +51,6 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
       if (!jobsByComponent.has(name)) jobsByComponent.set(name, []);
       jobsByComponent.get(name).push(job);
       const prior = components.get(name);
-      if (prior && job.run_attempt === prior.run_attempt && job.id !== prior.id) {
-        throw new Error("Ambiguous daily AIC component jobs");
-      }
       if (!prior || (prior.conclusion === "skipped" && job.conclusion !== "skipped") || (job.conclusion !== "skipped" && job.run_attempt > prior.run_attempt) || (prior.conclusion === "skipped" && job.run_attempt > prior.run_attempt)) {
         components.set(name, job);
       }
@@ -67,6 +64,10 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   if (!complete || (components.size > 0 && !components.has("agent"))) throw new Error("Cannot prove complete billable-component coverage");
   const priorJobs = new Map();
   for (const [name, selected] of components) {
+    const selectedAttemptJobs = jobsByComponent.get(name).filter(job => job.run_attempt === selected.run_attempt);
+    if (new Set(selectedAttemptJobs.map(job => job.id)).size > 1) {
+      throw new Error("Ambiguous daily AIC component jobs");
+    }
     if (selected.conclusion === "cancelled") {
       priorJobs.set(
         name,

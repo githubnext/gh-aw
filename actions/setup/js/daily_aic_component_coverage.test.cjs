@@ -577,8 +577,11 @@ it("rejects an ambiguous previous attempt rather than choosing arbitrary carried
   await expect(f.result).rejects.toThrow("Ambiguous daily AIC component jobs");
 });
 
-it("ignores ambiguous older jobs when the latest job has its own producer", async () => {
-  const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, [job("agent", { id: 10, run_attempt: 2, started_at: later, completed_at: later }), job("agent"), job("Agent", { id: 11 })], { attempt: 2, runStarted: later, producerTime: later });
+it.each([
+  ["chronological", [job("agent"), job("Agent", { id: 11 }), job("agent", { id: 10, run_attempt: 2, started_at: later, completed_at: later })]],
+  ["latest-first", [job("agent", { id: 10, run_attempt: 2, started_at: later, completed_at: later }), job("agent"), job("Agent", { id: 11 })]],
+])("ignores ambiguous older jobs when the latest job has its own producer (%s order)", async (_order, jobs) => {
+  const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, jobs, { attempt: 2, runStarted: later, producerTime: later });
   await expect(f.result).resolves.toBe(2);
 });
 
