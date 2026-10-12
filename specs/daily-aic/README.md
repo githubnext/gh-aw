@@ -149,6 +149,16 @@ the generated report.
 
 ## Implementation boundary
 
+`actions/setup/js/daily_aic_spec_conformance.test.cjs` provides basic
+spec-derived, table-driven native cases named with the Section 9.7 compliance
+IDs. It exercises the real guardrail, scanner, component accounting, cache
+reader, and ledger reader against mocked API/artifact I/O, with fixed expected
+totals and statuses. It is not generated from TLC traces or a refinement proof.
+
+```sh
+npm --prefix actions/setup/js run test:js -- daily_aic_spec_conformance.test.cjs
+```
+
 The corresponding native suites are `daily_aic_scan`,
 `check_daily_aic_workflow_guardrail`, `daily_aic_api_budget`,
 `daily_aic_cache_helpers`, `daily_aic_component_coverage`,
