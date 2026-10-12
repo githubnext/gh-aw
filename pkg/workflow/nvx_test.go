@@ -26,6 +26,7 @@ func validNVXWorkflowData() *WorkflowData {
 					PreviewEnabled:             true,
 					NetworkIsolation:           true,
 					APIProxy:                   true,
+					GuestLibc:                  "musl",
 					LayerPath:                  "${{ runner.temp }}/nvx/guest-layer",
 					OpenVMMPath:                "${{ runner.temp }}/nvx/openvmm",
 					KernelPath:                 "${{ runner.temp }}/nvx/vmlinux",
@@ -46,6 +47,7 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 
 		effective := effectiveNVXConfig(data.SandboxConfig.Agent.NVX)
 		assert.Equal(t, defaultNVXMountPolicy, effective.MountPolicy)
+		assert.Equal(t, "musl", effective.GuestLibc)
 		assert.Equal(t, defaultNVXSignerWorkflow, effective.SignerWorkflow)
 		assert.Equal(t, 512, effective.MemoryMiB)
 		assert.Equal(t, int64(536870912), effective.MemoryMaxBytes)
@@ -80,6 +82,17 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "mount policy")
 	})
 
+	t.Run("requires an explicit supported guest libc", func(t *testing.T) {
+		for _, guestLibc := range []string{"", "gnu", "alpine"} {
+			data := validNVXWorkflowData()
+			data.SandboxConfig.Agent.NVX.GuestLibc = guestLibc
+
+			err := validateNVXRuntimeConfig(data, data.SandboxConfig.Agent)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "guest-libc")
+		}
+	})
+
 	t.Run("rejects memory ceilings below guest memory", func(t *testing.T) {
 		data := validNVXWorkflowData()
 		data.SandboxConfig.Agent.NVX.MemoryMiB = 1024
@@ -111,14 +124,15 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 
 func TestNVXRuntimeDefaultsWithoutConfiguration(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.NVX = nil
+	data.SandboxConfig.Agent.NVX = &AgentNVXConfig{GuestLibc: "glibc"}
 
 	require.NoError(t, validateNVXRuntimeConfig(data, data.SandboxConfig.Agent))
 
-	effective := effectiveNVXConfig(nil)
+	effective := effectiveNVXConfig(data.SandboxConfig.Agent.NVX)
 	assert.True(t, effective.PreviewEnabled)
 	assert.True(t, effective.NetworkIsolation)
 	assert.True(t, effective.APIProxy)
+	assert.Equal(t, "glibc", effective.GuestLibc)
 	assert.Equal(t, "${{ runner.temp }}/nvx/guest-layer", effective.LayerPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/openvmm", effective.OpenVMMPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/vmlinux", effective.KernelPath)
