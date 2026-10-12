@@ -19,6 +19,8 @@ var pluginInstallationLog = logger.New("workflow:plugin_installation")
 // that a configured agent could not be found at startup.
 const pluginDiagnosticsLogPath = logsFolder + "plugin-diagnostics.log"
 
+const pluginInstallationsPath = "/tmp/gh-aw/plugin-installations.jsonl"
+
 // pluginInstallSpec describes how an engine consumes checked-out Agent Plugins.
 //
 // Every engine with Agent Plugins support checks each plugin out at its pinned SHA.
@@ -46,6 +48,8 @@ type pluginInstallSpec struct {
 	// actually materialized loadable agent/skill files (as opposed to a source-only
 	// manifest), which is a common cause of "No such agent" failures at engine startup.
 	Diagnostics bool
+	// DeferRecording is used by engines that install plugins after configuration.
+	DeferRecording bool
 }
 
 // pluginDirectoryRegexp restricts plugin staging directories to a safe character set so
@@ -221,6 +225,9 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 
 		if spec.CustomInstall != nil {
 			steps = append(steps, spec.CustomInstall(parsed, checkoutPath, installPath, i)...)
+			if !spec.DeferRecording {
+				steps = append(steps, newPluginInstallationRecordStep(parsed, installPath))
+			}
 			continue
 		}
 
@@ -235,12 +242,18 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 					fmt.Sprintf("rm -rf %q", targetPath),
 					fmt.Sprintf("cp -R %q %q", "./"+installPath, targetPath),
 				}, "\n")
+				if (spec.Command == "" || len(spec.InstallArgs) == 0) && !spec.DeferRecording {
+					stageCommand += "\n" + pluginInstallationRecordCommand(parsed, installPath)
+				}
 				stageStep := []string{"      - name: Stage agent plugin " + parsed.repoPath}
 				steps = append(steps, FormatStepWithCommandAndEnv(stageStep, stageCommand, nil))
 			}
 		}
 
 		steps = append(steps, newPluginInstallCommandSteps(spec, parsed, installPath)...)
+		if spec.Directory == "" && (spec.Command == "" || len(spec.InstallArgs) == 0) && !spec.DeferRecording {
+			steps = append(steps, newPluginInstallationRecordStep(parsed, installPath))
+		}
 	}
 
 	return steps
@@ -257,6 +270,9 @@ func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefS
 		installArgs = append(installArgs, spec.InstallArgs...)
 		installArgs = append(installArgs, "./"+installPath)
 		installCommand := shellJoinArgs(installArgs)
+		if !spec.DeferRecording {
+			installCommand += "\n" + pluginInstallationRecordCommand(parsed, installPath)
+		}
 		installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
 		steps = append(steps, FormatStepWithCommandAndEnv(installStep, installCommand, nil))
 	}
@@ -266,6 +282,25 @@ func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefS
 	}
 
 	return steps
+}
+
+func newPluginInstallationRecordStep(parsed parsedSkillRefSpec, installPath string) GitHubActionStep {
+	return FormatStepWithCommandAndEnv(
+		[]string{"      - name: Record agent plugin installation " + parsed.repoPath},
+		pluginInstallationRecordCommand(parsed, installPath),
+		nil,
+	)
+}
+
+func pluginInstallationRecordCommand(parsed parsedSkillRefSpec, installPath string) string {
+	repository := strings.Join(strings.Split(parsed.repoPath, "/")[:2], "/")
+	return strings.Join([]string{
+		"mkdir -p /tmp/gh-aw",
+		fmt.Sprintf(
+			`jq -cn --arg timestamp "$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" --arg plugin %s --arg repository %s --arg ref %s --arg path %s '{timestamp: $timestamp, plugin: $plugin, repository: $repository, ref: $ref, path: $path, status: "installed"}' >> %s`,
+			shellEscapeArg(parsed.repoPath+"@"+parsed.ref), shellEscapeArg(repository), shellEscapeArg(parsed.ref), shellEscapeArg(installPath), pluginInstallationsPath,
+		),
+	}, "\n")
 }
 
 // pluginDiagnosticsMaxDepth bounds the `find` traversal used by newPluginDiagnosticsStep.

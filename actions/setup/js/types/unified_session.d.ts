@@ -99,6 +99,14 @@ export interface RuntimeObservationData {
   requestId?: JsonValue;
 }
 
+export interface PluginInstallationData {
+  plugin: string;
+  repository: string;
+  ref: string;
+  path: string;
+  status: "installed";
+}
+
 /** AWF API proxy steering event-log observation. */
 export interface FirewallSteeringData extends RuntimeObservationData {
   threshold?: JsonValue;
@@ -509,6 +517,7 @@ export interface UnifiedSessionEventDataMap {
   "detection.result": DetectionResultData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
+  "plugin.installation": PluginInstallationData;
   "github_api.rate_limit": GitHubApiRateLimitData;
   "session.collection_warning": CollectionWarningData;
   "session.collection": CollectionData;

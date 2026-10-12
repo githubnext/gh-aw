@@ -167,6 +167,13 @@ const TASK_FIELDS = {
 
 /** @type {Record<string, Fields>} */
 const EVENT_FIELDS = {
+  "plugin.installation": {
+    plugin: ["plugin"],
+    repository: ["repository"],
+    ref: ["ref"],
+    path: ["path"],
+    status: ["status"],
+  },
   ...COPILOT_WORKFLOW_EVENT_FIELDS,
   "session.format": { version: ["version"] },
   "agent.execution": { categories: ["categories"], errorCodes: ["errorCodes"], errorTypes: ["errorTypes"], exitCode: ["exitCode", "exit_code"] },
