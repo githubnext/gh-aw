@@ -451,6 +451,8 @@ A warning is a lower-severity signal than a hard threat: the safe output is allo
 
 By default, a warning or failure conclusion also creates or updates a `[aw] Detection Runs` tracking issue in the repository and posts a comment describing the run. This is useful for auditing automation health, but not every repository wants detector diagnostics (such as `parse_error` reports) surfaced alongside user-facing issues.
 
+Comments categorize the structured reason as `threat_finding` (`threat_detected`), `detector_execution_failure` (`agent_failure`), or `detector_result_invalid` (`parse_error`). Missing or unrecognized reasons are `detection_outcome_unknown`; unrecognized reason text is omitted. Execution failures and invalid results leave the security assessment incomplete, rather than proving a threat or a clean result. The category is independent of the warning/failure conclusion and does not change enforcement. Comments omit agent text and detection payloads; existing comments are not rewritten.
+
 Set `report-as-issue: false` to keep threat detection and its enforcement fully active while skipping the tracking issue entirely:
 
 ```yaml wrap

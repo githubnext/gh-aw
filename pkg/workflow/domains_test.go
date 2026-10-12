@@ -421,7 +421,6 @@ func TestThreatDetectionDomains(t *testing.T) {
 		"github.com",
 		"host.docker.internal",
 		"registry.npmjs.org",
-		"telemetry.enterprise.githubcopilot.com",
 	}
 
 	detectionMap := make(map[string]bool)
@@ -432,12 +431,13 @@ func TestThreatDetectionDomains(t *testing.T) {
 		assert.True(t, detectionMap[required], "Required domain %q not found in threat-detection domain set", required)
 	}
 
-	// Detection domains must NOT include the domains excluded for supply-chain reduction
+	// Detection domains must NOT include unnecessary downloads or vendor telemetry
 	excludedDomains := []string{
 		"raw.githubusercontent.com",
+		"telemetry.enterprise.githubcopilot.com",
 	}
 	for _, excluded := range excludedDomains {
-		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection domain set (excluded to reduce supply chain surface)", excluded)
+		assert.False(t, detectionMap[excluded], "Domain %q should not be in threat-detection domain set", excluded)
 	}
 
 	// Verify exact count — no silent additions
@@ -451,6 +451,8 @@ func TestThreatDetectionNetworkAllowedCompatibilityAlias(t *testing.T) {
 
 	assert.Equal(t, engineDefaults, expanded,
 		"legacy network.allowed threat-detection alias must expand to the Copilot detection domain set")
+	assert.NotContains(t, expanded, "telemetry.enterprise.githubcopilot.com",
+		"legacy threat-detection alias must not allow vendor telemetry")
 }
 
 func TestEngineDomainSetsRequireExplicitNetworkAllowedOptIn(t *testing.T) {
@@ -491,6 +493,7 @@ func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 
 	// Must NOT include raw GitHub downloads
 	assert.NotContains(t, result, "raw.githubusercontent.com", "Detection domains must not include raw.githubusercontent.com")
+	assert.NotContains(t, result, "telemetry.enterprise.githubcopilot.com", "Detection domains must not include vendor telemetry by default")
 
 	// Must NOT include ecosystem-expansion domains (no tools/runtimes passed for detection)
 	assert.NotContains(t, result, "pypi.org", "Detection domains must not include Python ecosystem domains")

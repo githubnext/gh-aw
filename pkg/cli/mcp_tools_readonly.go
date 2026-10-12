@@ -315,6 +315,7 @@ Returns JSON array with validation results for each workflow:
 			outputStr = injectDockerUnavailableWarning(outputStr, dockerUnavailableWarning)
 		}
 		if args.DryRun {
+			outputStr = injectDevelopmentCompilerDiagnostics(outputStr, diagnostics)
 			outputStr = injectDevelopmentShellcheckDiagnostics(outputStr, diagnostics.shellcheck.String())
 		} else {
 			outputStr = injectShellcheckDiagnostics(outputStr, diagnostics.shellcheck.String())

@@ -1484,6 +1484,48 @@ function gradeCodeReadPrecision(trace, config) {
   };
 }
 
+/**
+ * code-edit-precision: Fraction of distinct edited files touched by the reference patch.
+ * @param {any} trace
+ * @param {Record<string, any>} config
+ * @returns {any}
+ */
+function gradeCodeEditPrecision(trace, config) {
+  const resolved = resolveReferencePatchFiles(trace);
+  if ("error" in resolved) return { value: null, passed: null, message: resolved.error };
+  const { ir, required } = resolved;
+  if (!Array.isArray(ir.actions) || !ir.actions.every(isRecord)) {
+    return { value: null, passed: null, message: "unavailable: trace lacks well-formed actions" };
+  }
+  const editedFiles = new Set();
+  for (const action of ir.actions) {
+    if (typeof action.type !== "string" || action.type.trim() === "") {
+      return { value: null, passed: null, message: "unavailable: action is missing a type" };
+    }
+    if (typeof action.consequential !== "boolean") {
+      return { value: null, passed: null, message: "unavailable: action is missing a consequential flag" };
+    }
+    if (action.type !== "edit") continue;
+    if (!action.consequential) {
+      return { value: null, passed: null, message: "unavailable: edit action is not consequential" };
+    }
+    if (typeof action.target !== "string" || normalizeFilePath(action.target) === "") {
+      return { value: null, passed: null, message: "unavailable: edit action is missing a file target" };
+    }
+    editedFiles.add(normalizeFilePath(action.target));
+  }
+  if (editedFiles.size === 0) {
+    return { value: null, passed: null, message: "unavailable: trace has no file edits" };
+  }
+  const requiredSet = new Set(required.map(normalizeFilePath));
+  const irrelevant = [...editedFiles].filter(file => !requiredSet.has(file));
+  const relevant = editedFiles.size - irrelevant.length;
+  return {
+    value: helpers.ratio(relevant, editedFiles.size),
+    details: `referenceFiles=${requiredSet.size} editedFiles=${editedFiles.size} relevant=${relevant}${irrelevant.length === 0 ? "" : `; unrelated edits: ${irrelevant.slice(0, 5).map(truncateDiagnosticPath).join(", ")}`}`,
+  };
+}
+
 /** @type {Record<string, (trace: any, config?: Record<string, any>) => any>} */
 const TRAJECTORY_GRADERS = {
   "policy-near-miss": withTrajectoryLimits(gradePolicyNearMiss),
@@ -1509,6 +1551,7 @@ const TRAJECTORY_GRADERS = {
   "trajectory-ndtw": withTrajectoryLimits(gradeTrajectoryNdtw),
   "code-search-recall": withTrajectoryLimits(gradeCodeSearchRecall),
   "code-read-precision": withTrajectoryLimits(gradeCodeReadPrecision),
+  "code-edit-precision": withTrajectoryLimits(gradeCodeEditPrecision),
 };
 
 const builtinMeta = require("./builtin_graders.json");
