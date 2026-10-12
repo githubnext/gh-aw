@@ -55,7 +55,9 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
       if (!jobsByComponent.has(name)) jobsByComponent.set(name, []);
       jobsByComponent.get(name).push(job);
       const prior = components.get(name);
-      if (!prior || (prior.conclusion === "skipped" && job.conclusion !== "skipped") || (job.conclusion !== "skipped" && job.run_attempt > prior.run_attempt) || (prior.conclusion === "skipped" && job.run_attempt > prior.run_attempt)) {
+      const notStarted = job.conclusion === "skipped" || provesJobExecutionNotStarted(job);
+      const priorNotStarted = prior && (prior.conclusion === "skipped" || provesJobExecutionNotStarted(prior));
+      if (!prior || (priorNotStarted && !notStarted) || (notStarted === priorNotStarted && job.run_attempt > prior.run_attempt)) {
         components.set(name, job);
       }
     }
@@ -83,6 +85,10 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
     }
   }
   return { components, priorJobs };
+}
+
+function allBillableJobsNotStarted(components) {
+  return [...components.values()].every(job => job.conclusion === "skipped" || provesJobExecutionNotStarted(job));
 }
 
 function allBillableJobsSkipped(components) {
@@ -276,4 +282,4 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
   return total;
 }
 
-module.exports = { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents };
+module.exports = { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents };

@@ -97,6 +97,93 @@ function writeEntries(entries) {
   fs.writeFileSync(cachePath, entries.map(entry => JSON.stringify(entry)).join("\n"));
 }
 
+describe("daily AIC confirmed-zero diagnostics", () => {
+  const notStarted = {
+    id: 1,
+    name: "Agent",
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "cancelled",
+    runner_id: null,
+    runner_name: null,
+    steps: [],
+  };
+
+  it.each(["skipped", "cancelled", "failure"])("confirms zero before artifact lookup when the agent is %s and never ran", async conclusion => {
+    const f = fixture([run(1)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    f.artifactClient = { listArtifacts: vi.fn().mockRejectedValue(new Error("artifact unavailable")) };
+    f.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue(response({ jobs: [{ ...notStarted, conclusion }] }));
+    const result = await scanDailyAIC(f);
+    expect(result.countedRuns).toMatchObject([{ aic: 0, source: "recorded", accountingReason: "confirmed_zero" }]);
+    expect(f.artifactClient.listArtifacts).not.toHaveBeenCalled();
+    f.github.rest.actions.listJobsForWorkflowRun.mockClear();
+    expect((await scanDailyAIC(f)).countedRuns).toMatchObject([{ aic: 0, accountingReason: "confirmed_zero" }]);
+    expect(f.github.rest.actions.listJobsForWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it.each(
+    [
+      [{ ...notStarted, runner_id: 1 }],
+      [{ ...notStarted, steps: undefined }],
+      [{ ...notStarted }, { ...notStarted, id: 2, name: "Detection", conclusion: "success", runner_id: 1 }],
+      [
+        { ...notStarted, conclusion: "success", runner_id: 1 },
+        { ...notStarted, id: 2, run_attempt: 2 },
+      ],
+    ].map(jobs => [jobs])
+  )("does not infer zero when any component may have executed", async jobs => {
+    const f = fixture([run(1, { run_attempt: 2 })]);
+    f.getRunAIC = guardrail.getRunAIC;
+    f.artifactClient = { listArtifacts: vi.fn().mockResolvedValue({ artifacts: [] }) };
+    f.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue(response({ jobs }));
+    const result = await scanDailyAIC(f);
+    expect(result.countedRuns).toMatchObject([{ aic: 1000, source: "estimated" }]);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("check artifact upload and retention"));
+  });
+
+  it("retains conservative estimates when job metadata is unavailable", async () => {
+    const f = fixture([run(1)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    f.github.rest.actions.listJobsForWorkflowRun.mockRejectedValue(new Error("Job metadata unavailable"));
+    expect((await scanDailyAIC(f)).countedRuns).toMatchObject([{ aic: 1000, source: "estimated" }]);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Job metadata unavailable"));
+  });
+
+  it("rechecks recorded zero observations made before the corrected rerun coverage rules", async () => {
+    const f = fixture([run(1)]);
+    const legacy = { ...scanCacheEntry(run(1), 0, repository, 7, now), coverage_version: 2 };
+    writeEntries([legacy]);
+    const result = await scanDailyAIC(f);
+    expect(result.cacheHits).toBe(0);
+    expect(result.countedRuns).toMatchObject([{ aic: 2, source: "recorded" }]);
+    expect(f.getRunAIC).toHaveBeenCalledOnce();
+  });
+
+  it("reports artifact discovery failures without replacing the underlying API error", async () => {
+    const f = fixture([run(1)]);
+    const error = apiError(403, {}, "Resource not accessible by integration");
+    const artifactClient = { listArtifacts: vi.fn().mockRejectedValue(error) };
+    await expect(guardrail.getRunAIC(artifactClient, 1, f.token, "example", "project", run(1), f)).rejects.toBe(error);
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Artifact discovery failed"));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Resource not accessible by integration"));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Actions read permissions"));
+  });
+
+  it("reports download failures with the run and artifact identities", async () => {
+    const f = fixture([run(1)]);
+    const error = apiError(410, {}, "Artifact has expired");
+    const artifactClient = {
+      listArtifacts: vi.fn().mockResolvedValue({ artifacts: [{ id: 42, name: "usage", createdAt: new Date(time) }] }),
+      downloadArtifact: vi.fn().mockRejectedValue(error),
+    };
+    await expect(guardrail.getRunAIC(artifactClient, 1, f.token, "example", "project", run(1), f)).rejects.toBe(error);
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('"artifactId":42'));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Artifact has expired"));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Artifact accounting failed"));
+  });
+});
+
 describe("daily AIC computation contract gaps", () => {
   const params = { owner: "example", repo: "project", workflowId: 7, created: ">=2025-02-02T12:00:00Z", page: 1, perPage: 100, lookupMode: "workflow_id" };
 
@@ -326,7 +413,7 @@ describe("complete daily AIC scan observations", () => {
     const result = await scanDailyAIC(f);
     expect(result.cacheHits).toBe(0);
     expect(result.countedRuns[0].aic).toBeCloseTo(48.11352);
-    expect(readScanCache(fs.readFileSync(cachePath, "utf8"), repository, 7, now).get(1)).toMatchObject({ coverage_version: 2, source: "recorded" });
+    expect(readScanCache(fs.readFileSync(cachePath, "utf8"), repository, 7, now).get(1)).toMatchObject({ coverage_version: 3, source: "recorded" });
     expect((await scanDailyAIC(f)).cacheHits).toBe(1);
   });
 
