@@ -19,10 +19,7 @@
   "target_repo": "",
   "staged": false,
   "dry_run": false,
-  "allowed_domains": [
-    "defaults",
-    "python"
-  ],
+  "allowed_domains": ["defaults", "python"],
   "firewall_enabled": true,
   "awf_version": "v0.28.51",
   "awmg_version": "",
@@ -35,9 +32,7 @@
     {
       "model": "claude-haiku-4.5",
       "name": "file-summarizer",
-      "patterns": [
-        "github-copilot/claude-haiku-4.5"
-      ]
+      "patterns": ["github-copilot/claude-haiku-4.5"]
     },
     {
       "model": "small",
