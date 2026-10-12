@@ -364,5 +364,37 @@
    "prompts/ for create/update/debug by AI agents"
   ],
   "blogged": false
+ },
+ "zwave-js/bot-workflows": {
+  "kind": "workflow-collection",
+  "reviewed": "2026-10-12",
+  "score": 8,
+  "summary": "Shared pinned package of agentic bots (docs answering, logfile analysis, classification) with gated pre-activation retrieval and capped agent.",
+  "highlights": [
+   "workflows/answer-from-docs.md: on.steps retrieval gate, max-turns 5, network {}",
+   "aw.yml package manifest + SHA-pinned shared imports",
+   "README consumer contract and release/pinning policy"
+  ],
+  "blogged": true
+ },
+ "ArcavenAE/beadle": {
+  "kind": "tool",
+  "reviewed": "2026-10-12",
+  "score": 5,
+  "summary": "Rust intent-aligned issue triage dashboard; README only skimmed, gh-aw link not confirmed.",
+  "highlights": [
+   "DESIGN.md intent-scoring idea"
+  ],
+  "blogged": false
+ },
+ "xhandlr/ghaw-security-adoption": {
+  "kind": "other",
+  "reviewed": "2026-10-12",
+  "score": 4,
+  "summary": "Research data/scripts on gh-aw security adoption; not read in depth.",
+  "highlights": [
+   "scripts/ and results/ dirs"
+  ],
+  "blogged": false
  }
 }
