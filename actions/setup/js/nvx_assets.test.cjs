@@ -84,6 +84,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     const result = spawnSync(node, ["-e", 'const cp = require("node:child_process"); const child = cp.spawnSync(process.execPath, ["-e", "process.exit(17)"]); if (child.error) throw child.error; process.exit(child.status);'], {
       encoding: "utf8",
     });
+    expect(result.signal, result.stderr).toBeNull();
     expect(result.status, result.stderr).toBe(17);
   });
 
@@ -139,6 +140,7 @@ process.exit(17);
       encoding: "utf8",
     });
     expect(result.error).toBeUndefined();
+    expect(result.signal, result.stderr).toBeNull();
     expect(result.status, result.stderr).toBe(17);
     collect(environment, state);
     expect(fs.readFileSync(path.join(state, "result.txt"), "utf8")).toBe("guest output");

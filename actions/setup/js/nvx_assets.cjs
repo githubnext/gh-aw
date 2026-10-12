@@ -97,7 +97,10 @@ function stageExecutableLibraries(entry, runtime, guestRuntime) {
     // Relocate the ELF itself so Node/Bun forks retain a runnable execPath.
     const originalRPath = execFileSync("/usr/bin/patchelf", ["--print-rpath", entry], { encoding: "utf8", timeout: 15_000 }).trim();
     const guestLibDir = path.join(guestRuntime, "lib");
-    execFileSync("/usr/bin/patchelf", ["--set-interpreter", path.join(guestLibDir, path.basename(interpreter)), "--force-rpath", "--set-rpath", [guestLibDir, originalRPath].filter(Boolean).join(":"), entry], { timeout: 15_000 });
+    // patchelf 0.18 corrupts some Node binaries if both sections grow together,
+    // or if the interpreter is expanded before RPATH.
+    execFileSync("/usr/bin/patchelf", ["--force-rpath", "--set-rpath", [guestLibDir, originalRPath].filter(Boolean).join(":"), entry], { timeout: 15_000 });
+    execFileSync("/usr/bin/patchelf", ["--set-interpreter", path.join(guestLibDir, path.basename(interpreter)), entry], { timeout: 15_000 });
   } catch (error) {
     throw new Error(`Failed to export NVX executable libraries for ${entry}`, { cause: error });
   }
