@@ -1629,6 +1629,68 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
   });
 
+  describe("process-alignment-fitness built-in grader", () => {
+    const model = { start: "search", end: "edit", transitions: { search: ["read"], read: ["edit"] } };
+    const run = (toolCalls, config = { model }, location = "trajectoryIR") => runTrajectoryBuiltin("process-alignment-fitness", { [location]: { toolCalls } }, config);
+    const call = (name, eventIndex) => ({ name, eventIndex });
+
+    it("scores an ordered conforming trajectory including both boundaries", () => {
+      const result = run([call("edit", 5), call("search", 1), call("read", 3)]);
+      expect(result).toMatchObject({ value: 1, status: "pass", source: "builtin", unit: "ratio" });
+      expect(result.details).toBe("observedSteps=3 allowedChecks=4 totalChecks=4");
+      expect(TRAJECTORY_GRADER_META["process-alignment-fitness"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
+    });
+
+    it.each(["trajectoryIr", "ir"])("reads the %s IR", location => {
+      expect(run([call("search", 0), call("read", 1), call("edit", 2)], { model }, location).value).toBe(1);
+    });
+
+    it("counts forbidden transitions and wrong start/end independently", () => {
+      expect(run([call("search", 0), call("edit", 1)]).value).toBe(2 / 3);
+      expect(run([call("read", 0), call("search", 1), call("read", 2)]).value).toBe(1 / 4);
+      expect(run([call("other", 0)]).value).toBe(0);
+    });
+
+    it("handles a one-call process", () => {
+      expect(run([call("search", 0)], { model: { start: "search", end: "search", transitions: {} } }).value).toBe(1);
+    });
+
+    it("reports missing models as not applicable", () => {
+      const result = run([call("search", 0)], {});
+      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable" });
+      expect(result.message).toContain("not applicable");
+    });
+
+    it.each([
+      ["missing calls", undefined],
+      ["empty calls", []],
+      ["non-array calls", {}],
+      ["missing name", [{ eventIndex: 0 }]],
+      ["missing event index", [{ name: "search" }]],
+      ["negative index", [call("search", -1)]],
+      ["duplicate index", [call("search", 1), call("read", 1)]],
+    ])("rejects %s", (_reason, toolCalls) => {
+      expect(run(toolCalls)).toMatchObject({ value: null, status: "unavailable" });
+    });
+
+    it.each([
+      ["non-record", []],
+      ["missing start", { end: "edit", transitions: {} }],
+      ["missing end", { start: "search", transitions: {} }],
+      ["invalid transitions", { start: "search", end: "edit", transitions: { search: "read" } }],
+      ["invalid destination", { start: "search", end: "edit", transitions: { search: [""] } }],
+    ])("rejects a %s model", (_reason, malformed) => {
+      expect(run([call("search", 0)], { model: malformed })).toMatchObject({ value: null, status: "unavailable" });
+    });
+
+    it("bounds the number of model transitions", () => {
+      const oversized = { start: "search", end: "edit", transitions: { search: Array(MAX_TRAJECTORY_ITEMS + 1).fill("read") } };
+      expect(run([call("search", 0)], { model: oversized })).toMatchObject({ value: null, status: "unavailable" });
+      const manySources = Object.fromEntries(Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, (_, index) => [`tool-${index}`, []]));
+      expect(run([call("search", 0)], { model: { start: "search", end: "edit", transitions: manySources } })).toMatchObject({ value: null, status: "unavailable" });
+    });
+  });
+
   // --- Hostile data ---
   describe("hostile data handling", () => {
     it("handles hostile strings in tool call names", () => {
@@ -2029,7 +2091,7 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
 
     it("includes every trajectory grader", () => {
-      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(24);
+      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(25);
       expect(Object.keys(TRAJECTORY_GRADER_META).sort()).toEqual(Object.keys(TRAJECTORY_GRADERS).sort());
     });
 
