@@ -28,6 +28,9 @@ func TestUnifiedSessionAgentArtifactPaths(t *testing.T) {
 			assert.Contains(t, paths, "/tmp/gh-aw/aw-prompts/user.txt")
 			assert.Contains(t, paths, "/tmp/gh-aw/aw-prompts/system.txt")
 			assert.Contains(t, paths, agentExecutionExitCodePath)
+			assert.NotContains(t, paths, pluginInstallationsPath)
+			data.Plugins = []string{"org/plugin@" + testPluginSHA}
+			assert.Contains(t, compiler.collectArtifactPaths(data, engine, constants.AgentStdioLogPath, nil), pluginInstallationsPath)
 		})
 	}
 }
