@@ -197,3 +197,26 @@ func TestMCPServerUnit_CompileToolProgress(t *testing.T) {
 	assert.InDelta(t, 100, notifications[1].Progress, 0.001)
 	assert.Equal(t, "compile-progress", notifications[0].ProgressToken)
 }
+
+func TestMCPServerUnit_CompileToolProgressOnEmptyOutputError(t *testing.T) {
+	t.Parallel()
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", "exit 1")
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, mockExecCmd, ""))
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+	params := &mcp.CallToolParams{Name: "compile", Arguments: map[string]any{}}
+	params.SetProgressToken("compile-progress")
+
+	result, err := session.CallTool(context.Background(), params)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.False(t, result.IsError)
+	require.NotEmpty(t, result.Content)
+	require.Eventually(t, func() bool { return len(getNotifications()) == 2 }, time.Second, 10*time.Millisecond)
+	notifications := getNotifications()
+	assert.InDelta(t, 0, notifications[0].Progress, 0.001)
+	assert.InDelta(t, 100, notifications[1].Progress, 0.001)
+	assert.Equal(t, "compile-progress", notifications[0].ProgressToken)
+}

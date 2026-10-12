@@ -301,6 +301,7 @@ Returns JSON array with validation results for each workflow:
 				if jsonErr != nil {
 					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal compile error results", jsonErr.Error())
 				}
+				notifyProgress(ctx, req, 100, 100, "Compilation complete")
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 				}, nil, nil
