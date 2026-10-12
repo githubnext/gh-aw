@@ -14,6 +14,7 @@ func applyActionPinPrefix(repo, pinnedRef string, ctx *PinContext) string {
 	if pinnedRef == "" || ctx == nil || len(ctx.PrefixMappings) == 0 {
 		return pinnedRef
 	}
+	actionPinsLog.Printf("Checking prefix mapping for repo=%s (%d prefix mapping(s) configured)", repo, len(ctx.PrefixMappings))
 
 	longest := ""
 	for prefix := range ctx.PrefixMappings {
@@ -22,6 +23,7 @@ func applyActionPinPrefix(repo, pinnedRef string, ctx *PinContext) string {
 		}
 	}
 	if longest == "" {
+		actionPinsLog.Printf("No prefix mapping matched for repo=%s", repo)
 		return pinnedRef
 	}
 	resolvedRepo, suffix, ok := strings.Cut(pinnedRef, "@")
