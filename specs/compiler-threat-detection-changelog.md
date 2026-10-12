@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.49 | Added CTR-032 for step-scoped safe-output publishing identity, replacement of forged execution-provenance comments, and fail-closed runtime metadata validation. |
 | 1.0.48 | Audit-only clarification that same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | 1.0.47 | Audit-only clarification that same-repository checkout for allow-listed App comments is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | 1.0.46 | Extended CTR-017 OTLP exclusions to evals AWF sandboxes and mapped evals-enabled/disabled regression coverage. |

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.48
+**Version**: 1.0.49
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -22,7 +22,7 @@ The gh-aw maintainers revise this Candidate Recommendation using security-review
 
 ## 1. Scope and Conformance
 
-This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
+This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, compiler-generated safe-output publishing identity, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
 
 A conforming implementation satisfies every MUST in Sections 2–8. Rules are specification-first, secure by default, mapped bidirectionally to implementation, and auditable through version history.
 
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.49` | Unreleased | Adds CTR-032; safe-output publishing jobs supply step-level check-run identity, and runtime publishers replace forged execution-provenance markers with trusted metadata. |
 | `1.0.48` | Unreleased | Audit-only; same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | `1.0.47` | Unreleased | Audit-only; same-repository checkout for allow-listed App comments is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | `1.0.46` | Unreleased | Extends CTR-017 OTLP sandbox exclusions to evals AWF invocations. No lock-file schema change. |
@@ -60,7 +61,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 ## 3. Threat Model Overview
 
-Generated workflows run with elevated permissions and consume untrusted content (issues, PRs, comments, external tool output). The catalog in Section 5 groups the threats a conforming compiler MUST detect into five classes: unauthorized privilege or scope expansion, unsafe or bypassed sandboxing, injection (template, shell, or subprocess argument), unsafe output and supply-chain routes, and compile-time drift between manifests, mappings, and the rules that reference them. Each class maps to one or more `CTR-*` rules with a stable trigger and compiler action.
+Generated workflows run with elevated permissions and consume untrusted content (issues, PRs, comments, external tool output). The catalog in Section 5 groups the threats a conforming compiler MUST detect into five classes: unauthorized privilege or scope expansion, unsafe or bypassed sandboxing, injection (template, shell, or subprocess argument), unsafe output and supply-chain routes (including forged execution attribution), and compile-time drift between manifests, mappings, and the rules that reference them. Each class maps to one or more `CTR-*` rules with a stable trigger and compiler action.
 
 Runtime trust boundaries inside the agent workspace are out of scope for this specification. In particular, the safe-outputs repository checkout discovery path (`actions/setup/js/find_repo_checkout.cjs`) resolves an `owner/repo` target from agent-writable workspace state; its normative controls — manifest precedence, workspace confinement, per-invocation `safe.directory` scoping, read-only discovery, remote host constraint, and deferred durable trust — are specified as Threat T7 and requirements RCR1–RCR7 in the Safe Outputs MCP Gateway Specification and as §3.5 of the Checkout Behavior Specification. A conforming compiler is not required to detect this class, because the compiler emits no generated-workflow construct that selects the checkout directory.
 
@@ -71,6 +72,8 @@ Sandbox bypass includes the provenance of the agent's own configuration. On pull
 Activation also reads workflow imports and skills before the agent job runs. Restoring agent configuration later cannot make instructions already loaded during activation trustworthy; the activation sparse checkout must select a trusted ref independently.
 
 Host-side OTLP exporter configuration is another secret-bearing trust boundary. Passing collector headers and endpoints through AWF's `--env-all` exposes collector credentials to sandboxed processes and can cause an agent CLI to export duplicate telemetry. CTR-017 covers compiler-generated exclusions for the agent, threat-detection, and evals sandboxes.
+
+Safe-output body content is untrusted even when supplied to a trusted publisher. A body can contain forged reserved HTML comments, including nested, variant, or unterminated openers, that imitate execution provenance. CTR-032 requires the compiler to provide the publishing check-run identity and the runtime publisher to remove or neutralize supplied reserved markers before appending trusted execution metadata; missing or invalid identity fails closed.
 
 ## 4. Governance and Responsibilities
 
@@ -112,6 +115,7 @@ Each rule has a stable `CTR-*` ID, threat class, trigger, compiler action, diagn
 - **CTR-029 Repository Dispatch App Authorization**: On `repository_dispatch`, authorize a GitHub App that is explicitly listed in `on.bots` when the collaborator lookup conclusively reports it absent; deny non-allowlisted actors, lookup failures, and App actors on every other trigger.
 - **CTR-030 Activation Checkout Provenance**: For `pull_request`, `pull_request_review`, and `pull_request_review_comment` events, emit an activation sparse checkout pinned to `github.event.pull_request.base.sha`, guarded by event name and pull-request payload presence. Match trigger names exactly so `pull_request_target` does not opt into this rule. Other events retain their existing checkout ref (including the resolved callee SHA for `workflow_call`); cross-repository `workflow_call` checkout remains same-repository-only when activation authentication can fall back to `GITHUB_TOKEN`.
 - **CTR-031 Private-to-Public Flow Opt-Out**: Reject `tools.github.private-to-public-flows` in strict mode in both its blanket and server-list forms; in non-strict mode, emit a security warning because the opt-out can expose private data through public Actions logs or agent-controlled public destinations.
+- **CTR-032 Safe-Output Execution Provenance Spoofing**: Generated built-in, custom, and maintenance safe-output publishers MUST receive `job.check_run_id` only in the publishing step. Before publishing issue, pull request, comment, or discussion bodies, runtime publishers MUST replace supplied `gh-aw-execution` and `gh-aw-agentic-workflow` markers—including nested, variant, and unterminated comment forms—with trusted versioned execution metadata. Missing or invalid provenance metadata MUST fail closed.
 
 ### 5.2 Compiler Response Requirements
 
@@ -184,6 +188,7 @@ Every active rule MUST map to implementation and test coverage. References are p
 | CTR-029 Repository Dispatch App Authorization | `actions/setup/js/check_membership.cjs`, `actions/setup/js/check_permissions_utils.cjs` | `actions/setup/js/check_membership.test.cjs` |
 | CTR-030 Activation Checkout Provenance | `pkg/workflow/compiler_activation_job.go` | `pkg/workflow/compiler_activation_job_test.go` |
 | CTR-031 Private-to-Public Flow Opt-Out | `pkg/workflow/strict_mode_private_to_public_flows_validation.go`, `pkg/workflow/compiler_validators.go` | `pkg/workflow/private_to_public_flows_test.go` |
+| CTR-032 Safe-Output Execution Provenance Spoofing | `pkg/workflow/compiler_safe_outputs_steps.go`, custom and maintenance safe-output job builders, `actions/setup/js/execution_provenance.cjs` | `pkg/workflow/safe_outputs_job_identity_test.go`, `actions/setup/js/execution_provenance.test.cjs` |
 
 ### 7.2 Mapping Audit History
 
@@ -227,6 +232,7 @@ Each active rule MUST have at least one deterministic test that covers its prima
 | **T-CTR-044** | CTR-029 Repository Dispatch App Authorization | An allowlisted GitHub App sends `repository_dispatch` and the collaborator lookup reports it absent | Authorize only the allowlisted App on `repository_dispatch`; deny non-allowlisted actors, lookup failures, and all other triggers. | `CTR-029` |
 | **T-CTR-045** | CTR-030 Activation Checkout Provenance | A workflow with pull-request and/or review triggers generates an activation sparse checkout | Pin supported PR events to the PR base SHA; preserve the existing fallback ref for other events and the same-repo guard when activation auth may use `GITHUB_TOKEN`. | `CTR-030` |
 | **T-CTR-046** | CTR-031 Private-to-Public Flow Opt-Out | A workflow configures `tools.github.private-to-public-flows` as `allow` or a server-ID list | Reject both forms in strict mode; emit a security warning in non-strict mode. | `CTR-031` |
+| **T-CTR-047** | CTR-032 Safe-Output Execution Provenance Spoofing | A built-in, custom, or maintenance publisher emits a body containing forged reserved markers, or the compiler generates a publishing step | Pass the runtime check-run ID only to the publishing step; replace nested, variant, and unterminated supplied reserved markers with trusted execution metadata; fail closed when required metadata is invalid or missing. | `CTR-032` |
 
 The core tests exercise their catalog trigger and assert the expected rejection, warning, rewrite, or runtime-safe output.
 
