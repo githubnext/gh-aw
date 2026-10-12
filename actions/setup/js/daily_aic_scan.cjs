@@ -18,7 +18,7 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
   const repository = `${owner}/${repo}`;
   const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }));
   const current = currentResponse.data;
-  if (!current.workflow_id) throw new Error("Cannot resolve the daily AIC workflow");
+  if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve the daily AIC workflow");
   core.info(
     `[daily-workflow-aic] Started authoritative AIC scan: ${JSON.stringify({
       repository,
@@ -34,9 +34,9 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
   let lookupMode = "workflow_id";
   const created = `>=${new Date(now - WINDOW_MS).toISOString()}`;
   for (let page = 1; page <= MAX_PAGES; page++) {
-    let result;
-    await budget.request(async () => {
-      result = await listPage(github, {
+    const result = await listPage(
+      github,
+      {
         owner,
         repo,
         workflowId: current.workflow_id,
@@ -44,11 +44,12 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
         page,
         perPage: 100,
         lookupMode,
-      });
-      return result.response;
-    });
+      },
+      budget
+    );
     lookupMode = result.lookupMode;
-    const pageRuns = result.response.data.workflow_runs || [];
+    const pageRuns = result.response.data?.workflow_runs;
+    if (!Array.isArray(pageRuns)) throw new Error("Incomplete daily AIC workflow history");
     core.info(
       `[daily-workflow-aic] Listed workflow run candidates: ${JSON.stringify({
         page,
@@ -58,6 +59,7 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
       })}`
     );
     for (const run of pageRuns) {
+      if (!Number.isSafeInteger(run?.id) || run.id <= 0) throw new Error("A workflow run has an invalid identity");
       if (run.id === context.runId) continue;
       const created = Date.parse(run.created_at);
       if (!Number.isFinite(created)) throw new Error("A workflow run has an unknown creation time");

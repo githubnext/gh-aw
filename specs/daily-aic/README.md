@@ -16,6 +16,24 @@ history. A failed historical read can replace the whole run with a positive
 configured maximum, but not through permission, quota, or retry restrictions.
 Transient reads have at most three attempts.
 
+`Transport.cfg` additionally models an explicit GitHub quota balance starting
+at 101, 105, or 110 remaining requests, with the real 100-request reserve. Every
+modeled GitHub response, including a 404, permission rejection, server error,
+or interrupted body with received headers, consumes one request. Crossing the
+reserve terminates the invocation before accepting that response's accounting.
+An HTTP 429/secondary limit or explicit retry restriction also stops immediately.
+A single server-side reset can replenish remaining quota to 110; a reset never
+resumes an already stopped invocation. Signed-storage responses do not consume
+GitHub quota.
+
+The network starts online and can go offline and recover during any read phase.
+Two bounded connectivity changes model one offline episode; request-level
+transient failures can recur independently throughout the invocation. Offline
+attempts produce no observed API response and therefore consume no *observed*
+quota. Retries can straddle recovery, exhaust during an outage, or conservatively
+estimate unresolved historical runs. Outage witnesses require an actual failed
+offline attempt, not just connectivity toggles.
+
 Recorded cache entries require trusted producer provenance and matching
 completed-run metadata. Estimated, legacy, expired, invalid, and mismatched
 observations are not cache hits. Producer cases include default-branch `issues`
@@ -63,6 +81,8 @@ scheduling or network availability. Terminal states stutter explicitly.
 | `ReadAttemptBound` | At most three attempts per read |
 | `LedgerTrust`, `LedgerReconcile` | Separate ledger trust, filtering, deduplication and summation rules |
 | `ContinuationPolicy` | Unknown totals permit only with explicit `continue-on-error`; exceeded totals never permit |
+| `QuotaBalance`, `CircuitBreaker` | Response costs reconcile with each reset epoch; reaching the reserve stops immediately |
+| `StorageDoesNotConsumeQuota`, `NetworkAccounting` | Signed storage and offline attempts without responses do not consume observed GitHub quota |
 | `EventuallyDone` | Every modeled invocation terminates under weak fairness |
 
 ## Validate
@@ -90,17 +110,29 @@ partial snapshots, zero values, and duplicate-free aggregation. Both explore
 all declared configurations, transport failures, and at most three read attempts.
 These are exhaustive checks of their finite models, not simulation.
 
+`Transport.cfg` checks two historical runs with a reduced accounting universe,
+explicit response costs, quota reset, and connectivity changes. The full policy
+and aggregation configurations retain abstract failure outcomes; the dedicated
+transport configuration exercises all four concrete transport invariants.
+
 Successful positive checks require exit zero, TLC's exhaustive-success verdict,
-nonzero explored states, and an empty remaining queue. Six negative controls
+nonzero explored states, and an empty remaining queue. Nine negative controls
 must return exit 12 and violate their exact named invariant: incomplete history,
 quota estimation, estimated cache reuse, non-default issue-producer trust,
 double counting, and resurrected Detection summary usage. Syntax failures,
 timeouts, and unrelated invariant failures do not count as successful controls.
+Three additional defects bypass the reserve, charge signed-storage responses,
+and charge offline attempts without observed responses.
 
-Forty-seven intentional `WitnessNotReached` counterexamples demonstrate
+Fifty-six intentional `WitnessNotReached` counterexamples demonstrate
 reachability of every named accounting outcome and the main decision/fallback
 paths, including partial persistence, mixed sources, cache reinspection, quota
 stops, missing maxima, ledger, history fallback, and retry recovery.
+Transport witnesses additionally demonstrate reserve stops, quota resets,
+observed outage recovery/exhaustion/estimation, and signed-storage isolation.
+Reachability checks restrict the accounting/producer/cache constants to relevant
+subsets of the positive configuration; the exhaustive policy check still covers
+their full cross-product.
 
 The output contains copied model/configurations, raw SANY/TLC logs and
 counterexamples, and `report.json` recording source hashes, revision anchor,
@@ -110,11 +142,10 @@ Changes to measured source bytes or HEAD during validation fail the checker.
 Reusing an output directory marks its report incomplete before starting; only
 successful completion changes the report to passed.
 
-The checked configurations completed with 557,473 distinct states for the
-one-run policy model and 100,890 for the two-run aggregation model, with no
-remaining queued states. All safety invariants and `EventuallyDone` passed;
-all six negative controls and 47 reachability witnesses produced the required
-named counterexamples.
+The configurations must complete with no remaining queued states. All safety
+invariants and `EventuallyDone`, all nine negative controls, and all 56
+reachability witnesses are required to pass; exact state counts are recorded in
+the generated report.
 
 ## Implementation boundary
 
@@ -133,3 +164,12 @@ invocations, or provider billing. It checks latest metadata rather than summing
 every rerun attempt. No arbitrary-history, actual-charge upper-bound, TLAPS,
 or unbounded liveness claim is made. Summary-rendering errors after accounting
 are outside the model.
+
+Each read phase is a representative API operation, not an exact count of the
+implementation's restore/pagination requests. Quota resets and connectivity
+changes are nondeterministic bounded events, not physical-time scheduling.
+Primary/secondary-limit and `Retry-After` stop policies are represented, not
+HTTP-date parsing. An offline request that reaches GitHub but loses its headers
+may consume real quota that the client cannot observe; this is not modeled as
+known remaining quota. Native suites check the actual response observer and
+per-endpoint/body retry wiring.

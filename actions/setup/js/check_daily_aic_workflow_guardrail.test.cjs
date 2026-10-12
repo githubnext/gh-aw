@@ -1111,6 +1111,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
                 data: {
                   workflow_runs: Array.from({ length: 100 }, (_, i) => ({
                     id: 100 + i,
+                    workflow_id: 999,
                     name: "Other Workflow",
                     html_url: `https://example.test/runs/${100 + i}`,
                     created_at: nowIso,

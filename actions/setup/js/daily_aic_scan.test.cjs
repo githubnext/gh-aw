@@ -39,6 +39,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   delete global.core;
   delete global.github;
   delete global.context;
@@ -46,6 +47,7 @@ afterEach(() => {
 });
 
 function fixture(runs = [run(1), run(2), run(3)]) {
+  const pageRead = vi.fn(async () => ({ response: response({ workflow_runs: runs }), sourceRunCount: runs.length, lookupMode: "workflow_id" }));
   const getRunAIC = vi.fn(async (_client, id) => (id === 2 ? 0 : id * 2));
   const github = {
     rest: {
@@ -75,7 +77,15 @@ function fixture(runs = [run(1), run(2), run(3)]) {
     budget: createAPIBudget(),
     artifactClient: {},
     getRunAIC,
-    listPage: vi.fn(async () => ({ response: response({ workflow_runs: runs }), sourceRunCount: runs.length, lookupMode: "workflow_id" })),
+    pageRead,
+    listPage: vi.fn(async (client, params, budget) => {
+      let result;
+      await budget.request(async () => {
+        result = await pageRead(client, params);
+        return result.response;
+      });
+      return result;
+    }),
     token: "synthetic",
     fallbackAIC: 1000,
     cachePath,
@@ -87,6 +97,166 @@ function writeEntries(entries) {
   fs.writeFileSync(cachePath, entries.map(entry => JSON.stringify(entry)).join("\n"));
 }
 
+describe("daily AIC computation contract gaps", () => {
+  const params = { owner: "example", repo: "project", workflowId: 7, created: ">=2025-02-02T12:00:00Z", page: 1, perPage: 100, lookupMode: "workflow_id" };
+
+  it.each([{ "x-ratelimit-remaining": "100" }, { "retry-after": "120" }])("never bypasses a restricted history 404", async headers => {
+    const f = fixture([]);
+    f.github.rest.actions.listWorkflowRuns = vi.fn().mockRejectedValue(apiError(404, headers, "Not Found"));
+    f.github.rest.actions.listWorkflowRunsForRepo = vi.fn(async () => response({ workflow_runs: [] }));
+    await expect(guardrail.listCompletedWorkflowRunsPage(f.github, params, f.budget)).rejects.toMatchObject({ status: 404 });
+    expect(f.github.rest.actions.listWorkflowRunsForRepo).not.toHaveBeenCalled();
+    expect(f.budget.snapshot().requests).toBe(1);
+  });
+
+  it("retries repository history without replaying the workflow 404", async () => {
+    vi.useFakeTimers();
+    const f = fixture([]);
+    f.github.rest.actions.listWorkflowRuns = vi.fn().mockRejectedValue(apiError(404, {}, "Not Found"));
+    f.github.rest.actions.listWorkflowRunsForRepo = vi
+      .fn()
+      .mockRejectedValueOnce(apiError(502, {}, "Server Error"))
+      .mockResolvedValue(response({ workflow_runs: [run(1)] }));
+    const pending = expect(guardrail.listCompletedWorkflowRunsPage(f.github, params, f.budget)).resolves.toMatchObject({ sourceRunCount: 1, lookupMode: "repo_workflow_id_fallback" });
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(f.github.rest.actions.listWorkflowRuns).toHaveBeenCalledOnce();
+    expect(f.github.rest.actions.listWorkflowRunsForRepo).toHaveBeenCalledTimes(2);
+    expect(f.budget.snapshot().requests).toBe(3);
+  });
+
+  it("retries artifact JSON body timeouts with fresh signals and quota observations", async () => {
+    vi.useFakeTimers();
+    const first = new Response("", { status: 200, headers: { "x-ratelimit-remaining": "4000" } });
+    first.json = async () => {
+      throw new DOMException("body timeout", "TimeoutError");
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValue(new Response(JSON.stringify({ artifacts: [] }), { status: 200, headers: { "x-ratelimit-remaining": "3999" } }));
+    vi.stubGlobal("fetch", fetch);
+    const budget = createAPIBudget();
+    const client = new DefaultArtifactClient({ request: budget.request });
+    const pending = expect(client.listArtifacts({ findBy: { token: "synthetic", repositoryOwner: "example", repositoryName: "project", workflowRunId: 1 } })).resolves.toMatchObject({ artifacts: [] });
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(budget.snapshot().requests).toBe(2);
+    expect(fetch.mock.calls[0][1].signal).not.toBe(fetch.mock.calls[1][1].signal);
+  });
+
+  it.each([false, true])("retries signed-storage body interruptions (exhausted=%s) without replaying the redirect or publishing partial data", async exhausted => {
+    const interrupted = () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("partial"));
+            controller.error(Object.assign(new Error("connection reset"), { code: "ECONNRESET" }));
+          },
+        }),
+        { status: 200 }
+      );
+    let bodies = 0;
+    const fetch = vi.fn(async url => {
+      if (String(url).includes("api.github.com")) return new Response(null, { status: 302, headers: { location: "https://storage.example.invalid/file", "x-ratelimit-remaining": "4000" } });
+      bodies++;
+      return exhausted || bodies === 1 ? interrupted() : new Response("complete", { status: 200, headers: { "content-disposition": 'attachment; filename="accounting.jsonl"' } });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const budget = createAPIBudget();
+    const client = new DefaultArtifactClient({ request: budget.request });
+    const download = client.downloadArtifact(1, { path: directory, findBy: { token: "synthetic", repositoryOwner: "example", repositoryName: "project" } });
+    const assertion = exhausted ? expect(download).rejects.toThrow("connection reset") : expect(download).resolves.toMatchObject({ downloadPath: directory });
+    await assertion;
+    expect(bodies).toBe(exhausted ? 3 : 2);
+    expect(budget.snapshot().requests).toBe(1);
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes("api.github.com"))).toHaveLength(1);
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes("storage")).every(([_url, options]) => !options.headers)).toBe(true);
+    if (exhausted) expect(fs.readdirSync(directory)).toEqual([]);
+    else expect(fs.readFileSync(path.join(directory, "accounting.jsonl"), "utf8")).toBe("complete");
+  });
+
+  it.each([undefined, null, "invalid"])("rejects missing or malformed history instead of proving an empty window", async workflow_runs => {
+    const f = fixture([]);
+    f.github.rest.actions.listWorkflowRuns = vi.fn(async () => response({ workflow_runs }));
+    await expect(guardrail.listCompletedWorkflowRunsPage(f.github, params, f.budget)).rejects.toThrow("Incomplete daily AIC workflow history");
+  });
+
+  it("rejects repository entries whose workflow membership cannot be determined", async () => {
+    const f = fixture([]);
+    f.github.rest.actions.listWorkflowRunsForRepo = vi.fn(async () => response({ workflow_runs: [{ id: 1 }] }));
+    await expect(guardrail.listCompletedWorkflowRunsPage(f.github, { ...params, lookupMode: "repo_workflow_id_fallback" }, f.budget)).rejects.toThrow("Incomplete daily AIC repository workflow history");
+  });
+
+  it.each([undefined, null, 0, -1, 1.5, "1"])("rejects invalid historical run identity %s before accounting or estimation", async id => {
+    const f = fixture([run(id)]);
+    await expect(scanDailyAIC(f)).rejects.toThrow("invalid identity");
+    expect(f.getRunAIC).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, 0, -1, 1.5, "7"])("rejects invalid current workflow identity %s before listing history", async workflow_id => {
+    const f = fixture([]);
+    f.github.rest.actions.getWorkflowRun.mockResolvedValue(response({ workflow_id }));
+    await expect(scanDailyAIC(f)).rejects.toThrow("Cannot resolve the daily AIC workflow");
+    expect(f.listPage).not.toHaveBeenCalled();
+    expect(f.getRunAIC).not.toHaveBeenCalled();
+  });
+
+  it.each(["ai_credits", "aiCredits", "aic"])("does not treat %s zero as proof of zero when token pricing is unknown", key => {
+    const file = path.join(directory, "unknown-pricing.jsonl");
+    fs.writeFileSync(file, JSON.stringify({ [key]: 0, provider: "unknown-provider", model: "unknown-model", input_tokens: 100 }));
+    expect(() => guardrail.sumAICFromUsageJSONLFiles([file], { strict: true })).toThrow("could not be resolved");
+    fs.writeFileSync(file, JSON.stringify({ [key]: 1, provider: "unknown-provider", model: "unknown-model", input_tokens: 100 }));
+    expect(guardrail.sumAICFromUsageJSONLFiles([file], { strict: true })).toBe(1);
+    fs.writeFileSync(file, JSON.stringify({ ai_credits_this_response: 0, input_tokens: 100 }));
+    expect(guardrail.sumAICFromUsageJSONLFiles([file], { strict: true })).toBe(0);
+  });
+
+  it("counts and reports confirmed-zero runs rather than removing them from statistics", () => {
+    expect(guardrail.calculateDailyAICStats([{ aic: 0 }, { aic: 2 }])).toMatchObject({ count: 2, total: 2, average: 1, min: 0 });
+    expect(Number.isFinite(guardrail.calculateDailyAICStats([{ aic: 0 }, { aic: 1e308 }]).stddev)).toBe(true);
+  });
+
+  it.each([NaN, Infinity, -1, undefined])("rejects invalid aggregate input %s rather than silently dropping it", aic => {
+    expect(() => guardrail.calculateDailyAICStats([{ aic }])).toThrow("not finite and non-negative");
+  });
+
+  it.each(["artifacts", "repo-memory"])("fails closed on aggregate overflow in the %s backend", async backend => {
+    const f = fixture([]);
+    const stamp = new Date().toISOString();
+    global.context = f.context;
+    global.github = f.github;
+    const outputs = {};
+    global.core.setOutput = (key, value) => {
+      outputs[key] = value;
+    };
+    global.core.setFailed = vi.fn();
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS", "9");
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", backend);
+    vi.stubEnv("GITHUB_EVENT_NAME", "schedule");
+    vi.stubEnv("GH_AW_GITHUB_TOKEN", "synthetic");
+    vi.stubEnv("GH_AW_WORKFLOW_ID", "7");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED", "true");
+    f.github.rest.actions.listWorkflowRuns = vi.fn(async () => response({ workflow_runs: [run(1, { created_at: stamp, updated_at: stamp }), run(2, { created_at: stamp, updated_at: stamp })] }));
+    vi.spyOn(guardrail, "getArtifactClient").mockResolvedValue({});
+    vi.spyOn(guardrail, "getRunAIC").mockResolvedValue(1e308);
+    const root = path.join(directory, "daily-aic-ledger");
+    fs.mkdirSync(root);
+    fs.writeFileSync(path.join(root, `${stamp.slice(0, 10)}.jsonl`), [1, 2].map(run_id => JSON.stringify({ version: 1, repository, workflow_id: "7", run_id, timestamp: stamp, aic: 1e308 })).join("\n"));
+    await guardrail.main({ cachePath, repoMemoryDir: directory });
+    expect(outputs.daily_ai_credits_guardrail_status).toBe("transient_error");
+    expect(outputs.daily_ai_credits_total).toBe("");
+    expect(outputs.daily_ai_credits_exceeded).toBe("false");
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("aggregate total is not finite"));
+  });
+
+  it("classifies marked reserve stops as transient rather than permission errors", () => {
+    expect(guardrail.isStructuralGuardrailError(Object.assign(apiError(403, { "x-ratelimit-remaining": "100" }, "reserve"), { code: "DAILY_AIC_QUOTA_STOP" }))).toBe(false);
+    expect(guardrail.isStructuralGuardrailError(apiError(403, {}, "permission"))).toBe(true);
+  });
+});
+
 describe("complete daily AIC scan observations", () => {
   it("limits repository fallback listings to the 24-hour accounting window", async () => {
     const f = fixture([]);
@@ -95,7 +265,8 @@ describe("complete daily AIC scan observations", () => {
       f.github,
       expect.objectContaining({
         created: ">=2025-02-02T12:00:00.000Z",
-      })
+      }),
+      f.budget
     );
   });
 
@@ -392,7 +563,7 @@ describe("complete daily AIC scan observations", () => {
   it.each(["current", "history"])("fails closed when the authoritative %s read exhausts retries", async kind => {
     vi.useFakeTimers();
     const f = fixture([run(1)]);
-    const request = kind === "current" ? f.github.rest.actions.getWorkflowRun : f.listPage;
+    const request = kind === "current" ? f.github.rest.actions.getWorkflowRun : f.pageRead;
     request.mockRejectedValue(apiError(502, { "x-ratelimit-remaining": "4000" }, "Server Error"));
     const assertion = expect(scanDailyAIC(f)).rejects.toMatchObject({ status: 502 });
     await vi.runAllTimersAsync();
@@ -489,7 +660,7 @@ describe("complete daily AIC scan observations", () => {
 
   it("refuses a truncated listing and never inspects its incomplete candidate set", async () => {
     const f = fixture();
-    f.listPage.mockResolvedValue({ response: response({ workflow_runs: [run(1)] }), sourceRunCount: 100, lookupMode: "workflow_id" });
+    f.pageRead.mockResolvedValue({ response: response({ workflow_runs: [run(1)] }), sourceRunCount: 100, lookupMode: "workflow_id" });
     await expect(scanDailyAIC(f)).rejects.toThrow("complete pagination");
     expect(f.listPage).toHaveBeenCalledTimes(25);
     expect(f.getRunAIC).not.toHaveBeenCalled();

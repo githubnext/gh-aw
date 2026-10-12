@@ -99,6 +99,16 @@ describe("DefaultArtifactClient.listArtifacts", () => {
       })
     ).rejects.toThrow("failed to list artifacts (403)");
   });
+
+  it("observes response headers even when the JSON body cannot be parsed", async () => {
+    const response = makeFetchResponse(200, "invalid JSON");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+    const onResponse = vi.fn();
+    const client = new DefaultArtifactClient({ onResponse });
+    await expect(client.listArtifacts({ findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" } })).rejects.toThrow("failed to parse list artifacts");
+    expect(onResponse).toHaveBeenCalledOnce();
+    expect(onResponse).toHaveBeenCalledWith(response);
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

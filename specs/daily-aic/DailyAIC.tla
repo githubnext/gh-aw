@@ -1,12 +1,18 @@
 ----------------------------- MODULE DailyAIC -----------------------------
 EXTENDS Naturals, Integers, FiniteSets, Sequences, TLC
 
-CONSTANTS Runs, AccountingKinds, ProducerKinds, CacheKinds, MaxAttempts, Fault, Witness
+CONSTANTS Runs, AccountingKinds, ProducerKinds, CacheKinds, MaxAttempts, Fault, Witness, TransportMode
 ASSUME /\ Runs \subseteq {1, 2} /\ Runs # {}
        /\ MaxAttempts = 3
        /\ Fault \in {"none", "partial_history", "estimate_quota",
                      "reuse_estimate", "trust_issue_branch", "double_count",
-                     "resurrect_detection_summary"}
+                     "resurrect_detection_summary", "bypass_reserve",
+                     "charge_storage", "charge_outage"}
+       /\ TransportMode \in {"abstract", "concrete"}
+
+TransportEnabled == TransportMode = "concrete"
+Reserve == 100
+QuotaStarts == IF TransportEnabled THEN {101, 105, 110} ELSE {110}
 
 Components == {"agent", "detection", "evals"}
 MeasuredKinds == {"raw", "agent_jsonl", "agent_json", "detection_jsonl",
@@ -18,7 +24,7 @@ ComponentZeroKinds == {"component_skipped", "runner_not_assigned", "execution_no
                        "failed_agent_missing", "failed_evals", "explicit_zero"}
 UnresolvedKinds == {"missing_usage", "missing_component", "unreadable_preferred",
                     "malformed", "unknown_pricing", "stale_artifact",
-                    "unverified_rerun", "conflicting_request"}
+                    "unverified_rerun", "conflicting_request", "zero_alias_unknown_pricing"}
 AllAccountingKinds == MeasuredKinds \cup ComponentZeroKinds \cup UnresolvedKinds
 JobZeroKinds == {"all_jobs_skipped", "no_billable_jobs"}
 AllProducerKinds == {"push", "schedule", "workflow_dispatch", "issues",
@@ -101,8 +107,9 @@ LedgerValue(entries, r) ==
             IN entries[last].value
 
 ReadPhases == {"restore", "current", "workflow_history", "repo_history",
-               "jobs", "artifacts", "download"}
-HistoricalReads == {"jobs", "artifacts", "download"}
+               "jobs", "artifacts", "redirect", "download"}
+GitHubReadPhases == ReadPhases \ {"download"}
+HistoricalReads == {"jobs", "artifacts", "redirect", "download"}
 Failures == {"transient", "quota", "restricted", "unauthorized", "forbidden", "not_found"}
 KnownResults == {"under_budget", "exceeded"}
 ErrorResults == {"structural_error", "transient_error"}
@@ -115,7 +122,7 @@ Maximum(a, b) == IF a > b THEN a ELSE b
 VARIABLE s
 vars == <<s>>
 Init ==
-    \E input \in Inputs:
+    \E input \in Inputs, quota \in QuotaStarts:
         s = [input |-> input, phase |-> "start", status |-> "not_run",
              candidates |-> {}, complete |-> FALSE, counted |-> {}, active |-> 0,
              values |-> [r \in Runs |-> 0], sources |-> [r \in Runs |-> "none"],
@@ -125,12 +132,44 @@ Init ==
              attempt |-> 0, maxAttempt |-> 0, recovered |-> FALSE,
              producer |-> Producer("pull_request"), cacheKind |-> "absent",
              cacheHits |-> {}, lookup |-> "workflow", failure |-> "none",
-             ledger |-> <<>>, allowAgent |-> FALSE]
+             ledger |-> <<>>, allowAgent |-> FALSE,
+             remaining |-> quota, quotaStart |-> quota, epochResponses |-> 0,
+             apiResponses |-> 0, resets |-> 0,
+             networkUp |-> TRUE, networkChanges |-> 0,
+             outageObserved |-> FALSE, outageEstimated |-> FALSE,
+             storageReads |-> 0, storageCharges |-> 0, networkCharges |-> 0]
 
-Stop(cause) ==
-    s' = [s EXCEPT !.phase = "done", !.status = Status(cause),
+Stopped(cause) ==
+    [s EXCEPT !.phase = "done", !.status = Status(cause),
                   !.failure = cause, !.allowAgent = s.input.continue,
                   !.maxAttempt = Maximum(@, s.attempt + 1)]
+Commit(next, observed) ==
+    LET storage == TransportEnabled /\ observed /\ s.phase = "download"
+        storageCharge == storage /\ Fault = "charge_storage"
+        networkCharge == TransportEnabled /\ ~observed
+                         /\ s.phase \in GitHubReadPhases /\ Fault = "charge_outage"
+        charged == TransportEnabled /\
+                   ((observed /\ s.phase \in GitHubReadPhases)
+                    \/ storageCharge \/ networkCharge)
+        remaining == s.remaining - IF charged THEN 1 ELSE 0
+        blocked == charged /\ remaining <= Reserve /\ Fault # "bypass_reserve"
+        result == IF blocked THEN Stopped("quota") ELSE next
+    IN s' = [result EXCEPT
+                !.remaining = remaining,
+                !.epochResponses = s.epochResponses + IF charged THEN 1 ELSE 0,
+                !.apiResponses = s.apiResponses + IF charged THEN 1 ELSE 0,
+                !.storageReads = s.storageReads + IF storage THEN 1 ELSE 0,
+                !.storageCharges = s.storageCharges + IF storageCharge THEN 1 ELSE 0,
+                !.networkCharges = s.networkCharges + IF networkCharge THEN 1 ELSE 0,
+                !.outageObserved = @ \/ (TransportEnabled /\ ~observed /\ s.phase \in ReadPhases)]
+Stop(cause) == Commit(Stopped(cause), s.networkUp)
+NetworkChange ==
+    /\ TransportEnabled /\ s.phase \in ReadPhases /\ s.networkChanges < 2
+    /\ s' = [s EXCEPT !.networkUp = ~@, !.networkChanges = @ + 1]
+QuotaReset ==
+    /\ TransportEnabled /\ s.phase \in ReadPhases /\ s.resets = 0
+    /\ s' = [s EXCEPT !.remaining = 110, !.quotaStart = 110,
+                     !.epochResponses = 0, !.resets = 1]
 Start ==
     /\ s.phase = "start"
     /\ IF s.input.limit = 0
@@ -145,18 +184,18 @@ Start ==
        ELSE s' = [s EXCEPT !.phase = "restore"]
 
 Advance(phase) ==
-    s' = [s EXCEPT !.phase = phase, !.attempt = 0,
+    Commit([s EXCEPT !.phase = phase, !.attempt = 0,
                   !.maxAttempt = Maximum(@, s.attempt + 1),
-                  !.recovered = @ \/ s.attempt > 0]
+                  !.recovered = @ \/ s.attempt > 0], TRUE)
 Restore ==
-    /\ s.phase = "restore"
+    /\ s.phase = "restore" /\ s.networkUp
     /\ \E k \in CacheKinds, p \in ProducerKinds:
         IF k = "conflict" /\ RestoreTrust(Producer(p))
         THEN Stop("conflicting_snapshot")
-        ELSE s' = [s EXCEPT !.phase = "current", !.cacheKind = k,
+        ELSE Commit([s EXCEPT !.phase = "current", !.cacheKind = k,
                            !.producer = Producer(p), !.attempt = 0,
                            !.maxAttempt = Maximum(@, s.attempt + 1),
-                           !.recovered = @ \/ s.attempt > 0]
+                           !.recovered = @ \/ s.attempt > 0], TRUE)
 HasRecordedCache(r) ==
     RestoreTrust(s.producer)
     /\ (s.cacheKind = "full_recorded" \/ (s.cacheKind = "recorded" /\ r = 1))
@@ -164,14 +203,16 @@ HasEstimatedCache(r) ==
     RestoreTrust(s.producer) /\ s.cacheKind = "estimated" /\ r = 1
 
 Settle(r, value, source, evidence, cause, hit) ==
-    s' = [s EXCEPT !.phase = "resolve", !.active = 0, !.attempt = 0,
+    Commit([s EXCEPT !.phase = "resolve", !.active = 0, !.attempt = 0,
                   !.maxAttempt = Maximum(@, s.attempt + 1),
                   !.counted = @ \cup {r}, !.persisted = @ \cup {r},
                   !.values[r] = value, !.sources[r] = source, !.evidence[r] = evidence,
                   !.estimateCause[r] = IF source = "estimated" THEN cause ELSE "none",
+                  !.recovered = @ \/ (source = "recorded" /\ s.attempt > 0),
+                  !.outageEstimated = @ \/ (source = "estimated" /\ ~s.networkUp),
                   !.total = @ + IF Fault = "double_count" THEN 2 * value ELSE value,
                   !.estimated = @ + IF source = "estimated" THEN value ELSE 0,
-                  !.cacheHits = IF hit THEN @ \cup {r} ELSE @]
+                  !.cacheHits = IF hit THEN @ \cup {r} ELSE @], s.networkUp)
 Estimate(cause, evidence) ==
     IF s.input.maximum > 0
        /\ (cause \in {"transient", "unresolved"}
@@ -180,36 +221,40 @@ Estimate(cause, evidence) ==
     ELSE Stop(cause)
 
 History ==
-    /\ s.phase \in {"workflow_history", "repo_history"}
+    /\ s.phase \in {"workflow_history", "repo_history"} /\ s.networkUp
     /\ \E candidates \in SUBSET Runs:
-        s' = [s EXCEPT !.phase = "resolve", !.candidates = candidates,
+        Commit([s EXCEPT !.phase = "resolve", !.candidates = candidates,
                        !.complete = TRUE, !.attempt = 0,
                        !.maxAttempt = Maximum(@, s.attempt + 1),
-                       !.recovered = @ \/ s.attempt > 0]
+                       !.recovered = @ \/ s.attempt > 0], TRUE)
 History404 ==
-    /\ s.phase = "workflow_history"
-    /\ s' = [s EXCEPT !.phase = "repo_history", !.lookup = "repository",
-                     !.attempt = 0, !.maxAttempt = Maximum(@, s.attempt + 1)]
+    /\ s.phase = "workflow_history" /\ s.networkUp
+    /\ Commit([s EXCEPT !.phase = "repo_history", !.lookup = "repository",
+                     !.attempt = 0, !.maxAttempt = Maximum(@, s.attempt + 1)], TRUE)
 IncompleteHistory ==
-    /\ s.phase \in {"workflow_history", "repo_history"}
-    /\ IF Fault = "partial_history"
-       THEN s' = [s EXCEPT !.phase = "resolve", !.candidates = Runs, !.complete = FALSE]
-       ELSE Stop("incomplete_history")
+    /\ s.phase \in {"workflow_history", "repo_history"} /\ s.networkUp
+    /\ \E cause \in {"incomplete_history", "invalid_history"}:
+        IF Fault = "partial_history"
+        THEN s' = [s EXCEPT !.phase = "resolve", !.candidates = Runs, !.complete = FALSE]
+        ELSE Stop(cause)
 
 ReadSuccess ==
-    \/ (s.phase = "current" /\ Advance("workflow_history"))
-    \/ (s.phase = "jobs" /\
-        (Advance("artifacts") \/
-         \E kind \in JobZeroKinds: Settle(s.active, 0, "recorded", kind, "none", FALSE)))
-    \/ (s.phase = "artifacts" /\ Advance("download"))
-    \/ (s.phase = "download" /\ Advance("account"))
+    /\ s.networkUp
+    /\ (\/ (s.phase = "current" /\ Advance("workflow_history"))
+        \/ (s.phase = "jobs" /\
+            (Advance("artifacts") \/
+             \E kind \in JobZeroKinds: Settle(s.active, 0, "recorded", kind, "none", FALSE)))
+        \/ (s.phase = "artifacts" /\ Advance("redirect"))
+        \/ (s.phase = "redirect" /\ Advance("download"))
+        \/ (s.phase = "download" /\ Advance("account")))
 ReadFailure ==
     /\ s.phase \in ReadPhases
     /\ \E cause \in Failures:
+        /\ s.networkUp \/ cause = "transient"
         /\ ~(s.phase = "workflow_history" /\ cause = "not_found")
         /\ IF cause = "transient" /\ s.attempt + 1 < MaxAttempts
-           THEN s' = [s EXCEPT !.attempt = @ + 1,
-                              !.maxAttempt = Maximum(@, s.attempt + 1)]
+           THEN Commit([s EXCEPT !.attempt = @ + 1,
+                              !.maxAttempt = Maximum(@, s.attempt + 1)], s.networkUp)
            ELSE IF s.phase \in HistoricalReads THEN Estimate(cause, cause)
            ELSE Stop(cause)
 Resolve ==
@@ -250,7 +295,7 @@ Decide ==
 Done == s.phase = "done" /\ UNCHANGED s
 Next == Start \/ Restore \/ History \/ History404 \/ IncompleteHistory
         \/ ReadSuccess \/ ReadFailure \/ Resolve \/ Account \/ ReadLedger
-        \/ FinishScan \/ Decide \/ Done
+        \/ FinishScan \/ Decide \/ Done \/ NetworkChange \/ QuotaReset
 Spec == Init /\ [][Next]_vars /\ WF_vars(Next)
 
 TypeOK ==
@@ -263,6 +308,16 @@ TypeOK ==
     /\ s.total \in Nat /\ s.estimated \in Nat
     /\ s.attempt \in 0..(MaxAttempts - 1)
     /\ s.allowAgent \in BOOLEAN
+    /\ s.remaining \in Nat /\ s.apiResponses \in Nat
+    /\ s.epochResponses \in Nat /\ s.resets \in 0..1
+    /\ s.networkUp \in BOOLEAN /\ s.networkChanges \in 0..2
+    /\ s.outageObserved \in BOOLEAN /\ s.outageEstimated \in BOOLEAN
+QuotaBalance == s.remaining = s.quotaStart - s.epochResponses
+CircuitBreaker ==
+    (TransportEnabled /\ s.remaining <= Reserve)
+    => s.phase = "done" /\ s.failure = "quota" /\ s.status \in ErrorResults
+StorageDoesNotConsumeQuota == s.storageCharges = 0
+NetworkAccounting == s.networkCharges = 0
 CompleteWindowRequired ==
     (s.input.backend = "artifacts" /\ s.status \in KnownResults)
     => (s.complete /\ s.counted = s.candidates)
@@ -328,6 +383,16 @@ Reached ==
       [] Witness = "quota_stop" -> s.failure = "quota" /\ s.status \in ErrorResults
       [] Witness = "permission_stop" ->
             s.failure \in {"unauthorized", "forbidden", "not_found"} /\ s.status \in ErrorResults
+      [] Witness = "invalid_history" -> s.failure = "invalid_history" /\ s.status \in ErrorResults
+      [] Witness = "restricted_stop" -> s.failure = "restricted" /\ s.status \in ErrorResults
+      [] Witness = "reserve_stop" -> TransportEnabled /\ s.remaining <= Reserve /\ s.failure = "quota"
+      [] Witness = "quota_reset" -> s.resets = 1 /\ s.status \in KnownResults
+      [] Witness = "network_recovery" ->
+            s.networkChanges = 2 /\ s.networkUp /\ s.outageObserved /\ s.status \in KnownResults
+      [] Witness = "outage_exhausted" ->
+            ~s.networkUp /\ s.outageObserved /\ s.failure = "transient" /\ s.maxAttempt = MaxAttempts
+      [] Witness = "outage_estimate" -> s.outageEstimated
+      [] Witness = "signed_storage_isolated" -> s.storageReads > 0 /\ s.status \in KnownResults
       [] Witness = "partial_snapshot" ->
             s.status \in ErrorResults /\ s.persisted # {} /\ s.counted # s.candidates
       [] Witness = "mixed_sources" ->

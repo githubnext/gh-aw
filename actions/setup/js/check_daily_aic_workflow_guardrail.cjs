@@ -456,6 +456,7 @@ function hasHttpStatus(error, status) {
  * @returns {boolean}
  */
 function isStructuralGuardrailError(error) {
+  if (isQuotaError(error)) return false;
   const response = error && typeof error === "object" && "response" in error ? error.response : null;
   const headers = safeResponseHeaders(response && typeof response === "object" && "headers" in response ? response.headers : null);
   return hasHttpStatus(error, 404) || hasHttpStatus(error, 401) || (hasHttpStatus(error, 403) && headers["x-ratelimit-remaining"] !== "0" && !headers["retry-after"]);
@@ -468,20 +469,26 @@ function isStructuralGuardrailError(error) {
 /**
  * @param {any} githubClient
  * @param {{ owner: string, repo: string, workflowId: number, created: string, page: number, perPage: number, lookupMode: WorkflowRunLookupMode }} params
+ * @param {{ request: Function }} [budget]
  * @returns {Promise<{ response: any, lookupMode: WorkflowRunLookupMode, sourceRunCount: number, oldestUnfilteredCreatedAt?: string | null }>}
  */
-async function listCompletedWorkflowRunsPage(githubClient, params) {
+async function listCompletedWorkflowRunsPage(githubClient, params, budget = createAPIBudget()) {
   const { owner, repo, workflowId, created, page, perPage, lookupMode } = params;
   if (lookupMode === "repo_workflow_id_fallback") {
-    const response = await githubClient.rest.actions.listWorkflowRunsForRepo({
-      owner,
-      repo,
-      status: "completed",
-      created,
-      per_page: perPage,
-      page,
-    });
-    const allRuns = response.data.workflow_runs || [];
+    const response = await budget.request(() =>
+      githubClient.rest.actions.listWorkflowRunsForRepo({
+        owner,
+        repo,
+        status: "completed",
+        created,
+        per_page: perPage,
+        page,
+      })
+    );
+    const allRuns = response.data?.workflow_runs;
+    if (!Array.isArray(allRuns) || allRuns.some(run => !Number.isSafeInteger(run?.workflow_id) || run.workflow_id <= 0)) {
+      throw new Error("Incomplete daily AIC repository workflow history");
+    }
     const filteredRuns = allRuns.filter(run => run?.workflow_id === workflowId);
     logDailyGuardrail("Filtered repository workflow runs by workflow ID fallback", {
       workflowId,
@@ -508,36 +515,43 @@ async function listCompletedWorkflowRunsPage(githubClient, params) {
   }
 
   try {
-    const response = await githubClient.rest.actions.listWorkflowRuns({
-      owner,
-      repo,
-      workflow_id: workflowId,
-      status: "completed",
-      per_page: perPage,
-      page,
-    });
+    const response = await budget.request(() =>
+      githubClient.rest.actions.listWorkflowRuns({
+        owner,
+        repo,
+        workflow_id: workflowId,
+        status: "completed",
+        per_page: perPage,
+        page,
+      })
+    );
+    if (!Array.isArray(response.data?.workflow_runs)) throw new Error("Incomplete daily AIC workflow history");
     return {
       response,
       lookupMode,
       sourceRunCount: response?.data?.workflow_runs?.length || 0,
     };
   } catch (error) {
-    if (!hasHttpStatus(error, 404)) {
+    if (!hasHttpStatus(error, 404) || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) {
       throw error;
     }
     logDailyGuardrail("Workflow-specific run history query returned 404; falling back to repository run listing by workflow ID", {
       workflowId,
       page,
     });
-    return listCompletedWorkflowRunsPage(githubClient, {
-      owner,
-      repo,
-      workflowId,
-      created,
-      page,
-      perPage,
-      lookupMode: "repo_workflow_id_fallback",
-    });
+    return listCompletedWorkflowRunsPage(
+      githubClient,
+      {
+        owner,
+        repo,
+        workflowId,
+        created,
+        page,
+        perPage,
+        lookupMode: "repo_workflow_id_fallback",
+      },
+      budget
+    );
   }
 }
 
@@ -698,7 +712,7 @@ async function main(options = {}) {
         conclusion: "completed",
         aic: entry.aic,
       }));
-      const totalAIC = countedRuns.reduce((sum, run) => sum + run.aic, 0);
+      const totalAIC = calculateDailyAICStats(countedRuns).total;
       const rateLimit = null;
       const summaryMeta = {
         candidateRunsCount: countedRuns.length,
@@ -740,7 +754,7 @@ async function main(options = {}) {
       fallbackAIC: maxAICredits,
       cachePath: options.cachePath,
     });
-    const totalAIC = countedRuns.reduce((sum, run) => sum + run.aic, 0);
+    const totalAIC = calculateDailyAICStats(countedRuns).total;
     const estimatedAIC = countedRuns.reduce((sum, run) => sum + (run.source === "estimated" ? run.aic : 0), 0);
     actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || current.triggering_actor?.login || current.actor?.login || process.env.GITHUB_ACTOR || "";
     const rateLimit = budget.snapshot();

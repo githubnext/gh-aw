@@ -492,7 +492,7 @@ The artifact backend MUST resolve the current workflow ID and obtain fresh compl
 
 The workflow-specific endpoint is tried first. A 404 MAY switch to repository history filtered by the resolved workflow ID; subsequent pages remain in that lookup mode. Repository-history requests include the 24-hour creation filter. Empty filtered pages MUST NOT prove completeness when their unfiltered source page is full. Completion requires an unfiltered page smaller than 100 runs or reaching an older-than-window timestamp. The implementation MUST fail rather than authorize a partial result if completion is not established within 25 pages.
 
-Current-run lookup failures, unknown timestamps, incomplete attempt metadata, history failures, and pagination exhaustion MUST NOT use the per-run estimate: they do not establish which historical runs must be counted. A snapshot cannot substitute for this history.
+Current-run lookup failures, missing or malformed history arrays, invalid run/workflow identities, unknown timestamps, incomplete attempt metadata, history failures, and pagination exhaustion MUST NOT use the per-run estimate: they do not establish which historical runs must be counted. Repository-history entries MUST expose valid workflow IDs before filtering. A snapshot cannot substitute for this history.
 
 The current implementation applies a lower creation-time bound, not an additional future-time rejection, to Actions history. The model assumes authoritative membership facts rather than proving timestamp parsing or GitHub's ordering.
 
@@ -532,7 +532,7 @@ Within each component, select the first non-empty accounting file in this order:
 
 The selected source is parsed strictly. A malformed or invalid selected source MUST NOT be rescued by a lower-priority summary. An unreadable higher-priority source MUST NOT be silently skipped in favor of a lower-priority source. Different component values are added once; raw accounting and overlapping engine summaries MUST NOT both contribute.
 
-Strict accounting validates supplied numeric fields as finite non-negative values, ignores identical repeated `(event, request_id)` records, and rejects conflicting repetitions. `ai_credits_this_response` takes precedence when present, including explicit zero. Otherwise positive `ai_credits`/`aiCredits` precede positive `aic`, then provider/model token-pricing computation from Section 3 is used. A valid explicit zero counts as an accounting observation; tokens can still contribute through the pricing path when the other explicit aliases are zero. Missing pricing for token-bearing records without explicit AIC, malformed data, non-finite totals, or a selected source without usable observations is unresolved accounting.
+Strict accounting validates supplied numeric fields as finite non-negative values, ignores identical repeated `(event, request_id)` records, and rejects conflicting repetitions. `ai_credits_this_response` takes precedence when present, including explicit zero. Otherwise positive `ai_credits`/`aiCredits` precede positive `aic`, then provider/model token-pricing computation from Section 3 is used. A valid explicit zero counts as an accounting observation; tokens still require resolvable pricing when the other explicit aliases are zero. Only a positive explicit alias or authoritative `ai_credits_this_response` can bypass pricing for token-bearing records. Missing pricing on the selected token-pricing path, malformed data, non-finite totals, or a selected source without usable observations is unresolved accounting.
 
 The following additional component zero-accounting fallbacks are supported. Other billable components MUST still be accounted for:
 
@@ -564,7 +564,7 @@ No HTTP 401/403/404/429, quota/reserve stop, or explicit `Retry-After` restricti
 
 ### 9.13 Bounded Read Recovery and Quota Handling
 
-Eligible HTTP 5xx and recognized network/timeout failures MUST use at most three total attempts per read, with one-second and two-second delays before the second and third attempts. Fetch attempts MUST create fresh timeout signals. Successful earlier reads and the whole scan MUST NOT be replayed as a retry.
+Eligible HTTP 5xx and recognized network/timeout failures MUST use at most three total attempts per read, with one-second and two-second delays before the second and third attempts. Fetch attempts MUST create fresh timeout signals and cover JSON/stream body consumption, not only receipt of headers. Interrupted artifact streams MUST restart into truncated temporary files and MUST NOT publish partial accounting. Successful earlier reads, the redirect lookup, and the whole scan MUST NOT be replayed as a retry. A history 404 MUST be observed before switching endpoints; repository retries MUST NOT repeat that workflow lookup.
 
 Permission failures, HTTP 429, rate-limited 403 responses, explicit `Retry-After`, and the API reserve circuit breaker MUST stop without retrying or estimating through the restriction. The reserve is 100 remaining requests by default. Observe GitHub business responses, including rejected responses and artifact redirect requests, before retry/fallback decisions. Signed-storage responses do not count as GitHub API quota observations and MUST NOT receive the GitHub authorization header.
 
@@ -572,9 +572,9 @@ Retry-deadline reporting MUST honor explicit `Retry-After` and relevant quota-re
 
 ### 9.14 Aggregation and Outputs
 
-After every authoritative candidate has been resolved, sum its selected measured or estimated value exactly once. `daily_ai_credits_total` is this sum; `daily_ai_credits_estimated` is the sum restricted to estimated runs. For positive threshold `L`, totals strictly below `L` produce `under_budget`; totals at or above `L` produce `exceeded`, set `daily_ai_credits_exceeded: true`, and gracefully skip the agent.
+After every authoritative candidate has been resolved, sum its selected measured or estimated value exactly once, including confirmed-zero runs in run counts and statistics. `daily_ai_credits_total` is this sum; `daily_ai_credits_estimated` is the sum restricted to estimated runs. Every supplied run value and aggregate total MUST be finite and non-negative; overflow MUST fail accounting before publishing a total or threshold decision, for either backend. For positive threshold `L`, totals strictly below `L` produce `under_budget`; totals at or above `L` produce `exceeded`, set `daily_ai_credits_exceeded: true`, and gracefully skip the agent.
 
-An unresolved scan MUST NOT report `under_budget` from a partial total. It calls `core.setFailed` and reports `structural_error` for missing credentials, HTTP 401/404, or a non-rate-limited 403; other caught accounting failures report `transient_error`. Disabled or bypassed checks report `disabled` or `skipped` without accounting.
+An unresolved scan MUST NOT report `under_budget` from a partial total. It calls `core.setFailed` and reports `structural_error` for missing credentials, HTTP 401/404, or a non-rate-limited 403; other caught accounting failures report `transient_error`. A marked quota/reserve stop takes precedence over the HTTP resource/permission classification and reports `transient_error`. Disabled or bypassed checks report `disabled` or `skipped` without accounting.
 
 `continue-on-error: true` is an explicit Actions step-level fail-open policy: it may allow continuation despite an unknown total, but MUST NOT relabel the accounting result as complete or under budget. Summary-rendering failures are outside the accounting state machine; they may change step failure reporting after totals were computed.
 
@@ -593,6 +593,8 @@ The writer uses staged usage files and the permissive usage parser, appending ti
 `specs/daily-aic/DailyAIC.tla` models the artifact and ledger decisions, authoritative-history fallback, bounded retries, producer trust, observation reuse, component/source outcomes, whole-run estimates, aggregation, and explicit bypass/error policies. Its configuration and checker are described in `specs/daily-aic/README.md`.
 
 TLC MUST check complete-window gating, quota/permanent-error exclusion from estimates, recorded-only cache reuse, producer provenance, zero-evidence policies, one-count-per-run reconciliation, estimate reporting, threshold comparison, and eventual termination under weak fairness. Negative controls and reachability witnesses MUST demonstrate that the checks detect injected mistakes and exercise the advertised fallback paths.
+
+The dedicated transport configuration MUST include explicit remaining GitHub quota, the 100-request reserve, response costs including history 404s, a bounded server-side quota reset, network-down/recovery transitions, repeated transient failures, and signed-storage quota isolation. An outage-recovery witness MUST include an actual failed offline attempt. Known quota/retry restrictions stop the invocation rather than resume it after a modeled reset.
 
 This is bounded model checking, not a refinement proof of JavaScript, an unbounded theorem, or a guarantee of provider billing. Timestamp parsing, API authenticity/order, file contents, pricing arithmetic, and durable artifact/ledger delivery are represented by abstract evidence outcomes. Native suites `daily_aic_scan`, `daily_aic_cache_helpers`, `daily_aic_component_coverage`, `daily_aic_workflow_helpers`, `daily_aic_api_budget`, `check_daily_aic_workflow_guardrail`, and `daily_aic_repo_memory_ledger` cover those implementation boundaries.
 

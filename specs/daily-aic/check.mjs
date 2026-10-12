@@ -23,7 +23,9 @@ const measured = [
   "specs/daily-aic/DailyAIC.tla",
   "specs/daily-aic/DailyAIC.cfg",
   "specs/daily-aic/Aggregation.cfg",
+  "specs/daily-aic/Transport.cfg",
   "specs/daily-aic/check.mjs",
+  "specs/daily-aic/README.md",
   "docs/src/content/docs/specs/ai-credits-specification.md",
   "actions/setup/js/check_daily_aic_workflow_guardrail.cjs",
   "actions/setup/js/daily_aic_scan.cjs",
@@ -46,6 +48,7 @@ writeFileSync(reportPath, JSON.stringify({ status: "incomplete", sourceHashes },
 const model = readFileSync(join(directory, "DailyAIC.tla"), "utf8");
 const baseline = readFileSync(join(directory, "DailyAIC.cfg"), "utf8");
 const aggregate = readFileSync(join(directory, "Aggregation.cfg"), "utf8");
+const transport = readFileSync(join(directory, "Transport.cfg"), "utf8");
 writeFileSync(join(output, "DailyAIC.tla"), model);
 
 const sanyArgs = ["-cp", jar, "tla2sany.SANY", join(output, "DailyAIC.tla")];
@@ -61,7 +64,7 @@ function check(name, config, invariant = null) {
   const logPath = join(output, `${name}.log`);
   writeFileSync(configPath, config);
   const args = ["-Xmx1g", "-cp", jar, "tlc2.TLC", "-workers", "2", "-seed", "1", "-metadir", join(output, `${name}-states`), "-config", configPath, join(output, "DailyAIC.tla")];
-  const result = spawnSync(java, args, { cwd: output, encoding: "utf8", timeout: 120000, maxBuffer: 16 * 1024 * 1024 });
+  const result = spawnSync(java, args, { cwd: output, encoding: "utf8", timeout: 180000, maxBuffer: 16 * 1024 * 1024 });
   const log = `${result.stdout || ""}${result.stderr || ""}`;
   writeFileSync(logPath, log);
   const stateCounts = [...log.matchAll(/([\d,]+) states? generated, ([\d,]+) distinct states? found, ([\d,]+) states? left on queue/g)].at(-1);
@@ -74,13 +77,13 @@ function check(name, config, invariant = null) {
     : null;
   const expected = invariant
     ? result.status === 12 && log.includes(`Invariant ${invariant} is violated.`) && log.includes("The behavior up to this point is:")
-    : result.status === 0 && log.includes("Model checking completed. No error has been found.") && states?.queued === 0 && states.distinct > 0;
+    : result.status === 0 && log.includes("Model checking completed. No error has been found.") && log.includes("Checking temporal properties for the complete state space") && states?.queued === 0 && states.distinct > 0;
   if (result.error || !expected) throw new Error(`Unexpected TLC result for ${name}; see ${logPath}.`);
   console.log(`${name}: ${invariant ? `expected ${invariant} counterexample` : "exhaustive safety/liveness PASS"} (${states?.distinct ?? "unknown"} distinct states)`);
   return { name, command: [java, ...args], configHash: digest(config), exit: result.status, expectedInvariant: invariant, states, log: logPath };
 }
 
-const results = [check("policy", baseline), check("aggregation", aggregate)];
+const results = [check("policy", baseline), check("aggregation", aggregate), check("transport", transport)];
 const controls = {
   partial_history: "CompleteWindowRequired",
   estimate_quota: "NoForbiddenEstimates",
@@ -88,9 +91,13 @@ const controls = {
   trust_issue_branch: "CacheProducerTrusted",
   double_count: "TotalsReconcile",
   resurrect_detection_summary: "RecordedEvidence",
+  bypass_reserve: "CircuitBreaker",
+  charge_storage: "StorageDoesNotConsumeQuota",
+  charge_outage: "NetworkAccounting",
 };
 for (const [fault, invariant] of Object.entries(controls)) {
-  results.push(check(`broken-${fault}`, baseline.replace('Fault = "none"', `Fault = "${fault}"`), invariant));
+  const template = ["bypass_reserve", "charge_storage", "charge_outage"].includes(fault) ? transport : baseline;
+  results.push(check(`broken-${fault}`, template.replace('Fault = "none"', `Fault = "${fault}"`), invariant));
 }
 const accountingWitnesses = [
   "raw",
@@ -116,6 +123,7 @@ const accountingWitnesses = [
   "unreadable_preferred",
   "malformed",
   "unknown_pricing",
+  "zero_alias_unknown_pricing",
   "stale_artifact",
   "unverified_rerun",
   "conflicting_request",
@@ -136,6 +144,8 @@ const policyWitnesses = [
   "missing_maximum",
   "quota_stop",
   "permission_stop",
+  "invalid_history",
+  "restricted_stop",
   "under_budget",
   "exceeded",
   "disabled",
@@ -143,8 +153,16 @@ const policyWitnesses = [
   "partial_snapshot",
   "mixed_sources",
 ];
-for (const witness of [...accountingWitnesses, ...policyWitnesses]) {
-  const template = ["partial_snapshot", "mixed_sources"].includes(witness) ? aggregate : baseline;
+const transportWitnesses = ["reserve_stop", "quota_reset", "network_recovery", "outage_exhausted", "outage_estimate", "signed_storage_isolated"];
+for (const witness of [...accountingWitnesses, ...policyWitnesses, ...transportWitnesses]) {
+  let template = transportWitnesses.includes(witness) ? transport : ["partial_snapshot", "mixed_sources"].includes(witness) ? aggregate : baseline;
+  if (template === baseline) {
+    const kinds = accountingWitnesses.includes(witness) && !["all_jobs_skipped", "no_billable_jobs"].includes(witness) ? [witness] : ["raw", "explicit_zero", "missing_component"];
+    template = template
+      .replace("AccountingKinds <- AllAccountingKinds", `AccountingKinds = {${kinds.map(kind => JSON.stringify(kind)).join(", ")}}`)
+      .replace("ProducerKinds <- AllProducerKinds", 'ProducerKinds = {"issues", "issue_comment"}')
+      .replace("CacheKinds <- AllCacheKinds", 'CacheKinds = {"absent", "recorded", "estimated", "mismatched_attempt"}');
+  }
   const config = `${template.replace('Witness = "none"', `Witness = "${witness}"`)}\nINVARIANT WitnessNotReached\n`;
   results.push(check(`witness-${witness}`, config, "WitnessNotReached"));
 }
