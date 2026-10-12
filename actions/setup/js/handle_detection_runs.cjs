@@ -9,6 +9,8 @@ const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 
 /**
+ * Classify the warning/failure reasons emitted by parse_threat_detection_results.
+ * Other detection metadata (such as detection_skipped) is not a problem reason.
  * @param {string} reason
  * @returns {{category: string, reason: string, description: string}}
  */
@@ -112,13 +114,14 @@ async function ensureDetectionRunsIssue() {
  */
 async function main() {
   try {
-    const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+    const rawConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+    const detectionConclusion = ["success", "skipped", "cancelled", "warning", "failure"].includes(rawConclusion) ? rawConclusion : "unknown";
     const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
     const runUrl = process.env.GH_AW_RUN_URL || "";
     const outcome = classifyDetectionOutcome(detectionReason);
 
-    core.info(`Detection conclusion: ${detectionConclusion === "warning" || detectionConclusion === "failure" ? detectionConclusion : "other"}`);
+    core.info(`Detection conclusion: ${detectionConclusion}`);
     core.info(`Detection category: ${outcome.category}`);
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Run URL: ${runUrl}`);

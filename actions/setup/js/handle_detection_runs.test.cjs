@@ -53,14 +53,14 @@ describe("handle_detection_runs", () => {
       expect(call.issue_number).toBe(42);
       expect(call.body).toContain(`**Outcome:** \`${category}\``);
       expect(call.body).toContain(`| Conclusion | \`${conclusion}\` |`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Detection conclusion: ${conclusion}`);
       expect(call.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
     }
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(2);
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
-  it("does not publish or log an unrecognized reason payload", async () => {
-    const privateText = "private prompt and tool result: threat_detected agent_failure";
+  it.each(["private prompt and tool result: threat_detected agent_failure", "detection_skipped", "future_reason"])("does not publish or log unrecognized problem reason %s", async privateText => {
     process.env.GH_AW_DETECTION_REASON = privateText;
     process.env.GH_AW_DETECTION_CONCLUSION = "failure";
     await main();
@@ -72,10 +72,23 @@ describe("handle_detection_runs", () => {
     expect(classifyDetectionOutcome(privateText).category).toBe("detection_outcome_unknown");
   });
 
-  it.each(["success", "skipped", "cancelled", "", "private conclusion"])("does not report conclusion %s", async conclusion => {
+  it.each(["success", "skipped", "cancelled"])("logs but does not report recognized conclusion %s", async conclusion => {
     process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
     process.env.GH_AW_DETECTION_REASON = "threat_detected";
     await main();
+    expect(mockCore.info).toHaveBeenCalledWith(`Detection conclusion: ${conclusion}`);
+    expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "private conclusion: warning\nfailure", "SUCCESS", "future_conclusion"])("redacts unrecognized conclusion %s", async conclusion => {
+    process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+    process.env.GH_AW_DETECTION_REASON = "threat_detected";
+    await main();
+    expect(mockCore.info).toHaveBeenCalledWith("Detection conclusion: unknown");
+    if (conclusion) {
+      expect([...mockCore.info.mock.calls, ...mockCore.warning.mock.calls].flat().join("\n")).not.toContain(conclusion);
+    }
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });

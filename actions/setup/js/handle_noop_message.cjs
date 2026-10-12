@@ -7,7 +7,7 @@ const { ERR_API, ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput, shouldIgnoreTaskCompleteRegistrationReports } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { formatAIC } = require("./model_costs.cjs");
@@ -268,11 +268,10 @@ async function main() {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
     const runUrl = process.env.GH_AW_RUN_URL || "";
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
-    const hasIncompleteReport = result.items.some(/** @param {any} item */ item => item.type === "report_incomplete");
+    const hasIncompleteReport = result.items.some(/** @param {any} item */ item => item.type === "report_incomplete") && !shouldIgnoreTaskCompleteRegistrationReports(result.items);
     const reportAsIssue = process.env.GH_AW_NOOP_REPORT_AS_ISSUE !== "false"; // Default to true
 
-    // Render the comment body once so later steps (e.g. discarding an unused
-    // another run-scoped tracking item) can post the exact same message.
+    // Reuse this privacy-safe body in the run's completion status comment.
     let commentBody = "";
     try {
       commentBody = buildNoopCommentBody(workflowName, agentConclusion, runUrl, hasIncompleteReport);

@@ -289,6 +289,35 @@ safe-outputs:
     expect(mockCore.setOutput).toHaveBeenCalledWith("noop_message", "Nothing to do");
   });
 
+  it.each([
+    { taskOutput: true, completed: true, genuineReport: false, category: "reported_no_action" },
+    { taskOutput: false, completed: true, genuineReport: false, category: "incomplete" },
+    { taskOutput: true, completed: false, genuineReport: false, category: "incomplete" },
+    { taskOutput: true, completed: true, genuineReport: true, category: "incomplete" },
+  ])("matches failure policy for registration diagnostics: %j", async ({ taskOutput, completed, genuineReport, category }) => {
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+    process.env.GH_AW_NOOP_REPORT_AS_ISSUE = "false";
+    const outputFile = path.join(tempDir, "agent_output.json");
+    const items = [
+      { type: "noop", message: "private noop prose" },
+      { type: "report_incomplete", reason: "task_complete tool calls are not registering; analysis completed successfully" },
+    ];
+    if (taskOutput) items.push({ type: "add_comment", body: "private task output" });
+    if (genuineReport) items.push({ type: "report_incomplete", reason: "private genuine failure" });
+    fs.writeFileSync(outputFile, JSON.stringify({ items }));
+    if (completed) fs.writeFileSync(path.join(tempDir, "agent-stdio.log"), '{"terminal_reason":"completed"}\n');
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    const body = mockCore.setOutput.mock.calls.find(call => call[0] === "noop_comment_body")[1];
+    expect(body).toContain(`**Outcome:** \`${category}\``);
+    expect(body).not.toContain("private");
+    expect(body).not.toContain("not registering");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("noop_message", "private noop prose");
+  });
+
   it("should proceed if report-as-issue is set to true", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
