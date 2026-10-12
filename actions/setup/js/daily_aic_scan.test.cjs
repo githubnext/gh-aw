@@ -799,7 +799,10 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("GitHub API rate limit level:"));
   });
 
-  it("does not bypass a quota reserve stop through the workflow-history 404 fallback", async () => {
+  it.each([
+    ["quota reserve", { "x-ratelimit-remaining": "100" }, { code: "DAILY_AIC_QUOTA_STOP" }],
+    ["explicit Retry-After", { "retry-after": "120" }, { status: 404 }],
+  ])("does not bypass %s through the workflow-history 404 fallback", async (_reason, headers, expected) => {
     const listWorkflowRunsForRepo = vi.fn();
     global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
     global.github = {
@@ -807,14 +810,29 @@ describe("trusted artifact fallback without writable Actions cache", () => {
         actions: {
           getWorkflowRun: async () => response({ workflow_id: 7, path: ".github/workflows/example.yml" }),
           listWorkflowRuns: async () => {
-            throw apiError(404, { "x-ratelimit-remaining": "100" }, "not found");
+            throw apiError(404, headers, "not found");
           },
           listWorkflowRunsForRepo,
         },
       },
     };
-    await expect(restore(cachePath)).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
+    await expect(restore(cachePath)).rejects.toMatchObject(expected);
     expect(listWorkflowRunsForRepo).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, 0, -1, 1.5, "7", Number.MAX_SAFE_INTEGER + 1])("rejects invalid restore workflow identity %s before listing history", async workflow_id => {
+    const listWorkflowRuns = vi.fn();
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: async () => response({ workflow_id }),
+          listWorkflowRuns,
+        },
+      },
+    };
+    await expect(restore(cachePath)).rejects.toThrow("Cannot resolve workflow for daily AIC snapshot restore");
+    expect(listWorkflowRuns).not.toHaveBeenCalled();
   });
 
   it.each([401, 403, 429])("stops fallback fan-out on HTTP %i", async status => {

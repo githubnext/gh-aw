@@ -8,6 +8,7 @@ import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
 const { DefaultArtifactClient } = req("./artifact_client.cjs");
+const { createAPIBudget } = req("./daily_aic_api_budget.cjs");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -100,14 +101,25 @@ describe("DefaultArtifactClient.listArtifacts", () => {
     ).rejects.toThrow("failed to list artifacts (403)");
   });
 
-  it("observes response headers even when the JSON body cannot be parsed", async () => {
-    const response = makeFetchResponse(200, "invalid JSON");
+  it("observes quota headers even when the JSON body cannot be parsed", async () => {
+    const response = makeFetchResponse(200, "invalid JSON", { "x-ratelimit-remaining": "100" });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
-    const onResponse = vi.fn();
-    const client = new DefaultArtifactClient({ onResponse });
+    vi.stubGlobal("core", { info: vi.fn() });
+    const budget = createAPIBudget();
+    const client = new DefaultArtifactClient({ request: budget.request });
+    await expect(client.listArtifacts({ findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" } })).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
+    expect(budget.snapshot().requests).toBe(1);
+  });
+
+  it("does not retry malformed JSON when the observed response is above the quota reserve", async () => {
+    const fetch = vi.fn().mockResolvedValue(makeFetchResponse(200, "invalid JSON", { "x-ratelimit-remaining": "4000" }));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("core", { info: vi.fn() });
+    const budget = createAPIBudget();
+    const client = new DefaultArtifactClient({ request: budget.request });
     await expect(client.listArtifacts({ findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" } })).rejects.toThrow("failed to parse list artifacts");
-    expect(onResponse).toHaveBeenCalledOnce();
-    expect(onResponse).toHaveBeenCalledWith(response);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(budget.snapshot().requests).toBe(1);
   });
 });
 

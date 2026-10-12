@@ -7,7 +7,7 @@ const path = require("path");
 const { MAX_RESTORE_RUNS, MAX_RESTORE_PAGES, SCAN_WINDOW_MS } = require("./constants.cjs");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { AIC_SCAN_CACHE_FILE_PATH, AIC_SCAN_CACHE_ARTIFACT_NAME, readScanCache } = require("./daily_aic_cache_helpers.cjs");
-const { createAPIBudget, retryNotBefore, isQuotaError } = require("./daily_aic_api_budget.cjs");
+const { createAPIBudget, retryNotBefore, isQuotaError, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
 
 function isTrustedProducer(run, current, repository, defaultBranch) {
   if (run.workflow_id !== current.workflow_id || run.path !== current.path || run.repository?.full_name !== repository) return false;
@@ -38,7 +38,7 @@ async function listRecentWorkflowRuns(owner, repo, current, repository, defaultB
   try {
     response = await budget.request(() => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, per_page: 10 }));
   } catch (error) {
-    if (error?.status !== 404 || isQuotaError(error)) throw error;
+    if (error?.status !== 404 || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) throw error;
     core.info("[daily-aic-cache] Workflow-specific history unavailable; searching repository history for required workflow runs.");
     return listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
   }
@@ -52,7 +52,7 @@ async function restoreWithBudget(cachePath, options, budget) {
   const repository = `${owner}/${repo}`;
   const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }));
   const current = currentResponse.data;
-  if (!current.workflow_id) throw new Error("Cannot resolve workflow for daily AIC snapshot restore");
+  if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve workflow for daily AIC snapshot restore");
   const defaultBranch = context.payload.repository?.default_branch;
   const runs = await listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
   const auth = await github.auth({ type: "token" });

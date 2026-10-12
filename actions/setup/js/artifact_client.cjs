@@ -327,7 +327,7 @@ class DefaultArtifactClient {
             try {
               payload = await readResponseJSON(fetched, "list artifacts");
             } catch (error) {
-              if (isTransientError(error)) Object.assign(error, { response: fetched });
+              Object.assign(error, { response: fetched });
               throw error;
             }
           }

@@ -560,7 +560,7 @@ When historical accounting remains unresolved after its available evidence paths
 
 No HTTP 401/403/404/429, quota/reserve stop, or explicit `Retry-After` restriction is eligible. Without positive `M`, unresolved accounting MUST fail the scan. Estimates are retried on subsequent scans and replaced by recorded values when available; they stop contributing when their runs leave the window.
 
-`M` is a conservative policy assumption, not a independently verified upper bound on every historical run. Historical configuration changes, multiple job/attempt budgets, external billing, and incomplete observations can invalidate an actual-charge upper-bound assumption. The computation MUST expose estimated credits separately rather than claim an exact daily bill.
+`M` is a conservative policy assumption, not an independently verified upper bound on every historical run. Historical configuration changes, multiple job/attempt budgets, external billing, and incomplete observations can invalidate an actual-charge upper-bound assumption. The computation MUST expose estimated credits separately rather than claim an exact daily bill.
 
 ### 9.13 Bounded Read Recovery and Quota Handling
 
@@ -588,15 +588,9 @@ The current reader ignores malformed/invalid records and missing **or unreadable
 
 The writer uses staged usage files and the permissive usage parser, appending timestamped version-1 entries. It is not the strict completed-component artifact scanner. Ledger append failures surface as errors; missing writer identity or an invalid computed value is warned and skipped.
 
-### 9.16 Executable Formal Model and Validation Boundary
+### 9.16 Native Contract Coverage and Validation Boundary
 
-`specs/daily-aic/DailyAIC.tla` models the artifact and ledger decisions, authoritative-history fallback, bounded retries, producer trust, observation reuse, component/source outcomes, whole-run estimates, aggregation, and explicit bypass/error policies. Its configuration and checker are described in `specs/daily-aic/README.md`.
-
-TLC MUST check complete-window gating, quota/permanent-error exclusion from estimates, recorded-only cache reuse, producer provenance, zero-evidence policies, one-count-per-run reconciliation, estimate reporting, threshold comparison, and eventual termination under weak fairness. Negative controls and reachability witnesses MUST demonstrate that the checks detect injected mistakes and exercise the advertised fallback paths.
-
-The dedicated transport configuration MUST include explicit remaining GitHub quota, the 100-request reserve, response costs including history 404s, a bounded server-side quota reset, network-down/recovery transitions, repeated transient failures, and signed-storage quota isolation. An outage-recovery witness MUST include an actual failed offline attempt. Known quota/retry restrictions stop the invocation rather than resume it after a modeled reset.
-
-This is bounded model checking, not a refinement proof of JavaScript, an unbounded theorem, or a guarantee of provider billing. Timestamp parsing, API authenticity/order, file contents, pricing arithmetic, and durable artifact/ledger delivery are represented by abstract evidence outcomes. Native suites `daily_aic_scan`, `daily_aic_cache_helpers`, `daily_aic_component_coverage`, `daily_aic_workflow_helpers`, `daily_aic_api_budget`, `check_daily_aic_workflow_guardrail`, and `daily_aic_repo_memory_ledger` cover those implementation boundaries.
+Focused Vitest suites exercise the runtime behavior described in Sections 9.9–9.15, including history completeness, snapshot trust and reinspection, component accounting, fallback decisions, API retries and quota handling, and repo-memory ledger rules. The spec-derived fixed-output contract cases are in `actions/setup/js/daily_aic_spec_conformance.test.cjs`; related implementation suites cover detailed boundaries. These tests are executable conformance examples, not a proof of provider billing or GitHub API behavior.
 
 ---
 
@@ -755,7 +749,7 @@ This specification MUST be revalidated when any of the following occurs:
 ### Version 1.5.0 (2026-10-12)
 
 - **Added**: Sections 9.9-9.16 specify authoritative history, scan provenance, component/source precedence, every implemented zero/max-credit fallback, bounded transient recovery, output decisions, and the separate repo-memory contract.
-- **Added**: Compliance tests T-AIC-DG-017 through T-AIC-DG-025 and an executable bounded TLA+ model with safety/liveness checks, negative controls, and fallback reachability witnesses.
+- **Added**: Compliance tests T-AIC-DG-017 through T-AIC-DG-025 and spec-derived fixed-output Vitest contract cases.
 - **Clarified**: Estimates are policy assumptions, not verified historical billing upper bounds. The repo-memory reader's permissive behavior is not equivalent to artifact-backend fail-closed accounting.
 
 ### Version 1.4.0 (2026-06-09)
