@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-10-05 · Source: [Architecture diagram issue](https://github.com/github/gh-aw/issues?q=is%3Aissue+%22Architecture+diagram+%E2%80%94+2026-10-05%22)
+> Last updated: 2026-10-12 · Source: [Architecture diagram issue](https://github.com/github/gh-aw/issues?q=is%3Aissue%20%22Architecture%20diagram%20%E2%80%94%202026-10-12%22)
 
 ## Overview
 
@@ -8,24 +8,24 @@ This diagram shows the package structure and dependencies of the `gh-aw` Go code
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ENTRY POINTS                                                                                 │
-│ cmd/gh-aw ─▶ cli     cmd/gh-aw-wasm ─▶ workflow, parser     cmd/linters ─▶ linters           │
-│ cmd/gh-aw-security-model (standalone security conformance runner)                            │
+│ENTRY POINTS                                                                                  │
+│cmd/gh-aw ─▶ cli     cmd/gh-aw-wasm ─▶ workflow, parser     cmd/linters ─▶ linters            │
+│cmd/gh-aw-security-model (standalone security conformance runner)                             │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ CORE PACKAGES                                                                                │
-│ cli (commands) ─▶ workflow (compiler) ─▶ parser (frontmatter) ─▶ console (terminal UI)       │
-│ cli ─▶ actionpins (pinning), agentdrain (logs), intent (policy), workqueue (queue)           │
-│ cli ─▶ github (labels), githubapi (API options), modelsdev (model IDs), scanfindings (scans) │
-│ workflow ─▶ actionpins, scanfindings, console       parser ─▶ console                        │
-│ parser/workflow ─▶ importinpututil (import inputs)     cmd/linters ─▶ linters                │
+│CORE PACKAGES                                                                                 │
+│cli (commands) ─▶ workflow (compiler) ─▶ parser (frontmatter) ─▶ console (terminal UI)        │
+│cli ─▶ actionpins (pins), agentdrain (logs), intent (policy), workqueue (queue)               │
+│cli ─▶ github (labels), githubapi (API), modelsdev (models), scanfindings (scans)             │
+│workflow ─▶ actionpins, scanfindings, workqueue, console     parser ─▶ console                │
+│workqueue ─▶ githubapi, parser           actionpins ─▶ console                                │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ UTILITIES — arrows point from importer to imported package                                   │
-│ cli/workflow/parser ─▶ fileutil, gitutil, logger, stringutil, types, constants               │
-│ parser/workflow ─▶ jsonutil, setutil, sliceutil, syncutil, typeutil                          │
-│ workflow ─▶ repoutil, semverutil, validationerror, ctxutil, tty                              │
-│ cli ─▶ envutil, errorutil, stats, timeutil                                                   │
-│ console ─▶ colorwriter, logger, stringutil, styles, tty                                      │
-│ logger ─▶ colorwriter, styles, timeutil     tests: testutil, workflowcontract                │
+│UTILITIES — arrows point from importer to imported package                                    │
+│cli/workflow/parser ─▶ fileutil, gitutil, logger, stringutil, types, constants                │
+│parser/workflow ─▶ importinpututil, jsonutil, setutil, sliceutil, syncutil, typeutil          │
+│workflow ─▶ repoutil, semverutil, validationerror, ctxutil, tty                               │
+│cli ─▶ envutil, errorutil, stats, timeutil                                                    │
+│console ─▶ colorwriter, logger, stringutil, styles, tty                                       │
+│logger ─▶ colorwriter, styles, timeutil        tests: testutil, workflowcontract              │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
