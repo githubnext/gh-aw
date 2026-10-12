@@ -97,6 +97,38 @@ func TestDockerEngineCommandIsNotRewrittenForNVX(t *testing.T) {
 	assert.NotContains(t, command, "patchelf")
 }
 
+func TestNVXBehaviorDefinedNpmEngineAssets(t *testing.T) {
+	for _, binaryName := range []string{"testharness-cli", ""} {
+		t.Run("binary-name-"+binaryName, func(t *testing.T) {
+			definition := newHarnessEngineDefinition()
+			definition.Behaviors.Installation = &EngineInstallationDefinition{
+				PackageManager: "npm",
+				PackageName:    "@example/testharness",
+				Version:        "1.2.3",
+				StepName:       "Install TestHarness CLI",
+				BinaryName:     binaryName,
+			}
+			engine, err := NewBehaviorDefinedEngine(definition)
+			require.NoError(t, err)
+			data := validNVXWorkflowData()
+			data.EngineConfig.ID = definition.ID
+			data.EngineConfig.Version = "2.3.4"
+			var installation strings.Builder
+			for _, step := range engine.GetInstallationSteps(data) {
+				installation.WriteString(strings.Join(step, "\n"))
+			}
+			assert.Contains(t, installation.String(), `--prefix "${RUNNER_TEMP}/gh-aw/engine-cli"`)
+			assert.Contains(t, installation.String(), `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @example/testharness@2.3.4`)
+			assert.Contains(t, installation.String(), `/bin/testharness-cli`)
+			var execution strings.Builder
+			for _, step := range engine.GetExecutionSteps(data, "agent.log") {
+				execution.WriteString(strings.Join(step, "\n"))
+			}
+			assert.Contains(t, execution.String(), nvxGuestRuntimeDir+"/engine-cli/bin")
+		})
+	}
+}
+
 func TestNVXCompiledAssetHandoff(t *testing.T) {
 	for _, policy := range []string{"workspace-only", "workspace-and-tool-cache"} {
 		t.Run(policy, func(t *testing.T) {

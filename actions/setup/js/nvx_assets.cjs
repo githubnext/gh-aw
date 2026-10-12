@@ -128,6 +128,13 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       const source = path.join(hostRoot, name);
       if (fs.existsSync(source)) copyTree(source, path.join(runtime, name));
     }
+    const mcpConfig = environment.GH_AW_MCP_CONFIG;
+    const mcpConfigDir = path.join(hostRoot, "mcp-config");
+    if (mcpConfig && path.dirname(mcpConfig) === mcpConfigDir && fs.existsSync(mcpConfig)) {
+      if (!fs.lstatSync(mcpConfigDir).isDirectory()) throw new Error("NVX native MCP config directory must not be a symlink");
+      fs.mkdirSync(path.join(runtime, "mcp-config"));
+      copyTree(mcpConfig, path.join(runtime, "mcp-config", path.basename(mcpConfig)));
+    }
     if (!fs.existsSync(path.join(runtime, "actions", "nvx_assets.cjs"))) throw new Error("NVX guest bootstrap is missing");
     fs.mkdirSync(path.join(runtime, "bin"), { recursive: true });
     fs.copyFileSync(process.execPath, path.join(runtime, "bin", "node"));

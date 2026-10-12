@@ -47,6 +47,30 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(fs.existsSync(path.join(root, "state", "gateway-secret"))).toBe(false);
   });
 
+  it("exports only the selected native MCP config at its remapped guest path", () => {
+    const dir = path.join(hostRoot, "mcp-config");
+    fs.mkdirSync(dir);
+    const config = path.join(dir, "config.toml");
+    fs.writeFileSync(config, '[mcp_servers.fixture]\nurl = "http://gateway:80"\n');
+    fs.writeFileSync(path.join(dir, "provider-token"), "must not be exported");
+    environment.GH_AW_MCP_CONFIG = config;
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    const guestEnv = guestEnvironment({ ...environment, GH_AW_NVX_HOST_ROOT: hostRoot }, root);
+    expect(guestEnv.GH_AW_MCP_CONFIG).toBe(path.join(root, "gh-aw", "mcp-config", "config.toml"));
+    expect(fs.readFileSync(guestEnv.GH_AW_MCP_CONFIG || "", "utf8")).toContain("[mcp_servers.fixture]");
+    expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "provider-token"))).toBe(false);
+  });
+
+  it("rejects a redirected native MCP config directory", () => {
+    fs.writeFileSync(path.join(state, "config.toml"), "must not be exported");
+    fs.symlinkSync(state, path.join(hostRoot, "mcp-config"));
+    environment.GH_AW_MCP_CONFIG = path.join(hostRoot, "mcp-config", "config.toml");
+    expect(() => stage(environment, state)).toThrow(/MCP config directory must not be a symlink/);
+    collect(environment, state);
+    expect(fs.readFileSync(path.join(state, "config.toml"), "utf8")).toBe("must not be exported");
+  });
+
   it("distinguishes ELF executables from scripts and shared libraries", () => {
     const file = path.join(temp, "elf-fixture");
     fs.writeFileSync(file, "#!/bin/sh\nexit 0\n");
