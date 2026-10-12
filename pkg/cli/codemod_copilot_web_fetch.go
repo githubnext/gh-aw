@@ -22,16 +22,35 @@ func getCopilotWebFetchRemovalCodemod() Codemod {
 	}
 }
 
+func getCopilotWebSearchRemovalCodemod() Codemod {
+	return Codemod{
+		ID:           "copilot-web-search-removal",
+		Name:         "Remove unsupported Copilot web-search tool",
+		Description:  "Removes tools.web-search when Copilot runs in offline BYOK mode, including SDK mode.",
+		IntroducedIn: "1.0.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			return applyCopilotWebToolRemoval(content, frontmatter, "", "web-search")
+		},
+		ApplyWithContext: func(content string, frontmatter map[string]any, filePath string) (string, bool, error) {
+			return applyCopilotWebToolRemoval(content, frontmatter, filePath, "web-search")
+		},
+	}
+}
+
 func applyCopilotWebFetchRemoval(content string, frontmatter map[string]any, filePath string) (string, bool, error) {
+	return applyCopilotWebToolRemoval(content, frontmatter, filePath, "web-fetch")
+}
+
+func applyCopilotWebToolRemoval(content string, frontmatter map[string]any, filePath, tool string) (string, bool, error) {
 	tools, ok := frontmatter["tools"].(map[string]any)
 	if !ok {
 		return content, false, nil
 	}
-	webFetch, exists := tools["web-fetch"]
+	value, exists := tools[tool]
 	if !exists {
 		return content, false, nil
 	}
-	if enabled, ok := webFetch.(bool); ok && !enabled {
+	if enabled, ok := value.(bool); ok && !enabled {
 		return content, false, nil
 	}
 
@@ -40,7 +59,7 @@ func applyCopilotWebFetchRemoval(content string, frontmatter map[string]any, fil
 	if filePath != "" {
 		resolvedConfig, err := compiler.ResolveEffectiveEngineConfig(content, filePath)
 		if err != nil {
-			copilotWebFetchCodemodLog.Printf("Unable to resolve effective engine; preserving tools.web-fetch: %v", err)
+			copilotWebFetchCodemodLog.Printf("Unable to resolve effective engine; preserving tools.%s: %v", tool, err)
 			return content, false, nil
 		}
 		engineConfig = resolvedConfig
@@ -50,13 +69,13 @@ func applyCopilotWebFetchRemoval(content string, frontmatter map[string]any, fil
 		}
 		_, engineConfig, _ = compiler.ExtractEngineConfig(frontmatter)
 	}
-	if engineConfig == nil || engineConfig.ID != "copilot" || engineConfig.CopilotSDK {
+	if engineConfig == nil || engineConfig.ID != "copilot" || (tool == "web-fetch" && engineConfig.CopilotSDK) {
 		return content, false, nil
 	}
 
-	updated, applied, err := removeYAMLMappingPath(content, []string{"tools", "web-fetch"}, false)
+	updated, applied, err := removeYAMLMappingPath(content, []string{"tools", tool}, false)
 	if applied {
-		copilotWebFetchCodemodLog.Print("Removed unsupported tools.web-fetch for Copilot CLI")
+		copilotWebFetchCodemodLog.Printf("Removed unsupported tools.%s for Copilot", tool)
 	}
 	return updated, applied, err
 }

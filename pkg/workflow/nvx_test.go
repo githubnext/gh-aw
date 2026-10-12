@@ -46,6 +46,7 @@ func TestValidateNVXRuntimeConfig(t *testing.T) {
 
 		effective := effectiveNVXConfig(data.SandboxConfig.Agent.NVX)
 		assert.Equal(t, defaultNVXMountPolicy, effective.MountPolicy)
+		assert.Equal(t, "musl", getNVXGuestLibc(data))
 		assert.Equal(t, defaultNVXSignerWorkflow, effective.SignerWorkflow)
 		assert.Equal(t, 512, effective.MemoryMiB)
 		assert.Equal(t, int64(536870912), effective.MemoryMaxBytes)
@@ -115,7 +116,7 @@ func TestNVXRuntimeDefaultsWithoutConfiguration(t *testing.T) {
 
 	require.NoError(t, validateNVXRuntimeConfig(data, data.SandboxConfig.Agent))
 
-	effective := effectiveNVXConfig(nil)
+	effective := effectiveNVXConfig(data.SandboxConfig.Agent.NVX)
 	assert.True(t, effective.PreviewEnabled)
 	assert.True(t, effective.NetworkIsolation)
 	assert.True(t, effective.APIProxy)
@@ -125,6 +126,7 @@ func TestNVXRuntimeDefaultsWithoutConfiguration(t *testing.T) {
 	assert.Equal(t, "${{ runner.temp }}/nvx/initramfs.cpio.gz", effective.InitramfsPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/nvx-test-x86_64.manifest.json", effective.ArtifactManifestPath)
 	assert.Equal(t, "${{ runner.temp }}/nvx/nvx-test-x86_64.manifest.sigstore.jsonl", effective.ArtifactManifestBundlePath)
+	assert.Equal(t, "musl", getNVXGuestLibc(data))
 
 	config := AWFCommandConfig{EngineName: "copilot", WorkflowData: data}
 	command := BuildAWFCommand(config)

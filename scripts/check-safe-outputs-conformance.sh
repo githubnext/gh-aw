@@ -4,8 +4,8 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Spec Version: 1.26.0 (2026-07-16)
-# Script Version: 1.26.0 (2026-07-20)
+# Spec Version: 1.29.8 (2026-10-01; reviewed through 2026-10-09 changes)
+# Script Version: 1.29.8 (2026-10-12)
 
 set -euo pipefail
 
@@ -2256,6 +2256,236 @@ check_approve_workflow_run_semantics() {
     fi
 }
 check_approve_workflow_run_semantics
+
+# SEC-008: Mention Resolution Credential Confinement (Section 3.1 AR1, Section 9 T5)
+# Mention/team allowlist resolution MUST be deferred to the trusted safe_outputs job.
+# Ingestion MUST NOT perform privileged mention lookups or receive mention credentials.
+# The mention lookup token MUST come only from mentions.github-app, then
+# mentions.github-token, then github.token; app permissions MUST be read-only.
+echo "Running SEC-008: Mention Resolution Credential Confinement..."
+check_mention_credential_confinement() {
+    local ingestion="actions/setup/js/collect_ndjson_output.cjs"
+    local resolver="actions/setup/js/resolve_mentions_from_payload.cjs"
+    local steps_go="pkg/workflow/compiler_safe_outputs_steps.go"
+    local perms_go="pkg/workflow/safe_outputs_permissions.go"
+    local validation_go="pkg/workflow/github_app_permissions_validation.go"
+    local failed=0
+
+    if [ ! -f "$ingestion" ]; then
+        log_high "SEC-008: Safe-output ingestion script missing: $ingestion"
+        failed=1
+    else
+        if ! grep -qE "deferMentions" "$ingestion"; then
+            log_high "SEC-008: Ingestion does not defer mention filtering to the trusted safe_outputs job (Section 9 T5)"
+            failed=1
+        fi
+        if grep -qE "resolve_mentions(_from_payload)?\.cjs|resolveAllowedMentions|GH_AW_MENTIONS_GITHUB_TOKEN" "$ingestion"; then
+            log_critical "SEC-008: Ingestion performs privileged mention lookups or references mention credentials (Section 3.1 AR1)"
+            failed=1
+        fi
+    fi
+
+    if [ ! -f "$resolver" ]; then
+        log_high "SEC-008: Trusted mention resolver missing: $resolver"
+        failed=1
+    elif ! grep -qE "GH_AW_MENTIONS_GITHUB_TOKEN" "$resolver"; then
+        log_high "SEC-008: Mention resolver does not use the dedicated mention-resolution token (Section 9 T5)"
+        failed=1
+    fi
+
+    if [ ! -f "$steps_go" ]; then
+        log_high "SEC-008: Safe outputs step compiler missing: $steps_go"
+        failed=1
+    else
+        if ! grep -qE "GH_AW_MENTIONS_GITHUB_TOKEN" "$steps_go" || ! grep -qE "func safeOutputMentionsGitHubToken" "$steps_go"; then
+            log_high "SEC-008: Compiler does not emit a dedicated mention-resolution token in the safe_outputs job (Section 9 T5)"
+            failed=1
+        fi
+        # Token precedence: mentions.github-app -> mentions.github-token -> github.token (no safe-outputs.github-token inheritance)
+        local token_fn
+        token_fn=$(sed -n '/^func safeOutputMentionsGitHubToken/,/^}/p' "$steps_go")
+        if ! echo "$token_fn" | grep -q "safe-outputs-mentions-app-token" || ! echo "$token_fn" | grep -q "mentions.GitHubToken" || ! echo "$token_fn" | grep -q "github.token"; then
+            log_high "SEC-008: Mention token precedence (mentions.github-app → mentions.github-token → github.token) not implemented (Section 9 T5)"
+            failed=1
+        fi
+        if echo "$token_fn" | grep -qE "SafeOutputs\.GitHubToken|SafeOutputs\.GitHubApp|GH_AW_GITHUB_TOKEN"; then
+            log_critical "SEC-008: Mention token inherits safe-outputs write credentials (Section 9 T5)"
+            failed=1
+        fi
+    fi
+
+    if [ ! -f "$perms_go" ] || ! grep -qE "func buildMentionResolutionPermissions" "$perms_go"; then
+        log_medium "SEC-008: Mention-resolution GitHub App permission builder not found (issues: read / members: read) (Section 9 T5)"
+        failed=1
+    fi
+
+    if [ ! -f "$validation_go" ] || ! grep -qE "func validateMentionGitHubAppPermissionsReadOnly" "$validation_go"; then
+        log_high "SEC-008: Compiler does not reject non-read mention GitHub App permission overrides (Section 9 T5)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "SEC-008: Mention resolution is deferred to safe_outputs with confined, read-only credentials (Section 3.1 AR1, Section 9 T5)"
+    fi
+}
+check_mention_credential_confinement
+
+# SEC-009: Work-Queue Claim Adapter Repository Authorization (Section 3.x cross-repository rules)
+# Declared Claim adapters MUST specify a fixed literal target-repo validated by
+# work_queue_claim_adapters.cjs; every selected repository MUST pass assertClaimAuthorized
+# before effects execute; rejection carries E004 with work_queue_effect_scope_denied.
+echo "Running SEC-009: Work-Queue Claim Adapter Repository Authorization..."
+check_claim_adapter_authorization() {
+    local adapters="actions/setup/js/work_queue_claim_adapters.cjs"
+    local finish="actions/setup/js/finish_work_queue_claim.cjs"
+    local failed=0
+
+    if [ ! -f "$adapters" ]; then
+        log_high "SEC-009: Claim adapter module missing: $adapters"
+        failed=1
+    else
+        if ! grep -qE "target-repo" "$adapters" || ! grep -qE "fixed repository scope" "$adapters"; then
+            log_high "SEC-009: Claim adapters do not require a fixed literal target-repo"
+            failed=1
+        fi
+        if ! grep -qE "assertClaimAuthorized\(" "$adapters"; then
+            log_high "SEC-009: Claim adapters do not authorize selected repositories via assertClaimAuthorized"
+            failed=1
+        fi
+    fi
+
+    if [ ! -f "$finish" ]; then
+        log_high "SEC-009: Claim authorization module missing: $finish"
+        failed=1
+    elif ! grep -qE "work_queue_effect_scope_denied.*E004" "$finish"; then
+        log_high "SEC-009: Repository allowlist rejection does not carry E004 with work_queue_effect_scope_denied"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "SEC-009: Claim adapters use fixed target-repo scopes authorized via assertClaimAuthorized with E004 rejection"
+    fi
+}
+check_claim_adapter_authorization
+
+# TYPE-014: Protected-File Exact-Path Exclusions (Section 7 Protected-File Exclusions)
+# Exclude entries beginning with "/" MUST match only the exact repository-relative path;
+# exclusions MUST apply to both patch-time and post-apply checks; patch paths MUST be
+# decoded from Git C-style quoting; allowed-files MUST be evaluated independently.
+echo "Running TYPE-014: Protected-File Exact-Path Exclusions..."
+check_protected_file_exact_path_exclusions() {
+    local helpers="actions/setup/js/manifest_file_helpers.cjs"
+    local patch_paths="actions/setup/js/patch_path_helpers.cjs"
+    local config_go="pkg/workflow/safe_outputs_config_generation.go"
+    local failed=0
+
+    if [ ! -f "$config_go" ] || ! grep -qE "func splitProtectedFilesExcludes" "$config_go" || ! sed -n '/^func splitProtectedFilesExcludes/,/^}/p' "$config_go" | grep -qE 'CutPrefix\(exclude, "/"\)'; then
+        log_high "TYPE-014: Compiler does not split leading-slash exact-path exclusions from basename/prefix exclusions"
+        failed=1
+    fi
+
+    if [ ! -f "$helpers" ]; then
+        log_high "TYPE-014: File protection helpers missing: $helpers"
+        failed=1
+    else
+        local pre post
+        pre=$(sed -n '/^function checkFileProtection(/,/^}/p' "$helpers")
+        post=$(sed -n '/^function checkFileProtectionPostApply(/,/^}/p' "$helpers")
+        if ! echo "$pre" | grep -q "protected_files_path_exclude"; then
+            log_high "TYPE-014: Patch-time protected-file check does not apply exact-path exclusions"
+            failed=1
+        fi
+        if ! echo "$post" | grep -q "protected_files_path_exclude"; then
+            log_high "TYPE-014: Post-apply protected-file check does not apply exact-path exclusions"
+            failed=1
+        fi
+        # allowed-files must be evaluated before (independently of) protected-file exclusions
+        for fn_body in "$pre" "$post"; do
+            local allow_line excl_line
+            allow_line=$(echo "$fn_body" | grep -n "allowed_files" | head -1 | cut -d: -f1 || true)
+            excl_line=$(echo "$fn_body" | grep -n "protected_files_path_exclude" | head -1 | cut -d: -f1 || true)
+            if [ -z "$allow_line" ] || { [ -n "$excl_line" ] && [ "$allow_line" -gt "$excl_line" ]; }; then
+                log_high "TYPE-014: allowed-files is not evaluated independently of protected-file exclusions"
+                failed=1
+                break
+            fi
+        done
+        if ! grep -qE "require\(\"\./patch_path_helpers\.cjs\"\)" "$helpers"; then
+            log_high "TYPE-014: File protection helpers do not normalize patch paths via patch_path_helpers.cjs"
+            failed=1
+        fi
+    fi
+
+    if [ ! -f "$patch_paths" ] || ! grep -qE "function decodeGitQuotedPath" "$patch_paths"; then
+        log_high "TYPE-014: Git C-style quoted path decoding (including octal escapes) not implemented"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-014: Protected-file exact-path exclusions apply at patch-time and post-apply with independent allowed-files checks"
+    fi
+}
+check_protected_file_exact_path_exclusions
+
+# TYPE-015: resolve_pull_request_review_thread Operational Semantics (Section 7.3)
+# Node lookup MUST verify PullRequestReviewThread/PullRequestReviewComment; target, repo
+# allowlist, and label/title filters MUST be enforced before mutation; staged mode MUST NOT
+# call resolveReviewThread; comment-ID lookup MUST paginate; integration-permission
+# failures MUST be reported as skipped with github-token guidance.
+echo "Running TYPE-015: resolve_pull_request_review_thread Operational Semantics..."
+check_resolve_review_thread_semantics() {
+    local handler="actions/setup/js/resolve_pr_review_thread.cjs"
+    local failed=0
+
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-015: resolve_pull_request_review_thread handler missing: $handler"
+        return
+    fi
+
+    if ! grep -q "PullRequestReviewThread" "$handler" || ! grep -q "PullRequestReviewComment" "$handler" || ! grep -qE "__typename !== \"PullRequestReviewThread\"" "$handler"; then
+        log_high "TYPE-015: Handler does not verify thread_id node type (Operational Semantics 1)"
+        failed=1
+    fi
+
+    if ! grep -qE "hasNextPage" "$handler" || ! grep -qE "endCursor" "$handler"; then
+        log_high "TYPE-015: Comment-ID lookup does not follow GraphQL pagination cursors (Operational Semantics 4)"
+        failed=1
+    fi
+
+    local mutation_line staged_line repo_line filter_line
+    mutation_line=$(grep -n "await resolveReviewThreadAPI(" "$handler" | head -1 | cut -d: -f1 || true)
+    staged_line=$(grep -nE "if \(isStaged\)" "$handler" | head -1 | cut -d: -f1 || true)
+    repo_line=$(grep -nE "validateTargetRepo\(threadRepo" "$handler" | head -1 | cut -d: -f1 || true)
+    filter_line=$(grep -nE "await checkRequiredFilter\(" "$handler" | head -1 | cut -d: -f1 || true)
+
+    if [ -z "$mutation_line" ]; then
+        log_high "TYPE-015: Handler does not call the resolveReviewThread mutation (Operational Semantics 3)"
+        failed=1
+    else
+        if [ -z "$repo_line" ] || [ "$repo_line" -gt "$mutation_line" ]; then
+            log_high "TYPE-015: Repository allowlist is not enforced on the resolved thread's repository before mutation (Operational Semantics 2)"
+            failed=1
+        fi
+        if [ -z "$filter_line" ] || [ "$filter_line" -gt "$mutation_line" ]; then
+            log_high "TYPE-015: required-labels/required-title-prefix filters are not enforced before mutation (Operational Semantics 2)"
+            failed=1
+        fi
+        if [ -z "$staged_line" ] || [ "$staged_line" -gt "$mutation_line" ]; then
+            log_high "TYPE-015: Staged mode does not preview before calling resolveReviewThread (Operational Semantics 3)"
+            failed=1
+        fi
+    fi
+
+    if ! grep -q "Resource not accessible by integration" "$handler" || ! grep -qE "resolve-pull-request-review-thread\.github-token" "$handler"; then
+        log_medium "TYPE-015: Integration permission failures are not reported as skipped with github-token guidance (Operational Semantics 5)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-015: resolve_pull_request_review_thread verifies node type, enforces target/filters before mutation, paginates comment lookup, and handles staged/permission cases"
+    fi
+}
+check_resolve_review_thread_semantics
 
 # Summary
 echo ""

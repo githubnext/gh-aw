@@ -112,7 +112,7 @@ type logsArgs struct {
 	IgnoreWorkflowRuns    []int64  `json:"ignore_workflow_runs,omitempty" jsonschema:"Workflow run IDs to exclude"`
 	Timeout               int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxGitHubAPIRateLimit int      `json:"max_github_api_rate_limit,omitempty" jsonschema:"Maximum used GitHub core API requests before pausing one target or stopping multiple targets. Positive values are absolute; negative values reserve requests from the API-reported limit (for example, 12000 or -2000)."`
-	MaxStorageMB          int      `json:"max_storage,omitempty" jsonschema:"Maximum logs storage in MB after pruning non-essential cache data (0 means unlimited)."`
+	MaxStorageMB          *int     `json:"max_storage,omitempty" jsonschema:"Maximum logs storage in MB after pruning non-essential cache data (default: 1024 MB; 0 means unlimited)."`
 	PruneOlderRuns        bool     `json:"prune_older_runs,omitempty" jsonschema:"Remove oldest completed runs when non-essential cache pruning cannot satisfy max_storage."`
 	MaxTokens             int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
 	Artifacts             []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: info,usage). Valid sets: all, activation, agent, detection, evals, experiment, firewall, github-api, graders, info, mcp, usage, work-queue. The compact usage set is always added so per-run token_usage is populated."`
@@ -402,8 +402,8 @@ func appendLogsFilterArgs(cmdArgs []string, args logsArgs) []string {
 	if args.MaxGitHubAPIRateLimit != 0 {
 		cmdArgs = append(cmdArgs, "--max-github-api-rate-limit", strconv.Itoa(args.MaxGitHubAPIRateLimit))
 	}
-	if args.MaxStorageMB != 0 {
-		cmdArgs = append(cmdArgs, "--max-storage", strconv.Itoa(args.MaxStorageMB))
+	if args.MaxStorageMB != nil {
+		cmdArgs = append(cmdArgs, "--max-storage", strconv.Itoa(*args.MaxStorageMB))
 	}
 	if args.PruneOlderRuns {
 		cmdArgs = append(cmdArgs, "--prune-older-runs")

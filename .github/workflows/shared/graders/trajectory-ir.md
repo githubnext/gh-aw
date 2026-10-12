@@ -75,7 +75,7 @@ telemetry, no network calls):
   // {
   //   "toolCalls": [{ "name": "string", "arguments": {} }], // tool-wise-score
   //   "states": ["states[].id"],                            // trajectory-ndtw
-  //   "patch": { "files": [{ "path": "string" }] }          // code-search-recall / code-read-precision
+  //   "patch": { "files": [{ "path": "string" }] }          // code-search-recall / code-read-precision / code-edit-precision
   // }
 }
 ```
@@ -122,6 +122,11 @@ and file inspections as `type: "inspect"`, `target` set to the file path and
 `consequential: false`. Searches and listings use distinct action types and do not
 count as content reads. The grader compares distinct target paths with the
 reference patch files; the IR has no symbol records, so precision is file-level.
+
+For `code-edit-precision`, record file edits as actions with `type: "edit"`,
+`target` set to the edited file path, and `consequential: true`. The grader
+compares distinct edited paths with the reference patch files; the IR has no
+line or hunk records, so precision is file-level.
 
 ### Output contract every grader in this directory follows
 

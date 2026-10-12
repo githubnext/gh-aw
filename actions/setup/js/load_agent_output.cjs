@@ -5,7 +5,62 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { EMPTY_OUTPUT_FAILURE_CAUSES } = require("./empty_output_outcome.cjs");
 
 const fs = require("fs");
+const path = require("path");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle } = require("./work_queue_claim_scope.cjs");
+
+const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const TASK_COMPLETE_REGISTRATION_SIGNALS = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
+const TASK_COMPLETE_COMPLETION_SIGNALS = ["completed successfully", "safe-output", "safe output", "no remaining work"];
+const TASK_COMPLETE_COMPLETION_REGEXPS = [/\banalysis steps? completed\b/, /\ball steps completed\b/];
+
+/**
+ * Detect the existing task_complete registration-only diagnostic exception.
+ * @param {{reason?: string, details?: string} | undefined} item
+ * @returns {boolean}
+ */
+function isTaskCompleteRegistrationIssue(item) {
+  if (!item) {
+    return false;
+  }
+  const text = `${item.reason || ""}\n${item.details || ""}`.toLowerCase();
+  if (!text.includes("task_complete")) {
+    return false;
+  }
+  const hasRegistrationSignal = TASK_COMPLETE_REGISTRATION_SIGNALS.some(signal => text.includes(signal));
+  const hasCompletionSignal = TASK_COMPLETE_COMPLETION_SIGNALS.some(signal => text.includes(signal)) || TASK_COMPLETE_COMPLETION_REGEXPS.some(regexp => regexp.test(text));
+  return hasRegistrationSignal && hasCompletionSignal;
+}
+
+/**
+ * Check the engine log for the terminal completion evidence used by failure policy.
+ * @returns {boolean}
+ */
+function hasAgentTerminalReasonCompleted() {
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  try {
+    if (!fs.existsSync(stdioLogPath)) {
+      return false;
+    }
+    return /"terminal_reason"[ ]?:[ ]?"completed"/.test(fs.readFileSync(stdioLogPath, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Suppress registration-only diagnostics only with both terminal completion
+ * evidence and a real task-level output, matching the agent failure policy.
+ * @param {Array<any> | undefined} items
+ * @returns {boolean}
+ */
+function shouldIgnoreTaskCompleteRegistrationReports(items) {
+  if (!Array.isArray(items)) {
+    return false;
+  }
+  const reports = items.filter(item => item?.type === "report_incomplete");
+  return reports.length > 0 && hasAgentTerminalReasonCompleted() && items.some(item => item && typeof item.type === "string" && !DIAGNOSTIC_AGENT_OUTPUT_TYPES.has(item.type)) && reports.every(isTaskCompleteRegistrationIssue);
+}
 
 /**
  * Maximum content length to log for debugging purposes
@@ -130,4 +185,4 @@ function loadAgentOutput(options = {}) {
   };
 }
 
-module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
+module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH, isTaskCompleteRegistrationIssue, hasAgentTerminalReasonCompleted, shouldIgnoreTaskCompleteRegistrationReports };

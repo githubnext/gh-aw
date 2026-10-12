@@ -308,6 +308,13 @@ inputs:
 - `enum: [...]` - Restrict to specific values
 - `description: "..."` - Help text for agent tool selection
 
+Array parameters MAY declare `items: { type: string }` to constrain every
+element's type. The item schema supports only `type`, using the supported types
+listed above, and requires an explicit parameter `type: array`. When declared,
+implementations MUST publish `items` in the tool's input schema and reject
+elements of a different type before invoking the handler. Without `items`,
+array element types remain unrestricted.
+
 ### 4.5 Environment Variables
 
 Environment variables provide secret access to tools:

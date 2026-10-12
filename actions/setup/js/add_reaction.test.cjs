@@ -4,6 +4,7 @@ const { ERR_NOT_FOUND, ERR_VALIDATION, ERR_API } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
+  debug: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
@@ -489,6 +490,73 @@ describe("add_reaction", () => {
   });
 
   describe("error handling", () => {
+    it("retries a transient connection timeout and succeeds", async () => {
+      const { addReaction } = await importHelpers();
+      const timeoutError = new Error("Connect Timeout Error");
+      mockGithub.request.mockRejectedValueOnce(timeoutError).mockResolvedValueOnce({
+        data: { id: 12345 },
+      });
+
+      vi.useFakeTimers();
+      try {
+        const operation = addReaction("POST /reactions", {}, "eyes");
+        await vi.advanceTimersByTimeAsync(999);
+        expect(mockGithub.request).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await operation;
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(mockGithub.request).toHaveBeenCalledTimes(2);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("stops retrying after the bounded number of connection retries", async () => {
+      const { addReaction } = await importHelpers();
+      const timeoutError = new Error("Connect Timeout Error");
+      mockGithub.request.mockRejectedValue(timeoutError);
+
+      vi.useFakeTimers();
+      try {
+        const operation = addReaction("POST /reactions", {}, "eyes");
+        const rejection = expect(operation).rejects.toBe(timeoutError);
+        await vi.runAllTimersAsync();
+        await rejection;
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(mockGithub.request).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries connection timeouts identified by error code", async () => {
+      const { addReaction } = await importHelpers();
+      const timeoutError = Object.assign(new Error("Connection failed"), { code: "UND_ERR_CONNECT_TIMEOUT" });
+      mockGithub.request.mockRejectedValueOnce(timeoutError).mockResolvedValueOnce({ data: { id: 12345 } });
+
+      vi.useFakeTimers();
+      try {
+        const operation = addReaction("POST /reactions", {}, "eyes");
+        await vi.runAllTimersAsync();
+        await operation;
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(mockGithub.request).toHaveBeenCalledTimes(2);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "12345");
+    });
+
+    it("preserves non-retryable API errors without retrying", async () => {
+      const { addReaction } = await importHelpers();
+      const lockedError = Object.assign(new Error("Issue is locked"), { status: 403 });
+      mockGithub.request.mockRejectedValueOnce(lockedError);
+
+      await expect(addReaction("POST /reactions", {}, "eyes")).rejects.toBe(lockedError);
+      expect(mockGithub.request).toHaveBeenCalledTimes(1);
+    });
+
     it("should handle API errors gracefully", async () => {
       mockGithub.request.mockRejectedValueOnce(new Error("API Error"));
 

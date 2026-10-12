@@ -200,7 +200,7 @@ describe("unified session publication views", () => {
     expect(events).toEqual(original);
   });
 
-  it("renders episode lineage in both sinks without dumping the caller context", () => {
+  it("renders caller context alongside episode lineage in both sinks", () => {
     const events = [
       header,
       event(
@@ -215,24 +215,78 @@ describe("unified session publication views", () => {
             root_repo: "org/repo",
             root_workflow_id: "root.yml",
             root_run_id: "100",
-            private: "PRIVATE_CONTEXT",
+            workflow_call_id: "200-1:caller",
+            work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
           },
         },
         "workflow",
         0
       ),
     ];
-    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      expect(output).toContain("runId=300");
-      expect(output).toContain("episodeId=100-1:root");
-      expect(output).toContain("hopId=200-1:caller");
-      expect(output).toContain("parentHopId=");
-      expect(output).toContain("originEvent=issues");
-      expect(output).toContain("rootRepo=org/repo");
-      expect(output).toContain("rootWorkflowId=root.yml");
-      expect(output).toContain("rootRunId=100");
-      expect(output).not.toContain("PRIVATE_CONTEXT");
+    const normalized = mergeSessionSources([{ component: "workflow", phase: "activation", path: "aw_info.json", events: events.slice(1) }]);
+    const original = structuredClone(normalized);
+    for (const records of [events, [header, ...normalized]]) {
+      for (const output of [generatePlainTextSummary(records), generateCopilotCliStyleSummary(records)]) {
+        expect(output).toContain("runId=300");
+        expect(output).toContain("episodeId=100-1:root");
+        expect(output).toContain("hopId=200-1:caller");
+        expect(output).toContain("parentHopId=");
+        expect(output).toContain("originEvent=issues");
+        expect(output).toContain("rootRepo=org/repo");
+        expect(output).toContain("rootWorkflowId=root.yml");
+        expect(output).toContain("rootRunId=100");
+        expect(output).toContain(`awContext=${JSON.stringify(normalized[0].data.awContext)}`);
+      }
     }
+    expect(normalized).toEqual(original);
+  });
+
+  it("renders complete JSON context without interpreting content or text fields as messages", () => {
+    const awContext = { text: "Caller note", content: "Caller content", run_id: "100", nested: { values: [false, 0, null] } };
+    const events = [header, event("workflow.info", { awContext }, "workflow", 0)];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      expect(output).toContain(`awContext=${JSON.stringify(awContext)}`);
+    }
+  });
+
+  it.each([{}, { awContext: {} }, { awContext: null }, { awContext: [] }])("renders absent or empty caller context consistently: %j", data => {
+    const events = [header, event("workflow.info", data, "workflow", 0)];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      if (data.awContext && !Array.isArray(data.awContext)) expect(output).toContain("awContext={}");
+      else expect(output).not.toContain("awContext=");
+    }
+  });
+
+  it("redacts caller context keys and nested values and safely fences hostile context", () => {
+    const secret = 'caller-secret"\\\nvalue';
+    process.env.GH_AW_SECRET_NAMES = "CALLER_CONTEXT";
+    process.env.SECRET_CALLER_CONTEXT = secret;
+    const awContext = { [secret]: { values: [secret] }, note: "````\n</details>\n::error::untrusted" };
+    const events = [header, event("workflow.info", { awContext }, "workflow", 0)];
+    const original = structuredClone(events);
+    const plain = generatePlainTextSummary(events);
+    const markdown = generateCopilotCliStyleSummary(events);
+    for (const output of [plain, markdown]) {
+      expect(output).toContain('awContext={"***REDACTED***":{"values":["***REDACTED***"]}');
+      expect(output).not.toContain("caller-secret");
+    }
+    expect(plain).not.toContain("::error::");
+    expect(markdown.match(/^(`{3,})$/m)?.[1].length).toBeGreaterThan(4);
+    expect(events).toEqual(original);
+  });
+
+  it("bounds large caller context using existing line and summary byte limits", () => {
+    const awContext = { note: "context ".repeat(10000) };
+    const events = [header, event("workflow.info", { awContext }, "workflow", 0)];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+      expect(output).toContain('awContext={"note":');
+      expect(output).toContain("[truncated: long summary line]");
+      expect(Buffer.byteLength(output, "utf8")).toBeLessThan(MAX_STEP_SUMMARY_SIZE);
+    }
+    const bounded = generateCopilotCliStyleSummary(events, { maxBytes: 1024 });
+    expect(Buffer.byteLength(bounded, "utf8")).toBeLessThanOrEqual(1024);
+    expect(bounded).toContain("summary truncated: byte limit reached");
+    expect(events[1].data.awContext).toEqual(awContext);
   });
 
   it("renders every known message in both sinks without dumping prompts or opaque payloads", () => {

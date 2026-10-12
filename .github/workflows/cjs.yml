@@ -238,6 +238,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cd actions/setup/js && npm run test:js-integration-artifact
 
+  nvx-musl-integration:
+    name: NVX musl inference integration
+    needs: [checkout-cache]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-nvx-musl-integration
+      cancel-in-progress: true
+    steps:
+      - name: Restore checkout
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Install patchelf
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes patchelf
+      - name: Run the NVX musl inference integration test
+        run: go test -tags=integration ./pkg/workflow -count=1 -run '^TestNVXStagedMuslCopilotInvokesAPIProxy$'
+
   cleanup-cache:
     name: Cleanup checkout cache
     needs:
@@ -247,6 +276,7 @@ jobs:
       - impacted-js-tests
       - lint-js
       - artifact-integration
+      - nvx-musl-integration
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

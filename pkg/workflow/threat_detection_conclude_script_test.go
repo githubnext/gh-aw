@@ -39,6 +39,7 @@ func TestConcludeThreatDetectionScript_MissingBinaryWarnMode(t *testing.T) {
 
 			cmd := exec.Command("bash", scriptPath, resultFile)
 			cmd.Env = append(os.Environ(),
+				"RUN_DETECTION=true",
 				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+continueOnError,
 				"GITHUB_OUTPUT="+outputFile,
 				"PATH="+isolatedPath(t, binDir),
@@ -343,8 +344,7 @@ func TestConcludeThreatDetectionScript_SuccessfulInstallDelegates(t *testing.T) 
 }
 
 // TestConcludeThreatDetectionScript_SkippedDetectionIgnoresInstallOutcome verifies
-// that a skipped install (detection never ran) still delegates to threat-detect,
-// which owns the conclusion=skipped branch.
+// that a skipped install does not prevent delegation when the binary is available.
 func TestConcludeThreatDetectionScript_SkippedDetectionIgnoresInstallOutcome(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
@@ -378,5 +378,76 @@ func TestConcludeThreatDetectionScript_SkippedDetectionIgnoresInstallOutcome(t *
 	}
 	if _, statErr := os.Stat(callLog); statErr != nil {
 		t.Fatalf("expected threat-detect conclude to run for a skipped detection: %v\nOutput: %s", statErr, out)
+	}
+}
+
+func TestConcludeThreatDetectionScript_SkippedDetectionWithoutBinary(t *testing.T) {
+	for _, tt := range []struct {
+		name            string
+		runDetection    string
+		setRunDetection bool
+		installOutcome  string
+		continueOnError string
+		wantErr         bool
+		wantConclusion  string
+		wantSuccess     string
+	}{
+		{name: "strict mode explicit skip", runDetection: "false", setRunDetection: true, installOutcome: "skipped", continueOnError: "false", wantConclusion: "conclusion=skipped", wantSuccess: "success=true"},
+		{name: "warn mode explicit skip", runDetection: "false", setRunDetection: true, installOutcome: "skipped", continueOnError: "true", wantConclusion: "conclusion=skipped", wantSuccess: "success=true"},
+		{name: "unset guard output", installOutcome: "skipped", continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},
+		{name: "empty guard output", runDetection: "", setRunDetection: true, installOutcome: "skipped", continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},
+		{name: "unexpected guard output", runDetection: "unexpected", setRunDetection: true, installOutcome: "skipped", continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},
+		{name: "empty guard output warn mode", runDetection: "", setRunDetection: true, installOutcome: "skipped", continueOnError: "true", wantConclusion: "conclusion=warning", wantSuccess: "success=false"},
+		{name: "explicit skip without skipped install", runDetection: "false", setRunDetection: true, continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			binDir := filepath.Join(tmpDir, "bin")
+			if err := os.MkdirAll(binDir, 0755); err != nil {
+				t.Fatalf("failed to create bin directory: %v", err)
+			}
+			outputFile := filepath.Join(tmpDir, "github_output.txt")
+			cmd := exec.Command("bash", filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh"), filepath.Join(tmpDir, "detection_result.json"))
+			cmd.Env = make([]string, 0, len(os.Environ())+5)
+			for _, env := range os.Environ() {
+				if !strings.HasPrefix(env, "RUN_DETECTION=") {
+					cmd.Env = append(cmd.Env, env)
+				}
+			}
+			if tt.setRunDetection {
+				cmd.Env = append(cmd.Env, "RUN_DETECTION="+tt.runDetection)
+			}
+			cmd.Env = append(cmd.Env,
+				"THREAT_DETECT_INSTALL_OUTCOME="+tt.installOutcome,
+				"DETECTION_AGENTIC_EXECUTION_OUTCOME=skipped",
+				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+tt.continueOnError,
+				"GITHUB_OUTPUT="+outputFile,
+				"PATH="+isolatedPath(t, binDir),
+			)
+			out, err := cmd.CombinedOutput()
+			if tt.wantErr && err == nil {
+				t.Fatalf("script should exit non-zero for an unavailable detector: %s", out)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("script should exit 0: %v\nOutput: %s", err, out)
+			}
+			outputData, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
+			}
+			outputText := string(outputData)
+			if !strings.Contains(outputText, tt.wantConclusion) || !strings.Contains(outputText, tt.wantSuccess) {
+				t.Fatalf("unexpected detector conclusion outputs: %s", outputData)
+			}
+			if tt.wantSuccess == "success=true" && !strings.Contains(outputText, "reason=\n") {
+				t.Fatalf("expected an empty reason for skipped detection, got: %s", outputData)
+			}
+			if tt.wantSuccess == "success=false" && !strings.Contains(outputText, "reason=agent_failure") {
+				t.Fatalf("expected unavailable detector reason, got: %s", outputData)
+			}
+			if tt.wantSuccess == "success=true" && strings.Contains(string(out), "threat-detect binary not found") {
+				t.Fatalf("skipped detection should not report a missing detector: %s", out)
+			}
+		})
 	}
 }
