@@ -3175,7 +3175,7 @@ function buildEngineFailureContext(options = {}) {
     const exitCodeText = fs.existsSync(exitCodePath) ? fs.readFileSync(exitCodePath, "utf8").trim() : "";
     const exitDetails = /^[1-9]\d{0,2}$/.test(exitCodeText) && Number(exitCodeText) <= 255 ? renderErrorDetails(`Driver exit code: ${exitCodeText}`) : "";
     if (options.metadataOnly === true) {
-      return exitDetails ? `**Driver exit code:** \`${exitCodeText}\`\n\n` : "";
+      return exitDetails ? renderPromptTemplate("engine_driver_failure.md", { driver_exit_code: exitCodeText }) : "";
     }
     if (!fs.existsSync(stdioLogPath)) {
       if (shellExpansionGuardRejectedFromDetection) {
