@@ -1457,6 +1457,30 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
+  it.each(["checkpoint_invalid", "secret-error-code"])("reports checkpoint corruption without leaking arbitrary error codes or messages: %s", async code => {
+    const { options, post } = setup({ granted: false });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-checkpoint-error-"));
+    const filename = path.join(directory, "intents.jsonl");
+    try {
+      stagePlanIntents(filename, { version: 1, nodes: [{ pool: "default", payload: { task: "prepared" } }], dispatch: { pool: "default", max_claims: 1, max_dispatches: 1 } });
+      const result = await processWorkQueueIntents({
+        ...options,
+        assignment: null,
+        role: "dispatcher",
+        intentPath: filename,
+        readWorkQueueLog: async () => {
+          throw Object.assign(new Error("secret error detail"), { code });
+        },
+      });
+      expect(result.receipts).toHaveLength(2);
+      expect(result.receipts.every(receipt => receipt.status === "blocked" && receipt.reason === (code === "checkpoint_invalid" ? "queue_control_checkpoint_invalid" : "queue_control_authority_or_publication_failed"))).toBe(true);
+      expect(JSON.stringify(result)).not.toContain("secret");
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each([undefined, null, { kind: "unsupported" }, { kind: "github_app" }])("rejects public dispatch credential metadata %j before constructing a client or publishing", async credential => {
     const { fixture, options, post } = setup({ granted: false });
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-public-credential-"));

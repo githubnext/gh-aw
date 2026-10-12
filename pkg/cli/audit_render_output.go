@@ -17,6 +17,9 @@ import (
 // It is called both when serving from a cached run summary and after a fresh processing pass,
 // ensuring that the two paths produce identical output.
 func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, opts AuditOptions) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	runID := processedRun.Run.DatabaseID
 	runOutputDir := opts.OutputDir
 	auditLog.Printf("Rendering audit report for run %d (noBaseline=%t, group=%t)", runID, opts.NoBaseline, opts.Group)
@@ -29,7 +32,14 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 			auditData.Comparison = noBaselineComparison()
 		}
 	} else {
-		auditData = buildRenderedAuditDataFromCache(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
+		var err error
+		auditData, err = buildRenderedAuditDataFromCache(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
+		if err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		auditData.CacheSource = auditCacheSourceFull
 		auditData.SchemaVersion = auditSchemaVersion
 		// Never persist an opt-out result: it would be reused as the full cache entry
@@ -45,6 +55,9 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	}
 	// NoBaseline runs avoid writing audit-cache changes, including queue backfills.
 	if mergeWorkQueueReport(&auditData.WorkQueue, processedRun.WorkQueue) && !opts.NoBaseline {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := writeAuditData(runOutputDir, auditData); err != nil {
 			return err
 		}
@@ -52,6 +65,9 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	if opts.Group {
 		parseAuditLogsIfRequested(runID, runOutputDir, opts)
 		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if err := renderAuditOutput(auditData, runOutputDir, opts.JSONOutput, opts.Verbose); err != nil {
 		return err
@@ -63,7 +79,7 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 	return nil
 }
 
-func buildRenderedAuditDataFromCache(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, opts AuditOptions) AuditData {
+func buildRenderedAuditDataFromCache(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, opts AuditOptions) (AuditData, error) {
 	auditData, ok := loadCachedAuditData(runOutputDir, processedRun.Run, auditCacheSourceLogs)
 	if !ok {
 		return buildRenderedAuditData(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
@@ -74,20 +90,28 @@ func buildRenderedAuditDataFromCache(ctx context.Context, processedRun Processed
 	mergeWorkQueueReport(&auditData.WorkQueue, processedRun.WorkQueue)
 	createdItems := resolveCreatedItems(runOutputDir, processedRun.SafeOutputs)
 	addAuditOutcomeSummary(ctx, &auditData, createdItems)
-	auditData.Comparison = buildRenderedAuditComparison(ctx, processedRun, createdItems, runOutputDir, opts)
-	return auditData
+	comparison, err := buildRenderedAuditComparison(ctx, processedRun, createdItems, runOutputDir, opts)
+	if err != nil {
+		return AuditData{}, err
+	}
+	auditData.Comparison = comparison
+	return auditData, nil
 }
 
-func buildRenderedAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, opts AuditOptions) AuditData {
+func buildRenderedAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, opts AuditOptions) (AuditData, error) {
 	currentCreatedItems := resolveCreatedItems(runOutputDir, processedRun.SafeOutputs)
 	auditData := buildAuditData(ctx, processedRun, metrics, mcpToolUsage)
-	auditData.Comparison = buildRenderedAuditComparison(ctx, processedRun, currentCreatedItems, runOutputDir, opts)
-	return auditData
+	comparison, err := buildRenderedAuditComparison(ctx, processedRun, currentCreatedItems, runOutputDir, opts)
+	if err != nil {
+		return AuditData{}, err
+	}
+	auditData.Comparison = comparison
+	return auditData, nil
 }
 
-func buildRenderedAuditComparison(ctx context.Context, processedRun ProcessedRun, createdItems []CreatedItemReport, runOutputDir string, opts AuditOptions) *AuditComparisonData {
+func buildRenderedAuditComparison(ctx context.Context, processedRun ProcessedRun, createdItems []CreatedItemReport, runOutputDir string, opts AuditOptions) (*AuditComparisonData, error) {
 	if opts.NoBaseline {
-		return noBaselineComparison()
+		return noBaselineComparison(), nil
 	}
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, createdItems)
 	return buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, opts.Owner, opts.Repo, opts.Hostname, opts.Verbose)
