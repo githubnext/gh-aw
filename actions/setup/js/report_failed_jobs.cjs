@@ -70,13 +70,14 @@ function isActionsReadPermissionError(error) {
 
 /**
  * Format the list of failed jobs as a markdown bulleted list.
- * @param {Array<{name: string, html_url: string | null, error_detail?: string}>} jobs
+ * @param {Array<{name: string, html_url: string | null, error_detail?: string, failed_steps?: number[]}>} jobs
  * @returns {string}
  */
 function formatFailedJobsList(jobs) {
   return jobs
     .map(job => {
       const safeName = sanitizeContent(job.name);
+      const steps = job.failed_steps ? `\n\n  Failed step numbers (up to 10): ${job.failed_steps.length ? job.failed_steps.map(number => `\`${number}\``).join(", ") : "unavailable"}. See the linked job for details.` : "";
       const detail = job.error_detail
         ? `\n\n  \`\`\`text\n${job.error_detail
             .split("\n")
@@ -85,16 +86,16 @@ function formatFailedJobsList(jobs) {
         : "";
       if (job.html_url && job.html_url.startsWith("https://")) {
         const safeUrl = sanitizeContent(job.html_url);
-        return `- [\`${safeName}\`](${safeUrl})${detail}`;
+        return `- [\`${safeName}\`](${safeUrl})${steps}${detail}`;
       }
-      return `- \`${safeName}\`${detail}`;
+      return `- \`${safeName}\`${steps}${detail}`;
     })
     .join("\n");
 }
 
 /**
  * Filter failures by stable IDs from needs; use the jobs API only for display names and links.
- * @returns {Promise<Array<{name: string, html_url: string | null}>>}
+ * @returns {Promise<Array<{name: string, html_url: string | null, failed_steps?: number[]}>>}
  */
 async function getFailedNonBuiltinJobs() {
   let jobResults;
@@ -123,7 +124,7 @@ async function getFailedNonBuiltinJobs() {
 
   core.info(`Querying jobs for workflow run ${runId}`);
 
-  /** @type {Array<{name: string, html_url: string | null, id?: number, error_detail?: string}>} */
+  /** @type {Array<{name: string, html_url: string | null, id?: number, error_detail?: string, failed_steps?: number[]}>} */
   const runJobs = [];
 
   let page = 1;
@@ -146,7 +147,11 @@ async function getFailedNonBuiltinJobs() {
       if (job.conclusion !== "failure") {
         continue;
       }
-      runJobs.push({ name: job.name, html_url: job.html_url, ...(job.id ? { id: job.id } : {}) });
+      // Step names can contain interpolated inputs; retain only bounded numeric metadata.
+      const failedSteps = Array.isArray(job.steps)
+        ? [...new Set(job.steps.filter(step => step?.conclusion === "failure" && Number.isSafeInteger(step.number) && step.number > 0 && step.number <= 10000).map(step => step.number))].slice(0, 10)
+        : undefined;
+      runJobs.push({ name: job.name, html_url: job.html_url, ...(job.id ? { id: job.id } : {}), ...(failedSteps ? { failed_steps: failedSteps } : {}) });
     }
 
     if (jobs.length < perPage) {
@@ -165,7 +170,7 @@ async function getFailedNonBuiltinJobs() {
     if (matchingJobs.length > 0 && !ambiguousName) {
       for (const job of matchingJobs) {
         const detail = STATE_PUSH_JOB_IDS.has(jobId) && job.id ? await getStatePushError(job.id) : "";
-        failedJobs.push({ name: job.name, html_url: job.html_url, ...(detail ? { error_detail: detail } : {}) });
+        failedJobs.push({ name: job.name, html_url: job.html_url, ...(job.failed_steps ? { failed_steps: job.failed_steps } : {}), ...(detail ? { error_detail: detail } : {}) });
       }
       continue;
     }

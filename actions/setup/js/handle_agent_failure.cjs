@@ -3227,7 +3227,11 @@ function buildEngineFailureContext(options = {}) {
     const exitCodeText = fs.existsSync(exitCodePath) ? fs.readFileSync(exitCodePath, "utf8").trim() : "";
     const exitDetails = /^[1-9]\d{0,2}$/.test(exitCodeText) && Number(exitCodeText) <= 255 ? renderErrorDetails(`Driver exit code: ${exitCodeText}`) : "";
     if (options.metadataOnly === true) {
-      return exitDetails ? `**Driver exit code:** \`${exitCodeText}\`\n\n` : "";
+      return exitDetails
+        ? `**Driver exit code:** \`${exitCodeText}\`\n\n` +
+            "**Failure boundary:** Engine driver process.\n\n" +
+            "The driver process returned a nonzero exit status. The exit code alone does not identify the cause or establish a provider outage. Check the linked execution step; downstream publishing failures must be diagnosed separately.\n\n"
+        : "";
     }
     if (!fs.existsSync(stdioLogPath)) {
       if (shellExpansionGuardRejectedFromDetection) {

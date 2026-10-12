@@ -3862,7 +3862,10 @@ describe("handle_agent_failure", () => {
       const readSpy = vi.spyOn(fs, "readFileSync");
       try {
         const result = buildEngineFailureContext({ metadataOnly: true });
-        expect(result).toBe(`**Driver exit code:** \`${exitCode}\`\n\n`);
+        expect(result).toContain(`**Driver exit code:** \`${exitCode}\`\n\n`);
+        expect(result).toContain("**Failure boundary:** Engine driver process.");
+        expect(result).toContain("does not identify the cause or establish a provider outage");
+        expect(result).toContain("downstream publishing failures must be diagnosed separately");
         expect(result).not.toContain("agent-generated diagnostic");
         expect(readSpy.mock.calls.some(([file]) => file === stdioLogPath)).toBe(false);
       } finally {
