@@ -695,7 +695,7 @@ func resolveAwInfoArtifactNames(ctx context.Context, opts downloadArtifactsOptio
 	artifactNames, err := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 	if err != nil {
 		logsDownloadLog.Printf("Failed to list artifacts for metadata fallback: %v", err)
-		return []string{constants.ActivationArtifactName.String()}
+		return []string{constants.InfoArtifactName.String(), constants.ActivationArtifactName.String()}
 	}
 	var infoNames, activationNames []string
 	for _, name := range artifactNames {

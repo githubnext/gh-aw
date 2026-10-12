@@ -185,6 +185,12 @@ func TestLogsCommandStorageBudgetDefaultsAndOverrides(t *testing.T) {
 			opts, err := loadCommonLogsOptions(cmd)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, opts.MaxStorageMB)
+			assert.Equal(t, tt.flag != "", opts.MaxStorageMBSet)
+			assert.Equal(t, tt.want, normalizeLogsDownloadOptions(opts).MaxStorageMB)
+			stdinOpts, err := loadStdinLogsOptions(cmd)
+			require.NoError(t, err)
+			assert.Equal(t, tt.flag != "", stdinOpts.MaxStorageMBSet)
+			assert.Equal(t, tt.want, normalizeStdinLogsOptions(stdinOpts).MaxStorageMB)
 		})
 	}
 }

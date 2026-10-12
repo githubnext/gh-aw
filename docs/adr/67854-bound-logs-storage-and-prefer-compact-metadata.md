@@ -14,6 +14,8 @@ Agentic workflows in this repository prefetch up to 3000 runs of logs on every s
 
 We will make `gh aw logs` bound by default: `--max-storage` now defaults to `1024` MB (1 GB) instead of unlimited, with `--max-storage 0` retained as the explicit opt-out for unlimited storage. We will also change the `aw_info.json` fallback to prefer compact `info` artifacts and only fall back to activation artifacts when no `info` artifact yields `aw_info.json`, downloading candidates one at a time and stopping at the first success. The primary driver is operational reliability: a safe-by-default budget prevents a single bulk download from taking down a runner, and preferring compact metadata reduces the bytes needed to obtain the same information. Because the MCP `max_storage` argument must distinguish "omitted" from "explicitly zero", its type changes from `int` to `*int` so an explicit `0` still means unlimited.
 
+Shared single-target, multi-target, and stdin APIs normalize an omitted storage budget to 1024 MB, including the in-process `models --refresh` caller. `LogsDownloadOptions` and `StdinLogsOptions` retain `MaxStorageMB int` for existing positive budgets and add `MaxStorageMBSet bool` to distinguish omitted zero from explicit unlimited storage. Callers requesting unlimited storage set `MaxStorageMB: 0, MaxStorageMBSet: true`. Continuation JSON always includes `max_storage`, including zero, so resuming an unlimited request does not restore the default budget.
+
 ### Alternatives Considered
 
 #### Alternative 1: Leave the default unlimited and set `--max-storage` per workflow
