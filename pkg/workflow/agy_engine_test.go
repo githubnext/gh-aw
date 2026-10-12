@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -228,6 +229,46 @@ func TestAgyNativeRuntimeDefaults(t *testing.T) {
 	assert.Equal(t, "parse_agy_log", engine.GetLogParserScriptId())
 	assert.Nil(t, engine.GetMCPConfigAdapterWriteStep())
 	assert.Equal(t, []string{"GEMINI_API_KEY"}, engine.GetRequiredSecretNames(nil))
+}
+
+func TestAgyExecutionDomainsRequireOptIn(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		allowed []string
+	}{
+		{name: "no allowed domains"},
+		{name: "empty allowed list", allowed: []string{}},
+		{name: "explicit agy bundle", allowed: []string{"agy"}},
+		{name: "explicit domain", allowed: []string{"example.com"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				AI: "agy",
+				NetworkPermissions: &NetworkPermissions{
+					Allowed:  tt.allowed,
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			}
+			steps := NewAgyEngine().GetExecutionSteps(data, "agent-stdio.log")
+			require.Len(t, steps, 1)
+			content := strings.Join(steps[0], "\n")
+			require.Contains(t, content, "awf --config")
+			assert.Contains(t, content, "NO_PROXY: "+constants.AWFNoProxyHosts, "gateway transport must remain available")
+
+			expected := GetAllowedDomainsForEngine(constants.AgyEngine, data.NetworkPermissions, nil, nil)
+			if expected == "" {
+				assert.NotContains(t, content, `\"allowDomains\"`)
+			} else {
+				domainsJSON, err := json.Marshal(strings.Split(expected, ","))
+				require.NoError(t, err)
+				assert.Contains(t, content, `\"allowDomains\":`+strings.ReplaceAll(string(domainsJSON), `"`, `\"`))
+			}
+
+			sanitized, err := NewCompiler().computeAllowedDomainsForSanitization(data)
+			require.NoError(t, err)
+			assert.Equal(t, mergeAPITargetDomains(expected, GetGeminiAPITarget(data, "agy")), sanitized)
+		})
+	}
 }
 
 func TestAgyCLIOverrideUsesBuiltInDefaults(t *testing.T) {

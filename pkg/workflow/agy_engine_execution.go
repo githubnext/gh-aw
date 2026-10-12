@@ -48,7 +48,7 @@ func (e *AgyEngine) buildExecutionCommand(workflowData *WorkflowData, logFile, e
 		WorkflowData:       workflowData,
 		UsesTTY:            false,
 		PathSetup:          "touch " + AgentStepSummaryPath,
-		AllowedDomains:     mergeDomainsWithNetworkToolsAndRuntimes(AgyDefaultDomains, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes),
+		AllowedDomains:     GetAllowedDomainsForEngine(constants.AgyEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes),
 		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
 	})
 }
