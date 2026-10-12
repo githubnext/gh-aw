@@ -33,3 +33,30 @@ func buildMaintenanceWorkQueueCompactionJobs(opts buildMaintenanceWorkflowYAMLOp
 `)
 	return b.String()
 }
+
+func buildMaintenanceWorkQueueIssueClosureJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+	var b strings.Builder
+	b.WriteString(`
+  work_queue_issue_closure:
+    name: Cancel Work for closed related Issue
+    if: ${{ github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.pull_request == null && github.event.repository.fork == false }}
+    runs-on: ` + opts.runsOnValue + `
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    steps:
+`)
+	writeMaintenanceConditionalActionsCheckoutStep(&b, opts)
+	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
+	b.WriteString(`      - name: Record Issue closure cancellation
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cancel_work_queue_closed_issue.cjs');
+            await main();
+`)
+	return b.String()
+}

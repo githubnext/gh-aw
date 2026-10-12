@@ -2006,6 +2006,26 @@ subjects identify what the task operates on. Investigating an Issue, preparing
 a fix, or updating a PR is scheduled Work whose effects require that Work's
 Claim; an external resource node alone never grants worker execution or writes.
 
+Closing the exact Issue identified by Work's `subject` or immutable
+`backing_issue` binding is a **cancellation intent**, not evidence that the
+Work succeeded. The trusted closure path MUST verify the exact relationship,
+fresh queue labels, and current ledger prefix, then publish
+`WorkCancellation` for nonterminal Work through the normal authenticated,
+compare-and-set queue writer. Closure MUST NOT publish a `Result`, infer
+Completion, or automatically stop a native worker. An active
+Claim loses future queue authority, but its native reservation remains until
+independent trusted termination/nonlaunch evidence permits `Release`.
+If Completion or an earlier WorkCancellation already won the ledger race,
+the closure path MUST preserve that terminal state without a second
+cancellation or reopened Claim. It MUST leave one idempotent Issue comment
+confirming the **observed ledger outcome** (cancelled or already completed),
+not claiming cancellation succeeded merely because the Issue closed. If the
+ledger write/read cannot be verified, it MUST NOT post a success confirmation;
+retry/reconcile against the current prefix instead. An Issue appearing only
+as a dependency, or lacking the required fresh queue labels, does not trigger
+this cancellation path; dependency Issues retain the separate condition
+semantics below.
+
 If queued Work creates a new Issue/PR, its verified Result supplies the typed
 resource identity. An agentic dispatcher can then admit downstream nodes using
 that identity. Version 1 does not guess future numbers or accept an unresolved

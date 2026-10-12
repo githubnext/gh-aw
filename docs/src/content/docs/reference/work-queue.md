@@ -219,8 +219,17 @@ Each backing Issue has a canonical summary and one historical comment per
 owned Claim, with run, ledger, and verified outcome links. Summaries include
 changing status alongside its label. Completion projects **Verifying**, verified PR delivery **Needs review**,
 and verified non-PR delivery **Done**. Native job failure/cancellation is
-diagnostic, not Work cancellation or Result. Human closure/status changes
-cannot establish either.
+diagnostic, not Work cancellation or Result. A closed backing Issue or exact
+Issue `subject` triggers trusted maintenance cancellation only when its fresh
+closed state, tracking and status labels, repository identity, and unique
+immutable Work identity are verified. Dependency-only Issues do not qualify;
+ambiguous matches are left untouched.
+The administrator records `WorkCancellation` for nonterminal Work. For Work
+already completed or cancelled by another request, maintenance does not
+rewrite the outcome. After verifying a terminal ledger commit, it posts an
+idempotent comment reporting the observed state without claiming the closure
+caused it. This does not stop an already running worker or establish Result.
+Human status-label changes alone cannot establish cancellation or Result.
 
 Generated Issue bodies, summaries, and Claim comments use the packaged
 `actions/setup/md/work_queue_issue_*.md` templates and always include a

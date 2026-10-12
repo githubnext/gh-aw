@@ -44,7 +44,23 @@ func TestMaintenanceGeneratedForWorkQueueOnly(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(content, &document))
 	jobs := document.Jobs
 	assert.NotEmpty(t, jobs["work_queue_compaction"])
+	assert.NotEmpty(t, jobs["work_queue_issue_closure"])
 	assert.Empty(t, jobs["work_queue_compaction_plan"])
 	assert.Empty(t, jobs["work_queue_compaction_apply"])
 	assert.Empty(t, jobs["ledger_compaction_plan"])
+}
+
+func TestMaintenanceWorkQueueIssueClosureTriggerAndJob(t *testing.T) {
+	opts := buildMaintenanceWorkflowYAMLOptions{runsOnValue: "ubuntu-latest", hasWorkQueue: true}
+	trigger := buildMaintenanceWorkflowTriggerYAML(opts, false, false, "", "")
+	assert.Contains(t, trigger, "types: [closed]")
+	assert.Contains(t, buildMaintenanceWorkflowTriggerYAML(opts, true, false, "", ""), "types: [labeled, closed]")
+	job := buildMaintenanceWorkQueueIssueClosureJob(opts, "./actions/setup")
+	assert.Contains(t, job, "github.event_name == 'issues' && github.event.action == 'closed'")
+	assert.Contains(t, job, "contents: write")
+	assert.Contains(t, job, "issues: write")
+	assert.Contains(t, job, "cancel_work_queue_closed_issue.cjs")
+	assert.NotContains(t, job, "github.event.issue.title")
+	assert.NotContains(t, job, "github.event.issue.body")
+	assert.NotContains(t, buildMaintenanceWorkflowTriggerYAML(buildMaintenanceWorkflowYAMLOptions{}, false, false, "", ""), "types: [labeled, closed]")
 }
