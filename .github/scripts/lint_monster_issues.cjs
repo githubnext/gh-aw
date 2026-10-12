@@ -11,11 +11,27 @@ function marker(key) {
   return `<!-- lint-monster-category: ${key} -->`;
 }
 
+function hasProvenance(issue) {
+  const labels = (issue.labels || []).map(label => (typeof label === "string" ? label : label.name));
+  return issue.user?.login === "github-actions[bot]" && ["automation", "lint", "cookie"].every(label => labels.includes(label)) && (issue.body || "").includes("<!-- gh-aw-workflow-id: lint-monster -->");
+}
+
+function persistentBody(body = "") {
+  return body.replace(/^> - \[[ x]\] expires <!-- gh-aw-expires:[^\r\n]*? -->[^\r\n]*(?:\r?\n|$)/gm, "").replace(/<!--\s*gh-aw-expires:[\s\S]*?-->/g, "");
+}
+
 function planCategories(issues) {
-  const openIssues = issues.filter(issue => !issue.pull_request && issue.state === "open" && issue.title.startsWith("[lint-monster] ")).sort((a, b) => a.number - b.number);
+  const openIssues = issues.filter(issue => !issue.pull_request && issue.state === "open" && hasProvenance(issue)).sort((a, b) => a.number - b.number);
+  const scopes = new Map(
+    openIssues.map(issue => {
+      const explicit = [...new Set([...(issue.body || "").matchAll(/<!-- lint-monster-category: ([a-z0-9-]+) -->/g)].map(match => match[1]))];
+      return [issue.number, explicit.length ? explicit : CATEGORIES.filter(category => category.legacy.test(issue.title)).map(category => category.key)];
+    })
+  );
   const categories = CATEGORIES.map(category => {
-    const marked = openIssues.filter(issue => (issue.body || "").includes(marker(category.key)));
-    const legacy = openIssues.filter(issue => !/<!-- lint-monster-category: [a-z0-9-]+ -->/.test(issue.body || "") && category.legacy.test(issue.title));
+    const unambiguous = openIssues.filter(issue => scopes.get(issue.number).length === 1 && scopes.get(issue.number)[0] === category.key);
+    const marked = unambiguous.filter(issue => (issue.body || "").includes(marker(category.key)));
+    const legacy = unambiguous.filter(issue => !(issue.body || "").includes(marker(category.key)));
     const candidates = [...new Map([...marked, ...legacy].map(issue => [issue.number, issue])).values()];
     const authoritative = candidates[0];
     return {
@@ -27,7 +43,8 @@ function planCategories(issues) {
       candidate_issue_numbers: candidates.map(issue => issue.number),
     };
   });
-  return { complete: true, categories, open_issues: openIssues };
+  const ambiguousIssues = openIssues.filter(issue => scopes.get(issue.number).length > 1).map(issue => ({ issue_number: issue.number, categories: scopes.get(issue.number) }));
+  return { complete: true, categories, ambiguous_issues: ambiguousIssues, open_issues: openIssues };
 }
 
 async function collectIssues({ github, context, core, outputPath = "/tmp/gh-aw/agent/lint-issues.json" }) {
@@ -42,6 +59,7 @@ async function collectIssues({ github, context, core, outputPath = "/tmp/gh-aw/a
     number: issue.number,
     title: issue.title,
     body: issue.body,
+    persistent_body: persistentBody(issue.body || ""),
     assignees: (issue.assignees || []).map(assignee => assignee.login),
   }));
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -50,4 +68,4 @@ async function collectIssues({ github, context, core, outputPath = "/tmp/gh-aw/a
   return plan;
 }
 
-module.exports = { CATEGORIES, marker, planCategories, collectIssues };
+module.exports = { CATEGORIES, marker, persistentBody, planCategories, collectIssues };

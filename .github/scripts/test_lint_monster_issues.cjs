@@ -3,9 +3,18 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { CATEGORIES, marker, planCategories, collectIssues } = require("./lint_monster_issues.cjs");
+const { CATEGORIES, marker, persistentBody, planCategories, collectIssues } = require("./lint_monster_issues.cjs");
 
-const issue = (number, title, extra = {}) => ({ number, title: `[lint-monster] ${title}`, state: "open", body: "", ...extra });
+const footer = "<!-- gh-aw-workflow-id: lint-monster -->";
+const issue = (number, title, extra = {}) => ({
+  number,
+  title,
+  state: "open",
+  user: { login: "github-actions[bot]" },
+  labels: [{ name: "automation" }, { name: "lint" }, { name: "cookie" }],
+  ...extra,
+  body: `${extra.body || ""}\n${footer}`,
+});
 
 test("all twelve source reports reuse the oldest tracker despite changing counts and titles", () => {
   const issues = [
@@ -65,13 +74,70 @@ test("an explicit category marker overrides misleading legacy title words", () =
   assert.equal(plan.open_issues.length, 2);
 });
 
-test("closed issues, PRs, other workflows and ambiguous categories never become authoritative", () => {
-  const plan = planCategories([issue(1, "Guard indexing", { state: "closed" }), issue(2, "Guard indexing", { pull_request: {} }), issue(3, "Guard indexing", { title: "[eslint-monster] Guard indexing" }), issue(4, "Review a new analyzer")]);
+test("closed issues, PRs, other workflows and unmatched titles never become authoritative", () => {
+  const otherWorkflow = issue(3, "[eslint-monster] Guard indexing");
+  otherWorkflow.body = "<!-- gh-aw-workflow-id: eslint-monster -->";
+  const plan = planCategories([issue(1, "Guard indexing", { state: "closed" }), issue(2, "Guard indexing", { pull_request: {} }), otherWorkflow, issue(4, "Review a new analyzer")]);
   assert.ok(plan.categories.every(category => category.action === "create" && category.issue_number === null));
   assert.deepEqual(
     plan.open_issues.map(item => item.number),
     [4]
   );
+});
+
+test("spoofed titles and markers cannot outrank a tracker without workflow provenance", () => {
+  const genuine = issue(42, "Guard indexing");
+  const spoof = issue(1, "[lint-monster] Guard indexing", { body: marker("indexing") });
+  for (const untrusted of [
+    { ...spoof, user: { login: "public-author" } },
+    { ...spoof, user: undefined },
+    { ...spoof, labels: [{ name: "lint" }] },
+    { ...spoof, labels: undefined },
+    { ...spoof, body: marker("indexing") },
+    { ...spoof, body: `${marker("indexing")}\n<!-- gh-aw-workflow-id: other-monster -->` },
+  ]) {
+    const plan = planCategories([untrusted, genuine]);
+    assert.equal(plan.categories[0].issue_number, 42);
+    assert.deepEqual(plan.categories[0].candidate_issue_numbers, [42]);
+    assert.deepEqual(
+      plan.open_issues.map(item => item.number),
+      [42]
+    );
+  }
+});
+
+test("mixed legacy titles and multiple markers are inspection-only, never authoritative", () => {
+  const plan = planCategories([
+    issue(1, "Handle ignored indexing errors"),
+    issue(2, "[lint-monster] Guard indexing and ignored error results"),
+    issue(3, "Mixed work", { body: `${marker("indexing")}\n${marker("ignored-results")}` }),
+    issue(4, "Guard indexing"),
+    issue(5, "Handle ignored errors"),
+  ]);
+  assert.deepEqual(
+    plan.ambiguous_issues,
+    [1, 2, 3].map(number => ({ issue_number: number, categories: ["indexing", "ignored-results"] }))
+  );
+  assert.equal(plan.categories[0].issue_number, 4);
+  assert.equal(plan.categories[1].issue_number, 5);
+  assert.deepEqual(plan.categories[0].candidate_issue_numbers, [4]);
+  assert.deepEqual(plan.categories[1].candidate_issue_numbers, [5]);
+  const ambiguousOnly = planCategories(plan.open_issues.slice(0, 3));
+  assert.ok(ambiguousOnly.categories.every(category => category.action === "create"));
+});
+
+test("a closed completed tracker does not prevent planning a new tracker for recurrence", () => {
+  const plan = planCategories([issue(1, "Guard direct slice and string indexing", { state: "closed", body: marker("indexing") })]);
+  assert.equal(plan.categories[0].action, "create");
+  assert.equal(plan.categories[0].issue_number, null);
+});
+
+test("persistent bodies remove expiration metadata without losing maintainer content", () => {
+  const notes = "Maintainer notes\n- [x] Completed work\n- [ ] Outstanding work\n";
+  const body = `${notes}> - [x] expires <!-- gh-aw-expires: 2026-10-12T03:00:41.459Z --> on Oct 11, 2026\n${footer}\nKeep this <!-- gh-aw-expires: 2026-10-12 --> note`;
+  assert.equal(persistentBody(body), `${notes}${footer}\nKeep this  note`);
+  assert.equal(persistentBody(notes), notes);
+  assert.equal(persistentBody(), "");
 });
 
 test("inventory uses all paginated open issues, including trackers past the first page", async t => {
@@ -86,7 +152,7 @@ test("inventory uses all paginated open issues, including trackers past the firs
       async paginate(method, request) {
         assert.equal(method, listForRepo);
         requests.push(request);
-        return [...Array.from({ length: 100 }, (_, n) => issue(n + 1, "Other work", { title: "Unrelated" })), issue(101, "Guard indexing")];
+        return [...Array.from({ length: 100 }, (_, n) => ({ number: n + 1, title: "Unrelated", state: "open" })), issue(101, "Guard indexing", { body: "<!-- gh-aw-expires: 2026-10-12 -->" })];
       },
     },
     context: { repo: { owner: "github", repo: "gh-aw" } },
@@ -97,6 +163,8 @@ test("inventory uses all paginated open issues, including trackers past the firs
   assert.equal(plan.categories[0].action, "update");
   assert.equal(plan.categories[0].issue_number, 101);
   assert.equal(plan.complete, true);
+  assert.ok(plan.open_issues[0].body.includes("gh-aw-expires"));
+  assert.equal(plan.open_issues[0].persistent_body.includes("gh-aw-expires"), false);
   assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), plan);
 });
 
