@@ -30,6 +30,8 @@ import {
   resolveCopilotConfigPaths,
   validateGatewayAgentIdentifiers,
   waitForSafeOutputsReadiness,
+  retryGatewayStartup,
+  httpGet,
 } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
@@ -119,8 +121,8 @@ describe("start_mcp_gateway health timeout", () => {
     expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
   });
 
-  it("computes the cumulative retry delay withRetry will sleep", () => {
-    // withRetry multiplies before its first sleep: 500ms, then 1000ms capped.
+  it("computes the cumulative startup retry delay", () => {
+    // The retry loop multiplies before its first sleep: 500ms, then 1000ms capped.
     expect(computeHealthRetryBudgetMs({ maxTotalAttempts: 3, initialDelayMs: 250, maxDelayMs: 1000, backoffMultiplier: 2 })).toBe(1500);
   });
 });
@@ -155,6 +157,8 @@ describe("start_mcp_gateway startup diagnostics", () => {
     });
 
     afterEach(async () => {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
       if (server) {
         await new Promise(resolve => server.close(resolve));
         server = undefined;
@@ -162,7 +166,7 @@ describe("start_mcp_gateway startup diagnostics", () => {
       global.core = originalCore;
     });
 
-    async function startBackend(handleToolsList, { resetFirstInitialize = false, initStatus = 200 } = {}) {
+    async function startBackend(handleToolsList, { resetFirstInitialize = false, initStatus = 200, serverName = "safeoutputs", listResponse } = {}) {
       let initializes = 0;
       server = http.createServer((req, res) => {
         let data = "";
@@ -170,7 +174,7 @@ describe("start_mcp_gateway startup diagnostics", () => {
         req.on("end", () => {
           const rpc = JSON.parse(data);
           requests.push(rpc.method);
-          expect(req.url).toBe("/mcp/safeoutputs");
+          expect(req.url).toBe(`/mcp/${serverName}`);
           expect(req.headers.authorization).toBe("readiness-test-key");
           if (rpc.method === "initialize") {
             initializes += 1;
@@ -178,13 +182,13 @@ describe("start_mcp_gateway startup diagnostics", () => {
               req.socket.destroy();
               return;
             }
-            res.writeHead(initStatus, { "Content-Type": "application/json", "Mcp-Session-Id": "readiness-test-session" });
+            res.writeHead(initStatus === 503 && initializes > 1 ? 200 : initStatus, { "Content-Type": "application/json", "Mcp-Session-Id": "readiness-test-session" });
             res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: {} }));
           } else {
             expect(req.headers["mcp-session-id"]).toBe("readiness-test-session");
             if (rpc.method === "tools/list") {
               res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: { tools: handleToolsList() } }));
+              res.end(listResponse ?? JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: { tools: handleToolsList() } }));
             } else {
               res.writeHead(204);
               res.end();
@@ -204,6 +208,22 @@ describe("start_mcp_gateway startup diagnostics", () => {
 
       expect(lists).toBe(3);
       expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("ready with 1 tool(s) after 3 attempt(s)"));
+    });
+
+    it.each(["safeoutputs", "safe-outputs"])("probes the exact configured %s backend endpoint", async serverName => {
+      const port = await startBackend(() => [{ name: "noop" }], { serverName });
+
+      await waitForSafeOutputsReadiness({ mcpServers: { [serverName]: {} } }, port, "readiness-test-key", retryConfig);
+
+      expect(requests.filter(method => method === "tools/list")).toHaveLength(1);
+    });
+
+    it("retries transient HTTP server failures before registration succeeds", async () => {
+      const port = await startBackend(() => [{ name: "noop" }], { initStatus: 503 });
+
+      await waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig);
+
+      expect(requests.filter(method => method === "initialize")).toHaveLength(2);
     });
 
     it("retries connection resets and then empty tools before registration succeeds", async () => {
@@ -228,13 +248,106 @@ describe("start_mcp_gateway startup diagnostics", () => {
       expect(global.core.info).not.toHaveBeenCalledWith(expect.stringContaining("is ready"));
     });
 
-    it("does not accept tools after an unsuccessful initialize", async () => {
+    it("fails immediately without accepting tools after an authentication failure", async () => {
       const port = await startBackend(() => [{ name: "noop" }], { initStatus: 401 });
 
-      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig)).rejects.toThrow(/readiness failed/);
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig)).rejects.toThrow(/permanent authentication or MCP protocol failure/);
 
-      expect(requests).toEqual(Array(4).fill("initialize"));
+      expect(requests).toEqual(["initialize"]);
       expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("readiness-test-key");
+    });
+
+    it.each(['{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"readiness-test-key"}}', "malformed readiness-test-key"])("fails immediately on permanent tools/list protocol failures", async listResponse => {
+      const port = await startBackend(() => [], { listResponse });
+
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig)).rejects.toThrow(/permanent authentication or MCP protocol failure/);
+
+      expect(requests.filter(method => method === "initialize")).toHaveLength(1);
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("readiness-test-key");
+    });
+
+    it("does not begin another readiness window after late health success exhausts startup", async () => {
+      const port = await startBackend(() => [{ name: "noop" }]);
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      const startupStart = now - retryConfig.backendStartupTimeoutMs - MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig, startupStart)).rejects.toThrow(/readiness failed after 0 attempt/);
+
+      expect(requests).toEqual([]);
+    });
+
+    it("uses only the remaining original startup budget after late health success", async () => {
+      const now = Date.now();
+      let clock = now;
+      vi.spyOn(Date, "now").mockImplementation(() => clock);
+      const startupStart = now - retryConfig.backendStartupTimeoutMs - MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS + 300;
+      const port = await startBackend(() => {
+        clock += 300;
+        return [];
+      });
+
+      await expect(waitForSafeOutputsReadiness(config, port, "readiness-test-key", retryConfig, startupStart)).rejects.toThrow(/readiness failed after 1 attempt/);
+
+      expect(requests.filter(method => method === "initialize")).toHaveLength(1);
+    });
+
+    it("caps health probes and readiness backoff to one shared deadline", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      const deadline = 1100;
+      const health = vi.fn(async remainingMs => {
+        expect(remainingMs).toBe(100);
+        await new Promise(resolve => setTimeout(resolve, 90));
+      });
+      const healthWait = retryGatewayStartup(health, retryConfig, deadline, "health");
+      await vi.advanceTimersByTimeAsync(90);
+      await healthWait;
+      const readiness = vi.fn(async remainingMs => {
+        expect(remainingMs).toBe(10);
+        throw new Error("empty tools");
+      });
+      const readinessWait = retryGatewayStartup(readiness, { ...retryConfig, initialDelayMs: 1000, maxDelayMs: 1000 }, deadline, "readiness");
+      const rejection = expect(readinessWait).rejects.toThrow(/startup deadline exceeded/);
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+
+      expect(Date.now()).toBe(deadline);
+      expect(readiness).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a probe that finishes at the startup deadline", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1000);
+      const wait = retryGatewayStartup(
+        async remainingMs => {
+          await new Promise(resolve => setTimeout(resolve, remainingMs));
+        },
+        retryConfig,
+        1010,
+        "readiness"
+      );
+      const rejection = expect(wait).rejects.toThrow(/startup deadline exceeded/);
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+    });
+
+    it("bounds health request duration even when the response body keeps streaming", async () => {
+      let interval;
+      server = http.createServer((_req, res) => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.write("starting");
+        interval = setInterval(() => res.write("."), 5);
+        res.on("close", () => clearInterval(interval));
+      });
+      await new Promise(resolve => server.listen(0, "localhost", resolve));
+      const started = Date.now();
+      try {
+        await expect(httpGet(`http://localhost:${server.address().port}/health`, 40)).rejects.toThrow("timeout");
+        expect(Date.now() - started).toBeLessThan(500);
+      } finally {
+        clearInterval(interval);
+      }
     });
 
     it.each([{}, { mcpServers: {} }, { mcpServers: { github: {} } }])("skips workflows without configured safe outputs: %j", async noSafeOutputs => {
@@ -244,12 +357,14 @@ describe("start_mcp_gateway startup diagnostics", () => {
 
     it("gates startup completion and outputs on safeoutputs readiness", () => {
       const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
-      const gate = source.indexOf("await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig)");
+      const gate = source.indexOf("await waitForSafeOutputsReadiness(configObj, gatewayPort, agentId, healthRetryConfig, gatewayStartTime)");
       expect(gate).toBeGreaterThan(0);
       expect(gate).toBeLessThan(source.indexOf("writeGatewayStartupMarker(gatewayStartupMarker)"));
       expect(gate).toBeLessThan(source.indexOf("fs.appendFileSync(githubOutput, outputs"));
       expect(source).toContain("stopGatewayProcess(activeGatewayPid)");
       expect(source).toContain("core.setFailed(`FATAL: ${message}`)");
+      expect(source).toContain("const startupDeadline = gatewayStartTime + healthRetryConfig.backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS");
+      expect(source).toContain("httpGet(healthUrl, Math.min(2000, remainingMs))");
     });
   });
 

@@ -1409,7 +1409,7 @@ The gateway SHOULD:
 > [!TIP]
 > To inspect MCP server health for a specific workflow run at runtime, use `gh aw audit <run-id>`. The **MCP Server Health** section of the audit report shows connection failures, timeout errors, tool call counts, and error rates per server — providing a post-run view of gateway behavior. For recurring MCP failures, pass two run IDs to `gh aw audit` (e.g. `gh aw audit <base-id> <compare-id>`) to compare MCP tool usage between runs and identify regressions. See [Audit Commands](/gh-aw/reference/audit/).
 
-When safe outputs are configured, gh-aw setup also waits for the `safeoutputs` backend to return a non-empty `tools/list` response. It retries empty responses and connection failures within the configured gateway health retry limits and backend startup timeout plus registration margin. If tools never register, setup fails with an explicit gateway readiness error before the agent starts. Workflows without a `safeoutputs` server skip this check.
+When safe outputs are configured, gh-aw setup also waits for the `safeoutputs` or `safe-outputs` backend to return a non-empty `tools/list` response. It retries successful empty responses and transient transport or server failures within the configured gateway health retry limits and the remaining startup timeout plus registration margin; the health and tool-registration checks share the original startup deadline. Authentication failures and permanent protocol errors fail immediately. If tools never register, setup fails with an explicit gateway readiness error before the agent starts. Workflows without either safe-output server name skip this check.
 
 ---
 

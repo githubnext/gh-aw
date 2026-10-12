@@ -244,11 +244,15 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
 
     const req = http.request(options, res => {
       let data = "";
-      res.on("error", reject);
+      res.on("error", err => {
+        clearTimeout(timer);
+        reject(err);
+      });
       res.on("data", chunk => {
         data += chunk;
       });
       res.on("end", () => {
+        clearTimeout(timer);
         let parsed;
         try {
           parsed = JSON.parse(data);
@@ -264,14 +268,14 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
     });
 
     req.on("error", err => {
+      clearTimeout(timer);
       reject(err);
     });
 
-    req.setTimeout(timeoutMs, () => {
-      // req.destroy() is the correct modern API; req.abort() is deprecated since Node.js v14
-      req.destroy();
-      reject(new Error(`HTTP request timed out after ${timeoutMs}ms`));
-    });
+    // Bound the entire response, not just socket inactivity between body chunks.
+    const timer = setTimeout(() => {
+      req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
     req.write(bodyStr);
     req.end();
@@ -326,6 +330,33 @@ function parseMCPResponseBody(body) {
 }
 
 /**
+ * Require an object-valued JSON-RPC result before continuing the handshake.
+ *
+ * @param {unknown} body
+ * @returns {body is {result: Record<string, unknown>}}
+ */
+function hasMCPResult(body) {
+  return !!body && typeof body === "object" && !Array.isArray(body) && !("error" in body) && "result" in body && !!body.result && typeof body.result === "object" && !Array.isArray(body.result);
+}
+
+/**
+ * Only server-side HTTP failures and JSON-RPC internal errors are transient.
+ *
+ * @param {number} statusCode
+ * @param {unknown} body
+ * @returns {boolean}
+ */
+function isRetryableMCPFailure(statusCode, body) {
+  if (statusCode >= 500 && statusCode < 600) {
+    return true;
+  }
+  if (statusCode < 200 || statusCode >= 300) {
+    return false;
+  }
+  return !!body && typeof body === "object" && "error" in body && !!body.error && typeof body.error === "object" && "code" in body.error && body.error.code === -32603;
+}
+
+/**
  * Query the tools list from an MCP server via JSON-RPC.
  * Follows the standard MCP handshake: initialize → notifications/initialized → tools/list.
  *
@@ -333,7 +364,10 @@ function parseMCPResponseBody(body) {
  * @param {string} agentId - Bearer token for gateway authentication
  * @param {typeof import("@actions/core")} core - GitHub Actions core
  * @param {number} [timeoutMs=DEFAULT_HTTP_TIMEOUT_MS]
- * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean}>}
+ * `emptyWasSuccessful` marks a valid tools/list response (including non-empty lists).
+ * `retryable` marks transient failures only; successful responses set it to false.
+ *
+ * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean, retryable: boolean}>}
  */
 async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
   const authHeaders = { Authorization: agentId };
@@ -358,44 +392,52 @@ async function fetchMCPToolsResult(serverUrl, agentId, core, timeoutMs = DEFAULT
       timeoutMs
     );
     const initBody = parseMCPResponseBody(initResp.body);
-    if (initResp.statusCode !== 200 || !initBody || typeof initBody !== "object" || "error" in initBody) {
-      core.warning(`  initialize did not succeed for ${serverUrl} (HTTP ${initResp.statusCode})`);
-      return { tools: [], emptyWasSuccessful: false };
+    if (initResp.statusCode !== 200 || !hasMCPResult(initBody)) {
+      core.warning(`  initialize did not succeed (HTTP ${initResp.statusCode})`);
+      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(initResp.statusCode, initBody) };
     }
     const sessionId = initResp.headers["mcp-session-id"];
     if (sessionId && typeof sessionId === "string") {
       sessionHeader = { "Mcp-Session-Id": sessionId };
     }
-  } catch (err) {
-    core.warning(`  initialize failed for ${serverUrl}: ${getErrorMessage(err)}`);
-    return { tools: [], emptyWasSuccessful: false };
+  } catch {
+    core.warning("  initialize failed due to a transport error");
+    return { tools: [], emptyWasSuccessful: false, retryable: true };
   }
 
   // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
-  // The server responds with 204 No Content; errors here are non-fatal.
+  // Accept an empty 2xx acknowledgment or a valid JSON-RPC result.
   try {
-    await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, Math.min(10000, timeoutMs));
-  } catch (err) {
-    core.warning(`  notifications/initialized failed for ${serverUrl}: ${getErrorMessage(err)}`);
+    const notificationResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, Math.min(10000, timeoutMs));
+    const notificationBody = parseMCPResponseBody(notificationResp.body);
+    const emptyBody = typeof notificationResp.body === "string" && notificationResp.body.trim() === "";
+    if (notificationResp.statusCode < 200 || notificationResp.statusCode >= 300 || (!emptyBody && !hasMCPResult(notificationBody))) {
+      core.warning(`  notifications/initialized did not succeed (HTTP ${notificationResp.statusCode})`);
+      return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(notificationResp.statusCode, notificationBody) };
+    }
+  } catch {
+    core.warning("  notifications/initialized failed due to a transport error");
+    return { tools: [], emptyWasSuccessful: false, retryable: true };
   }
 
   // Step 3: tools/list – get the available tool definitions
   try {
     const listResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, timeoutMs);
     const respBody = parseMCPResponseBody(listResp.body);
-    if (listResp.statusCode === 200 && respBody && typeof respBody === "object" && !("error" in respBody) && "result" in respBody && respBody.result && typeof respBody.result === "object") {
+    if (listResp.statusCode === 200 && hasMCPResult(respBody)) {
       const result = respBody.result;
       if ("tools" in result && Array.isArray(result.tools)) {
         return {
           tools: /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools,
           emptyWasSuccessful: true,
+          retryable: false,
         };
       }
     }
-    return { tools: [], emptyWasSuccessful: false };
-  } catch (err) {
-    core.warning(`  tools/list failed for ${serverUrl}: ${getErrorMessage(err)}`);
-    return { tools: [], emptyWasSuccessful: false };
+    return { tools: [], emptyWasSuccessful: false, retryable: isRetryableMCPFailure(listResp.statusCode, respBody) };
+  } catch {
+    core.warning("  tools/list failed due to a transport error");
+    return { tools: [], emptyWasSuccessful: false, retryable: true };
   }
 }
 
@@ -689,6 +731,7 @@ module.exports = {
   AWF_GATEWAY_IP,
   main,
   fetchMCPTools,
+  fetchMCPToolsResult,
   fetchMCPToolsWithRetry,
   generateCLIWrapperScript,
   isValidServerName,
