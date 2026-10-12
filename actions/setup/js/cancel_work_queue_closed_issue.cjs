@@ -69,8 +69,8 @@ async function main(options = {}) {
   if (!config) return { status: "disabled" };
   const trusted = await (options.authenticatePublisher || authenticatePublisher)({ githubClient, context, role: "administrator" });
   const repository = trusted.repository;
-  if (repository.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase() || trusted.event !== "issues" || trusted.workflow !== ".github/workflows/agentics-maintenance.yml")
-    throw queueError("actor_unauthorized", "Issue closure requires the authenticated maintenance workflow");
+  if (repository.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase() || trusted.event !== "issues" || trusted.workflow !== ".github/workflows/agentic-workqueue.yml")
+    throw queueError("actor_unauthorized", "Issue closure requires the authenticated Agentic Workqueue workflow");
   const eventIssue = context.payload.issue;
   if (!eventIssue || eventIssue.pull_request || nativeId(eventIssue.number) !== nativeId(context.issue?.number)) throw queueError("issue_binding_invalid", "Issue closure event identity is invalid");
   const repoId = nativeId(context.payload.repository?.id);

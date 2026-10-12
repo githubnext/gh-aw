@@ -17,7 +17,7 @@ const trusted = {
   role: "administrator",
   principal: "2",
   repository: "owner/repo",
-  workflow: ".github/workflows/agentics-maintenance.yml",
+  workflow: ".github/workflows/agentic-workqueue.yml",
   run_id: "99",
   run_attempt: 1,
   authenticated: true,
@@ -69,6 +69,11 @@ describe("closed backing Issue cancellation", () => {
     disabled.options.issues = false;
     expect(await main(disabled.options)).toEqual({ status: "disabled" });
     expect(disabled.options.authenticatePublisher).not.toHaveBeenCalled();
+
+    const comment = fixture();
+    comment.options.context = { ...context, eventName: "issue_comment", payload: { ...context.payload, action: "created" } };
+    expect(await main(comment.options)).toEqual({ status: "ignored" });
+    expect(comment.options.authenticatePublisher).not.toHaveBeenCalled();
   });
 
   it("uses repository Issue settings from the event revision", async () => {
@@ -200,8 +205,8 @@ describe("closed backing Issue cancellation", () => {
 
   it("requires the authenticated primary maintenance workflow", async () => {
     const invalid = fixture();
-    invalid.options.authenticatePublisher = vi.fn(async () => ({ ...trusted, workflow: ".github/workflows/agentics-maintenance-owner-repo.yml" }));
-    await expect(main(invalid.options)).rejects.toThrow("authenticated maintenance workflow");
+    invalid.options.authenticatePublisher = vi.fn(async () => ({ ...trusted, workflow: ".github/workflows/agentics-maintenance.yml" }));
+    await expect(main(invalid.options)).rejects.toThrow("authenticated Agentic Workqueue workflow");
     expect(invalid.publishWorkQueueRequest).not.toHaveBeenCalled();
   });
 

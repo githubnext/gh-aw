@@ -45,7 +45,7 @@ on:
     paths:
       - '.github/workflows/*.md'
   issues:
-    types: [labeled, closed]
+    types: [labeled]
   workflow_dispatch:
     inputs:
       operation:
@@ -2020,36 +2020,3 @@ jobs:
               const { main: apply } = require(path.join(actionsDir, 'work_queue_compaction_apply.cjs'));
               await apply();
             }
-
-  work_queue_issue_closure:
-    name: Cancel Work for closed related Issue
-    if: ${{ (!(github.event.repository.fork)) && github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.pull_request == null }}
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      issues: write
-      actions: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: |
-            actions
-          clean: false
-          persist-credentials: false
-
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
-
-      - name: Record Issue closure cancellation
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'cancel_work_queue_closed_issue.cjs'));
-            await main();

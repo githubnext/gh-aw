@@ -65,6 +65,9 @@ Only trusted admission-time `completion_policy` permits closure, never payload.
 Uncertain writes stay pending, never recreated or globally repaired.
 Upgrade all closed-schema readers first. See the
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
+When Issue mirroring is enabled, the compiler generates
+`.github/workflows/agentic-workqueue.yml` to handle Issue lifecycle events
+outside agentic workflows and removes it when Issue mirroring is disabled.
 
 ## Plan and dispatch
 

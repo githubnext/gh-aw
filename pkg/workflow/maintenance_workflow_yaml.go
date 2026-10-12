@@ -70,7 +70,6 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(ledgerJobs)
 	if opts.hasWorkQueue {
 		yaml.WriteString(buildMaintenanceWorkQueueCompactionJobs(opts, setupActionRef))
-		yaml.WriteString(buildMaintenanceWorkQueueIssueClosureJob(opts, setupActionRef))
 	}
 	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
 	if err != nil {
@@ -127,16 +126,10 @@ func buildMaintenanceWorkflowTriggerYAML(
 		maintenanceWorkflowYAMLLog.Printf("Adding dev-mode push trigger for branch %q", opts.defaultBranch)
 		yaml.WriteString("  push:\n    branches:\n      - " + opts.defaultBranch + "\n    paths:\n      - '.github/workflows/*.md'\n")
 	}
-	if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled || opts.hasWorkQueue {
+	if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
 		types := ""
 		if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
 			types = "labeled"
-		}
-		if opts.hasWorkQueue {
-			if types != "" {
-				types += ", "
-			}
-			types += "closed"
 		}
 		yaml.WriteString("  issues:\n    types: [" + types + "]\n")
 	}

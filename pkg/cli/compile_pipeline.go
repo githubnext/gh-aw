@@ -978,6 +978,11 @@ func runPostProcessingForDirectory(
 				return err
 			}
 		}
+		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
+			if config.Strict {
+				return err
+			}
+		}
 		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
 			if config.Strict {
 				return err
