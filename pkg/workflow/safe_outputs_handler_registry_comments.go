@@ -11,6 +11,7 @@ var commentHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
 			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
+			AddTemplatableBool("replace_older_comments", c.ReplaceOlderComments).
 			AddStringSlice("hide_older_comments_match", c.HideOlderCommentsMatch).
 			AddBoolPtr("discussions", c.Discussions).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
