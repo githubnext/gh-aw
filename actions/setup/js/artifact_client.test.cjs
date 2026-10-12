@@ -90,15 +90,20 @@ describe("DefaultArtifactClient.listArtifacts", () => {
   });
 
   it("throws when the REST API returns a non-ok status", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(makeFetchResponse(403, "Forbidden"));
+    const budget = createAPIBudget();
+    const mockFetch = vi.fn().mockResolvedValue(makeFetchResponse(403, "private payload"));
     vi.stubGlobal("fetch", mockFetch);
+    vi.stubGlobal("core", { info: vi.fn() });
 
-    const client = new DefaultArtifactClient();
-    await expect(
-      client.listArtifacts({
+    const client = new DefaultArtifactClient({ request: budget.request });
+    const error = await client
+      .listArtifacts({
         findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" },
       })
-    ).rejects.toThrow("failed to list artifacts (403)");
+      .catch(error => error);
+    expect(error).toMatchObject({ message: "failed to list artifacts (403)" });
+    expect(getAPIReadFailure(error)).toEqual({ attempts: 1, status: 403, reason: "non_transient", requests: 1, operation: "artifact_list" });
+    expect(error.message).not.toContain("private payload");
   });
 
   it("observes quota headers even when the JSON body cannot be parsed", async () => {
@@ -214,6 +219,33 @@ describe("DefaultArtifactClient.downloadArtifact", () => {
         findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo" },
       })
     ).rejects.toThrow("missing redirect location");
+  });
+
+  it.each([
+    ["redirect", 403, "artifact_redirect", 1],
+    ["blob download", 403, "artifact_download", 1],
+  ])("preserves %s failure attribution through the wrapper", async (failure, status, operation, requests) => {
+    const budget = createAPIBudget();
+    const mockFetch =
+      failure === "redirect"
+        ? vi.fn().mockResolvedValue(makeFetchResponse(status, "private payload"))
+        : vi
+            .fn()
+            .mockResolvedValueOnce(makeFetchResponse(302, "", { location: "https://storage.example.com/artifact.zip" }))
+            .mockResolvedValueOnce(makeFetchResponse(status, "private payload"));
+    vi.stubGlobal("fetch", mockFetch);
+    vi.stubGlobal("core", { info: vi.fn() });
+
+    const client = new DefaultArtifactClient({ request: budget.request });
+    const error = await client
+      .downloadArtifact(1, {
+        path: tmpDir,
+        findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo" },
+      })
+      .catch(error => error);
+
+    expect(getAPIReadFailure(error)).toEqual({ attempts: 1, status, reason: "non_transient", requests, operation });
+    expect(error.message).not.toContain("private payload");
   });
 });
 

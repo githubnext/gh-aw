@@ -12,7 +12,7 @@ const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
-const { createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 const { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
@@ -486,7 +486,7 @@ async function listCompletedWorkflowRunsPage(githubClient, params, budget = crea
           page,
         }),
       true,
-      "repository_history"
+      API_READ_OPERATIONS.REPOSITORY_HISTORY
     );
     const allRuns = response.data?.workflow_runs;
     if (!Array.isArray(allRuns) || allRuns.some(run => !Number.isSafeInteger(run?.workflow_id) || run.workflow_id <= 0)) {
@@ -529,7 +529,7 @@ async function listCompletedWorkflowRunsPage(githubClient, params, budget = crea
           page,
         }),
       true,
-      "workflow_history"
+      API_READ_OPERATIONS.WORKFLOW_HISTORY
     );
     if (!Array.isArray(response.data?.workflow_runs)) throw new Error("Incomplete daily AIC workflow history");
     return {

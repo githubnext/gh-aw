@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { apiError, createAPIBudget, isTransientError, retryNotBefore, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, apiError, createAPIBudget, isTransientError, retryNotBefore, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -117,7 +117,7 @@ describe("bounded daily AIC read retries", () => {
     expect(logs).not.toContain("example.invalid");
   });
 
-  it.each(["current_run", "workflow_history", "repository_history", "run_jobs", "artifact_list", "artifact_redirect", "artifact_download"])("attributes %s failures without changing error identity", async operation => {
+  it.each(Object.values(API_READ_OPERATIONS))("attributes %s failures without changing error identity", async operation => {
     const error = apiError(502, {}, "private API payload");
     const request = vi.fn().mockRejectedValue(error);
     const assertion = expect(createAPIBudget().request(request, operation !== "artifact_download", operation)).rejects.toBe(error);
@@ -129,21 +129,30 @@ describe("bounded daily AIC read retries", () => {
     expect(global.core.info.mock.calls.map(([message]) => message).join("\n")).not.toContain("private API payload");
   });
 
-  it("does not publish arbitrary operation labels or trust caller-supplied failure metadata", async () => {
+  it("rejects unknown operation labels without publishing them", async () => {
     const sensitive = "https://example.invalid/download?token=private";
-    const error = Object.assign(apiError(403, {}, sensitive), { dailyAICReadFailure: { operation: sensitive } });
-    await expect(createAPIBudget().request(() => Promise.reject(error), true, sensitive)).rejects.toBe(error);
-    expect(getAPIReadFailure(error)).toMatchObject({ operation: "unknown", attempts: 1, reason: "non_transient" });
+    const operation = vi.fn();
+    await expect(createAPIBudget().request(operation, true, sensitive)).rejects.toThrow("Unknown daily AIC read operation");
+    expect(operation).not.toHaveBeenCalled();
     expect(global.core.info.mock.calls.map(([message]) => message).join("\n")).not.toContain(sensitive);
     const unrelated = new Error("unrelated");
     unrelated.cause = unrelated;
     expect(getAPIReadFailure(unrelated)).toBeNull();
   });
 
+  it("does not trust caller-supplied failure metadata", async () => {
+    const sensitive = "https://example.invalid/download?token=private";
+    const error = Object.assign(apiError(403, {}, sensitive), { dailyAICReadFailure: { operation: sensitive } });
+    const assertion = expect(createAPIBudget().request(() => Promise.reject(error), true, API_READ_OPERATIONS.WORKFLOW_HISTORY)).rejects.toBe(error);
+    await assertion;
+    expect(getAPIReadFailure(error)).toMatchObject({ operation: API_READ_OPERATIONS.WORKFLOW_HISTORY, attempts: 1, reason: "non_transient" });
+    expect(global.core.info.mock.calls.map(([message]) => message).join("\n")).not.toContain(sensitive);
+  });
+
   it("labels recovered reads without retaining the earlier failure as terminal", async () => {
     const error = apiError(502, {}, "private payload");
     const request = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(response());
-    const assertion = expect(createAPIBudget().request(request, true, "workflow_history")).resolves.toEqual(response());
+    const assertion = expect(createAPIBudget().request(request, true, API_READ_OPERATIONS.WORKFLOW_HISTORY)).resolves.toEqual(response());
     await vi.runAllTimersAsync();
     await assertion;
     expect(getAPIReadFailure(error)).toBeNull();

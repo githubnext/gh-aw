@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { API_READ_OPERATIONS } = require("./daily_aic_api_budget.cjs");
 
 // These are the compiler-owned jobs and collect_usage_artifact_files.sh paths.
 // Raw firewall accounting is preferred to the overlapping engine summary.
@@ -40,7 +41,7 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
           page,
         }),
       true,
-      "run_jobs"
+      API_READ_OPERATIONS.RUN_JOBS
     );
     const jobs = response.data.jobs;
     if (!Array.isArray(jobs)) throw new Error("Incomplete daily AIC job metadata");
