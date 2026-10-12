@@ -78,20 +78,26 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   const validTools = tools => Array.isArray(tools) && tools.every(tool => typeof tool?.name === "string" && tool.name.length > 0);
   if (flag.status === "recorded") {
     availability = "unavailable (gateway registered zero tools)";
+  } else if (flag.status === "unreadable") {
+    // An unreadable authoritative override prevents a confident registration claim.
+    availability = "unknown (registration evidence could not be read)";
   } else {
-    const evidence = cache.status === "not recorded" ? gateway : cache;
-    if (evidence.status === "recorded") {
-      try {
-        const value = JSON.parse(evidence.content);
-        const tools = evidence === cache ? value : value?.servers?.safeoutputs;
-        availability = validTools(tools)
-          ? `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`
-          : "unknown (invalid registration evidence)";
-      } catch {
+    for (const evidence of [cache, gateway]) {
+      if (evidence.status === "recorded") {
+        try {
+          const value = JSON.parse(evidence.content);
+          const tools = evidence === cache ? value : value?.servers?.safeoutputs;
+          if (validTools(tools)) {
+            availability = `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`;
+            break;
+          }
+          availability = "unknown (invalid registration evidence)";
+        } catch {
+          availability = "unknown (registration evidence could not be read)";
+        }
+      } else if (evidence.status === "unreadable") {
         availability = "unknown (registration evidence could not be read)";
       }
-    } else if (evidence.status === "unreadable" || flag.status === "unreadable") {
-      availability = "unknown (registration evidence could not be read)";
     }
   }
   const summary = [`Safe-output tools: ${availability}`];
