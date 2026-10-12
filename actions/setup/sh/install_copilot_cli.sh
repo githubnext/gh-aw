@@ -18,7 +18,6 @@ set +o histexpand
 #
 # Environment overrides (testing):
 #   COPILOT_INSTALL_DIR - Override the install directory (default: /usr/local/bin).
-#   GH_AW_COPILOT_GUEST_LIBC - Optional compiler-controlled NVX guest ABI.
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)

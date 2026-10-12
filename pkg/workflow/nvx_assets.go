@@ -20,7 +20,7 @@ func rewriteNVXEngineCommand(command string) string {
 		nvxGuestRuntimeDir, nvxGuestRuntimeDir, shellEscapeArg(command))
 }
 
-func buildNVXAssetSetup(nvx *AgentNVXConfig) string {
+func buildNVXAssetSetup() string {
 	return `if [ ! -x /usr/bin/patchelf ]; then
   sudo apt-get update || exit $?
   sudo apt-get install -y --no-install-recommends patchelf || exit $?
