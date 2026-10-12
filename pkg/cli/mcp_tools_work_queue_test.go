@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -59,6 +60,26 @@ func TestWorkQueueToolOperations(t *testing.T) {
 			assert.ElementsMatch(t, expected, captured[4:])
 		})
 	}
+}
+
+func TestWorkQueueToolProgress(t *testing.T) {
+	t.Parallel()
+	server := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
+	require.NoError(t, registerWorkQueueTool(server, mockCommandWithOutput(`{"rows":[]}`, "")))
+	session, getNotifications := connectInMemoryWithProgress(t, server)
+	params := &mcp.CallToolParams{
+		Name:      "work-queue",
+		Arguments: map[string]any{"operation": "state", "repo": "owner/repo"},
+	}
+	params.SetProgressToken("queue-progress")
+	result, err := session.CallTool(context.Background(), params)
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+	require.Eventually(t, func() bool { return len(getNotifications()) == 2 }, time.Second, 10*time.Millisecond)
+	notifications := getNotifications()
+	assert.InDelta(t, 0, notifications[0].Progress, 0.001)
+	assert.InDelta(t, 100, notifications[1].Progress, 0.001)
+	assert.Equal(t, "queue-progress", notifications[0].ProgressToken)
 }
 
 func TestWorkQueueToolRejectsInvalidArguments(t *testing.T) {

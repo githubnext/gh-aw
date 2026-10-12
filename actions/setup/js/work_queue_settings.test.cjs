@@ -130,15 +130,17 @@ describe("work_queue scheduling settings", () => {
 
   it("keeps Issues disabled unless explicitly enabled and preserves labels outside Policy authority", () => {
     for (const value of [undefined, {}, { issues: false }]) assert.equal(Object.hasOwn(parseSettings(value), "issues"), false);
-    for (const [value, label] of [
-      [true, "work"],
-      [{}, "work"],
-      [{ label: "tasks" }, "tasks"],
-      [{ label: "a".repeat(33) }, "a".repeat(33)],
-      [{ label: "😀".repeat(8) + "a" }, "😀".repeat(8) + "a"],
+    for (const [value, label, titlePrefix] of [
+      [true, "work", "[work queue]"],
+      [{}, "work", "[work queue]"],
+      [{ label: "tasks" }, "tasks", "[work queue]"],
+      [{ title_prefix: "[tasks]" }, "work", "[tasks]"],
+      [{ title_prefix: "😀".repeat(20) }, "work", "😀".repeat(20)],
+      [{ label: "a".repeat(33) }, "a".repeat(33), "[work queue]"],
+      [{ label: "😀".repeat(8) + "a" }, "😀".repeat(8) + "a", "[work queue]"],
     ]) {
       const settings = parseSettings({ issues: value });
-      assert.deepEqual(settings.issues, { label });
+      assert.deepEqual(settings.issues, { label, title_prefix: titlePrefix });
       const policy = defaultPolicy({ principal: "1001", repository: "owner/repo" });
       assert.deepEqual(applySettings(policy, settings), policy);
       const aw = buildAWPolicy({ repository: "owner/repo", ref: "a".repeat(40), workflows: ["worker"], settings: { issues: value } });
@@ -162,6 +164,14 @@ describe("work_queue scheduling settings", () => {
       [{ label: "work\u0085" }, "issues.label"],
       [{ label: "a".repeat(34) }, "issues.label"],
       [{ label: "😀".repeat(9) }, "issues.label"],
+      [{ title_prefix: null }, "issues.title_prefix"],
+      [{ title_prefix: "" }, "issues.title_prefix"],
+      [{ title_prefix: " \t " }, "issues.title_prefix"],
+      [{ title_prefix: "${{ vars.PREFIX }}" }, "issues.title_prefix"],
+      [{ title_prefix: "queue\n" }, "issues.title_prefix"],
+      [{ title_prefix: "queue\u0085" }, "issues.title_prefix"],
+      [{ title_prefix: "a".repeat(81) }, "issues.title_prefix"],
+      [{ title_prefix: "😀".repeat(21) }, "issues.title_prefix"],
       [{ "tracking-label": "work" }, "issues.tracking-label"],
       [{ "status-label-prefix": "queue" }, "issues.status-label-prefix"],
       [{ routes: [] }, "issues.routes"],

@@ -4,7 +4,10 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -356,6 +359,8 @@ func TestCopilotPluginInstallationSteps(t *testing.T) {
 		install := strings.Join(steps[1], "\n")
 		assert.Contains(t, install, "name: Install agent plugin octo-org/agent-plugin")
 		assert.Contains(t, install, "copilot plugin install ./.gh-aw-plugins/plugin-0")
+		assert.Contains(t, install, pluginInstallationsPath)
+		assert.Less(t, strings.Index(install, "copilot plugin install"), strings.Index(install, "jq -cn"))
 
 		diagnostics := strings.Join(steps[2], "\n")
 		assert.Contains(t, diagnostics, "name: Diagnose agent plugin octo-org/agent-plugin")
@@ -421,11 +426,16 @@ func TestClaudePluginInstallation(t *testing.T) {
 			Plugins: []string{"octo-org/agent-plugins/plugins/example@" + testPluginSHA},
 		})
 
-		require.Len(t, steps, 1)
+		require.Len(t, steps, 2)
 		checkout := strings.Join(steps[0], "\n")
 		assert.Contains(t, checkout, "name: Checkout agent plugin octo-org/agent-plugins/plugins/example")
 		assert.Contains(t, checkout, "repository: octo-org/agent-plugins")
 		assert.Contains(t, checkout, "path: .gh-aw-plugins/plugin-0")
+		record := strings.Join(steps[1], "\n")
+		assert.Contains(t, record, "Record agent plugin installation")
+		assert.Contains(t, record, `test -d ./.gh-aw-plugins/plugin-0/plugins/example`)
+		assert.Contains(t, record, pluginInstallationsPath)
+		assert.Contains(t, record, "octo-org/agent-plugins/plugins/example@"+testPluginSHA)
 	})
 
 	t.Run("loads plugin directories through --plugin-dir", func(t *testing.T) {
@@ -470,7 +480,10 @@ func TestCodexPluginInstallation(t *testing.T) {
 		assert.Contains(t, install, `--arg path "."`)
 		assert.Contains(t, install, "codex plugin marketplace add \"./.gh-aw-plugins/plugin-0\"")
 		assert.Contains(t, install, `codex plugin add "$PLUGIN_NAME@gh-aw-plugin-0"`)
+		assert.Contains(t, install, pluginInstallationsPath)
+		assert.Less(t, strings.Index(install, `codex plugin add`), strings.Index(install, "jq -cn"))
 		assert.Contains(t, install, "CODEX_HOME: /tmp/gh-aw/mcp-config")
+		assert.NotContains(t, checkout, pluginInstallationsPath)
 	})
 
 	t.Run("registers a plugin from a repository subpath", func(t *testing.T) {
@@ -530,6 +543,8 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		assert.Contains(t, stage, `mkdir -p ".kiro/powers"`)
 		assert.Contains(t, stage, `rm -rf ".kiro/powers/plugin-0-plugins__example"`)
 		assert.Contains(t, stage, `cp -R "./.gh-aw-plugins/plugin-0/plugins/example" ".kiro/powers/plugin-0-plugins__example"`)
+		assert.Contains(t, stage, pluginInstallationsPath)
+		assert.Less(t, strings.Index(stage, "cp -R"), strings.Index(stage, "jq -cn"))
 	})
 
 	t.Run("stages plugins with the same basename to distinct destinations", func(t *testing.T) {
@@ -586,6 +601,8 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		assert.Contains(t, strings.Join(steps[0], "\n"), "name: Checkout agent plugin octo-org/agent-plugin")
 		assert.Contains(t, strings.Join(steps[1], "\n"), "name: Stage agent plugin octo-org/agent-plugin")
 		assert.Contains(t, strings.Join(steps[2], "\n"), "name: Install agent plugin octo-org/agent-plugin")
+		assert.NotContains(t, strings.Join(steps[1], "\n"), pluginInstallationsPath)
+		assert.Contains(t, strings.Join(steps[2], "\n"), pluginInstallationsPath)
 	})
 
 	t.Run("disables plugins without a plugins behavior", func(t *testing.T) {
@@ -609,6 +626,56 @@ func TestBehaviorDefinedEnginePluginInstallation(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "unsupported behaviors.plugins.directory")
 	})
+}
+
+func TestPluginInstallationRecordsOnlySuccessfulInstalls(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is required to exercise generated installation commands")
+	}
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq is required to exercise generated installation commands")
+	}
+	root := testutil.TempDir(t, "plugin-installation-record")
+	recordPath := filepath.Join(root, "plugin-installations.jsonl")
+	parsed := parseSkillRefSpec("org/plugins/agents/example@" + testPluginSHA)
+	installPath := pluginCheckoutSubpath(parsed, 0)
+	command := strings.ReplaceAll(pluginInstallationRecordCommand(parsed, "org/plugins", installPath), pluginInstallationsPath, shellEscapeArg(recordPath))
+	command = strings.ReplaceAll(command, fmt.Sprintf("mkdir -p %q", filepath.Dir(pluginInstallationsPath)), "mkdir -p "+shellEscapeArg(root))
+	run := func(script string) ([]byte, error) {
+		cmd := exec.Command("bash", "-e", "-c", script)
+		cmd.Dir = root
+		return cmd.CombinedOutput()
+	}
+	output, err := run(command)
+	require.Error(t, err, "%s", output)
+	_, err = os.Stat(recordPath)
+	require.True(t, os.IsNotExist(err))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, installPath), 0o700))
+	output, err = run("false\n" + command)
+	require.Error(t, err, "%s", output)
+	_, err = os.Stat(recordPath)
+	require.True(t, os.IsNotExist(err))
+
+	output, err = run("true\n" + command + "\n" + command)
+	require.NoError(t, err, "%s", output)
+	content, err := os.ReadFile(recordPath)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	require.Len(t, lines, 2)
+	for _, line := range lines {
+		var record map[string]string
+		require.NoError(t, json.Unmarshal([]byte(line), &record))
+		assert.Equal(t, map[string]string{
+			"timestamp":  record["timestamp"],
+			"plugin":     "org/plugins/agents/example@" + testPluginSHA,
+			"repository": "org/plugins",
+			"ref":        testPluginSHA,
+			"path":       ".gh-aw-plugins/plugin-0/agents/example",
+			"status":     "installed",
+		}, record)
+		assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`, record["timestamp"])
+	}
 }
 
 func TestValidatePluginsAcceptsObjectFormWithGitHubToken(t *testing.T) {

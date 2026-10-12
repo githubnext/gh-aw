@@ -96,6 +96,20 @@ func TestAddCommentsConfigTargetRepo(t *testing.T) {
 	}
 }
 
+func TestAddCommentsConfigReplaceOlderComments(t *testing.T) {
+	compiler := NewCompiler()
+	config := compiler.parseCommentsConfig(map[string]any{
+		"add-comment": map[string]any{"replace-older-comments": true},
+	})
+	if config == nil || config.ReplaceOlderComments == nil || *config.ReplaceOlderComments != "true" {
+		t.Fatalf("expected replacement to be enabled, got %+v", config)
+	}
+	handler := commentHandlerRegistry["add_comment"](&SafeOutputsConfig{AddComments: config})
+	if handler["replace_older_comments"] != true {
+		t.Fatalf("expected replacement in handler config, got %v", handler["replace_older_comments"])
+	}
+}
+
 func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 	compiler := NewCompiler()
 

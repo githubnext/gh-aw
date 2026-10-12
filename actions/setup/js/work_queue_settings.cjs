@@ -38,8 +38,8 @@ function retrySettings(value, property, defaults) {
 
 function issuesSettings(value) {
   if (value === false) return undefined;
-  if (value === true) return { label: "work" };
-  const fields = object(value, "work_queue.issues", ["label"]);
+  if (value === true) return { label: "work", title_prefix: "[work queue]" };
+  const fields = object(value, "work_queue.issues", ["label", "title_prefix"]);
   const label = Object.hasOwn(fields, "label") ? fields.label : "work";
   if (
     typeof label !== "string" ||
@@ -50,7 +50,17 @@ function issuesSettings(value) {
     /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(label)
   )
     throw settingsError("work_queue.issues.label", "must be a nonblank literal of at most 33 UTF-8 bytes without control characters or expressions");
-  return { label };
+  const titlePrefix = Object.hasOwn(fields, "title_prefix") ? fields.title_prefix : "[work queue]";
+  if (
+    typeof titlePrefix !== "string" ||
+    /^\p{White_Space}*$/u.test(titlePrefix) ||
+    Buffer.byteLength(titlePrefix, "utf8") > 80 ||
+    titlePrefix.includes("${{") ||
+    /\p{Cc}/u.test(titlePrefix) ||
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(titlePrefix)
+  )
+    throw settingsError("work_queue.issues.title_prefix", "must be a nonblank literal of at most 80 UTF-8 bytes without control characters or expressions");
+  return { label, title_prefix: titlePrefix };
 }
 
 // Accept a raw work_queue section or an already decoded JSON object. Undefined

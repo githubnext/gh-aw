@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.8.0"
+version: "1.8.1"
 status: Draft
-publication_date: "2026-10-11"
+publication_date: "2026-10-12"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.8.0<br>
+**Version**: 1.8.1<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-11<br>
+**Publication Date**: 2026-10-12<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.8.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.8.1 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -249,6 +249,7 @@ opaque because its essential fields are not defined by this specification.
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
 | Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. Text and Markdown summaries display it as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`, `rootWorkflowId`, and `rootRunId`. |
+| Skills | Activation inventory records installed skill name, relative source, scope, SHA-256 content digest, and declared purpose, without skill content. Exact-name and cross-scope collisions retain names, kinds, and source identifiers: current sources are workspace-relative paths, while overwritten frontmatter installations use ordinal identifiers such as `frontmatter-1`. Observed engine invocations retain the selected skill name, path, source, trigger, model, and turn when supplied; a declared or installed skill is not proof of invocation. |
 
 OpenTelemetry observations use `otel.span`, `otel.span_event`, and `otel.log`.
 They retain trace/span/parent IDs, names, status, attributes, links, log bodies
@@ -625,6 +626,8 @@ source for opaque fields.
 | `subagent.started`, `subagent.configured`, `subagent.completed`, `subagent.failed` | Cross-engine sub-agent lifecycle observations. `agentId` identifies the invocation; `data.invocationId` preserves an available engine invocation ID. Failures may include `errorCode`, including `SUBAGENT_MODEL_UNAVAILABLE`. |
 | `subagent.request` | A sub-agent inference observation with `agentId`, `invocationId`, model, and the available input, output, cache-read, and cache-write token counts. It provides the per-request evidence used to correlate proxy accounting. |
 | `prompt.system`, `prompt.user` | Split activation prompt file contents with source provenance, when available; omitted from default summaries. |
+| `skill.inventory`, `skill.conflict` | Activation inventory of available skills and deterministic exact-name/scope conflicts from `skill_inventory.json`. Similar names are not automatically conflicts; conflict reports are advisory and do not assert which skill an engine selected. Absent inventory means unavailable evidence, not an empty installation. |
+| `skill.invoked`, `skill.context_delivered_ref` | Native agent observations of selected skill and delivered context reference, respectively. Only explicit engine observations establish usage; skill contents and unrecognized payload fields are excluded from the unified projection. Engines without such events have unknown usage, not zero usage. |
 | `mcp.rpc.request`, `mcp.rpc.response` | MCPG `REQUEST`/`RESPONSE` or `rpc_request`/`rpc_response`, with flat RPC metadata and error code/message. |
 | `mcp.difc.filtered`, `mcp.guard.blocked` | DIFC and guard-policy diagnostics; no inferred successful tool outcome. |
 | `mcp.tool_call`, `mcp.event` | Structured gateway calls or other gateway log messages. |
@@ -640,8 +643,20 @@ source for opaque fields.
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
 | `guardrail.daily_aic` | Activation's daily AI Credits decision (`status`, `exceeded`, and available numeric `total`, `estimated`, `threshold`). Omitted when the guardrail has no decision; an existing event is not duplicated. |
 | `github_api.rate_limit` | Available GitHub API rate-limit JSONL observations retain the recorded source (`response_headers`, `rate_limit_api`, or `retry`), operation, resource, limit, remaining, used, reset, and retry state. `credentialSource` identifies a known GitHub Actions token, PAT, or app token where classified by the client; absent or unknown credential types are not inferred from quota values. Raw credentials and unrecognized fields are excluded. The collector prefers `github_rate_limits.jsonl` over its `usage/` copy to avoid duplicate observations. |
+| `plugin.installation` | Successful plugin installations retain the pinned `plugin` reference, `repository`, `ref`, local checkout `path`, and `status: "installed"`, with the installation timestamp. CLI and directory-based engines record success after installation or staging; Claude records the checked-out directory made available through `--plugin-dir`, and Codex records success after marketplace registration and plugin installation. The collector prefers `plugin-installations.jsonl` over its `usage/` copy. Credentials and unrecognized fields are excluded; absent evidence does not imply an installation. |
 | `session.collection_warning`, `session.collection` | Explicit collection diagnostics and coverage. |
 | `session.format` | Leading collector-owned file-format metadata, distinct from source-native events with the same type. |
+
+**T-UAS-072 — Skill evidence and conflicts.** When an activation skill inventory
+is present, the merger MUST include its deterministic installed-skill names,
+relative sources, installation scopes, content digests, and declared purposes
+with activation provenance. It MUST report exact-name collisions and conflicting
+scopes without treating similar names as failures. It MUST NOT include skill
+contents in these observations. Engine usage MUST be attributed only to explicit
+native skill invocation or context-delivery observations; installation alone
+MUST NOT be interpreted as a skill read. Engines without usage observations
+remain unobserved rather than unused. Conflict reports are advisory and do not
+imply that an engine selected the wrong skill.
 
 `firewall.token_usage` and its `usage.report` alias expose the following
 source-dependent fields: `provider`, `model`, `purpose` (for example `agent`,
@@ -1956,6 +1971,12 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.8.1 — Draft (2026-10-12)
+
+- Added activation skill inventory and advisory exact-name/scope conflict evidence (T-UAS-072).
+- Preserved observed engine skill invocation separately from installed availability, without skill contents.
+- Retained serialization-format version 1.
 
 ### Version 1.8.0 — Draft (2026-10-11)
 

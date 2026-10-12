@@ -133,6 +133,10 @@ function eventDetail(event) {
       return fields(data, ["requestId", "toolCallId", "decisionSource"]) + " " + fields(data.result, ["kind"]);
     case "skill.invoked":
       return fields(data, ["name", "path", "source", "trigger", "model", "invokedAtTurn"]);
+    case "skill.inventory":
+      return `installed skills=${Array.isArray(data.skills) ? data.skills.length : "unavailable"}`;
+    case "skill.conflict":
+      return fields(data, ["name", "kind", "sources"]);
     case "skill.context_delivered_ref":
       return fields(data, ["interactionId", "source", "contentId"]) + " [skill instructions omitted]";
     case "system.message":
