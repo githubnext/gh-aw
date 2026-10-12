@@ -40,8 +40,42 @@ func TestNVXGuestCommandAssets(t *testing.T) {
 			assert.Contains(t, hostCommand, `sudo apt-get install -y --no-install-recommends patchelf || exit $?`)
 			assert.Contains(t, hostCommand, WrapCommandInShell(guestCommand))
 			require.NoError(t, exec.Command("bash", "-n", "-c", hostCommand).Run())
+
+			var installation strings.Builder
+			for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+				installation.WriteString(strings.Join(step, "\n"))
+			}
+			assert.Contains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC: musl")
 		})
 	}
+}
+
+func TestNVXCopilotGuestLibcAssetSelection(t *testing.T) {
+	for _, tc := range []struct {
+		guestLibc string
+		expected  string
+	}{
+		{guestLibc: "musl", expected: "GH_AW_COPILOT_GUEST_LIBC: musl"},
+		{guestLibc: "glibc", expected: "GH_AW_COPILOT_GUEST_LIBC: glibc"},
+	} {
+		t.Run(tc.guestLibc, func(t *testing.T) {
+			data := validNVXWorkflowData()
+			data.SandboxConfig.Agent.NVX.GuestLibc = tc.guestLibc
+			var installation strings.Builder
+			for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+				installation.WriteString(strings.Join(step, "\n"))
+			}
+			assert.Contains(t, installation.String(), tc.expected)
+		})
+	}
+
+	data := validNVXWorkflowData()
+	data.SandboxConfig.Agent.Runtime = AgentRuntimeDocker
+	var installation strings.Builder
+	for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+		installation.WriteString(strings.Join(step, "\n"))
+	}
+	assert.NotContains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC")
 }
 
 func TestNVXGuestCommandPreservesShellArguments(t *testing.T) {
@@ -53,7 +87,7 @@ func TestNVXGuestCommandPreservesShellArguments(t *testing.T) {
 
 func TestNVXDefaultGuestWorkDir(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.NVX = nil
+	data.SandboxConfig.Agent.NVX = &AgentNVXConfig{GuestLibc: "musl"}
 	command := BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", WorkflowData: data})
 	assert.Contains(t, command, "--container-workdir /workspace")
 	assert.NotContains(t, command, `--container-workdir "${GITHUB_WORKSPACE}"`)
@@ -143,6 +177,7 @@ sandbox:
   agent:
     runtime: nvx
     nvx:
+      guest-libc: musl
       preview: true
       network-isolation: true
       api-proxy: true

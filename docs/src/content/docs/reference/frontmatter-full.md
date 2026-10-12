@@ -2389,6 +2389,9 @@ sandbox:
       # API proxy credential isolation is always enabled.
       api-proxy: true
 
+      # Required guest libc ABI contract used to select compatible staged engine assets.
+      guest-libc: "glibc"
+
       # (optional)
       mount-policy: "workspace-only"
 
@@ -4536,11 +4539,26 @@ tools:
     validation:
       # JavaScript validator body that runs over the complete cache-memory directory
       # before persistence. Throw, return false, or exit nonzero to reject the update.
+      # (optional)
       script: "example-value"
 
       # Maximum validator runtime in minutes (default: 1, max: 5)
       # (optional)
       timeout-minutes: 1
+
+      # Inline schemas enforced for selected memory files or all eligible JSON and JSONL
+      # files when file is omitted
+      # (optional)
+      json-schemas: []
+        # Array items:
+          # (optional)
+          file: "example-value"
+
+          # (optional)
+          format: "json"
+
+          schema:
+            {}
 
   # Format 4: Array of cache-memory configurations for multiple caches
   cache-memory: [{"id":"default","key":"memory-default"},{"id":"session","key":"memory-session"}]
@@ -4590,11 +4608,26 @@ tools:
     validation:
       # JavaScript validator body that runs over the drive-memory directory before
       # persistence
+      # (optional)
       script: "example-value"
 
       # Maximum validator runtime in minutes
       # (optional)
       timeout-minutes: 1
+
+      # Inline schemas enforced for selected memory files or all eligible JSON and JSONL
+      # files when file is omitted
+      # (optional)
+      json-schemas: []
+        # Array items:
+          # (optional)
+          file: "example-value"
+
+          # (optional)
+          format: "json"
+
+          schema:
+            {}
 
   # Format 4: Configurations for multiple drives in an enrolled preview repository
   drive-memory: []
@@ -4841,11 +4874,26 @@ tools:
       # JavaScript validator body that runs over the complete repo-memory directory
       # after optional JSON formatting and before persistence. Throw, return false, or
       # exit nonzero to reject the update.
+      # (optional)
       script: "example-value"
 
       # Maximum validator runtime in minutes (default: 1, max: 5)
       # (optional)
       timeout-minutes: 1
+
+      # Inline schemas enforced for selected memory files or all eligible JSON and JSONL
+      # files when file is omitted
+      # (optional)
+      json-schemas: []
+        # Array items:
+          # (optional)
+          file: "example-value"
+
+          # (optional)
+          format: "json"
+
+          schema:
+            {}
 
   # Format 4: Array of repo-memory configurations for multiple memory locations
   repo-memory: [{"id":"default","branch-name":"memory/default"},{"id":"session","branch-name":"memory/session"}]
@@ -22602,9 +22650,8 @@ safe-outputs:
   # categories must match included AND not match excluded. Common categories:
   # agent_failure, timed_out, transport_wedge, missing_safe_outputs,
   # report_incomplete, missing_tool, missing_data, inference_access_error,
-  # model_endpoint_mismatch,
-  # mcp_policy_error, ai_credits_rate_limit_error, max_ai_credits_exceeded,
-  # daily_ai_credits_unknown.
+  # model_endpoint_mismatch, mcp_policy_error, ai_credits_rate_limit_error,
+  # max_ai_credits_exceeded, daily_ai_credits_unknown.
   report-failure-as-issue: []
     # Array items: string
 
