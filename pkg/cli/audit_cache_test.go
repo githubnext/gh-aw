@@ -60,17 +60,22 @@ func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 func TestLoadCachedAuditDataRejectsOlderSchema(t *testing.T) {
 	t.Parallel()
 
-	runDir := t.TempDir()
-	run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
-	data, err := json.Marshal(AuditData{
-		CacheSource: auditCacheSourceFull,
-		Overview:    buildAuditOverview(run, nil),
-	})
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(auditPath(runDir), data, 0o600))
+	// Version 5 audits predate detection_model_usage and must be recomputed.
+	require.Equal(t, 6, auditSchemaVersion)
+	for _, schemaVersion := range []int{0, 5} {
+		runDir := t.TempDir()
+		run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
+		data, err := json.Marshal(AuditData{
+			SchemaVersion: schemaVersion,
+			CacheSource:   auditCacheSourceFull,
+			Overview:      buildAuditOverview(run, nil),
+		})
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(auditPath(runDir), data, 0o600))
 
-	_, ok := loadCachedAuditData(runDir, run, auditCacheSourceFull)
-	assert.False(t, ok)
+		_, ok := loadCachedAuditData(runDir, run, auditCacheSourceFull)
+		assert.False(t, ok, "schema version %d audit must not be reused", schemaVersion)
+	}
 }
 
 func TestWriteLogsAuditFilesUsesCacheUntilRunStateChanges(t *testing.T) {

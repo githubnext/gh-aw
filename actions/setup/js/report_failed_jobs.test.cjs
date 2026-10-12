@@ -68,6 +68,15 @@ describe("formatFailedJobsList", () => {
   it("returns empty string for empty jobs array", () => {
     expect(formatFailedJobsList([])).toBe("");
   });
+
+  it("renders failed step numbers without step names or error text", () => {
+    const result = formatFailedJobsList([{ name: "publisher", html_url: null, failed_steps: [5, 7] }]);
+    expect(result).toContain("Failed step numbers (up to 10): `5`, `7`.");
+  });
+
+  it("explicitly reports unavailable failed step metadata", () => {
+    expect(formatFailedJobsList([{ name: "publisher", html_url: null, failed_steps: [] }])).toContain("Failed step numbers (up to 10): unavailable.");
+  });
 });
 
 describe("getFailedNonBuiltinJobs", () => {
@@ -180,6 +189,92 @@ describe("getFailedNonBuiltinJobs", () => {
       expect.objectContaining({ title: "[aw] Failed jobs: Smoke Gemini", body: expect.stringContaining("- [`Build project`](https://github.com/owner/repo/actions/runs/123/jobs/789)") })
     );
     expect(global.github.rest.issues.create.mock.calls[0][0].body).not.toContain("https://github.com/owner/repo/actions/runs/123/jobs/456");
+  });
+
+  it("reports downstream publisher failure independently of successful engine execution", async () => {
+    vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ agent: { result: "success" }, publish_essential_issues: { result: "failure" } }));
+    global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
+      data: {
+        jobs: [
+          { name: "agent", conclusion: "success", steps: [{ number: 1, conclusion: "success" }] },
+          {
+            name: "publish_essential_issues",
+            conclusion: "failure",
+            html_url: "https://github.com/owner/repo/actions/runs/123/job/789",
+            steps: [
+              { number: 4, conclusion: "success" },
+              { number: 5, conclusion: "failure", name: "private prompt and repository content", error: "private unbounded error payload" },
+              { number: 6, conclusion: "skipped" },
+            ],
+          },
+        ],
+      },
+    });
+    global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn();
+    await main();
+    const body = global.github.rest.issues.create.mock.calls[0][0].body;
+    expect(body).toContain("Failed step numbers (up to 10): `5`.");
+    expect(body).toContain("**Failure boundary:** Non-agent job.");
+    expect(body).toContain("A failure boundary identifies where failure was observed, not its cause: either the engine driver process or a non-agent job.");
+    expect(body).toContain("does not establish a provider outage");
+    expect(body).not.toMatch(/private|unbounded error payload/);
+    expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("bounds failed step metadata and rejects invalid numbers and nonfailure steps", async () => {
+    vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ publisher: { result: "failure" } }));
+    global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
+      data: {
+        jobs: [
+          {
+            name: "publisher",
+            conclusion: "failure",
+            html_url: null,
+            steps: [
+              null,
+              ...["5", "private payload", -1, 0, 1.5, 10001, Infinity].map(number => ({ number, conclusion: "failure" })),
+              { number: 99, conclusion: "success" },
+              ...Array.from({ length: 20 }, (_, index) => ({ number: index + 1, conclusion: "failure" })),
+              { number: 1, conclusion: "failure" },
+            ],
+          },
+        ],
+      },
+    });
+    const jobs = await getFailedNonBuiltinJobs();
+    expect(jobs).toEqual([{ name: "publisher", html_url: null, failed_steps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]);
+    expect(formatFailedJobsList(jobs)).not.toMatch(/private|`11`|`99`/);
+  });
+
+  it("accepts the maximum failed step number and deduplicates before applying the reporting limit", async () => {
+    vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ publisher: { result: "failure" } }));
+    global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
+      data: {
+        jobs: [
+          {
+            name: "publisher",
+            conclusion: "failure",
+            html_url: null,
+            steps: [
+              { number: 10000, conclusion: "failure" },
+              { number: 10001, conclusion: "failure" },
+              ...Array.from({ length: 12 }, () => ({ number: 10000, conclusion: "failure" })),
+              ...Array.from({ length: 12 }, (_, index) => ({ number: index + 1, conclusion: "failure" })),
+            ],
+          },
+        ],
+      },
+    });
+    expect(await getFailedNonBuiltinJobs()).toEqual([{ name: "publisher", html_url: null, failed_steps: [10000, 1, 2, 3, 4, 5, 6, 7, 8, 9] }]);
+  });
+
+  it("does not attach step metadata to an ambiguous job match", async () => {
+    vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ agent: { result: "failure" }, publisher: { result: "failure" } }));
+    vi.stubEnv("GH_AW_JOB_DISPLAY_NAMES", JSON.stringify({ agent: "Shared name", publisher: "Shared name" }));
+    global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
+      data: { jobs: [{ name: "Shared name", conclusion: "failure", html_url: null, steps: [{ number: 5, conclusion: "failure" }] }] },
+    });
+    expect(await getFailedNonBuiltinJobs()).toEqual([{ name: "publisher", html_url: process.env.GH_AW_RUN_URL }]);
   });
 
   it.each(["push_repo_memory", "push_ledger_changes", "push_evals_state"])("includes persistent git error text in the %s failure issue", async jobId => {
