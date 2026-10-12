@@ -46,7 +46,8 @@ describe("report_incomplete_handler.cjs handler", () => {
       expect(result.reason).toBe("MCP server crashed on pull_request_read call");
       expect(result.details).toBeNull();
       expect(result.timestamp).toBeDefined();
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("MCP server crashed on pull_request_read call"));
+      expect(mockCore.warning).toHaveBeenCalledWith("report_incomplete: task completion unconfirmed");
+      expect(JSON.stringify(mockCore.warning.mock.calls)).not.toContain("MCP server crashed");
     });
 
     it("should process report_incomplete message with reason and details", async () => {
@@ -62,7 +63,8 @@ describe("report_incomplete_handler.cjs handler", () => {
       expect(result.reason).toBe("GitHub authentication failed");
       expect(result.details).toBe("GH_TOKEN is not set, direct API returned 404 for private repo");
       expect(result.timestamp).toBeDefined();
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GH_TOKEN is not set"));
+      expect(JSON.stringify([...mockCore.info.mock.calls, ...mockCore.warning.mock.calls])).not.toContain("GH_TOKEN is not set");
+      expect(JSON.stringify(mockCore.warning.mock.calls)).not.toContain("GitHub authentication failed");
     });
 
     it("should reject message missing reason field", async () => {

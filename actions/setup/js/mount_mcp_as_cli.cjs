@@ -85,6 +85,25 @@ function getSafeOutputsGatewayEmptyFlagPath() {
 }
 
 /**
+ * Remove safe-output registration evidence left by a previous setup run.
+ *
+ * @param {string} [runnerTemp]
+ */
+function clearStaleSafeOutputsRegistrationEvidence(runnerTemp = RUNNER_TEMP) {
+  const evidencePaths = [path.join(runnerTemp, "gh-aw", "safeoutputs", "gateway_empty.flag"), path.join(runnerTemp, "gh-aw", "mcp-cli", "tools", "safeoutputs.json")];
+  for (const evidencePath of evidencePaths) {
+    try {
+      fs.unlinkSync(evidencePath);
+    } catch (err) {
+      const isMissingFile = err !== null && typeof err === "object" && "code" in err && err.code === "ENOENT";
+      if (!isMissingFile) {
+        throw new Error(`Failed to clear stale safe-output registration evidence at ${evidencePath}: ${getErrorMessage(err)}`, { cause: err });
+      }
+    }
+  }
+}
+
+/**
  * Write a flag file that signals the safeoutputs MCP gateway registered 0 tools.
  * collect_ndjson_output.cjs reads this flag and fails the conclusion job with a
  * clear infra error instead of silently treating the missing outputs.jsonl as a
@@ -517,6 +536,7 @@ async function main() {
   const core = global.core;
 
   core.info("Mounting MCP servers as CLI tools...");
+  clearStaleSafeOutputsRegistrationEvidence();
 
   if (!fs.existsSync(MANIFEST_FILE)) {
     core.info("No MCP CLI manifest found, skipping CLI mounting");
@@ -692,6 +712,7 @@ module.exports = {
   loadToolsFromJSONFile,
   recoverSafeOutputsToolsIfNeeded,
   getSafeOutputsGatewayEmptyFlagPath,
+  clearStaleSafeOutputsRegistrationEvidence,
   writeSafeOutputsGatewayEmptyFlag,
   SERVER_VALIDATORS,
   buildMCPCLIServersPromptList,
