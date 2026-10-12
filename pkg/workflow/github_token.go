@@ -8,6 +8,12 @@ import (
 
 var tokenLog = logger.New("workflow:github_token")
 
+var copilotCodingAgentGitHubTokenSecrets = []string{
+	"GH_AW_AGENT_TOKEN",
+	"GH_AW_GITHUB_TOKEN",
+	"GITHUB_TOKEN",
+}
+
 func wrapGitHubExpression(expression string) string {
 	return "${{ " + strings.TrimSpace(expression) + " }}"
 }
@@ -92,8 +98,12 @@ func getEffectiveCopilotCodingAgentGitHubToken(customToken string) string {
 		tokenLog.Print("Using custom agent GitHub token")
 		return customToken
 	}
-	tokenLog.Print("Using default agent GitHub token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)")
-	return "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+	tokenLog.Printf("Using default agent GitHub token fallback chain (%s)", strings.Join(copilotCodingAgentGitHubTokenSecrets, " || "))
+	expressions := make([]string, 0, len(copilotCodingAgentGitHubTokenSecrets))
+	for _, secret := range copilotCodingAgentGitHubTokenSecrets {
+		expressions = append(expressions, "secrets."+secret)
+	}
+	return wrapGitHubExpression(strings.Join(expressions, " || "))
 }
 
 // Match the assignment token's precedence without exposing a custom expression or secret value.
@@ -101,7 +111,12 @@ func getEffectiveCopilotCodingAgentGitHubTokenSource(customToken string) string 
 	if customToken != "" {
 		return `"configured"`
 	}
-	return "${{ secrets.GH_AW_AGENT_TOKEN != '' && 'GH_AW_AGENT_TOKEN' || secrets.GH_AW_GITHUB_TOKEN != '' && 'GH_AW_GITHUB_TOKEN' || secrets.GITHUB_TOKEN != '' && 'GITHUB_TOKEN' || 'unavailable' }}"
+	expressions := make([]string, 0, len(copilotCodingAgentGitHubTokenSecrets)+1)
+	for _, secret := range copilotCodingAgentGitHubTokenSecrets {
+		expressions = append(expressions, "secrets."+secret+" != '' && '"+secret+"'")
+	}
+	expressions = append(expressions, "'unavailable'")
+	return wrapGitHubExpression(strings.Join(expressions, " || "))
 }
 
 // getEffectiveProjectGitHubToken returns the GitHub token to use for GitHub Projects v2 operations,

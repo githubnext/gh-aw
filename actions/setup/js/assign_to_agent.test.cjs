@@ -166,6 +166,28 @@ describe("assign_to_agent", () => {
   });
 
   describe("failure-only credential diagnostics", () => {
+    it.each([
+      ["ghs_test_sensitive", "GitHub App installation token"],
+      ["github_pat_test_sensitive", "fine-grained PAT"],
+      ["ghp_test_sensitive", "classic PAT"],
+      ["ghu_test_sensitive", "GitHub App user access token"],
+      ["gho_test_sensitive", "OAuth access token"],
+      ["opaque-test-sensitive", "unknown"],
+      ["prefix_ghs_test_sensitive", "unknown"],
+      ["", "unknown"],
+      [undefined, "unknown"],
+      [null, "unknown"],
+      [123, "unknown"],
+      [true, "unknown"],
+      [{ startsWith: () => true }, "unknown"],
+    ])("classifies %j without inspecting non-string tokens", async (token, category) => {
+      const tokenFormat = await eval(`(async () => {
+        ${assignToAgentScript};
+        return classifyTokenFormat(token);
+      })()`);
+      expect(tokenFormat).toBe(category);
+    });
+
     it.each(["GH_AW_AGENT_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"])("reports the selected %s source without listing other candidates", async source => {
       const token = "github_pat_test_sensitive";
       vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", token);
@@ -203,7 +225,7 @@ describe("assign_to_agent", () => {
         ${assignToAgentScript};
         return describeAssignmentCredentialFailure({ "github-token": token }, "Bad credentials");
       })()`);
-      expect(diagnostic).toContain("credential source: the configured assign-to-agent credential.");
+      expect(diagnostic).toContain("credential source: the configured assignment credential.");
       expect(diagnostic).toContain("Credential format: classic PAT");
       expect(diagnostic).not.toContain(token);
     });
@@ -270,7 +292,7 @@ describe("assign_to_agent", () => {
         ${assignToAgentScript};
         return describeAssignmentCredentialFailure({ "github-token": token }, "Bad credentials");
       })()`);
-      expect(diagnostic).toMatch(/configured assign-to-agent credential.*GitHub App installation token.*GH_AW_AGENT_TOKEN/);
+      expect(diagnostic).toMatch(/configured assignment credential.*GitHub App installation token.*GH_AW_AGENT_TOKEN/);
       expect(diagnostic).not.toContain(token);
       expect(mockGithub.request).not.toHaveBeenCalled();
       expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
