@@ -774,7 +774,7 @@ function restoreCheckpointState(checkpoint) {
   const invalid = () => queueError("checkpoint_invalid", "checkpoint state does not bind a valid prior projection");
   if (checkpoint.previous !== null || checkpoint.actor.role !== "administrator" || checkpoint.request.kind !== "checkpoint") throw invalid();
   const wire = op.state;
-  const snapshot = expandCheckpointSnapshot(wire);
+  const snapshot = structuredClone(expandCheckpointSnapshot(wire));
   closed(
     snapshot,
     [
@@ -1318,19 +1318,22 @@ function serializeProjection(state) {
   };
 }
 
-function replayTransactionLog(contents) {
-  log.debug("ledger.replay.start");
+function parseTransactionRecords(contents) {
   if (typeof contents !== "string" || Buffer.byteLength(contents, "utf8") > 80 * 1024 * 1024) throw queueError("resource_limit", "ledger exceeds cold parser bound");
   if (!contents || !contents.endsWith("\n")) throw queueError("ledger_invalid", "queue log must be nonempty and newline terminated");
   const lines = contents.split("\n");
   if (lines.at(-1) === "") lines.pop();
   if (lines.some(line => !line.trim())) throw queueError("ledger_invalid", "empty or truncated log record");
-  const commits = lines.map((line, index) => {
+  return lines.map((line, index) => {
     if (Buffer.byteLength(line, "utf8") > 8 * 1024 * 1024) throw queueError("resource_limit", `commit line ${index + 1} exceeds parser bound`);
     return parseStrictJSON(line);
   });
-  const state = replayTransactions(commits);
-  log.debug("ledger.replay.complete", { transactions: commits.length, works: state.works.size, claims: state.claims.size });
+}
+
+function replayTransactionLog(contents) {
+  log.debug("ledger.replay.start");
+  const state = replayTransactions(parseTransactionRecords(contents));
+  log.debug("ledger.replay.complete", { transactions: state.transactions.length, works: state.works.size, claims: state.claims.size });
   return state;
 }
 
@@ -1477,6 +1480,7 @@ module.exports = {
   newState,
   oldestAvailableWork: unsupportedDirectClaim,
   parseTransactionLog,
+  parseTransactionRecords,
   planDispatchWithObservations,
   prepareCheckpoint,
   proposedCommitId,
