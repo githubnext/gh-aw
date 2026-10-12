@@ -379,6 +379,9 @@ func prepareAuditWorkflowRun(ctx context.Context, cfg auditRunConfig) (WorkflowR
 func fetchAuditRunWithCache(ctx context.Context, cfg auditRunConfig) (WorkflowRun, bool, bool, error) {
 	hasLocalCache := fileutil.DirExists(cfg.outputDir) && !fileutil.IsDirEmpty(cfg.outputDir)
 	run, err := fetchWorkflowRunMetadata(ctx, cfg.runID, cfg.owner, cfg.repo, cfg.hostname, cfg.verbose)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return WorkflowRun{}, false, false, ctxErr
+	}
 	if err == nil {
 		return run, hasLocalCache, false, nil
 	}

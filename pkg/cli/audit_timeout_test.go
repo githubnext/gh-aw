@@ -6,7 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -15,7 +18,7 @@ import (
 )
 
 func TestIncompleteAuditTimeout(t *testing.T) {
-	for _, stage := range []string{"metadata", "artifacts", "analysis", "job_logs"} {
+	for _, stage := range []string{"metadata", "artifacts", "analysis", "report", "job_logs"} {
 		t.Run(stage, func(t *testing.T) {
 			dir := t.TempDir()
 			cfg := auditRunConfig{runID: 123, outputDir: dir, jsonOutput: true}
@@ -35,7 +38,7 @@ func TestIncompleteAuditTimeout(t *testing.T) {
 			require.True(t, ok)
 			assert.InDelta(t, 123, overview["run_id"], 0)
 			assert.Equal(t, "example", overview["workflow_name"])
-			if stage == "analysis" {
+			if stage == "analysis" || stage == "report" {
 				assert.NotEmpty(t, data["missing_data"])
 			} else {
 				assert.NotContains(t, data, "missing_data")
@@ -152,4 +155,143 @@ func TestAuditExpiredDeadlineReturnsIncompleteJSON(t *testing.T) {
 	assert.Equal(t, true, envelope["partial"])
 	assert.Equal(t, false, envelope["complete"])
 	assert.Equal(t, "metadata", envelope["stage"])
+}
+
+func TestAuditMetadataRetrievalDeadlineReturnsMetadataStage(t *testing.T) {
+	withFakeBlockingGH(t)
+	outputDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	stdout, _ := captureOutput(t, func() error {
+		skipped, err := AuditWorkflowRun(ctx, 123, AuditOptions{
+			Hostname: "github.com", OutputDir: outputDir, JSONOutput: true,
+		})
+		assert.False(t, skipped)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		return nil
+	})
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &envelope))
+	assert.Equal(t, "metadata", envelope["stage"])
+	assert.Equal(t, false, envelope["complete"])
+	assert.NoFileExists(t, filepath.Join(outputDir, "run-123", "run_summary.json"))
+}
+
+func installAuditPipelineFakeGH(t *testing.T, baselineStarted string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("shell script fake gh is not supported on Windows")
+	}
+	dir := t.TempDir()
+	baseline := "echo '[]'"
+	if baselineStarted != "" {
+		baseline = fmt.Sprintf(": > %q; exec sleep 60", baselineStarted)
+	}
+	script := fmt.Sprintf(`#!/bin/sh
+case "$*" in
+  *actions/runs/123/artifacts*) echo '[]' ;;
+  *actions/runs/123*)
+    echo '{"databaseId":123,"workflowName":"example","workflowPath":".github/workflows/test.lock.yml","status":"completed","conclusion":"success"}' ;;
+  *actions/workflows/*/runs*) %s ;;
+  "run download "*) echo 'no valid artifacts found' >&2; exit 1 ;;
+  "run view "*) echo '{"jobs":[]}' ;;
+  *) echo "unexpected gh invocation: $*" >&2; exit 1 ;;
+esac
+`, baseline)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+}
+
+type auditTestDeadlineContext struct {
+	context.Context
+}
+
+func (ctx auditTestDeadlineContext) Err() error {
+	if ctx.Context.Err() != nil {
+		return context.Cause(ctx.Context)
+	}
+	return nil
+}
+
+func TestAuditBaselineDeadlineDoesNotSaveRunSummary(t *testing.T) {
+	outputDir := t.TempDir()
+	baselineStarted := filepath.Join(outputDir, "baseline-started")
+	installAuditPipelineFakeGH(t, baselineStarted)
+	cancelCtx, cancel := context.WithCancelCause(context.Background())
+	ctx := auditTestDeadlineContext{cancelCtx}
+	defer cancel(context.Canceled)
+	// Expire only after the baseline subprocess starts; setup and analysis speed
+	// must not affect which stage receives the deadline.
+	watcherDone := make(chan struct{})
+	go func() {
+		defer close(watcherDone)
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		watchdog := time.NewTimer(30 * time.Second)
+		defer watchdog.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-watchdog.C:
+				cancel(errors.New("fake gh did not reach baseline lookup"))
+				return
+			case <-ticker.C:
+				if _, err := os.Stat(baselineStarted); err == nil {
+					cancel(context.DeadlineExceeded)
+					return
+				}
+			}
+		}
+	}()
+	defer func() {
+		cancel(context.Canceled)
+		<-watcherDone
+	}()
+
+	stdout, _ := captureOutput(t, func() error {
+		skipped, err := AuditWorkflowRun(ctx, 123, AuditOptions{
+			Hostname: "github.com", OutputDir: outputDir, JSONOutput: true,
+		})
+		assert.False(t, skipped)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		return nil
+	})
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &envelope))
+	assert.Equal(t, "report", envelope["stage"], "analysis must finish before the baseline times out")
+	assert.Equal(t, false, envelope["complete"])
+	runDir := filepath.Join(outputDir, "run-123")
+	assert.NoFileExists(t, filepath.Join(runDir, "audit.json"))
+	assert.NoFileExists(t, filepath.Join(runDir, "run_summary.json"))
+}
+
+func TestAuditRenderFailureDoesNotSaveRunSummary(t *testing.T) {
+	installAuditPipelineFakeGH(t, "")
+	outputDir := t.TempDir()
+	closedOutput, err := os.Create(filepath.Join(outputDir, "closed-output"))
+	require.NoError(t, err)
+	require.NoError(t, closedOutput.Close())
+	stdout := os.Stdout
+	os.Stdout = closedOutput
+	defer func() { os.Stdout = stdout }()
+
+	opts := AuditOptions{Hostname: "github.com", OutputDir: outputDir, JSONOutput: true}
+	skipped, err := AuditWorkflowRun(context.Background(), 123, opts)
+	assert.False(t, skipped)
+	require.ErrorContains(t, err, "failed to render JSON output")
+	runDir := filepath.Join(outputDir, "run-123")
+	assert.NoFileExists(t, filepath.Join(runDir, "run_summary.json"))
+
+	os.Stdout = stdout
+	_, _ = captureOutput(t, func() error {
+		skipped, err := AuditWorkflowRun(context.Background(), 123, opts)
+		assert.False(t, skipped)
+		require.NoError(t, err)
+		return nil
+	})
+	assert.FileExists(t, filepath.Join(runDir, "run_summary.json"), "successful retry must populate the cache")
 }
