@@ -13,6 +13,24 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 
+/** @type {Array<[string, string]>} */
+const TOKEN_FORMATS = [
+  ["ghs_", "GitHub App installation token"],
+  ["github_pat_", "fine-grained PAT"],
+  ["ghp_", "classic PAT"],
+  ["ghu_", "GitHub App user access token"],
+  ["gho_", "OAuth access token"],
+];
+
+/**
+ * @param {unknown} token
+ * @returns {string}
+ */
+function classifyTokenFormat(token) {
+  if (typeof token !== "string") return "unknown";
+  return TOKEN_FORMATS.find(([prefix]) => token.startsWith(prefix))?.[1] ?? "unknown";
+}
+
 /**
  * Create a dedicated GitHub client for assign-to-agent operations.
  *
@@ -43,14 +61,15 @@ async function createAssignToAgentGitHubClient(config) {
  */
 function describeAssignmentCredentialFailure(config, errorMessage) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
-  const source = config["github-token"]
-    ? "the configured assign-to-agent credential"
-    : process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN
-      ? "GH_AW_ASSIGN_TO_AGENT_TOKEN (GH_AW_AGENT_TOKEN, GH_AW_GITHUB_TOKEN, or GITHUB_TOKEN)"
-      : "the step-level GitHub token";
+  const compiledSource = process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE || "";
+  const knownSources = new Set(["GH_AW_AGENT_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"]);
+  const dedicatedSource =
+    compiledSource === "configured" ? "the configured assignment credential" : knownSources.has(compiledSource) ? compiledSource : "GH_AW_ASSIGN_TO_AGENT_TOKEN (selected source unavailable; recompile the workflow for source metadata)";
+  const source = config["github-token"] ? "the configured assignment credential" : process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN ? dedicatedSource : "the step-level GitHub token (selected source unavailable)";
   const remedy = renderTemplateFromFile(getPromptPath("copilot_assignment_credential_remedy.md"), {}).trim();
-  const installationToken = typeof token === "string" && token.startsWith("ghs_") ? " The selected credential is a GitHub App installation token." : "";
-  return `${errorMessage}. Agent assignment credential source: ${source}.${installationToken} ${remedy}`;
+  const presence = token ? "present" : "absent (using the step-level client)";
+  const tokenFormat = classifyTokenFormat(token);
+  return `${errorMessage}. Agent assignment credential source: ${source}. Dedicated assignment credential: ${presence}. Credential format: ${tokenFormat} (validity and permissions unverified). ${remedy}`;
 }
 
 /**

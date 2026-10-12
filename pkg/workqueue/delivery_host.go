@@ -54,13 +54,13 @@ type NativeDeliveryHost struct {
 }
 
 func NewNativeDeliveryHost(options NativeDeliveryHostOptions) *NativeDeliveryHost {
-	options.Builtin = copyNativeVerifiers(options.Builtin)
-	options.Declared = copyNativeVerifiers(options.Declared)
+	options.Builtin = copyMap(options.Builtin)
+	options.Declared = copyMap(options.Declared)
 	return &NativeDeliveryHost{options: options}
 }
 
-func copyNativeVerifiers(values map[string]NativeOutputVerifier) map[string]NativeOutputVerifier {
-	copy := make(map[string]NativeOutputVerifier, len(values))
+func copyMap[M ~map[string]V, V any](values M) M {
+	copy := make(M, len(values))
 	maps.Copy(copy, values)
 	return copy
 }
@@ -72,12 +72,6 @@ func copyNativeDeliveryScope(scope NativeDeliveryScope) NativeDeliveryScope {
 		scope.Member.ResultRefs[index].Descriptor = slices.Clone(scope.Member.ResultRefs[index].Descriptor)
 	}
 	return scope
-}
-
-func copyNativeEffectResource(resource EffectResource) EffectResource {
-	copy := make(EffectResource, len(resource))
-	maps.Copy(copy, resource)
-	return copy
 }
 
 type nativeDeclaredOutput struct {
@@ -316,10 +310,10 @@ func (host *NativeDeliveryHost) readNativeDeliveryOutput(ctx context.Context, st
 	if verify == nil || host.options.Credentials == nil {
 		return nil, false, nil
 	}
-	if err := host.options.Credentials(ctx, copyNativeDeliveryScope(delivery.scope), copyNativeEffectResource(output.Target)); err != nil {
+	if err := host.options.Credentials(ctx, copyNativeDeliveryScope(delivery.scope), copyMap(output.Target)); err != nil {
 		return nil, false, err
 	}
-	output.Target = copyNativeEffectResource(output.Target)
+	output.Target = copyMap(output.Target)
 	output.Intent = slices.Clone(output.Intent)
 	descriptor, verified, err := verify(ctx, copyNativeDeliveryScope(delivery.scope), output, intent)
 	if err != nil || !verified {

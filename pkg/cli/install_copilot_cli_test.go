@@ -3,6 +3,11 @@
 package cli
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +17,91 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestInstallCopilotCLIScriptStagesMuslGuestVariant(t *testing.T) {
+	t.Parallel()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	projectRoot := filepath.Join(wd, "..", "..")
+	installScript := filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh")
+	tempDir := t.TempDir()
+	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", "1.2.3", "x64", "bin")
+	require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(toolcacheBin, "copilot"), []byte("#!/usr/bin/env bash\necho 'copilot 1.2.3'\n"), 0o755))
+
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	guestBinary := []byte("musl guest binary")
+	require.NoError(t, tarWriter.WriteHeader(&tar.Header{Name: "copilot", Mode: 0o755, Size: int64(len(guestBinary)), Typeflag: tar.TypeReg}))
+	_, err = tarWriter.Write(guestBinary)
+	require.NoError(t, err)
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
+	guestArchive := filepath.Join(tempDir, "copilot-linuxmusl-x64.tar.gz")
+	require.NoError(t, os.WriteFile(guestArchive, archive.Bytes(), 0o644))
+	checksum := sha256.Sum256(archive.Bytes())
+	checksums := filepath.Join(tempDir, "SHA256SUMS.txt")
+	require.NoError(t, os.WriteFile(checksums, []byte(fmt.Sprintf("%x  copilot-linuxmusl-x64.tar.gz\n", checksum)), 0o644))
+
+	fakeBinDir := filepath.Join(tempDir, "fake-bin")
+	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "uname"), []byte(`#!/usr/bin/env bash
+case "${1:-}" in
+  -s) echo Linux ;;
+  -m) echo x86_64 ;;
+  *) echo Linux ;;
+esac
+`), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "sudo"), []byte(`#!/usr/bin/env bash
+if [ "${1:-}" = "chown" ]; then exit 0; fi
+exec "$@"
+`), 0o755))
+	curlLog := filepath.Join(tempDir, "curl.log")
+	require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "curl"), []byte(`#!/usr/bin/env bash
+set -euo pipefail
+output=""
+url=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o) output="$2"; shift 2 ;;
+    *) url="$1"; shift ;;
+  esac
+done
+echo "$url" >> "$CURL_LOG"
+case "$url" in
+  */SHA256SUMS.txt) cp "$MUSL_CHECKSUMS" "$output" ;;
+  */copilot-linuxmusl-x64.tar.gz) cp "$MUSL_ARCHIVE" "$output" ;;
+  *) echo "unexpected URL: $url" >&2; exit 97 ;;
+esac
+`), 0o755))
+
+	runnerTemp := filepath.Join(tempDir, "runner-temp")
+	installDir := filepath.Join(tempDir, "install-bin")
+	require.NoError(t, os.MkdirAll(installDir, 0o755))
+	cmd := exec.Command("bash", installScript, "1.2.3")
+	cmd.Env = append(os.Environ(),
+		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
+		"COPILOT_INSTALL_DIR="+installDir,
+		"GH_AW_COPILOT_GUEST_LIBC=musl",
+		"RUNNER_TEMP="+runnerTemp,
+		"CURL_LOG="+curlLog,
+		"MUSL_CHECKSUMS="+checksums,
+		"MUSL_ARCHIVE="+guestArchive,
+		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
+	)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	assert.Contains(t, string(output), "Staged musl Copilot CLI")
+	staged, err := os.ReadFile(filepath.Join(runnerTemp, "gh-aw", "nvx-engine", "copilot"))
+	require.NoError(t, err)
+	assert.Equal(t, guestBinary, staged)
+	curlOutput, err := os.ReadFile(curlLog)
+	require.NoError(t, err)
+	assert.Contains(t, string(curlOutput), "copilot-linuxmusl-x64.tar.gz")
+	assert.NotContains(t, string(curlOutput), "copilot-linux-x64.tar.gz")
+}
 
 func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	t.Parallel()

@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.48 | Audit-only clarification that same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | 1.0.47 | Audit-only clarification that same-repository checkout for allow-listed App comments is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | 1.0.46 | Extended CTR-017 OTLP exclusions to evals AWF sandboxes and mapped evals-enabled/disabled regression coverage. |
 | 1.0.45 | Extended CTR-017 with OTLP collector endpoint/header exclusions for agent and inline/external threat-detection AWF sandboxes when `--exclude-env` is supported; retained host-side exporter access and mapped OTLP-enabled/disabled regression coverage. |
@@ -42,6 +43,25 @@ This changelog records the version history and the dated mapping audits for `spe
 | 1.0.7–1.0.0 | Established CTR-001–015, conformance model, and daily reconciliation. |
 
 ## Mapping Audits
+
+### Mapping Audit (2026-10-12)
+
+Reviewed the allow-listed GitHub App checkout exception for `pull_request_review`
+in `actions/setup/js/checkout_pr_branch.cjs`, together with its regression tests,
+RS-05a requirements and validation mapping, and the comment/review checkout TLA+
+model.
+
+Findings and disposition:
+
+- The review exception requires a Bot sender whose login exactly matches the
+  review author and canonically matches the runtime actor, an explicit `on.bots`
+  allow-list entry, and a positive runtime repository ID equal to the API-verified
+  PR head and base repository IDs.
+- Fork PRs, unlisted bots, identity mismatches, missing repository provenance,
+  and other actors retain the collaborator-permission floor.
+- The compiler emits no generated-workflow construct for this runtime trust
+  decision. No `CTR-*` rule is warranted; RS-05a and its formal model specify
+  the authorization boundary.
 
 ### Mapping Audit (2026-10-09)
 

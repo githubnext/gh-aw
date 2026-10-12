@@ -105,6 +105,49 @@ func TestCompileToolDevelopmentPreservesBatchDiagnosticsOnFailure(t *testing.T) 
 	assert.Contains(t, decoded[4].Errors[1].Message, "SC2086")
 }
 
+func TestCompileToolDevelopmentExposesCompilerWarningsWithJSONStdout(t *testing.T) {
+	t.Parallel()
+	const stdout = `[{"workflow":"archie.md","valid":true,"errors":[],"warnings":[]},{"scope":"batch","workflow":"compiler","valid":false,"errors":[{"type":"compiler_warning","message":"compiler reported warnings; review the complete compiler diagnostics"}],"warnings":[]},{"scope":"batch","workflow":"dry-run","valid":false,"errors":[{"type":"development_validation","message":"development testing checks failed"}],"warnings":[]}]`
+	const stderr = "archie.md:12: warning: unknown setting\n  remediation: update the setting\n  https://docs.example.test/config\n✓ compiled archie.md\n⚠ archie.md:25: deprecated setting\n  remediation: replace the deprecated setting\n"
+	mockExec := func(ctx context.Context, _ ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" >&2; exit 1`, "sh", stdout, stderr)
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, mockExec, ""))
+	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "compile", Arguments: map[string]any{"workflows": []string{"archie"}, "dry_run": true, "strict": true},
+	})
+	require.NoError(t, err)
+	var decoded []ValidationResult
+	require.NoError(t, json.Unmarshal([]byte(extractTextResult(t, result)), &decoded))
+	require.Len(t, decoded, 3)
+	assert.True(t, decoded[0].Valid)
+	assert.Empty(t, decoded[0].Warnings)
+	assert.False(t, decoded[1].Valid)
+	require.Len(t, decoded[1].Errors, 1)
+	assert.Equal(t, "compiler_warning", decoded[1].Errors[0].Type)
+	assert.Contains(t, decoded[1].Errors[0].Message, "archie.md:12: warning: unknown setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "remediation: update the setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "https://docs.example.test/config")
+	assert.Contains(t, decoded[1].Errors[0].Message, "archie.md:25: deprecated setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "remediation: replace the deprecated setting")
+	assert.NotContains(t, decoded[1].Errors[0].Message, "compiled archie.md")
+	assert.False(t, decoded[2].Valid)
+	assert.Equal(t, "development testing checks failed", decoded[2].Errors[0].Message)
+}
+
+func TestCompileToolDevelopmentPreservesCleanJSONWithStderrWarning(t *testing.T) {
+	t.Parallel()
+	const stdout = `[{"workflow":"archie.md","valid":true,"errors":[],"warnings":[]}]`
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, mockCommandWithOutput(stdout, "⚠ informational warning\n"), ""))
+	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "compile", Arguments: map[string]any{"workflows": []string{"archie"}, "dry_run": true},
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, stdout, extractTextResult(t, result))
+}
+
 func mockCommandWithOutput(stdoutText, stderrText string) execCmdFunc {
 	return func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" 1>&2`, "sh", stdoutText, stderrText)

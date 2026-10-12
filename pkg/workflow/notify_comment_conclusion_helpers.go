@@ -542,6 +542,9 @@ func (c *Compiler) buildConclusionScriptEnvVars(data *WorkflowData, mainJobName 
 	}
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	envVars = append(envVars, buildModelRoutingOutputEnvVars(data.EngineConfig, mainJobName)...)
+	if data.SafeOutputs.NoOp != nil {
+		envVars = append(envVars, "          GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}\n")
+	}
 	if slices.Contains(safeOutputJobNames, string(constants.SafeOutputsJobName)) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.%s.result }}\n", constants.SafeOutputsJobName))
 		notifyCommentLog.Print("Added safe_outputs job result environment variable to conclusion job")
@@ -641,6 +644,9 @@ func buildConclusionJobOutputs(data *WorkflowData) map[string]string {
 	outputs := map[string]string{}
 	if data.SafeOutputs.NoOp != nil {
 		outputs["noop_message"] = "${{ steps.noop.outputs.noop_message }}"
+		if !isWorkQueueParticipant(data) {
+			outputs["noop_comment_body"] = "${{ steps.noop.outputs.noop_comment_body }}"
+		}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		outputs["tools_reported"] = "${{ steps.missing_tool.outputs.tools_reported }}"
