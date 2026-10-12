@@ -310,6 +310,9 @@ func (c *Compiler) safeOutputGitHubTokenSource(data *WorkflowData) string {
 	safeOutputs := data.SafeOutputs
 	if safeOutputs.GitHubApp == nil {
 		if safeOutputs.GitHubToken != "" {
+			if safeOutputs.GitHubToken == "${{ secrets.GITHUB_TOKEN }}" || safeOutputs.GitHubToken == "${{ github.token }}" {
+				return `"github_actions"`
+			}
 			return `"unknown"`
 		}
 		return "${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'pat' || 'github_actions' }}"
