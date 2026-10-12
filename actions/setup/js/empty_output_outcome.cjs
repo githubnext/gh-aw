@@ -78,20 +78,37 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   const validTools = tools => Array.isArray(tools) && tools.every(tool => typeof tool?.name === "string" && tool.name.length > 0);
   if (flag.status === "recorded") {
     availability = "unavailable (gateway registered zero tools)";
+  } else if (flag.status === "unreadable") {
+    availability = "unknown (registration evidence could not be read)";
   } else {
-    const evidence = cache.status === "not recorded" ? gateway : cache;
-    if (evidence.status === "recorded") {
+    let invalidRegistration = false;
+    let unreadableRegistration = false;
+    for (const { evidence, source } of [
+      { evidence: cache, source: "setup" },
+      { evidence: gateway, source: "gateway snapshot" },
+    ]) {
+      if (evidence.status === "unreadable") {
+        unreadableRegistration = true;
+        continue;
+      }
+      if (evidence.status !== "recorded") continue;
       try {
         const value = JSON.parse(evidence.content);
-        const tools = evidence === cache ? value : value?.servers?.safeoutputs;
-        availability = validTools(tools)
-          ? `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`
-          : "unknown (invalid registration evidence)";
+        const tools = source === "setup" ? value : value?.servers?.safeoutputs;
+        if (!validTools(tools)) {
+          invalidRegistration = true;
+          continue;
+        }
+        availability = `${tools.length ? "available" : "unavailable"} at ${source} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`;
+        break;
       } catch {
-        availability = "unknown (registration evidence could not be read)";
+        unreadableRegistration = true;
       }
-    } else if (evidence.status === "unreadable" || flag.status === "unreadable") {
+    }
+    if (availability.startsWith("unknown") && unreadableRegistration) {
       availability = "unknown (registration evidence could not be read)";
+    } else if (availability.startsWith("unknown") && invalidRegistration) {
+      availability = "unknown (invalid registration evidence)";
     }
   }
   const summary = [`Safe-output tools: ${availability}`];

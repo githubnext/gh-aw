@@ -197,6 +197,21 @@ describe("empty output outcome", () => {
     expect(outcome.details).not.toContain("private-malformed-json");
   });
 
+  it.each(["corrupted cache", "cache directory"])("uses the gateway snapshot when the setup cache is unreadable (%s)", cacheState => {
+    const cachePath = path.join(rootDir, "gh-aw/mcp-cli/tools/safeoutputs.json");
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    if (cacheState === "cache directory") {
+      fs.mkdirSync(cachePath);
+    } else {
+      fs.writeFileSync(cachePath, "private-malformed-json");
+    }
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool" }] } }));
+    const summary = buildCompletionEvidence(rootDir).join("\n");
+    expect(summary).toContain("Safe-output tools: available at gateway snapshot (registered 1 tool)");
+    expect(summary).not.toContain("private-");
+  });
+
   it("uses archived gateway registration when the setup cache is no longer present", () => {
     fs.mkdirSync(path.join(rootDir, "mcp-logs"));
     fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool", description: "private-description", inputSchema: { private: "private-schema" } }] } }));
@@ -212,6 +227,15 @@ describe("empty output outcome", () => {
     fs.writeFileSync(path.join(rootDir, "gh-aw/mcp-cli/tools/safeoutputs.json"), "[]");
     fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "noop" }] } }));
     expect(buildCompletionEvidence(rootDir).join("\n")).toContain("unavailable at setup (registered 0 tools)");
+  });
+
+  it("reports unknown availability when the gateway-empty flag is unreadable", () => {
+    const ghAwDir = path.join(rootDir, "gh-aw");
+    const toolsDir = path.join(ghAwDir, "mcp-cli/tools");
+    fs.mkdirSync(toolsDir, { recursive: true });
+    fs.writeFileSync(path.join(toolsDir, "safeoutputs.json"), JSON.stringify([{ name: "noop" }]));
+    fs.mkdirSync(path.join(ghAwDir, "safeoutputs/gateway_empty.flag"), { recursive: true });
+    expect(buildCompletionEvidence(rootDir)[0]).toBe("Safe-output tools: unknown (registration evidence could not be read)");
   });
 
   it.each(["rpc_request", "REQUEST"])("counts %s calls separately from CLI attempts without publishing arguments or responses", event => {
