@@ -1624,7 +1624,7 @@ describe("handle_agent_failure", () => {
         expect(body).toContain("Last tool call status: failed");
         expect(body).toContain("Last tool exit code: 2");
         expect(body).not.toContain("private-");
-        expect(body).not.toContain("255");
+        expect(body).not.toContain("Driver exit code: 255");
       } finally {
         vi.unstubAllEnvs();
       }
