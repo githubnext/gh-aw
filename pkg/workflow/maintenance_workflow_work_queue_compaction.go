@@ -39,7 +39,7 @@ func buildMaintenanceWorkQueueIssueClosureJob(opts buildMaintenanceWorkflowYAMLO
 	b.WriteString(`
   work_queue_issue_closure:
     name: Cancel Work for closed related Issue
-    if: ${{ github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.pull_request == null && github.event.repository.fork == false }}
+    if: ${{ ` + RenderCondition(buildIssueClosureCondition()) + ` }}
     runs-on: ` + opts.runsOnValue + `
     permissions:
       contents: write

@@ -11,7 +11,11 @@ const { actorFromContext } = require("./work_queue_policy.cjs");
 const { newRequest, generateRequestOperations } = require("./work_queue_replay.cjs");
 const { readWorkQueueLog, publishWorkQueueRequest } = require("./work_queue_store.cjs");
 
-const REASON = "backing_issue_closed";
+const REASON = "related_issue_closed";
+
+function closureIdentity(resource, workId) {
+  return digest({ resource, work_id: workId });
+}
 
 async function readIssuesConfig(githubClient, context) {
   let response;
@@ -94,7 +98,7 @@ async function main(options = {}) {
   if (!(await fresh(githubClient, context, resource, config))) return { status: "stale" };
   const actor = actorFromContext(trusted);
   const operation = { kind: "WorkCancellation", work_id: work.work_id, reason: REASON };
-  const request = newRequest(`issue-closed:${digest(resource)}`, "cancel_work", actor, { operations: [operation] });
+  const request = newRequest(`issue-closed:${closureIdentity(resource, work.work_id)}`, "cancel_work", actor, { operations: [operation] });
   const publish = options.publishWorkQueueRequest || publishWorkQueueRequest;
   let result;
   if (work.state !== "cancelled" && work.state !== "completed")
@@ -121,11 +125,13 @@ async function main(options = {}) {
   const terminal = finalWork?.state === "completed" ? finalWork.completion_id : finalWork?.state === "cancelled" ? finalWork.cancellation_commit_id : undefined;
   if (!terminal || (result?.publishedNow === true && !ownReceipt)) return { status: "pending" };
   const state = finalWork.state;
-  const marker = `<!-- gh-aw-issue-closure:${digest(resource)} -->`;
+  const marker = `<!-- gh-aw-issue-closure:${closureIdentity(resource, work.work_id)} -->`;
   if (!(await (options.hasConfirmation || hasConfirmation)(githubClient, context, number, marker))) {
     const outcome =
       state === "cancelled"
-        ? "Cancellation was recorded in the work queue ledger. New state: **cancelled**. The work is now canceled."
+        ? ownReceipt
+          ? "Cancellation was recorded in the work queue ledger. New state: **cancelled**. The work is now canceled."
+          : "The work was already cancelled in the work queue ledger; this Issue closure did not change it. New state: **cancelled**."
         : "The work was already completed in the work queue ledger; this Issue closure did not cancel it. New state: **completed**.";
     const body = `${outcome}\n\n[View the work queue ledger](https://github.com/${repository}/blob/work-queue/work-queue.jsonl).\n\n${marker}`;
     try {

@@ -2023,7 +2023,7 @@ jobs:
 
   work_queue_issue_closure:
     name: Cancel Work for closed related Issue
-    if: ${{ github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.pull_request == null && github.event.repository.fork == false }}
+    if: ${{ (!(github.event.repository.fork)) && github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.pull_request == null }}
     runs-on: ubuntu-slim
     permissions:
       contents: write

@@ -56,7 +56,7 @@ func TestMaintenanceWorkQueueIssueClosureTriggerAndJob(t *testing.T) {
 	assert.Contains(t, trigger, "types: [closed]")
 	assert.Contains(t, buildMaintenanceWorkflowTriggerYAML(opts, true, false, "", ""), "types: [labeled, closed]")
 	job := buildMaintenanceWorkQueueIssueClosureJob(opts, "./actions/setup")
-	assert.Contains(t, job, "github.event_name == 'issues' && github.event.action == 'closed'")
+	assert.Contains(t, job, RenderCondition(buildIssueClosureCondition()))
 	assert.Contains(t, job, "contents: write")
 	assert.Contains(t, job, "issues: write")
 	assert.Contains(t, job, "cancel_work_queue_closed_issue.cjs")

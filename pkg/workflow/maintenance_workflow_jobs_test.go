@@ -690,6 +690,7 @@ func TestBuildLabeledApplySafeOutputsCondition(t *testing.T) {
 	if !strings.Contains(rendered, "github.event_name == 'issues'") {
 		t.Errorf("Condition should include issues event, got: %s", rendered)
 	}
+
 	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
 		t.Errorf("Condition must not include pull_request event (issues-only), got: %s", rendered)
 	}
@@ -702,5 +703,19 @@ func TestBuildLabeledApplySafeOutputsCondition(t *testing.T) {
 	// Should exclude forks
 	if !strings.Contains(rendered, "github.event.repository.fork") {
 		t.Errorf("Condition should exclude forks, got: %s", rendered)
+	}
+}
+
+func TestBuildIssueClosureCondition(t *testing.T) {
+	rendered := RenderCondition(buildIssueClosureCondition())
+	for _, expected := range []string{
+		"github.event_name == 'issues'",
+		"github.event.action == 'closed'",
+		"github.event.issue.pull_request == null",
+		"github.event.repository.fork",
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Errorf("Condition should contain %q, got: %s", expected, rendered)
+		}
 	}
 }

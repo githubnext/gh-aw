@@ -176,6 +176,27 @@ func buildLabeledApplySafeOutputsCondition() ConditionNode {
 	)
 }
 
+// buildIssueClosureCondition creates a condition for closed Issue events that
+// are not pull requests and do not come from forks.
+func buildIssueClosureCondition() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildAnd(
+			BuildEventTypeEquals("issues"),
+			BuildAnd(
+				BuildEquals(
+					BuildPropertyAccess("github.event.action"),
+					BuildStringLiteral("closed"),
+				),
+				BuildEquals(
+					BuildPropertyAccess("github.event.issue.pull_request"),
+					BuildNullLiteral(),
+				),
+			),
+		),
+	)
+}
+
 // buildRunOperationCondition creates the condition for the unified run_operation
 // job that handles all dispatch/call operations except the ones with dedicated jobs.
 // Condition: (dispatch || call) && operation != ” && operation != each excluded && !fork.

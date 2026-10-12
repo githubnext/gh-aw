@@ -37,7 +37,7 @@ function fixture(initialWork = work) {
   const publishWorkQueueRequest = vi.fn(async args => {
     const decision = await args.generateOperations(state, args.request, args.actor, Date.now(), "commit", []);
     if (decision.operations.length) {
-      confirmed.works.set(initialWork.work_id, { ...initialWork, state: "cancelled", cancellation_reason: "backing_issue_closed", cancellation_commit_id: "commit" });
+      confirmed.works.set(initialWork.work_id, { ...initialWork, state: "cancelled", cancellation_reason: "related_issue_closed", cancellation_commit_id: "commit" });
       confirmed.requests.set(args.request.id, { request: args.request, operations: decision.operations });
     }
     return { publishedNow: decision.operations.length > 0 };
@@ -59,6 +59,18 @@ function fixture(initialWork = work) {
 }
 
 describe("closed backing Issue cancellation", () => {
+  it("ignores non-closed issue events and is disabled without Issue mirroring", async () => {
+    const event = fixture();
+    event.options.context = { ...context, payload: { ...context.payload, action: "labeled" } };
+    expect(await main(event.options)).toEqual({ status: "ignored" });
+    expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+
+    const disabled = fixture();
+    disabled.options.issues = false;
+    expect(await main(disabled.options)).toEqual({ status: "disabled" });
+    expect(disabled.options.authenticatePublisher).not.toHaveBeenCalled();
+  });
+
   it("uses repository Issue settings from the event revision", async () => {
     const githubClient = {
       rest: {
@@ -69,7 +81,7 @@ describe("closed backing Issue cancellation", () => {
         },
       },
     };
-    expect(await readIssuesConfig(githubClient, context)).toEqual({ label: "tasks" });
+    expect(await readIssuesConfig(githubClient, context)).toMatchObject({ label: "tasks" });
     expect(githubClient.rest.repos.getContent).toHaveBeenCalledWith({ ...context.repo, path: ".github/workflows/aw.json", ref: context.sha });
   });
   it("binds exact immutable identity rather than an Issue number or label", () => {
@@ -81,6 +93,7 @@ describe("closed backing Issue cancellation", () => {
   it("selects an exact Issue subject but never a dependency-only Issue", async () => {
     const subject = fixture({ ...work, backing_issue: undefined, subject: resource });
     expect((await main(subject.options)).status).toBe("cancelled");
+    expect(subject.publishWorkQueueRequest.mock.calls[0][0].request.parameters.operations[0].reason).toBe("related_issue_closed");
     const dependency = fixture({ ...work, backing_issue: undefined, subject: undefined, dependencies: [resource] });
     expect((await main(dependency.options)).status).toBe("unbound");
     expect(dependency.publishWorkQueueRequest).not.toHaveBeenCalled();
@@ -119,7 +132,7 @@ describe("closed backing Issue cancellation", () => {
     const args = publishWorkQueueRequest.mock.calls[0][0];
     expect(args.actor.role).toBe("administrator");
     expect(args.request.kind).toBe("cancel_work");
-    expect(args.request.parameters.operations).toEqual([{ kind: "WorkCancellation", work_id: "work_1", reason: "backing_issue_closed" }]);
+    expect(args.request.parameters.operations).toEqual([{ kind: "WorkCancellation", work_id: "work_1", reason: "related_issue_closed" }]);
     expect(githubClient.rest.issues.createComment).toHaveBeenCalledOnce();
     expect(githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("Cancellation was recorded in the work queue ledger. New state: **cancelled**. The work is now canceled.");
   });
@@ -151,6 +164,7 @@ describe("closed backing Issue cancellation", () => {
     expect((await main(recovered.options)).status).toBe("cancelled");
     expect(recovered.publishWorkQueueRequest).not.toHaveBeenCalled();
     expect(recovered.githubClient.rest.issues.createComment).toHaveBeenCalledOnce();
+    expect(recovered.githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("this Issue closure did not change it");
     const duplicate = fixture(old);
     duplicate.githubClient.rest.issues.listComments.mockResolvedValueOnce({ data: [{ body: recovered.githubClient.rest.issues.createComment.mock.calls[0][0].body }] });
     expect((await main(duplicate.options)).status).toBe("cancelled");
@@ -166,7 +180,9 @@ describe("closed backing Issue cancellation", () => {
   it("checks an uncertain comment response rather than blindly retrying it", async () => {
     const uncertain = fixture({ ...work, state: "completed", completion_id: "commit" });
     uncertain.githubClient.rest.issues.createComment.mockRejectedValueOnce(new Error("response lost"));
-    uncertain.githubClient.rest.issues.listComments.mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [{ body: "<!-- gh-aw-issue-closure:" + require("./work_queue_codec.cjs").digest(resource) + " -->" }] });
+    uncertain.githubClient.rest.issues.listComments
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ body: "<!-- gh-aw-issue-closure:" + require("./work_queue_codec.cjs").digest({ resource, work_id: "work_1" }) + " -->" }] });
     expect((await main(uncertain.options)).status).toBe("completed");
     expect(uncertain.githubClient.rest.issues.createComment).toHaveBeenCalledOnce();
     const unresolved = fixture({ ...work, state: "completed", completion_id: "commit" });
@@ -180,5 +196,25 @@ describe("closed backing Issue cancellation", () => {
     invalid.options.context = { ...context, payload: { ...context.payload, repository: { id: 13, full_name: "owner/repo" } } };
     await expect(main(invalid.options)).rejects.toThrow("repository");
     expect(invalid.publishWorkQueueRequest).not.toHaveBeenCalled();
+  });
+
+  it("requires the authenticated primary maintenance workflow", async () => {
+    const invalid = fixture();
+    invalid.options.authenticatePublisher = vi.fn(async () => ({ ...trusted, workflow: ".github/workflows/agentics-maintenance-owner-repo.yml" }));
+    await expect(main(invalid.options)).rejects.toThrow("authenticated maintenance workflow");
+    expect(invalid.publishWorkQueueRequest).not.toHaveBeenCalled();
+  });
+
+  it("scopes request and confirmation identities to Work when an Issue is reused", async () => {
+    const first = fixture({ ...work, work_id: "first_work" });
+    const second = fixture({ ...work, work_id: "second_work" });
+    await main(first.options);
+    await main(second.options);
+    const firstRequest = first.publishWorkQueueRequest.mock.calls[0][0].request;
+    const secondRequest = second.publishWorkQueueRequest.mock.calls[0][0].request;
+    const firstComment = first.githubClient.rest.issues.createComment.mock.calls[0][0].body;
+    const secondComment = second.githubClient.rest.issues.createComment.mock.calls[0][0].body;
+    expect(firstRequest.id).not.toBe(secondRequest.id);
+    expect(firstComment.match(/gh-aw-issue-closure:[^ ]+/)[0]).not.toBe(secondComment.match(/gh-aw-issue-closure:[^ ]+/)[0]);
   });
 });
