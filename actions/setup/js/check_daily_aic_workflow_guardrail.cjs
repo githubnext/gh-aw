@@ -12,7 +12,7 @@ const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
-const { createAPIBudget, retryNotBefore, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
+const { createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError } = require("./daily_aic_api_budget.cjs");
 const { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
@@ -30,8 +30,8 @@ const REPO_MEMORY_BACKEND = "repo-memory";
 /**
  * @returns {Promise<any>}
  */
-async function getArtifactClient(onResponse) {
-  return new DefaultArtifactClient({ onResponse });
+async function getArtifactClient(onResponse, request) {
+  return new DefaultArtifactClient({ onResponse, request });
 }
 
 /**
@@ -671,7 +671,8 @@ async function main(options = {}) {
     return;
   }
 
-  // API failures stop this scan; do not spend more quota on the next history run.
+  // Quota and permanent API failures stop the scan; transient historical reads
+  // may use conservative per-run estimates after bounded retries.
   try {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GH_AW_WORKFLOW_ID || "workflow";
     let actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || process.env.GITHUB_ACTOR || "";
@@ -727,7 +728,7 @@ async function main(options = {}) {
     }
     const githubClient = createRateLimitAwareGithub(github);
     const budget = createAPIBudget();
-    const artifactClient = await module.exports.getArtifactClient(budget.observe);
+    const artifactClient = await module.exports.getArtifactClient(undefined, budget.request);
     const { countedRuns, candidateRunsCount, cacheHits, current } = await scanDailyAIC({
       github: githubClient,
       context,
@@ -792,7 +793,7 @@ async function main(options = {}) {
     core.setOutput("daily_ai_credits_guardrail_status", status);
     core.setOutput("daily_ai_credits_guardrail_error", message);
     logDailyGuardrail("AIC inspection failed", { status, error: getErrorMessage(error) });
-    const retryAt = retryNotBefore(error?.response?.headers);
+    const retryAt = retryNotBefore(error?.response?.headers, Date.now(), isQuotaError(error));
     if (retryAt) core.info(`Daily AIC inspection must not retry before ${retryAt}`);
     core.setFailed(message);
   }

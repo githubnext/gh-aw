@@ -16,31 +16,71 @@ function apiError(status, headers, message) {
   return Object.assign(error, { status, response: { status, headers: safeResponseHeaders(headers) } });
 }
 
-function retryNotBefore(headers, now = Date.now()) {
+function retryNotBefore(headers, now = Date.now(), quotaStopped = false) {
   const safe = safeResponseHeaders(headers);
-  const reset = Number(safe["x-ratelimit-reset"]) * 1000;
+  const reset = quotaStopped || safe["x-ratelimit-remaining"] === "0" ? Number(safe["x-ratelimit-reset"]) * 1000 : NaN;
   const retry = safe["retry-after"];
   const retryAt = retry == null ? NaN : /^\d+$/.test(retry) ? now + Number(retry) * 1000 : Date.parse(retry);
   const times = [reset, retryAt].filter(value => Number.isFinite(value) && value > now);
   return times.length ? new Date(Math.max(...times)).toISOString() : "";
 }
 
+function getErrorStatus(error) {
+  return Number(error?.status || error?.response?.status || 0);
+}
+
+function isQuotaError(error) {
+  const headers = safeResponseHeaders(error?.response?.headers);
+  const status = getErrorStatus(error);
+  return error?.code === "DAILY_AIC_QUOTA_STOP" || status === 429 || (status === 403 && (headers["x-ratelimit-remaining"] === "0" || headers["retry-after"] != null));
+}
+
+function isTransientError(error) {
+  if (isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) return false;
+  const status = getErrorStatus(error);
+  if (status) return status >= 500 && status < 600;
+  const codes = ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"];
+  return ["TimeoutError", "AbortError"].includes(error?.name) || codes.includes(error?.code) || (!!error?.cause && isTransientError(error.cause));
+}
+
 /**
  * Observe business responses, including native-fetch artifact requests. Do not use
  * /rate_limit as the authority for a different request's quota or retry deadline.
- * The caller stops on errors; this helper never retries or sleeps on shared quota.
+ * Retry transient reads only; shared quota and server retry restrictions stop immediately.
  */
 function createAPIBudget(reserve = 100) {
   let requests = 0;
   let latest = {};
-  return {
+  const budget = {
     observe(response) {
       requests++;
       latest = safeResponseHeaders(response.headers);
       const remaining = latest["x-ratelimit-remaining"];
       const limited = response.status === 429 || (response.status === 403 && (remaining === "0" || latest["retry-after"] != null));
       if (limited || (remaining != null && Number(remaining) <= reserve)) {
-        throw apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota");
+        throw Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP" });
+      }
+    },
+    async request(operation, observe = true) {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          let response;
+          try {
+            response = await operation();
+          } catch (error) {
+            if (observe && error?.response) budget.observe(error.response);
+            throw error;
+          }
+          if (observe) budget.observe(response);
+          if (response.status >= 500 && response.status < 600) {
+            throw apiError(response.status, response.headers, "Daily AIC read failed with a server error");
+          }
+          return response;
+        } catch (error) {
+          if (attempt >= 2 || !isTransientError(error)) throw error;
+          core.info(`[daily-workflow-aic] Retrying transient read: ${JSON.stringify({ attempt: attempt + 1, status: getErrorStatus(error) || null })}`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt));
+        }
       }
     },
     snapshot() {
@@ -53,6 +93,7 @@ function createAPIBudget(reserve = 100) {
       };
     },
   };
+  return budget;
 }
 
-module.exports = { safeResponseHeaders, apiError, retryNotBefore, createAPIBudget };
+module.exports = { safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError };

@@ -36,6 +36,7 @@ beforeEach(() => {
   global.core = { info: vi.fn(), warning: vi.fn() };
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   delete global.core;
@@ -253,6 +254,154 @@ describe("complete daily AIC scan observations", () => {
     expect(global.core.warning).not.toHaveBeenCalled();
   });
 
+  it("retries a transient historical jobs read without restarting the scan", async () => {
+    vi.useFakeTimers();
+    const f = fixture([run(1)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    f.github.rest.actions.listJobsForWorkflowRun.mockRejectedValueOnce(apiError(502, { "x-ratelimit-remaining": "4000" }, "Server Error"));
+    f.artifactClient = {
+      listArtifacts: vi.fn(async () => ({ artifacts: [{ id: 1, name: "usage", createdAt: new Date(time) }] })),
+      downloadArtifact: vi.fn(async (_id, options) => {
+        fs.writeFileSync(path.join(options.path, "agent_usage.jsonl"), '{"aic":2}');
+        return { downloadPath: options.path };
+      }),
+    };
+    const pending = scanDailyAIC(f);
+    await vi.runAllTimersAsync();
+    expect((await pending).countedRuns[0]).toMatchObject({ aic: 2, source: "recorded" });
+    expect(f.github.rest.actions.listJobsForWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledOnce();
+    expect(f.listPage).toHaveBeenCalledOnce();
+    expect(f.artifactClient.downloadArtifact).toHaveBeenCalledOnce();
+  });
+
+  it.each([502, 504])("estimates historical accounting after exhausting HTTP %i retries", async status => {
+    vi.useFakeTimers();
+    const f = fixture([run(1), run(2)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    f.github.rest.actions.listJobsForWorkflowRun.mockRejectedValue(apiError(status, { "x-ratelimit-remaining": "4000" }, "Server Error"));
+    const pending = scanDailyAIC(f);
+    await vi.runAllTimersAsync();
+    expect((await pending).countedRuns.map(item => [item.aic, item.source])).toEqual([
+      [1000, "estimated"],
+      [1000, "estimated"],
+    ]);
+    expect(f.github.rest.actions.listJobsForWorkflowRun).toHaveBeenCalledTimes(6);
+    expect(readScanCache(fs.readFileSync(cachePath, "utf8"), repository, 7, now).get(1)).toMatchObject({ aic: 1000, source: "estimated" });
+    const recovered = fixture([run(1), run(2)]);
+    expect((await scanDailyAIC(recovered)).countedRuns.map(item => item.source)).toEqual(["recorded", "recorded"]);
+    expect(recovered.getRunAIC).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["list", "download", "blob"])("estimates usage after exhausting native-fetch artifact %s retries", async stage => {
+    vi.useFakeTimers();
+    const f = fixture([run(1)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    const fetch = vi.fn(async url => {
+      if (url.endsWith("/artifacts") || url.includes("/artifacts?")) {
+        if (stage === "list") return new Response(null, { status: 502, headers: { "x-ratelimit-remaining": "4000" } });
+        return new Response(JSON.stringify({ artifacts: [{ id: 1, name: "usage", created_at: time }] }), { headers: { "x-ratelimit-remaining": "4000" } });
+      }
+      if (url.endsWith("/zip") && stage === "blob") {
+        return new Response(null, { status: 302, headers: { location: "https://example.invalid/blob", "x-ratelimit-remaining": "4000" } });
+      }
+      return new Response(null, { status: 504, headers: { "x-ratelimit-remaining": "4000" } });
+    });
+    vi.stubGlobal("fetch", fetch);
+    f.artifactClient = await guardrail.getArtifactClient(undefined, f.budget.request);
+    const pending = scanDailyAIC(f);
+    await vi.runAllTimersAsync();
+    expect((await pending).countedRuns[0]).toMatchObject({ aic: 1000, source: "estimated" });
+    expect(fetch).toHaveBeenCalledTimes(stage === "list" ? 3 : stage === "download" ? 4 : 5);
+    expect(f.budget.snapshot().requests).toBe(stage === "blob" ? 5 : stage === "list" ? 6 : 7);
+    if (stage === "blob") {
+      for (const [url, init] of fetch.mock.calls.filter(([url]) => url === "https://example.invalid/blob")) {
+        expect(url).toBe("https://example.invalid/blob");
+        expect(init.headers).toBeUndefined();
+      }
+    }
+  });
+
+  it("recovers timed-out artifact listing and transient download reads with fresh signals", async () => {
+    vi.useFakeTimers();
+    const f = fixture([run(1)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    const controllers = [];
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+      const controller = new AbortController();
+      controllers.push(controller);
+      return controller.signal;
+    });
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(async (_url, init) => {
+        controllers[0].abort(new DOMException("Timed out", "TimeoutError"));
+        throw init.signal.reason;
+      })
+      .mockResolvedValueOnce(new Response(JSON.stringify({ artifacts: [{ id: 1, name: "usage", created_at: time }] })))
+      .mockResolvedValueOnce(new Response(null, { status: 504 }))
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "https://example.invalid/blob" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response('{"aic":2}', { headers: { "content-type": "application/json", "content-disposition": 'attachment; filename="agent_usage.jsonl"' } }));
+    vi.stubGlobal("fetch", fetch);
+    f.artifactClient = await guardrail.getArtifactClient(undefined, f.budget.request);
+    const pending = scanDailyAIC(f);
+    await vi.runAllTimersAsync();
+    expect((await pending).countedRuns[0]).toMatchObject({ aic: 2, source: "recorded" });
+    expect(fetch).toHaveBeenCalledTimes(6);
+    expect(f.budget.snapshot().requests).toBe(6);
+    expect(new Set(fetch.mock.calls.map(([_url, init]) => init.signal)).size).toBe(6);
+    expect(controllers[0].signal.aborted).toBe(true);
+    expect(controllers.slice(1).every(controller => !controller.signal.aborted)).toBe(true);
+    const warm = fixture([run(1)]);
+    expect((await scanDailyAIC(warm)).cacheHits).toBe(1);
+    expect(warm.getRunAIC).not.toHaveBeenCalled();
+  });
+
+  it("still rejects exhausted server errors without a positive per-run maximum", async () => {
+    vi.useFakeTimers();
+    const f = fixture([run(1)]);
+    f.fallbackAIC = 0;
+    f.getRunAIC = guardrail.getRunAIC;
+    f.github.rest.actions.listJobsForWorkflowRun.mockRejectedValue(apiError(502, {}, "Server Error"));
+    const assertion = expect(scanDailyAIC(f)).rejects.toMatchObject({ status: 502 });
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(f.github.rest.actions.listJobsForWorkflowRun).toHaveBeenCalledTimes(3);
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 404, 429])("never estimates or continues historical accounting after HTTP %i", async status => {
+    const f = fixture([run(1), run(2)]);
+    f.getRunAIC.mockRejectedValue(apiError(status, {}, "denied"));
+    await expect(scanDailyAIC(f)).rejects.toMatchObject({ status });
+    expect(f.getRunAIC).toHaveBeenCalledOnce();
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
+  it.each(["reserve", "retry-after"])("never estimates through a %s restriction on a historical 5xx", async kind => {
+    const f = fixture([run(1), run(2)]);
+    f.getRunAIC = guardrail.getRunAIC;
+    const headers = kind === "reserve" ? { "x-ratelimit-remaining": "100" } : { "retry-after": "120" };
+    f.github.rest.actions.listJobsForWorkflowRun.mockRejectedValue(apiError(502, headers, "Server Error"));
+    await expect(scanDailyAIC(f)).rejects.toMatchObject({ status: 502 });
+    expect(f.github.rest.actions.listJobsForWorkflowRun).toHaveBeenCalledOnce();
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
+  it.each(["current", "history"])("fails closed when the authoritative %s read exhausts retries", async kind => {
+    vi.useFakeTimers();
+    const f = fixture([run(1)]);
+    const request = kind === "current" ? f.github.rest.actions.getWorkflowRun : f.listPage;
+    request.mockRejectedValue(apiError(502, { "x-ratelimit-remaining": "4000" }, "Server Error"));
+    const assertion = expect(scanDailyAIC(f)).rejects.toMatchObject({ status: 502 });
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(f.getRunAIC).not.toHaveBeenCalled();
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
   it("records absent usage as zero only with authoritative skipped billable jobs for that attempt", async () => {
     const f = fixture([run(1, { run_attempt: 2 })]);
     f.getRunAIC = guardrail.getRunAIC;
@@ -329,7 +478,7 @@ describe("complete daily AIC scan observations", () => {
     }
   });
 
-  it.each([401, 403, 429, 500])("stops after the first %i failure and persists only resolved observations", async status => {
+  it.each([401, 403, 404, 429])("stops after the first %i failure and persists only resolved observations", async status => {
     const f = fixture();
     f.getRunAIC.mockResolvedValueOnce(2).mockRejectedValueOnce(apiError(status, {}, "synthetic failure"));
     await expect(scanDailyAIC(f)).rejects.toMatchObject({ status });
@@ -477,6 +626,24 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("GitHub API rate limit level:"));
   });
 
+  it("does not bypass a quota reserve stop through the workflow-history 404 fallback", async () => {
+    const listWorkflowRunsForRepo = vi.fn();
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: async () => response({ workflow_id: 7, path: ".github/workflows/example.yml" }),
+          listWorkflowRuns: async () => {
+            throw apiError(404, { "x-ratelimit-remaining": "100" }, "not found");
+          },
+          listWorkflowRunsForRepo,
+        },
+      },
+    };
+    await expect(restore(cachePath)).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
+    expect(listWorkflowRunsForRepo).not.toHaveBeenCalled();
+  });
+
   it.each([401, 403, 429])("stops fallback fan-out on HTTP %i", async status => {
     const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
     const producer = id => ({ ...current, id, event: "pull_request_target", repository: { full_name: repository } });
@@ -498,10 +665,10 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(list).toHaveBeenCalledOnce();
   });
 
-  it("restores the complete scan artifact and feeds it to the next authoritative scan", async () => {
+  it.each(["pull_request_target", "issues", "issue_comment"])("restores a trusted %s snapshot and feeds it to the next authoritative scan", async event => {
     vi.spyOn(Date, "now").mockReturnValue(now);
     const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
-    const producer = { ...current, id: 50, event: "pull_request_target", repository: { full_name: repository } };
+    const producer = { ...current, id: 50, event, repository: { full_name: repository }, head_repository: { full_name: repository }, head_branch: "main" };
     global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
     global.github = {
       auth: async () => ({ token: "synthetic" }),
@@ -536,5 +703,15 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(isTrustedProducer({ ...producer, event: "pull_request" }, current, repository, "main")).toBe(false);
     expect(isTrustedProducer({ ...producer, event: "workflow_dispatch", head_branch: "topic" }, current, repository, "main")).toBe(false);
     expect(isTrustedProducer({ ...producer, event: "workflow_dispatch" }, current, repository, "main")).toBe(true);
+  });
+
+  it.each(["issues", "issue_comment"])("requires complete default-branch provenance for %s producers", event => {
+    const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
+    const producer = { ...current, event, repository: { full_name: repository }, head_repository: { full_name: repository }, head_branch: "main" };
+    expect(isTrustedProducer(producer, current, repository, "main")).toBe(true);
+    for (const overrides of [{ workflow_id: 8 }, { path: "other.yml" }, { repository: { full_name: "other/project" } }, { head_repository: { full_name: "fork/project" } }, { head_repository: undefined }, { head_branch: "topic" }]) {
+      expect(isTrustedProducer({ ...producer, ...overrides }, current, repository, "main")).toBe(false);
+    }
+    expect(isTrustedProducer(producer, current, repository, "")).toBe(false);
   });
 });
