@@ -19,17 +19,20 @@ function approvedWorkerProfiles(state, pool, config) {
 
 // Caller-local compiler options may narrow targets, never approve code. Resolve
 // activation from the verified default revision, not the invoking run's SHA.
-async function synchronizeDeployments(options, context) {
+/** @param {string[]} [pools] */
+async function synchronizeDeployments(options, context, pools = undefined) {
   if (!["administrator", "producer", "dispatcher"].includes(context.role)) return;
   const proposal = policyProposalFor(options);
   if (proposal?.authorization !== "aw") return;
   let latest = await loadQueue({ ...options, policyProposal: undefined });
   if (!latest.projection.deployments?.size) return;
-  const targets = [...latest.projection.deployments].flatMap(([pool, workers]) =>
-    approvedWorkerProfiles(latest.projection, pool, options.config ?? {})
-      .filter(name => workers.has(name))
-      .map(name => [pool, name])
-  );
+  const targets = [...latest.projection.deployments]
+    .filter(([pool]) => pools === undefined || pools.includes(pool))
+    .flatMap(([pool, workers]) =>
+      approvedWorkerProfiles(latest.projection, pool, options.config ?? {})
+        .filter(name => workers.has(name))
+        .map(name => [pool, name])
+    );
   if (!targets.length) return;
   const provisioning = { githubClient: options.githubClient, owner: options.context.repo.owner, repo: options.context.repo.repo };
   const revision = await verifiedDefaultReference(provisioning);
