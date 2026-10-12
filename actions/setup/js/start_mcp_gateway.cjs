@@ -951,6 +951,9 @@ async function main() {
 
   applyOTLPIgnoreIfMissing(configObj);
 
+  const logDir = "/tmp/gh-aw/mcp-logs/";
+  writeMcpConfiguration(logDir, configObj);
+
   // Servers declared with `required: false` are best-effort: a failed startup
   // connectivity check for them must not abort the whole gateway.
   const optionalServerNames = extractOptionalServerNames(configObj);
@@ -965,8 +968,6 @@ async function main() {
   // -----------------------------------------------------------------------
   // Start gateway container
   // -----------------------------------------------------------------------
-  const logDir = "/tmp/gh-aw/mcp-logs/";
-  writeMcpConfiguration(logDir, configObj);
   const outputPath = path.join(configDir, "gateway-output.json");
   const gatewayStartupMarker = getGatewayStartupMarkerPath();
   clearGatewayStartupMarker(gatewayStartupMarker);

@@ -442,13 +442,10 @@ function resolveUsageAic(source, data, usage) {
  * @returns {SessionEvent}
  */
 function normalizeUnifiedSessionEvent(event, phase) {
-  if (event.type === "mcp.configuration") {
-    return { ...event, data: { ...normalizeMcpConfigurationData(event.data) } };
-  }
   /** @type {any} */
   const source = event.data;
   const known = Object.hasOwn(EVENT_FIELDS, event.type);
-  const data = known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
+  const data = event.type === "mcp.configuration" ? normalizeMcpConfigurationData(source) : known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {

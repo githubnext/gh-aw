@@ -20,16 +20,38 @@ function normalizeMcpConfigurationData(data) {
   return {
     servers: data.servers.flatMap(server => {
       if (!server || typeof server !== "object" || typeof server.serverName !== "string") return [];
+      const transport = server.transport === "local" ? "stdio" : server.transport;
       return [
         {
           serverName: server.serverName,
-          ...(["stdio", "http", "sse", "streamable-http"].includes(server.transport) ? { transport: server.transport } : {}),
+          ...(["stdio", "http", "sse", "streamable-http"].includes(transport) ? { transport } : {}),
           ...(typeof server.required === "boolean" ? { required: server.required } : {}),
           ...(Array.isArray(server.tools) ? { tools: server.tools.filter(tool => typeof tool === "string") } : {}),
         },
       ];
     }),
   };
+}
+
+/**
+ * Check every existing path component, not only the leaf directory.
+ * @param {string} directory
+ * @returns {boolean}
+ */
+function hasSymlinkPathComponent(directory) {
+  const absolutePath = path.resolve(directory);
+  const { root } = path.parse(absolutePath);
+  let current = root;
+  for (const component of absolutePath.slice(root.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, component);
+    try {
+      if (lstatGuard(current) === null) return true;
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return false;
+      throw error;
+    }
+  }
+  return false;
 }
 
 /**
@@ -45,17 +67,20 @@ function writeMcpConfiguration(logDirectory, config) {
   const data = normalizeMcpConfigurationData({
     servers: Object.entries(servers).map(([serverName, server]) => ({
       serverName,
-      transport: server?.type ?? (typeof server?.container === "string" ? "stdio" : undefined),
+      transport: server?.type ?? (typeof server?.command === "string" || typeof server?.container === "string" ? "stdio" : undefined),
       required: server?.required,
       tools: server?.tools,
     })),
   });
+  if (hasSymlinkPathComponent(logDirectory)) {
+    throw new Error(`${ERR_VALIDATION}: MCP configuration log directory must not be a symlink`);
+  }
   try {
     fs.mkdirSync(logDirectory, { recursive: true });
   } catch (error) {
     throw new Error(`${ERR_SYSTEM}: Failed to create MCP configuration log directory: ${getErrorMessage(error)}`, { cause: error });
   }
-  if (!lstatGuard(logDirectory)?.isDirectory()) {
+  if (hasSymlinkPathComponent(logDirectory) || !lstatGuard(logDirectory)?.isDirectory()) {
     throw new Error(`${ERR_VALIDATION}: MCP configuration log directory must not be a symlink`);
   }
   writeSessionArtifact(path.join(logDirectory, "configuration.jsonl"), [{ type: "mcp.configuration", timestamp: new Date().toISOString(), data: { ...data } }]);

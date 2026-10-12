@@ -44,6 +44,8 @@ describe("Privacy-preserving MCP configuration", () => {
         tools: [],
         required: true,
       },
+      command: { command: "node", args: ["PRIVATE_COMMAND_ARGUMENT"], required: false },
+      localType: { type: "local", command: "node" },
       defaults: { type: "stdio" },
     },
     gateway: { apiKey: "PRIVATE_GATEWAY_KEY", agentId: "PRIVATE_AGENT_ID", domain: "PRIVATE_DOMAIN" },
@@ -53,6 +55,8 @@ describe("Privacy-preserving MCP configuration", () => {
     servers: [
       { serverName: "github", transport: "http", required: false, tools: ["get_issue", "list_issues"] },
       { serverName: "local", transport: "stdio", required: true, tools: [] },
+      { serverName: "command", transport: "stdio", required: false },
+      { serverName: "localType", transport: "stdio" },
       { serverName: "defaults", transport: "stdio" },
     ],
   };
@@ -90,7 +94,12 @@ describe("Privacy-preserving MCP configuration", () => {
   it("reapplies the field allowlist to imported snapshots and renderer input", () => {
     const source = { ...inventory, secret: "PRIVATE_TOP_LEVEL", servers: inventory.servers.map(server => ({ ...server, args: ["PRIVATE_ARGUMENT"], headers: { token: "PRIVATE_HEADER" }, extension: "PRIVATE_EXTENSION" })) };
     expect(normalizeMcpConfigurationData(source)).toEqual(inventory);
-    expect(normalizeUnifiedSessionEvent({ type: "mcp.configuration", data: source }).data).toEqual(inventory);
+    expect(normalizeMcpConfigurationData({ servers: [{ serverName: "local", transport: "local" }] })).toEqual({
+      servers: [{ serverName: "local", transport: "stdio" }],
+    });
+    const event = normalizeUnifiedSessionEvent({ type: "mcp.configuration", id: "canonical-id", timestamp: "2026-10-12T00:00:00.000Z", url: "PRIVATE_TOP_LEVEL_URL", credential: "PRIVATE_TOP_LEVEL_CREDENTIAL", data: source });
+    expect(event).toEqual({ type: "mcp.configuration", id: "canonical-id", timestamp: "2026-10-12T00:00:00.000Z", data: inventory });
+    expect(JSON.stringify(event)).not.toContain("PRIVATE_TOP_LEVEL");
     expect(normalizeMcpConfigurationData({ servers: [null, false, {}, { serverName: "server", transport: "PRIVATE_TRANSPORT", required: "PRIVATE_REQUIRED", tools: [null, {}, "lookup"] }] })).toEqual({
       servers: [{ serverName: "server", tools: ["lookup"] }],
     });
@@ -123,6 +132,16 @@ describe("Privacy-preserving MCP configuration", () => {
     fs.mkdirSync(target);
     const directory = path.join(root, "mcp-logs");
     fs.symlinkSync(target, directory);
+    expect(() => writeMcpConfiguration(directory, config)).toThrow("must not be a symlink");
+    expect(fs.readdirSync(target)).toEqual([]);
+  });
+
+  it("rejects a symlinked ancestor directory without writing through it", () => {
+    const target = path.join(root, "target");
+    fs.mkdirSync(target);
+    const parent = path.join(root, "linked-parent");
+    fs.symlinkSync(target, parent);
+    const directory = path.join(parent, "mcp-logs");
     expect(() => writeMcpConfiguration(directory, config)).toThrow("must not be a symlink");
     expect(fs.readdirSync(target)).toEqual([]);
   });
