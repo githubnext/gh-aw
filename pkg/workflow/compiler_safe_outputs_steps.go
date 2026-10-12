@@ -571,16 +571,19 @@ func (c *Compiler) addSafeOutputAgentTokenEnvVars(steps *[]string, data *Workflo
 		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.AssignToAgent.GitHubToken)
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: %s\n", getEffectiveCopilotCodingAgentGitHubTokenSource(data.SafeOutputs.AssignToAgent.GitHubToken)))
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for assign-to-agent handler")
 	} else if data.SafeOutputs != nil && data.SafeOutputs.CreateIssues != nil && hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
 		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.CreateIssues.GitHubToken)
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: %s\n", getEffectiveCopilotCodingAgentGitHubTokenSource(data.SafeOutputs.CreateIssues.GitHubToken)))
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for create-issue copilot assignment handler")
 	} else if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil && hasCopilotAssignee(data.SafeOutputs.CreatePullRequests.Assignees) {
 		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken)
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: %s\n", getEffectiveCopilotCodingAgentGitHubTokenSource(data.SafeOutputs.CreatePullRequests.GitHubToken)))
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for create-pull-request copilot assignment handler")
 	}
 

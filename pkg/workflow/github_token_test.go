@@ -118,6 +118,32 @@ func TestGetEffectiveAgentGitHubToken(t *testing.T) {
 	}
 }
 
+func TestGetEffectiveAgentGitHubTokenSource(t *testing.T) {
+	if got := getEffectiveCopilotCodingAgentGitHubTokenSource(""); got != "${{ secrets.GH_AW_AGENT_TOKEN != '' && 'GH_AW_AGENT_TOKEN' || secrets.GH_AW_GITHUB_TOKEN != '' && 'GH_AW_GITHUB_TOKEN' || secrets.GITHUB_TOKEN != '' && 'GITHUB_TOKEN' || 'unavailable' }}" {
+		t.Fatalf("Unexpected default assignment credential source expression: %s", got)
+	}
+	for _, customToken := range []string{"${{ secrets.PRIVATE_TOKEN_NAME }}", "${{ inputs.token }}", "test-sensitive-value"} {
+		if got := getEffectiveCopilotCodingAgentGitHubTokenSource(customToken); got != `"configured"` {
+			t.Fatal("Custom assignment credential source must use only the configured category")
+		}
+	}
+}
+
+func TestAgentGitHubTokenAndSourceSharePrecedence(t *testing.T) {
+	originalSecrets := copilotCodingAgentGitHubTokenSecrets
+	t.Cleanup(func() {
+		copilotCodingAgentGitHubTokenSecrets = originalSecrets
+	})
+	copilotCodingAgentGitHubTokenSecrets = []string{"SECOND_AGENT_TOKEN", "FIRST_AGENT_TOKEN"}
+
+	if got := getEffectiveCopilotCodingAgentGitHubToken(""); got != "${{ secrets.SECOND_AGENT_TOKEN || secrets.FIRST_AGENT_TOKEN }}" {
+		t.Fatalf("Assignment token must follow the shared secret order, got %q", got)
+	}
+	if got := getEffectiveCopilotCodingAgentGitHubTokenSource(""); got != "${{ secrets.SECOND_AGENT_TOKEN != '' && 'SECOND_AGENT_TOKEN' || secrets.FIRST_AGENT_TOKEN != '' && 'FIRST_AGENT_TOKEN' || 'unavailable' }}" {
+		t.Fatalf("Assignment credential source must follow the shared secret order, got %q", got)
+	}
+}
+
 func TestGetEffectiveCITriggerGitHubToken(t *testing.T) {
 	tests := []struct {
 		name        string
