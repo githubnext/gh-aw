@@ -24,28 +24,17 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[incomplete]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "incomplete_signals",
-  fallbackItems: message => [
+  fallbackItems: () => [
     {
       reason: DEFAULT_INCOMPLETE_SIGNAL_REASON,
-      details: message?.reason || "Missing or empty incomplete_signals array in create_report_incomplete_issue payload",
       timestamp: new Date().toISOString(),
     },
   ],
   templatePath: getPromptPath("missing_tool_issue.md"),
   templateListKey: "incomplete_signals_list",
   buildCommentHeader: runUrl => [`## Incomplete Run Reported`, ``, `The agent reported that the task could not be completed during [workflow run](${runUrl}):`, ``],
-  renderCommentItem: (item, index) => {
-    const lines = [`### ${index + 1}. Incomplete signal`, `**Reason:** ${item.reason}`];
-    if (item.details) lines.push(`**Details:** ${item.details}`);
-    lines.push(``);
-    return lines;
-  },
-  renderIssueItem: (item, index) => {
-    const lines = [`#### ${index + 1}. Incomplete signal`, `**Reason:** ${item.reason}`];
-    if (item.details) lines.push(`**Details:** ${item.details}`);
-    lines.push(`**Reported at:** ${item.timestamp}`, ``);
-    return lines;
-  },
+  renderCommentItem: (_item, index) => [`### ${index + 1}. Incomplete signal`, "**Task completion:** unconfirmed", ""],
+  renderIssueItem: (_item, index) => [`#### ${index + 1}. Incomplete signal`, "**Task completion:** unconfirmed", ""],
 });
 
 module.exports = { main };
