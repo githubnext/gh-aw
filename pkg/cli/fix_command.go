@@ -115,7 +115,7 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error {
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error { //nolint:largefunc // Existing command orchestration remains centralized.
 	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
@@ -250,7 +250,8 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	fmt.Fprintln(os.Stderr, "")
 	if write {
 		if totalFixed > 0 {
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("Fixed %d of %d workflow files", totalFixed, totalFiles)))
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("Applied fixes to %d of %d workflow files", totalFixed, totalFiles)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run gh aw compile --strict to check for remaining errors."))
 		} else if totalGuidedErrors == 0 && totalProcessingErrors == 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("No fixes needed"))
 		}
@@ -306,49 +307,13 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 		return false, nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	originalContent := string(content)
-	currentContent := originalContent
-
-	// Track what was applied
-	var appliedCodemods []string
-	var hasChanges bool
-
-	// Apply each codemod
-	for _, codemod := range codemods {
-		fixLog.Printf("Attempting codemod: %s", codemod.ID)
-
-		// Re-parse frontmatter for each codemod to get fresh state
-		currentResult, err := parser.ExtractFrontmatterFromContent(currentContent)
-		if err != nil {
-			fixLog.Printf("Failed to parse frontmatter for codemod %s: %v", codemod.ID, err)
-			continue
-		}
-
-		newContent, applied, err := func() (string, bool, error) {
-			if codemod.ApplyWithContext != nil {
-				return codemod.ApplyWithContext(currentContent, currentResult.Frontmatter, filePath)
-			}
-			return codemod.Apply(currentContent, currentResult.Frontmatter)
-		}()
-		if err != nil {
-			fixLog.Printf("Codemod %s failed: %v", codemod.ID, err)
-			wrappedErr := fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
-			if codemod.Guided {
-				return false, nil, &GuidedError{Cause: wrappedErr}
-			}
-			return false, nil, wrappedErr
-		}
-
-		if applied {
-			currentContent = newContent
-			appliedCodemods = append(appliedCodemods, codemod.Name)
-			hasChanges = true
-			fixLog.Printf("Applied codemod: %s", codemod.ID)
-		}
+	currentContent, appliedCodemods, err := applyCodemodsUntilStable(string(content), filePath, codemods)
+	if err != nil {
+		return false, nil, err
 	}
 
 	// If no changes, report and return
-	if !hasChanges {
+	if len(appliedCodemods) == 0 {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("  %s - no fixes needed", filepath.Base(filePath))))
 		}
@@ -379,6 +344,59 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 	}
 
 	return true, appliedCodemods, nil
+}
+
+func applyCodemodsUntilStable(content, filePath string, codemods []Codemod) (string, []string, error) {
+	currentContent := content
+	var appliedCodemods []string
+	// Repeat the registry because a later codemod can enable an earlier one.
+	// Repeated content or more passes than codemods indicates a non-converging registry.
+	seen := make(map[string]struct{})
+	for pass := 0; pass <= len(codemods); pass++ {
+		if _, exists := seen[currentContent]; exists {
+			return "", nil, fmt.Errorf("codemods did not converge for %s", filepath.Base(filePath))
+		}
+		seen[currentContent] = struct{}{}
+		passStart := currentContent
+		for _, codemod := range codemods {
+			fixLog.Printf("Attempting codemod: %s", codemod.ID)
+
+			// Re-parse frontmatter for each codemod to get fresh state
+			currentResult, err := parser.ExtractFrontmatterFromContent(currentContent)
+			if err != nil {
+				fixLog.Printf("Failed to parse frontmatter for codemod %s: %v", codemod.ID, err)
+				continue
+			}
+
+			newContent, applied, err := func() (string, bool, error) {
+				if codemod.ApplyWithContext != nil {
+					return codemod.ApplyWithContext(currentContent, currentResult.Frontmatter, filePath)
+				}
+				return codemod.Apply(currentContent, currentResult.Frontmatter)
+			}()
+			if err != nil {
+				fixLog.Printf("Codemod %s failed: %v", codemod.ID, err)
+				wrappedErr := fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
+				if codemod.Guided {
+					return "", nil, &GuidedError{Cause: wrappedErr}
+				}
+				return "", nil, wrappedErr
+			}
+
+			if applied && newContent != currentContent {
+				currentContent = newContent
+				appliedCodemods = append(appliedCodemods, codemod.Name)
+				fixLog.Printf("Applied codemod: %s", codemod.ID)
+			}
+		}
+		if currentContent == passStart {
+			break
+		}
+		if pass == len(codemods) {
+			return "", nil, fmt.Errorf("codemods did not converge for %s", filepath.Base(filePath))
+		}
+	}
+	return currentContent, appliedCodemods, nil
 }
 
 const scaffoldedSerenaSharedWorkflow = `---
