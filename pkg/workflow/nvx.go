@@ -86,9 +86,6 @@ func validateNVXPathInputs(nvx *AgentNVXConfig) error {
 }
 
 func validateNVXResourceOptions(nvx *AgentNVXConfig) error {
-	if nvx.GuestLibc != "glibc" && nvx.GuestLibc != "musl" {
-		return nvxValidationError("sandbox.agent.nvx.guest-libc", nvx.GuestLibc, "NVX requires an explicit supported guest libc", "Set guest-libc to glibc or musl to select ABI-compatible engine assets.")
-	}
 	if nvx.MountPolicy != "" && nvx.MountPolicy != "workspace-only" && nvx.MountPolicy != "workspace-and-tool-cache" {
 		return nvxValidationError("sandbox.agent.nvx.mount-policy", nvx.MountPolicy, "unsupported NVX mount policy", "Choose workspace-only or workspace-and-tool-cache.")
 	}
@@ -131,11 +128,7 @@ func getNVXGuestLibc(workflowData *WorkflowData) string {
 	if !isNVXRuntime(workflowData) {
 		return ""
 	}
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig == nil || agentConfig.NVX == nil {
-		return ""
-	}
-	return agentConfig.NVX.GuestLibc
+	return "musl"
 }
 
 func validateNVXCompatibility(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {

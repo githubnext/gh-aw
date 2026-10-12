@@ -4145,11 +4145,6 @@
                           "const": true,
                           "description": "API proxy credential isolation is always enabled."
                         },
-                        "guest-libc": {
-                          "type": "string",
-                          "enum": ["glibc", "musl"],
-                          "description": "Required guest libc ABI contract used to select compatible staged engine assets."
-                        },
                         "mount-policy": {
                           "type": "string",
                           "enum": ["workspace-only", "workspace-and-tool-cache"],
@@ -4227,8 +4222,7 @@
                           "pattern": "^/workspace(?:/[^\\r\\n]*)?$",
                           "description": "Optional guest working directory, restricted to /workspace or a descendant."
                         }
-                      },
-                      "required": ["guest-libc"]
+                      }
                     },
                     "config": {
                       "type": "object",
