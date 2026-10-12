@@ -1761,6 +1761,7 @@ describe("handle_agent_failure", () => {
       [true, false],
       [true, true],
     ])("posts metadata-only generic diagnostics (missing job data: %s, existing issue: %s)", async (missingJobs, existingIssue) => {
+      fs.copyFileSync(path.join(__dirname, "../md/engine_driver_failure.md"), path.join(promptsDir, "engine_driver_failure.md"));
       const template = "{failure_diagnostics_context}{report_incomplete_context}{engine_failure_context}";
       fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), template);
       fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), template);
@@ -3842,6 +3843,7 @@ describe("handle_agent_failure", () => {
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
+      fs.copyFileSync(path.join(__dirname, "../md/engine_driver_failure.md"), path.join(promptsDir, "engine_driver_failure.md"));
       fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "max_cache_misses_exceeded.md"), ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "shell_expansion_guard_rejected.md"), "SHELL GUARD TEMPLATE");
