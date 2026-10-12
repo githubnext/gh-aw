@@ -28,6 +28,12 @@ class GuidanceTests(unittest.TestCase):
         self.assertIn("policy/compliance", creator)
         self.assertIn("structurally", creator)
 
+    def test_persona_rotation_finishes_remaining_personas(self):
+        explorer = (ROOT / ".github/workflows/agent-persona-explorer.md").read_text()
+        self.assertIn("If 1 or 2 remain, select those before resetting", explorer)
+        self.assertIn("If the updated list now contains all 9 personas, reset to an empty list", explorer)
+        self.assertNotIn("If fewer than 3 remain, reset", explorer)
+
     def test_security_reporting_omits_empty_findings_tables(self):
         for path in (
             ROOT / ".github/aw/debug-security-review.md",
