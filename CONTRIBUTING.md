@@ -597,6 +597,21 @@ The team follows a **weekly or bi-weekly minor release cadence**, similar to VS 
 
 > **Note:** The release workflow publishes the new version as a **prerelease** on GitHub with `latest=false`. Prereleases are floated for a few days. On Monday, maintainers promote the last known good prerelease to stable so `latest` resolves to that release. Immediately after promotion, a new minor pre-release is kicked off to start the next cycle.
 
+### Release credential changes
+
+Changes to release credential minting, token selection, permissions, or checkout credential persistence require an explicit human security sign-off before merge, including any attempt to reintroduce GitHub App authentication. Record the approving maintainer/security reviewer's identity and link to their approval in the PR description. Automated review, compilation, and the release environment approval are not substitutes for this sign-off.
+
+The PR must document:
+
+- **Scope:** The credential's target repositories and minimum permissions, with a justification for each write permission. A tag-only push does not require `workflows: write`.
+- **Availability and exposure:** For an App token, evidence that the App is installed on the target repository with the required permissions; which steps receive the token; whether checkout persists it for later build steps; and how it is revoked or removed. Do not include token or private-key values.
+- **Validation:** Review both the workflow source and regenerated lock file, including failure handling and downstream-trigger behavior. App-token tag pushes can trigger workflows that `GITHUB_TOKEN` pushes do not.
+- **Rollback:** The known-good credential path, rollback steps, and any previous revert's cause and unresolved review findings.
+
+#### Previous App-token revert
+
+[PR #60214](https://github.com/github/gh-aw/pull/60214) added an App token to the release tag checkout. [PR #60218](https://github.com/github/gh-aw/pull/60218) records the revert reason: the configured `APP_ID` was not installed on `github/gh-aw`, so token minting failed with HTTP 404 before tag creation. The revert restored the `GITHUB_TOKEN`-backed checkout and tag push; it was not a security sign-off for a future attempt. The original [automated review](https://github.com/github/gh-aw/pull/60214#discussion_r3986689467) also flagged unnecessary workflow-write permission and credential exposure to later build steps. Address both the installation failure and these review concerns before reintroducing App-token minting.
+
 ### Steps
 
 1. **Launch the release action**
