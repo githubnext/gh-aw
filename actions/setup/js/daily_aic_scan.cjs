@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { AIC_SCAN_CACHE_FILE_PATH, readScanCache, matchesCompletedRun, scanCacheEntry } = require("./daily_aic_cache_helpers.cjs");
-const { getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PAGES = 25;
@@ -16,7 +16,7 @@ const MAX_PAGES = 25;
 async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC, listPage, token, fallbackAIC = 0, cachePath = AIC_SCAN_CACHE_FILE_PATH, now = Date.now() }) {
   const { owner, repo } = context.repo;
   const repository = `${owner}/${repo}`;
-  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }));
+  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }), true, API_READ_OPERATIONS.CURRENT_RUN);
   const current = currentResponse.data;
   if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve the daily AIC workflow");
   core.info(
@@ -99,13 +99,17 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
       let aic;
       let reason;
       let source;
+      let accountingReason;
       if (hit) {
         aic = cached.aic;
         reason = "scan_cache";
         source = "recorded";
+        accountingReason = cached.accountingReason;
       } else {
         try {
-          aic = await getRunAIC(artifactClient, run.id, token, owner, repo, run, { github, budget });
+          const inspection = { github, budget, accountingReason: undefined };
+          aic = await getRunAIC(artifactClient, run.id, token, owner, repo, run, inspection);
+          accountingReason = inspection.accountingReason;
           reason = "artifact_accounting";
           source = "recorded";
         } catch (error) {
@@ -116,7 +120,7 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
               runId: run.id,
               runAttempt: run.run_attempt,
               status: status || null,
-              error: error instanceof Error ? error.message : String(error),
+              error: getAPIReadFailure(error) || (error instanceof Error ? error.message : String(error)),
               fallbackAvailable: canUseFallback,
             })}`
           );
@@ -129,16 +133,18 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
               runId: run.id,
               runAttempt: run.run_attempt,
               assumedAIC: aic,
+              error: error instanceof Error ? error.message : String(error),
+              hint: "Check the artifact discovery/download diagnostics above. This is a conservative estimate, not measured usage or provider billing.",
             })}`
           );
         }
       }
-      entries.set(run.id, scanCacheEntry(run, aic, repository, current.workflow_id, now, source));
+      entries.set(run.id, { ...scanCacheEntry(run, aic, repository, current.workflow_id, now, source), accountingReason });
       if (hit) {
         cacheHits++;
       }
       core.info(`[daily-workflow-aic] Computed run AIC: ${JSON.stringify({ runId: run.id, aic, reason })}`);
-      countedRuns.push({ ...run, aic, source });
+      countedRuns.push({ ...run, aic, source, accountingReason });
     }
   } finally {
     // This runs even after an API error. Partial snapshots accelerate recovery but
