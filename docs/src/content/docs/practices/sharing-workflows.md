@@ -5,8 +5,6 @@ description: Share, reuse, and govern workflows across repositories and organiza
 
 Sharing workflows across an organization involves several independent layers. Each layer can be adopted independently; teams do not need all of them at once.
 
-The recommended enterprise pattern is to maintain one central `agentic-workflows` repository with versioned workflow templates and shared components. Consuming repositories then use `gh aw add` to install full workflows and `imports:` to pull in common modules.
-
 ## Sharing Layers
 
 ### 1. Copy and install whole workflows
@@ -17,9 +15,7 @@ A repository can pull in a complete workflow from another repository:
 gh aw add acme-org/agentic-workflows/ci-doctor@v1.2.0
 ```
 
-The `source:` field is automatically added to the installed workflow's frontmatter so the origin and version are tracked. Use `gh aw add-wizard` for interactive installation; use `gh aw add` for scripted or CI use.
-
-See [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installation commands and options.
+A `source:` field is added to the installed workflow's frontmatter to track origin and version. Use `gh aw add-wizard` for interactive installation and `gh aw add` for scripts or CI. See [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows).
 
 ### 2. Reusable workflow components
 
@@ -31,9 +27,7 @@ imports:
   - acme-org/shared-workflows/shared/mcp/tavily.md@v1.0.0
 ```
 
-Remote imports are cached under `.github/aw/imports/` by commit SHA after the first fetch, enabling reproducible offline compilation. The compiled `.lock.yml` records the exact commit SHA of every remote import, so the lock file and import cache together guarantee reproducibility regardless of upstream branch movement. Cached imports are reused until you explicitly update them.
-
-See [Imports Reference](/gh-aw/reference/imports/) for path formats, merge semantics, and field-specific behavior.
+Remote imports are cached under `.github/aw/imports/` by commit SHA, enabling reproducible offline compilation. The compiled `.lock.yml` records each import's exact commit SHA, so builds stay reproducible regardless of upstream branch movement. Cached imports are reused until you explicitly update them. See [Imports Reference](/gh-aw/reference/imports/) for path formats and merge semantics.
 
 ### 3. Parameterized templates
 
@@ -47,9 +41,7 @@ imports:
       severity: "high"
 ```
 
-One shared component can serve many workflows with different configurations.
-
-See [Imports Reference](/gh-aw/reference/imports/#calling-a-parameterized-shared-workflow) for schema declaration and validation details.
+One shared component can serve many workflows. See [Imports Reference](/gh-aw/reference/imports/#calling-a-parameterized-shared-workflow) for schema details.
 
 ### 4. Versioning and update flow
 
@@ -71,13 +63,11 @@ Updates use a 3-way merge by default to preserve local edits. Use `--no-merge` t
 
 ### 5. Private and internal sharing controls
 
-Not all workflows are safe to share across organizations. Use `private: true` in frontmatter to block installation into other repositories via `gh aw add`, rely on repository visibility to control discoverability, and keep org-internal catalogs in private or internal repositories so only authorized members can install them.
-
-See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for configuration details.
+Use `private: true` in frontmatter to block installation into other repositories via `gh aw add`, and keep org-internal catalogs in private or internal repositories so only authorized members can install them. See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private).
 
 ### 6. Cross-repository execution model
 
-Separately from sharing definitions, workflows can read other repositories, check out target code, and write safe outputs to target repositories using explicit authentication and allowlists.
+Workflows can read other repositories, check out target code, and write safe outputs to target repositories using explicit authentication and allowlists.
 
 ```yaml
 safe-outputs:
@@ -86,11 +76,11 @@ safe-outputs:
     allowed-repos: ["acme-org/repo1", "acme-org/repo2"]
 ```
 
-Cross-repository operations require appropriate GitHub token permissions and explicit `allowed-repos` declarations. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for authentication, permissions, and safe output configuration.
+This requires suitable token permissions and explicit `allowed-repos`. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for authentication, permissions, and safe output configuration.
 
 ## Recommended Enterprise Pattern
 
-Keep one central `agentic-workflows` repository with versioned templates and shared components under `workflows/` and `shared/`. Consumers install workflows with `gh aw add acme-org/agentic-workflows/<workflow>@<version>`, import common modules via `imports:`, use tags for stable production and branches for development, and mark internal-only workflows `private: true`. Platform teams keep ownership and update control; consumers get reproducibility through version pins and keep local customizations through 3-way merge.
+Keep one central `agentic-workflows` repository with versioned templates and shared components under `workflows/` and `shared/`. Consumers install with `gh aw add acme-org/agentic-workflows/<workflow>@<version>`, import common modules via `imports:`, use tags for production and branches for development, and mark internal-only workflows `private: true`. Platform teams keep ownership; consumers get reproducibility from version pins and keep local customizations through 3-way merge.
 
 ## Governance Questions
 
@@ -98,8 +88,4 @@ When workflows are shared across an organization, the key decisions are operatio
 
 ## Learn More
 
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows)
-- [Imports Reference](/gh-aw/reference/imports/)
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
-- [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
