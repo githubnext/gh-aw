@@ -27,18 +27,19 @@ URLs before replay/report. Never retrieve secrets.
 
 The agent owns source/dependency inspection, security-review coordination,
 compilation/scanners, evidence collection, revision/hash tracking, cleanup,
-and permitted dispatch/monitoring/audit. Do not ask the user to perform these
-technical steps. Prepare a concise evidence packet for any required human
-validation; retain genuine authorization and protected-environment gates.
-Report a concrete unresolved blocker, not a generic preflight checklist.
+and permitted dispatch/monitoring/audit — not the user. Prepare a concise
+evidence packet for any required human validation; retain genuine authorization
+and protected-environment gates. Report a concrete unresolved blocker, not a
+generic preflight checklist.
 
 Workflow registration/activation and secret presence, validity, or expiry are
-not pre-dispatch gates. Let dispatch and workflow startup/authentication establish
-readiness; do not require inventories or organization-admin metadata access.
-Missing readiness metadata alone does not block an otherwise authorized run.
-Credential-flow review, destination authorization, and the live gates below still
-apply. Report actual readiness failures without automatically enabling workflows,
-provisioning secrets, escalating credentials, or retrying dispatch.
+not pre-dispatch gates: let dispatch and workflow startup/authentication
+establish readiness instead of requiring inventories or organization-admin
+metadata access. Missing readiness metadata alone does not block an otherwise
+authorized run. Credential-flow review, destination authorization, and the live
+gates below still apply. Report actual readiness failures without automatically
+enabling workflows, provisioning secrets, escalating credentials, or retrying
+dispatch.
 
 ## Strategy
 
@@ -64,19 +65,17 @@ execution approval.
 After the live gates below are satisfied, dispatch the exact reviewed branch
 with `gh aw run WORKFLOW --ref REVIEWED_BRANCH`. Verify its remote commit before
 dispatch and the resulting run SHA afterward. Review imports, runtime/action
-pins and immutable worker profiles: selecting a branch does not automatically
-update dependencies or worker revisions pinned elsewhere.
+pins and immutable worker profiles, since selecting a branch does not
+automatically update dependencies or worker revisions pinned elsewhere.
 
-A branch is not an isolated test environment. Repository secrets, queue
+A branch is not an isolated test environment: repository secrets, queue
 branches, memory, issues, PRs and other outputs can still be shared with
 production. Retain the approved effect scope and required protections; use a
 reviewed dry-run lock when testing startup without compiler-managed mutations.
 Dry-run suppresses queue writes and worker launches, so it cannot verify live
-dispatch.
-
-Under the [work-queue protocol](work-queue.md), the first accepted producer submit
-bootstraps Policy and Work automatically. Do not demand administrator seeding
-or repository-rule inventories for queue use.
+dispatch. Under the [work-queue protocol](work-queue.md), the first accepted
+producer submit bootstraps Policy and Work automatically — do not demand
+administrator seeding or repository-rule inventories for queue use.
 
 If another gate blocks execution, state the specific blocker and the smallest
 authorized resolution. Branch/PR preparation is still useful progress, but
