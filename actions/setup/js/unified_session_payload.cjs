@@ -6,6 +6,7 @@ const { computeInferenceAIC, findModelPricing } = require("./model_costs.cjs");
 const { COPILOT_WORKFLOW_EVENT_FIELDS } = require("./copilot_workflow_events.cjs");
 const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs");
 const { sessionContext } = require("./agent_session.cjs");
+const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -441,6 +442,9 @@ function resolveUsageAic(source, data, usage) {
  * @returns {SessionEvent}
  */
 function normalizeUnifiedSessionEvent(event, phase) {
+  if (event.type === "mcp.configuration") {
+    return { ...event, data: { ...normalizeMcpConfigurationData(event.data) } };
+  }
   /** @type {any} */
   const source = event.data;
   const known = Object.hasOwn(EVENT_FIELDS, event.type);

@@ -202,6 +202,15 @@ export interface McpObservationData {
   error?: JsonValue;
 }
 
+export interface McpConfigurationData {
+  servers: {
+    serverName: string;
+    transport?: "stdio" | "http" | "sse" | "streamable-http";
+    required?: boolean;
+    tools?: string[];
+  }[];
+}
+
 export interface FirewallAccessData {
   host?: JsonValue;
   method?: JsonValue;
@@ -489,6 +498,7 @@ export interface UnifiedSessionEventDataMap {
   "mcp.guard.blocked": McpObservationData;
   "mcp.tool_call": McpObservationData;
   "mcp.event": RuntimeObservationData & { serverName?: JsonValue };
+  "mcp.configuration": McpConfigurationData;
   "firewall.http_access": FirewallAccessData;
   "firewall.token_usage": UsageReportData;
   "firewall.model_routing": ModelRoutingData;

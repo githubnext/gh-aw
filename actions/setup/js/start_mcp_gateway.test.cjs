@@ -35,6 +35,16 @@ import {
 } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
+  it("records only a sanitized configuration snapshot before launching the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).toContain("writeMcpConfiguration(logDir, configObj)");
+    expect(source.indexOf("writeMcpConfiguration(logDir, configObj)")).toBeLessThan(source.indexOf('core.info("Starting gateway container...")'));
+    expect(source).not.toContain("core.info(mcpConfig)");
+    expect(source).not.toContain("core.error(parseMessage)");
+    expect(source).not.toContain("parseContext.lineText");
+    expect(source).not.toContain('core.error("Configuration content:")');
+  });
+
   it("reads piped configuration as a Buffer before decoding UTF-8", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain('fs.readFileSync(0).toString("utf8")');

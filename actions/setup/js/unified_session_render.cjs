@@ -24,6 +24,7 @@ const RUNTIME_TYPES = new Set([
   "mcp.guard.blocked",
   "mcp.tool_call",
   "mcp.event",
+  "mcp.configuration",
   "firewall.http_access",
   "firewall.token_usage",
   "firewall.model_routing",
@@ -179,6 +180,8 @@ function eventDetail(event) {
       return `[blocked/filtered] ${fields(data, ["serverName", "toolName", "reason"])}`;
     case "mcp.tool_call":
       return fields(data, ["serverName", "toolName", "durationMs", "status", "error"]);
+    case "mcp.configuration":
+      return `servers=[${data.servers.map(server => fields(server, ["serverName", "transport", "required", "tools"])).join("; ")}]`;
     case "firewall.http_access":
       return fields(data, ["host", "method", "status", "decision"]);
     case "firewall.steering":

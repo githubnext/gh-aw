@@ -628,6 +628,7 @@ source for opaque fields.
 | `mcp.rpc.request`, `mcp.rpc.response` | MCPG `REQUEST`/`RESPONSE` or `rpc_request`/`rpc_response`, with flat RPC metadata and error code/message. |
 | `mcp.difc.filtered`, `mcp.guard.blocked` | DIFC and guard-policy diagnostics; no inferred successful tool outcome. |
 | `mcp.tool_call`, `mcp.event` | Structured gateway calls or other gateway log messages. |
+| `mcp.configuration` | Sanitized pre-startup inventory from `mcp-logs/configuration.jsonl`, including detection-phase gateways when present. `servers` retains only `serverName`, recognized `transport`, explicit boolean `required`, and string `tools` filters. An empty inventory or tool filter is preserved; absent settings are not inferred. URLs, container images, commands, arguments, environment, headers, credentials, gateway settings, policies, and unknown fields are omitted before persistence. Registered secrets are additionally redacted by the session artifact writer. This records configuration, not successful connections or available tools. |
 | `firewall.http_access` | AWF network audit observations, including operational entries without a host. |
 | `firewall.token_usage`, `firewall.model_routing`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, token/time steering, tracker and other firewall messages. |
 | `safe_output.request`, `safe_output.result`, `safe_output.error` | Requested operation identities, executed item identities, and available errors. Requests are not execution results. |
