@@ -475,6 +475,73 @@ printf '%s' 'complete' > "$dir/complete.txt"
 	assert.FileExists(t, filepath.Join(outputDir, "usage", "complete.txt"))
 }
 
+func TestDownloadRunArtifacts_UsageFallbackPrefersCompactInfo(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		infoName string
+		cached   bool
+	}{
+		{name: "fresh", infoName: "info"},
+		{name: "cached", infoName: "info", cached: true},
+		{name: "prefixed fresh", infoName: "abc123-info"},
+		{name: "prefixed cached", infoName: "abc123-info", cached: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			outputDir := t.TempDir()
+			if tt.cached {
+				usageDir := filepath.Join(outputDir, "usage")
+				require.NoError(t, os.MkdirAll(usageDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(usageDir, "aw_session.jsonl"), []byte("{}\n"), 0o644))
+			}
+			fakeBinDir := t.TempDir()
+			argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+			fakeGHScript := `#!/bin/sh
+printf '%s\n' "$*" >> "` + argsLogPath + `"
+if [ "$1" = "api" ]; then
+  printf '%s\n' "activation" "usage" "` + tt.infoName + `"
+  exit 0
+fi
+name=""
+dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --name) name="$2"; shift 2 ;;
+    --dir) dir="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$dir"
+case "$name" in
+  usage)
+    printf '%s\n' '{}' > "$dir/aw_session.jsonl"
+    printf '%s\n' '{}' > "$dir/token_usage.jsonl"
+    ;;
+  "` + tt.infoName + `")
+    printf '%s' '{"engine_id":"claude"}' > "$dir/aw_info.json"
+    ;;
+  *) exit 1 ;;
+esac
+`
+			require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "gh"), []byte(fakeGHScript), 0o755))
+			t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+			err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{
+				runID: 12345, outputDir: outputDir, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage"},
+			})
+			require.NoError(t, err)
+			awInfo, err := os.ReadFile(filepath.Join(outputDir, "aw_info.json"))
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"engine_id":"claude"}`, string(awInfo))
+			argsLog, err := os.ReadFile(argsLogPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(argsLog), "--name "+tt.infoName)
+			assert.NotContains(t, string(argsLog), "--name activation")
+			assert.NotContains(t, string(argsLog), "/12345/logs")
+			assert.NoDirExists(t, filepath.Join(outputDir, tt.infoName))
+		})
+	}
+}
+
 func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "usage-fallback-*")
 

@@ -198,7 +198,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	downloadableNames, individualDownload, done, err := planArtifactDownload(ctx, opts, shouldLogProgress)
 	if done || err != nil {
 		if errors.Is(err, ErrNoArtifacts) && isInfoWithOptionalUsageArtifactFilter(opts.artifactFilter) {
-			return downloadActivationAwInfoFallback(ctx, opts)
+			return downloadAwInfoFallback(ctx, opts)
 		}
 		return err
 	}
@@ -215,7 +215,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		}
 		if err := downloadArtifactsIndividually(ctx, opts, downloadableNames); err != nil {
 			if errors.Is(err, ErrNoArtifacts) && isInfoWithOptionalUsageArtifactFilter(opts.artifactFilter) {
-				return downloadActivationAwInfoFallback(ctx, opts)
+				return downloadAwInfoFallback(ctx, opts)
 			}
 			return err
 		}
@@ -277,7 +277,7 @@ func finalizeArtifactDownload(ctx context.Context, opts downloadArtifactsOptions
 	}
 
 	if isInfoWithOptionalUsageArtifactFilter(opts.artifactFilter) && !fileutil.FileExists(filepath.Join(opts.outputDir, "aw_info.json")) {
-		if err := downloadActivationAwInfoFallback(ctx, opts); err != nil {
+		if err := downloadAwInfoFallback(ctx, opts); err != nil {
 			return err
 		}
 	}
@@ -347,21 +347,23 @@ func resolveCachedArtifacts(ctx context.Context, opts downloadArtifactsOptions, 
 	return opts.artifactFilter, false
 }
 
-func downloadActivationAwInfoFallback(ctx context.Context, opts downloadArtifactsOptions) error {
-	logsDownloadLog.Printf("aw_info.json missing from info artifact, downloading activation artifact as fallback")
+func downloadAwInfoFallback(ctx context.Context, opts downloadArtifactsOptions) error {
+	logsDownloadLog.Printf("aw_info.json missing, downloading metadata fallback")
 	if opts.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing from info artifact; downloading activation artifact as fallback"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing; downloading metadata fallback"))
 	}
 
-	activationNames := resolveActivationArtifactNames(ctx, opts)
-	if err := downloadArtifactsByName(ctx, opts, activationNames); err != nil {
-		return err
+	metadataNames := resolveAwInfoArtifactNames(ctx, opts)
+	for _, name := range metadataNames {
+		if err := downloadArtifactsByName(ctx, opts, []string{name}); err != nil {
+			return err
+		}
+		flattenAwInfoFallback(opts, []string{name})
+		if fileutil.FileExists(filepath.Join(opts.outputDir, "aw_info.json")) {
+			return nil
+		}
 	}
-	flattenActivationFallback(opts, activationNames)
-	if !fileutil.FileExists(filepath.Join(opts.outputDir, "aw_info.json")) {
-		return ErrNoArtifacts
-	}
-	return nil
+	return ErrNoArtifacts
 }
 
 // enumerateDownloadableArtifacts lists the run artifacts and splits them into the names
@@ -650,24 +652,16 @@ func ensureUsageAwInfoFallback(ctx context.Context, opts downloadArtifactsOption
 		return
 	}
 
-	logsDownloadLog.Printf("aw_info.json missing from usage artifact, downloading activation artifact as fallback")
-	if opts.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json missing from usage artifact; downloading activation artifact as fallback"))
-	}
-
-	activationNames := resolveActivationArtifactNames(ctx, opts)
-
-	if err := downloadArtifactsByName(ctx, opts, activationNames); err != nil {
-		logsDownloadLog.Printf("Activation artifact fallback download failed: %v", err)
+	if err := downloadAwInfoFallback(ctx, opts); err != nil {
+		logsDownloadLog.Printf("Metadata fallback download failed: %v", err)
 		if opts.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download activation artifact fallback: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download metadata fallback: %v", err)))
 		}
 	}
-	flattenActivationFallback(opts, activationNames)
 	if _, err := os.Stat(awInfoPath); os.IsNotExist(err) {
-		logsDownloadLog.Print("aw_info.json still absent after activation artifact fallback")
+		logsDownloadLog.Print("aw_info.json still absent after metadata fallback")
 		if opts.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("aw_info.json still absent after activation artifact fallback"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("aw_info.json still absent after metadata fallback"))
 		}
 	}
 }
@@ -696,42 +690,46 @@ func copyUsageAwInfoToRunRoot(outputDir, awInfoPath string) bool {
 	return true
 }
 
-// resolveActivationArtifactNames determines the activation artifact names to download,
-// falling back to the default name when artifact listing is unavailable.
-func resolveActivationArtifactNames(ctx context.Context, opts downloadArtifactsOptions) []string {
+// resolveAwInfoArtifactNames prefers compact info artifacts over activation snapshots.
+func resolveAwInfoArtifactNames(ctx context.Context, opts downloadArtifactsOptions) []string {
 	artifactNames, err := listRunArtifactNames(ctx, opts.runID, opts.owner, opts.repo, opts.hostname, opts.verbose)
 	if err != nil {
-		logsDownloadLog.Printf("Failed to list artifacts for activation fallback: %v", err)
+		logsDownloadLog.Printf("Failed to list artifacts for metadata fallback: %v", err)
 		return []string{constants.ActivationArtifactName.String()}
 	}
-	var matched []string
+	var infoNames, activationNames []string
 	for _, name := range artifactNames {
+		if artifactMatchesFilter(name, []string{constants.InfoArtifactName.String()}) {
+			infoNames = append(infoNames, name)
+		}
 		if artifactMatchesFilter(name, []string{constants.ActivationArtifactName.String()}) {
-			matched = append(matched, name)
+			activationNames = append(activationNames, name)
 		}
 	}
-	if len(matched) == 0 {
+	if len(infoNames) > 0 {
+		return append(infoNames, activationNames...)
+	}
+	if len(activationNames) == 0 {
 		return []string{constants.ActivationArtifactName.String()}
 	}
-	return matched
+	return activationNames
 }
 
-// flattenActivationFallback flattens the first activation artifact directory found on disk
-// after the fallback download attempt.
-func flattenActivationFallback(opts downloadArtifactsOptions, activationNames []string) {
-	for _, name := range activationNames {
-		activationDir := findArtifactDir(opts.outputDir, name, "")
-		if activationDir == "" {
+// flattenAwInfoFallback flattens the first metadata artifact found after downloading.
+func flattenAwInfoFallback(opts downloadArtifactsOptions, metadataNames []string) {
+	for _, name := range metadataNames {
+		metadataDir := findArtifactDir(opts.outputDir, name, "")
+		if metadataDir == "" {
 			continue
 		}
-		logsDownloadLog.Printf("Found activation artifact fallback directory: %s", activationDir)
-		if err := flattenActivationArtifact(opts.outputDir, opts.verbose); err != nil {
-			logsDownloadLog.Printf("Failed to flatten fallback activation artifact: %v", err)
+		logsDownloadLog.Printf("Found metadata fallback directory: %s", metadataDir)
+		if err := flattenArtifactTree(metadataDir, metadataDir, opts.outputDir, "metadata fallback artifact", opts.verbose); err != nil {
+			logsDownloadLog.Printf("Failed to flatten metadata fallback: %v", err)
 			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to flatten activation artifact fallback: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to flatten metadata fallback: %v", err)))
 			}
 		}
 		return
 	}
-	logsDownloadLog.Print("Activation artifact fallback directory not found after download attempt")
+	logsDownloadLog.Print("Metadata fallback directory not found after download attempt")
 }
