@@ -201,7 +201,7 @@ steps:
 safe-outputs:
   add-comment:
     max: 1
-    hide-older-comments: true
+    replace-older-comments: true
   submit-pull-request-review:
     max: 1
   noop:

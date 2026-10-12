@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -117,6 +118,19 @@ function countInstalledSkillFiles(skillsDst) {
 
 /** Path to the shared skill install failures JSON file within the activation job's runner. */
 const SKILL_FAILURES_FILE = "/tmp/gh-aw/skill_install_failures.json";
+const SKILL_INSTALL_HISTORY_FILE = "/tmp/gh-aw/skill_install_history.json";
+
+/** @param {string} directory */
+function skillDigests(directory) {
+  const digests = {};
+  if (!fs.existsSync(directory)) return digests;
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const file = path.join(directory, entry.name, "SKILL.md");
+    if (fs.existsSync(file) && fs.lstatSync(file).isFile()) digests[entry.name] = crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  }
+  return digests;
+}
 
 /**
  * Append a skill install failure record to the shared failures file.
@@ -194,8 +208,17 @@ async function main() {
   for (const skillSpec of skills) {
     core.info(`Installing skill reference: ${skillSpec}`);
     const command = buildSkillInstallCommand(skillSpec, skillsDst, skillInstallAgent);
+    const before = skillDigests(skillsDst);
     try {
       await exec.exec("gh", command.args);
+      const after = skillDigests(skillsDst);
+      const changed = Object.entries(after).filter(([name, digest]) => digest !== before[name]);
+      if (changed.length) {
+        const history = fs.existsSync(SKILL_INSTALL_HISTORY_FILE) ? JSON.parse(fs.readFileSync(SKILL_INSTALL_HISTORY_FILE, "utf8")) : [];
+        if (!Array.isArray(history)) throw new Error("Invalid skill installation history");
+        for (const [name, digest] of changed) history.push({ name, digest: `sha256:${digest}`, source: `frontmatter-${process.env.GH_AW_SKILL_INSTALL_INDEX || "unknown"}` });
+        fs.writeFileSync(SKILL_INSTALL_HISTORY_FILE, JSON.stringify(history));
+      }
     } catch (err) {
       const errorMessage = getErrorMessage(err).replace(/\r?\n/g, " ");
       core.warning(`Failed to install skill '${skillSpec}': ${errorMessage}`);

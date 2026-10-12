@@ -156,6 +156,11 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 // addActivationArtifactUploadStep appends the activation artifact upload step for downstream jobs.
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
+	engineID := resolveActivationEngineID(ctx.data)
+	skillInventoryEnabled := hasSkillInventory(ctx.data)
+	if skillInventoryEnabled {
+		c.addActivationSkillInventoryStep(ctx, engineID)
+	}
 	c.addActivationInfoArtifactUploadStep(ctx)
 	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName.String()
 	ctx.steps = append(ctx.steps, generateStageAmbientFoldersStep(ctx.data)...)
@@ -178,6 +183,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	if isWorkQueueEnabled(ctx.data) {
 		ctx.steps = append(ctx.steps, "            "+constants.WorkQueueSnapshotPath+"\n")
 	}
+
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/models.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/system.txt\n")
@@ -189,7 +195,6 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	if len(ctx.data.AmbientFolders) > 0 {
 		ctx.steps = append(ctx.steps, "            /tmp/gh-aw/ambient-folders\n")
 	}
-	engineID := resolveActivationEngineID(ctx.data)
 	// Include the engine-specific sub-agent staging directory only when inline agents are enabled.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {
 		subAgentDir := path.Join(engineConfigBaseDirForRegistry(c.engineRegistry, engineID), "agents")
@@ -197,12 +202,33 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	}
 	// Always include the engine-specific skill directory when either inline skills are enabled
 	// or frontmatter skills are configured (via Skills or SkillReferences).
-	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) || len(ctx.data.Skills) > 0 || len(ctx.data.SkillReferences) > 0 {
+	if skillInventoryEnabled {
 		skillDir := path.Join(engineConfigBaseDirForRegistry(c.engineRegistry, engineID), "skills")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}
+	if skillInventoryEnabled {
+		ctx.steps = append(ctx.steps, "            /tmp/gh-aw/skill_inventory.json\n")
+	}
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")
 	ctx.steps = append(ctx.steps, "          retention-days: 1\n")
+}
+
+func hasSkillInventory(data *WorkflowData) bool {
+	return data != nil && (len(data.Skills) > 0 || len(data.SkillReferences) > 0 || isFeatureEnabled(constants.FeatureFlag("inline-agents"), data))
+}
+
+func (c *Compiler) addActivationSkillInventoryStep(ctx *activationJobBuildContext, engineID string) {
+	skillDir := path.Join(engineConfigBaseDirForRegistry(c.engineRegistry, engineID), "skills")
+	ctx.steps = append(ctx.steps,
+		"      - name: Inventory installed skills\n",
+		"        if: success() || failure()\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)),
+		"        env:\n",
+		formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir),
+		"        with:\n",
+		"          script: |\n",
+		generateGitHubScriptWithRequire("skill_inventory.cjs"),
+	)
 }
 
 func (c *Compiler) addWorkQueueSnapshotStep(ctx *activationJobBuildContext) {

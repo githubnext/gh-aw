@@ -23,7 +23,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { getMentionsGithubClient, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -272,9 +272,10 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue/PR number
  * @param {string[]} workflowIds - Workflow IDs to search for
- * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
+ * @param {(comment: any, id: string) => boolean} [matches] - Matching function
+ * @returns {Promise<Array<{id: number, node_id: string, body: string, user?: {login?: string, type?: string}}>>}
  */
-async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds) {
+async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds, matches = (comment, id) => matchesWorkflowId(comment.body, id)) {
   const comments = [];
   let page = 1;
   const perPage = 100;
@@ -293,7 +294,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    const filteredComments = data.filter(comment => workflowIds.some(id => matchesWorkflowId(comment.body, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => workflowIds.some(id => matches(comment, id))).map(({ id, node_id, body, user }) => ({ id, node_id, body, user }));
 
     comments.push(...filteredComments);
 
@@ -495,6 +496,10 @@ async function main(config = {}) {
   // Extract configuration
   const hideOlderCommentsConfig = isHideOlderCommentsObject(config.hide_older_comments) ? config.hide_older_comments : null;
   const hideOlderCommentsEnabled = parseBoolTemplatable(hideOlderCommentsConfig ? (hideOlderCommentsConfig.enabled ?? true) : config.hide_older_comments, false);
+  const replaceOlderCommentsEnabled = parseBoolTemplatable(config.replace_older_comments, false);
+  if (config.hide_older_comments !== undefined && config.replace_older_comments !== undefined) {
+    throw new Error(`${ERR_CONFIG}: add-comment: replace-older-comments cannot be combined with hide-older-comments`);
+  }
   const hideOlderCommentsMatch = Array.isArray(hideOlderCommentsConfig?.match)
     ? normalizeWorkflowIdList(hideOlderCommentsConfig.match)
     : Array.isArray(config.hide_older_comments_match)
@@ -547,6 +552,20 @@ async function main(config = {}) {
   // Get workflow ID for hiding older comments
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
   const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+  /** @type {Promise<string | null> | undefined} */
+  let authenticatedLoginPromise;
+  const getAuthenticatedLogin = () => {
+    if (!authenticatedLoginPromise) {
+      authenticatedLoginPromise = Promise.resolve()
+        .then(() => githubClient.rest.users.getAuthenticated())
+        .then(({ data }) => data.login || null)
+        .catch(() => {
+          core.info("Could not resolve the authenticated comment author; considering bot-authored comments only");
+          return null;
+        });
+    }
+    return authenticatedLoginPromise;
+  };
 
   /**
    * Message handler function
@@ -940,6 +959,20 @@ async function main(config = {}) {
     }
 
     try {
+      if (replaceOlderCommentsEnabled && commentIdToReuse === null && !isDiscussion && (callerWorkflowId || workflowId)) {
+        const previousCandidates = await findCommentsWithTrackerId(githubClient, repoParts.owner, repoParts.repo, itemNumber, [callerWorkflowId || workflowId], (comment, id) => {
+          return callerWorkflowId ? typeof comment.body === "string" && !comment.body.includes("<!-- gh-aw-comment-type: reaction -->") && comment.body.includes(generateWorkflowCallIdMarker(id)) : matchesWorkflowId(comment.body, id);
+        });
+        const authenticatedLogin = previousCandidates.length > 0 ? await getAuthenticatedLogin() : null;
+        const previous = previousCandidates.filter(comment => {
+          if (!comment.user?.login) return false;
+          return authenticatedLogin ? comment.user.login === authenticatedLogin : comment.user.type === "Bot";
+        });
+        if (previous.length > 0) {
+          commentIdToReuse = previous[previous.length - 1].id;
+        }
+      }
+
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
       if (hideOlderCommentsEnabled) {
@@ -987,7 +1020,7 @@ async function main(config = {}) {
         const shouldReplyToTriggeringPRReviewComment = !hasExplicitCommentId && effectiveContext.eventName === "pull_request_review_comment" && itemTargetResult.number == null;
         const triggeringReviewCommentId = Number(effectiveContext.payload?.comment?.id);
 
-        if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
+        if (commentIdToReuse === null && shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
           core.info(`Replying inline to triggering PR review comment ID: ${triggeringReviewCommentId}`);
           const { data } = await githubClient.rest.pulls.createReplyForReviewComment({
             owner: repoParts.owner,
