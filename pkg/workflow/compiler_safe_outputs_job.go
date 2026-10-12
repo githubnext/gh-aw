@@ -405,6 +405,7 @@ func (c *Compiler) buildWorkQueueControlProcessingStep(data *WorkflowData) ([]st
 	if value := resolveSafeOutputsStagedValue(c.trialMode, staged); value != nil {
 		env = append(env, "          GH_AW_SAFE_OUTPUTS_STAGED: "+fmt.Sprintf("%q", *value)+"\n")
 	}
+	env = append(env, fmt.Sprintf("          GH_AW_GITHUB_TOKEN_SOURCE: %s\n", c.safeOutputGitHubTokenSource(data)))
 	env = append(env, "          GH_AW_WORK_QUEUE_INTENTS: "+constants.WorkQueueIntentPath+"\n")
 	env = append(env, "          GH_AW_WORK_QUEUE_CONTROL_CONFIG: "+fmt.Sprintf("%q", string(encoded))+"\n")
 	steps = append(steps, env...)
@@ -417,7 +418,7 @@ func (c *Compiler) buildWorkQueueControlProcessingStep(data *WorkflowData) ([]st
 	return append(steps,
 		"          script: |\n",
 		"            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n",
-		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit, process.env.GH_AW_GITHUB_TOKEN_SOURCE);\n",
 		"            const { main } = require('${{ runner.temp }}/gh-aw/actions/work_queue_control_adapter.cjs');\n",
 		"            const config = JSON.parse(process.env.GH_AW_WORK_QUEUE_CONTROL_CONFIG);\n",
 		"            await main({ core, github, context, config, maxDispatches: Number(process.env.GH_AW_WORK_QUEUE_DISPATCH_BUDGET || 1)"+assignmentRequirement+" });\n",

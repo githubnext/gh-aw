@@ -2,8 +2,8 @@
 "use strict";
 
 const { canonical, parseStrictJSON, queueError } = require("./work_queue_codec.cjs");
-const { replayTransactionLog, replayTransactions } = require("./work_queue_replay.cjs");
-const { validateBranch, verifyCheckpointGitHistory } = require("./work_queue_store.cjs");
+const { replayTransactions } = require("./work_queue_replay.cjs");
+const { validateBranch, replayVerifiedQueueLog } = require("./work_queue_store.cjs");
 
 const MAX_BYTES = 80 * 1024 * 1024;
 const JOURNAL_PATH = /^\.gh-aw\/issue-projection\/[a-f0-9]{64}\.json$/;
@@ -27,7 +27,7 @@ async function checkedBlobText(githubClient, owner, repo, blob, oid, maxBytes) {
 }
 
 /** @param {import("./work_queue_store.cjs").QueueReadOptions & {paths?: string[], issueRead?: ReturnType<typeof import("./work_queue_issue_api.cjs").issueReadQuery>}} options */
-async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queue", paths = [], issueRead = undefined }) {
+async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queue", paths = [], issueRead = undefined, core: coreApi = undefined }) {
   validateBranch(branch);
   if (paths.length > 25 || paths.some(path => !JOURNAL_PATH.test(path))) throw queueError("projection_invalid", "invalid bounded projection journal paths");
   const journals = paths.map((path, index) => `j${index}: object(expression:$j${index}) { oid ... on Blob { text byteSize isTruncated } }`).join("\n");
@@ -70,11 +70,7 @@ async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queu
   const entry = logs[0];
   if (logs.length !== 1 || entry.type !== "blob" || entry.mode !== 33188) throw queueError("ledger_invalid", "queue requires one regular canonical log");
   const text = await checkedBlobText(githubClient, owner, repo, repository.log, entry.oid, MAX_BYTES);
-  const state = replayTransactionLog(text);
-  if (state.transactions.some(transaction => transaction.actor.repository.toLowerCase() !== repository.nameWithOwner.toLowerCase())) throw queueError("actor_unauthorized", "ledger contains a foreign repository");
-  if (state.transactions[0]?.operations[0]?.kind === "Checkpoint") {
-    await verifyCheckpointGitHistory({ githubClient, owner, repo, branch, repository: { full_name: repository.nameWithOwner } }, commit.oid, state.transactions[0]);
-  }
+  const { state, checkpointRecovered } = await replayVerifiedQueueLog({ githubClient, owner, repo, branch, repository: { full_name: repository.nameWithOwner }, coreApi }, commit.oid, text);
   const journal = new Map();
   const directory = entries.find(entry => entry.name === ".gh-aw")?.object?.entries?.find(entry => entry.name === "issue-projection")?.object?.entries || [];
   for (const [index, path] of paths.entries()) {
@@ -84,7 +80,18 @@ async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queu
     if (!expected || expected.type !== "blob" || expected.mode !== 33188 || !value || value.oid !== expected.oid) throw queueError("projection_journal_conflict", "journal does not belong to the immutable checked ledger head");
     journal.set(path, parseStrictJSON(await checkedBlobText(githubClient, owner, repo, value, expected.oid, 1024 * 1024), { maxBytes: 1024 * 1024 }));
   }
-  return { sha: commit.oid, treeSha: commit.tree.oid, transactions: state.transactions, state, branch, logPath: "work-queue.jsonl", repositoryId: repository.id, journal, nativeResponse: issueRead ? response : undefined };
+  return {
+    sha: commit.oid,
+    treeSha: commit.tree.oid,
+    transactions: state.transactions,
+    state,
+    branch,
+    logPath: "work-queue.jsonl",
+    repositoryId: repository.id,
+    journal,
+    nativeResponse: issueRead ? response : undefined,
+    ...(checkpointRecovered ? { checkpointRecovered: true } : {}),
+  };
 }
 
 async function writeCheckedFiles({ githubClient, owner, repo, branch, expectedHeadOid, files }) {
