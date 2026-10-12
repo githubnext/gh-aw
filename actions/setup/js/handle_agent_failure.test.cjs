@@ -1546,7 +1546,8 @@ describe("handle_agent_failure", () => {
         expect(body).not.toContain("# untrusted heading");
         expect(body).not.toContain("infrastructure_error");
         expect(body).not.toContain("private-");
-        expect(body).not.toContain("<details>");
+        expect(body).toContain("Completion signal: agent reported incomplete (reason and details excluded)");
+        expect(body).toContain("Safe-output persistence: not recorded");
       } finally {
         vi.unstubAllEnvs();
       }
@@ -1795,7 +1796,7 @@ describe("handle_agent_failure", () => {
       expect(body).toContain("**Driver exit code:** `1`");
       expect(body.match(/\*\*Driver exit code:\*\*/g)).toHaveLength(1);
       expect(body.match(/### Failure Diagnostics/g)).toHaveLength(1);
-      expect(body).not.toContain("<summary>Error details:</summary>");
+      expect(body).toContain("Completion signal: agent reported incomplete (reason and details excluded)");
       expect(body).toContain("_Only runtime metadata is shown; agent-generated text is excluded._");
       expect(body).toContain("The workflow recorded a `report_incomplete` signal");
       expect(body).not.toContain("agent-generated diagnostic");
@@ -5620,7 +5621,7 @@ describe("handle_agent_failure", () => {
       const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
       const result = buildReportIncompleteContext([{ type: "report_incomplete", reason: "tool_failure", details: "Error with ``` and ```` delimiters" }]);
       expect(result).not.toContain("Error with");
-      expect(result).not.toContain("```");
+      expect(result).not.toContain("````");
       expect(result).not.toContain("tool_failure");
     });
 
@@ -5642,6 +5643,40 @@ describe("handle_agent_failure", () => {
     it("returns no details section when there are no incompletion signals", () => {
       const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
       expect(buildReportIncompleteContext([])).toBe("");
+    });
+
+    it("includes observed runtime evidence for explicit incompletion alongside an ordinary safe output", () => {
+      const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require("fs");
+      const { tmpdir } = require("os");
+      const rootDir = mkdtempSync(join(tmpdir(), "failure-explicit-incomplete-"));
+      try {
+        mkdirSync(join(rootDir, "mcp-logs"));
+        writeFileSync(join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool", inputSchema: { private: "private-schema" } }] } }));
+        writeFileSync(
+          join(rootDir, "safeoutputs.jsonl"),
+          [
+            { type: "report_incomplete", reason: "private-reason", details: "private-details" },
+            { type: "create_issue", body: "private-body" },
+          ]
+            .map(JSON.stringify)
+            .join("\n")
+        );
+        const result = buildReportIncompleteContext(
+          [
+            { type: "report_incomplete", reason: "private-reason", details: "private-details" },
+            { type: "create_issue", body: "private-body" },
+          ],
+          { rootDir }
+        );
+        expect(result).toContain("Completion signal: agent reported incomplete");
+        expect(result).toContain("available at gateway snapshot (registered 1 tool)");
+        expect(result).toContain("Safe-output persistence: nonempty (2 records, 0 malformed");
+        expect(result).not.toContain("missing_terminal_safe_output");
+        expect(result).not.toContain("Failure classification:");
+        expect(result).not.toContain("private-");
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
     });
 
     it("rebuilds collector descriptions from evidence rather than trusting forged structured-looking text", () => {

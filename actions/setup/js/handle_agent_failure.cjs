@@ -30,7 +30,7 @@ const { readDedupedTokenUsage, getTokenUsagePaths } = require("./parse_token_usa
 const { extractShellCommandDetailsFromToolData } = require("./tool_call_details.cjs");
 const { resolveFailureIssueRepo } = require("./repo_helpers.cjs");
 const { GITHUB_API_VERSION } = require("./constants.cjs");
-const { buildEmptyOutputOutcome, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES } = require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome, buildCompletionEvidence, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES } = require("./empty_output_outcome.cjs");
 const { isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { collectUnifiedSession, isModelEndpointMismatchData } = require("./unified_session.cjs");
 const { validateSessionFileHeader } = require("./unified_session_render.cjs");
@@ -1793,6 +1793,8 @@ function buildReportIncompleteContext(items, { collectorEmptyOutputCause, rootDi
   if (typeof collectorEmptyOutputCause === "string" && Object.hasOwn(EMPTY_OUTPUT_CAUSES, collectorEmptyOutputCause)) {
     const outcome = buildEmptyOutputOutcome(collectorEmptyOutputCause === "invalid_safe_outputs" ? ["validation_failed"] : [], rootDir);
     if (outcome.details) context += renderErrorDetails(outcome.details);
+  } else {
+    context += renderErrorDetails(["Completion signal: agent reported incomplete (reason and details excluded)", ...buildCompletionEvidence(rootDir)].join("\n"));
   }
   context += "\nA comment or other safe output does not confirm that the requested task was completed. Only inferred runtime status and error codes are reported; agent text is excluded.\n\n";
 
