@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Agentic Workflows Security Architecture Specification
 
-**Version**: 1.1.1<br>
+**Version**: 1.1.2<br>
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/security-architecture-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -2053,6 +2053,15 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 
 ## Change Log
 
+### Version 1.1.2 (RS-05a Allow-Listed App Review Checkout)
+
+**Published**: October 12, 2026
+
+- Extends the allow-listed same-repository GitHub App checkout exception to `pull_request_review` in addition to `issue_comment` and `pull_request_review_comment`.
+- Requires exact sender/comment-or-review-author login equality, canonical sender/runtime actor equivalence, an explicit `on.bots` entry, and matching positive runtime, PR head, and PR base repository IDs.
+- Preserves the collaborator-permission floor for forks, unlisted bots, identity or repository mismatches, and all other actors; unavailable PR details fail closed.
+- Updates RS-05a unit-test, Z3, and TLA+ evidence in `security-architecture-spec-validation.md`.
+
 ### Version 1.1.1 (RS-05a Allow-Listed App Comment Checkout)
 
 **Published**: October 9, 2026
@@ -2167,6 +2176,6 @@ The most recent full validation pass against this specification was completed on
 
 Sync check on **2026-08-25** found no new minor-version bump, reported security incident, or reference-implementation change requiring a full revalidation since the 2026-07-15 pass. This maintenance pass synchronized §9/§11 prose to the existing `pkg/workflow/threat_detection_config.go` parser and `pkg/workflow/threat_detection_inline_engine.go` runtime behavior; because it clarifies MUST-level runtime sequencing text, a targeted §9/§11 revalidation is scheduled with the Security Architecture maintainers by **2026-09-01**. The known Appendix G.10 partial-coverage gaps remain tracked there.
 
-On **2026-10-09**, RS-05a was targeted-revalidated against the allow-listed same-repository App comment implementation, unit tests, and Z3 safety model for Version 1.1.1. Evidence is recorded in `security-architecture-spec-validation.md` §7b; this targeted revalidation does not replace the full validation pass required by the revalidation policy. The previous RS-05a branch-event revalidation was completed on 2026-10-01.
+On **2026-10-09**, RS-05a was targeted-revalidated against the allow-listed same-repository App comment implementation, unit tests, and Z3 safety model for Version 1.1.1. Version 1.1.2 extends that contract to `pull_request_review` and updates its conformance mapping and formal model; targeted revalidation of those additions is pending in `security-architecture-spec-validation.md` §7b. This does not replace the full revalidation pass required by the policy. The previous RS-05a branch-event revalidation was completed on 2026-10-01.
 
 *This specification is provided under the MIT License.*
