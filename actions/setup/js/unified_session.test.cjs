@@ -60,6 +60,25 @@ describe("Unified conclusion session", () => {
     expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
   });
 
+  it("warns and skips malformed plugin installation records", () => {
+    const installed = {
+      plugin: "org/plugin@main",
+      repository: "org/plugin",
+      ref: "main",
+      path: ".gh-aw-plugins/plugin-0",
+      status: "installed",
+    };
+    const malformed = [{}, { ...installed, status: "failed" }, { ...installed, plugin: 42 }, { ...installed, repository: null }, { ...installed, ref: {} }, { ...installed, path: false }];
+    write("plugin-installations.jsonl", malformed);
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    const warnings = events.filter(event => event.type === "session.collection_warning");
+
+    expect(events.filter(event => event.type === "plugin.installation")).toEqual([]);
+    expect(warnings.map(event => event.data)).toEqual(malformed.map((_, index) => ({ path: "plugin-installations.jsonl", code: "invalid_plugin_installation", line: index + 1 })));
+    expect(warn).toHaveBeenCalledWith("Unified session: invalid_plugin_installation in plugin-installations.jsonl:1");
+  });
+
   it("does not invent plugin installations when installation evidence is absent", () => {
     write("aw_info.json", { engine_id: "copilot", plugins: ["org/plugin@main"] });
     expect(collectUnifiedSession({ rootDir: root }).events.some(event => event.type === "plugin.installation")).toBe(false);

@@ -5,6 +5,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -432,6 +433,7 @@ func TestClaudePluginInstallation(t *testing.T) {
 		assert.Contains(t, checkout, "path: .gh-aw-plugins/plugin-0")
 		record := strings.Join(steps[1], "\n")
 		assert.Contains(t, record, "Record agent plugin installation")
+		assert.Contains(t, record, `test -d ./.gh-aw-plugins/plugin-0/plugins/example`)
 		assert.Contains(t, record, pluginInstallationsPath)
 		assert.Contains(t, record, "octo-org/agent-plugins/plugins/example@"+testPluginSHA)
 	})
@@ -636,14 +638,26 @@ func TestPluginInstallationRecordsOnlySuccessfulInstalls(t *testing.T) {
 	root := testutil.TempDir(t, "plugin-installation-record")
 	recordPath := filepath.Join(root, "plugin-installations.jsonl")
 	parsed := parseSkillRefSpec("org/plugins/agents/example@" + testPluginSHA)
-	command := strings.ReplaceAll(pluginInstallationRecordCommand(parsed, pluginCheckoutSubpath(parsed, 0)), pluginInstallationsPath, shellEscapeArg(recordPath))
-	command = strings.ReplaceAll(command, "mkdir -p /tmp/gh-aw", "mkdir -p "+shellEscapeArg(root))
-	output, err := exec.Command("bash", "-e", "-c", "false\n"+command).CombinedOutput()
+	installPath := pluginCheckoutSubpath(parsed, 0)
+	command := strings.ReplaceAll(pluginInstallationRecordCommand(parsed, "org/plugins", installPath), pluginInstallationsPath, shellEscapeArg(recordPath))
+	command = strings.ReplaceAll(command, fmt.Sprintf("mkdir -p %q", filepath.Dir(pluginInstallationsPath)), "mkdir -p "+shellEscapeArg(root))
+	run := func(script string) ([]byte, error) {
+		cmd := exec.Command("bash", "-e", "-c", script)
+		cmd.Dir = root
+		return cmd.CombinedOutput()
+	}
+	output, err := run(command)
 	require.Error(t, err, "%s", output)
 	_, err = os.Stat(recordPath)
 	require.True(t, os.IsNotExist(err))
 
-	output, err = exec.Command("bash", "-e", "-c", "true\n"+command+"\n"+command).CombinedOutput()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, installPath), 0o700))
+	output, err = run("false\n" + command)
+	require.Error(t, err, "%s", output)
+	_, err = os.Stat(recordPath)
+	require.True(t, os.IsNotExist(err))
+
+	output, err = run("true\n" + command + "\n" + command)
 	require.NoError(t, err, "%s", output)
 	content, err := os.ReadFile(recordPath)
 	require.NoError(t, err)

@@ -226,7 +226,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 		if spec.CustomInstall != nil {
 			steps = append(steps, spec.CustomInstall(parsed, checkoutPath, installPath, i)...)
 			if !spec.DeferRecording {
-				steps = append(steps, newPluginInstallationRecordStep(parsed, installPath))
+				steps = append(steps, newPluginInstallationRecordStep(parsed, repository, installPath))
 			}
 			continue
 		}
@@ -243,16 +243,16 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 					fmt.Sprintf("cp -R %q %q", "./"+installPath, targetPath),
 				}, "\n")
 				if (spec.Command == "" || len(spec.InstallArgs) == 0) && !spec.DeferRecording {
-					stageCommand += "\n" + pluginInstallationRecordCommand(parsed, installPath)
+					stageCommand += "\n" + pluginInstallationRecordCommand(parsed, repository, installPath)
 				}
 				stageStep := []string{"      - name: Stage agent plugin " + parsed.repoPath}
 				steps = append(steps, FormatStepWithCommandAndEnv(stageStep, stageCommand, nil))
 			}
 		}
 
-		steps = append(steps, newPluginInstallCommandSteps(spec, parsed, installPath)...)
+		steps = append(steps, newPluginInstallCommandSteps(spec, parsed, repository, installPath)...)
 		if spec.Directory == "" && (spec.Command == "" || len(spec.InstallArgs) == 0) && !spec.DeferRecording {
-			steps = append(steps, newPluginInstallationRecordStep(parsed, installPath))
+			steps = append(steps, newPluginInstallationRecordStep(parsed, repository, installPath))
 		}
 	}
 
@@ -261,7 +261,7 @@ func generatePluginInstallationSteps(workflowData *WorkflowData, spec pluginInst
 
 // newPluginInstallCommandSteps builds the engine install command step (when configured) followed
 // by the optional diagnostics step for a single plugin.
-func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefSpec, installPath string) []GitHubActionStep {
+func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefSpec, repository, installPath string) []GitHubActionStep {
 	var steps []GitHubActionStep
 
 	if spec.Command != "" && len(spec.InstallArgs) > 0 {
@@ -271,7 +271,7 @@ func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefS
 		installArgs = append(installArgs, "./"+installPath)
 		installCommand := shellJoinArgs(installArgs)
 		if !spec.DeferRecording {
-			installCommand += "\n" + pluginInstallationRecordCommand(parsed, installPath)
+			installCommand += "\n" + pluginInstallationRecordCommand(parsed, repository, installPath)
 		}
 		installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
 		steps = append(steps, FormatStepWithCommandAndEnv(installStep, installCommand, nil))
@@ -284,18 +284,18 @@ func newPluginInstallCommandSteps(spec pluginInstallSpec, parsed parsedSkillRefS
 	return steps
 }
 
-func newPluginInstallationRecordStep(parsed parsedSkillRefSpec, installPath string) GitHubActionStep {
+func newPluginInstallationRecordStep(parsed parsedSkillRefSpec, repository, installPath string) GitHubActionStep {
 	return FormatStepWithCommandAndEnv(
 		[]string{"      - name: Record agent plugin installation " + parsed.repoPath},
-		pluginInstallationRecordCommand(parsed, installPath),
+		pluginInstallationRecordCommand(parsed, repository, installPath),
 		nil,
 	)
 }
 
-func pluginInstallationRecordCommand(parsed parsedSkillRefSpec, installPath string) string {
-	repository := strings.Join(strings.Split(parsed.repoPath, "/")[:2], "/")
+func pluginInstallationRecordCommand(parsed parsedSkillRefSpec, repository, installPath string) string {
 	return strings.Join([]string{
-		"mkdir -p /tmp/gh-aw",
+		"test -d " + shellEscapeArg("./"+installPath),
+		fmt.Sprintf("mkdir -p %q", path.Dir(pluginInstallationsPath)),
 		fmt.Sprintf(
 			`jq -cn --arg timestamp "$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" --arg plugin %s --arg repository %s --arg ref %s --arg path %s '{timestamp: $timestamp, plugin: $plugin, repository: $repository, ref: $ref, path: $path, status: "installed"}' >> %s`,
 			shellEscapeArg(parsed.repoPath+"@"+parsed.ref), shellEscapeArg(repository), shellEscapeArg(parsed.ref), shellEscapeArg(installPath), pluginInstallationsPath,

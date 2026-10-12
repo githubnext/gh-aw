@@ -254,6 +254,10 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
           incompleteSources.add(file);
           report(file, "non_canonical_agent_event", undefined);
         }
+      } else if (type === "plugin.installation" && (["plugin", "repository", "ref", "path"].some(key => typeof record[key] !== "string") || record.status !== "installed")) {
+        const line = recordLines.get(file)?.[index];
+        incompleteSources.add(file);
+        report(file, "invalid_plugin_installation", line);
       } else if (type) {
         events.push({ type, data: record, ...Object.fromEntries(["timestamp", "ts", "time", "created_at"].filter(key => record[key] !== undefined).map(key => [key, record[key]])) });
       } else if (component === "mcp" || component === "firewall") events.push(normalizeRuntimeEvent(component, record));
