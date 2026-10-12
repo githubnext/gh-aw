@@ -2,7 +2,8 @@
 mcp-servers:
   kreuzberg:
     container: "ghcr.io/xberg-io/xberg"
-    version: "1.3.6@sha256:f8dd1d18b97a883b235b70ca3765b9e526cf5436764a89b6401a5d32ab96ada9"
+    # Resolve pins from actions-lock.json, falling back to the embedded catalog when no cache entry exists.
+    version: "1.3.6"
     entrypointArgs:
       - "mcp"
     mounts:
