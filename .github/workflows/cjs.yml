@@ -238,6 +238,40 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cd actions/setup/js && npm run test:js-integration-artifact
 
+  nvx-musl-integration:
+    name: NVX musl inference integration
+    needs: [checkout-cache]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-nvx-musl-integration
+      cancel-in-progress: true
+    steps:
+      - name: Restore checkout
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .
+          key: checkout-cjs-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          fail-on-cache-miss: true
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+      - name: Install patchelf
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes patchelf
+      - name: Install npm dependencies
+        run: cd actions/setup/js && npm ci
+      - name: Run the NVX musl inference integration test
+        env:
+          GH_AW_RUN_NVX_MUSL_INTEGRATION: "1"
+        run: cd actions/setup/js && npx vitest run nvx_assets.test.cjs -t "sends a Copilot inference request through the proxy in Alpine without gcompat"
+
   cleanup-cache:
     name: Cleanup checkout cache
     needs:
@@ -247,6 +281,7 @@ jobs:
       - impacted-js-tests
       - lint-js
       - artifact-integration
+      - nvx-musl-integration
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

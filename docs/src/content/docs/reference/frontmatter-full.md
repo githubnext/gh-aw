@@ -2375,9 +2375,11 @@ sandbox:
     # (optional)
     runtime: "docker"
 
-    # Optional overrides for AWF's fail-closed NVX preview runtime. Safe defaults
-    # apply when omitted. Artifact paths may be GitHub Actions expressions; setup
-    # verifies release provenance and stages trusted files before AWF starts.
+    # Required when runtime is 'nvx'; optional for other runtime selections. The
+    # guest-libc ABI is required within this block; remaining overrides are optional
+    # and use safe defaults when omitted. Artifact paths may be GitHub Actions
+    # expressions; setup verifies release provenance and stages trusted files before
+    # AWF starts.
     # (optional)
     nvx:
       # NVX preview is always enabled.

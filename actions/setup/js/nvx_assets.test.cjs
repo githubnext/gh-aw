@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import http from "node:http";
 import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as stageAssets } from "./nvx_assets.cjs";
 
 describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
@@ -65,8 +66,8 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
   });
 
   it.runIf(process.platform === "linux" && process.env.GH_AW_RUN_NVX_MUSL_INTEGRATION === "1")(
-    "starts the staged native Copilot runtime in Alpine without glibc compatibility packages",
-    () => {
+    "sends a Copilot inference request through the proxy in Alpine without gcompat",
+    async () => {
       const home = path.join(temp, "home");
       fs.mkdirSync(home);
       const installer = path.join(import.meta.dirname, "..", "sh", "install_copilot_cli.sh");
@@ -85,12 +86,95 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
       environment.GH_AW_NVX_GUEST_LIBC = "musl";
       stage(environment, state);
       const root = path.join(workspace, ".gh-aw-nvx");
-      const result = spawnSync("docker", ["run", "--rm", "--platform", "linux/amd64", "--read-only", "--tmpfs", "/root", "-v", `${root}:/workspace/.gh-aw-nvx:ro`, "alpine:3.22", "/workspace/.gh-aw-nvx/gh-aw/bin/copilot", "--version"], {
-        encoding: "utf8",
-        timeout: 120_000,
+
+      /** @type {Record<string, unknown>|undefined} */
+      let completionRequest;
+      const usage = { prompt_tokens: 5, completion_tokens: 1, total_tokens: 6 };
+      const server = http.createServer((request, response) => {
+        response.setHeader("Content-Type", "application/json");
+        if (request.url?.endsWith("/models")) {
+          response.end(JSON.stringify({ object: "list", data: [{ id: "test-model", object: "model", owned_by: "test" }] }));
+          return;
+        }
+        if (request.url?.endsWith("/chat/completions")) {
+          let body = "";
+          request.setEncoding("utf8");
+          request.on("data", chunk => (body += chunk));
+          request.on("end", () => {
+            completionRequest = JSON.parse(body);
+            response.end(
+              JSON.stringify({
+                id: "chatcmpl-test",
+                object: "chat.completion",
+                created: 1,
+                model: "test-model",
+                choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+                usage,
+              })
+            );
+          });
+          return;
+        }
+        response.writeHead(404).end();
       });
-      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-      expect(result.stdout).toMatch(/copilot/i);
+      await new Promise(resolve => server.listen(0, "0.0.0.0", resolve));
+
+      try {
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("proxy test server did not bind to a TCP port");
+        const result = await new Promise(resolve => {
+          const args = [
+            "run",
+            "--rm",
+            "--platform",
+            "linux/amd64",
+            "--read-only",
+            "--tmpfs",
+            "/tmp:exec",
+            "--add-host",
+            "host.docker.internal:host-gateway",
+            "-v",
+            `${workspace}:/workspace:ro`,
+            "-e",
+            "HOME=/tmp/awf-home",
+            "-e",
+            `COPILOT_PROVIDER_BASE_URL=http://host.docker.internal:${address.port}/v1`,
+            "-e",
+            "COPILOT_PROVIDER_API_KEY=test-only",
+            "-e",
+            "COPILOT_MODEL=test-model",
+            "alpine:3.22",
+            "/workspace/.gh-aw-nvx/gh-aw/bin/copilot",
+            "-p",
+            "Reply with ok",
+            "--allow-all-tools",
+            "--no-ask-user",
+            "--silent",
+          ];
+          const child = spawn("docker", args, { stdio: ["ignore", "pipe", "pipe"] });
+          let stdout = "";
+          let stderr = "";
+          const timeout = setTimeout(() => child.kill("SIGTERM"), 120_000);
+          child.stdout.on("data", chunk => (stdout += chunk));
+          child.stderr.on("data", chunk => (stderr += chunk));
+          child.once("error", error => {
+            clearTimeout(timeout);
+            resolve({ status: null, stdout, stderr: `${stderr}\n${error.message}` });
+          });
+          child.once("close", status => {
+            clearTimeout(timeout);
+            resolve({ status, stdout, stderr });
+          });
+        });
+
+        expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+        expect(result.stdout).toContain("ok");
+        expect(completionRequest).toBeDefined();
+        expect(JSON.stringify(completionRequest)).toContain("Reply with ok");
+        expect(usage.total_tokens).toBeGreaterThan(0);
+      } finally {
+        await new Promise(resolve => server.close(resolve));
+      }
     },
     180_000
   );
