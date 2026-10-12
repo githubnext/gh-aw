@@ -112,7 +112,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi` | Pi engine transport (`api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi-base` | Pi provider-independent baseline (`github.com`, `host.docker.internal`, `raw.githubusercontent.com`) |
-| `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, telemetry, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |
+| `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |
 | `dart` | Dart/Flutter packages (`pub.dev`, `storage.googleapis.com`) |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
 | `dotnet` | NuGet packages and .NET SDK |
@@ -152,7 +152,7 @@ Engine domain sets are named allowlist bundles for engine CLI authentication and
 | `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
 | `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
-| `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API and telemetry hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. |
+| `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. Telemetry requires an explicit `copilot-vendor` opt-in. |
 
 The `claude` set excludes telemetry, certificate/OCSP hosts, package mirrors, container registries, and Playwright downloads. Those require explicit domains or ecosystem opt-ins such as `defaults`, `containers`, or `playwright`; configuring the Playwright tool also enables its download domains. The direct Anthropic API is included when Claude uses its default Anthropic target. `engine.api-target` configures the Copilot target and does not replace Claude's Anthropic endpoint. Use `ANTHROPIC_BASE_URL` to configure a custom Anthropic target; that does not automatically allow direct access to `api.anthropic.com`. Add `api.anthropic.com` explicitly if a workflow intentionally needs direct Anthropic access alongside a custom target. The broader `anthropic.com` suffix is never included because it would also permit `statsig.anthropic.com`. CLI installation runs outside the agent firewall and does not require adding download hosts to this set.
 
