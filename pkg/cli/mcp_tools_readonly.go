@@ -279,6 +279,7 @@ Returns JSON array with validation results for each workflow:
 		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
 
+		notifyProgress(ctx, req, 0, 100, "Compiling workflows...")
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
@@ -300,6 +301,7 @@ Returns JSON array with validation results for each workflow:
 				if jsonErr != nil {
 					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal compile error results", jsonErr.Error())
 				}
+				notifyProgress(ctx, req, 100, 100, "Compilation complete")
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 				}, nil, nil
@@ -321,6 +323,7 @@ Returns JSON array with validation results for each workflow:
 			outputStr = injectShellcheckDiagnostics(outputStr, diagnostics.shellcheck.String())
 		}
 
+		notifyProgress(ctx, req, 100, 100, "Compilation complete")
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},

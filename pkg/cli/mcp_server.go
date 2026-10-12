@@ -9,6 +9,33 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const mcpDiscoveryCacheTTLMs = 60_000
+
+func mcpServerOptions() *mcp.ServerOptions {
+	return &mcp.ServerOptions{
+		SupportedProtocolVersions: []string{
+			"2026-07-28",
+			"2025-11-25",
+			"2025-06-18",
+			"2025-03-26",
+			"2024-11-05",
+		},
+		Capabilities: &mcp.ServerCapabilities{
+			Tools: &mcp.ToolCapabilities{
+				ListChanged: false, // Tools are static, no notifications needed
+			},
+		},
+		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
+		SetCacheable: func(_ context.Context, req mcp.Request, c *mcp.Cacheable) {
+			switch req.(type) {
+			case *mcp.ListToolsRequest, *mcp.ServerRequest[*mcp.DiscoverParams]:
+				c.TTLMs = mcpDiscoveryCacheTTLMs
+				c.CacheScope = "private"
+			}
+		},
+	}
+}
+
 // execCmdFunc is the type for the command execution function passed to tool registrations.
 type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 
@@ -53,40 +80,45 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
-	}, &mcp.ServerOptions{
-		Capabilities: &mcp.ServerCapabilities{
-			Tools: &mcp.ToolCapabilities{
-				ListChanged: false, // Tools are static, no notifications needed
-			},
-		},
-		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
-	})
+	}, mcpServerOptions())
 
+	if err := registerMCPTools(server, execCmd, actor, validateActor, manifestCacheFile); err != nil {
+		return server
+	}
+
+	// Add receiving middleware to transform raw JSON-schema "additional properties"
+	// validation errors into helpful messages with "Did you mean?" suggestions.
+	server.AddReceivingMiddleware(argumentValidationMiddleware(mcpToolParams()))
+
+	return server
+}
+
+func registerMCPTools(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool, manifestCacheFile string) error {
 	// Register read-only tools
 	registerStatusTool(server)
 
 	if err := registerCompileTool(server, execCmd, manifestCacheFile); err != nil {
-		return server
+		return err
 	}
 
 	// Register privileged tools (require write+ access)
 	if err := registerLogsTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return err
 	}
 
 	if err := registerAuditTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return err
 	}
 
 	if err := registerAuditDiffTool(server, execCmd, actor, validateActor); err != nil {
-		return server
+		return err
 	}
 
 	// Register remaining read-only tools
 	registerChecksTool(server)
 	registerMCPInspectTool(server, execCmd)
 	if err := registerWorkQueueTool(server, execCmd); err != nil {
-		return server
+		return err
 	}
 
 	// Register workflow management tools
@@ -94,9 +126,5 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 	registerUpdateTool(server, execCmd)
 	registerFixTool(server, execCmd)
 
-	// Add receiving middleware to transform raw JSON-schema "additional properties"
-	// validation errors into helpful messages with "Did you mean?" suggestions.
-	server.AddReceivingMiddleware(argumentValidationMiddleware(mcpToolParams()))
-
-	return server
+	return nil
 }
