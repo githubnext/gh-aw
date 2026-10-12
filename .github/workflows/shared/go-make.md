@@ -8,6 +8,8 @@ mcp-scripts:
     inputs:
       args:
         type: array
+        items:
+          type: string
         description: "Array of argument strings to pass to go CLI (without the 'go' prefix). Examples: ['test', './...'], ['build', './cmd/gh-aw'], ['mod', 'tidy'], ['fmt', './...'], ['vet', './...']"
         required: true
     script: |
@@ -29,6 +31,8 @@ mcp-scripts:
     inputs:
       args:
         type: array
+        items:
+          type: string
         description: "Array of target names and option strings to pass to make. Examples: ['build'], ['test-unit'], ['lint'], ['recompile'], ['agent-finish'], ['fmt', 'build', 'test-unit']"
         required: true
     script: |

@@ -145,6 +145,35 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   });
 
   describe("generatePlainTextSummary", () => {
+    it("renders array args with shell word boundaries and retains failure diagnostics", () => {
+      const args = ["test", "./...", "-run", "a  b", "", "it's", "$(id)"];
+      const summary = generatePlainTextSummary([
+        { serverName: "mcpscripts", message: `[go] Invoking handler with args: ${JSON.stringify({ args })}` },
+        { serverName: "mcpscripts", message: '[go] Serialized result: {"stderr":"failed"}' },
+        { serverName: "mcpscripts", message: "Error: Failed to process request" },
+      ]);
+
+      expect(summary).toContain("● go (MCP: mcpscripts) · args: \"test ./... -run 'a  b' '' 'it'\\''s' '$(id)'\"");
+      expect(summary).toContain('└ {"stderr":"failed"}');
+      expect(summary).toContain("Additional MCP diagnostics:");
+    });
+
+    it("renders an empty argument vector without a raw JSON fallback", () => {
+      const summary = generatePlainTextSummary([{ serverName: "mcpscripts", message: '[go] Invoking handler with args: {"args":[]}' }]);
+      expect(summary).toBe('● go (MCP: mcpscripts) · args: ""');
+    });
+
+    it.each([
+      ["build", 42],
+      ["build", null],
+      ["build", {}],
+      ["build", ["nested"]],
+    ])("retains raw JSON for malformed array args %j", (...args) => {
+      const payload = JSON.stringify({ args });
+      const summary = generatePlainTextSummary([{ serverName: "mcpscripts", message: `[go] Invoking handler with args: ${payload}` }]);
+      expect(summary).toBe(`● go (MCP: mcpscripts) · args: "${payload}"`);
+    });
+
     it("should render Copilot-style MCP tool lines with args and result preview", () => {
       const logEntries = [
         {

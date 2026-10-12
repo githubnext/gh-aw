@@ -179,11 +179,21 @@ mcp-scripts:
         type: number
         default: 42
         description: "This has a default value"
+      args:
+        type: array
+        items:
+          type: string
+        description: "An array of argument strings"
       choice-param:
         type: string
         enum: ["option1", "option2", "option3"]
         description: "Limited to specific values"
 ```
+
+Array parameters accept an optional `items: { type: string }` declaration to
+validate every element. Item types support `string`, `number`, `boolean`, `array`,
+and `object`; only the item `type` is supported. Omitting `items` leaves element
+types unrestricted. `items` requires the parameter's `type` to be `array`.
 
 ## Timeout Configuration
 

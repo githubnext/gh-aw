@@ -27,7 +27,7 @@ const { formatAIC } = require("./model_costs.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, getTokenUsagePaths } = require("./parse_token_usage.cjs");
-const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
+const { extractShellCommandDetailsFromToolData } = require("./tool_call_details.cjs");
 const { resolveFailureIssueRepo } = require("./repo_helpers.cjs");
 const { GITHUB_API_VERSION } = require("./constants.cjs");
 const { buildEmptyOutputOutcome, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES } = require("./empty_output_outcome.cjs");
@@ -1479,7 +1479,9 @@ function normalizeToolCallPreview(value, maxLen = 120) {
  * @returns {string}
  */
 function extractShellCommandPreview(data) {
-  return normalizeToolCallPreview(extractShellCommandFromToolData(data));
+  const { command, isArgumentVector } = extractShellCommandDetailsFromToolData(data);
+  if (!isArgumentVector) return normalizeToolCallPreview(command);
+  return command.length <= 120 ? command : `${command.slice(0, 120 - ELLIPSIS_LENGTH)}${ELLIPSIS}`;
 }
 
 /**
@@ -1701,7 +1703,16 @@ function buildToolDenialsExceededContext(events, workflowId) {
   // Normalize the reason for display: multi-line programs (e.g. Python 3 heredocs) are
   // collapsed to a single-line summary so the issue body renders cleanly.
   const normalizedReason = normalizeDeniedPermissionCommand(reason);
-  const recentToolCallsList = Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0 ? latestEvent.recentToolCalls.map(toolCall => `- \`${toolCall}\``).join("\n") : "- _No tool calls captured_";
+  const recentToolCallsList =
+    Array.isArray(latestEvent.recentToolCalls) && latestEvent.recentToolCalls.length > 0
+      ? latestEvent.recentToolCalls
+          .map(toolCall => {
+            const backticks = toolCall.match(/`+/g) || [];
+            const delimiter = "`".repeat(backticks.reduce((max, run) => Math.max(max, run.length), 0) + 1);
+            return `- ${delimiter}${toolCall}${delimiter}`;
+          })
+          .join("\n")
+      : "- _No tool calls captured_";
 
   const templatePath = getPromptPath("tool_denials_exceeded_context.md");
   let template;
@@ -5161,6 +5172,7 @@ async function main() {
 }
 
 module.exports = {
+  extractShellCommandPreview,
   readModelEndpointMismatch,
   buildModelEndpointMismatchContext,
   isInvalidatedPRMergeCheckout,

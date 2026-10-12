@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
+const { formatShellArguments } = require("./tool_call_details.cjs");
 
 /**
  * Parses mcp-scripts MCP server logs and creates a step summary
@@ -109,9 +110,9 @@ function parseMCPScriptsLogLine(line) {
 function generatePlainTextSummary(logEntries) {
   const lines = [];
 
-  const truncate = (value, max = 120) => {
+  const truncate = (value, max = 120, preserveWhitespace = false) => {
     if (!value) return "";
-    const normalized = String(value).replace(/\s+/g, " ").trim();
+    const normalized = preserveWhitespace ? String(value) : String(value).replace(/\s+/g, " ").trim();
     if (normalized.length <= max) return normalized;
     return `${normalized.slice(0, max - 3)}...`;
   };
@@ -186,8 +187,11 @@ function generatePlainTextSummary(logEntries) {
       const parsedArgs = parseJSON(invokingPayload.payload);
       let argsDisplay = "";
       if (parsedArgs && typeof parsedArgs === "object" && parsedArgs !== null) {
+        const arrayArgs = formatShellArguments(parsedArgs.args);
         if (typeof parsedArgs.args === "string" && parsedArgs.args.trim()) {
           argsDisplay = ` · args: "${truncate(parsedArgs.args, 90)}"`;
+        } else if (arrayArgs !== undefined) {
+          argsDisplay = ` · args: "${truncate(arrayArgs, 90, true)}"`;
         } else {
           argsDisplay = ` · args: "${truncate(JSON.stringify(parsedArgs), 90)}"`;
         }

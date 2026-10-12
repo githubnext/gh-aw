@@ -5959,6 +5959,28 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("array command previews", () => {
+    it("preserves literal whitespace, empty arguments, quotes, and shell syntax", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      const args = ["build", "a  b", "", "it's", "`id`", "$(id)"];
+      const expected = "build 'a  b' '' 'it'\\''s' '`id`' '$(id)'";
+      expect(extractShellCommandPreview({ args })).toBe(expected);
+      expect(extractShellCommandPreview({ input: { args } })).toBe(expected);
+    });
+
+    it("retains legacy string normalization and command priority", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      expect(extractShellCommandPreview({ args: "  echo  `id`\n ok " })).toBe("echo 'id' ok");
+      expect(extractShellCommandPreview({ command: "  echo  `id`\n ok ", args: ["build", "a  b"] })).toBe("echo 'id' ok");
+    });
+
+    it("retains the preview length cap and rejects malformed arrays", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      expect(extractShellCommandPreview({ args: ["x".repeat(150)] })).toBe(`${"x".repeat(117)}...`);
+      expect(extractShellCommandPreview({ args: ["build", 42] })).toBe("");
+    });
+  });
+
   describe("tool_denials_exceeded context", () => {
     const fs = require("fs");
     const path = require("path");
@@ -5986,6 +6008,17 @@ describe("handle_agent_failure", () => {
       try {
         fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
       } catch {}
+    });
+
+    it("uses longer Markdown delimiters rather than changing literal backticks", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      const command = extractShellCommandPreview({ args: ["build", "a  b", "`id`", "``literal``"] });
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "denied", recentToolCalls: [`go(${command})`, "bash(git status)"] }]);
+      expect(result).toContain("- ```go(build 'a  b' '`id`' '``literal``')```");
+      expect(result).toContain("- `bash(git status)`");
     });
 
     it("loads guard.tool_denials_exceeded events from copilot session events.jsonl", () => {

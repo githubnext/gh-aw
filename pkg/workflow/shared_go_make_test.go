@@ -37,6 +37,7 @@ func TestSharedGoMakeArguments(t *testing.T) {
 			tool := config.Tools[toolName]
 			require.NotNil(t, tool)
 			require.Equal(t, MCPParamTypeArray, tool.Inputs["args"].Type)
+			require.Equal(t, &MCPScriptParamItems{Type: MCPParamTypeString}, tool.Inputs["args"].Items)
 			require.True(t, tool.Inputs["args"].Required)
 			require.Empty(t, tool.Run)
 			require.Empty(t, tool.Py)
@@ -155,5 +156,48 @@ func TestSharedGoMakeToolConfig(t *testing.T) {
 		args, ok := properties["args"].(map[string]any)
 		require.True(t, ok)
 		require.Equal(t, "array", args["type"])
+		require.Equal(t, map[string]any{"type": "string"}, args["items"])
+		t.Run(tool.Name+" schema validation", func(t *testing.T) {
+			node, err := exec.LookPath("node")
+			require.NoError(t, err)
+			for _, test := range []struct {
+				name      string
+				value     any
+				errorPath string
+			}{
+				{"empty array", map[string]any{"args": []any{}}, ""},
+				{"strings", map[string]any{"args": []any{"test", "./...", "", "path with spaces", "$(literal)"}}, ""},
+				{"number", map[string]any{"args": []any{"test", 1}}, "args[1]"},
+				{"object", map[string]any{"args": []any{map[string]any{}}}, "args[0]"},
+				{"boolean", map[string]any{"args": []any{true}}, "args[0]"},
+				{"null item", map[string]any{"args": []any{nil}}, "args[0]"},
+				{"nested array", map[string]any{"args": []any{[]any{"test"}}}, "args[0]"},
+				{"string", map[string]any{"args": "test ./..."}, "args"},
+				{"null", map[string]any{"args": nil}, "args"},
+				{"missing", map[string]any{}, "args"},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					input, err := json.Marshal(map[string]any{"schema": tool.InputSchema, "value": test.value})
+					require.NoError(t, err)
+					cmd := exec.Command(node, "-e", `
+const { validateValueAgainstSchema } = require("../../actions/setup/js/mcp_scripts_validation.cjs");
+const { schema, value } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+process.stdout.write(JSON.stringify(validateValueAgainstSchema(value, schema)));
+`)
+					cmd.Stdin = bytes.NewReader(input)
+					output, err := cmd.CombinedOutput()
+					require.NoError(t, err, string(output))
+					if test.errorPath == "" {
+						require.Equal(t, "null", string(output))
+					} else {
+						var validationError struct {
+							Path string `json:"path"`
+						}
+						require.NoError(t, json.Unmarshal(output, &validationError))
+						require.Equal(t, test.errorPath, validationError.Path)
+					}
+				})
+			}
+		})
 	}
 }
