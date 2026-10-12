@@ -62,6 +62,7 @@ func TestWorkQueueIssuesConfiguration(t *testing.T) {
 		{"title-too-long", map[string]any{"title_prefix": strings.Repeat("x", 81)}, false, ""},
 		{"title-expression", map[string]any{"title_prefix": "${{ inputs.title }}"}, false, ""},
 		{"title-control", map[string]any{"title_prefix": "queue\n"}, false, ""},
+		{"title-c1-control", map[string]any{"title_prefix": "queue\u0085"}, false, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			data := &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{"worker": true, "issues": test.value}}}

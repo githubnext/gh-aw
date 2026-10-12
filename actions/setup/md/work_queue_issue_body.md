@@ -8,6 +8,8 @@ This Issue tracks a task admitted to the Git-backed work queue. The queue schedu
 | Admission | [{admission_link_label}]({admission_run_url}) |
 | Source of truth | [Checked Git ledger]({ledger_url}) |
 
+<!-- work-id: {full_work_id} -->
+
 The `{tracking_label}` label identifies queue-managed Issues. {projection_note}
 
 > [!NOTE]

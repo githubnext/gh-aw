@@ -162,11 +162,12 @@ require an already registered exact revision and the same native checks.
 ```
 
 `issues: true` enables projection with the `work` tracking label, a
-`work:<status>` label, and Issue titles like `[work queue] abc1234`. An object
+`work:<status>` label, and Issue titles like `[work queue] abcdef012345`. An object
 may override `label` (for example, `cookie` produces `cookie:queued`) and
-`title_prefix` (for example, `[cookie queue] abc1234`); an empty object uses
-defaults. Issue titles and summaries show the first seven characters of the
-Work ID. Absent or false disables the integration. The label prefix must be a
+`title_prefix` (for example, `[cookie queue] abcdef012345`); an empty object
+uses defaults. Titles and summaries show the first 12 characters of the Work
+ID, and the Issue body retains the full ID in a machine-readable comment.
+Absent or false disables the integration. The label prefix must be a
 nonblank literal of at most 33 UTF-8 bytes, leaving room for the longest status
 suffix within GitHub's 50-character label limit. The title prefix must be a
 nonblank literal of at most 80 UTF-8 bytes; unknown keys are rejected.

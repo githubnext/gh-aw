@@ -84,7 +84,7 @@ func validateWorkQueueIssuesConfig(data *WorkflowData) error {
 	}
 	fields, ok := value.(map[string]any)
 	if !ok {
-		return errors.New("tools.work-queue.issues must be true, false, or an object with label and title_prefix")
+		return errors.New("tools.work-queue.issues must be true, false, or an object with optional label and title_prefix fields")
 	}
 	for key, value := range fields {
 		if key != "label" && key != "title_prefix" {

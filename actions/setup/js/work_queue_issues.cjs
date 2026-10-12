@@ -112,7 +112,7 @@ function summaryBody(state, work, at, diagnostics = [], branch = "work-queue", r
   if (!origin) throw queueError("projection_unauthorized", "Work admission provenance is unavailable");
   return renderSummary(
     {
-      work_id: work.work_id.slice(0, 7),
+      work_id: work.work_id.slice(0, 12),
       ledger_url: `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`,
       claim_history: claimHistory.join("\n") || "No authenticated worker run yet.",
       outcome_links: outcomes.join("\n"),
@@ -272,7 +272,7 @@ async function projectBatch(options, initial, origin, assignment, config, target
       type: "CreateIssueInput",
       input: {
         repositoryId: discovered.repositoryId,
-        title: `${config.title_prefix} ${work.work_id.slice(0, 7)}`,
+        title: `${config.title_prefix} ${work.work_id.slice(0, 12)}`,
         body: issueBody(current.state, work, origin, config, current.branch),
         labelIds: [discovered.labelId, statusLabels.get(`${origin.repository}:${status}`)],
       },
