@@ -67,11 +67,12 @@ func TestEngineDefaultDomainsExcludePackageRegistries(t *testing.T) {
 }
 
 // TestEngineDefaultDomainsKeepTransportDomains verifies that removing package registries did
-// not remove the model/API transport domains each engine genuinely requires.
+// not remove the transport domains each engine genuinely requires in its static defaults.
+// Claude's Anthropic API host is added dynamically when Anthropic is the effective provider.
 func TestEngineDefaultDomainsKeepTransportDomains(t *testing.T) {
 	required := map[constants.EngineName][]string{
 		constants.CopilotEngine: {"api.githubcopilot.com", "host.docker.internal"},
-		constants.ClaudeEngine:  {"api.anthropic.com", "host.docker.internal"},
+		constants.ClaudeEngine:  {"host.docker.internal"},
 		constants.CodexEngine:   {"api.openai.com", "host.docker.internal"},
 		constants.GeminiEngine:  {"generativelanguage.googleapis.com", "host.docker.internal"},
 		constants.PiEngine:      {"api.githubcopilot.com", "host.docker.internal"},
