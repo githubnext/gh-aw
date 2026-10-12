@@ -1424,6 +1424,7 @@ async function main(config = {}) {
         repo: qualifiedItemRepo,
         number: issue.number,
         url: issue.html_url,
+        body,
         id: issue.id,
         metadata: { node_id: issue.node_id },
         temporaryId: temporaryId,

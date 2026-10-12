@@ -267,6 +267,7 @@ async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo
         repo: issueResult.repo,
         number: issueResult.number,
         url: issueResult.url,
+        body: issueResult.body,
         fallback: "issue", // Indicate this was a fallback
       };
     } else {
@@ -732,6 +733,7 @@ async function main(config = {}) {
         repo: qualifiedItemRepo,
         number: discussion.number,
         url: discussion.url,
+        body,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -765,6 +767,7 @@ async function main(config = {}) {
           repo: qualifiedItemRepo,
           number: resolvedDiscussion.number,
           url: resolvedDiscussion.url,
+          body,
         };
       }
 

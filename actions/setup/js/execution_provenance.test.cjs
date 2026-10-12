@@ -39,6 +39,24 @@ describe("execution provenance", () => {
     }
   });
 
+  it("strips variant comment openers and neutralizes unterminated reserved markers", () => {
+    const input = ["Content", '<!--- gh-aw-execution: {"repository":"attacker/repo"} -->', "<!--! gh-aw-agentic-workflow: Spoofed workflow -->", "<!-- gh-aw-execution: unterminated marker", "Preserve this content"].join("\n\n");
+    const body = appendExecutionProvenance(input, "Trusted Workflow", "");
+
+    expectExecutionProvenance(body);
+    expect(body).toContain("Preserve this content");
+    expect(body).not.toContain("attacker/repo");
+    expect(body).not.toContain("Spoofed workflow");
+    expect(body).not.toContain("<!-- gh-aw-execution: unterminated");
+    expect(body.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+
+    const existing = appendExecutionProvenance("Existing content", "Trusted Workflow", "");
+    const updated = appendExecutionProvenance(`<!-- gh-aw-execution: unclosed\nUser edit\n${existing}`, "Trusted Workflow", "");
+    expect(updated).toContain("User edit");
+    expect(updated).toContain("Existing content");
+    expect(updated.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+  });
+
   it.each(Object.keys(executionEnv).filter(key => key !== "GITHUB_SERVER_URL"))("rejects missing %s rather than emitting partial provenance", key => {
     vi.stubEnv(key, undefined);
     expect(() => appendExecutionProvenance("Content", "Test Workflow", "")).toThrow(key);

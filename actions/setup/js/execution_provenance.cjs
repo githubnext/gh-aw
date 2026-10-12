@@ -8,7 +8,10 @@ const { generateXMLMarker } = require("./generate_footer.cjs");
  * @returns {string}
  */
 function stripExecutionProvenance(body) {
-  return body.replace(/<!--\s*gh-aw-(?:execution|agentic-workflow)\s*:[\s\S]*?(?:-->|$)/gi, "").trimEnd();
+  return body
+    .replace(/<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:(?:(?!<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:)[\s\S])*?-->/gi, "")
+    .replace(/<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:/gi, marker => marker.replace(/gh-aw-/i, "gh-aw&#45;"))
+    .trimEnd();
 }
 
 /**

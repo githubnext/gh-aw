@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
-import { useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+import { expectExecutionProvenance, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
 
 useExecutionProvenanceFixture();
 import {
@@ -258,12 +258,16 @@ describe("Safe Output Handler Manager", () => {
         const updateCount = await processSyntheticUpdates(github, {}, trackedOutputs, new Map([["aw_track1", { repo: "owner/tracker", number: 99 }]]), new Map());
 
         expect(updateCount).toBe(1);
-        expect(updateComment).toHaveBeenCalledWith({
-          owner: "owner",
-          repo: "repo",
-          comment_id: 123,
-          body: "Tracking issue: owner/tracker#99\n\nHandler footer marker",
-        });
+        expect(updateComment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            owner: "owner",
+            repo: "repo",
+            comment_id: 123,
+          })
+        );
+        const body = updateComment.mock.calls[0][0].body;
+        expect(body).toContain("Tracking issue: owner/tracker#99\n\nHandler footer marker");
+        expectExecutionProvenance(body);
       });
     });
 
@@ -1470,6 +1474,29 @@ describe("Safe Output Handler Manager", () => {
       // The issue was created before the artifact was uploaded, so it should be tracked
       expect(result.outputsWithUnresolvedIds.length).toBe(1);
       expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
+    });
+
+    it("preserves issue grouping and execution provenance during synthetic updates", async () => {
+      const update = vi.fn().mockResolvedValue({});
+      const github = { rest: { issues: { update } } };
+      const context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 12345 };
+      const resultBody = ["See #aw_issue123", "<!-- gh-aw-workflow-id: test-workflow -->", "<!-- gh-aw-workflow-call-id: owner/repo/caller -->", '<!-- gh-aw-execution: {"version":1,"run_id":"old"} -->'].join("\n\n");
+
+      const updateCount = await processSyntheticUpdates(
+        github,
+        context,
+        [{ type: "create_issue", message: { type: "create_issue", body: "See #aw_issue123" }, result: { repo: "owner/repo", number: 10, body: resultBody }, originalTempIdMapSize: 0 }],
+        new Map([["aw_issue123", { repo: "owner/repo", number: 20 }]]),
+        new Map()
+      );
+
+      expect(updateCount).toBe(1);
+      expect(update).toHaveBeenCalledTimes(1);
+      const body = update.mock.calls[0][0].body;
+      expect(body).toContain("See #20");
+      expect(body).toContain("<!-- gh-aw-workflow-id: test-workflow -->");
+      expect(body).toContain("<!-- gh-aw-workflow-call-id: owner/repo/caller -->");
+      expectExecutionProvenance(body);
     });
 
     it("should replace artifact URL references in issue body when artifact is uploaded before issue", async () => {
