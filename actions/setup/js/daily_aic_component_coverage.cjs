@@ -51,7 +51,9 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
       if (prior && job.run_attempt === prior.run_attempt && job.id !== prior.id) {
         throw new Error("Ambiguous daily AIC component jobs");
       }
-      if (!prior || (prior.conclusion === "skipped" && job.conclusion !== "skipped") || (job.conclusion !== "skipped" && job.run_attempt > prior.run_attempt) || (prior.conclusion === "skipped" && job.run_attempt > prior.run_attempt)) {
+      const notStarted = job.conclusion === "skipped" || provesJobExecutionNotStarted(job);
+      const priorNotStarted = prior && (prior.conclusion === "skipped" || provesJobExecutionNotStarted(prior));
+      if (!prior || (priorNotStarted && !notStarted) || (notStarted === priorNotStarted && job.run_attempt > prior.run_attempt)) {
         components.set(name, job);
       }
     }
@@ -65,8 +67,8 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   return components;
 }
 
-function allBillableJobsSkipped(components) {
-  return [...components.values()].every(job => job.conclusion === "skipped");
+function allBillableJobsNotStarted(components) {
+  return [...components.values()].every(job => job.conclusion === "skipped" || provesJobExecutionNotStarted(job));
 }
 
 function provesJobExecutionNotStarted(job) {
@@ -230,4 +232,4 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
   return total;
 }
 
-module.exports = { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents };
+module.exports = { loadBillableJobs, allBillableJobsNotStarted, sumCoveredComponents };
