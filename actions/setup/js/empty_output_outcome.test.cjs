@@ -5,7 +5,7 @@ import path from "path";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome, buildCompletionEvidence } = require("./empty_output_outcome.cjs");
 
 describe("empty output outcome", () => {
   let rootDir;
@@ -180,6 +180,84 @@ describe("empty output outcome", () => {
     expect(outcome.failureCause).toBe("missing_terminal_safe_output");
     expect(outcome.details).toContain("Safe-output tools: unknown (registration evidence could not be read)");
     expect(outcome.details).not.toContain("private-malformed-json");
+  });
+
+  it("uses archived gateway registration when the setup cache is no longer present", () => {
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool", description: "private-description", inputSchema: { private: "private-schema" } }] } }));
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("missing_terminal_safe_output");
+    expect(outcome.details).toContain("available at gateway snapshot (registered 1 tools)");
+    expect(outcome.details).not.toContain("private-");
+  });
+
+  it("prefers setup registration over a conflicting gateway snapshot", () => {
+    fs.mkdirSync(path.join(rootDir, "gh-aw/mcp-cli/tools"), { recursive: true });
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "gh-aw/mcp-cli/tools/safeoutputs.json"), "[]");
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "noop" }] } }));
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("unavailable at setup (registered 0 tools)");
+  });
+
+  it.each(["rpc_request", "REQUEST"])("counts %s calls separately from CLI attempts without publishing arguments or responses", event => {
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
+    fs.writeFileSync(
+      path.join(rootDir, "mcp-logs/rpc-messages.jsonl"),
+      [
+        { event, server_id: "safeoutputs", payload: { method: "tools/call", params: { name: "private-tool", arguments: { body: "private-arguments" } } } },
+        { event, server_id: "github", method: "tools/call" },
+        { event, server_id: "safeoutputs", method: "tools/list" },
+        { event: "rpc_response", server_id: "safeoutputs", payload: { result: { content: "private-result" } } },
+      ]
+        .map(JSON.stringify)
+        .join("\n") + "\nprivate-malformed-record"
+    );
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), [{ event: "call_start", tool: "private-tool" }, { event: "tools_call_start" }, { event: "call_complete" }].map(JSON.stringify).join("\n"));
+    const summary = buildCompletionEvidence(rootDir).join("\n");
+    expect(summary).toContain("Safe-output CLI calls observed: 1");
+    expect(summary).toContain("Safe-output MCP calls observed: 1 (partial evidence: 1 malformed records)");
+    expect(summary).not.toContain("private-");
+  });
+
+  it("distinguishes missing call evidence from an observed tools-list-only gateway log", () => {
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output MCP calls observed: unknown (not recorded)");
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/rpc-messages.jsonl"), JSON.stringify({ event: "rpc_request", server_id: "safeoutputs", method: "tools/list" }));
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output MCP calls observed: 0");
+  });
+
+  it("reports output persistence without treating records as validated or published outcomes", () => {
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output persistence: not recorded");
+    fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), " \n");
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output persistence: empty (0 records, 0 malformed");
+    fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), `${JSON.stringify({ type: "report_incomplete", details: "private-details" })}\nprivate-broken-json\n[]\n`);
+    const summary = buildCompletionEvidence(rootDir).join("\n");
+    expect(summary).toContain("Safe-output persistence: nonempty (3 records, 2 malformed; not validation or publication evidence)");
+    expect(summary).not.toContain("private-");
+  });
+
+  it.each(["mcp-logs", "safeoutputs.jsonl"])("refuses symlinked %s evidence", relativePath => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "completion-symlink-"));
+    try {
+      fs.writeFileSync(path.join(outside, "tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool" }] } }));
+      fs.symlinkSync(relativePath === "mcp-logs" ? outside : path.join(outside, "tools.json"), path.join(rootDir, relativePath));
+      const summary = buildCompletionEvidence(rootDir).join("\n");
+      expect(summary).toContain(relativePath === "mcp-logs" ? "Safe-output tools: unknown (registration evidence could not be read)" : "Safe-output persistence: unreadable");
+      expect(summary).not.toContain("private-tool");
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("reports oversized and non-file evidence as unreadable rather than empty", () => {
+    const outputPath = path.join(rootDir, "safeoutputs.jsonl");
+    fs.writeFileSync(outputPath, "");
+    fs.truncateSync(outputPath, 10 * 1024 * 1024 + 1);
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output persistence: unreadable");
+    fs.unlinkSync(outputPath);
+    fs.mkdirSync(outputPath);
+    expect(buildCompletionEvidence(rootDir).join("\n")).toContain("Safe-output persistence: unreadable");
   });
 
   it("keeps core diagnostics even when validation errors fill the detail limit", () => {
