@@ -96,7 +96,7 @@ Use `cache-memory` to load the exploration history and select personas.
 
 2. **Select personas**:
    - If `baseline-completed.json` does not exist, select Program Manager, Designer, and Legal / Compliance for the one-time baseline, regardless of the explored list.
-   - Otherwise, pick 3 personas from the Full Persona Pool that are **not** in the explored list. If fewer than 3 remain, reset the explored list to empty and pick from the full pool.
+   - Otherwise, pick up to 3 personas from the Full Persona Pool that are **not** in the explored list. If 1 or 2 remain, select those before resetting the rotation; reset the explored list only when no personas remain.
    - In normal rotation, prioritize non-technical personas (Program Manager, Designer, Legal / Compliance, Information Worker) when multiple options are available.
 
 3. **Store selected personas in working memory** for use in Phase 2 and beyond.
@@ -119,7 +119,7 @@ If `baseline-completed.json` does not exist, use these **same four scenarios fro
 
 Mark these as the initial baseline and do not generate replacement scenarios for this run.
 
-Otherwise, for each of the 3 selected personas, generate **2 representative automation tasks** that would be appropriate for agentic workflows:
+Otherwise, for each selected persona, generate **2 representative automation tasks** that would be appropriate for agentic workflows:
 
 **Format for each scenario (keep concise):**
 ```
@@ -144,7 +144,7 @@ Store all scenarios in cache memory.
 
 ## Phase 3: Test Agent Responses (15 minutes)
 
-**Token Budget Optimization**: Test all 4 scenarios in the initial baseline. On later runs, test a **representative subset of 3-4 scenarios** from the 6 generated (not all) to reduce token consumption and ensure budget remains for Phase 5 publishing.
+**Token Budget Optimization**: Test all 4 scenarios in the initial baseline. On later runs, test a **representative subset of 3-4 scenarios** from those generated (not all) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
 **For each scenario analyzed, capture a structured record:**
 ```json
@@ -250,7 +250,7 @@ Example:
 ### Persona Overview
 - **Agent**: [name]
 - **Personas This Run**: [3 persona names]
-- **Scenarios Tested**: [count - 4 for the initial baseline; otherwise 3-4 selected from 6 generated in Phase 2]
+- **Scenarios Tested**: [count - 4 for the initial baseline; otherwise 3-4 selected from those generated in Phase 2]
 - **Average Quality Score**: [X.X/5.0 or N/A when invocation/scoring is unavailable]
 
 ### Key Findings (3-5 bullet points max)
@@ -285,8 +285,8 @@ Example:
 Store the structured records in `/tmp/gh-aw/cache-memory/agent-persona-explorer/results-${{ github.run_id }}.json` for historical comparison across runs.
 
 **Update the exploration history**: After publishing the issue, update `/tmp/gh-aw/cache-memory/agent-persona-explorer/explored-personas.json`:
-- Append the 3 personas tested in this run to the existing explored list
-- If the updated list now contains all 9 personas, reset to the 3 personas from this run only (start a new rotation cycle)
+- Append the personas tested in this run to the existing explored list
+- If the updated list now contains all 9 personas, reset to an empty list (start a new rotation cycle)
 - Store as: `{ "explored": ["Persona A", "Persona B", ...] }`
 - If this was the initial baseline and all four scenario invocations succeeded, write `{ "completed": true, "scenario_ids": ["PM-1", "DS-1", "LC-1", "LC-2"] }` to `baseline-completed.json`. If any invocation failed, leave the marker absent so the exact baseline is retried next run.
 

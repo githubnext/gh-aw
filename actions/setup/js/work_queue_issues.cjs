@@ -19,13 +19,20 @@ const { issueBody, renderSummary, renderClaim, runLink } = require("./work_queue
 
 function issuesConfiguration(value) {
   if (value === undefined || value === false) return null;
-  if (value === true) return { label: "work" };
-  closed(value, [], ["label"], "work-queue issues");
+  if (value === true) return { label: "work", title_prefix: "[work queue]" };
+  closed(value, [], ["label", "title_prefix"], "work-queue issues");
   for (const [key, field] of Object.entries(value)) {
-    if (typeof field !== "string" || !field.trim() || field.includes("${{") || Buffer.byteLength(field) > 33 || /[\x00-\x1f\x7f]/.test(field))
+    if (
+      typeof field !== "string" ||
+      !field.trim() ||
+      field.includes("${{") ||
+      Buffer.byteLength(field) > (key === "label" ? 33 : 80) ||
+      /\p{Cc}/u.test(field) ||
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(field)
+    )
       throw queueError("projection_invalid", `${SAFE_OUTPUT_E001}: ${key} must be a nonblank bounded literal`);
   }
-  return { label: "work", ...value };
+  return { label: "work", title_prefix: "[work queue]", ...value };
 }
 
 function ownProjectionTargets(state, origin, ref, assignment) {
@@ -105,7 +112,7 @@ function summaryBody(state, work, at, diagnostics = [], branch = "work-queue", r
   if (!origin) throw queueError("projection_unauthorized", "Work admission provenance is unavailable");
   return renderSummary(
     {
-      work_id: work.work_id,
+      work_id: work.work_id.slice(0, 12),
       ledger_url: `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`,
       claim_history: claimHistory.join("\n") || "No authenticated worker run yet.",
       outcome_links: outcomes.join("\n"),
@@ -265,7 +272,7 @@ async function projectBatch(options, initial, origin, assignment, config, target
       type: "CreateIssueInput",
       input: {
         repositoryId: discovered.repositoryId,
-        title: `Work ${work.work_id}`,
+        title: `${config.title_prefix} ${work.work_id.slice(0, 12)}`,
         body: issueBody(current.state, work, origin, config, current.branch),
         labelIds: [discovered.labelId, statusLabels.get(`${origin.repository}:${status}`)],
       },

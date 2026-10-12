@@ -20,6 +20,7 @@ type AddCommentsConfig struct {
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`             // List of additional repositories that comments can be added to (additionally to the target-repo)
 	AllowedCommentIDs      []string `yaml:"allows-comment-ids,omitempty"`        // Trusted allowlist of issue/PR comment IDs the agent may update when target is "*"
 	HideOlderComments      *string  `yaml:"hide-older-comments,omitempty"`       // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
+	ReplaceOlderComments   *string  `yaml:"replace-older-comments,omitempty"`    // When true, updates the newest matching issue or PR comment instead of creating one
 	HideOlderCommentsMatch []string `yaml:"hide-older-comments-match,omitempty"` // Internal list populated from hide-older-comments.match and passed to the JS handler as exact workflow ID matches
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`           // List of allowed reasons for hiding older comments (default: all reasons allowed)
 	Issues                 *bool    `yaml:"issues,omitempty"`                    // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
@@ -35,7 +36,10 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	// Get config data for pre-processing before YAML unmarshaling
-	configData, _ := outputMap["add-comment"].(map[string]any)
+	configData, ok := outputMap["add-comment"].(map[string]any)
+	if !ok {
+		configData = nil
+	}
 
 	if err := preprocessHideOlderCommentsConfig(configData, addCommentLog); err != nil {
 		addCommentLog.Printf("Invalid hide-older-comments configuration: %v", err)
@@ -45,6 +49,10 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	// Pre-process templatable bool fields
 	if err := preprocessBoolFieldAsString(configData, "hide-older-comments", addCommentLog); err != nil {
 		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		return nil
+	}
+	if err := preprocessBoolFieldAsString(configData, "replace-older-comments", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid replace-older-comments value: %v", err)
 		return nil
 	}
 	if err := preprocessBoolFieldAsString(configData, "footer", addCommentLog); err != nil {
