@@ -1,6 +1,26 @@
 // @ts-check
 
 const SAFE_HEADERS = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-used", "x-ratelimit-reset", "retry-after"];
+const API_READ_OPERATIONS = Object.freeze({
+  CURRENT_RUN: "current_run",
+  WORKFLOW_HISTORY: "workflow_history",
+  REPOSITORY_HISTORY: "repository_history",
+  RUN_JOBS: "run_jobs",
+  ARTIFACT_LIST: "artifact_list",
+  ARTIFACT_REDIRECT: "artifact_redirect",
+  ARTIFACT_DOWNLOAD: "artifact_download",
+});
+const READ_OPERATIONS = new Set(Object.values(API_READ_OPERATIONS));
+const READ_FAILURES = new WeakMap();
+
+function getAPIReadFailure(error) {
+  // Artifact transport wrappers retain the original failure as their cause.
+  for (let depth = 0; depth < 5 && error && typeof error === "object"; depth++, error = error.cause) {
+    const failure = READ_FAILURES.get(error);
+    if (failure) return failure;
+  }
+  return null;
+}
 
 function safeResponseHeaders(headers) {
   return Object.fromEntries(
@@ -61,7 +81,11 @@ function createAPIBudget(reserve = 100) {
         throw Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP" });
       }
     },
-    async request(operation, observe = true) {
+    async request(operation, observe = true, readOperation) {
+      if (readOperation !== undefined && !READ_OPERATIONS.has(readOperation)) {
+        throw new TypeError("Unknown daily AIC read operation");
+      }
+      const operationName = readOperation ?? "unknown";
       for (let attempt = 0; ; attempt++) {
         try {
           let response;
@@ -76,7 +100,7 @@ function createAPIBudget(reserve = 100) {
             throw apiError(response.status, response.headers, "Daily AIC read failed with a server error");
           }
           if (attempt > 0) {
-            core.info(`[daily-workflow-aic] Transient read recovered: ${JSON.stringify({ attempts: attempt + 1, status: response.status || null, requests })}`);
+            core.info(`[daily-workflow-aic] Transient read recovered: ${JSON.stringify({ attempts: attempt + 1, status: response.status || null, requests, operation: operationName })}`);
           }
           return response;
         } catch (error) {
@@ -84,11 +108,13 @@ function createAPIBudget(reserve = 100) {
           const status = getErrorStatus(error) || null;
           if (attempt >= 2 || !transient) {
             const reason = isQuotaError(error) ? "quota_stop" : safeResponseHeaders(error?.response?.headers)["retry-after"] != null ? "retry_restricted" : transient ? "retry_exhausted" : "non_transient";
-            core.info(`[daily-workflow-aic] Stopped daily AIC read: ${JSON.stringify({ attempts: attempt + 1, status, reason, requests })}`);
+            const failure = Object.freeze({ attempts: attempt + 1, status: status !== null && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null, reason, requests, operation: operationName });
+            if (error && typeof error === "object") READ_FAILURES.set(error, failure);
+            core.info(`[daily-workflow-aic] Stopped daily AIC read: ${JSON.stringify(failure)}`);
             throw error;
           }
           const delayMs = 1000 * 2 ** attempt;
-          core.info(`[daily-workflow-aic] Retrying transient read: ${JSON.stringify({ attempt: attempt + 1, maxAttempts: 3, status, delayMs })}`);
+          core.info(`[daily-workflow-aic] Retrying transient read: ${JSON.stringify({ attempt: attempt + 1, maxAttempts: 3, status, delayMs, operation: operationName })}`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
         }
       }
@@ -106,4 +132,4 @@ function createAPIBudget(reserve = 100) {
   return budget;
 }
 
-module.exports = { safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError };
+module.exports = { API_READ_OPERATIONS, safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError, getAPIReadFailure };
