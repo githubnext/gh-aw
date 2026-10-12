@@ -202,7 +202,7 @@ func codexPluginMarketplaceName(index int) string {
 
 // GetPluginInstallationSteps checks out plugins before pre-agent steps.
 func (e *CodexEngine) GetPluginInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{})
+	return generatePluginInstallationSteps(workflowData, pluginInstallSpec{DeferRecording: true})
 }
 
 // GetPostConfigPluginInstallationSteps registers plugins in the execution home without
@@ -219,6 +219,7 @@ func (e *CodexEngine) GetPostConfigPluginInstallationSteps(workflowData *Workflo
 			continue
 		}
 		checkoutPath := pluginCheckoutPath(index)
+		repository := strings.Join(strings.Split(parsed.repoPath, "/")[:2], "/")
 		marketplaceName := codexPluginMarketplaceName(index)
 		pluginSubpath := pluginRepoSubpath(parsed)
 		manifestPath := path.Join(checkoutPath, pluginSubpath, "plugin.json")
@@ -231,6 +232,7 @@ func (e *CodexEngine) GetPostConfigPluginInstallationSteps(workflowData *Workflo
 			fmt.Sprintf("jq -n --arg name \"$PLUGIN_NAME\" --arg path %q '{name: %q, plugins: [{name: $name, source: {source: \"local\", path: $path}}]}' > %q", pluginSubpath, marketplaceName, marketplaceManifestPath),
 			fmt.Sprintf("%s plugin marketplace add %q", commandName, "./"+checkoutPath),
 			fmt.Sprintf(`%s plugin add "$PLUGIN_NAME@%s"`, commandName, marketplaceName),
+			pluginInstallationRecordCommand(parsed, repository, pluginCheckoutSubpath(parsed, index)),
 		}, "\n")
 		installStep := []string{"      - name: Install agent plugin " + parsed.repoPath}
 		steps = append(steps, FormatStepWithCommandAndEnv(installStep, installCommand, map[string]string{"CODEX_HOME": codexHome(workflowData)}))
