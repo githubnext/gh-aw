@@ -594,24 +594,16 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 			return nil, nil, err
 		}
 
-		cmdArgs := buildAuditCommandArgs(args, runItems)
 		responseDeadline := mcpAuditResponseDeadline(ctx)
-		timeout := time.Until(responseDeadline)
-		if timeout <= mcpAuditResponseMargin {
-			return buildAuditErrorResult(context.DeadlineExceeded, "", runItems)
-		}
-		cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
-
-		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
-
 		subCtx, subCancel := context.WithDeadline(ctx, responseDeadline)
 		defer subCancel()
+		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		stdout, execErr := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
+		stdout, execErr := runMCPAuditSubprocess(subCtx, responseDeadline, execCmd, args, runItems)
 
 		// The audit command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
@@ -632,6 +624,24 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 			},
 		}, nil, nil
 	}
+}
+
+func runMCPAuditSubprocess(ctx context.Context, responseDeadline time.Time, execCmd execCmdFunc, args auditArgs, runItems []string) ([]byte, error) {
+	if err := defaultMCPSubprocessGuardrail.acquire(ctx); err != nil {
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		return nil, err
+	}
+	defer defaultMCPSubprocessGuardrail.release()
+
+	timeout := time.Until(responseDeadline)
+	if timeout <= mcpAuditResponseMargin {
+		return nil, context.DeadlineExceeded
+	}
+	cmdArgs := buildAuditCommandArgs(args, runItems)
+	cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
+	return execCmd(ctx, cmdArgs...).Output()
 }
 
 // resolveAuditRunItems resolves the list of run IDs/URLs to pass to the audit

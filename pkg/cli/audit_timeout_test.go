@@ -15,7 +15,7 @@ import (
 )
 
 func TestIncompleteAuditTimeout(t *testing.T) {
-	for _, stage := range []string{"artifacts", "analysis"} {
+	for _, stage := range []string{"metadata", "artifacts", "analysis", "job_logs"} {
 		t.Run(stage, func(t *testing.T) {
 			dir := t.TempDir()
 			cfg := auditRunConfig{runID: 123, outputDir: dir, jsonOutput: true}
@@ -46,6 +46,72 @@ func TestIncompleteAuditTimeout(t *testing.T) {
 			assert.Empty(t, entries, "incomplete data must not populate caches")
 		})
 	}
+}
+
+func TestAuditPreparationTimeoutStage(t *testing.T) {
+	assert.Equal(t, "metadata", auditPreparationTimeoutStage(WorkflowRun{}))
+	assert.Equal(t, "artifacts", auditPreparationTimeoutStage(WorkflowRun{DatabaseID: 42}))
+}
+
+func TestRenderAuditReportReturnsDeadlineBeforeWritingCaches(t *testing.T) {
+	runDir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	stdout, _ := captureOutput(t, func() error {
+		err := renderAuditReport(ctx, ProcessedRun{Run: WorkflowRun{
+			DatabaseID:   42,
+			WorkflowPath: ".github/workflows/test.lock.yml",
+			LogsPath:     runDir,
+		}}, LogMetrics{}, nil, AuditOptions{
+			OutputDir:  runDir,
+			JSONOutput: true,
+		})
+		require.ErrorIs(t, err, context.Canceled)
+		return nil
+	})
+	assert.Empty(t, stdout)
+	entries, err := os.ReadDir(runDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestRenderAuditReportDoesNotCacheWhenBaselineLookupTimesOut(t *testing.T) {
+	withFakeBlockingGH(t)
+	runDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	stdout, _ := captureOutput(t, func() error {
+		err := renderAuditReport(ctx, ProcessedRun{Run: WorkflowRun{
+			DatabaseID:   42,
+			WorkflowPath: ".github/workflows/test.lock.yml",
+			LogsPath:     runDir,
+		}}, LogMetrics{}, nil, AuditOptions{
+			OutputDir:  runDir,
+			JSONOutput: true,
+		})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		return nil
+	})
+	assert.Empty(t, stdout)
+	entries, err := os.ReadDir(runDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestFetchAuditJobLogHonorsContextDeadline(t *testing.T) {
+	withFakeBlockingGH(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	_, _, err := fetchAuditJobLog(ctx, auditJobRunOptions{
+		jobID:     123,
+		outputDir: t.TempDir(),
+	})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(started), time.Second)
 }
 
 func TestIncompleteAuditPreservesOtherErrors(t *testing.T) {

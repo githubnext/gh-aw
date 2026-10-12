@@ -36,14 +36,15 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) (bool
 	}
 	announceAuditRun(cfg)
 	if cfg.jobID > 0 {
-		return false, auditJobRun(cfg.jobOptions())
+		err := auditJobRun(ctx, cfg.jobOptions())
+		return false, renderIncompleteAuditIfTimedOut(cfg, WorkflowRun{}, auditAnalysisResults{}, "job_logs", err)
 	}
 	if done, skipped, err := renderCachedAuditIfAvailable(ctx, cfg); done {
 		return skipped, renderIncompleteAuditIfTimedOut(cfg, WorkflowRun{}, auditAnalysisResults{}, "cached_report", err)
 	}
 	run, err := prepareAuditWorkflowRun(ctx, cfg)
 	if err != nil {
-		return false, renderIncompleteAuditIfTimedOut(cfg, run, auditAnalysisResults{}, "artifacts", err)
+		return false, renderIncompleteAuditIfTimedOut(cfg, run, auditAnalysisResults{}, auditPreparationTimeoutStage(run), err)
 	}
 	results, err := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName.String(), cfg.artifactFilter))
 	if err != nil {
@@ -51,15 +52,34 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) (bool
 	}
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
-	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
-	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter, cfg.runtimeFilter) {
+	skipByRunFilter := shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter, cfg.runtimeFilter)
+	if err := ctx.Err(); err != nil {
+		return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "report", err)
+	}
+	if skipByRunFilter {
+		saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
 		return true, nil
 	}
 	if shouldSkipForEvals(ctx, cfg, run) {
+		if err := ctx.Err(); err != nil {
+			return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "report", err)
+		}
+		saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
 		return true, nil
 	}
 	err = renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
-	return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "report", err)
+	if err != nil {
+		return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "report", err)
+	}
+	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
+	return false, nil
+}
+
+func auditPreparationTimeoutStage(run WorkflowRun) string {
+	if run.DatabaseID == 0 {
+		return "metadata"
+	}
+	return "artifacts"
 }
 
 // Incomplete reports are never written to the full-audit or run-summary caches.

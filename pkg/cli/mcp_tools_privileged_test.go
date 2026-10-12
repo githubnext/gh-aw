@@ -1097,6 +1097,7 @@ func TestAuditToolReservesResponseTime(t *testing.T) {
 				ctx, cancel = context.WithTimeout(ctx, budget)
 				defer cancel()
 			}
+
 			var deadline time.Time
 			var capturedArgs []string
 			execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
@@ -1121,6 +1122,68 @@ func TestAuditToolReservesResponseTime(t *testing.T) {
 			assert.InDelta(t, (deadline.Sub(before) - mcpAuditResponseMargin).Seconds(), softTimeout.Seconds(), 1)
 		})
 	}
+}
+
+func TestAuditToolCalculatesTimeoutAfterAcquiringSubprocessSlot(t *testing.T) {
+	guardrail := defaultMCPSubprocessGuardrail
+	heldSlots := maxActiveMCPChildProcesses
+	for range heldSlots {
+		require.NoError(t, guardrail.acquire(context.Background()))
+	}
+	defer func() {
+		for range heldSlots {
+			guardrail.release()
+		}
+	}()
+
+	called := make(chan struct{}, 1)
+	var capturedArgs []string
+	var launchTime time.Time
+	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		launchTime = time.Now()
+		capturedArgs = append([]string(nil), args...)
+		called <- struct{}{}
+		return exec.CommandContext(ctx, "echo", `{"overview":{"run_id":123}}`)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	type handlerResult struct {
+		result *mcp.CallToolResult
+		err    error
+	}
+	done := make(chan handlerResult, 1)
+	go func() {
+		result, _, err := newAuditToolHandler(execCmd, "", false)(ctx, nil, auditArgs{RunID: "123"})
+		done <- handlerResult{result: result, err: err}
+	}()
+
+	select {
+	case <-called:
+		t.Fatal("audit command must not be created while waiting for a subprocess slot")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	guardrail.release()
+	heldSlots--
+	select {
+	case <-called:
+	case <-time.After(time.Second):
+		t.Fatal("audit command was not created after a subprocess slot became available")
+	}
+	for range heldSlots {
+		guardrail.release()
+	}
+	heldSlots = 0
+	result := <-done
+	require.NoError(t, result.err)
+	require.NotNil(t, result.result)
+
+	responseDeadline := mcpAuditResponseDeadline(ctx)
+	index := slices.Index(capturedArgs, "--timeout")
+	require.GreaterOrEqual(t, index, 0)
+	softTimeout, err := time.ParseDuration(capturedArgs[index+1])
+	require.NoError(t, err)
+	assert.InDelta(t, (responseDeadline.Sub(launchTime) - mcpAuditResponseMargin).Seconds(), softTimeout.Seconds(), 0.1)
 }
 
 func TestAuditTimeoutErrorPreservesPartialResults(t *testing.T) {
