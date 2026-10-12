@@ -161,7 +161,7 @@ For tests below, mark a test as passed only if the required tool call succeeds.
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **GH CLI Testing (via `gh-proxy`)**: Use `bash` to run `gh pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`
-3. **Make Build Testing**: Use the `mcpscripts-make` tool to build the project (use args: "build") and verify it succeeds
+3. **Make Build Testing**: Use the `mcpscripts-make` tool to build the project (use args: ["build"]) and verify it succeeds
 4. **Playwright Testing**: Use playwright-cli to navigate to https://github.com and verify the page title contains "GitHub": run `playwright-cli browser_navigate --url https://github.com` then `playwright-cli browser_snapshot` in bash
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)

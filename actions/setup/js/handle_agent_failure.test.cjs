@@ -5994,6 +5994,28 @@ describe("handle_agent_failure", () => {
     });
   });
 
+  describe("array command previews", () => {
+    it("preserves literal whitespace, empty arguments, quotes, and shell syntax", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      const args = ["build", "a  b", "", "it's", "`id`", "$(id)"];
+      const expected = "build 'a  b' '' 'it'\\''s' '`id`' '$(id)'";
+      expect(extractShellCommandPreview({ args })).toBe(expected);
+      expect(extractShellCommandPreview({ input: { args } })).toBe(expected);
+    });
+
+    it("retains legacy string normalization and command priority", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      expect(extractShellCommandPreview({ args: "  echo  `id`\n ok " })).toBe("echo 'id' ok");
+      expect(extractShellCommandPreview({ command: "  echo  `id`\n ok ", args: ["build", "a  b"] })).toBe("echo 'id' ok");
+    });
+
+    it("retains the preview length cap and rejects malformed arrays", () => {
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      expect(extractShellCommandPreview({ args: ["x".repeat(150)] })).toBe(`${"x".repeat(117)}...`);
+      expect(extractShellCommandPreview({ args: ["build", 42] })).toBe("");
+    });
+  });
+
   describe("tool_denials_exceeded context", () => {
     const fs = require("fs");
     const path = require("path");
@@ -6021,6 +6043,17 @@ describe("handle_agent_failure", () => {
       try {
         fs.rmSync(path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state"), { recursive: true, force: true });
       } catch {}
+    });
+
+    it("uses longer Markdown delimiters rather than changing literal backticks", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.copyFileSync(path.join(__dirname, "../md/tool_denials_exceeded_context.md"), path.join(promptsDir, "tool_denials_exceeded_context.md"));
+      const { extractShellCommandPreview } = require("./handle_agent_failure.cjs");
+      const command = extractShellCommandPreview({ args: ["build", "a  b", "`id`", "``literal``"] });
+      const result = buildToolDenialsExceededContext([{ denialCount: 5, threshold: 5, reason: "denied", recentToolCalls: [`go(${command})`, "bash(git status)"] }]);
+      expect(result).toContain("- ```go(build 'a  b' '`id`' '``literal``')```");
+      expect(result).toContain("- `bash(git status)`");
     });
 
     it("loads guard.tool_denials_exceeded events from copilot session events.jsonl", () => {
@@ -6139,6 +6172,25 @@ describe("handle_agent_failure", () => {
           timestamp: "2026-06-06T00:00:01Z",
         },
       ]);
+    });
+
+    it("redacts inputs for recent Go, Make and shell MCP script calls", () => {
+      const sessionDir = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state", "session-1");
+      fs.mkdirSync(sessionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionDir, "events.jsonl"),
+        [
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "go", mcpServerName: "mcpscripts", input: { args: ["test", "./...", "-run", "a  b"] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "make", mcpServerName: "mcpscripts", arguments: { args: ["build", "it's", "`literal`", ""] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "shell", mcpServerName: "mcp-scripts", command: "secret-shell-input" } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "mcp__mcpscripts__bash", arguments: { args: ["secret-prefixed-input"] } } }),
+          JSON.stringify({ type: "tool.execution_start", data: { toolName: "read", mcpServerName: "other", args: ["unrelated"] } }),
+          JSON.stringify({ type: "guard.tool_denials_exceeded", data: { denialCount: 5, threshold: 5, reason: "permission denied: make" } }),
+        ].join("\n") + "\n"
+      );
+      const events = loadToolDenialsExceededEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0].recentToolCalls).toEqual(["mcpscripts.go([REDACTED])", "mcpscripts.make([REDACTED])", "mcp-scripts.shell([REDACTED])", "mcp__mcpscripts__bash([REDACTED])", "other.read"]);
     });
 
     it("sanitizes backticks in shell command previews", () => {

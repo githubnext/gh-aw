@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import http from "node:http";
 import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as stageAssets } from "./nvx_assets.cjs";
 
 describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
@@ -45,6 +46,20 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(fs.existsSync(path.join(root, "gh-aw", "bin", "node"))).toBe(true);
     expect(fs.existsSync(path.join(root, "gh-aw", "provider-token"))).toBe(false);
     expect(fs.existsSync(path.join(root, "state", "gateway-secret"))).toBe(false);
+  });
+
+  it("selects the separately staged guest Copilot variant", () => {
+    fs.mkdirSync(path.join(hostRoot, "bin"));
+    fs.writeFileSync(path.join(hostRoot, "bin", "copilot"), "host-glibc-copilot", { mode: 0o755 });
+    fs.mkdirSync(path.join(hostRoot, "nvx-engine"));
+    fs.writeFileSync(path.join(hostRoot, "nvx-engine", "copilot"), "guest-musl-copilot", { mode: 0o755 });
+
+    stage(environment, state);
+
+    const stagedCopilot = path.join(workspace, ".gh-aw-nvx", "gh-aw", "bin", "copilot");
+    expect(fs.readFileSync(stagedCopilot, "utf8")).toBe("guest-musl-copilot");
+    expect(fs.statSync(stagedCopilot).mode & 0o111).not.toBe(0);
+    expect(fs.existsSync(path.join(hostRoot, "nvx-engine"))).toBe(false);
   });
 
   it("exports only the selected native MCP config at its remapped guest path", () => {

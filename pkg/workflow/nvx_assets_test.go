@@ -40,8 +40,31 @@ func TestNVXGuestCommandAssets(t *testing.T) {
 			assert.Contains(t, hostCommand, `sudo apt-get install -y --no-install-recommends patchelf || exit $?`)
 			assert.Contains(t, hostCommand, WrapCommandInShell(guestCommand))
 			require.NoError(t, exec.Command("bash", "-n", "-c", hostCommand).Run())
+
+			var installation strings.Builder
+			for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+				installation.WriteString(strings.Join(step, "\n"))
+			}
+			assert.Contains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC: musl")
 		})
 	}
+}
+
+func TestNVXCopilotGuestAssetSelectionIsCompilerControlled(t *testing.T) {
+	data := validNVXWorkflowData()
+	var installation strings.Builder
+	for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+		installation.WriteString(strings.Join(step, "\n"))
+	}
+	assert.Contains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC: musl")
+
+	data = validNVXWorkflowData()
+	data.SandboxConfig.Agent.Runtime = AgentRuntimeDocker
+	installation.Reset()
+	for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+		installation.WriteString(strings.Join(step, "\n"))
+	}
+	assert.NotContains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC")
 }
 
 func TestNVXGuestCommandPreservesShellArguments(t *testing.T) {
@@ -163,6 +186,7 @@ Read the workspace and report completion.
 			require.NoError(t, err)
 			content := string(lock)
 			assert.Contains(t, content, nvxGuestRuntimeDir+"/actions/copilot_harness.cjs")
+			assert.Contains(t, content, "GH_AW_COPILOT_GUEST_LIBC: musl")
 			stageIndex := strings.Index(content, `nvx_assets.cjs" stage`)
 			collectIndex := strings.Index(content, "Collect NVX guest outputs")
 			cleanupIndex := strings.Index(content, "name: Remove staged NVX artifacts")

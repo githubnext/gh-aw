@@ -64,10 +64,16 @@ const (
 
 // MCPScriptParam holds the configuration for a tool input parameter
 type MCPScriptParam struct {
-	Type        MCPParamType // JSON schema type (string, number, boolean, array, object)
-	Description string       // Description of the parameter
-	Required    bool         // Whether the parameter is required
-	Default     any          // Default value
+	Type        MCPParamType         // JSON schema type (string, number, boolean, array, object)
+	Items       *MCPScriptParamItems // Optional element type for array parameters
+	Description string               // Description of the parameter
+	Required    bool                 // Whether the parameter is required
+	Default     any                  // Default value
+}
+
+// MCPScriptParamItems constrains array elements to a JSON schema type.
+type MCPScriptParamItems struct {
+	Type MCPParamType `json:"type"`
 }
 
 // MCPScriptsMode constants define the available transport modes
@@ -94,81 +100,34 @@ func IsMCPScriptsEnabled(mcpScripts *MCPScriptsConfig) bool {
 func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScriptToolConfig {
 	toolConfig := &MCPScriptToolConfig{
 		Name:    toolName,
-		Inputs:  make(map[string]*MCPScriptParam),
+		Inputs:  parseMCPScriptInputs(toolMap["inputs"]),
 		Env:     make(map[string]string),
-		Timeout: 60, // Default timeout: 60 seconds
+		Timeout: parseMCPScriptTimeout(toolName, toolMap["timeout"]),
 	}
 
 	// Parse description (required)
-	if desc, exists := toolMap["description"]; exists {
-		if descStr, ok := desc.(string); ok {
-			toolConfig.Description = descStr
-		}
-	}
-
-	// Parse inputs (optional)
-	if inputs, exists := toolMap["inputs"]; exists {
-		if inputsMap, ok := inputs.(map[string]any); ok {
-			for paramName, paramValue := range inputsMap {
-				if paramMap, ok := paramValue.(map[string]any); ok {
-					param := &MCPScriptParam{
-						Type: MCPParamTypeString, // default type
-					}
-
-					if t, exists := paramMap["type"]; exists {
-						if tStr, ok := t.(string); ok {
-							param.Type = MCPParamType(tStr)
-						}
-					}
-
-					if desc, exists := paramMap["description"]; exists {
-						if descStr, ok := desc.(string); ok {
-							param.Description = descStr
-						}
-					}
-
-					if req, exists := paramMap["required"]; exists {
-						if reqBool, ok := req.(bool); ok {
-							param.Required = reqBool
-						}
-					}
-
-					if def, exists := paramMap["default"]; exists {
-						param.Default = def
-					}
-
-					toolConfig.Inputs[paramName] = param
-				}
-			}
-		}
+	if desc, ok := toolMap["description"].(string); ok {
+		toolConfig.Description = desc
 	}
 
 	// Parse script (JavaScript implementation)
-	if script, exists := toolMap["script"]; exists {
-		if scriptStr, ok := script.(string); ok {
-			toolConfig.Script = scriptStr
-		}
+	if script, ok := toolMap["script"].(string); ok {
+		toolConfig.Script = script
 	}
 
 	// Parse run (shell script implementation)
-	if run, exists := toolMap["run"]; exists {
-		if runStr, ok := run.(string); ok {
-			toolConfig.Run = runStr
-		}
+	if run, ok := toolMap["run"].(string); ok {
+		toolConfig.Run = run
 	}
 
 	// Parse py (Python script implementation)
-	if py, exists := toolMap["py"]; exists {
-		if pyStr, ok := py.(string); ok {
-			toolConfig.Py = pyStr
-		}
+	if py, ok := toolMap["py"].(string); ok {
+		toolConfig.Py = py
 	}
 
 	// Parse go (Go script implementation)
-	if goScript, exists := toolMap["go"]; exists {
-		if goStr, ok := goScript.(string); ok {
-			toolConfig.Go = goStr
-		}
+	if goScript, ok := toolMap["go"].(string); ok {
+		toolConfig.Go = goScript
 	}
 
 	// Parse env (environment variables)
@@ -193,30 +152,61 @@ func parseMCPScriptToolConfig(toolName string, toolMap map[string]any) *MCPScrip
 		}
 	}
 
-	// Parse timeout (optional, default is 60 seconds)
-	if timeout, exists := toolMap["timeout"]; exists {
-		switch t := timeout.(type) {
-		case int:
-			toolConfig.Timeout = t
-		case uint64:
-			toolConfig.Timeout = typeutil.SafeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413, #414)
-		case float64:
-			maxInt := int(^uint(0) >> 1)
-			if t != t || t < 0 || t > float64(maxInt) {
-				mcpScriptsLog.Printf("Warning: invalid timeout value %v for tool %q, keeping default timeout (60s)", t, toolName)
-			} else {
-				toolConfig.Timeout = int(t)
-			}
-		case string:
-			if n, ok := parseTimeoutString(t); ok {
-				toolConfig.Timeout = n
-			} else {
-				mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
+	return toolConfig
+}
+
+func parseMCPScriptInputs(inputs any) map[string]*MCPScriptParam {
+	params := make(map[string]*MCPScriptParam)
+	inputsMap, ok := inputs.(map[string]any)
+	if !ok {
+		return params
+	}
+	for name, value := range inputsMap {
+		paramMap, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		param := &MCPScriptParam{Type: MCPParamTypeString}
+		if paramType, ok := paramMap["type"].(string); ok {
+			param.Type = MCPParamType(paramType)
+		}
+		if items, ok := paramMap["items"].(map[string]any); ok {
+			if itemType, ok := items["type"].(string); ok {
+				param.Items = &MCPScriptParamItems{Type: MCPParamType(itemType)}
 			}
 		}
+		if description, ok := paramMap["description"].(string); ok {
+			param.Description = description
+		}
+		if required, ok := paramMap["required"].(bool); ok {
+			param.Required = required
+		}
+		param.Default = paramMap["default"]
+		params[name] = param
 	}
+	return params
+}
 
-	return toolConfig
+func parseMCPScriptTimeout(toolName string, timeout any) int {
+	switch t := timeout.(type) {
+	case int:
+		return t
+	case uint64:
+		return typeutil.SafeUint64ToInt(t)
+	case float64:
+		maxInt := int(^uint(0) >> 1)
+		if t != t || t < 0 || t > float64(maxInt) {
+			mcpScriptsLog.Printf("Warning: invalid timeout value %v for tool %q, keeping default timeout (60s)", t, toolName)
+		} else {
+			return int(t)
+		}
+	case string:
+		if n, ok := parseTimeoutString(t); ok {
+			return n
+		}
+		mcpScriptsLog.Printf("Warning: invalid timeout value %q for tool %q, keeping default timeout (60s)", t, toolName)
+	}
+	return 60
 }
 
 // parseMCPScriptsMap parses mcp-scripts configuration from a map.

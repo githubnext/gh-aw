@@ -225,7 +225,7 @@ function redactBuiltInPatterns(content) {
       }
       redactionCount += matches.length;
       detectedPatterns.push(name);
-      core.info(`Redacted ${matches.length} occurrence(s) of ${name}`);
+      global.core?.info?.(`Redacted ${matches.length} occurrence(s) of ${name}`);
     }
   }
 
@@ -258,7 +258,7 @@ function redactSecrets(content, secretValues) {
     if (occurrences > 0) {
       redacted = parts.join(replacement);
       redactionCount += occurrences;
-      core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
+      global.core?.info?.(`Redacted ${occurrences} occurrence(s) of a secret`);
     }
   }
   return { content: redacted, redactionCount };
