@@ -50,28 +50,17 @@ func TestNVXGuestCommandAssets(t *testing.T) {
 	}
 }
 
-func TestNVXCopilotGuestLibcAssetSelection(t *testing.T) {
-	for _, tc := range []struct {
-		guestLibc string
-		expected  string
-	}{
-		{guestLibc: "musl", expected: "GH_AW_COPILOT_GUEST_LIBC: musl"},
-		{guestLibc: "glibc", expected: "GH_AW_COPILOT_GUEST_LIBC: glibc"},
-	} {
-		t.Run(tc.guestLibc, func(t *testing.T) {
-			data := validNVXWorkflowData()
-			data.SandboxConfig.Agent.NVX.GuestLibc = tc.guestLibc
-			var installation strings.Builder
-			for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
-				installation.WriteString(strings.Join(step, "\n"))
-			}
-			assert.Contains(t, installation.String(), tc.expected)
-		})
-	}
-
+func TestNVXCopilotGuestAssetSelectionIsCompilerControlled(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.Runtime = AgentRuntimeDocker
 	var installation strings.Builder
+	for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
+		installation.WriteString(strings.Join(step, "\n"))
+	}
+	assert.Contains(t, installation.String(), "GH_AW_COPILOT_GUEST_LIBC: musl")
+
+	data = validNVXWorkflowData()
+	data.SandboxConfig.Agent.Runtime = AgentRuntimeDocker
+	installation.Reset()
 	for _, step := range NewCopilotEngine().GetInstallationSteps(data) {
 		installation.WriteString(strings.Join(step, "\n"))
 	}
@@ -87,7 +76,7 @@ func TestNVXGuestCommandPreservesShellArguments(t *testing.T) {
 
 func TestNVXDefaultGuestWorkDir(t *testing.T) {
 	data := validNVXWorkflowData()
-	data.SandboxConfig.Agent.NVX = &AgentNVXConfig{GuestLibc: "musl"}
+	data.SandboxConfig.Agent.NVX = nil
 	command := BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", WorkflowData: data})
 	assert.Contains(t, command, "--container-workdir /workspace")
 	assert.NotContains(t, command, `--container-workdir "${GITHUB_WORKSPACE}"`)
@@ -177,7 +166,6 @@ sandbox:
   agent:
     runtime: nvx
     nvx:
-      guest-libc: musl
       preview: true
       network-isolation: true
       api-proxy: true
@@ -198,6 +186,7 @@ Read the workspace and report completion.
 			require.NoError(t, err)
 			content := string(lock)
 			assert.Contains(t, content, nvxGuestRuntimeDir+"/actions/copilot_harness.cjs")
+			assert.Contains(t, content, "GH_AW_COPILOT_GUEST_LIBC: musl")
 			stageIndex := strings.Index(content, `nvx_assets.cjs" stage`)
 			collectIndex := strings.Index(content, "Collect NVX guest outputs")
 			cleanupIndex := strings.Index(content, "name: Remove staged NVX artifacts")

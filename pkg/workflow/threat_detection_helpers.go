@@ -86,9 +86,6 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData, engineID str
 	hasCustomTarget := effectiveEnv["OPENAI_BASE_URL"] != "" ||
 		effectiveEnv["ANTHROPIC_BASE_URL"] != "" ||
 		effectiveEnv[constants.CopilotProviderBaseURL] != ""
-	if !hasCustomTarget {
-		return []string{}
-	}
 
 	additional := make([]string, 0, len(data.NetworkPermissions.Allowed))
 	seen := make(map[string]struct{})
@@ -96,10 +93,18 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData, engineID str
 		if entry == "" || strings.Contains(entry, "${{") {
 			continue
 		}
-		if len(getEcosystemDomains(entry)) > 0 {
+		if _, exists := seen[entry]; exists {
 			continue
 		}
-		if _, exists := seen[entry]; exists {
+		if entry == "copilot-vendor" {
+			seen[entry] = struct{}{}
+			additional = append(additional, entry)
+			continue
+		}
+		if !hasCustomTarget {
+			continue
+		}
+		if len(getEcosystemDomains(entry)) > 0 {
 			continue
 		}
 		seen[entry] = struct{}{}

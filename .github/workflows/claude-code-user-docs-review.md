@@ -42,6 +42,7 @@ tools:
   bash:
     - "cat *"
     - "ls *"
+    - "grep *"
 
 timeout-minutes: 30
 
@@ -83,12 +84,12 @@ Your mission is to review the GitHub Agentic Workflows (gh-aw) project documenta
 
 ## Phase 1: Gather Documentation Facts
 
-Launch the `doc-reader` agent and wait for its JSON output.
-Use its output as the sole factual basis for Phases 2+3 and 7 — do not read the documentation files directly.
+Launch `doc-reader` and `engine-example-counter` together and wait for both JSON outputs.
+Their outputs are the only factual inputs to Phase 7; do not read the documentation files directly.
 
 ## Phase 2+3: Analyze and Categorize Findings
 
-Using `doc-reader` output only, create a compact working JSON object before drafting the discussion:
+Using `doc-reader` output only, assemble this compact working JSON in memory before writing the discussion:
 
 ```json
 {
@@ -106,21 +107,10 @@ Keep entries terse. Use the three severity arrays to categorize blockers from a 
 - **Major obstacles**: significant friction or unclear workarounds
 - **Minor confusion**: paper cuts that slow adoption
 
-## Phase 4: Test Key Workflows
-
-Use the `engine-example-counter` agent. Its `parity_observations` field feeds directly into Phase 7 "Engine & Tool Matrix" section.
-
-## Phase 5: Check Tool and Feature Availability
-
-Use `doc-reader.tool_classification_table`, `doc-reader.counts_by_class`, and `doc-reader.ambiguous_entries`. They feed directly into Phase 7 "Engine & Tool Matrix" section.
-
-## Phase 6: Authentication and Setup
-
-Use `doc-reader.required_secrets_by_engine`, `doc-reader.setup_steps_by_engine`, `doc-reader.explicit_warnings_or_scope_notes`, and `doc-reader.auth_gaps_or_missing_instructions`. These feed directly into Phase 7 "Auth Gaps" section.
-
 ## Phase 7: Create Detailed Discussion Report
 
 Be concise. Total discussion body: max 1,000 words.
+Write the discussion in a single `create_discussion` call. Do not draft it in intermediate messages.
 
 Success criteria: cite file + line references for every finding, use severity categories (Critical/Major/Minor), provide actionable fixes.
 
@@ -174,6 +164,8 @@ Return compact JSON with:
 - explicit_warnings_or_scope_notes
 - auth_gaps_or_missing_instructions
 
+Cap each list at 8 one-line items; use `file:line` references for documentation evidence. Keep the tool classification table and counts complete.
+
 ## agent: `engine-example-counter`
 ---
 description: Counts workflow examples by engine and lists representative files
@@ -189,7 +181,7 @@ Count both supported YAML forms:
 - inline scalar: `engine: claude`
 - nested mapping: `engine:\n  id: claude`
 
-Prefer a YAML-aware frontmatter parse when practical; otherwise use matching that covers both forms.
+Use one `grep -nE '^[[:space:]]*(engine:[[:space:]]*([[:alnum:]_-]+)?|id:[[:space:]]*(claude|copilot|codex|custom))[[:space:]]*$' .github/workflows/*.md` call to locate declarations. Count only frontmatter `engine:` values and `id:` values nested under `engine:`, not unrelated `id:` fields.
 
 Return compact JSON with:
 - counts_by_engine

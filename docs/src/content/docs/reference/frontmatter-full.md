@@ -2392,9 +2392,6 @@ sandbox:
       # (optional)
       api-proxy: true
 
-      # Required guest libc ABI contract used to select compatible staged engine assets.
-      guest-libc: "glibc"
-
       # (optional)
       mount-policy: "workspace-only"
 

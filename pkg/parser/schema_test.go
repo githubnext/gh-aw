@@ -114,7 +114,6 @@ func TestValidateMainWorkflowFrontmatter_NVX(t *testing.T) {
 					"preview":                       true,
 					"network-isolation":             true,
 					"api-proxy":                     true,
-					"guest-libc":                    "musl",
 					"layer-path":                    "${{ runner.temp }}/nvx/layer",
 					"openvmm-path":                  "${{ runner.temp }}/nvx/openvmm",
 					"kernel-path":                   "${{ runner.temp }}/nvx/vmlinux",
@@ -130,7 +129,22 @@ func TestValidateMainWorkflowFrontmatter_NVX(t *testing.T) {
 		t.Fatalf("expected complete expression-valued NVX configuration to validate: %v", err)
 	}
 
-	t.Run("accepts guest libc with defaulted NVX settings", func(t *testing.T) {
+	t.Run("accepts defaulted NVX settings", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"runtime": "nvx",
+					"nvx":     map[string]any{},
+				},
+			},
+		}
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err != nil {
+			t.Fatalf("expected defaulted NVX configuration to validate: %v", err)
+		}
+	})
+
+	t.Run("rejects removed guest libc option", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on": "workflow_dispatch",
 			"sandbox": map[string]any{
@@ -142,23 +156,8 @@ func TestValidateMainWorkflowFrontmatter_NVX(t *testing.T) {
 				},
 			},
 		}
-		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err != nil {
-			t.Fatalf("expected defaulted NVX configuration to validate: %v", err)
-		}
-	})
-
-	t.Run("requires guest libc", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"on": "workflow_dispatch",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"runtime": "nvx",
-					"nvx":     map[string]any{},
-				},
-			},
-		}
 		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err == nil {
-			t.Fatal("expected missing guest-libc to fail schema validation")
+			t.Fatal("expected removed guest-libc option to fail schema validation")
 		}
 	})
 

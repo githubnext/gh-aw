@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import http from "node:http";
 import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as stageAssets } from "./nvx_assets.cjs";
 
 describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {

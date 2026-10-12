@@ -3,7 +3,7 @@
 
 // This script updates an existing comment created by the activation job
 // to notify about the workflow completion status (success or failure).
-// It also processes noop messages and adds them to the activation comment.
+// It also adds the categorized, privacy-safe noop body to the activation comment.
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage, getDetectionWarningMessage } = require("./messages_run_status.cjs");
@@ -122,6 +122,7 @@ async function main() {
     throw new Error(`${ERR_VALIDATION}: GH_AW_ASSIGNMENT_ERROR_COUNT must be a non-negative integer`);
   }
   const safeOutputsResult = process.env.GH_AW_SAFE_OUTPUTS_RESULT;
+  const noopCommentBody = process.env.GH_AW_NOOP_COMMENT_BODY || "";
 
   const messagesConfig = getMessages();
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
@@ -235,14 +236,11 @@ async function main() {
     message += "\n\n" + detectionWarningMessage;
   }
 
-  // Add noop messages to the comment if any
-  if (noopMessages.length > 0) {
-    message += "\n\n";
-    if (noopMessages.length === 1) {
-      message += noopMessages[0];
-    } else {
-      message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-    }
+  // Never fall back to raw agent prose in a public comment if rendering failed.
+  if (noopCommentBody) {
+    message += "\n\n" + noopCommentBody;
+  } else if (noopMessages.length > 0) {
+    core.warning("No categorized no-op comment body is available; omitting agent messages from the public comment");
   }
 
   // Collect generated asset URLs from safe output jobs
