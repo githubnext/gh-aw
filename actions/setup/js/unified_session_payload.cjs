@@ -170,6 +170,10 @@ const EVENT_FIELDS = {
   ...COPILOT_WORKFLOW_EVENT_FIELDS,
   "session.format": { version: ["version"] },
   "agent.execution": { categories: ["categories"], errorCodes: ["errorCodes"], errorTypes: ["errorTypes"], exitCode: ["exitCode", "exit_code"] },
+  "skill.invoked": { name: ["name"], path: ["path"], source: ["source"], trigger: ["trigger"], model: ["model"], invokedAtTurn: ["invokedAtTurn"] },
+  "skill.context_delivered_ref": { interactionId: ["interactionId"], source: ["source"], contentId: ["contentId"] },
+  "skill.inventory": { skills: ["skills"] },
+  "skill.conflict": { name: ["name"], kind: ["kind"], sources: ["sources"] },
   "session.init": { sourceEngine: ["sourceEngine"], model: ["model", "selectedModel"], sessionId: ["sessionId", "session_id"], cwd: ["cwd"], reasoningEffort: ["reasoningEffort"] },
   "session.shutdown": {
     shutdownType: ["shutdownType"],

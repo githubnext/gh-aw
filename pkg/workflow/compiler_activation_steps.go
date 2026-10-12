@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"path"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -59,7 +61,7 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 		compilerActivationJobLog.Printf("Skipped secret validation steps (no required secrets)")
 		return
 	}
-	if len(stepIDs) == 1 && stepIDs[0] == "validate-secret" {
+	if slices.Equal(stepIDs, []string{"validate-secret"}) {
 		ctx.outputs["secret_verification_result"] = "${{ steps.validate-secret.outputs.verification_result }}"
 		compilerActivationJobLog.Printf("Added engine secret validation step to activation job")
 		return
@@ -282,6 +284,7 @@ func (c *Compiler) addActivationSingleSkillInstallStep(ctx *activationJobBuildCo
 	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID))
 	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_GH_SKILL_AGENT_NAME", skillInstallAgentName))
 	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
+	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_INSTALL_INDEX", strconv.Itoa(stepNumber)))
 	ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
 	ctx.steps = append(ctx.steps, "        with:\n")
