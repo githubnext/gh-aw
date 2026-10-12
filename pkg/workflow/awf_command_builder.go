@@ -58,6 +58,10 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	}
 	modelsJSONPathExport := buildModelsJSONPathExportScript(isArcDind)
 	engineCommand := rewriteEngineCommandForRuntime(config.EngineCommand, isArcDind)
+	if isNVXRuntime(config.WorkflowData) {
+		engineCommand = rewriteNVXEngineCommand(engineCommand)
+		modelsJSONPathExport += "\n" + buildNVXAssetSetup()
+	}
 	shellWrappedCommand := WrapCommandInShell(engineCommand)
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
 	writeAgentCLIStartMs := "printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
@@ -105,7 +109,7 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 	expandableArgs := `--container-workdir "${GITHUB_WORKSPACE}"`
 	if isNVXRuntime(config.WorkflowData) {
 		agentConfig := getAgentConfig(config.WorkflowData)
-		if agentConfig != nil && agentConfig.NVX != nil {
+		if agentConfig != nil {
 			nvx := effectiveNVXConfig(agentConfig.NVX)
 			expandableArgs = "--container-workdir " + shellEscapeArg(nvx.ContainerWorkDir)
 		}

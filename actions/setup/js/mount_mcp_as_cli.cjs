@@ -480,9 +480,9 @@ function generateCLIWrapperScript(serverName, serverUrl, toolsFile, agentId, bri
   // values for defense-in-depth.
   const safeName = shellEscapeDoubleQuoted(serverName);
   const safeUrl = shellEscapeDoubleQuoted(serverUrl);
-  const safeToolsFile = shellEscapeDoubleQuoted(toolsFile);
+  const safeToolsFile = shellEscapeDoubleQuoted(path.relative(CLI_BIN_DIR, toolsFile));
   const safeAgentId = shellEscapeDoubleQuoted(agentId);
-  const safeBridge = shellEscapeDoubleQuoted(bridgeScript);
+  const safeBridge = shellEscapeDoubleQuoted(path.relative(CLI_BIN_DIR, bridgeScript));
 
   return `#!/usr/bin/env bash
 set +o histexpand
@@ -498,10 +498,11 @@ set +o histexpand
 # All calls are delegated to the mcp_cli_bridge.cjs Node.js bridge which
 # handles the MCP session protocol, logging, and JSONL audit trail.
 
-exec node "${safeBridge}" \\
+CLI_DIR="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")" && pwd)"
+exec node "\${CLI_DIR}/${safeBridge}" \\
   --server-name "${safeName}" \\
   --server-url "${safeUrl}" \\
-  --tools-file "${safeToolsFile}" \\
+  --tools-file "\${CLI_DIR}/${safeToolsFile}" \\
   --api-key "${safeAgentId}" \\
   "\$@"
 `;
