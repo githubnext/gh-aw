@@ -26,7 +26,7 @@ engine:
     mode: economy
     allowed-models: [gpt-5.6-luna]
 # Keep in sync with steering.maxAiCredits in the post-step.
-max-ai-credits: 2
+max-ai-credits: 7
 imports:
   - shared/smoke-test-brevity.md
   - shared/reporting.md
@@ -62,7 +62,7 @@ post-steps:
           engine: "copilot",
           executionOutcome: process.env.SMOKE_EXECUTION,
           allowedModels: ["gpt-5.6-luna"],
-          steering: { maxAiCredits: 2 },
+          steering: { maxAiCredits: 7 },
         });
 ---
 
@@ -78,7 +78,7 @@ This run checks that you react to an AI-credit steering notice, not the task. Th
 
 ## Task
 
-Run `echo 1`, then `echo 2`, then `echo 3`, and so on up to `echo 60`: one `echo N` bash call per turn, in order.
+Run `echo 1`, then `echo 2`, then `echo 3`, and so on up to `echo 200`: one `echo N` bash call per turn, in order.
 
 ## Stop on the steering notice
 
@@ -90,6 +90,6 @@ As soon as any message you receive contains text starting with `[AWF AI CREDIT W
    - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 2. Finish with a one-line reply. Make no other tool calls.
 
-If you reach `echo 60` without seeing the warning, create the same issue stating that no warning was seen, and finish.
+If you reach `echo 200` without seeing the warning, create the same issue stating that no warning was seen, and finish.
 
 The verdict comes from the post-step, which checks runner- and proxy-written evidence, not this report.
