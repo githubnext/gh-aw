@@ -12,7 +12,7 @@ const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
-const { createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 const { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
@@ -498,15 +498,18 @@ function isStructuralGuardrailError(error) {
 async function listCompletedWorkflowRunsPage(githubClient, params, budget = createAPIBudget()) {
   const { owner, repo, workflowId, created, page, perPage, lookupMode } = params;
   if (lookupMode === "repo_workflow_id_fallback") {
-    const response = await budget.request(() =>
-      githubClient.rest.actions.listWorkflowRunsForRepo({
-        owner,
-        repo,
-        status: "completed",
-        created,
-        per_page: perPage,
-        page,
-      })
+    const response = await budget.request(
+      () =>
+        githubClient.rest.actions.listWorkflowRunsForRepo({
+          owner,
+          repo,
+          status: "completed",
+          created,
+          per_page: perPage,
+          page,
+        }),
+      true,
+      API_READ_OPERATIONS.REPOSITORY_HISTORY
     );
     const allRuns = response.data?.workflow_runs;
     if (!Array.isArray(allRuns) || allRuns.some(run => !Number.isSafeInteger(run?.workflow_id) || run.workflow_id <= 0)) {
@@ -538,15 +541,18 @@ async function listCompletedWorkflowRunsPage(githubClient, params, budget = crea
   }
 
   try {
-    const response = await budget.request(() =>
-      githubClient.rest.actions.listWorkflowRuns({
-        owner,
-        repo,
-        workflow_id: workflowId,
-        status: "completed",
-        per_page: perPage,
-        page,
-      })
+    const response = await budget.request(
+      () =>
+        githubClient.rest.actions.listWorkflowRuns({
+          owner,
+          repo,
+          workflow_id: workflowId,
+          status: "completed",
+          per_page: perPage,
+          page,
+        }),
+      true,
+      API_READ_OPERATIONS.WORKFLOW_HISTORY
     );
     if (!Array.isArray(response.data?.workflow_runs)) throw new Error("Incomplete daily AIC workflow history");
     return {
@@ -833,10 +839,14 @@ async function main(options = {}) {
     );
   } catch (error) {
     const status = isStructuralGuardrailError(error) ? "structural_error" : "transient_error";
-    const message = `Daily workflow AI Credits are unknown: ${getErrorMessage(error)}`;
+    const readFailure = getAPIReadFailure(error);
+    const reason = readFailure
+      ? `${readFailure.operation} read stopped (${readFailure.status ? `HTTP ${readFailure.status}` : "transport or read error"}; attempts: ${readFailure.attempts}; reason: ${readFailure.reason}). Accounting remains unverified; agent startup is blocked.`
+      : getErrorMessage(error);
+    const message = `Daily workflow AI Credits are unknown: ${reason}`;
     core.setOutput("daily_ai_credits_guardrail_status", status);
     core.setOutput("daily_ai_credits_guardrail_error", message);
-    logDailyGuardrail("AIC inspection failed", { status, error: getErrorMessage(error) });
+    logDailyGuardrail("AIC inspection failed", { status, error: readFailure || getErrorMessage(error) });
     const retryAt = retryNotBefore(error?.response?.headers, Date.now(), isQuotaError(error));
     if (retryAt) core.info(`Daily AIC inspection must not retry before ${retryAt}`);
     core.setFailed(message);

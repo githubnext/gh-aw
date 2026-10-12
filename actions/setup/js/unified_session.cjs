@@ -254,6 +254,10 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
           incompleteSources.add(file);
           report(file, "non_canonical_agent_event", undefined);
         }
+      } else if (type === "plugin.installation" && (["plugin", "repository", "ref", "path"].some(key => typeof record[key] !== "string") || record.status !== "installed")) {
+        const line = recordLines.get(file)?.[index];
+        incompleteSources.add(file);
+        report(file, "invalid_plugin_installation", line);
       } else if (type) {
         events.push({ type, data: record, ...Object.fromEntries(["timestamp", "ts", "time", "created_at"].filter(key => record[key] !== undefined).map(key => [key, record[key]])) });
       } else if (component === "mcp" || component === "firewall") events.push(normalizeRuntimeEvent(component, record));
@@ -503,6 +507,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     [["evals/evals.jsonl", "evals.jsonl", "usage/evals.jsonl"], "eval", "evals", "eval.result"],
     [["agent_usage.jsonl", "usage/agent_usage.jsonl"], "usage", "agent", "usage.report"],
     [["github_rate_limits.jsonl", "usage/github_rate_limits.jsonl"], "github_api", "workflow", "github_api.rate_limit"],
+    [["plugin-installations.jsonl", "usage/plugin-installations.jsonl"], "plugin", "agent", "plugin.installation"],
     [["threat-detection/detection_usage.jsonl", "detection_usage.jsonl", "usage/detection_usage.jsonl"], "usage", "detection", "usage.report"],
     [["evals/evals_token_usage.jsonl", "evals_token_usage.jsonl", "usage/evals/token_usage.jsonl"], "usage", "evals", "usage.report"],
     [["agent_execution.json", "usage/agent/execution.json"], "execution", "agent", "execution.result"],
