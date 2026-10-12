@@ -411,7 +411,7 @@ async function dispatchQueueIntent(options) {
   const stableId = requestIdForIntent(trustedContext, message.intent_id);
   const prior = latest.projection.requests.get(stableId);
   if (!prior) {
-    await synchronizeDeployments(configured, trustedContext);
+    await synchronizeDeployments(configured, trustedContext, [requested.pool]);
     latest = await loadQueue({ ...configured, policyProposal: undefined, initializationContext: undefined });
   }
   log.debug("intent.dispatch.recovery", { prior_request: !!prior });
@@ -517,7 +517,8 @@ async function processParsedWorkQueueIntents(options, runtime, intents, errors) 
         let latest = await loadQueue({ ...options, policyProposal: undefined, initializationContext: undefined });
         const prior = latest.projection.requests.get(requestIdForIntent(trustedContext, intent.intent_id));
         if (!prior) {
-          await synchronizeDeployments(options, trustedContext);
+          if (!Array.isArray(intent.parameters.nodes)) throw new Error("work_queue_graph_limit");
+          await synchronizeDeployments(options, trustedContext, [...new Set(intent.parameters.nodes.map(node => node.pool ?? "default"))]);
           latest = await loadQueue({ ...options, policyProposal: undefined, initializationContext: undefined });
         }
         const bootstrapPolicy = !latest.projection.policy && latest.sha === null && ["producer", "dispatcher"].includes(trustedContext.role) ? policyProposalFor(options) : undefined;
@@ -563,7 +564,8 @@ async function processParsedWorkQueueIntents(options, runtime, intents, errors) 
       }
     } catch (error) {
       log.failure("intent.process.blocked", error);
-      receipts.push({ intent_id: intent.intent_id, status: "blocked", reason: "queue_control_authority_or_publication_failed" });
+      const checkpointInvalid = error instanceof Error && "code" in error && error.code === "checkpoint_invalid";
+      receipts.push({ intent_id: intent.intent_id, status: "blocked", reason: checkpointInvalid ? "queue_control_checkpoint_invalid" : "queue_control_authority_or_publication_failed" });
     }
   }
   log.debug("intents.process.complete", { receipts: receipts.length, remaining_dispatches: remaining });

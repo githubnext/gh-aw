@@ -5,17 +5,203 @@ import { deflateRawSync, inflateRawSync } from "node:zlib";
 
 const require = createRequire(import.meta.url);
 const fixture = require("../../../specs/work-queue/fixtures/checkpoint.json");
-const { administrator, bind, context, finish, genesis, grant, producer, submission } = require("./work_queue_test_helpers.cjs");
+const { administrator, bind, context, dispatcher, finish, genesis, grant, producer, submission } = require("./work_queue_test_helpers.cjs");
 const { canonical, digest } = require("./work_queue_codec.cjs");
 const { diagnostics } = require("./work_queue_scheduler.cjs");
-const { appendCommit, compactTransactions, generateRequestOperations, newRequest, prepareCheckpoint, proposedCommitId, replayTransactions, serializeTransactionLog } = require("./work_queue_replay.cjs");
+const { appendCommit, compactTransactions, generateRequestOperations, newRequest, prepareCheckpoint, proposedCommitId, replayTransactionLog, replayTransactions, serializeTransactionLog } = require("./work_queue_replay.cjs");
 const { readWorkQueueLog } = require("./work_queue_store.cjs");
 const { readCheckedQueue } = require("./work_queue_checked_transport.cjs");
 const { acceptedSubmissionParameters } = require("./work_queue_dispatch.cjs");
 const { fakeGitHub, options } = require("./work_queue_store_checks.cjs");
 const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
+const { queueFixture } = require("./work_queue_lifecycle.test_helpers.cjs");
+const { futurePolicy, serializeDeployments } = require("./work_queue_deployment.cjs");
+const { normalizeSubmitParameters } = require("./work_queue_intents.cjs");
+
+async function aliasedCheckpointFixture() {
+  const contract = "a".repeat(64);
+  const revision = "b".repeat(40);
+  const queue = queueFixture({
+    count: 2,
+    batch: 1,
+    granted: false,
+    configurePolicy(policy) {
+      policy.authorization = "aw";
+      policy.producers = {};
+      const profile = policy.pools.default.profiles.default;
+      delete profile.principal;
+      profile.logical_contract = contract;
+    },
+  });
+  const fake = fakeGitHub(queue.transactions);
+  const source = fake.refs.get("work-queue");
+  const prior = "c".repeat(40);
+  const git = fake.githubClient.rest.git;
+  const getCommit = git.getCommit;
+  git.getCommit = args => getCommit({ ...args, commit_sha: args.commit_sha === prior ? source : args.commit_sha });
+  fake.refs.set("work-queue", prior);
+  async function store(transactions) {
+    const content = transactions.map(canonical).join("\n") + "\n";
+    const blob = await git.createBlob({ content, encoding: "utf-8" });
+    const tree = await git.createTree({ tree: [{ path: "work-queue.jsonl", mode: "100644", type: "blob", sha: blob.data.sha }] });
+    const commit = await git.createCommit({ tree: tree.data.sha, parents: [fake.refs.get("work-queue")] });
+    fake.refs.set("work-queue", commit.data.sha);
+    return commit.data.sha;
+  }
+  const checkpoint = prepareCheckpoint(queue.transactions, prior, queue.administrator, queue.at);
+  const parent = await store(checkpoint);
+  const restored = replayTransactions(checkpoint);
+  const worker = restored.deployments.get("default").get("default");
+  const operation = {
+    kind: "Deployment",
+    pool: "default",
+    worker_profile: "default",
+    expected_ref: worker.current_ref,
+    expected_contract: worker.current_contract,
+    profile: { ...worker.revisions[worker.current_ref].profile, ref: revision },
+    available: true,
+    reason: "compiler_deployment",
+  };
+  const request = newRequest("checkpoint-worker-upgrade", "deployment", queue.dispatcher, { operations: [operation] });
+  const at = queue.at + 1;
+  const decision = generateRequestOperations(restored, request, queue.dispatcher, at, request.id);
+  const deployment = { version: 3, id: request.id, previous: restored.tip, request, actor: queue.dispatcher, policy_epoch: restored.policy_epoch, at, operations: decision.operations };
+  const valid = [...checkpoint, deployment];
+  const damaged = structuredClone(valid);
+  damaged[0].operations[0].state.deployments = serializeDeployments(replayTransactions(valid));
+  const head = await store(damaged);
+  fake.state.defaultRevision = revision;
+  fake.state.workerContent += `env:\n  GH_AW_WORK_QUEUE_CONTRACT: "${contract}"\n`;
+  fake.githubClient.graphql = async () => {
+    const oid = fake.refs.get("work-queue");
+    const commit = await git.getCommit({ commit_sha: oid });
+    const tree = await git.getTree({ tree_sha: commit.data.tree.sha });
+    const blobOid = tree.data.tree[0].sha;
+    const blob = await git.getBlob({ file_sha: blobOid });
+    const text = Buffer.from(blob.data.content, "base64").toString("utf8");
+    return {
+      repository: {
+        id: "repository",
+        nameWithOwner: "owner/repo",
+        isEmpty: false,
+        defaultBranchRef: { target: { oid: revision } },
+        legacy0: null,
+        legacy1: null,
+        ref: { target: { oid, tree: { oid: commit.data.tree.sha, entries: [{ name: "work-queue.jsonl", type: "blob", mode: 33188, oid: blobOid }] } } },
+        log: { oid: blobOid, text, byteSize: Buffer.byteLength(text), isTruncated: false },
+      },
+    };
+  };
+  return { fake, queue, checkpoint, valid, damaged, parent, head, prior, store };
+}
 
 describe("shared version-3 checkpoint conformance", () => {
+  it.each([readWorkQueueLog, readCheckedQueue])("recovers only deployment aliasing from the verified Git parent without writes (%#)", async read => {
+    const f = await aliasedCheckpointFixture();
+    const warnings = [];
+    const input = { githubClient: f.fake.githubClient, owner: "owner", repo: "repo", core: { warning: message => warnings.push(message), info() {} } };
+    const before = canonical(f.checkpoint);
+    assert.throws(() => replayTransactions(f.damaged), /checkpoint_invalid/);
+    for (let iteration = 0; iteration < 2; iteration++) {
+      const recovered = await read(input);
+      assert.equal(recovered.checkpointRecovered, true);
+      assert.equal(recovered.sha, f.head);
+      assert.equal(canonical(recovered.transactions), canonical(f.valid));
+      assert.deepEqual(structuredClone([...recovered.state.requests]), structuredClone([...replayTransactions(f.valid).requests]));
+    }
+    assert.equal(canonical(f.checkpoint), before);
+    assert.equal(warnings.length, 2);
+    assert.equal(f.fake.state.updates, 0);
+    assert.equal(f.fake.refs.get("work-queue"), f.head);
+  });
+
+  it("persists recovered checkpoints through submit and dispatch, including lost acknowledgements and stable retries", async () => {
+    const f = await aliasedCheckpointFixture();
+    const read = () => readWorkQueueLog({ githubClient: f.fake.githubClient, owner: "owner", repo: "repo" });
+    const recovered = await read();
+    const actor = { role: "producer", principal: f.queue.dispatcher.principal, repository: "owner/repo" };
+    const parameters = normalizeSubmitParameters({ nodes: [{ graph_id: "after-recovery", node_key: "task", payload: { task: "new work" } }] }, futurePolicy(recovered.state), f.queue.at + 2, recovered.state);
+    const submit = newRequest("submit-after-recovery", "submit", actor, parameters);
+    f.fake.state.ambiguousOnce = true;
+    const submitted = await publishWorkQueueRequest(options(f.fake, submit, actor, { now: () => f.queue.at + 3 }));
+    assert.equal(submitted.state.works.size, 3);
+    assert.equal(canonical(submitted.transactions[0]), canonical(f.checkpoint[0]));
+    const healed = await read();
+    assert.equal(healed.checkpointRecovered, undefined);
+    assert.equal(healed.state.requests.has("checkpoint-worker-upgrade"), true);
+    const dispatch = newRequest("dispatch-after-recovery", "dispatch_next", f.queue.dispatcher, { pool: "default", max_claims: 3, max_dispatches: 3, max_bytes: healed.state.policy.limits.assignment_bytes });
+    const dispatched = await publishWorkQueueRequest(options(f.fake, dispatch, f.queue.dispatcher, { now: () => f.queue.at + 4 }));
+    assert.equal(dispatched.state.claims.size, 3);
+    assert.equal(dispatched.state.dispatches.size, 3);
+    assert.equal(canonical(dispatched.transactions[0]), canonical(f.checkpoint[0]));
+    const snapshot = canonical(dispatched.transactions);
+    const updates = f.fake.state.updates;
+    for (const [request, publisher] of [
+      [submit, actor],
+      [dispatch, f.queue.dispatcher],
+    ]) {
+      const retry = await publishWorkQueueRequest(options(f.fake, request, publisher, { now: () => f.queue.at + 5 }));
+      assert.equal(retry.recovered, true);
+      assert.equal(canonical(retry.transactions), snapshot);
+    }
+    assert.equal(f.fake.state.updates, updates);
+    assert.equal((await read()).state.claims.size, 3);
+  });
+
+  it.each(["work", "deployment", "metadata", "digest", "tail", "foreign-parent", "merge-parent", "missing-parent", "unverified-history", "lost-parent-request"])("refuses unrelated corruption or missing authority: %s", async defect => {
+    const f = await aliasedCheckpointFixture();
+    const damaged = structuredClone(f.damaged);
+    const operation = damaged[0].operations[0];
+    if (defect === "work") Object.values(operation.state.works)[0].priority = 2;
+    if (defect === "deployment") operation.state.deployments.default.default.current_contract = "e".repeat(64);
+    if (defect === "metadata") damaged[0].at++;
+    if (defect === "digest") operation.state_sha256 = "0".repeat(64);
+    if (defect === "tail") damaged[1].operations[0].available = false;
+    if (defect === "unverified-history") {
+      const source = await f.fake.githubClient.rest.git.getCommit({ commit_sha: f.prior });
+      const tree = await f.fake.githubClient.rest.git.getTree({ tree_sha: source.data.tree.sha });
+      f.fake.blobs.set(tree.data.tree[0].sha, serializeTransactionLog(f.queue.transactions.slice(0, 1)));
+    }
+    let extraParent;
+    if (defect === "lost-parent-request") {
+      const state = replayTransactions(f.valid);
+      const operation = { kind: "Control", control: "admission_paused", value: true, reason: "pause" };
+      const request = newRequest("must-retain-parent-request", "control", f.queue.administrator, { operations: [operation] });
+      const commit = { version: 3, id: request.id, previous: state.tip, request, actor: f.queue.administrator, policy_epoch: state.policy_epoch, at: f.queue.at + 2, operations: [operation] };
+      f.fake.refs.set("work-queue", f.parent);
+      extraParent = await f.store([...f.valid, commit]);
+    }
+    const head = await f.store(damaged);
+    const git = f.fake.githubClient.rest.git;
+    const getCommit = git.getCommit;
+    git.getCommit = async args => {
+      const response = await getCommit(args);
+      if (args.commit_sha === head) {
+        const parent = defect === "foreign-parent" ? f.prior : defect === "missing-parent" ? "missing" : (extraParent ?? f.parent);
+        response.data.parents = defect === "merge-parent" ? [{ sha: parent }, { sha: f.prior }] : [{ sha: parent }];
+      }
+      return response;
+    };
+    for (const read of [readWorkQueueLog, readCheckedQueue]) await assert.rejects(() => read({ githubClient: f.fake.githubClient, owner: "owner", repo: "repo" }));
+    assert.equal(f.fake.state.updates, 0);
+  });
+
+  it("keeps all checkpoint state isolated while granting and reprioritizing restored Work", () => {
+    const checkpoint = structuredClone(fixture.checkpoint);
+    const before = canonical(checkpoint);
+    const restored = replayTransactions(checkpoint);
+    const work = [...restored.works.values()].find(item => item.state === "available" && !item.claim_id);
+    assert.ok(work);
+    work.effective_priority = 1;
+    restored.policy.limits.operations--;
+    const request = newRequest("post-checkpoint-grant", "dispatch_next", dispatcher, { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 49152 });
+    const pristine = replayTransactions(checkpoint);
+    const decision = generateRequestOperations(pristine, request, dispatcher, checkpoint[0].at + 1, request.id);
+    replayTransactions([...checkpoint, { version: 3, id: request.id, previous: pristine.tip, request, actor: dispatcher, policy_epoch: pristine.policy_epoch, at: checkpoint[0].at + 1, operations: decision.operations }]);
+    assert.equal(canonical(checkpoint), before);
+    replayTransactions(checkpoint);
+  });
+
   it("preserves first-submit genesis Work and request identity across repeated checkpoints", async () => {
     const fake = fakeGitHub();
     const policy = genesis().operations[0].policy;
