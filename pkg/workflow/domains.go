@@ -81,9 +81,9 @@ func getLoadedEcosystemDomains() map[string][]string {
 //
 // This invariant is enforced for runtime engine defaults by
 // TestEngineDefaultDomainsDoNotOverlapEcosystems in domains_package_registry_test.go, which
-// fails if those default domain lists overlap with the full "node" or "python" ecosystem
-// domain sets in data/ecosystem_domains.json — not just the registries known when this comment
-// was written. If you need to add a package-registry domain to a runtime engine default and
+// fails if those default domain lists cover domains in the "node", "python", "go", "java",
+// or "dart" ecosystems in data/ecosystem_domains.json — including via wildcards.
+// If you need to add a package-registry domain to a runtime engine default and
 // that test starts failing, the domain belongs behind an explicit ecosystem/runtime opt-in
 // instead, not in the unconditional default list. Copilot threat detection is the exception:
 // its dedicated detection allow-list includes registry.npmjs.org for read-only lockfile
