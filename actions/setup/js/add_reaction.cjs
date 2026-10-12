@@ -5,6 +5,9 @@ const { getErrorMessage, isLockedError, isRateLimitError } = require("./error_he
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
+const MAX_CONNECTION_RETRIES = 2;
+const CONNECTION_RETRY_DELAY_MS = 1000;
+
 /** @type {Record<string, string>} Maps REST reaction names to GraphQL ReactionContent enum values */
 const REACTION_MAP = {
   "+1": "THUMBS_UP",
@@ -195,17 +198,40 @@ function handleReactionError(error) {
  * @param {string} reaction - The reaction type to add
  */
 async function addReaction(route, params, reaction) {
-  const response = await github.request(route, {
-    ...params,
-    content: reaction,
-    headers: {
-      Accept: "application/vnd.github+json",
-    },
-  });
+  let response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await github.request(route, {
+        ...params,
+        content: reaction,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+      break;
+    } catch (error) {
+      if (!isConnectTimeoutError(error) || attempt >= MAX_CONNECTION_RETRIES) {
+        throw error;
+      }
+      core.info(`GitHub API connection timed out; retrying reaction request (${attempt + 1}/${MAX_CONNECTION_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, CONNECTION_RETRY_DELAY_MS));
+    }
+  }
 
   const reactionId = response.data?.id;
   core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
   core.setOutput("reaction-id", reactionId?.toString() ?? "");
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isConnectTimeoutError(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  return ("code" in error && error.code === "UND_ERR_CONNECT_TIMEOUT") || ("message" in error && error.message === "Connect Timeout Error");
 }
 
 /**
