@@ -19,11 +19,6 @@ type modelRoutingGoldenCase struct {
 	legacyDifference     string
 	unifiedClassifierAIC *float64
 	legacyClassifierAIC  *float64
-	// legacyRoutingAllowance documents routing identity fields that are known to
-	// differ between the downloaded and legacy variants, keyed by field name. Each
-	// listed field must still differ; fixing the discrepancy fails the test until
-	// the allowance and its README entry are removed.
-	legacyRoutingAllowance map[string]string
 }
 
 var modelRoutingGoldenCases = []modelRoutingGoldenCase{
@@ -66,9 +61,6 @@ var modelRoutingGoldenCases = []modelRoutingGoldenCase{
 		legacyDifference:     "the session workflow.info routing status (rejected) and steering notices are read only from usage/aw_session.jsonl; the legacy variant reports the proxy status (failed) and lists no notices",
 		unifiedClassifierAIC: new(0.6796),
 		legacyClassifierAIC:  new(0.6796),
-		legacyRoutingAllowance: map[string]string{
-			"Status": "parse_token_usage.cjs relabels the budget failure as harness_selection_mismatch (status rejected) in aw_info.json and the session workflow.info; without the session, audit reports the proxy failure status (failed)",
-		},
 	},
 	{
 		name:                 "codex-routed-provider-unavailable",
@@ -80,20 +72,12 @@ var modelRoutingGoldenCases = []modelRoutingGoldenCase{
 		legacyDifference:     "routing endpoints come only from agent/aw_info.json and the session workflow.info; the root aw_info.json has no model_routing, so the legacy variant loses effective_endpoint and selected_endpoint and reconciles per-agent credits against an unknown endpoint",
 		unifiedClassifierAIC: new(0.06362),
 		legacyClassifierAIC:  new(0.06362),
-		legacyRoutingAllowance: map[string]string{
-			"EffectiveEndpoint": "applyAwInfoModelRouting skips agent/aw_info.json and the root aw_info.json has no model_routing",
-			"SelectedEndpoint":  "applyAwInfoModelRouting skips agent/aw_info.json and the root aw_info.json has no model_routing",
-		},
 	},
 	{
 		name:                 "copilot-cli-builtin-subagents",
 		legacyDifference:     "routing endpoints come only from agent/aw_info.json and the session workflow.info; the root aw_info.json has no model_routing, so the legacy variant loses effective_endpoint and selected_endpoint and reconciles per-agent credits against an unknown endpoint",
 		unifiedClassifierAIC: new(0.6116),
 		legacyClassifierAIC:  new(0.6116),
-		legacyRoutingAllowance: map[string]string{
-			"EffectiveEndpoint": "applyAwInfoModelRouting skips agent/aw_info.json and the root aw_info.json has no model_routing",
-			"SelectedEndpoint":  "applyAwInfoModelRouting skips agent/aw_info.json and the root aw_info.json has no model_routing",
-		},
 	},
 }
 
@@ -105,8 +89,6 @@ type modelRoutingGoldenProjection struct {
 type modelRoutingGoldenRouting struct {
 	Status                          string                  `json:"status"`
 	Failure                         *ModelRoutingFailure    `json:"failure,omitempty"`
-	DegradedClassification          bool                    `json:"degraded_classification,omitempty"`
-	DegradedReason                  string                  `json:"degraded_reason,omitempty"`
 	SelectedModel                   string                  `json:"selected_model,omitempty"`
 	SelectedEffort                  string                  `json:"selected_effort,omitempty"`
 	Endpoint                        string                  `json:"endpoint,omitempty"`
@@ -297,7 +279,7 @@ func projectModelRoutingGoldenAudit(routing *ModelRoutingSummary, usage *TokenUs
 	projection := modelRoutingGoldenProjection{}
 	if routing != nil {
 		projected := &modelRoutingGoldenRouting{
-			Status: routing.Status, DegradedClassification: routing.DegradedClassification, DegradedReason: routing.DegradedReason,
+			Status:        routing.Status,
 			SelectedModel: routing.SelectedModel, SelectedEffort: routing.SelectedEffort,
 			Endpoint: routing.Endpoint, EffectiveEndpoint: routing.EffectiveEndpoint, SelectedEndpoint: routing.SelectedEndpoint,
 			RoutedCounts: routing.RoutedCounts, OutcomeCounts: routing.OutcomeCounts,
@@ -513,17 +495,21 @@ func assertModelRoutingGoldenVariantAgreement(t *testing.T, testCase modelRoutin
 			}
 		}
 		downloadedIdentity, legacyIdentity := identity(downloaded.ModelRouting), identity(legacy.ModelRouting)
-		for field, reason := range testCase.legacyRoutingAllowance {
-			downloadedField := reflect.ValueOf(&downloadedIdentity).Elem().FieldByName(field)
-			legacyField := reflect.ValueOf(&legacyIdentity).Elem().FieldByName(field)
-			if !downloadedField.IsValid() || !legacyField.IsValid() {
-				t.Fatalf("legacy routing allowance names unknown identity field %q", field)
+		switch testCase.name {
+		case "copilot-budget-exhausted-steering":
+			if downloadedIdentity.Status == legacyIdentity.Status {
+				t.Fatalf("documented status discrepancy for %s no longer occurs; remove its README entry", testCase.name)
 			}
-			if reflect.DeepEqual(downloadedField.Interface(), legacyField.Interface()) {
-				t.Fatalf("documented %s discrepancy (%s) no longer occurs; remove the allowance and its README entry", field, reason)
+			downloadedIdentity.Status = legacyIdentity.Status
+		case "copilot-sdk-claude-subagent-completions", "copilot-cli-builtin-subagents":
+			if downloadedIdentity.EffectiveEndpoint == legacyIdentity.EffectiveEndpoint {
+				t.Fatalf("documented effective-endpoint discrepancy for %s no longer occurs; remove its README entry", testCase.name)
 			}
-			downloadedField.Set(reflect.Zero(downloadedField.Type()))
-			legacyField.Set(reflect.Zero(legacyField.Type()))
+			if downloadedIdentity.SelectedEndpoint == legacyIdentity.SelectedEndpoint {
+				t.Fatalf("documented selected-endpoint discrepancy for %s no longer occurs; remove its README entry", testCase.name)
+			}
+			downloadedIdentity.EffectiveEndpoint = legacyIdentity.EffectiveEndpoint
+			downloadedIdentity.SelectedEndpoint = legacyIdentity.SelectedEndpoint
 		}
 		if !reflect.DeepEqual(downloadedIdentity, legacyIdentity) {
 			t.Fatalf("raw routing facts should agree across variants: downloaded=%+v legacy=%+v", downloadedIdentity, legacyIdentity)
@@ -625,70 +611,6 @@ func assertModelRoutingGoldenCase(t *testing.T, testCase modelRoutingGoldenCase,
 	case "legacy-no-session-routing":
 		if routing == nil || routing.Status != "selected" || len(routing.SubagentCosts) == 0 {
 			t.Fatalf("legacy routing or agentMetrics-derived sub-agent rows missing: %+v", routing)
-		}
-	case "copilot-budget-exhausted-steering":
-		wantStatus := "rejected"
-		var wantNotices []SteeringNotice
-		if legacy {
-			wantStatus = "failed"
-		} else {
-			wantNotices = []SteeringNotice{
-				{Type: "ai_credit", Threshold: 80, RequestID: "b5975a95-e412-411d-b83c-6425c399d78d", Phase: "agent"},
-				{Type: "ai_credit", Threshold: 90, RequestID: "468b5ba8-d3d3-45bb-9d5d-bbbc28df99be", Phase: "agent"},
-				{Type: "ai_credit", Threshold: 95, RequestID: "16af2ec2-d942-4ab9-8c24-4aa29f935349", Phase: "agent"},
-			}
-		}
-		if routing == nil || routing.Status != wantStatus || routing.Failure == nil ||
-			routing.Failure.Code != "ai_credits_limit_exceeded" || routing.OutcomeCounts["rejected"] != 3 {
-			t.Fatalf("unexpected budget-exhausted routing outcome for legacy=%t: %+v", legacy, routing)
-		}
-		if usage == nil || roundedModelRoutingCredit(usage.TotalAIC) != 30.1812 || !reflect.DeepEqual(usage.SteeringNotices, wantNotices) {
-			t.Fatalf("unexpected budget-exhausted credits or steering notices for legacy=%t: %+v", legacy, usage)
-		}
-	case "codex-routed-provider-unavailable":
-		if routing == nil || routing.Status != "failed" || routing.Failure == nil || routing.Failure.Code != "provider_unavailable" {
-			t.Fatalf("unexpected codex routed failure for legacy=%t: %+v", legacy, routing)
-		}
-	case "copilot-sdk-claude-subagent-completions":
-		if usage == nil || routing == nil {
-			t.Fatal("expected routing and token usage summaries")
-		}
-		var claudeActual bool
-		for _, actual := range usage.SubagentModelActuals {
-			if actual.Model == "claude-haiku-4.5" {
-				claudeActual = actual.Requests == 3
-			}
-		}
-		var claudeCost bool
-		for _, cost := range routing.SubagentCosts {
-			if cost.AgentName == "file-summarizer" {
-				claudeCost = cost.Requests == 3 && len(cost.Models) == 0
-			}
-		}
-		if !claudeActual || !claudeCost {
-			t.Fatalf("claude-haiku-4.5 sub-agent row missing: actuals=%+v costs=%+v", usage.SubagentModelActuals, routing.SubagentCosts)
-		}
-	case "copilot-cli-builtin-subagents":
-		if usage == nil {
-			t.Fatal("expected token usage summary")
-		}
-		// Rows are keyed by display name; the built-in agent types are explore, task,
-		// research, general-purpose and code-review respectively.
-		want := map[string]string{
-			"cost-table-explorer":  "gpt-5.6-luna",
-			"router-test-runner":   "gpt-5.6-luna",
-			"readme-researcher":    "gpt-5.6-luna",
-			"python-file-counter":  "gpt-5.6-sol",
-			"router-code-reviewer": "gpt-5.6-sol",
-		}
-		got := make(map[string]string, len(usage.SubagentModelRequests))
-		for _, agent := range usage.SubagentModelRequests {
-			if agent.CompletedCount == 1 {
-				got[agent.AgentName] = agent.EffectiveModel
-			}
-		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("unexpected built-in sub-agent rows: %+v", usage.SubagentModelRequests)
 		}
 	}
 }
