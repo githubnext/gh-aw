@@ -1548,7 +1548,7 @@ function gradeProcessAlignmentFitness(trace, config) {
   let edges = 0;
   for (const from of sources) {
     const destinations = model.transitions[from];
-    if (!from || !Array.isArray(destinations) || !destinations.every(to => typeof to === "string" && to)) {
+    if (!from || !Array.isArray(destinations) || destinations.length > MAX_TRAJECTORY_ITEMS || !destinations.every(to => typeof to === "string" && to)) {
       return { value: null, passed: null, message: "unavailable: malformed process model transitions" };
     }
     edges += destinations.length;
