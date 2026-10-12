@@ -427,6 +427,8 @@ safe-outputs:
 
 When `target: "*"` is configured, the agent may update an existing issue or pull request comment by passing `comment_id` only if that ID appears in `allows-comment-ids`. Populate `allows-comment-ids` from trusted workflow state (for example, an earlier step output) rather than agent output.
 
+Set `replace-older-comments: true` to update the newest comment from the workflow's authenticated author on the target issue or PR bearing this caller workflow's `gh-aw-workflow-call-id` marker, instead of posting a new comment on every run. If no matching comment exists, a new comment is posted. The replacement includes a fresh footer and run link; staged mode only previews the comment and never edits it. When no caller workflow ID is available, matching uses the workflow ID marker. This option cannot be combined with `hide-older-comments`.
+
 #### Normalize closing keywords
 
 Set `normalize-closing-keywords: true` to strip wrapping backticks from recognized issue-closing keywords in body text (for example, `` `Closes #123` `` becomes `Closes #123` so GitHub can process it as a closing keyword). This field is supported by `create-issue` and `add-comment` on this page, and by `create-pull-request` in [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request).

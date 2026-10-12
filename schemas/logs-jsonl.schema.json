@@ -5537,6 +5537,28 @@
                   ],
                   "additionalProperties": false
                 },
+                "detection_model_usage": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "model": {
+                        "type": "string"
+                      },
+                      "requests": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "model",
+                      "requests"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
                 "model_routing": {
                   "type": [
                     "null",

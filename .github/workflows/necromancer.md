@@ -43,7 +43,7 @@ safe-outputs:
     commit-title-suffix: " [necromancer]"
   add-comment:
     max: 1
-    hide-older-comments: true
+    replace-older-comments: true
   noop:
   messages:
     footer: "> 🧟 *Regression revived by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"

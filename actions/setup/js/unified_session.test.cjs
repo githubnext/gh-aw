@@ -40,6 +40,78 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it.each(["plugin-installations.jsonl", "usage/plugin-installations.jsonl"])("persists installed plugins from %s without credentials or duplicate copies", sourcePath => {
+    const installed = {
+      timestamp: "2026-10-12T00:00:00Z",
+      plugin: "org/plugins/agents/example@" + "a".repeat(40),
+      repository: "org/plugins",
+      ref: "a".repeat(40),
+      path: ".gh-aw-plugins/plugin-0/agents/example",
+      status: "installed",
+    };
+    write(sourcePath, [{ ...installed, githubToken: "PRIVATE_TOKEN", githubApp: { privateKey: "PRIVATE_KEY" } }]);
+    if (sourcePath === "plugin-installations.jsonl") write("usage/plugin-installations.jsonl", [{ ...installed, plugin: "stale" }]);
+    const events = writeUnifiedSession({ rootDir: root });
+    const { timestamp, ...data } = installed;
+    expect(events.filter(event => event.type === "plugin.installation")).toEqual([
+      { type: "plugin.installation", timestamp, data, provenance: { component: "plugin", phase: "agent", path: sourcePath, index: 0, timestampMs: Date.parse(timestamp) } },
+    ]);
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("PRIVATE_");
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+  });
+
+  it("warns and skips malformed plugin installation records", () => {
+    const installed = {
+      plugin: "org/plugin@main",
+      repository: "org/plugin",
+      ref: "main",
+      path: ".gh-aw-plugins/plugin-0",
+      status: "installed",
+    };
+    const malformed = [{}, { ...installed, status: "failed" }, { ...installed, plugin: 42 }, { ...installed, repository: null }, { ...installed, ref: {} }, { ...installed, path: false }];
+    write("plugin-installations.jsonl", malformed);
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    const warnings = events.filter(event => event.type === "session.collection_warning");
+
+    expect(events.filter(event => event.type === "plugin.installation")).toEqual([]);
+    expect(warnings.map(event => event.data)).toEqual(malformed.map((_, index) => ({ path: "plugin-installations.jsonl", code: "invalid_plugin_installation", line: index + 1 })));
+    expect(warn).toHaveBeenCalledWith("Unified session: invalid_plugin_installation in plugin-installations.jsonl:1");
+  });
+
+  it("does not invent plugin installations when installation evidence is absent", () => {
+    write("aw_info.json", { engine_id: "copilot", plugins: ["org/plugin@main"] });
+    expect(collectUnifiedSession({ rootDir: root }).events.some(event => event.type === "plugin.installation")).toBe(false);
+  });
+
+  it("projects installed skill inventory, conflicts, and observed skill selection without instructions", () => {
+    write("skill_inventory.json", {
+      skills: [{ name: "review", source: "staged/.claude/skills/review", scope: "engine", digest: "sha256:abc", purpose: "Review", content: "PRIVATE_SKILL" }],
+      conflicts: [
+        { name: "review", kind: "scope_collision", sources: ["skills/review", "staged/.claude/skills/review"], instructions: "PRIVATE_CONFLICT" },
+        { name: "invalid", kind: "tampered_kind", sources: ["skills/invalid"] },
+      ],
+    });
+    write("agent-session.jsonl", [
+      { type: "skill.invoked", data: { name: "review", source: "engine", instructions: "PRIVATE_INSTRUCTIONS" } },
+      {
+        type: "skill.inventory",
+        data: {
+          skills: [{ name: "native", source: "staged/native", scope: "engine", digest: "sha256:def", purpose: "Native", content: "PRIVATE_NATIVE_CONTENT", instructions: { text: "PRIVATE_NATIVE_INSTRUCTIONS" } }],
+        },
+      },
+    ]);
+    const events = writeUnifiedSession({ rootDir: root });
+    expect(events.find(event => event.type === "skill.inventory")).toMatchObject({ data: { skills: [{ name: "review", scope: "engine" }] }, provenance: { component: "skill", phase: "activation", path: "skill_inventory.json" } });
+    expect(events.filter(event => event.type === "skill.conflict")).toHaveLength(1);
+    expect(events.filter(event => event.type === "skill.invoked").map(event => event.data)).toEqual([{ name: "review", source: "engine" }]);
+    expect(events.filter(event => event.type === "skill.inventory").map(event => event.data.skills)).toEqual([
+      [{ name: "review", source: "staged/.claude/skills/review", scope: "engine", digest: "sha256:abc", purpose: "Review" }],
+      [{ name: "native", source: "staged/native", scope: "engine", digest: "sha256:def", purpose: "Native" }],
+    ]);
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("PRIVATE_");
+  });
+
   it.each(["evals-job", "conclusion", "usage-only"])("persists grader and eval evidence from the %s layout exactly once", layout => {
     const gradersDir = layout === "usage-only" ? "usage/graders" : "agent/graders";
     const evalsPath = layout === "evals-job" ? "evals.jsonl" : layout === "conclusion" ? "evals/evals.jsonl" : "usage/evals.jsonl";

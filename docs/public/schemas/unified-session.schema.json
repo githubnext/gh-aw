@@ -120,6 +120,7 @@
       { "if": { "properties": { "type": { "const": "mcp.tool_call" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "model_endpoint.mismatch" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelEndpointMismatchData" } } } },
       { "if": { "properties": { "type": { "const": "model_routing.outcome" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelRoutingOutcomeData" } } } },
+      { "if": { "properties": { "type": { "const": "plugin.installation" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/PluginInstallationData" } } } },
       { "if": { "properties": { "type": { "const": "prompt.system" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/Pick%3CMessageData%2C%22content%22%3E" } } } },
       { "if": { "properties": { "type": { "const": "prompt.user" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/Pick%3CMessageData%2C%22content%22%3E" } } } },
       { "if": { "properties": { "type": { "const": "safe_output.error" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SafeOutputErrorData" } } } },
@@ -277,6 +278,21 @@
           }
         }
       },
+      { "if": { "properties": { "type": { "const": "skill.conflict" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillConflictData" } } } },
+      {
+        "if": { "properties": { "type": { "const": "skill.context_delivered_ref" } }, "required": ["type"] },
+        "then": {
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": { "interactionId": { "$ref": "#/definitions/JsonValue" }, "source": { "$ref": "#/definitions/JsonValue" }, "contentId": { "$ref": "#/definitions/JsonValue" } },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      { "if": { "properties": { "type": { "const": "skill.inventory" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillInventoryData" } } } },
+      { "if": { "properties": { "type": { "const": "skill.invoked" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillInvokedData" } } } },
       {
         "if": { "properties": { "type": { "const": "tool.execution_complete" } }, "required": ["type"] },
         "then": {
@@ -790,6 +806,12 @@
       "additionalProperties": false
     },
     "Pick<MessageData,\"content\">": { "type": "object", "properties": { "content": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false },
+    "PluginInstallationData": {
+      "type": "object",
+      "properties": { "plugin": { "type": "string" }, "repository": { "type": "string" }, "ref": { "type": "string" }, "path": { "type": "string" }, "status": { "type": "string", "const": "installed" } },
+      "required": ["plugin", "repository", "ref", "path", "status"],
+      "additionalProperties": false
+    },
     "Record<string,JsonValue>": { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } },
     "RuntimeObservationData": {
       "type": "object",
@@ -859,6 +881,40 @@
       "required": ["component", "phase", "path", "index"],
       "additionalProperties": false,
       "description": "Collector metadata is separate from native engine event metadata."
+    },
+    "SkillConflictData": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "kind": { "type": "string", "enum": ["name_collision", "scope_collision"] }, "sources": { "type": "array", "items": { "type": "string" } } },
+      "required": ["name", "kind", "sources"],
+      "additionalProperties": false
+    },
+    "SkillInventoryData": {
+      "type": "object",
+      "properties": {
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "name": { "type": "string" }, "source": { "type": "string" }, "scope": { "type": "string" }, "digest": { "type": "string" }, "purpose": { "type": "string" } },
+            "required": ["name", "source", "scope", "digest"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["skills"],
+      "additionalProperties": false
+    },
+    "SkillInvokedData": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/definitions/JsonValue" },
+        "path": { "$ref": "#/definitions/JsonValue" },
+        "source": { "$ref": "#/definitions/JsonValue" },
+        "trigger": { "$ref": "#/definitions/JsonValue" },
+        "model": { "$ref": "#/definitions/JsonValue" },
+        "invokedAtTurn": { "$ref": "#/definitions/JsonValue" }
+      },
+      "additionalProperties": false
     },
     "SteeringNotice": {
       "type": "object",

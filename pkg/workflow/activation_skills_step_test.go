@@ -46,10 +46,43 @@ func TestBuildActivationJob_AddsFrontmatterSkillsInstallSteps(t *testing.T) {
 	assert.Contains(t, steps, "const { main } = require('${{ runner.temp }}/gh-aw/actions/install_frontmatter_skills.cjs');", "expected github-script runtime loader for skill install")
 	assert.Contains(t, steps, "collect-skill-install-failures", "expected collect failures step in activation job")
 	assert.Contains(t, steps, "collect_skill_install_failures.cjs", "expected collect failures script in activation job")
+	assert.Contains(t, steps, "skill_inventory.cjs", "expected post-install inventory and conflict reporting")
+	assert.Contains(t, steps, "/tmp/gh-aw/skill_inventory.json", "expected inventory in activation artifact")
+	assert.Less(t, strings.Index(steps, "install_frontmatter_skills.cjs"), strings.Index(steps, "skill_inventory.cjs"))
 	outputs := fmt.Sprintf("%v", job.Outputs)
 	assert.Contains(t, outputs, "skill_install_failure_count", "expected skill install failure count output wiring")
 	assert.Contains(t, outputs, "skill_install_errors", "expected skill install errors output wiring")
 	assert.NotContains(t, steps, "GH_AW_SKILL_SPEC_0", "expected per-skill env vars to be removed")
+}
+
+func TestSkillInventoryIncludedInAgentArtifact(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	engine, err := compiler.engineRegistry.GetEngine("copilot")
+	require.NoError(t, err)
+	for _, data := range []*WorkflowData{
+		{Skills: []string{"skills/review"}},
+		{Features: map[string]any{"inline-agents": true}},
+	} {
+		paths := compiler.collectArtifactPaths(data, engine, "/tmp/gh-aw/agent-stdio.log", nil)
+		assert.Contains(t, paths, "/tmp/gh-aw/skill_inventory.json")
+	}
+}
+
+func TestBuildActivationJob_IncludesInlineSkillInventory(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+	data := &WorkflowData{
+		Name:     "inline-skills-workflow",
+		On:       "\"on\":\n  workflow_dispatch:",
+		AI:       "copilot",
+		Features: map[string]any{"inline-agents": true},
+	}
+	job, err := compiler.buildActivationJob(data, false, "", "inline-skills.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "Inventory installed skills")
+	assert.Contains(t, steps, "/tmp/gh-aw/skill_inventory.json")
 }
 
 func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {

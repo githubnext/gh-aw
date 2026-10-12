@@ -45,6 +45,7 @@ Suggested response:
 - Prefer `tools.github.mode: gh-proxy` with `gh` for GitHub reads.
 - Prefer `tools.cli-proxy: true` with mounted `mcp-clis` commands for non-GitHub MCP tools.
 - Constrain `network.allowed:` to the minimum required ecosystems or domains.
+- For workflows that only inspect in-repo files and/or read GitHub through `gh-proxy`, default to no network access (`network.allowed: []`), not `network: defaults`. Allow `defaults` when infrastructure access is needed for install/build/test steps, alongside the required ecosystem for package downloads.
 - Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
 - Never pass `${{ secrets.* }}` or other credentials to `post-steps:` or custom secret-scanning steps, or write secret values to logs or artifacts. Use supported declarative authentication for agent tools, or run credential-dependent scanning in a separate least-privilege non-agent job without exposing secret values.
 

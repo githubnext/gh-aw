@@ -99,6 +99,14 @@ export interface RuntimeObservationData {
   requestId?: JsonValue;
 }
 
+export interface PluginInstallationData {
+  plugin: string;
+  repository: string;
+  ref: string;
+  path: string;
+  status: "installed";
+}
+
 /** AWF API proxy steering event-log observation. */
 export interface FirewallSteeringData extends RuntimeObservationData {
   threshold?: JsonValue;
@@ -357,6 +365,25 @@ export interface WorkflowInfoData {
   episode?: EpisodeLineageData | null;
 }
 
+export interface SkillInventoryData {
+  skills: { name: string; source: string; scope: string; digest: string; purpose?: string }[];
+}
+
+export interface SkillConflictData {
+  name: string;
+  kind: "name_collision" | "scope_collision";
+  sources: string[];
+}
+
+export interface SkillInvokedData {
+  name?: JsonValue;
+  path?: JsonValue;
+  source?: JsonValue;
+  trigger?: JsonValue;
+  model?: JsonValue;
+  invokedAtTurn?: JsonValue;
+}
+
 export interface GitHubApiRateLimitData {
   source?: JsonValue;
   credentialSource?: JsonValue;
@@ -394,6 +421,10 @@ export interface CollectionData {
 
 /** Known essential payloads. Unknown native extensions remain open. */
 export interface UnifiedSessionEventDataMap {
+  "skill.inventory": SkillInventoryData;
+  "skill.conflict": SkillConflictData;
+  "skill.invoked": SkillInvokedData;
+  "skill.context_delivered_ref": { interactionId?: JsonValue; source?: JsonValue; contentId?: JsonValue };
   "session.format": SessionFileFormatData;
   "agent.execution": AgentExecutionData;
   "session.init": Pick<SessionInitData, "sourceEngine" | "model" | "sessionId" | "cwd" | "reasoningEffort"> & UnifiedSessionContextData;
@@ -509,6 +540,7 @@ export interface UnifiedSessionEventDataMap {
   "detection.result": DetectionResultData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
+  "plugin.installation": PluginInstallationData;
   "github_api.rate_limit": GitHubApiRateLimitData;
   "session.collection_warning": CollectionWarningData;
   "session.collection": CollectionData;
