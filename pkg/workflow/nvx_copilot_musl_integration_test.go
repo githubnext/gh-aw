@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,13 +52,15 @@ func TestNVXStagedMuslCopilotInvokesAPIProxy(t *testing.T) {
 	))
 
 	version := strings.TrimPrefix(string(constants.DefaultCopilotVersion), "v")
-	archiveURL := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s/copilot-linuxmusl-x64.tar.gz", version)
+	baseURL := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s", version)
+	assetName := "copilot-linuxmusl-x64.tar.gz"
+	archivePath := filepath.Join(temp, assetName)
 	client := &http.Client{Timeout: 30 * time.Second}
-	response, err := client.Get(archiveURL)
+	require.NoError(t, downloadVerifiedReleaseAsset(client, baseURL, assetName, archivePath))
+	archive, err := os.Open(archivePath)
 	require.NoError(t, err)
-	defer response.Body.Close()
-	require.Equal(t, http.StatusOK, response.StatusCode)
-	require.NoError(t, extractCopilotBinary(response.Body, filepath.Join(hostRoot, "nvx-engine", "copilot")))
+	require.NoError(t, extractCopilotBinary(archive, filepath.Join(hostRoot, "nvx-engine", "copilot")))
+	require.NoError(t, archive.Close())
 
 	stage := exec.Command("node", filepath.Join(hostRoot, "actions", "nvx_assets.cjs"), "stage")
 	stage.Env = append(os.Environ(), "GITHUB_WORKSPACE="+workspace, "RUNNER_TEMP="+runnerTemp)
@@ -121,6 +124,59 @@ func TestNVXStagedMuslCopilotInvokesAPIProxy(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("staged musl Copilot did not invoke the API proxy")
 	}
+}
+
+func downloadVerifiedReleaseAsset(client *http.Client, baseURL, assetName, destination string) error {
+	checksumsResponse, err := client.Get(baseURL + "/SHA256SUMS.txt")
+	if err != nil {
+		return err
+	}
+	defer checksumsResponse.Body.Close()
+	if checksumsResponse.StatusCode != http.StatusOK {
+		return fmt.Errorf("checksum download returned HTTP %d", checksumsResponse.StatusCode)
+	}
+	checksums, err := io.ReadAll(io.LimitReader(checksumsResponse.Body, 1<<20))
+	if err != nil {
+		return err
+	}
+	var expected string
+	for line := range strings.SplitSeq(string(checksums), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[1] == assetName {
+			expected = strings.ToLower(fields[0])
+			break
+		}
+	}
+	if expected == "" {
+		return fmt.Errorf("checksum for %s not found", assetName)
+	}
+
+	assetResponse, err := client.Get(baseURL + "/" + assetName)
+	if err != nil {
+		return err
+	}
+	defer assetResponse.Body.Close()
+	if assetResponse.StatusCode != http.StatusOK {
+		return fmt.Errorf("asset download returned HTTP %d", assetResponse.StatusCode)
+	}
+	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	hash := sha256.New()
+	_, copyErr := io.Copy(io.MultiWriter(file, hash), assetResponse.Body)
+	closeErr := file.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if actual != expected {
+		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", assetName, expected, actual)
+	}
+	return nil
 }
 
 func copyFile(source, destination string, mode os.FileMode) error {

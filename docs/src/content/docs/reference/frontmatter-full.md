@@ -2381,12 +2381,15 @@ sandbox:
     # (optional)
     nvx:
       # NVX preview is always enabled.
+      # (optional)
       preview: true
 
       # Strict AWF network isolation is always enabled.
+      # (optional)
       network-isolation: true
 
       # API proxy credential isolation is always enabled.
+      # (optional)
       api-proxy: true
 
       # Required guest libc ABI contract used to select compatible staged engine assets.
@@ -2397,28 +2400,34 @@ sandbox:
 
       # Workload-specific guest distro layer directory; defaults to
       # runner.temp/nvx/guest-layer and supports GitHub Actions expressions.
+      # (optional)
       layer-path: "example-value"
 
       # Path to the trusted, attested OpenVMM binary; defaults to
       # runner.temp/nvx/openvmm and supports GitHub Actions expressions.
+      # (optional)
       openvmm-path: "example-value"
 
       # Path to the trusted, attested guest kernel; defaults to runner.temp/nvx/vmlinux
       # and supports GitHub Actions expressions.
+      # (optional)
       kernel-path: "example-value"
 
       # Path to the trusted, attested guest initramfs; defaults to
       # runner.temp/nvx/initramfs.cpio.gz and supports GitHub Actions expressions.
+      # (optional)
       initramfs-path: "example-value"
 
       # Path to the AWF release artifact manifest; defaults to
       # runner.temp/nvx/nvx-test-x86_64.manifest.json and supports GitHub Actions
       # expressions.
+      # (optional)
       artifact-manifest-path: "example-value"
 
       # Path to the offline Sigstore attestation bundle; defaults to
       # runner.temp/nvx/nvx-test-x86_64.manifest.sigstore.jsonl and supports GitHub
       # Actions expressions.
+      # (optional)
       artifact-manifest-bundle-path: "example-value"
 
       # Expected trusted workflow identity that signed the manifest.

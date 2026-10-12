@@ -4228,7 +4228,7 @@
                           "description": "Optional guest working directory, restricted to /workspace or a descendant."
                         }
                       },
-                      "required": ["preview", "network-isolation", "api-proxy", "guest-libc", "layer-path", "openvmm-path", "kernel-path", "initramfs-path", "artifact-manifest-path", "artifact-manifest-bundle-path"]
+                      "required": ["guest-libc"]
                     },
                     "config": {
                       "type": "object",
