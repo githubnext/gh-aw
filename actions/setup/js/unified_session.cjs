@@ -313,6 +313,30 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       currentRunAttempt = info.run_attempt !== undefined && info.run_attempt !== null ? String(info.run_attempt) : undefined;
     }
   }
+  const skillInventory = choose(["skill_inventory.json", "activation/skill_inventory.json"]);
+  if (skillInventory) {
+    const inventory = records(skillInventory)[0];
+    if (inventory && Array.isArray(inventory.skills) && Array.isArray(inventory.conflicts)) {
+      const skills = inventory.skills
+        .filter(skill => skill && typeof skill.name === "string" && typeof skill.source === "string" && typeof skill.scope === "string" && typeof skill.digest === "string")
+        .map(skill => ({
+          name: skill.name,
+          source: skill.source,
+          scope: skill.scope,
+          digest: skill.digest,
+          ...(typeof skill.purpose === "string" ? { purpose: skill.purpose } : {}),
+        }));
+      const conflicts = inventory.conflicts.filter(
+        conflict => conflict && typeof conflict.name === "string" && ["name_collision", "scope_collision"].includes(conflict.kind) && Array.isArray(conflict.sources) && conflict.sources.every(source => typeof source === "string")
+      );
+      sources.push({
+        component: "skill",
+        phase: "activation",
+        path: path.relative(rootDir, skillInventory),
+        events: [{ type: "skill.inventory", data: { skills } }, ...conflicts.map(conflict => ({ type: "skill.conflict", data: { name: conflict.name, kind: conflict.kind, sources: conflict.sources } }))],
+      });
+    } else report(skillInventory, "invalid_skill_inventory", undefined);
+  }
   /** @type {Array<[string, `${string}.${string}`]>} */
   const prompts = [
     ["system.txt", "prompt.system"],

@@ -170,6 +170,10 @@ const EVENT_FIELDS = {
   ...COPILOT_WORKFLOW_EVENT_FIELDS,
   "session.format": { version: ["version"] },
   "agent.execution": { categories: ["categories"], errorCodes: ["errorCodes"], errorTypes: ["errorTypes"], exitCode: ["exitCode", "exit_code"] },
+  "skill.invoked": { name: ["name"], path: ["path"], source: ["source"], trigger: ["trigger"], model: ["model"], invokedAtTurn: ["invokedAtTurn"] },
+  "skill.context_delivered_ref": { interactionId: ["interactionId"], source: ["source"], contentId: ["contentId"] },
+  "skill.inventory": { skills: ["skills"] },
+  "skill.conflict": { name: ["name"], kind: ["kind"], sources: ["sources"] },
   "session.init": { sourceEngine: ["sourceEngine"], model: ["model", "selectedModel"], sessionId: ["sessionId", "session_id"], cwd: ["cwd"], reasoningEffort: ["reasoningEffort"] },
   "session.shutdown": {
     shutdownType: ["shutdownType"],
@@ -459,6 +463,17 @@ function normalizeUnifiedSessionEvent(event, phase) {
       const lineage = selectFields(episode, EPISODE_LINEAGE_FIELDS);
       if (Object.keys(lineage).length || Object.hasOwn(source, "episode")) data.episode = lineage;
     }
+  }
+  if (event.type === "skill.inventory" && Array.isArray(source.skills)) {
+    data.skills = source.skills.map(skill =>
+      selectFields(skill, {
+        name: ["name"],
+        source: ["source"],
+        scope: ["scope"],
+        digest: ["digest"],
+        purpose: ["purpose"],
+      })
+    );
   }
   if (SCOPED_AGENT_TYPES.has(event.type) || (Object.hasOwn(COPILOT_WORKFLOW_EVENT_FIELDS, event.type) && event.type.startsWith("subagent."))) {
     const parentToolCallId = Object.hasOwn(source, "parentToolCallId") ? source.parentToolCallId : event.parentToolCallId;

@@ -67,7 +67,7 @@ to `Implemented` in the same PR that adds `shared/graders/<id>.md`.
 | 22 | `code-search-recall` | Reference patch | Implemented |
 | 23 | `code-read-precision` | Reference patch + file read/inspection actions | Implemented |
 | 24 | `code-edit-precision` | Reference patch + file edit actions | Implemented |
-| 25 | `process-alignment-fitness` | Process model | Not started |
+| 25 | `process-alignment-fitness` | Process model | Implemented |
 
 ## What each grader answers
 

@@ -256,5 +256,13 @@
     "direction": "higher_is_better",
     "min": 0,
     "max": 1
+  },
+  "process-alignment-fitness": {
+    "name": "Process Alignment Fitness",
+    "description": "Fraction of observed tool-sequence checks allowed by a configured process model",
+    "unit": "ratio",
+    "direction": "higher_is_better",
+    "min": 0,
+    "max": 1
   }
 }
