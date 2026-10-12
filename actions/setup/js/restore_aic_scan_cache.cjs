@@ -22,7 +22,7 @@ async function listRequiredWorkflowRuns(owner, repo, current, repository, defaul
   const runs = [];
   const created = `>=${new Date(Date.now() - SCAN_WINDOW_MS).toISOString()}`;
   for (let page = 1; page <= MAX_RESTORE_PAGES && runs.length < MAX_RESTORE_RUNS; page++) {
-    const response = await budget.request(() => github.rest.actions.listWorkflowRunsForRepo({ owner, repo, status: "completed", created, per_page: 100, page }));
+    const response = await budget.request(() => github.rest.actions.listWorkflowRunsForRepo({ owner, repo, status: "completed", created, per_page: 100, page }), true, "repository_history");
     const pageRuns = response.data.workflow_runs || [];
     const trustedRuns = pageRuns.filter(run => run.id !== context.runId && isTrustedProducer(run, current, repository, defaultBranch));
     core.info(`[daily-aic-cache] Evaluated repository history page: ${JSON.stringify({ page, listedRuns: pageRuns.length, trustedCandidates: trustedRuns.length })}`);
@@ -36,7 +36,7 @@ async function listRecentWorkflowRuns(owner, repo, current, repository, defaultB
   let response;
   core.info(`[daily-aic-cache] Querying workflow-specific run history: ${JSON.stringify({ workflowId: current.workflow_id })}`);
   try {
-    response = await budget.request(() => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, per_page: 10 }));
+    response = await budget.request(() => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, per_page: 10 }), true, "workflow_history");
   } catch (error) {
     if (error?.status !== 404 || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) throw error;
     core.info("[daily-aic-cache] Workflow-specific history unavailable; searching repository history for required workflow runs.");
@@ -50,7 +50,7 @@ async function restoreWithBudget(cachePath, options, budget) {
   const client = options.createArtifactClient?.() || new DefaultArtifactClient({ request: budget.request });
   const { owner, repo } = context.repo;
   const repository = `${owner}/${repo}`;
-  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }));
+  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }), true, "current_run");
   const current = currentResponse.data;
   if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve workflow for daily AIC snapshot restore");
   const defaultBranch = context.payload.repository?.default_branch;
@@ -76,7 +76,7 @@ async function restoreWithBudget(cachePath, options, budget) {
       })}`
     );
     if (isCurrentRun || !trusted) continue;
-    const response = await budget.request(() => github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: run.id, per_page: 100 }));
+    const response = await budget.request(() => github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: run.id, per_page: 100 }), true, "artifact_list");
     const artifact = response.data.artifacts.find(item => item.name === AIC_SCAN_CACHE_ARTIFACT_NAME && !item.expired);
     if (!artifact) {
       core.info(`[daily-aic-cache] Skipped snapshot producer: ${JSON.stringify({ producerRunId: run.id, reason: "no_unexpired_scan_artifact" })}`);

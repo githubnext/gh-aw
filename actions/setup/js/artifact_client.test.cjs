@@ -8,7 +8,7 @@ import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
 const { DefaultArtifactClient } = req("./artifact_client.cjs");
-const { createAPIBudget } = req("./daily_aic_api_budget.cjs");
+const { createAPIBudget, getAPIReadFailure } = req("./daily_aic_api_budget.cjs");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -120,6 +120,17 @@ describe("DefaultArtifactClient.listArtifacts", () => {
     await expect(client.listArtifacts({ findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" } })).rejects.toThrow("failed to parse list artifacts");
     expect(fetch).toHaveBeenCalledOnce();
     expect(budget.snapshot().requests).toBe(1);
+  });
+
+  it("attributes artifact-list failures through the budget, not through fetch arguments", async () => {
+    const response = makeFetchResponse(429, "private payload");
+    const fetch = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("core", { info: vi.fn() });
+    const client = new DefaultArtifactClient({ request: createAPIBudget().request });
+    const error = await client.listArtifacts({ findBy: { token: "tok", repositoryOwner: "owner", repositoryName: "repo", workflowRunId: "42" } }).catch(error => error);
+    expect(getAPIReadFailure(error)).toEqual({ attempts: 1, status: 429, reason: "quota_stop", requests: 1, operation: "artifact_list" });
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(expect.any(String), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 });
 

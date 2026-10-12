@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { AIC_SCAN_CACHE_FILE_PATH, readScanCache, matchesCompletedRun, scanCacheEntry } = require("./daily_aic_cache_helpers.cjs");
-const { getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
+const { getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PAGES = 25;
@@ -16,7 +16,7 @@ const MAX_PAGES = 25;
 async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC, listPage, token, fallbackAIC = 0, cachePath = AIC_SCAN_CACHE_FILE_PATH, now = Date.now() }) {
   const { owner, repo } = context.repo;
   const repository = `${owner}/${repo}`;
-  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }));
+  const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }), true, "current_run");
   const current = currentResponse.data;
   if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve the daily AIC workflow");
   core.info(
@@ -116,7 +116,7 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
               runId: run.id,
               runAttempt: run.run_attempt,
               status: status || null,
-              error: error instanceof Error ? error.message : String(error),
+              error: getAPIReadFailure(error) || (error instanceof Error ? error.message : String(error)),
               fallbackAvailable: canUseFallback,
             })}`
           );

@@ -29,15 +29,18 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   const components = new Map();
   let complete = false;
   for (let page = 1; page <= 10; page++) {
-    const response = await budget.request(() =>
-      github.rest.actions.listJobsForWorkflowRun({
-        owner,
-        repo,
-        run_id: run.id,
-        filter: "all",
-        per_page: 100,
-        page,
-      })
+    const response = await budget.request(
+      () =>
+        github.rest.actions.listJobsForWorkflowRun({
+          owner,
+          repo,
+          run_id: run.id,
+          filter: "all",
+          per_page: 100,
+          page,
+        }),
+      true,
+      "run_jobs"
     );
     const jobs = response.data.jobs;
     if (!Array.isArray(jobs)) throw new Error("Incomplete daily AIC job metadata");

@@ -313,26 +313,30 @@ class DefaultArtifactClient {
       /** @type {any} */
       let payload;
       try {
-        response = await this.request(async () => {
-          const fetched = await fetch(url.toString(), {
-            headers: {
-              Authorization: "Bearer " + findBy.token,
-              Accept: "application/vnd.github+json",
-              "User-Agent": "gh-aw-artifact-client",
-            },
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-          });
-          this.onResponse?.(fetched);
-          if (fetched.ok) {
-            try {
-              payload = await readResponseJSON(fetched, "list artifacts");
-            } catch (error) {
-              Object.assign(error, { response: fetched });
-              throw error;
+        response = await this.request(
+          async () => {
+            const fetched = await fetch(url.toString(), {
+              headers: {
+                Authorization: "Bearer " + findBy.token,
+                Accept: "application/vnd.github+json",
+                "User-Agent": "gh-aw-artifact-client",
+              },
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+            this.onResponse?.(fetched);
+            if (fetched.ok) {
+              try {
+                payload = await readResponseJSON(fetched, "list artifacts");
+              } catch (error) {
+                Object.assign(error, { response: fetched });
+                throw error;
+              }
             }
-          }
-          return fetched;
-        });
+            return fetched;
+          },
+          true,
+          "artifact_list"
+        );
       } catch (err) {
         if (err?.response) throw err;
         throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
@@ -381,16 +385,19 @@ class DefaultArtifactClient {
     );
     let redirectResponse;
     try {
-      redirectResponse = await this.request(() =>
-        fetch(apiUrl.toString(), {
-          headers: {
-            Authorization: "Bearer " + findBy.token,
-            Accept: "application/vnd.github+json",
-            "User-Agent": "gh-aw-artifact-client",
-          },
-          redirect: "manual",
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        })
+      redirectResponse = await this.request(
+        () =>
+          fetch(apiUrl.toString(), {
+            headers: {
+              Authorization: "Bearer " + findBy.token,
+              Accept: "application/vnd.github+json",
+              "User-Agent": "gh-aw-artifact-client",
+            },
+            redirect: "manual",
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          }),
+        true,
+        "artifact_redirect"
       );
     } catch (err) {
       if (err?.response) throw err;
@@ -411,12 +418,16 @@ class DefaultArtifactClient {
     try {
       let blobResponse;
       try {
-        blobResponse = await this.request(async () => {
-          const fetched = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
-          if (!fetched.ok) throw apiError(fetched.status, fetched.headers, `artifact blob download failed (${fetched.status})`);
-          digest = await streamToFile(fetched, tempFile);
-          return fetched;
-        }, false);
+        blobResponse = await this.request(
+          async () => {
+            const fetched = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
+            if (!fetched.ok) throw apiError(fetched.status, fetched.headers, `artifact blob download failed (${fetched.status})`);
+            digest = await streamToFile(fetched, tempFile);
+            return fetched;
+          },
+          false,
+          "artifact_download"
+        );
       } catch (err) {
         if (err?.response) throw err;
         throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
