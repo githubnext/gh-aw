@@ -3,9 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
-const { agentErrorDiagnosticText, agentErrorSummaryText } = require("./agent_execution.cjs");
-const { extractDeniedCommands } = require("./permission_denied_helpers.cjs");
-const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
+const { agentErrorSummaryText } = require("./agent_execution.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactDiagnosticText, redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -56,9 +54,9 @@ const REQUEST_REJECTION_ERROR_CATEGORIES = new Set([
  * }}
  */
 function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
-  const diagnostics = new Set(["Agent finished without emitting a terminal safe output; task completion could not be confirmed.", ...errors]);
+  const diagnostics = new Set(["Agent finished without emitting a terminal safe output; task completion could not be confirmed."]);
+  if (errors.length) diagnostics.add("Safe-output validation status: failed");
   let reason = errors.length ? "invalid_safe_outputs" : "missing_terminal_safe_output";
-  const starts = new Map();
   let events = [];
   let maskedValues = [];
   try {
@@ -98,7 +96,11 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     // Ignore missing CLI audit evidence for workflows using MCP directly.
   }
   let driverExitCode;
-  let lastToolCall = "not recorded";
+  let lastToolCallStatus = "not recorded";
+  let lastToolExitCode;
+  let failedToolCalls = 0;
+  let permissionDenials = 0;
+  let toolDenialLimitExceeded = false;
   let executionCategories = [];
   let executionErrorCodes = [];
   for (const event of events) {
@@ -114,20 +116,12 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     if (event.provenance.component !== "agent") continue;
     /** @type {any} */
     const data = event.data;
-    const key = `${event.provenance.path}:${event.session_id || ""}:${data.toolCallId}`;
-    if (event.type === "tool.execution_start" || event.type === "tool.execution_complete") {
-      const start = starts.get(key);
-      const toolName = data.toolName || start?.toolName;
-      const server = data.mcpServerName || start?.mcpServerName;
-      // Only identifiers, never tool arguments or results, belong in this summary.
-      const identifier = [server, toolName].filter(Boolean).join(".");
-      lastToolCall = identifier && identifier.length <= 200 && /^[a-zA-Z0-9_.:/-]+$/.test(identifier) ? identifier : "identifier unavailable";
-    }
     if (event.type === "tool.execution_start") {
-      starts.set(key, data);
-    } else if (
-      event.type === "tool.execution_complete" &&
-      (data.success === false ||
+      lastToolCallStatus = "started (completion not recorded)";
+      lastToolExitCode = undefined;
+    } else if (event.type === "tool.execution_complete") {
+      const failed =
+        data.success === false ||
         data.is_error === true ||
         data.isError === true ||
         data.result?.isError === true ||
@@ -135,22 +129,14 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
         data.status === "failed" ||
         data.status === "error" ||
         data.error != null ||
-        (typeof data.exitCode === "number" && data.exitCode !== 0))
-    ) {
-      const start = starts.get(key);
-      const toolName = data.toolName || start?.toolName || "unknown tool";
-      const tool = [data.mcpServerName || start?.mcpServerName, toolName].filter(Boolean).join(".");
-      const errorValue = data.error || data.output || data.result || "Tool execution failed";
-      const error = typeof errorValue === "string" ? redact(errorValue) : redactJson(errorValue);
-      const command = /^(bash|shell)$/i.test(toolName) ? extractShellCommandFromToolData(start) : "";
-      diagnostics.add(`${tool}${command ? `: ${command}` : ""}: ${error}`);
-    } else if (event.type === "guard.tool_denials_exceeded" && typeof data.reason === "string") {
-      diagnostics.add(data.reason);
+        (typeof data.exitCode === "number" && data.exitCode !== 0);
+      lastToolCallStatus = failed ? "failed" : data.success === true || data.exitCode === 0 ? "succeeded" : "completed (outcome unknown)";
+      lastToolExitCode = Number.isSafeInteger(data.exitCode) && data.exitCode >= 0 && data.exitCode <= 255 ? data.exitCode : undefined;
+      if (failed) failedToolCalls++;
+    } else if (event.type === "guard.tool_denials_exceeded") {
+      toolDenialLimitExceeded = true;
     } else if (event.type === "session.result" && Array.isArray(data.permissionDenials)) {
-      for (const denial of data.permissionDenials) {
-        const command = extractShellCommandFromToolData({ input: denial.tool_input });
-        diagnostics.add(`Permission denied: ${denial.tool_name || "unknown tool"}${command ? `: ${command}` : ""}`);
-      }
+      permissionDenials += data.permissionDenials.length;
     }
   }
   const safeStdio = stdio
@@ -163,10 +149,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
       }
     })
     .join("\n");
-  // Extract denied commands without copying harness configuration or transcript data.
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
-  const attributedDiagnostics = agentErrorDiagnosticText(safeStdio, events, rawSourceEngine);
-  for (const command of extractDeniedCommands(attributedDiagnostics)) diagnostics.add(`Permission denied: ${command}`);
   const engineSummary = agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);
   const engineErrorType = engineSummary.match(/\(([a-z][a-z0-9_]*)\)/)?.[1] || "";
@@ -210,14 +193,19 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const summary = [
     `Failure classification: ${failureCause}`,
     reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
-    `Last tool call: ${redact(lastToolCall)}`,
+    `Last tool call status: ${lastToolCallStatus}`,
+    ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
+    `Failed tool calls observed: ${failedToolCalls}`,
     `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
     `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
     `Safe-output tools: ${safeOutputAvailability}`,
   ];
   if (failureCause === "missing_terminal_safe_output") {
-    summary.push("Check the last tool call and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.");
+    summary.push("Check the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.");
   }
+  if (errorCodes.length) diagnostics.add(`Engine HTTP error codes: ${[...new Set(errorCodes)].join(", ")}`);
+  if (permissionDenials) diagnostics.add(`Permission denials observed: ${permissionDenials}`);
+  if (toolDenialLimitExceeded) diagnostics.add("Tool denial limit status: exceeded");
   if (engineErrorType) {
     diagnostics.add(`Last engine error type: ${engineErrorType}`);
   } else if (reason === "engine_driver_failure") {

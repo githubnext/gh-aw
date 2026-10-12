@@ -47,7 +47,7 @@ async function main(config = {}) {
     // Validate required fields
     const { reason } = message;
     if (!reason || typeof reason !== "string" || !reason.trim()) {
-      core.warning(`report_incomplete message missing or invalid 'reason' field: ${JSON.stringify(message)}`);
+      core.warning("report_incomplete message missing or invalid 'reason' field");
       return {
         success: false,
         error: "Missing required field: reason",
@@ -58,10 +58,7 @@ async function main(config = {}) {
 
     const timestamp = new Date().toISOString();
 
-    core.warning(`⚠️ report_incomplete: ${reason}`);
-    if (message.details) {
-      core.info(`   Details: ${message.details}`);
-    }
+    core.warning("report_incomplete: task completion unconfirmed");
 
     return {
       success: true,

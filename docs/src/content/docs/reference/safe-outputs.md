@@ -1773,7 +1773,7 @@ safe-outputs:
 
 When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
 
-Without a more specific runtime failure, the failure classification is `missing_terminal_safe_output`, not an inferred engine outage or budget exhaustion. Failure reports include the driver exit status, last observed tool identifier (without arguments), token and LLM-invocation exhaustion signals, and safe-output tool registration at setup. Missing evidence is reported as unknown or not recorded; registration at setup does not guarantee that a tool remained available throughout the run.
+Without a more specific runtime failure, the failure classification is `missing_terminal_safe_output`, not an inferred engine outage or budget exhaustion. Incompletion descriptions contain only inferred runtime status and validated error codes: driver exit status, last tool status, failed-tool counts, token and LLM-invocation exhaustion signals, and safe-output tool registration at setup. Agent reasons, tool names, commands, arguments, results, and error text are excluded, even when they contain no recognized secrets. Missing evidence is reported as unknown or not recorded; registration at setup does not guarantee that a tool remained available throughout the run.
 
 **Use case: Suppress transient infrastructure failures**
 
