@@ -4,27 +4,60 @@ network:
     - go
 mcp-scripts:
   go:
-    description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide arguments as an array of strings without the 'go' prefix (e.g., args: ['test', './...']). Each array element is one literal argument; do not add shell quoting."
     inputs:
       args:
-        type: string
-        description: "Arguments to pass to go CLI (without the 'go' prefix). Examples: 'test ./...', 'build ./cmd/gh-aw', 'mod tidy', 'fmt ./...', 'vet ./...'"
+        type: array
+        items:
+          type: string
+        description: "Array of argument strings to pass to go CLI (without the 'go' prefix). Examples: ['test', './...'], ['build', './cmd/gh-aw'], ['mod', 'tidy'], ['fmt', './...'], ['vet', './...']"
         required: true
-    run: |
-      echo "go $INPUT_ARGS"
-      go $INPUT_ARGS
+    script: |
+      const { execFile } = require("node:child_process");
+      const { promisify } = require("node:util");
+      const { buildEnhancedError } = require("./mcp_handler_process.cjs");
+      if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+        throw new Error("args must be an array of strings");
+      }
+      try {
+        const { stdout, stderr } = await promisify(execFile)("go", args, { maxBuffer: 10 * 1024 * 1024 });
+        return { stdout, stderr, outputs: {} };
+      } catch (error) {
+        throw buildEnhancedError(error, "go", error.stdout || "", error.stderr || "");
+      }
 
   make:
-    description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide target names and options as an array of strings (e.g., args: ['fmt', 'build']). Each array element is one literal argument; do not add shell quoting."
     inputs:
       args:
-        type: string
-        description: "Arguments to pass to make (target names and options). Examples: 'build', 'test-unit', 'lint', 'recompile', 'agent-finish', 'fmt build test-unit'"
+        type: array
+        items:
+          type: string
+        description: "Array of target names and option strings to pass to make. Examples: ['build'], ['test-unit'], ['lint'], ['recompile'], ['agent-finish'], ['fmt', 'build', 'test-unit']"
         required: true
-    run: |
-      echo "make $INPUT_ARGS"
-      make $INPUT_ARGS
+    script: |
+      const { execFile } = require("node:child_process");
+      const { promisify } = require("node:util");
+      const { buildEnhancedError } = require("./mcp_handler_process.cjs");
+      if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+        throw new Error("args must be an array of strings");
+      }
+      try {
+        const { stdout, stderr } = await promisify(execFile)("make", args, { maxBuffer: 10 * 1024 * 1024 });
+        return { stdout, stderr, outputs: {} };
+      } catch (error) {
+        throw buildEnhancedError(error, "make", error.stdout || "", error.stderr || "");
+      }
 ---
+
+Both tools require `args` as an array of strings, not a command string.
+For example, pass `["test", "./..."]` or
+`["build", "-o", "path with spaces/output"]`. Each element is passed unchanged,
+including spaces, quotes, backslashes, and empty strings. Do not add shell
+quoting or escaping. Globs, variables, command substitutions, and shell
+operators are not expanded or executed. The JavaScript wrappers use Node's
+`execFile` without a shell or Python, return stdout and stderr, and report
+command failures with their exit status and output.
 
 **IMPORTANT — bash vs. MCP for validation:**
 
@@ -40,16 +73,17 @@ make recompile
 
 **MCP tools (use early in session, before long exploration phases):**
 ```
-Use the mcpscripts-go tool with args: "test ./..."
-Use the mcpscripts-make tool with args: "build"
-Use the mcpscripts-make tool with args: "lint"
-Use the mcpscripts-make tool with args: "test-unit"
+Use the mcpscripts-go tool with args: ["test", "./..."]
+Use the mcpscripts-make tool with args: ["build"]
+Use the mcpscripts-make tool with args: ["lint"]
+Use the mcpscripts-make tool with args: ["test-unit"]
 ```
 
 **Incorrect**:
 ```
-Use the go mcp-script tool with args: "test ./..."  ❌ (Wrong tool name - use mcpscripts-go)
-Use the mcpscripts-make tool with args: "build"     ❌ (after a long exploration phase — use bash instead)
+Use the go mcp-script tool with args: ["test", "./..."]  ❌ (Wrong tool name - use mcpscripts-go)
+Use the mcpscripts-make tool with args: ["build"]        ❌ (after a long exploration phase — use bash instead)
+Use the mcpscripts-go tool with args: "test ./..."       ❌ (Use an array of argument strings)
 ```
 
 <!--
@@ -68,30 +102,30 @@ imports:
 
 #### mcpscripts-go
 
-The tool is accessible as `mcpscripts-go` (or `mcpscripts_go` after normalization). Provide go CLI arguments via the `args` parameter:
+The tool is accessible as `mcpscripts-go` (or `mcpscripts_go` after normalization). Provide go CLI arguments via the `args` array:
 
 ```
-mcpscripts-go with args: "test ./..."
-mcpscripts-go with args: "build ./cmd/gh-aw"
-mcpscripts-go with args: "mod tidy"
-mcpscripts-go with args: "fmt ./..."
-mcpscripts-go with args: "vet ./..."
-mcpscripts-go with args: "test -v -run TestCompile ./pkg/cli"
+mcpscripts-go with args: ["test", "./..."]
+mcpscripts-go with args: ["build", "./cmd/gh-aw"]
+mcpscripts-go with args: ["mod", "tidy"]
+mcpscripts-go with args: ["fmt", "./..."]
+mcpscripts-go with args: ["vet", "./..."]
+mcpscripts-go with args: ["test", "-v", "-run", "TestCompile", "./pkg/cli"]
 ```
 
 The tool executes: `go <args>`
 
 #### mcpscripts-make
 
-The tool is accessible as `mcpscripts-make` (or `mcpscripts_make` after normalization). Provide make target(s) via the `args` parameter:
+The tool is accessible as `mcpscripts-make` (or `mcpscripts_make` after normalization). Provide make target(s) via the `args` array:
 
 ```
-mcpscripts-make with args: "build"
-mcpscripts-make with args: "test-unit"
-mcpscripts-make with args: "lint"
-mcpscripts-make with args: "recompile"
-mcpscripts-make with args: "fmt lint build"
-mcpscripts-make with args: "agent-finish"
+mcpscripts-make with args: ["build"]
+mcpscripts-make with args: ["test-unit"]
+mcpscripts-make with args: ["lint"]
+mcpscripts-make with args: ["recompile"]
+mcpscripts-make with args: ["fmt", "lint", "build"]
+mcpscripts-make with args: ["agent-finish"]
 ```
 
 The tool executes: `make <args>`

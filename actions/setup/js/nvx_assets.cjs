@@ -84,6 +84,9 @@ function stageExecutableLibraries(entry, runtime, guestRuntime) {
     if (!stat.isFile() || (stat.mode & 0o111) === 0) return;
     const interpreter = readELFInterpreter(entry);
     if (!interpreter) return;
+    // Musl engine artifacts are selected explicitly for musl guests and must
+    // retain the guest's loader instead of being rewritten with host glibc.
+    if (path.basename(interpreter).startsWith("ld-musl-")) return;
     const output = execFileSync("/usr/bin/ldd", [entry], { encoding: "utf8", timeout: 15_000, env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
     if (/=>\s+not found/.test(output)) throw new Error(`NVX executable has missing host libraries: ${entry}`);
     const libraries = [interpreter, ...Array.from(output.matchAll(/^\s*(?:\S+\s+=>\s+)?(\/.+?)\s+\(0x[0-9a-f]+\)/gm), match => match[1])];
@@ -131,6 +134,13 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
     for (const name of ["actions", "bin", "engine-cli", "mcp-cli"]) {
       const source = path.join(hostRoot, name);
       if (fs.existsSync(source)) copyTree(source, path.join(runtime, name));
+    }
+    const guestCopilot = path.join(hostRoot, "nvx-engine", "copilot");
+    if (fs.existsSync(guestCopilot)) {
+      copyTree(guestCopilot, path.join(runtime, "bin", "copilot"));
+      fs.chmodSync(path.join(runtime, "bin", "copilot"), 0o755);
+      fs.unlinkSync(guestCopilot);
+      fs.rmdirSync(path.dirname(guestCopilot));
     }
     const mcpConfig = environment.GH_AW_MCP_CONFIG;
     const mcpConfigDir = path.join(hostRoot, "mcp-config");
