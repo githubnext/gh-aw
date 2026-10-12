@@ -523,6 +523,8 @@ Accounting reads retry transient server and network/timeout failures up to three
 
 Scan snapshots from matching default-branch `issues` and `issue_comment` runs can be reused after repository, workflow, and producer validation. A fresh, complete run listing still determines which observations count toward the 24-hour total.
 
+Activation logs report retry delays, recovery or stop reasons, and snapshot-producer validation or missing-data decisions. These diagnostics omit credentials, signed download URLs, and response bodies.
+
 By default, the activation job fails when the guardrail cannot determine the complete 24-hour AI Credits total, including when authoritative run history remains unreadable or no positive per-run fallback is available. Set `continue-on-error: true` to report the unknown total as a warning and allow the workflow to continue:
 
 ```yaml wrap

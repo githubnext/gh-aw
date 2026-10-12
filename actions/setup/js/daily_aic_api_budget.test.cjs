@@ -27,6 +27,8 @@ describe("bounded daily AIC read retries", () => {
     await expect(pending).resolves.toEqual(response());
     expect(request).toHaveBeenCalledTimes(2);
     expect(budget.snapshot()).toMatchObject({ requests: 2, remaining: 4000 });
+    expect(global.core.info).toHaveBeenCalledWith('[daily-workflow-aic] Retrying transient read: {"attempt":1,"maxAttempts":3,"status":502,"delayMs":1000}');
+    expect(global.core.info).toHaveBeenCalledWith('[daily-workflow-aic] Transient read recovered: {"attempts":2,"status":200,"requests":2}');
   });
 
   it.each([500, 502, 503, 504])("stops HTTP %i after three attempts", async status => {
@@ -37,6 +39,7 @@ describe("bounded daily AIC read retries", () => {
     await assertion;
     expect(request).toHaveBeenCalledTimes(3);
     expect(budget.snapshot().requests).toBe(3);
+    expect(global.core.info).toHaveBeenCalledWith(`[daily-workflow-aic] Stopped daily AIC read: {"attempts":3,"status":${status},"reason":"retry_exhausted","requests":3}`);
   });
 
   it.each([401, 403, 404, 429])("never retries HTTP %i", async status => {
@@ -44,6 +47,7 @@ describe("bounded daily AIC read retries", () => {
     await expect(createAPIBudget().request(request)).rejects.toMatchObject({ status });
     expect(request).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
+    expect(global.core.info).toHaveBeenCalledWith(`[daily-workflow-aic] Stopped daily AIC read: {"attempts":1,"status":${status},"reason":"${status === 429 ? "quota_stop" : "non_transient"}","requests":1}`);
   });
 
   it.each([200, 502])("stops at the quota reserve even on HTTP %i", async status => {
@@ -51,12 +55,14 @@ describe("bounded daily AIC read retries", () => {
     await expect(createAPIBudget().request(request)).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
     expect(request).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
+    expect(global.core.info).toHaveBeenCalledWith(`[daily-workflow-aic] Stopped daily AIC read: {"attempts":1,"status":${status},"reason":"quota_stop","requests":1}`);
   });
 
   it("does not retry a server error with an explicit retry restriction", async () => {
     const request = vi.fn(async () => response(503, { "retry-after": "120" }));
     await expect(createAPIBudget().request(request)).rejects.toMatchObject({ status: 503 });
     expect(request).toHaveBeenCalledOnce();
+    expect(global.core.info).toHaveBeenCalledWith('[daily-workflow-aic] Stopped daily AIC read: {"attempts":1,"status":503,"reason":"retry_restricted","requests":1}');
   });
 
   it.each([
@@ -82,6 +88,20 @@ describe("bounded daily AIC read retries", () => {
     const budget = createAPIBudget();
     await budget.request(async () => response(), false);
     expect(budget.snapshot().requests).toBe(0);
+  });
+
+  it("never logs error payloads, credentials, headers or signed download URLs", async () => {
+    const sensitive = "sensitive-test-value";
+    const error = apiError(502, { authorization: sensitive, location: `https://example.invalid/blob?token=${sensitive}` }, sensitive);
+    error.request = { headers: { authorization: sensitive } };
+    const request = vi.fn().mockRejectedValue(error);
+    const assertion = expect(createAPIBudget().request(request)).rejects.toMatchObject({ status: 502 });
+    await vi.runAllTimersAsync();
+    await assertion;
+    const logs = global.core.info.mock.calls.map(([message]) => message).join("\n");
+    expect(logs).toContain('"reason":"retry_exhausted"');
+    expect(logs).not.toContain(sensitive);
+    expect(logs).not.toContain("example.invalid");
   });
 });
 

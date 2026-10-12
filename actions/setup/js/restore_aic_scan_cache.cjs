@@ -24,7 +24,9 @@ async function listRequiredWorkflowRuns(owner, repo, current, repository, defaul
   for (let page = 1; page <= MAX_RESTORE_PAGES && runs.length < MAX_RESTORE_RUNS; page++) {
     const response = await budget.request(() => github.rest.actions.listWorkflowRunsForRepo({ owner, repo, status: "completed", created, per_page: 100, page }));
     const pageRuns = response.data.workflow_runs || [];
-    runs.push(...pageRuns.filter(run => run.id !== context.runId && isTrustedProducer(run, current, repository, defaultBranch)).slice(0, MAX_RESTORE_RUNS - runs.length));
+    const trustedRuns = pageRuns.filter(run => run.id !== context.runId && isTrustedProducer(run, current, repository, defaultBranch));
+    core.info(`[daily-aic-cache] Evaluated repository history page: ${JSON.stringify({ page, listedRuns: pageRuns.length, trustedCandidates: trustedRuns.length })}`);
+    runs.push(...trustedRuns.slice(0, MAX_RESTORE_RUNS - runs.length));
     if (pageRuns.length < 100) break;
   }
   return runs;
@@ -59,10 +61,27 @@ async function restoreWithBudget(cachePath, options, budget) {
   }
   const token = auth.token;
   for (const run of runs) {
-    if (run.id === context.runId || !isTrustedProducer(run, current, repository, defaultBranch)) continue;
+    const isCurrentRun = run.id === context.runId;
+    const trusted = isTrustedProducer(run, current, repository, defaultBranch);
+    core.info(
+      `[daily-aic-cache] Evaluated snapshot producer: ${JSON.stringify({
+        producerRunId: run.id,
+        isCurrentRun,
+        trusted,
+        workflowMatches: run.workflow_id === current.workflow_id,
+        pathMatches: run.path === current.path,
+        repositoryMatches: run.repository?.full_name === repository,
+        defaultBranchMatches: !!defaultBranch && run.head_branch === defaultBranch,
+        headRepositoryMatches: run.head_repository?.full_name === repository,
+      })}`
+    );
+    if (isCurrentRun || !trusted) continue;
     const response = await budget.request(() => github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: run.id, per_page: 100 }));
     const artifact = response.data.artifacts.find(item => item.name === AIC_SCAN_CACHE_ARTIFACT_NAME && !item.expired);
-    if (!artifact) continue;
+    if (!artifact) {
+      core.info(`[daily-aic-cache] Skipped snapshot producer: ${JSON.stringify({ producerRunId: run.id, reason: "no_unexpired_scan_artifact" })}`);
+      continue;
+    }
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "aic-scan-restore-"));
     try {
       const download = await client.downloadArtifact(artifact.id, {
@@ -70,9 +89,15 @@ async function restoreWithBudget(cachePath, options, budget) {
         findBy: { token, workflowRunId: run.id, repositoryOwner: owner, repositoryName: repo },
       });
       const file = path.join(download.downloadPath || directory, path.basename(AIC_SCAN_CACHE_FILE_PATH));
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {
+        core.info(`[daily-aic-cache] Skipped scan artifact: ${JSON.stringify({ producerRunId: run.id, artifactId: artifact.id, reason: "missing_snapshot_file" })}`);
+        continue;
+      }
       const entries = readScanCache(fs.readFileSync(file, "utf8"), repository, current.workflow_id);
-      if (entries.size === 0) continue;
+      if (entries.size === 0) {
+        core.info(`[daily-aic-cache] Skipped scan artifact: ${JSON.stringify({ producerRunId: run.id, artifactId: artifact.id, reason: "no_valid_observations" })}`);
+        continue;
+      }
       fs.mkdirSync(path.dirname(cachePath), { recursive: true });
       fs.writeFileSync(cachePath, [...entries.values()].map(entry => JSON.stringify(entry)).join("\n") + "\n", "utf8");
       core.info(`[daily-aic-cache] Restored verified scan observations: ${JSON.stringify({ producerRunId: run.id, artifactId: artifact.id, entries: entries.size })}`);

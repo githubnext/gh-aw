@@ -75,11 +75,21 @@ function createAPIBudget(reserve = 100) {
           if (response.status >= 500 && response.status < 600) {
             throw apiError(response.status, response.headers, "Daily AIC read failed with a server error");
           }
+          if (attempt > 0) {
+            core.info(`[daily-workflow-aic] Transient read recovered: ${JSON.stringify({ attempts: attempt + 1, status: response.status || null, requests })}`);
+          }
           return response;
         } catch (error) {
-          if (attempt >= 2 || !isTransientError(error)) throw error;
-          core.info(`[daily-workflow-aic] Retrying transient read: ${JSON.stringify({ attempt: attempt + 1, status: getErrorStatus(error) || null })}`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt));
+          const transient = isTransientError(error);
+          const status = getErrorStatus(error) || null;
+          if (attempt >= 2 || !transient) {
+            const reason = isQuotaError(error) ? "quota_stop" : safeResponseHeaders(error?.response?.headers)["retry-after"] != null ? "retry_restricted" : transient ? "retry_exhausted" : "non_transient";
+            core.info(`[daily-workflow-aic] Stopped daily AIC read: ${JSON.stringify({ attempts: attempt + 1, status, reason, requests })}`);
+            throw error;
+          }
+          const delayMs = 1000 * 2 ** attempt;
+          core.info(`[daily-workflow-aic] Retrying transient read: ${JSON.stringify({ attempt: attempt + 1, maxAttempts: 3, status, delayMs })}`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
         }
       }
     },

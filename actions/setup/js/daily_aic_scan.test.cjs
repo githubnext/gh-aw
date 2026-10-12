@@ -575,6 +575,8 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     await restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) });
     expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, per_page: 10 });
     expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(2);
+    expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":1,"listedRuns":100,"trustedCandidates":0}');
+    expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":2,"listedRuns":3,"trustedCandidates":1}');
     expect(listWorkflowRunsForRepo).toHaveBeenCalledWith({ owner: "example", repo: "project", status: "completed", created: ">=2025-02-02T12:00:00.000Z", per_page: 100, page: 1 });
     expect(listWorkflowRunArtifacts).toHaveBeenCalledOnce();
     expect(listWorkflowRunArtifacts).toHaveBeenCalledWith({ owner: "example", repo: "project", run_id: 50, per_page: 100 });
@@ -675,7 +677,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       rest: {
         actions: {
           getWorkflowRun: async () => response(current),
-          listWorkflowRuns: async () => response({ workflow_runs: [producer] }),
+          listWorkflowRuns: async () => response({ workflow_runs: [{ ...producer, id: 99 }, { ...producer, id: 51, event: "pull_request" }, producer] }),
           listWorkflowRunsForRepo: vi.fn(),
           listWorkflowRunArtifacts: vi.fn(async () => response({ artifacts: [{ id: 100, name: "aic-usage-scan-v2", expired: false }] })),
         },
@@ -695,6 +697,45 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(f.getRunAIC).not.toHaveBeenCalled();
     expect(downloadArtifact).toHaveBeenCalledOnce();
     expect(global.github.rest.actions.listWorkflowRunsForRepo).not.toHaveBeenCalled();
+    const producerLogs = global.core.info.mock.calls.filter(([message]) => message.startsWith("[daily-aic-cache] Evaluated snapshot producer:")).map(([message]) => JSON.parse(message.slice(message.indexOf("{"))));
+    expect(producerLogs).toEqual([
+      expect.objectContaining({ producerRunId: 99, isCurrentRun: true, trusted: true }),
+      expect.objectContaining({ producerRunId: 51, isCurrentRun: false, trusted: false }),
+      expect.objectContaining({ producerRunId: 50, isCurrentRun: false, trusted: true, defaultBranchMatches: true, headRepositoryMatches: true }),
+    ]);
+  });
+
+  it.each([
+    ["absent", "no_unexpired_scan_artifact"],
+    ["expired", "no_unexpired_scan_artifact"],
+    ["missing-file", "missing_snapshot_file"],
+    ["empty", "no_valid_observations"],
+  ])("logs why a trusted %s snapshot cannot be restored", async (kind, reason) => {
+    const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
+    const producer = { ...current, id: 50, event: "issues", repository: { full_name: repository }, head_repository: { full_name: repository }, head_branch: "main" };
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
+    global.github = {
+      auth: async () => ({ token: "sensitive-test-token" }),
+      rest: {
+        actions: {
+          getWorkflowRun: async () => response(current),
+          listWorkflowRuns: async () => response({ workflow_runs: [producer] }),
+          listWorkflowRunArtifacts: async () => response({ artifacts: kind === "absent" ? [] : [{ id: 100, name: "aic-usage-scan-v2", expired: kind === "expired" }] }),
+        },
+      },
+    };
+    await restore(cachePath, {
+      createArtifactClient: () => ({
+        downloadArtifact: async (_id, options) => {
+          if (kind === "empty") fs.writeFileSync(path.join(options.path, path.basename(AIC_SCAN_CACHE_FILE_PATH)), "");
+          return { downloadPath: options.path };
+        },
+      }),
+    });
+    const logs = global.core.info.mock.calls.map(([message]) => message).join("\n");
+    expect(logs).toContain(`"reason":"${reason}"`);
+    expect(logs).not.toContain("sensitive-test-token");
+    expect(fs.existsSync(cachePath)).toBe(false);
   });
 
   it("rejects contributor workflow artifacts and non-default-branch dispatch snapshots", () => {
