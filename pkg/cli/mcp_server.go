@@ -9,6 +9,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const mcpDiscoveryCacheTTLMs = 60_000
+
 // execCmdFunc is the type for the command execution function passed to tool registrations.
 type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 
@@ -16,7 +18,7 @@ type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 // The second return value is a reserved SDK extension slot and must be nil for now.
 
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string, env []string) *mcp.Server {
+func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string, env []string) *mcp.Server { //nolint:largefunc
 	// Helper function to execute command with proper path
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		var cmd *exec.Cmd
@@ -54,12 +56,26 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 		Name:    "gh-aw",
 		Version: GetVersion(),
 	}, &mcp.ServerOptions{
+		SupportedProtocolVersions: []string{
+			"2026-07-28",
+			"2025-11-25",
+			"2025-06-18",
+			"2025-03-26",
+			"2024-11-05",
+		},
 		Capabilities: &mcp.ServerCapabilities{
 			Tools: &mcp.ToolCapabilities{
 				ListChanged: false, // Tools are static, no notifications needed
 			},
 		},
 		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
+		SetCacheable: func(_ context.Context, req mcp.Request, c *mcp.Cacheable) {
+			switch req.(type) {
+			case *mcp.ListToolsRequest, *mcp.ServerRequest[*mcp.DiscoverParams]:
+				c.TTLMs = mcpDiscoveryCacheTTLMs
+				c.CacheScope = "private"
+			}
+		},
 	})
 
 	// Register read-only tools
