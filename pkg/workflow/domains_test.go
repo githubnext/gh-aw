@@ -1096,9 +1096,9 @@ func TestGetClaudeAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
 		result := GetAllowedDomainsForEngine(constants.ClaudeEngine, network, nil, runtimes)
 
 		// Should contain explicitly requested Claude domain set
-		if !strings.Contains(result, "api.anthropic.com") {
-			t.Error("Expected api.anthropic.com in result")
-		}
+		domains := strings.Split(result, ",")
+		assert.Subset(t, domains, ClaudeDefaultDomains)
+		assert.NotContains(t, domains, "api.anthropic.com")
 		// Should contain Python ecosystem domains
 		if !strings.Contains(result, "pypi.org") {
 			t.Error("Expected pypi.org from python runtime in result")
