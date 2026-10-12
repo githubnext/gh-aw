@@ -1,1 +1,7 @@
-{"date": "2026-10-09", "latest_release": "v0.91.6", "commits_30d": 777, "open_prs": 8, "discussion": "Daily Status - 2026-10-09"}
+{
+  "date": "2026-10-12",
+  "open_issues": 100,
+  "open_prs": 13,
+  "commits_30d": 100,
+  "latest_release": "v0.91.8"
+}

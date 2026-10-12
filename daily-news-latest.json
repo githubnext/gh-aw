@@ -1,164 +1,52 @@
 {
-  "date": "2026-10-09",
-  "open_issues_sample": 100,
-  "closed_issues_sample": 100,
-  "open_prs": 8,
-  "merged_prs_sample": 50,
-  "closed_prs_sample": 30,
-  "commits_30d": 777,
-  "commits_today": 20,
-  "commits_unique_total": 18417,
-  "discussions": 50,
-  "releases_recent": [
-    "v0.91.6",
-    "v0.91.5",
-    "v0.91.4",
-    "v0.91.2",
-    "v0.91.1"
-  ],
-  "latest_release": "v0.91.6",
-  "label_top": [
+  "date": "2026-10-12",
+  "window_start": "2026-09-13",
+  "window_end": "2026-10-12",
+  "open_issues_count": 100,
+  "closed_issues_sampled": 100,
+  "open_prs_count": 13,
+  "merged_prs_sampled": 50,
+  "closed_prs_sampled": 30,
+  "commits_sampled": 100,
+  "discussions_count": 50,
+  "releases_count": 30,
+  "changesets_count": 770,
+  "issues_opened_30d": 190,
+  "issues_closed_30d": 100,
+  "prs_opened_30d": 92,
+  "prs_merged_30d": 50,
+  "commits_30d": 100,
+  "unique_commit_authors_sample": 4,
+  "top_commit_authors": [
     [
-      "agentic-workflows",
-      55
+      "Peli de Halleux",
+      53
     ],
     [
-      "automation",
+      "Copilot",
       31
     ],
     [
-      "cookie",
-      30
-    ],
-    [
-      "cascade-suspected",
-      27
-    ],
-    [
-      "security",
-      10
-    ],
-    [
-      "aw-essential",
-      10
-    ],
-    [
-      "code-quality",
-      6
-    ],
-    [
-      "quick-win",
-      6
-    ],
-    [
-      "task-mining",
-      6
-    ],
-    [
-      "improvement",
-      6
-    ]
-  ],
-  "themes": [
-    [
-      "engine/runtime",
-      16
-    ],
-    [
-      "test",
+      "github-actions[bot]",
       14
     ],
     [
-      "cascade/bug",
-      12
-    ],
-    [
-      "mcp",
-      8
-    ],
-    [
-      "security",
-      7
-    ],
-    [
-      "docs",
-      4
-    ],
-    [
-      "safe-outputs",
-      3
-    ],
-    [
-      "compile",
-      2
-    ],
-    [
-      "release",
+      "Landon Cox",
       2
     ]
   ],
-  "top_authors_30d": [
-    [
-      "Copilot",
-      449
-    ],
-    [
-      "github-actions[bot]",
-      161
-    ],
-    [
-      "Peli de Halleux",
-      104
-    ],
-    [
-      "dependabot[bot]",
-      42
-    ],
-    [
-      "Maggie Appleton",
-      7
-    ],
-    [
-      "Don Syme",
-      6
-    ],
-    [
-      "Mara Nikola Kiefer",
-      4
-    ],
-    [
-      "David Slater",
-      2
-    ]
+  "highlight_issue_numbers": [
+    66703,
+    67906,
+    47396,
+    67826
   ],
-  "changesets": 755,
-  "window_start": "2026-09-10",
-  "window_end": "2026-10-09",
-  "cascade_suspected_open": 27,
-  "cookie_open": 30,
-  "aw_essential_open": 10,
-  "quick_win_open": 6,
-  "security_open": 10,
-  "top_themes": [
-    "work-queues",
-    "model-routing",
-    "agy-engine",
-    "prompt-exhaustion",
-    "security-conformance",
-    "community-bot-auth"
+  "highlight_pr_numbers": [
+    67811,
+    67910,
+    67807,
+    67884,
+    67915
   ],
-  "charts": [
-    "issues_prs_trends.png",
-    "commit_trends.png"
-  ],
-  "discussion_title": "Daily Status - 2026-10-09",
-  "merged_highlights": [
-    "#67132 SEC-005 Claim adapters",
-    "#67133 AgentRx input bound",
-    "#67013 model-routing attribution",
-    "#67025 work-queue Issues mirrors",
-    "#67035 firewall v0.28.50",
-    "#66941 deprecate Gemini for Agy"
-  ],
-  "open_pr_count_detail": 8
+  "latest_release": "v0.91.8"
 }
