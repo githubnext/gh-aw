@@ -899,6 +899,7 @@ func TestAddSafeOutputTokenEnvVars(t *testing.T) {
 			checkNotContains: []string{
 				"GH_AW_PROJECT_URL",
 				"GH_AW_PROJECT_GITHUB_TOKEN",
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE:",
 			},
 		},
 		{
@@ -908,6 +909,7 @@ func TestAddSafeOutputTokenEnvVars(t *testing.T) {
 			},
 			checkContains: []string{
 				"GH_AW_ASSIGN_TO_AGENT_TOKEN:",
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: " + getEffectiveCopilotCodingAgentGitHubTokenSource(""),
 			},
 		},
 		{
@@ -919,6 +921,68 @@ func TestAddSafeOutputTokenEnvVars(t *testing.T) {
 			},
 			checkContains: []string{
 				"GH_AW_ASSIGN_TO_AGENT_TOKEN:",
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: " + getEffectiveCopilotCodingAgentGitHubTokenSource(""),
+			},
+		},
+		{
+			name: "assign-to-agent source emitted for create-pull-request with copilot assignee",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Assignees: []string{"copilot"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: " + getEffectiveCopilotCodingAgentGitHubTokenSource(""),
+			},
+		},
+		{
+			name: "explicit assignment token source takes precedence over create-issue and app credentials",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubApp: &GitHubAppConfig{},
+				AssignToAgent: &AssignToAgentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.ASSIGNMENT_PAT }}"},
+				},
+				CreateIssues: &CreateIssuesConfig{
+					Assignees:            []string{"copilot"},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.ISSUE_PAT }}"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN: ${{ secrets.ASSIGNMENT_PAT }}",
+				`GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: "configured"`,
+			},
+			checkNotContains: []string{
+				"secrets.ISSUE_PAT",
+				"steps.safe-outputs-app-token",
+			},
+		},
+		{
+			name: "configured create-issue assignment source takes precedence over create-pull-request",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					Assignees:            []string{"copilot"},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.ISSUE_PAT }}"},
+				},
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Assignees: []string{"copilot"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN: ${{ secrets.ISSUE_PAT }}",
+				`GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: "configured"`,
+			},
+		},
+		{
+			name: "configured create-pull-request assignment source",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					Assignees:            []string{"copilot"},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.PR_PAT }}"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_ASSIGN_TO_AGENT_TOKEN: ${{ secrets.PR_PAT }}",
+				`GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE: "configured"`,
 			},
 		},
 		{

@@ -7,6 +7,7 @@ const { agentErrorSummaryText } = require("./agent_execution.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactDiagnosticText, redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
+const { lstatGuard } = require("./symlink_guard.cjs");
 
 // Keep cause titles and the category allow-list in sync; schema and docs list these causes too.
 const EMPTY_OUTPUT_CAUSES = Object.freeze({
@@ -37,6 +38,102 @@ const REQUEST_REJECTION_ERROR_CATEGORIES = new Set([
   "model_not_supported_error",
   "shell_expansion_guard_rejected",
 ]);
+
+/**
+ * Read fixed runtime evidence paths without following artifact symlinks or
+ * copying any payload into public diagnostics.
+ * @param {string} rootDir
+ * @param {string} relativePath
+ * @returns {{status: "recorded", content: string} | {status: "not recorded" | "unreadable", content?: undefined}}
+ */
+function readCompletionEvidence(rootDir, relativePath) {
+  try {
+    let current = rootDir;
+    if (!lstatGuard(current)?.isDirectory()) return { status: "unreadable" };
+    for (const part of relativePath.split("/")) {
+      current = path.join(current, part);
+      if (!lstatGuard(current)) return { status: "unreadable" };
+    }
+    const stat = lstatGuard(current);
+    if (!stat?.isFile() || stat.size > 10 * 1024 * 1024) return { status: "unreadable" };
+    return { status: "recorded", content: fs.readFileSync(current, "utf8") };
+  } catch (error) {
+    const missing = error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT";
+    return { status: missing ? "not recorded" : "unreadable" };
+  }
+}
+
+/**
+ * Registration and persistence are observations, not proof of task completion.
+ * Keep CLI and gateway counts separate: one invocation can appear in both.
+ * @param {string} [rootDir]
+ * @returns {string[]}
+ */
+function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
+  const runnerTemp = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
+  let availability = "unknown (registration evidence not recorded)";
+  const flag = readCompletionEvidence(path.join(runnerTemp, "gh-aw"), "safeoutputs/gateway_empty.flag");
+  const cache = readCompletionEvidence(path.join(runnerTemp, "gh-aw"), "mcp-cli/tools/safeoutputs.json");
+  const gateway = readCompletionEvidence(rootDir, "mcp-logs/tools.json");
+  const validTools = tools => Array.isArray(tools) && tools.every(tool => typeof tool?.name === "string" && tool.name.length > 0);
+  if (flag.status === "recorded") {
+    availability = "unavailable (gateway registered zero tools)";
+  } else if (flag.status === "unreadable") {
+    // An unreadable authoritative override prevents a confident registration claim.
+    availability = "unknown (registration evidence could not be read)";
+  } else {
+    for (const evidence of [cache, gateway]) {
+      if (evidence.status === "recorded") {
+        try {
+          const value = JSON.parse(evidence.content);
+          const tools = evidence === cache ? value : value?.servers?.safeoutputs;
+          if (validTools(tools)) {
+            availability = `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`;
+            break;
+          }
+          availability = "unknown (invalid registration evidence)";
+        } catch {
+          availability = "unknown (registration evidence could not be read)";
+        }
+      } else if (evidence.status === "unreadable") {
+        availability = "unknown (registration evidence could not be read)";
+      }
+    }
+  }
+  const summary = [`Safe-output tools: ${availability}`];
+  for (const [label, relativePath, eventName] of [
+    ["CLI", "mcp-cli-audit/safeoutputs.jsonl", "call_start"],
+    ["MCP", "mcp-logs/rpc-messages.jsonl", "tools/call"],
+  ]) {
+    const evidence = readCompletionEvidence(rootDir, relativePath);
+    let count = 0;
+    let malformed = 0;
+    for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
+      try {
+        const entry = JSON.parse(line);
+        if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
+      } catch {
+        malformed++;
+      }
+    }
+    summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed record${malformed === 1 ? "" : "s"})` : ""}` : `unknown (${evidence.status})`}`);
+  }
+  const output = readCompletionEvidence(rootDir, "safeoutputs.jsonl");
+  const lines = (output.content || "").split("\n").filter(line => line.trim());
+  let malformed = 0;
+  for (const line of lines) {
+    try {
+      const item = JSON.parse(line);
+      if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
+    } catch {
+      malformed++;
+    }
+  }
+  summary.push(
+    `Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} record${lines.length === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
+  );
+  return summary;
+}
 
 /**
  * Silence is not evidence of an intentional noop. Preserve runtime diagnostics
@@ -171,26 +268,6 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
       )
     ),
   ];
-  let safeOutputAvailability = "unknown (registration evidence not recorded)";
-  const runnerTemp = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
-  try {
-    if (fs.existsSync(path.join(runnerTemp, "gh-aw/safeoutputs/gateway_empty.flag"))) {
-      safeOutputAvailability = "unavailable (gateway registered zero tools)";
-    } else {
-      const toolsPath = path.join(runnerTemp, "gh-aw/mcp-cli/tools/safeoutputs.json");
-      if (fs.existsSync(toolsPath)) {
-        const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
-        safeOutputAvailability =
-          Array.isArray(tools) && tools.every(tool => typeof tool?.name === "string" && tool.name.length > 0)
-            ? tools.length
-              ? "available at setup (registered tools)"
-              : "unavailable at setup (registered zero tools)"
-            : "unknown (invalid registration evidence)";
-      }
-    }
-  } catch {
-    safeOutputAvailability = "unknown (registration evidence could not be read)";
-  }
   const summary = [
     `Failure classification: ${failureCause}`,
     reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
@@ -199,7 +276,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     `Failed tool calls observed: ${failedToolCalls}`,
     `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
     `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
-    `Safe-output tools: ${safeOutputAvailability}`,
+    ...buildCompletionEvidence(rootDir),
   ];
   if (failureCause === "missing_terminal_safe_output") {
     summary.push("Check the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.");
@@ -226,4 +303,4 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   };
 }
 
-module.exports = { buildEmptyOutputOutcome, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
+module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };

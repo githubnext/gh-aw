@@ -291,8 +291,8 @@ async function assertTrustedCheckoutRuntime(awContext, pullRequest) {
 
   // Apps are not collaborators: their permission endpoint returns "none" even
   // when they can write to the repository. A bot that triggered a PR event for
-  // a branch in this repository can have its checkout trusted instead. Comments,
-  // reviews and dispatches do not prove the sender can write the PR branch.
+  // a branch in this repository can have its checkout trusted instead. Other
+  // events require the collaborator check unless explicitly allow-listed below.
   if (
     (context.eventName === "pull_request" || context.eventName === "pull_request_target") &&
     (context.payload.action === "opened" || context.payload.action === "synchronize") &&
@@ -311,11 +311,12 @@ async function assertTrustedCheckoutRuntime(awContext, pullRequest) {
 
   const runtimeRepositoryId = context.payload.repository?.id;
   const senderLogin = context.payload.sender?.login;
+  const isReview = context.eventName === "pull_request_review";
   if (
-    (context.eventName === "issue_comment" || context.eventName === "pull_request_review_comment") &&
+    (context.eventName === "issue_comment" || context.eventName === "pull_request_review_comment" || isReview) &&
     senderType === "Bot" &&
     typeof senderLogin === "string" &&
-    context.payload.comment?.user?.login === senderLogin &&
+    (isReview ? context.payload.review?.user?.login : context.payload.comment?.user?.login) === senderLogin &&
     canonicalizeBotIdentifier(senderLogin) === canonicalizeBotIdentifier(actor) &&
     isAllowedBot(actor, parseAllowedBots()) &&
     Number.isSafeInteger(runtimeRepositoryId) &&
@@ -323,7 +324,7 @@ async function assertTrustedCheckoutRuntime(awContext, pullRequest) {
   ) {
     const details = await fetchPRDetails(pullRequest.number);
     if (details.pullRequest.head?.repo?.id === runtimeRepositoryId && details.pullRequest.base?.repo?.id === runtimeRepositoryId) {
-      core.info(`Runtime safety check passed for same-repository allowed bot comment actor '${actor}'`);
+      core.info(`Runtime safety check passed for same-repository allowed bot ${isReview ? "review" : "comment"} actor '${actor}'`);
       return details;
     }
   }

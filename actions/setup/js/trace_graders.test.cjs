@@ -1552,6 +1552,83 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
   });
 
+  describe("code-edit-precision built-in grader", () => {
+    const reference = { patch: { files: ["pkg/a.go", { path: "./pkg/a.go" }, { path: "/pkg/b.go" }, "pkg/untouched.go"] } };
+    const edit = target => ({ type: "edit", target, consequential: true });
+    const run = ir => runTrajectoryBuiltin("code-edit-precision", { trajectoryIR: ir });
+
+    it("scores distinct edited files, not reference recall or action frequency", () => {
+      const result = run({
+        reference,
+        actions: [
+          edit(" pkg/a.go "),
+          edit("./pkg/a.go"),
+          edit("/pkg/b.go"),
+          edit("pkg/unrelated.go"),
+          { type: "read", target: "pkg/untouched.go", consequential: false },
+          { type: "search", target: "pkg/other.go", consequential: false },
+          { type: "comment", target: "pkg/commented.go", consequential: true },
+        ],
+      });
+      expect(result).toMatchObject({ value: 2 / 3, source: "builtin", status: "pass", unit: "ratio" });
+      expect(TRAJECTORY_GRADER_META["code-edit-precision"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
+      expect(result.details).toBe("referenceFiles=3 editedFiles=3 relevant=2; unrelated edits: pkg/unrelated.go");
+    });
+
+    it.each([
+      ["all relevant", [edit("pkg/a.go"), edit("pkg/b.go")], 1],
+      ["none relevant", [edit("pkg/A.go"), edit("pkg/elsewhere.go")], 0],
+    ])("scores %s edits", (_name, actions, value) => {
+      expect(run({ reference, actions }).value).toBe(value);
+    });
+
+    it.each([
+      ["missing reference", { actions: [edit("pkg/a.go")] }, "no reference patch files"],
+      ["malformed reference", { reference: { patch: { files: "pkg/a.go" } }, actions: [] }, "no reference patch files"],
+      ["empty reference", { reference: { patch: { files: [] } }, actions: [] }, "no reference patch files"],
+      ["missing reference path", { reference: { patch: { files: [{}] } }, actions: [] }, "missing a path"],
+      ["empty reference path", { reference: { patch: { files: [" ./ "] } }, actions: [] }, "missing a path"],
+      ["missing actions", { reference }, "well-formed actions"],
+      ["non-array actions", { reference, actions: {} }, "well-formed actions"],
+      ["non-record action", { reference, actions: [edit("pkg/a.go"), null] }, "well-formed actions"],
+      ["missing type", { reference, actions: [edit("pkg/a.go"), { consequential: false }] }, "missing a type"],
+      ["missing flag", { reference, actions: [{ type: "edit", target: "pkg/a.go" }] }, "consequential flag"],
+      ["non-consequential edit", { reference, actions: [{ ...edit("pkg/a.go"), consequential: false }] }, "not consequential"],
+      ["missing target", { reference, actions: [edit("pkg/a.go"), edit(null)] }, "file target"],
+      ["empty target", { reference, actions: [edit(" / ")] }, "file target"],
+      ["no edits", { reference, actions: [] }, "no file edits"],
+      ["reads only", { reference, actions: [{ type: "read", target: "pkg/a.go", consequential: false }] }, "no file edits"],
+    ])("reports %s as unavailable without fabricating a score", (_name, ir, reason) => {
+      const result = run(ir);
+      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable", source: "builtin" });
+      expect(result.message).toContain(reason);
+    });
+
+    it("does not merge evidence from unrelated IR candidates", () => {
+      const result = runTrajectoryBuiltin("code-edit-precision", { reference, agentOutput: { actions: [edit("pkg/a.go")] } });
+      expect(result.status).toBe("unavailable");
+      expect(result.message).toContain("well-formed actions");
+    });
+
+    it.each(["actions", "reference.patch.files"])("rejects oversized %s", collection => {
+      const ir = { reference, actions: [edit("pkg/a.go")] };
+      const oversized = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, () => (collection === "actions" ? edit("pkg/a.go") : "pkg/a.go"));
+      if (collection === "actions") ir.actions = oversized;
+      else ir.reference = { patch: { files: oversized } };
+      const result = run(ir);
+      expect(result.status).toBe("unavailable");
+      expect(result.message).toContain(`${collection} exceeds ${MAX_TRAJECTORY_ITEMS} items`);
+    });
+
+    it("bounds diagnostics for long unrelated paths", () => {
+      const longPath = `pkg/${"x".repeat(10_000)}.go`;
+      const result = run({ reference, actions: [edit(longPath)] });
+      expect(result.value).toBe(0);
+      expect(result.details).toContain(`${longPath.slice(0, 117)}...`);
+      expect(result.details).not.toContain(longPath);
+    });
+  });
+
   // --- Hostile data ---
   describe("hostile data handling", () => {
     it("handles hostile strings in tool call names", () => {
@@ -1952,7 +2029,7 @@ printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available",
     });
 
     it("includes every trajectory grader", () => {
-      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(23);
+      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(24);
       expect(Object.keys(TRAJECTORY_GRADER_META).sort()).toEqual(Object.keys(TRAJECTORY_GRADERS).sort());
     });
 

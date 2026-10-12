@@ -37,6 +37,27 @@ func nativeHostOutput(kind string) NativeDeliveryOutput {
 	}
 }
 
+func TestCopyMapPreservesTypeAndIsolation(t *testing.T) {
+	resource := EffectResource{"repository": testRepository}
+	copied := copyMap(resource)
+	resource["repository"] = "other/repo"
+	if copied["repository"] != testRepository {
+		t.Fatal("effect resource copy aliases its source")
+	}
+	var empty EffectResource
+	if copyMap(empty) == nil {
+		t.Fatal("nil effect resource copy must be an initialized map")
+	}
+	verifiers := map[string]NativeOutputVerifier{"readback": func(context.Context, NativeDeliveryScope, NativeDeliveryOutput, json.RawMessage) (json.RawMessage, bool, error) {
+		return nil, true, nil
+	}}
+	registered := copyMap(verifiers)
+	delete(verifiers, "readback")
+	if registered["readback"] == nil {
+		t.Fatal("verifier registration copy aliases its source")
+	}
+}
+
 func TestNativeDeliveryHostClosedProcessAndExactAPIProof(t *testing.T) {
 	branch, mock, state, assignment := nativeHostFixture(t, `{"kind":"none"}`)
 	member := assignment.Claims[0]

@@ -7,17 +7,19 @@ ASSUME Fault \in {"none", "event-bypass", "sender-type-bypass",
                   "repository-bypass"}
 
 Events == {"issue_comment", "pull_request_review_comment",
-           "workflow_dispatch", "other"}
+           "pull_request_review", "workflow_dispatch", "other"}
 CommentEvents == {"issue_comment", "pull_request_review_comment"}
+ReviewEvents == {"pull_request_review"}
+CommentOrReviewEvents == CommentEvents \cup ReviewEvents
 Actors == {"my-app", "my-app[bot]", "other", "other[bot]"}
 SenderTypes == {"Bot", "User"}
 RepositoryRelations == {"same", "fork", "missing-head", "missing-base"}
 Permissions == {"none", "read", "write", "maintain", "admin"}
 
-VARIABLES event, actor, sender, commentAuthor, senderType, allowListed,
-          repositoryRelation, permission
-vars == <<event, actor, sender, commentAuthor, senderType, allowListed,
-         repositoryRelation, permission>>
+VARIABLES event, actor, sender, commentAuthor, reviewAuthor, senderType,
+         allowListed, repositoryRelation, permission
+vars == <<event, actor, sender, commentAuthor, reviewAuthor, senderType,
+         allowListed, repositoryRelation, permission>>
 
 CanonicalBotIdentity(login) ==
     IF login = "my-app[bot]" THEN "my-app"
@@ -25,32 +27,37 @@ CanonicalBotIdentity(login) ==
     ELSE login
 
 CommentEvent == event \in CommentEvents
+CommentOrReviewEvent == event \in CommentOrReviewEvents
+AuthorMatchesSender ==
+    IF CommentEvent THEN sender = commentAuthor
+    ELSE IF event \in ReviewEvents THEN sender = reviewAuthor
+    ELSE FALSE
 ActorMatchesSender ==
     CanonicalBotIdentity(actor) = CanonicalBotIdentity(sender)
 CommonBypassGuards ==
-    CommentEvent /\ senderType = "Bot" /\ sender = commentAuthor /\
+    CommentOrReviewEvent /\ senderType = "Bot" /\ AuthorMatchesSender /\
       ActorMatchesSender /\ allowListed /\ repositoryRelation = "same"
 
 ExpectedBotBypass == CommonBypassGuards
 ObservedBotBypass ==
     ExpectedBotBypass \/
-    (Fault = "event-bypass" /\ ~CommentEvent /\ senderType = "Bot" /\
+    (Fault = "event-bypass" /\ ~CommentOrReviewEvent /\ senderType = "Bot" /\
       sender = commentAuthor /\ ActorMatchesSender /\ allowListed /\
       repositoryRelation = "same") \/
-    (Fault = "sender-type-bypass" /\ CommentEvent /\ senderType # "Bot" /\
-      sender = commentAuthor /\ ActorMatchesSender /\ allowListed /\
+    (Fault = "sender-type-bypass" /\ CommentOrReviewEvent /\ senderType # "Bot" /\
+      AuthorMatchesSender /\ ActorMatchesSender /\ allowListed /\
       repositoryRelation = "same") \/
-    (Fault = "author-bypass" /\ CommentEvent /\ senderType = "Bot" /\
-      sender # commentAuthor /\ ActorMatchesSender /\ allowListed /\
+    (Fault = "author-bypass" /\ CommentOrReviewEvent /\ senderType = "Bot" /\
+      ~AuthorMatchesSender /\ ActorMatchesSender /\ allowListed /\
       repositoryRelation = "same") \/
-    (Fault = "actor-bypass" /\ CommentEvent /\ senderType = "Bot" /\
-      sender = commentAuthor /\ ~ActorMatchesSender /\ allowListed /\
+    (Fault = "actor-bypass" /\ CommentOrReviewEvent /\ senderType = "Bot" /\
+      AuthorMatchesSender /\ ~ActorMatchesSender /\ allowListed /\
       repositoryRelation = "same") \/
-    (Fault = "allowlist-bypass" /\ CommentEvent /\ senderType = "Bot" /\
-      sender = commentAuthor /\ ActorMatchesSender /\ ~allowListed /\
+    (Fault = "allowlist-bypass" /\ CommentOrReviewEvent /\ senderType = "Bot" /\
+      AuthorMatchesSender /\ ActorMatchesSender /\ ~allowListed /\
       repositoryRelation = "same") \/
-    (Fault = "repository-bypass" /\ CommentEvent /\ senderType = "Bot" /\
-      sender = commentAuthor /\ ActorMatchesSender /\ allowListed /\
+    (Fault = "repository-bypass" /\ CommentOrReviewEvent /\ senderType = "Bot" /\
+      AuthorMatchesSender /\ ActorMatchesSender /\ allowListed /\
       repositoryRelation # "same")
 
 CollaboratorAuthorized ==
@@ -63,6 +70,7 @@ Init ==
     /\ actor \in Actors
     /\ sender \in Actors
     /\ commentAuthor \in Actors
+    /\ reviewAuthor \in Actors
     /\ senderType \in SenderTypes
     /\ allowListed \in BOOLEAN
     /\ repositoryRelation \in RepositoryRelations
@@ -76,6 +84,7 @@ TypeOK ==
     /\ actor \in Actors
     /\ sender \in Actors
     /\ commentAuthor \in Actors
+    /\ reviewAuthor \in Actors
     /\ senderType \in SenderTypes
     /\ allowListed \in BOOLEAN
     /\ repositoryRelation \in RepositoryRelations
