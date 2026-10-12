@@ -273,7 +273,7 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
  * @param {number} issueNumber - Issue/PR number
  * @param {string[]} workflowIds - Workflow IDs to search for
  * @param {(comment: any, id: string) => boolean} [matches] - Matching function
- * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
+ * @returns {Promise<Array<{id: number, node_id: string, body: string, user?: {login?: string, type?: string}}>>}
  */
 async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowIds, matches = (comment, id) => matchesWorkflowId(comment.body, id)) {
   const comments = [];
@@ -294,7 +294,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    const filteredComments = data.filter(comment => workflowIds.some(id => matches(comment, id))).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => workflowIds.some(id => matches(comment, id))).map(({ id, node_id, body, user }) => ({ id, node_id, body, user }));
 
     comments.push(...filteredComments);
 
@@ -552,6 +552,20 @@ async function main(config = {}) {
   // Get workflow ID for hiding older comments
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
   const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+  /** @type {Promise<string | null> | undefined} */
+  let authenticatedLoginPromise;
+  const getAuthenticatedLogin = () => {
+    if (!authenticatedLoginPromise) {
+      authenticatedLoginPromise = Promise.resolve()
+        .then(() => githubClient.rest.users.getAuthenticated())
+        .then(({ data }) => data.login || null)
+        .catch(() => {
+          core.info("Could not resolve the authenticated comment author; considering bot-authored comments only");
+          return null;
+        });
+    }
+    return authenticatedLoginPromise;
+  };
 
   /**
    * Message handler function
@@ -946,16 +960,13 @@ async function main(config = {}) {
 
     try {
       if (replaceOlderCommentsEnabled && commentIdToReuse === null && !isDiscussion && (callerWorkflowId || workflowId)) {
-        let authenticatedLogin;
-        try {
-          const { data } = await githubClient.rest.users.getAuthenticated();
-          authenticatedLogin = data.login;
-        } catch {
-          core.info("Could not resolve the authenticated comment author; considering bot-authored comments only");
-        }
-        const previous = await findCommentsWithTrackerId(githubClient, repoParts.owner, repoParts.repo, itemNumber, [callerWorkflowId || workflowId], (comment, id) => {
-          if (!comment.user?.login || (authenticatedLogin ? comment.user.login !== authenticatedLogin : comment.user.type !== "Bot")) return false;
+        const previousCandidates = await findCommentsWithTrackerId(githubClient, repoParts.owner, repoParts.repo, itemNumber, [callerWorkflowId || workflowId], (comment, id) => {
           return callerWorkflowId ? typeof comment.body === "string" && !comment.body.includes("<!-- gh-aw-comment-type: reaction -->") && comment.body.includes(generateWorkflowCallIdMarker(id)) : matchesWorkflowId(comment.body, id);
+        });
+        const authenticatedLogin = previousCandidates.length > 0 ? await getAuthenticatedLogin() : null;
+        const previous = previousCandidates.filter(comment => {
+          if (!comment.user?.login) return false;
+          return authenticatedLogin ? comment.user.login === authenticatedLogin : comment.user.type === "Bot";
         });
         if (previous.length > 0) {
           commentIdToReuse = previous[previous.length - 1].id;

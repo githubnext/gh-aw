@@ -3612,6 +3612,44 @@ describe("add_comment", () => {
         expect((await handler({ type: "add_comment", body: "Fresh rating" }, {})).success).toBe(true);
         expect(mockGithub.rest.issues.createComment).toHaveBeenCalledOnce();
         expect(mockGithub.rest.issues.updateComment).not.toHaveBeenCalled();
+        expect(mockGithub.rest.users.getAuthenticated).not.toHaveBeenCalled();
+      } finally {
+        if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;
+      }
+    });
+
+    it("updates only bot-authored matching comments when authenticated identity cannot be resolved", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const oldCaller = process.env.GH_AW_CALLER_WORKFLOW_ID;
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
+      try {
+        mockGithub.rest.users = {
+          getAuthenticated: vi.fn(async () => {
+            throw new Error("403");
+          }),
+        };
+        mockGithub.rest.issues.listComments = vi.fn(async () => ({
+          data: [
+            { id: 101, user: { login: "workflow[bot]", type: "Bot" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" },
+            { id: 102, user: { login: "attacker", type: "User" }, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" },
+          ],
+        }));
+        mockGithub.rest.issues.updateComment = vi.fn(async ({ comment_id }) => ({
+          data: { id: comment_id, html_url: `https://github.com/owner/repo/issues/8535#issuecomment-${comment_id}` },
+        }));
+        mockGithub.rest.issues.createComment = vi.fn();
+        const handler = await eval(`(async () => { ${script}; return await main({ max: 2, replace_older_comments: true }); })()`);
+        const firstResult = await handler({ type: "add_comment", body: "First update" }, {});
+        const secondResult = await handler({ type: "add_comment", body: "Second update" }, {});
+
+        expect(firstResult.commentId).toBe(101);
+        expect(secondResult.commentId).toBe(101);
+        expect(mockGithub.rest.users.getAuthenticated).toHaveBeenCalledOnce();
+        expect(mockGithub.rest.issues.updateComment).toHaveBeenCalledTimes(2);
+        expect(mockGithub.rest.issues.updateComment).toHaveBeenNthCalledWith(1, expect.objectContaining({ comment_id: 101 }));
+        expect(mockGithub.rest.issues.updateComment).toHaveBeenNthCalledWith(2, expect.objectContaining({ comment_id: 101 }));
+        expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
       } finally {
         if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
         else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;
