@@ -18,18 +18,18 @@ const issue = (number, title, extra = {}) => ({
 
 test("all twelve source reports reuse the oldest tracker despite changing counts and titles", () => {
   const issues = [
-    issue(65739, "[LintMonster] Guard direct slice and string indexing (1,755 findings)"),
-    issue(65740, "[LintMonster] Handle fmt output errors (908 findings)"),
-    issue(65996, "[LintMonster] Bound checks for indexing findings (1,755)"),
-    issue(65997, "[LintMonster] Error, result, and state hygiene findings (1,149)"),
-    issue(66759, "LintMonster: add bounds checks for indexed access (1,745 findings)"),
-    issue(66760, "LintMonster: handle ignored results and related Go idioms (1,149 findings)"),
-    issue(67086, "Add bounds checks for indexed values"),
-    issue(67087, "Handle unchecked and discarded results"),
-    issue(67325, "LintMonster: guard direct slice and string indexing findings"),
-    issue(67326, "LintMonster: handle ignored errors and discarded results"),
-    issue(67598, "LintMonster: Guard indexing and type assertions (1,841 findings)"),
-    issue(67599, "LintMonster: Handle ignored errors and discarded results (786 findings)"),
+    issue(65739, "[lint-monster] [LintMonster] Guard direct slice and string indexing (1,755 findings)"),
+    issue(65740, "[lint-monster] [LintMonster] Handle fmt output errors (908 findings)"),
+    issue(65996, "[lint-monster] [LintMonster] Bound checks for indexing findings (1,755)"),
+    issue(65997, "[lint-monster] [LintMonster] Error, result, and state hygiene findings (1,149)"),
+    issue(66759, "[lint-monster] LintMonster: add bounds checks for indexed access (1,745 findings)"),
+    issue(66760, "[lint-monster] LintMonster: handle ignored results and related Go idioms (1,149 findings)"),
+    issue(67086, "[lint-monster] Add bounds checks for indexed values"),
+    issue(67087, "[lint-monster] Handle unchecked and discarded results"),
+    issue(67325, "[lint-monster] LintMonster: guard direct slice and string indexing findings"),
+    issue(67326, "[lint-monster] LintMonster: handle ignored errors and discarded results"),
+    issue(67598, "[lint-monster] LintMonster: Guard indexing and type assertions (1,841 findings)"),
+    issue(67599, "[lint-monster] LintMonster: Handle ignored errors and discarded results (786 findings)"),
   ];
   const plan = planCategories(issues.reverse());
   assert.equal(plan.categories[0].action, "update");
@@ -40,6 +40,8 @@ test("all twelve source reports reuse the oldest tracker despite changing counts
   assert.deepEqual(plan.categories[1].candidate_issue_numbers, [65740, 65997, 66760, 67087, 67326, 67599]);
   assert.equal(plan.open_issues.length, 12);
   assert.equal(Object.hasOwn(plan, "close_issue_numbers"), false);
+  const withoutPrefix = issues.map(item => ({ ...item, title: item.title.replace("[lint-monster] ", "") }));
+  assert.deepEqual(planCategories(withoutPrefix).categories, plan.categories);
 });
 
 test("a rerun with a marked open tracker plans only an update for that category", () => {
