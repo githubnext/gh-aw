@@ -4312,7 +4312,8 @@
             }
           },
           "required": [
-            "message"
+            "message",
+            "max_storage"
           ],
           "additionalProperties": false
         },
@@ -4383,7 +4384,8 @@
               }
             },
             "required": [
-              "message"
+              "message",
+              "max_storage"
             ],
             "additionalProperties": false
           }

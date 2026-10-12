@@ -10,14 +10,15 @@ const incompleteOutput = JSON.stringify({
     {
       type: "report_incomplete",
       reason: "missing_terminal_safe_output",
-      failureCause: "unknown",
+      failureCause: "missing_terminal_safe_output",
       retryCount: 0,
-      details: "Agent finished without emitting a terminal safe output; task completion could not be confirmed.\nFailure classification: unknown\nRetry attempts observed: 0",
+      details:
+        "Failure classification: missing_terminal_safe_output\nDriver exit code: not recorded\nLast tool call status: not recorded\nFailed tool calls observed: 0\nToken budget state: unknown (no exhaustion signal recorded)\nStep budget state (LLM invocations): unknown (no exhaustion signal recorded)\nSafe-output tools: unknown (registration evidence not recorded)\nCheck the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.\nAgent finished without emitting a terminal safe output; task completion could not be confirmed.\nRetry attempts observed: 0",
     },
   ],
   errors: [],
   collectorEmptyOutputCause: "missing_terminal_safe_output",
-  collectorFailureCause: "unknown",
+  collectorFailureCause: "missing_terminal_safe_output",
   collectorRetryCount: 0,
 });
 describe("collect_ndjson_output.cjs", () => {
@@ -216,7 +217,7 @@ describe("collect_ndjson_output.cjs", () => {
         expect(failedMessage).toContain("gateway infrastructure failure");
         const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
         expect(output.items[0].type).toBe("report_incomplete");
-        expect(output.items[0].details).toContain("safeoutputs MCP gateway registered 0 tools");
+        expect(output.items[0].details).toContain("Safe-output tools: unavailable (gateway registered zero tools)");
         expect(fs.existsSync(path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME))).toBe(true);
       } finally {
         if (originalRunnerTemp === undefined) {

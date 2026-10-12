@@ -20,6 +20,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMCPLogsStorageBudgetDefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "default", input: `{}`},
+		{name: "unlimited", input: `{"max_storage":0}`, want: "0"},
+		{name: "larger budget", input: `{"max_storage":2048}`, want: "2048"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var args logsArgs
+			require.NoError(t, json.Unmarshal([]byte(tt.input), &args))
+			cmdArgs := appendLogsFilterArgs(nil, args)
+			index := slices.Index(cmdArgs, "--max-storage")
+			if tt.want == "" {
+				assert.Equal(t, -1, index, "Omitted max_storage should inherit the CLI default")
+			} else {
+				require.NotEqual(t, -1, index)
+				require.Less(t, index+1, len(cmdArgs))
+				assert.Equal(t, tt.want, cmdArgs[index+1])
+			}
+		})
+	}
+}
+
 // connectInMemoryWithProgress creates an in-memory MCP client-server connection
 // that captures progress notifications. Returns the client session and a
 // function to retrieve captured notifications. The returned getNotifications

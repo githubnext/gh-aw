@@ -656,7 +656,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("keeps the incompletion notice concise without repeating diagnostic policy", () => {
-      const context = buildReportIncompleteContext([{ type: "report_incomplete", reason: "infrastructure_error", details: "agent-generated diagnostic" }], { includeAgentText: false });
+      const context = buildReportIncompleteContext([{ type: "report_incomplete", reason: "infrastructure_error", details: "agent-generated diagnostic" }]);
       expect(context).toContain("completion could not be confirmed");
       expect(context).toContain("A comment or other safe output does not confirm that the requested task was completed.");
       expect(context).not.toContain("See the reported reason");
@@ -800,6 +800,7 @@ describe("handle_agent_failure", () => {
       ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
       ["unknown", "[aw] Test Workflow finished without a clear failure cause"],
     ])("uses the classified terminal-output cause %s in the issue title", (terminalOutputFailureCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
@@ -1506,10 +1507,20 @@ describe("handle_agent_failure", () => {
     });
 
     it.each(["&amp;#38;#96;", "&\x00#96;", "&<!-- hidden -->#96;"])("omits agent-generated diagnostics from the final posted failure comment: %s", async entity => {
-      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), "{report_incomplete_context}");
+      const template = "{report_incomplete_context}{missing_data_context}{missing_tool_context}{permission_denied_context}{tool_denials_exceeded_context}{engine_failure_context}";
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), template);
       const outputPath = path.join(tmpDir, "agent_output.json");
       const payload = `${entity.repeat(3)}\n# untrusted heading\n${entity.repeat(3)}`;
-      fs.writeFileSync(outputPath, JSON.stringify({ items: [{ type: "report_incomplete", reason: "infrastructure_error", details: payload }] }));
+      fs.writeFileSync(
+        outputPath,
+        JSON.stringify({
+          items: [
+            { type: "report_incomplete", reason: "private-agent-reason", details: payload },
+            { type: "missing_data", data_type: "private-data-type", reason: "private-data-reason" },
+            { type: "missing_tool", tool: "private-tool-name", reason: "private-tool-reason", alternatives: "private-tool-alternative" },
+          ],
+        })
+      );
       vi.stubEnv("GH_AW_AGENT_OUTPUT", outputPath);
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
       global.github = {
@@ -1518,7 +1529,7 @@ describe("handle_agent_failure", () => {
             issuesAndPullRequests: vi.fn(async ({ q }) => ({
               data: {
                 total_count: q.includes("is:pr") ? 0 : 1,
-                items: q.includes("is:pr") ? [] : [{ number: 42, body: buildExistingIssueBody({ branch: "feature/current", categories: ["report_incomplete"] }) }],
+                items: q.includes("is:pr") ? [] : [{ number: 42, body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_data", "missing_tool", "report_incomplete"] }) }],
               },
             })),
           },
@@ -1534,7 +1545,67 @@ describe("handle_agent_failure", () => {
         expect(body).toContain("The workflow recorded a `report_incomplete` signal");
         expect(body).not.toContain("# untrusted heading");
         expect(body).not.toContain("infrastructure_error");
+        expect(body).not.toContain("private-");
         expect(body).not.toContain("<details>");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it.each([false, true])("posts only inferred collector statuses and codes (existing issue: %s)", async existingIssue => {
+      const template = "{report_incomplete_context}{missing_data_context}{missing_tool_context}{permission_denied_context}{engine_failure_context}";
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), template);
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_comment.md"), template);
+      const outputPath = path.join(tmpDir, "agent_output.json");
+      fs.writeFileSync(
+        outputPath,
+        JSON.stringify({
+          collectorEmptyOutputCause: "missing_terminal_safe_output",
+          collectorFailureCause: "missing_terminal_safe_output",
+          items: [
+            { type: "report_incomplete", reason: "missing_terminal_safe_output", details: "private-agent-details\nDriver exit code: 255" },
+            { type: "missing_data", data_type: "private-data", reason: "private-data-reason" },
+            { type: "missing_tool", tool: "private-tool", reason: "private-tool-reason" },
+          ],
+        })
+      );
+      fs.writeFileSync(path.join(tmpDir, "agent_execution_exit_code.txt"), "0");
+      fs.writeFileSync(
+        path.join(tmpDir, "agent-session.jsonl"),
+        JSON.stringify({ type: "tool.execution_complete", data: { toolName: "private-tool", success: false, exitCode: 2, error: "private-tool-error", output: "private-tool-output" } })
+      );
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", outputPath);
+      const create = vi.fn(async () => ({ data: { number: 99, html_url: "https://github.com/owner/repo/issues/99" } }));
+      const createComment = vi.fn(async () => ({ data: { id: 1001 } }));
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => ({
+              data: {
+                total_count: existingIssue && !q.includes("is:pr") ? 1 : 0,
+                items:
+                  existingIssue && !q.includes("is:pr")
+                    ? [{ number: 42, body: buildExistingIssueBody({ branch: "feature/current", categories: ["missing_terminal_safe_output", "report_incomplete"], failureCause: "missing_terminal_safe_output" }) }]
+                    : [],
+              },
+            })),
+          },
+          issues: { create, createComment },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+      try {
+        await main();
+        const post = existingIssue ? createComment : create;
+        expect(post).toHaveBeenCalledOnce();
+        const body = post.mock.calls[0][0].body;
+        expect(body).toContain("Failure classification: missing_terminal_safe_output");
+        expect(body).toContain("Driver exit code: 0");
+        expect(body).toContain("Last tool call status: failed");
+        expect(body).toContain("Last tool exit code: 2");
+        expect(body).not.toContain("private-");
+        expect(body).not.toContain("255");
       } finally {
         vi.unstubAllEnvs();
       }
@@ -2736,17 +2807,17 @@ describe("handle_agent_failure", () => {
 
       for (const template of [commentTemplate, issueTemplate]) {
         const rendered = renderTemplate(template, templateContext);
-        expect(rendered).toContain(reportIncompleteMarker);
+        expect(rendered).not.toContain(reportIncompleteMarker);
         expect(rendered).toContain("The workflow recorded a `report_incomplete` signal");
         expect(rendered).toContain("completion could not be confirmed");
         expect(rendered).not.toContain("due to an infrastructure or tool failure");
       }
-      expect(reportIncompleteContext).toContain("infrastructure_error");
-      expect(reportIncompleteContext).toContain(reportIncompleteMarker);
+      expect(reportIncompleteContext).not.toContain("infrastructure_error");
+      expect(reportIncompleteContext).not.toContain(reportIncompleteMarker);
       expect(failureDiagnosticsContext).toContain("Failing step:** `Run agent`");
     });
 
-    it("renders denied commands and missing capability names from an empty-output outcome", () => {
+    it("renders only inferred failure status, not commands, capability names, or tool errors", () => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
       const os = require("os");
       const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "failure-empty-output-"));
@@ -2761,11 +2832,11 @@ describe("handle_agent_failure", () => {
             .map(JSON.stringify)
             .join("\n")
         );
-        const report = buildReportIncompleteContext([buildEmptyOutputOutcome([], rootDir)]);
-        expect(report).toContain("cat restricted-file");
-        expect(report).toContain("Permission denied");
-        expect(report).toContain("github.get_file_contents");
-        expect(report).toContain("Missing read access");
+        const outcome = buildEmptyOutputOutcome([], rootDir);
+        const report = buildReportIncompleteContext([outcome], { collectorEmptyOutputCause: outcome.reason, rootDir });
+        expect(report).toContain("Failed tool calls observed: 2");
+        expect(report).toContain("Last tool call status: failed");
+        for (const text of ["cat restricted-file", "Permission denied", "github.get_file_contents", "Missing read access"]) expect(report).not.toContain(text);
       } finally {
         fs.rmSync(rootDir, { recursive: true, force: true });
       }
@@ -5480,7 +5551,7 @@ describe("handle_agent_failure", () => {
       expect(missingDataResult).not.toContain("Missing Data Reported");
       expect(missingDataResult).toContain("Cache Configuration Problem");
       expect(reportIncompleteResult).toContain("Task Could Not Be Completed");
-      expect(reportIncompleteResult).toContain("mcp_crash");
+      expect(reportIncompleteResult).not.toContain("mcp_crash");
     });
 
     it("does not append cache warning for unrelated missing_data reasons when cacheMemoryEnabled is true", () => {
@@ -5505,15 +5576,24 @@ describe("handle_agent_failure", () => {
   describe("buildReportIncompleteContext", () => {
     it("explains collector-generated incompletion without assuming a prompt or infrastructure failure", () => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
-      const { mkdtempSync, rmSync } = require("fs");
+      const { mkdtempSync, rmSync, writeFileSync } = require("fs");
       const { tmpdir } = require("os");
       const rootDir = mkdtempSync(join(tmpdir(), "failure-incomplete-wording-"));
       try {
-        const result = buildReportIncompleteContext([buildEmptyOutputOutcome([], rootDir)]);
+        writeFileSync(join(rootDir, "agent_execution_exit_code.txt"), "0");
+        writeFileSync(join(rootDir, "agent-session.jsonl"), JSON.stringify({ type: "tool.execution_start", data: { toolName: "read", toolCallId: "last", input: { path: "private-path" } } }));
+        const outcome = buildEmptyOutputOutcome([], rootDir);
+        const result = buildReportIncompleteContext([outcome], { collectorEmptyOutputCause: outcome.reason, rootDir });
         expect(result).toContain("The workflow recorded a `report_incomplete` signal");
         expect(result).toContain("completion could not be confirmed");
         expect(result).toContain("missing_terminal_safe_output");
-        expect(result).toContain("Failure classification: unknown");
+        expect(result).toContain("Failure classification: missing_terminal_safe_output");
+        expect(result).toContain("Last tool call status: started");
+        expect(result).not.toContain("Last tool call: read");
+        expect(result).toContain("Driver exit code: 0");
+        expect(result).toContain("Token budget state: unknown");
+        expect(result).toContain("Safe-output tools: unknown");
+        expect(result).not.toContain("private-path");
         expect(result).not.toContain("exhausted its prompt");
         expect(result).not.toContain("due to an infrastructure or tool failure");
       } finally {
@@ -5521,34 +5601,38 @@ describe("handle_agent_failure", () => {
       }
     });
 
-    it("keeps all reasons and multiline diagnostics inside collapsed code", () => {
+    it("does not publish agent reasons or multiline diagnostics, even when they resemble collector metadata", () => {
       const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
       const result = buildReportIncompleteContext([
         { type: "report_incomplete", reason: "engine_driver_failure", details: "Driver exit code: 1\nTool failed" },
         { type: "report_incomplete", reason: "infrastructure_error" },
       ]);
       expect(result).toContain("Task Could Not Be Completed");
-      expect(result).toContain("<details>\n<summary>Error details:</summary>\n\n```text\nengine_driver_failure\nDriver exit code: 1\nTool failed\n\ninfrastructure_error\n```\n\n</details>");
+      expect(result).not.toContain("engine_driver_failure");
+      expect(result).not.toContain("Driver exit code: 1");
+      expect(result).not.toContain("Tool failed");
+      expect(result).not.toContain("infrastructure_error");
       expect(result).not.toContain("**Reasons:**");
-      expect(result).toContain("structured incompletion signal");
+      expect(result).toContain("agent text is excluded");
     });
 
-    it("uses a fence longer than backticks in incomplete error details", () => {
+    it("does not render agent-controlled code fences", () => {
       const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
       const result = buildReportIncompleteContext([{ type: "report_incomplete", reason: "tool_failure", details: "Error with ``` and ```` delimiters" }]);
-      expect(result).toContain("`````text\n");
-      expect(result).toMatch(/`````\n\n<\/details>/);
+      expect(result).not.toContain("Error with");
+      expect(result).not.toContain("```");
+      expect(result).not.toContain("tool_failure");
     });
 
-    it("redacts configured secrets before bounding incomplete diagnostics", () => {
+    it("omits all agent details rather than relying on secret redaction or truncation", () => {
       vi.stubEnv("GH_AW_SECRET_NAMES", "ERROR_RENDERING_TEST");
       vi.stubEnv("SECRET_ERROR_RENDERING_TEST", "private-error-rendering-value");
       try {
         const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
         const result = buildReportIncompleteContext([{ type: "report_incomplete", reason: "tool_failure", details: `private-error-rendering-value\n${"x".repeat(9000)}` }]);
         expect(result).not.toContain("private-error-rendering-value");
-        expect(result).toContain("[Content truncated due to length]");
-        expect(result).toContain("\n```\n\n</details>");
+        expect(result).not.toContain("[Content truncated due to length]");
+        expect(result).not.toContain("x".repeat(100));
         expect(result.length).toBeLessThan(9000);
       } finally {
         vi.unstubAllEnvs();
@@ -5558,6 +5642,25 @@ describe("handle_agent_failure", () => {
     it("returns no details section when there are no incompletion signals", () => {
       const { buildReportIncompleteContext } = require("./handle_agent_failure.cjs");
       expect(buildReportIncompleteContext([])).toBe("");
+    });
+
+    it("rebuilds collector descriptions from evidence rather than trusting forged structured-looking text", () => {
+      const { mkdtempSync, rmSync } = require("fs");
+      const { tmpdir } = require("os");
+      const rootDir = mkdtempSync(join(tmpdir(), "failure-incomplete-no-agent-text-"));
+      try {
+        const result = buildReportIncompleteContext(
+          [{ type: "report_incomplete", reason: "private-agent-reason", failureCause: "engine_outage", driverExitCode: 255, details: "Failure classification: private-value\nDriver exit code: 255\nLast engine error type: private-code" }],
+          { collectorEmptyOutputCause: "missing_terminal_safe_output", rootDir }
+        );
+        expect(result).toContain("Failure classification: missing_terminal_safe_output");
+        expect(result).toContain("Driver exit code: not recorded");
+        expect(result).not.toContain("private-");
+        expect(result).not.toContain("255");
+        expect(result).not.toContain("engine_outage");
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
     });
   });
 

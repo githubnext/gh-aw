@@ -1,7 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { getErrorMessage, isHtmlContent, isLockedError, isRateLimitError } from "./error_helpers.cjs";
+import { getErrorMessage, isHtmlContent, isLockedError, isRateLimitError, isConnectTimeoutError } from "./error_helpers.cjs";
 
 describe("error_helpers", () => {
+  describe("isConnectTimeoutError", () => {
+    it.each([Object.assign(new Error("Connection failed"), { code: "UND_ERR_CONNECT_TIMEOUT" }), new Error("Connect Timeout Error"), { message: "Connect Timeout Error" }])("recognizes connection timeout %j", error => {
+      expect(isConnectTimeoutError(error)).toBe(true);
+    });
+
+    it.each([null, undefined, "Connect Timeout Error", 42, {}, new Error("Request timeout"), { code: "ETIMEDOUT" }])("rejects other error values %j", error => {
+      expect(isConnectTimeoutError(error)).toBe(false);
+    });
+  });
+
   describe("getErrorMessage", () => {
     it("should extract message from Error instance", () => {
       const error = new Error("Test error message");

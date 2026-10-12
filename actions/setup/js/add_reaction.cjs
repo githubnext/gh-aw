@@ -1,9 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage, isLockedError, isRateLimitError } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError, isRateLimitError, isConnectTimeoutError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { withRetry } = require("./error_recovery.cjs");
+
+const MAX_CONNECTION_RETRIES = 2;
+const CONNECTION_RETRY_DELAY_MS = 1000;
 
 /** @type {Record<string, string>} Maps REST reaction names to GraphQL ReactionContent enum values */
 const REACTION_MAP = {
@@ -195,13 +199,34 @@ function handleReactionError(error) {
  * @param {string} reaction - The reaction type to add
  */
 async function addReaction(route, params, reaction) {
-  const response = await github.request(route, {
-    ...params,
-    content: reaction,
-    headers: {
-      Accept: "application/vnd.github+json",
-    },
-  });
+  let response;
+  try {
+    response = await withRetry(
+      () =>
+        github.request(route, {
+          ...params,
+          content: reaction,
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        }),
+      {
+        maxRetries: MAX_CONNECTION_RETRIES,
+        initialDelayMs: CONNECTION_RETRY_DELAY_MS,
+        maxDelayMs: CONNECTION_RETRY_DELAY_MS,
+        backoffMultiplier: 1,
+        jitterMs: 0,
+        shouldRetry: isConnectTimeoutError,
+      },
+      "add reaction"
+    );
+  } catch (error) {
+    // Preserve the API error's status for callers handling locked resources.
+    if (error && typeof error === "object" && "originalError" in error) {
+      throw error.originalError;
+    }
+    throw error;
+  }
 
   const reactionId = response.data?.id;
   core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);

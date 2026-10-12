@@ -147,8 +147,8 @@ func TestSessionsDownloadNormalizesPublishedPiObservations(t *testing.T) {
 				require.Contains(t, output, `"id":"snapshot","timestamp":0`)
 				require.Contains(t, output, `"numTurns":1`)
 			} else {
-				// The existing renderer includes both the conversation and timeline.
-				require.Equal(t, 2, strings.Count(output, "Session download works."))
+				require.Contains(t, output, "Chronological trace")
+				require.Equal(t, 1, strings.Count(output, "Session download works."))
 			}
 			commands, err := os.ReadFile(calls)
 			require.NoError(t, err)
@@ -217,9 +217,9 @@ func TestSessionsDownloadReconstructs(t *testing.T) {
 				artifacts := map[string]map[string]string{
 					"agent": {
 						"agent-session.jsonl":               `{"type":"assistant.message","data":{"content":"Reconstructed session"},"id":"native-1","timestamp":"2026-10-02T00:00:01Z"}` + "\n",
-						"aw_info.json":                      `{"engine_id":"copilot"}`,
+						"aw_info.json":                      `{"engine_id":"copilot","run_id":"123"}`,
 						"mcp-logs/gateway.jsonl":            `{"event":"tool_call","timestamp":"2026-10-02T00:00:02Z","tool_name":"list_issues","server_name":"github"}` + "\n",
-						"agent/graders/grader_results.json": `{"results":[{"id":"quality","score":0,"passed":false}]}`,
+						"agent/graders/grader_results.json": `{"run":{"id":"123","attempt":1},"results":[{"id":"quality","score":0,"passed":false}]}`,
 					},
 				}
 				if usagePresent {

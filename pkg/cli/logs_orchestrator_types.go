@@ -35,8 +35,12 @@ type LogsDownloadOptions struct {
 	// API-reported limit.
 	MaxGitHubAPIRateLimit int
 	// MaxStorageMB prunes non-essential cache data and stops new artifact
-	// downloads when OutputDir cannot be reduced below this size.
+	// downloads when OutputDir cannot be reduced below this size. Omitted zero
+	// defaults to 1024 MB; set MaxStorageMBSet to request unlimited storage.
 	MaxStorageMB int
+	// MaxStorageMBSet distinguishes explicit zero (unlimited) from an omitted
+	// budget. Nonzero MaxStorageMB values are honored regardless of this flag.
+	MaxStorageMBSet bool
 	// PruneOlderRuns allows the storage limiter to remove complete older run
 	// directories after non-essential cache pruning cannot free enough space.
 	PruneOlderRuns    bool
@@ -121,6 +125,9 @@ type StdinLogsOptions struct {
 	Format            string
 	ReportFile        string
 	CachedJSONL       string
+	// MaxStorageMBSet requests unlimited storage when MaxStorageMB is zero;
+	// otherwise an omitted zero defaults to 1024 MB.
+	MaxStorageMBSet bool
 	// ArtifactSets defaults to nil (download all artifacts) when this API is used
 	// programmatically. The CLI passes ["usage"] to match the logs command default.
 	ArtifactSets []string

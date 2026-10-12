@@ -40,6 +40,15 @@ func badWalkParenthesized() {
 	}))
 }
 
+func badParenthesizedBareCalls() {
+	(filepath.Walk(".", func(path string, info fs.FileInfo, err error) error { // want `error return from filepath\.Walk is discarded`
+		return nil
+	}))
+	(filepath.WalkDir(".", func(path string, info fs.DirEntry, err error) error { // want `error return from filepath\.WalkDir is discarded`
+		return nil
+	}))
+}
+
 // goodWalk checks error from filepath.Walk correctly
 func goodWalk() {
 	err := filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
@@ -97,4 +106,8 @@ func suppressed() {
 	filepath.WalkDir(".", func(path string, info fs.DirEntry, err error) error {
 		return nil
 	})
+	//nolint:walkdirignoredeerror
+	(filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
+		return nil
+	}))
 }

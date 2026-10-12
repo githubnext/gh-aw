@@ -90,7 +90,7 @@ type ContinuationData struct {
 	IgnoreWorkflowRuns    []int64 `json:"ignore_workflow_runs,omitempty"`
 	Timeout               int     `json:"timeout,omitempty"`
 	MaxGitHubAPIRateLimit int     `json:"max_github_api_rate_limit,omitempty"`
-	MaxStorageMB          int     `json:"max_storage,omitempty"`
+	MaxStorageMB          int     `json:"max_storage"`
 	PruneOlderRuns        bool    `json:"prune_older_runs,omitempty"`
 }
 
