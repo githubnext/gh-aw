@@ -227,7 +227,7 @@ func buildStandardNpmEngineInstallSteps(
 	// Always pass false for runInstallScripts: engine CLI installs must never run
 	// pre/post install scripts regardless of the workflow's run-install-scripts setting.
 	// This is a supply chain security requirement for the engine binary itself.
-	return GenerateNpmInstallSteps(
+	steps := GenerateNpmInstallSteps(
 		packageName,
 		version,
 		stepName,
@@ -238,6 +238,12 @@ func buildStandardNpmEngineInstallSteps(
 			CooldownEnabled:   cooldownEnabled,
 		},
 	)
+	if isNVXRuntime(workflowData) {
+		steps = append(steps, GenerateMicroVMNpmCLIInstallStep(
+			packageName, version, stepName+" in microVM path", cacheKeyPrefix, false, cooldownEnabled,
+		))
+	}
+	return steps
 }
 
 // BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
@@ -350,7 +356,7 @@ func GetNpmBinPathSetup() string {
 }
 
 // GenerateMicroVMNpmCLIInstallStep installs an npm CLI into a runner path that is
-// visible inside the Cloud Hypervisor microVM, then creates a
+// mounted by Cloud Hypervisor or exported through the NVX workspace, then creates a
 // stable bin/ symlink from
 // ${RUNNER_TEMP}/gh-aw/engine-cli/bin/<command> to the package's node_modules/.bin entry.
 func GenerateMicroVMNpmCLIInstallStep(packageName, version, stepName, commandName string, runInstallScripts bool, cooldownEnabled bool) GitHubActionStep {
@@ -395,7 +401,7 @@ func GenerateMicroVMNpmCLIInstallStep(packageName, version, stepName, commandNam
 // GetMicroVMNpmCLIPathSetup returns the PATH export needed for npm CLIs that were
 // staged into ${RUNNER_TEMP}/gh-aw/engine-cli/bin for microVM runs.
 func GetMicroVMNpmCLIPathSetup(workflowData *WorkflowData) string {
-	if !isCloudHypervisorRuntime(workflowData) {
+	if !isCloudHypervisorRuntime(workflowData) && !isNVXRuntime(workflowData) {
 		return ""
 	}
 	return `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`
