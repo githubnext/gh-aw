@@ -18,7 +18,7 @@ const { normalizeDispatchCredential, createDispatchCredentialValidator } = requi
  *   github?: object,
  *   githubClient?: object,
  *   dispatchClient?: object,
- *   getOctokit?: (token: string, options?: {baseUrl: string}) => object | Promise<object>,
+ *   getOctokit?: (token: string, options?: {baseUrl?: string, credentialSource?: string}) => object | Promise<object>,
  *   config?: Record<string, unknown> & {"github-token"?: string, work_queue_dispatch_credential?: unknown, work_queue_enabled?: boolean},
  *   intentPath?: string,
  *   validateDispatchCredential?: ReturnType<typeof createDispatchCredentialValidator>
@@ -160,7 +160,8 @@ async function main(options = {}) {
       if (typeof token !== "string" || !token || token.length > 16384 || /[\x00-\x1f\x7f]/.test(token)) throw new Error("work_queue_dispatch_credential_token_invalid");
       const factory = configured.getOctokit || global.getOctokit;
       if (typeof factory !== "function") throw new Error("work_queue_dispatch_credential_client_unavailable");
-      configured.dispatchClient = await factory(token);
+      const credentialSource = (configured.env || process.env).GH_AW_GITHUB_TOKEN_SOURCE || "unknown";
+      configured.dispatchClient = credentialSource === "unknown" ? await factory(token) : await factory(token, { credentialSource });
     } else configured.dispatchClient ||= configured.githubClient;
     if (configured.config?.work_queue_dispatch_credential !== undefined) {
       configured.validateDispatchCredential = createDispatchCredentialValidator(configured.dispatchClient, configured.config.work_queue_dispatch_credential, token);

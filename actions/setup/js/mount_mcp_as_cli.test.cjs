@@ -4,6 +4,7 @@ import fs from "fs";
 import http from "http";
 import os from "os";
 import path from "path";
+import { spawnSync } from "node:child_process";
 
 import {
   AWF_GATEWAY_IP,
@@ -11,6 +12,7 @@ import {
   fetchMCPTools,
   fetchMCPToolsResult,
   fetchMCPToolsWithRetry,
+  generateCLIWrapperScript,
   getSafeOutputsGatewayEmptyFlagPath,
   parseMCPResponseBody,
   recoverSafeOutputsToolsIfNeeded,
@@ -20,6 +22,34 @@ import {
 } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
+  it("runs CLI wrappers after the runtime tree is relocated into an NVX workspace", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "nvx-cli-relocated-"));
+    const runtime = path.join(root, "runtime with spaces");
+    const originalRoot = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw");
+    const bin = path.join(runtime, "mcp-cli", "bin");
+    const tools = path.join(runtime, "mcp-cli", "tools", "fixture.json");
+    const bridge = path.join(runtime, "actions", "mcp_cli_bridge.cjs");
+    try {
+      fs.mkdirSync(bin, { recursive: true });
+      fs.mkdirSync(path.dirname(tools), { recursive: true });
+      fs.mkdirSync(path.dirname(bridge), { recursive: true });
+      fs.writeFileSync(tools, "fixture tools");
+      fs.writeFileSync(bridge, `const fs = require("fs"); const args = process.argv.slice(2); console.log(fs.readFileSync(args[args.indexOf("--tools-file") + 1], "utf8")); console.log(args.at(-1));`);
+      const wrapper = path.join(bin, "fixture");
+      fs.writeFileSync(
+        wrapper,
+        generateCLIWrapperScript("fixture", "http://example.test/mcp/fixture", path.join(originalRoot, "mcp-cli", "tools", "fixture.json"), "fixture-agent", path.join(originalRoot, "actions", "mcp_cli_bridge.cjs")),
+        { mode: 0o755 }
+      );
+      const result = spawnSync(wrapper, ["literal $HOME; $(exit 1)"], { encoding: "utf8", env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin` } });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe("fixture tools\nliteral $HOME; $(exit 1)\n");
+      expect(fs.readFileSync(wrapper, "utf8")).not.toContain(originalRoot);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("parses JSON object responses unchanged", () => {
     const body = { jsonrpc: "2.0", result: { tools: [{ name: "logs" }] } };
     expect(parseMCPResponseBody(body)).toEqual(body);

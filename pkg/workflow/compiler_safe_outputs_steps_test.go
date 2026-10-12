@@ -430,6 +430,26 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			},
 		},
 		{
+			name: "handler manager with built-in secrets token source",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:  "${{ secrets.GITHUB_TOKEN }}",
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			checkContains: []string{
+				`GH_AW_GITHUB_TOKEN_SOURCE: "github_actions"`,
+			},
+		},
+		{
+			name: "handler manager with built-in context token source",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:  "${{ github.token }}",
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			checkContains: []string{
+				`GH_AW_GITHUB_TOKEN_SOURCE: "github_actions"`,
+			},
+		},
+		{
 			name: "handler manager with GitHub App token source",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubApp: &GitHubAppConfig{

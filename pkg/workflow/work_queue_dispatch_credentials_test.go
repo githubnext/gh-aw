@@ -43,6 +43,24 @@ func TestWorkQueueDispatchCredentialConfiguration(t *testing.T) {
 	}
 }
 
+func TestWorkQueueControlStepPassesGitHubTokenProvenance(t *testing.T) {
+	data := &WorkflowData{
+		Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
+		SafeOutputs: &SafeOutputsConfig{GitHubToken: "${{ secrets.GITHUB_TOKEN }}"},
+	}
+	require.NoError(t, validateWorkQueueConfiguration(data))
+	steps, err := NewCompiler().buildWorkQueueControlProcessingStep(data)
+	require.NoError(t, err)
+	var generated []struct {
+		With map[string]string `yaml:"with"`
+		Env  map[string]string `yaml:"env"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(strings.Join(steps, "")), &generated))
+	require.Len(t, generated, 1)
+	require.Equal(t, "github_actions", generated[0].Env["GH_AW_GITHUB_TOKEN_SOURCE"])
+	require.Contains(t, generated[0].With["script"], "setupGlobals(core, github, context, exec, io, getOctokit, process.env.GH_AW_GITHUB_TOKEN_SOURCE)")
+}
+
 func TestWorkQueueDispatchAppMintPrecedesControlsWithExactPermissionsAndPreviewFence(t *testing.T) {
 	staged := TemplatableBool("true")
 	for _, preview := range []bool{false, true} {

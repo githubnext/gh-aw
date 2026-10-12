@@ -243,6 +243,16 @@ never authorizes closure.
 
 ### Synchronization and recovery
 
+Queue reads recover the known deployment-aliasing checkpoint defect from a
+verified, unchanged checkpoint in the direct Git parent. Recovery accepts only deployment
+state exactly explained by the retained, valid transactions; other corruption
+still fails validation. Reads do not write to Git. The next authorized checked
+publication persists the original checkpoint and all retained requests by
+fast-forward, without deleting work or rewriting Git history.
+
+Submission and dispatch reconcile worker revisions only in the requested pools.
+Unrelated pools do not add deployment writes or block their progress.
+
 Short per-Work/per-Issue coordination spans fresh checked reads and native
 writes without holding agents. Projection journals persist native creation
 intent and verified receipts; bindings are batched through
