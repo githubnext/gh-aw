@@ -20,6 +20,7 @@ import (
 )
 
 const bytesPerMegabyte int64 = 1024 * 1024
+const defaultLogsMaxStorageMB = 1024
 const maxReportedLogsCacheFiles = 20
 
 var errLogsStorageLimitReached = errors.New("logs storage limit reached")
@@ -104,6 +105,23 @@ func validateMaxStorageMB(maxStorageMB int) error {
 		return fmt.Errorf("invalid --max-storage value %d: expected a non-negative number of MB", maxStorageMB)
 	}
 	return nil
+}
+
+func effectiveLogsMaxStorageMB(maxStorageMB int, explicitlySet bool) int {
+	if maxStorageMB == 0 && !explicitlySet {
+		return defaultLogsMaxStorageMB
+	}
+	return maxStorageMB
+}
+
+func normalizeLogsDownloadOptions(opts LogsDownloadOptions) LogsDownloadOptions {
+	opts.MaxStorageMB = effectiveLogsMaxStorageMB(opts.MaxStorageMB, opts.MaxStorageMBSet)
+	return opts
+}
+
+func normalizeStdinLogsOptions(opts StdinLogsOptions) StdinLogsOptions {
+	opts.MaxStorageMB = effectiveLogsMaxStorageMB(opts.MaxStorageMB, opts.MaxStorageMBSet)
+	return opts
 }
 
 func (l *logsStorageLimit) usage() (used, maximum int64) {

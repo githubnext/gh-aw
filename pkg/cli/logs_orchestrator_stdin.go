@@ -23,6 +23,7 @@ import (
 // provided as IDs or URLs, bypassing the GitHub API run-discovery step.
 // This is used when the --stdin flag is passed to the logs command.
 func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) (err error) { //nolint:largefunc // Existing stdin orchestration remains centralized.
+	opts = normalizeStdinLogsOptions(opts)
 	logsOrchestratorLog.Printf("Starting stdin log download: runs=%d, outputDir=%s", len(opts.RunURLs), opts.OutputDir)
 
 	if err := ValidateArtifactSets(opts.ArtifactSets); err != nil {

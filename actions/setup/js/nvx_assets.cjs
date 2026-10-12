@@ -5,6 +5,10 @@ const { execFileSync, spawn } = require("node:child_process");
 
 const GUEST_ROOT = "/workspace/.gh-aw-nvx";
 const STATE_INPUTS = ["aw-prompts", "mcp-config", "agent", "threat-detection", ".pi", "pi-agent-dir", "models.json", "awf-config.json", "engine-command.sh"];
+const STATE_OUTPUT_DIRECTORIES = ["agent", "threat-detection", "sandbox/agent/logs"];
+const STATE_OUTPUT_FILES = ["pi-streaming.jsonl", "claude-debug.log", "agent-step-summary.md", "step-summary.md"];
+const SAFEOUTPUTS_OUTPUT_FILES = ["outputs.jsonl"];
+const SAFEOUTPUTS_OUTPUT_DIRECTORIES = ["upload-artifacts"];
 
 /** @param {string} source @param {string} destination */
 function copyTree(source, destination) {
@@ -217,6 +221,28 @@ function collectTree(source, destination) {
   }
 }
 
+/** @param {string} source @param {string} destination @param {string} name @param {boolean} directory */
+function collectAllowedOutput(source, destination, name, directory) {
+  for (const root of [source, destination]) {
+    const stat = lstatIfExists(root);
+    if (stat && !stat.isDirectory()) throw new Error(`NVX output root must be a directory: ${root}`);
+  }
+  const parts = name.split("/");
+  for (let index = 0; index < parts.length; index++) {
+    source = path.join(source, parts[index]);
+    destination = path.join(destination, parts[index]);
+    const stat = lstatIfExists(source);
+    if (!stat) return;
+    if (index < parts.length - 1) {
+      const destinationStat = lstatIfExists(destination);
+      if (!stat.isDirectory() || (destinationStat && !destinationStat.isDirectory())) throw new Error(`NVX output parent must be a directory: ${source}`);
+    } else {
+      if (directory ? !stat.isDirectory() : !stat.isFile()) throw new Error(`NVX output must be a ${directory ? "directory" : "regular file"}: ${source}`);
+      collectTree(source, destination);
+    }
+  }
+}
+
 /** @param {string} entry */
 function lstatIfExists(entry) {
   try {
@@ -257,11 +283,16 @@ function collect(environment = process.env, stateRoot = "/tmp/gh-aw") {
       for (const directory of ["state", "gh-aw"]) {
         if (!fs.lstatSync(path.join(root, directory)).isDirectory()) throw new Error(`NVX asset directory must not be a symlink: ${directory}`);
       }
-      for (const name of fs.readdirSync(path.join(root, "state"))) {
-        if (STATE_INPUTS.includes(name) && name !== "agent" && name !== "threat-detection") continue;
-        collectTree(path.join(root, "state", name), path.join(stateRoot, name));
+      const guestSafeoutputs = path.join(root, "gh-aw", "safeoutputs");
+      if (!fs.lstatSync(guestSafeoutputs).isDirectory()) throw new Error("NVX safeoutputs directory must not be a symlink");
+      for (const name of ["config.json", "tools.json", "validation.json"]) {
+        if (lstatIfExists(path.join(guestSafeoutputs, name))) throw new Error(`NVX guest must not export safe-output policy: ${name}`);
       }
-      collectTree(path.join(root, "gh-aw", "safeoutputs"), path.join(environment.RUNNER_TEMP, "gh-aw", "safeoutputs"));
+      for (const name of STATE_OUTPUT_DIRECTORIES) collectAllowedOutput(path.join(root, "state"), stateRoot, name, true);
+      for (const name of STATE_OUTPUT_FILES) collectAllowedOutput(path.join(root, "state"), stateRoot, name, false);
+      const hostSafeoutputs = path.join(environment.RUNNER_TEMP, "gh-aw", "safeoutputs");
+      for (const name of SAFEOUTPUTS_OUTPUT_FILES) collectAllowedOutput(guestSafeoutputs, hostSafeoutputs, name, false);
+      for (const name of SAFEOUTPUTS_OUTPUT_DIRECTORIES) collectAllowedOutput(guestSafeoutputs, hostSafeoutputs, name, true);
     } finally {
       removeAssets(root);
       fs.unlinkSync(marker);

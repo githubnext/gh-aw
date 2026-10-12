@@ -20,6 +20,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMCPLogsStorageBudgetDefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "default", input: `{}`},
+		{name: "unlimited", input: `{"max_storage":0}`, want: "0"},
+		{name: "larger budget", input: `{"max_storage":2048}`, want: "2048"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var args logsArgs
+			require.NoError(t, json.Unmarshal([]byte(tt.input), &args))
+			cmdArgs := appendLogsFilterArgs(nil, args)
+			index := slices.Index(cmdArgs, "--max-storage")
+			if tt.want == "" {
+				assert.Equal(t, -1, index, "Omitted max_storage should inherit the CLI default")
+			} else {
+				require.NotEqual(t, -1, index)
+				require.Less(t, index+1, len(cmdArgs))
+				assert.Equal(t, tt.want, cmdArgs[index+1])
+			}
+		})
+	}
+}
+
 // connectInMemoryWithProgress creates an in-memory MCP client-server connection
 // that captures progress notifications. Returns the client session and a
 // function to retrieve captured notifications. The returned getNotifications
@@ -1088,38 +1116,155 @@ func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
 		capturedDeadline, requestedTimeoutMinutes, before, capturedDeadline.Sub(before))
 }
 
-// TestAuditToolSubprocessContextIgnoresGatewayDeadline verifies that the audit
-// tool creates a subprocess context rooted at context.Background() so the
-// subprocess deadline is independent of the MCP gateway's 60 s per-request
-// deadline. This is the regression test for the bug where a 60 s gateway
-// deadline caused context deadline exceeded on every audit call.
-//
-// The test calls newMCPSubprocessContext directly with a deadline-bearing
-// context so it is not affected by the MCP in-memory transport's context
-// isolation, which strips deadlines from server handler contexts.
-func TestAuditToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
-	// Simulate the MCP gateway's short per-tool RPC deadline (2 s) by passing a
-	// deadline-bearing context directly to the detachment helper — the same
-	// context the handler receives in production.
-	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer gatewayCancel()
+func TestAuditToolReservesResponseTime(t *testing.T) {
+	for _, budget := range []time.Duration{0, 20 * time.Second} {
+		t.Run(budget.String(), func(t *testing.T) {
+			ctx := context.Background()
+			if budget > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, budget)
+				defer cancel()
+			}
 
-	before := time.Now()
+			var deadline time.Time
+			var capturedArgs []string
+			execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+				deadline, _ = ctx.Deadline()
+				capturedArgs = args
+				return exec.CommandContext(ctx, "echo", `{"overview":{"run_id":123}}`)
+			}
+			before := time.Now()
+			result, _, err := newAuditToolHandler(execCmd, "", false)(ctx, nil, auditArgs{RunID: "123"})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.False(t, result.IsError)
+			assert.LessOrEqual(t, deadline.Sub(before), defaultMCPAuditResponseTimeout+time.Second)
+			if budget > 0 {
+				requestDeadline, _ := ctx.Deadline()
+				assert.LessOrEqual(t, deadline.Sub(requestDeadline), -mcpAuditResponseMargin)
+			}
+			index := slices.Index(capturedArgs, "--timeout")
+			require.GreaterOrEqual(t, index, 0)
+			softTimeout, err := time.ParseDuration(capturedArgs[index+1])
+			require.NoError(t, err)
+			assert.InDelta(t, (deadline.Sub(before) - mcpAuditResponseMargin).Seconds(), softTimeout.Seconds(), 1)
+		})
+	}
+}
 
-	subCtx, subCancel := newMCPSubprocessContext(gatewayCtx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
-	defer subCancel()
+func TestAuditToolCalculatesTimeoutAfterAcquiringSubprocessSlot(t *testing.T) {
+	guardrail := defaultMCPSubprocessGuardrail
+	heldSlots := maxActiveMCPChildProcesses
+	for range heldSlots {
+		require.NoError(t, guardrail.acquire(context.Background()))
+	}
+	defer func() {
+		for range heldSlots {
+			guardrail.release()
+		}
+	}()
 
-	deadline, ok := subCtx.Deadline()
-	require.True(t, ok, "subprocess context should have a deadline")
+	called := make(chan struct{}, 1)
+	var capturedArgs []string
+	var launchTime time.Time
+	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		launchTime = time.Now()
+		capturedArgs = append([]string(nil), args...)
+		called <- struct{}{}
+		return exec.CommandContext(ctx, "echo", `{"overview":{"run_id":123}}`)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	type handlerResult struct {
+		result *mcp.CallToolResult
+		err    error
+	}
+	done := make(chan handlerResult, 1)
+	go func() {
+		result, _, err := newAuditToolHandler(execCmd, "", false)(ctx, nil, auditArgs{RunID: "123"})
+		done <- handlerResult{result: result, err: err}
+	}()
 
-	// The subprocess deadline must be at least defaultMCPAuditTimeoutMinutes out,
-	// not bounded by the 2-second gateway context.  This assertion would fail if
-	// newMCPSubprocessContext were changed to context.WithTimeout(ctx, ...) without
-	// the context.WithoutCancel detachment step.
-	expectedMinDeadline := before.Add(time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute - 5*time.Second)
-	assert.True(t, deadline.After(expectedMinDeadline),
-		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
-		deadline, defaultMCPAuditTimeoutMinutes, before, deadline.Sub(before))
+	select {
+	case <-called:
+		t.Fatal("audit command must not be created while waiting for a subprocess slot")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	guardrail.release()
+	heldSlots--
+	select {
+	case <-called:
+	case <-time.After(time.Second):
+		t.Fatal("audit command was not created after a subprocess slot became available")
+	}
+	for range heldSlots {
+		guardrail.release()
+	}
+	heldSlots = 0
+	result := <-done
+	require.NoError(t, result.err)
+	require.NotNil(t, result.result)
+
+	responseDeadline := mcpAuditResponseDeadline(ctx)
+	index := slices.Index(capturedArgs, "--timeout")
+	require.GreaterOrEqual(t, index, 0)
+	softTimeout, err := time.ParseDuration(capturedArgs[index+1])
+	require.NoError(t, err)
+	assert.InDelta(t, (responseDeadline.Sub(launchTime) - mcpAuditResponseMargin).Seconds(), softTimeout.Seconds(), 0.1)
+}
+
+func TestAuditTimeoutErrorPreservesPartialResults(t *testing.T) {
+	for _, output := range []string{
+		`{"partial":true,"complete":false,"overview":{"run_id":123,"workflow_name":"example"}}`,
+		`{"overview":`,
+		"",
+	} {
+		result, _, err := buildAuditErrorResult(context.DeadlineExceeded, output, []string{"123"})
+		require.NoError(t, err)
+		assert.True(t, result.IsError)
+		content, ok := result.Content[0].(*mcp.TextContent)
+		require.True(t, ok)
+		var envelope map[string]any
+		require.NoError(t, json.Unmarshal([]byte(content.Text), &envelope))
+		assert.Equal(t, true, envelope["partial"])
+		assert.Equal(t, false, envelope["complete"])
+		assert.Contains(t, envelope["error"], "timed out")
+		assert.NotEmpty(t, envelope["suggestions"])
+		if json.Valid([]byte(output)) {
+			assert.NotEmpty(t, envelope["partial_results"])
+		} else {
+			assert.NotContains(t, envelope, "partial_results")
+		}
+	}
+}
+
+func TestAuditToolReturnsIncompleteSubprocessData(t *testing.T) {
+	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAuditToolTimeoutHelperProcess$")
+		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_TIMEOUT_HELPER=1")
+		return cmd
+	}
+	result, _, err := newAuditToolHandler(execCmd, "", false)(context.Background(), nil, auditArgs{RunID: "123"})
+	require.NoError(t, err)
+	assert.True(t, result.IsError)
+	content, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok)
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal([]byte(content.Text), &envelope))
+	assert.Equal(t, true, envelope["partial"])
+	assert.Equal(t, false, envelope["complete"])
+	partial, ok := envelope["partial_results"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "artifacts", partial["stage"])
+}
+
+func TestAuditToolTimeoutHelperProcess(t *testing.T) {
+	if os.Getenv("GH_AW_AUDIT_TIMEOUT_HELPER") != "1" {
+		return
+	}
+	fmt.Fprintln(os.Stdout, `{"partial":true,"complete":false,"stage":"artifacts","overview":{"run_id":123}}`)
+	os.Exit(1)
 }
 
 // TestAuditDiffToolSubprocessContextIgnoresGatewayDeadline verifies that the

@@ -35,11 +35,9 @@ const (
 	// long time.
 	maxMCPLogsSubprocessTimeoutMinutes = 60
 
-	// defaultMCPAuditTimeoutMinutes is the default subprocess timeout for the audit
-	// tool.  Auditing a single run typically takes 5–30 s, but large runs with many
-	// artifact sets can take longer.  5 minutes gives ample headroom while still
-	// bounding the subprocess lifetime.
-	defaultMCPAuditTimeoutMinutes = 5
+	// Leave time to return an incomplete envelope before the default 60s RPC limit.
+	defaultMCPAuditResponseTimeout = 55 * time.Second
+	mcpAuditResponseMargin         = 5 * time.Second
 	// defaultMCPAuditDiffTimeoutMinutes is the default subprocess timeout for the
 	// audit-diff tool.  5 minutes gives ample headroom for the artifact-download
 	// and diff steps while still bounding the subprocess lifetime.
@@ -114,7 +112,7 @@ type logsArgs struct {
 	IgnoreWorkflowRuns    []int64  `json:"ignore_workflow_runs,omitempty" jsonschema:"Workflow run IDs to exclude"`
 	Timeout               int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40, 2 minutes for 41-80, 3 minutes for 81-120, and so on)"`
 	MaxGitHubAPIRateLimit int      `json:"max_github_api_rate_limit,omitempty" jsonschema:"Maximum used GitHub core API requests before pausing one target or stopping multiple targets. Positive values are absolute; negative values reserve requests from the API-reported limit (for example, 12000 or -2000)."`
-	MaxStorageMB          int      `json:"max_storage,omitempty" jsonschema:"Maximum logs storage in MB after pruning non-essential cache data (0 means unlimited)."`
+	MaxStorageMB          *int     `json:"max_storage,omitempty" jsonschema:"Maximum logs storage in MB after pruning non-essential cache data (default: 1024 MB; 0 means unlimited)."`
 	PruneOlderRuns        bool     `json:"prune_older_runs,omitempty" jsonschema:"Remove oldest completed runs when non-essential cache pruning cannot satisfy max_storage."`
 	MaxTokens             int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored. Output is always written to a file."`
 	Artifacts             []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: info,usage). Valid sets: all, activation, agent, detection, evals, experiment, firewall, github-api, graders, info, mcp, usage, work-queue. The compact usage set is always added so per-run token_usage is populated."`
@@ -404,8 +402,8 @@ func appendLogsFilterArgs(cmdArgs []string, args logsArgs) []string {
 	if args.MaxGitHubAPIRateLimit != 0 {
 		cmdArgs = append(cmdArgs, "--max-github-api-rate-limit", strconv.Itoa(args.MaxGitHubAPIRateLimit))
 	}
-	if args.MaxStorageMB != 0 {
-		cmdArgs = append(cmdArgs, "--max-storage", strconv.Itoa(args.MaxStorageMB))
+	if args.MaxStorageMB != nil {
+		cmdArgs = append(cmdArgs, "--max-storage", strconv.Itoa(*args.MaxStorageMB))
 	}
 	if args.PruneOlderRuns {
 		cmdArgs = append(cmdArgs, "--prune-older-runs")
@@ -555,7 +553,22 @@ Single-run returns JSON with:
 - experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
 - graders: Deterministic grader results if present (results with id, name, status, value, unit, passed, direction, threshold, plus aggregate counts: total, passed, failed, error_count, unavailable_count)
 
-Multi-run diff returns JSON describing changes between the base and each comparison run.`
+Multi-run diff returns JSON describing changes between the base and each comparison run.
+
+Audit reserves response time before the default 60-second tool deadline. On timeout,
+returns an error envelope with partial:true and complete:false, plus partial_results
+when single-run metadata or analysis results are available. Incomplete results are
+not complete audit reports. Retry to reuse downloaded artifacts, or narrow artifacts.`
+
+func mcpAuditResponseDeadline(ctx context.Context) time.Time {
+	responseDeadline := time.Now().Add(defaultMCPAuditResponseTimeout)
+	if deadline, ok := ctx.Deadline(); ok {
+		if earlier := deadline.Add(-mcpAuditResponseMargin); earlier.Before(responseDeadline) {
+			return earlier
+		}
+	}
+	return responseDeadline
+}
 
 // newAuditToolHandler builds the handler for the audit tool.
 func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, auditArgs) (*mcp.CallToolResult, any, error) {
@@ -581,25 +594,25 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 			return nil, nil, err
 		}
 
-		cmdArgs := buildAuditCommandArgs(args, runItems)
-
-		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
-
-		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
-		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
+		responseDeadline := mcpAuditResponseDeadline(ctx)
+		subCtx, subCancel := context.WithDeadline(ctx, responseDeadline)
 		defer subCancel()
+		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		stdout, execErr := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
+		stdout, execErr := runMCPAuditSubprocess(subCtx, responseDeadline, execCmd, args, runItems)
 
 		// The audit command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
 		outputStr := string(stdout)
 
 		if execErr != nil {
+			if subCtx.Err() != nil {
+				execErr = subCtx.Err()
+			}
 			return buildAuditErrorResult(execErr, outputStr, runItems)
 		}
 
@@ -611,6 +624,24 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 			},
 		}, nil, nil
 	}
+}
+
+func runMCPAuditSubprocess(ctx context.Context, responseDeadline time.Time, execCmd execCmdFunc, args auditArgs, runItems []string) ([]byte, error) {
+	if err := defaultMCPSubprocessGuardrail.acquire(ctx); err != nil {
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		return nil, err
+	}
+	defer defaultMCPSubprocessGuardrail.release()
+
+	timeout := time.Until(responseDeadline)
+	if timeout <= mcpAuditResponseMargin {
+		return nil, context.DeadlineExceeded
+	}
+	cmdArgs := buildAuditCommandArgs(args, runItems)
+	cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
+	return execCmd(ctx, cmdArgs...).Output()
 }
 
 // resolveAuditRunItems resolves the list of run IDs/URLs to pass to the audit
@@ -667,9 +698,8 @@ func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 
 // buildAuditErrorResult converts a failed audit subprocess execution into a JSON
 // error envelope instead of an MCP protocol error so callers always receive
-// consistent JSON and the run IDs are always present. IsError must be false so
-// that callers (e.g. mcp_cli_bridge) treat this as a graceful not-found /
-// failure response rather than a fatal protocol error.
+// consistent JSON and the run IDs are always present. Timeouts are tool errors;
+// other failures retain the existing graceful JSON error envelope.
 func buildAuditErrorResult(err error, outputStr string, runItems []string) (*mcp.CallToolResult, any, error) {
 	// Try to get stderr for message extraction
 	var stderr string
@@ -701,12 +731,27 @@ func buildAuditErrorResult(err error, outputStr string, runItems []string) (*mcp
 			"Use the 'logs' tool to list recent run IDs",
 		},
 	}
+	var partial map[string]any
+	if json.Unmarshal([]byte(outputStr), &partial) == nil && partial["partial"] == true && partial["complete"] == false {
+		errorEnvelope["partial"] = true
+		errorEnvelope["complete"] = false
+		errorEnvelope["partial_results"] = partial
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errorEnvelope["partial"] == true {
+		errorEnvelope["partial"] = true
+		errorEnvelope["complete"] = false
+		errorEnvelope["error"] = "audit timed out before analysis completed"
+		errorEnvelope["suggestions"] = []string{
+			"Retry the same audit to reuse downloaded artifacts",
+			"Request fewer artifact sets with artifacts",
+		}
+	}
 	jsonBytes, jsonErr := json.Marshal(errorEnvelope)
 	if jsonErr != nil {
 		return nil, nil, newMCPError(jsonrpc.CodeInternalError, errorMsg, nil)
 	}
 	return &mcp.CallToolResult{
-		IsError: false,
+		IsError: errorEnvelope["partial"] == true,
 		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 	}, nil, nil
 }
