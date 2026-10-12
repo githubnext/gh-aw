@@ -5,6 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { normalizeCloseOlderKey } = require("./generate_footer.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 const { formatIssueBody } = require("./issue_body.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -240,7 +241,7 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
           owner,
           repo,
           title: template.title,
-          body: template.body,
+          body: appendExecutionProvenance(template.body, workflowName, ""),
           labels: labels,
         }),
       { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },

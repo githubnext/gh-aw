@@ -4,6 +4,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
+import { useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+
+useExecutionProvenanceFixture();
 import {
   main,
   loadConfig,

@@ -26,6 +26,30 @@ When `footer: false` is set, visible attribution text is omitted from item bodie
 
 Applies to all output types: create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release.
 
+### Execution Provenance
+
+Issue, pull request, comment, and discussion bodies also contain an always-on `<!-- gh-aw-execution: JSON -->` marker. Disabling the visible footer or customizing `messages.footer` and `body-footer` does not remove this marker or the existing combined metadata marker. Reserved execution markers in supplied content are replaced with trusted runtime metadata. Publishing fails explicitly if required runtime metadata is missing or invalid.
+
+The version 1 JSON payload contains:
+
+| Field | Meaning |
+|---|---|
+| `version` | Payload schema version, currently `1` |
+| `repo_id`, `repository` | Execution repository ID (`GITHUB_REPOSITORY_ID`) and `owner/repo` (`GITHUB_REPOSITORY`), not the destination repository |
+| `aw_workflow_id` | AW workflow filename without its extension (`GH_AW_WORKFLOW_ID`), not the numeric Actions workflow ID |
+| `run_id`, `run_attempt` | Execution run and attempt (`GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`); a rerun retains the run ID but changes the attempt |
+| `run_url` | Canonical run URL in the execution repository |
+| `publishing_job.key` | Logical job key (`GITHUB_JOB`), not a unique execution ID |
+| `publishing_job.check_run_id` | Numeric publishing check-run ID, supplied through step-level `${{ job.check_run_id }}` |
+
+Parse the comment payload with a JSON parser; HTML-sensitive characters are JSON-escaped. Existing standalone workflow and caller markers retain their grouping and deduplication semantics.
+
+To resolve the numeric Actions job ID, list **all pages** of `GET /repos/{repository}/actions/runs/{run_id}/attempts/{run_attempt}/jobs` in the execution repository. Select the job whose `check_run_url` points to that repository's `/check-runs/{publishing_job.check_run_id}` on the expected GitHub API host. Require exactly one match and verify its `run_id` and, when returned, `run_attempt` against the payload before using its numeric `id`. Never resolve by display name or logical job key: matrix legs and reusable workflow invocations can share those names but have distinct check-run IDs. The run API's `workflow_id` supplies the numeric Actions workflow ID; it is separate from `aw_workflow_id`. API resolution requires permission to read Actions runs in the execution repository, even when publishing uses a different destination repository or App token.
+
+The runtime's `execution_provenance.cjs` exports `resolvePublishingJobId(github, metadata)` to perform this paginated lookup and validation using an Octokit client and a parsed marker. It returns the Actions job ID as a string and rejects missing, ambiguous, or mismatched executions. Publishing itself does not require this lookup or additional Actions permissions.
+
+The marker describes execution, not authorship. The triggering `github.actor` is not the publishing bot or App; use the artifact's GitHub author identity for the publisher. Recompile older workflows to provide the required publishing check-run context.
+
 ### Searching for Workflow-Created Items
 
 Use the `gh-aw-workflow-id` marker (the workflow filename without `.md`) to find items in GitHub search:

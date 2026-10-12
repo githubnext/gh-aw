@@ -588,6 +588,7 @@ func buildApplySafeOutputsStep(renderCtx sideRepoMaintenanceRenderContext) strin
 	return `      - name: Apply Safe Outputs
         uses: ` + getCachedActionPinFromResolver("actions/github-script", renderCtx.resolver) + `
         env:
+          GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
           GH_TOKEN: ` + renderCtx.token + `
           GH_AW_RUN_URL: ${{ inputs.run_url }}
           GH_AW_TARGET_REPO_SLUG: "` + renderCtx.repoSlug + `"
