@@ -516,10 +516,12 @@ func TestCompileModelRoutingRequiresGitHubProvider(t *testing.T) {
 		name         string
 		engine       string
 		provider     string
+		fixedModel   string
 		allowedModel string
 		wantError    string
 	}{
 		{name: "codex without provider", engine: "codex", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
+		{name: "codex with copilot-prefixed fixed model and no provider", engine: "codex", fixedModel: "copilot/gpt-5.6-luna", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
 		{name: "claude without provider", engine: "claude", allowedModel: "claude-sonnet-5", wantError: `resolves to the "anthropic" provider`},
 		{name: "claude with anthropic", engine: "claude", provider: "anthropic", allowedModel: "claude-sonnet-5", wantError: `resolves to the "anthropic" provider`},
 		{name: "codex with openai", engine: "codex", provider: "openai", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
@@ -533,7 +535,11 @@ func TestCompileModelRoutingRequiresGitHubProvider(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var source strings.Builder
-			source.WriteString("---\non: workflow_dispatch\nengine:\n  id: " + tc.engine + "\n")
+			source.WriteString("---\non: workflow_dispatch\n")
+			if tc.fixedModel != "" {
+				source.WriteString("model: " + tc.fixedModel + "\n")
+			}
+			source.WriteString("engine:\n  id: " + tc.engine + "\n")
 			if tc.provider != "" {
 				source.WriteString("  model-provider: " + tc.provider + "\n")
 			}

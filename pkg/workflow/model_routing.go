@@ -297,13 +297,13 @@ func modelRoutingEngineSupportsModel(engineName, candidate string) bool {
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
 	switch strings.ToLower(engineName) {
 	case "copilot":
-		return NewCopilotEngine().ResolveLLMProvider(data)
+		return resolveEngineLLMProvider(data, LLMProviderGitHub)
 	case "claude":
-		return NewClaudeEngine().ResolveLLMProvider(data)
+		return resolveEngineLLMProvider(data, LLMProviderAnthropic)
 	case "codex":
-		return NewCodexEngine().ResolveLLMProvider(data)
+		return resolveEngineLLMProvider(data, LLMProviderOpenAI)
 	case "pi":
-		return NewPiEngine().ResolveLLMProvider(data)
+		return resolveEngineLLMProvider(data, LLMProviderGitHub)
 	default:
 		return LLMProviderGitHub
 	}
