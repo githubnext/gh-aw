@@ -8,10 +8,47 @@ const { generateXMLMarker } = require("./generate_footer.cjs");
  * @returns {string}
  */
 function stripExecutionProvenance(body) {
-  return body
-    .replace(/<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:(?:(?!<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:)[\s\S])*?-->/gi, "")
-    .replace(/<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:/gi, marker => marker.replace(/gh-aw-/i, "gh-aw&#45;"))
-    .trimEnd();
+  const reservedMarker = /<!--[-!\s]*gh-aw-(?:execution|agentic-workflow)\s*:/i;
+  const unclosedReservedMarker = /(<!--[-!\s]*)(gh-aw-)(?=(?:execution|agentic-workflow)\s*:)/gi;
+  let result = "";
+  let position = 0;
+
+  while (position < body.length) {
+    const start = body.indexOf("<!--", position);
+    if (start === -1) {
+      result += body.slice(position);
+      break;
+    }
+    result += body.slice(position, start);
+
+    let depth = 0;
+    let end = start;
+    while (end < body.length) {
+      if (body.startsWith("<!--", end)) {
+        depth++;
+        end += 4;
+      } else if (depth > 0 && body.startsWith("--!>", end)) {
+        depth--;
+        end += 4;
+      } else if (depth > 0 && body.startsWith("-->", end)) {
+        depth--;
+        end += 3;
+      } else {
+        end++;
+      }
+      if (depth === 0) break;
+    }
+
+    const comment = body.slice(start, end);
+    if (depth > 0) {
+      result += reservedMarker.test(comment) ? comment.replace(unclosedReservedMarker, "$1gh-aw&#45;") : comment;
+      break;
+    }
+    if (!reservedMarker.test(comment)) result += comment;
+    position = end;
+  }
+
+  return result.trimEnd();
 }
 
 /**
