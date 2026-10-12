@@ -65,9 +65,10 @@ func TestBuildRenderedAuditDataSkipsBaseline(t *testing.T) {
 		},
 	}
 
-	auditData := buildRenderedAuditData(context.Background(), processedRun, LogMetrics{}, nil, runDir, AuditOptions{
+	auditData, err := buildRenderedAuditData(context.Background(), processedRun, LogMetrics{}, nil, runDir, AuditOptions{
 		NoBaseline: true,
 	})
+	require.NoError(t, err)
 
 	require.NotNil(t, auditData.Comparison)
 	assert.False(t, auditData.Comparison.BaselineFound)
@@ -85,9 +86,10 @@ func TestBuildRenderedAuditDataFromCacheSkipsBaseline(t *testing.T) {
 		Overview:    buildAuditOverview(run, nil),
 	}))
 
-	auditData := buildRenderedAuditDataFromCache(context.Background(), ProcessedRun{Run: run}, LogMetrics{}, nil, runDir, AuditOptions{
+	auditData, err := buildRenderedAuditDataFromCache(context.Background(), ProcessedRun{Run: run}, LogMetrics{}, nil, runDir, AuditOptions{
 		NoBaseline: true,
 	})
+	require.NoError(t, err)
 
 	require.NotNil(t, auditData.Comparison)
 	assert.False(t, auditData.Comparison.BaselineFound)

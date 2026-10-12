@@ -594,7 +594,9 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 gh aw audit 1234567890 --runtime cloud-hypervisor        # Skip run unless sandbox agent runtime matches
 ```
 
-**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--stdin`, `--variant`
+**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--stdin`, `--timeout`, `--variant`
+
+The `--timeout` flag sets a duration such as `50s` or `5m` (default: `0`, no additional deadline). Timed-out single-run JSON audits exit unsuccessfully and return available metadata or collected analysis with `partial: true`, `complete: false`, and the interrupted `stage`. Incomplete reports are not persisted as complete audit caches.
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
