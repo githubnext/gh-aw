@@ -112,6 +112,8 @@ GitHub Actions cache evicts unused entries after 7 days and provides a 10GB per-
 
 Cache memory is branch-scoped: runs restore from the same branch first, then can fall back to the default branch. On a non-default branch, the first restore often comes from the default branch; later saves create a branch-local cache lineage.
 
+Absent cache files are expected on cold starts or after eviction. When the workflow defines initialization or a full-analysis fallback, the agent follows that path without reporting `missing_data`. Required cached inputs with no fallback still produce `missing_data`; malformed or unreadable required state also remains a failure unless the workflow explicitly defines recovery.
+
 The compiler strips `${{ github.run_id }}` from restore keys so each run can fall back to earlier runs. For `scope: repo`, it also adds a broader restore key for cross-workflow sharing within the same branch scope. Custom user-supplied keys automatically append `-${{ github.run_id }}` when needed.
 
 ## Best Practices
@@ -139,7 +141,7 @@ The [agentic maintenance](/gh-aw/reference/ephemerals/#cache-memory-cleanup) wor
 
 If files are not persisting, check cache key consistency and the restore/save log messages. For file access issues, create subdirectories first, verify permissions, and use absolute paths. If cache growth becomes a problem, clear old entries periodically or use time-based keys for auto-expiration.
 
-When an agent calls `missing_data` with `reason: "cache_memory_miss"`, the conclusion handler automatically opens a failure issue that points to a likely cache path problem. Verify that the prompt uses the correct path (`/tmp/gh-aw/cache-memory/` by default or `/tmp/gh-aw/cache-memory-{id}/` for named caches) and that the cache key stays consistent across runs.
+When an agent calls `missing_data` with `reason: "cache_memory_miss"`, the conclusion handler can open a failure issue. A restore match does not guarantee that every expected file exists. Verify the required-input contract, the cache path (`/tmp/gh-aw/cache-memory/` by default or `/tmp/gh-aw/cache-memory-{id}/` for named caches), and key consistency before diagnosing a path problem. Workflows using cache only to speed up analysis should explicitly define their cold-start fallback.
 
 ## Integrity-Aware Caching
 

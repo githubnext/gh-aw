@@ -7,9 +7,9 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.4.0  
+**Version**: 1.5.0<br />
 **Status**: Draft  
-**Publication Date**: 2026-06-09  
+**Publication Date**: 2026-10-12<br />
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [ai-credits-specification](/gh-aw/specs/ai-credits-specification/)  
 **Latest Published Version**: This document
@@ -380,7 +380,7 @@ A conformance test suite MUST include at least the following test cases:
 
 ### 9.1 Purpose
 
-The daily AI Credits guardrail is a per-workflow cumulative budget limit evaluated at action runtime. It prevents a single workflow from consuming excessive AI Credits across all runs in a rolling 24-hour window. This section specifies the normative resolution order for the guardrail threshold and the mechanism by which the runtime default is resolved.
+The daily AI Credits guardrail is a per-workflow cumulative budget limit evaluated at action runtime. It compares historical usage with a threshold before the current agent runs. This section specifies threshold resolution, rolling-window membership, accounting-source precedence, conservative estimates, snapshot reuse, retries, and the alternative repo-memory backend.
 
 ### 9.2 Guardrail Configuration Field
 
@@ -448,6 +448,15 @@ A conforming implementation MUST enforce the following at compile time:
 | T-AIC-DG-014 | `GH_AW_HAS_SLASH_COMMAND=true` + non-matching event → guardrail enforced | §9.8 (4) |
 | T-AIC-DG-015 | `GH_AW_HAS_LABEL_COMMAND=true` + matching event → guardrail skipped | §9.8 (5) |
 | T-AIC-DG-016 | `GH_AW_HAS_LABEL_COMMAND=true` + non-matching event → guardrail enforced | §9.8 (5) |
+| T-AIC-DG-017 | Complete fresh history is required; duplicate run IDs count once and current/old runs do not count | §9.9 |
+| T-AIC-DG-018 | Trusted recorded snapshots match the completed attempt; estimates and stale/legacy observations are reinspected | §9.10 |
+| T-AIC-DG-019 | Agent, Detection, and Evaluations accounting is validated independently without overlapping-source double counting | §9.11 |
+| T-AIC-DG-020 | Every supported zero-accounting path satisfies its documented evidence conditions | §9.11 |
+| T-AIC-DG-021 | Unresolved historical accounting substitutes the positive configured per-run maximum for the whole run | §9.12 |
+| T-AIC-DG-022 | Transient reads retry at most three times; quota, permission, and retry restrictions stop without estimates | §9.13 |
+| T-AIC-DG-023 | Workflow-history 404 uses repository-history fallback, not zero usage or an incomplete total | §9.9, §9.13 |
+| T-AIC-DG-024 | Estimated credits are reported separately and equality with the threshold is exceeded | §9.14 |
+| T-AIC-DG-025 | Repo-memory trust, timestamp filtering, duplicate selection, and permissive read behavior match the separate backend contract | §9.15 |
 
 ### 9.8 Guardrail Bypass Conditions
 
@@ -476,6 +485,112 @@ The following environment variables govern bypass evaluation at runtime:
 **Condition 5 — Non-centralized label-command events.** When `GH_AW_HAS_LABEL_COMMAND` is `"true"` and `GITHUB_EVENT_NAME` is one of `issues`, `pull_request`, or `discussion`, the runtime SHALL skip the guardrail. This condition covers label-command triggers compiled directly into the workflow.
 
 A conforming implementation MUST evaluate bypass conditions before checking the daily AIC total. When any bypass condition is satisfied, the implementation MUST NOT read or compare the daily AIC usage data for the current run.
+
+### 9.9 Authoritative Window and Run Membership
+
+The artifact backend MUST resolve the current workflow ID and obtain fresh completed-run history for that workflow in the same repository. Its rolling window includes runs whose `created_at` is at or after the scan's start time minus 24 hours. It MUST exclude the current run, deduplicate by run ID, and validate completed status, positive integer `run_attempt`, and parseable creation/update timestamps. The accounting unit is a run's latest completed metadata, not a separate sum of every rerun attempt.
+
+The workflow-specific endpoint is tried first. A 404 MAY switch to repository history filtered by the resolved workflow ID; subsequent pages remain in that lookup mode. Repository-history requests include the 24-hour creation filter. Empty filtered pages MUST NOT prove completeness when their unfiltered source page is full. Completion requires an unfiltered page smaller than 100 runs or reaching an older-than-window timestamp. The implementation MUST fail rather than authorize a partial result if completion is not established within 25 pages.
+
+Current-run lookup failures, missing or malformed history arrays, invalid run/workflow identities, unknown timestamps, incomplete attempt metadata, history failures, and pagination exhaustion MUST NOT use the per-run estimate: they do not establish which historical runs must be counted. Repository-history entries MUST expose valid workflow IDs before filtering. A snapshot cannot substitute for this history.
+
+The current implementation applies a lower creation-time bound, not an additional future-time rejection, to Actions history. It relies on GitHub's creation-time ordering when an older run ends the history scan.
+
+### 9.10 Scan Observations and Producer Trust
+
+`aic-usage-scan-v2` is an optimization containing observations, not a certified daily total. Artifact restoration MUST validate matching workflow ID, workflow path, and producer repository. The currently supported trusted producer policies are:
+
+| Producer event | Additional required evidence |
+|---|---|
+| `push`, `schedule`, `workflow_dispatch`, `issues`, `issue_comment` | Known default branch; producer head branch equals it; head repository equals the current repository |
+| Existing `pull_request_target` producer | Matching workflow ID, path, and repository; no additional head-branch check in this compatibility path |
+| Other events, including `pull_request` | Not trusted |
+
+This describes existing restoration compatibility, not a recommendation to author `pull_request_target` workflows.
+
+Restore excludes the current run, checks recent workflow history, and uses bounded repository history on workflow-history 404. Missing, expired, empty, or unusable snapshot artifacts are misses. API/permission/quota failures during restoration remain errors; exhausted transient restoration failures are not silently converted into a cache miss.
+
+Accepted observation lines MUST have version 2, component-coverage version 2, matching repository/workflow, positive integer run/attempt IDs, finite non-negative AIC, valid creation/update/observation timestamps, and observation age between zero and 48 hours inclusive. Source is `recorded`, `estimated`, or absent for compatibility. Malformed or invalid lines are ignored. Conflicting recorded values for the same attempt/update identity MUST fail, not choose a lower value.
+
+When merging observations, a newer observation normally wins. Recorded accounting MUST NOT be overwritten by an estimate for the same attempt and creation/update identity. During a fresh scan, reuse additionally requires exact attempt, creation, and update matches and `source: recorded`. Estimates, provenance-less entries, old coverage versions, mismatched reruns, and invalid/expired observations MUST be reinspected.
+
+Individually resolved observations are persisted even if a later historical read fails. Their presence MUST NOT authorize a later scan without another complete authoritative listing. Concurrent incomplete snapshots cause cache misses, not zero usage.
+
+### 9.11 Per-Run Accounting and Source Fallbacks
+
+The runtime MUST list billable jobs with all attempts, validate completed job metadata, and independently account for Agent, Detection, and Evaluations. It normalizes display names to component IDs, rejects ambiguous same-attempt jobs, and retains the relevant executed job when a failed-only rerun preserves a successful earlier attempt. A complete empty job list or a list containing only skipped billable jobs proves zero for the run without an artifact read.
+
+Otherwise, the runtime selects the latest matching `usage` or invocation-prefixed `*-usage` artifact. Missing identity, expiry, missing creation time, or incomplete component coverage is unresolved accounting, not zero. An aggregate artifact MUST cover each executed component's start/end timestamps. On reruns, the original component producer artifact MUST also exist, be unexpired, and have a creation time from the job start through strictly before its completion plus one second. Repacking old data with a new aggregate timestamp MUST NOT establish coverage.
+
+Within each component, select the first non-empty accounting file in this order:
+
+| Component | Source precedence |
+|---|---|
+| Agent | `agent/token_usage.jsonl`, `agent_usage.jsonl`, `agent_usage.json` |
+| Detection | `detection/token_usage.jsonl`, `detection_usage.jsonl` |
+| Evaluations | `evals/token_usage.jsonl` |
+
+The selected source is parsed strictly. A malformed or invalid selected source MUST NOT be rescued by a lower-priority summary. An unreadable higher-priority source MUST NOT be silently skipped in favor of a lower-priority source. Different component values are added once; raw accounting and overlapping engine summaries MUST NOT both contribute.
+
+Strict accounting validates supplied numeric fields as finite non-negative values, ignores identical repeated `(event, request_id)` records, and rejects conflicting repetitions. `ai_credits_this_response` takes precedence when present, including explicit zero. Otherwise positive `ai_credits`/`aiCredits` precede positive `aic`, then provider/model token-pricing computation from Section 3 is used. A valid explicit zero counts as an accounting observation; tokens still require resolvable pricing when the other explicit aliases are zero. Only a positive explicit alias or authoritative `ai_credits_this_response` can bypass pricing for token-bearing records. Missing pricing on the selected token-pricing path, malformed data, non-finite totals, or a selected source without usable observations is unresolved accounting.
+
+The following additional component zero-accounting fallbacks are supported. Other billable components MUST still be accounted for:
+
+| Condition | Required evidence and precedence |
+|---|---|
+| Skipped component | Authoritative job conclusion is `skipped` |
+| Runner never assigned | Job failed/cancelled; explicit null/zero runner ID, null runner name, and an explicit empty steps array |
+| Empty Detection raw accounting | Verified component/producer coverage and empty `detection/token_usage.jsonl`; this overrides a legacy summary, even if nonzero |
+| Failed Agent with empty raw accounting | Verified coverage, failed conclusion, no selected non-empty accounting candidate, and empty authoritative raw file |
+| Legacy pre-harness Agent startup failure | Verified coverage, failed conclusion, no selected accounting, and bounded same-job `agent-stdio.log` containing a startup-failure marker but no harness marker |
+| Legacy sample replay | Verified coverage, successful Agent, empty raw file, no selected accounting, and verified legacy log marking sample replay |
+| Explicit execution-not-started artifact | No selected accounting and version-1 component execution evidence matching run ID, job attempt, component, and `state: not_started` |
+| Legacy failed Agent before accounting | Verified coverage, no selected accounting, failed conclusion, missing raw file, no execution-evidence file, and no inspected legacy Agent artifact |
+| Failed Evaluations before accounting | Verified coverage, failed conclusion, and no selected accounting |
+
+Legacy Agent evidence is inspected only when no non-empty Agent accounting candidate exists. The legacy artifact must be unexpired, timestamp-bound to its job, and contain a regular log no larger than 10 MiB. Detection's empty-raw exception is checked before lower-priority candidate selection. The remaining zero fallbacks MUST NOT override a malformed non-empty or higher-priority unreadable source.
+
+These are implemented evidence/compatibility policies, not a proof that a provider never charged a request. In particular, legacy missing-accounting failure heuristics and absent provider-response usage cannot certify external billing.
+
+### 9.12 Conservative Whole-Run Maximum Fallback
+
+Let `M` be the finite positive value parsed from `GH_AW_MAX_AI_CREDITS`. The compiler uses the resolved configured per-run maximum when present, otherwise the runtime `GH_AW_DEFAULT_MAX_AI_CREDITS` expression with built-in fallback `1000`. A disabled, missing, invalid, or non-positive parsed maximum does not provide an estimate.
+
+When historical accounting remains unresolved after its available evidence paths, the artifact scan MAY substitute `M` for the **whole run**, marking `source: estimated` and reason `max_ai_credits_fallback`. It MUST NOT add `M` on top of partially recovered component usage, substitute zero, or present the estimate as measured consumption. This covers missing/malformed accounting, invalid coverage, unknown pricing, no-status accounting errors, and exhausted eligible transient reads.
+
+No HTTP 401/403/404/429, quota/reserve stop, or explicit `Retry-After` restriction is eligible. Without positive `M`, unresolved accounting MUST fail the scan. Estimates are retried on subsequent scans and replaced by recorded values when available; they stop contributing when their runs leave the window.
+
+`M` is a conservative policy assumption, not an independently verified upper bound on every historical run. Historical configuration changes, multiple job/attempt budgets, external billing, and incomplete observations can invalidate an actual-charge upper-bound assumption. The computation MUST expose estimated credits separately rather than claim an exact daily bill.
+
+### 9.13 Bounded Read Recovery and Quota Handling
+
+Eligible HTTP 5xx and recognized network/timeout failures MUST use at most three total attempts per read, with one-second and two-second delays before the second and third attempts. Fetch attempts MUST create fresh timeout signals and cover JSON/stream body consumption, not only receipt of headers. Interrupted artifact streams MUST restart into truncated temporary files and MUST NOT publish partial accounting. Successful earlier reads, the redirect lookup, and the whole scan MUST NOT be replayed as a retry. A history 404 MUST be observed before switching endpoints; repository retries MUST NOT repeat that workflow lookup.
+
+Permission failures, HTTP 429, rate-limited 403 responses, explicit `Retry-After`, and the API reserve circuit breaker MUST stop without retrying or estimating through the restriction. The reserve is 100 remaining requests by default. Observe GitHub business responses, including rejected responses and artifact redirect requests, before retry/fallback decisions. Signed-storage responses do not count as GitHub API quota observations and MUST NOT receive the GitHub authorization header.
+
+Retry-deadline reporting MUST honor explicit `Retry-After` and relevant quota-reset deadlines. Ordinary 5xx responses carrying a non-exhausted `x-ratelimit-reset` MUST NOT produce a "must not retry before" message based on that header alone. Diagnostics MUST omit credentials, signed URLs, response bodies, and arbitrary error payloads from new retry/cache-decision logs.
+
+### 9.14 Aggregation and Outputs
+
+After every authoritative candidate has been resolved, sum its selected measured or estimated value exactly once, including confirmed-zero runs in run counts and statistics. `daily_ai_credits_total` is this sum; `daily_ai_credits_estimated` is the sum restricted to estimated runs. Every supplied run value and aggregate total MUST be finite and non-negative; overflow MUST fail accounting before publishing a total or threshold decision, for either backend. For positive threshold `L`, totals strictly below `L` produce `under_budget`; totals at or above `L` produce `exceeded`, set `daily_ai_credits_exceeded: true`, and gracefully skip the agent.
+
+An unresolved scan MUST NOT report `under_budget` from a partial total. It calls `core.setFailed` and reports `structural_error` for missing credentials, HTTP 401/404, or a non-rate-limited 403; other caught accounting failures report `transient_error`. A marked quota/reserve stop takes precedence over the HTTP resource/permission classification and reports `transient_error`. Disabled or bypassed checks report `disabled` or `skipped` without accounting.
+
+`continue-on-error: true` is an explicit Actions step-level fail-open policy: it may allow continuation despite an unknown total, but MUST NOT relabel the accounting result as complete or under budget. Summary-rendering failures are outside the accounting state machine; they may change step failure reporting after totals were computed.
+
+### 9.15 Repo-Memory Backend
+
+`backend: repo-memory` is a separate accounting source, not an automatic fallback after artifact/API failure. Its ledger must be marked trusted by the clone step, unless `GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC=true` explicitly accepts an insecure ledger. A directory is required; no artifact API token is required.
+
+Read current and previous UTC-day JSONL shards, retaining version-1 records for the same repository/workflow, positive integer run IDs, finite non-negative AIC, and timestamps within the inclusive preceding-24-hour interval ending at the read time. For each run ID, the greatest timestamp wins; equal timestamps use the later encountered line. Sum these records once and report estimated credits as zero.
+
+The current reader ignores malformed/invalid records and missing **or unreadable** shards. An empty readable result therefore produces zero. Unlike the artifact backend, it does not establish completeness through fresh Actions history or repair gaps with per-run maximum estimates. This availability/trust trade-off MUST NOT be described as equivalent fail-closed accounting.
+
+The writer uses staged usage files and the permissive usage parser, appending timestamped version-1 entries. It is not the strict completed-component artifact scanner. Ledger append failures surface as errors; missing writer identity or an invalid computed value is warned and skipped.
+
+### 9.16 Native Contract Coverage and Validation Boundary
+
+Focused Vitest suites exercise the runtime behavior described in Sections 9.9–9.15, including history completeness, snapshot trust and reinspection, component accounting, fallback decisions, API retries and quota handling, and repo-memory ledger rules. The spec-derived fixed-output contract cases are in `actions/setup/js/daily_aic_spec_conformance.test.cjs`; related implementation suites cover detailed boundaries. These tests are executable conformance examples, not a proof of provider billing or GitHub API behavior.
 
 ---
 
@@ -630,6 +745,12 @@ This specification MUST be revalidated when any of the following occurs:
 
 <a id="change-log"></a>
 ## Change Log
+
+### Version 1.5.0 (2026-10-12)
+
+- **Added**: Sections 9.9-9.16 specify authoritative history, scan provenance, component/source precedence, every implemented zero/max-credit fallback, bounded transient recovery, output decisions, and the separate repo-memory contract.
+- **Added**: Compliance tests T-AIC-DG-017 through T-AIC-DG-025 and spec-derived fixed-output Vitest contract cases.
+- **Clarified**: Estimates are policy assumptions, not verified historical billing upper bounds. The repo-memory reader's permissive behavior is not equivalent to artifact-backend fail-closed accounting.
 
 ### Version 1.4.0 (2026-06-09)
 
