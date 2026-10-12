@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 engine:
-  id: codex
+  id: copilot
   model-provider: github
 model: copilot/gpt-5.6-terra
 strict: true

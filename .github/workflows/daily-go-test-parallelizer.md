@@ -12,7 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 engine:
-  id: codex
+  id: copilot
   model-provider: github
 model: copilot/gpt-5.6-terra
 strict: true

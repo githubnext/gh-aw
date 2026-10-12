@@ -2,7 +2,7 @@
 emoji: "🔧"
 timeout-minutes: 5
 engine:
-  id: codex
+  id: copilot
   model-provider: github
 model: copilot/gpt-6-sol
 strict: true

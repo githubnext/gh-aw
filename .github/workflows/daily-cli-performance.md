@@ -39,7 +39,7 @@ permissions:
   copilot-requests: write
 tracker-id: daily-cli-performance
 engine:
-  id: codex
+  id: copilot
   model-provider: github
 model: copilot/gpt-6-luna
 tools:
