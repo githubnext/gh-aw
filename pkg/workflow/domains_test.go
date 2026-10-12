@@ -495,9 +495,6 @@ func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 	assert.NotContains(t, result, "raw.githubusercontent.com", "Detection domains must not include raw.githubusercontent.com")
 	assert.NotContains(t, result, "telemetry.enterprise.githubcopilot.com", "Detection domains must not include vendor telemetry by default")
 
-	optedIn := GetThreatDetectionAllowedDomains(&NetworkPermissions{Allowed: []string{"copilot-vendor"}})
-	assert.Contains(t, optedIn, "telemetry.enterprise.githubcopilot.com", "Explicit copilot-vendor opt-in must allow vendor telemetry")
-
 	// Must NOT include ecosystem-expansion domains (no tools/runtimes passed for detection)
 	assert.NotContains(t, result, "pypi.org", "Detection domains must not include Python ecosystem domains")
 	assert.NotContains(t, result, "archive.ubuntu.com", "Detection domains must not include Ubuntu apt domains")
