@@ -304,6 +304,7 @@ func extractSkipIfBoundFromOn(frontmatter map[string]any, key, boundField, examp
 	}
 }
 
+// extractSkipIfBoundObject validates and extracts a bounded skip-condition object.
 func extractSkipIfBoundObject(skip map[string]any, key, boundField, exampleQuery string) (*skipIfBoundConfig, error) {
 	queryVal, hasQuery := skip["query"]
 	if !hasQuery {
@@ -328,6 +329,7 @@ func extractSkipIfBoundObject(skip map[string]any, key, boundField, exampleQuery
 	return &skipIfBoundConfig{Query: query, Bound: bound, Scope: scope}, nil
 }
 
+// coerceSkipIfBound accepts int, int64, uint64, and float64 bounds, truncates fractional floats, and enforces a minimum of 1.
 func coerceSkipIfBound(raw any, key, boundField, exampleQuery string) (int, error) {
 	var bound int
 	switch value := raw.(type) {
