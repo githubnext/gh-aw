@@ -242,11 +242,38 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 
 // extractSkipIfMatchFromOn extracts the skip-if-match value from the on: section
 func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfMatchConfig, error) {
+	config, err := extractSkipIfBoundFromOn(frontmatter, "skip-if-match", "max", "is:issue is:open", workflowData...)
+	if err != nil || config == nil {
+		return nil, err
+	}
+	return &SkipIfMatchConfig{Query: config.Query, Max: config.Bound, Scope: config.Scope}, nil
+}
+
+// extractSkipIfNoMatchFromOn extracts the skip-if-no-match value from the on: section
+func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfNoMatchConfig, error) {
+	config, err := extractSkipIfBoundFromOn(frontmatter, "skip-if-no-match", "min", "is:pr is:open", workflowData...)
+	if err != nil || config == nil {
+		return nil, err
+	}
+	return &SkipIfNoMatchConfig{Query: config.Query, Min: config.Bound, Scope: config.Scope}, nil
+}
+
+type skipIfBoundConfig struct {
+	Query string
+	Bound int
+	Scope string
+}
+
+func extractSkipIfBoundFromOn(frontmatter map[string]any, key, boundField, exampleQuery string, workflowData ...*WorkflowData) (*skipIfBoundConfig, error) {
 	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
+	var data *WorkflowData
+	if len(workflowData) > 0 {
+		data = workflowData[0]
+	}
 	var onSection any
 	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
+	if data != nil && data.ParsedFrontmatter != nil && data.ParsedFrontmatter.On != nil {
+		onSection = data.ParsedFrontmatter.On
 		exists = true
 	} else {
 		onSection, exists = frontmatter["on"]
@@ -256,160 +283,69 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 		return nil, nil
 	}
 
-	// Handle different formats of the on: section
 	switch on := onSection.(type) {
 	case string:
-		// Simple string format like "on: push" - no skip-if-match possible
 		return nil, nil
 	case map[string]any:
-		// Complex object format - look for skip-if-match
-		if skipIfMatch, exists := on["skip-if-match"]; exists {
-			// Handle both string and object formats
-			switch skip := skipIfMatch.(type) {
-			case string:
-				// Simple string format: skip-if-match: "query" (implies max=1)
-				return &SkipIfMatchConfig{
-					Query: skip,
-					Max:   1,
-				}, nil
-			case map[string]any:
-				// Object format: skip-if-match: { query: "...", max: 3 }
-				queryVal, hasQuery := skip["query"]
-				if !hasQuery {
-					return nil, errors.New("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
-				}
-
-				queryStr, ok := queryVal.(string)
-				if !ok {
-					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"", queryVal)
-				}
-
-				// Extract max value (optional, defaults to 1)
-				maxVal := 1
-				if maxRaw, hasMax := skip["max"]; hasMax {
-					switch m := maxRaw.(type) {
-					case int:
-						maxVal = m
-					case int64:
-						maxVal = int(m)
-					case uint64:
-						maxVal = int(m)
-					case float64:
-						maxVal = int(m)
-					default:
-						return nil, fmt.Errorf("skip-if-match 'max' field must be an integer, got %T. Example: max: 3", maxRaw)
-					}
-
-					if maxVal < 1 {
-						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3", maxVal)
-					}
-				}
-
-				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
-				scope, err := extractSkipIfScope(skip, "skip-if-match")
-				if err != nil {
-					return nil, err
-				}
-
-				return &SkipIfMatchConfig{
-					Query: queryStr,
-					Max:   maxVal,
-					Scope: scope,
-				}, nil
-			default:
-				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Example:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
-			}
+		raw, exists := on[key]
+		if !exists {
+			return nil, nil
 		}
-		return nil, nil
+		switch skip := raw.(type) {
+		case string:
+			return &skipIfBoundConfig{Query: skip, Bound: 1}, nil
+		case map[string]any:
+			return extractSkipIfBoundObject(skip, key, boundField, exampleQuery)
+		default:
+			return nil, fmt.Errorf("%s value must be a string or object, got %T. Example:\n  %s: %q\n  %s:\n    query: \"is:pr is:open\"\n    %s: 3", key, raw, key, exampleQuery, key, boundField)
+		}
 	default:
 		return nil, errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
 }
 
-// extractSkipIfNoMatchFromOn extracts the skip-if-no-match value from the on: section
-func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workflowData ...*WorkflowData) (*SkipIfNoMatchConfig, error) {
-	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
-	var onSection any
-	var exists bool
-	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
-		onSection = workflowData[0].ParsedFrontmatter.On
-		exists = true
-	} else {
-		onSection, exists = frontmatter["on"]
+func extractSkipIfBoundObject(skip map[string]any, key, boundField, exampleQuery string) (*skipIfBoundConfig, error) {
+	queryVal, hasQuery := skip["query"]
+	if !hasQuery {
+		return nil, fmt.Errorf("%s object must have a 'query' field. Example:\n  %s:\n    query: %q\n    %s: 3", key, key, exampleQuery, boundField)
 	}
-
-	if !exists {
-		return nil, nil
+	query, ok := queryVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("%s 'query' field must be a string, got %T. Example:\n  %s:\n    query: %q", key, queryVal, key, exampleQuery)
 	}
-
-	// Handle different formats of the on: section
-	switch on := onSection.(type) {
-	case string:
-		// Simple string format like "on: push" - no skip-if-no-match possible
-		return nil, nil
-	case map[string]any:
-		// Complex object format - look for skip-if-no-match
-		if skipIfNoMatch, exists := on["skip-if-no-match"]; exists {
-			// Handle both string and object formats
-			switch skip := skipIfNoMatch.(type) {
-			case string:
-				// Simple string format: skip-if-no-match: "query" (implies min=1)
-				return &SkipIfNoMatchConfig{
-					Query: skip,
-					Min:   1,
-				}, nil
-			case map[string]any:
-				// Object format: skip-if-no-match: { query: "...", min: 3 }
-				queryVal, hasQuery := skip["query"]
-				if !hasQuery {
-					return nil, errors.New("skip-if-no-match object must have a 'query' field. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3")
-				}
-
-				queryStr, ok := queryVal.(string)
-				if !ok {
-					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"", queryVal)
-				}
-
-				// Extract min value (optional, defaults to 1)
-				minVal := 1
-				if minRaw, hasMin := skip["min"]; hasMin {
-					switch m := minRaw.(type) {
-					case int:
-						minVal = m
-					case int64:
-						minVal = int(m)
-					case uint64:
-						minVal = int(m)
-					case float64:
-						minVal = int(m)
-					default:
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be an integer, got %T. Example: min: 3", minRaw)
-					}
-
-					if minVal < 1 {
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", minVal)
-					}
-				}
-
-				// Extract scope (auth is now configured via top-level on.github-app / on.github-token)
-				scope, err := extractSkipIfScope(skip, "skip-if-no-match")
-				if err != nil {
-					return nil, err
-				}
-
-				return &SkipIfNoMatchConfig{
-					Query: queryStr,
-					Min:   minVal,
-					Scope: scope,
-				}, nil
-			default:
-				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Example:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
-			}
+	bound := 1
+	if raw, exists := skip[boundField]; exists {
+		var err error
+		bound, err = coerceSkipIfBound(raw, key, boundField, exampleQuery)
+		if err != nil {
+			return nil, err
 		}
-		return nil, nil
-	default:
-		return nil, errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
+	scope, err := extractSkipIfScope(skip, key)
+	if err != nil {
+		return nil, err
+	}
+	return &skipIfBoundConfig{Query: query, Bound: bound, Scope: scope}, nil
+}
+
+func coerceSkipIfBound(raw any, key, boundField, exampleQuery string) (int, error) {
+	var bound int
+	switch value := raw.(type) {
+	case int:
+		bound = value
+	case int64:
+		bound = int(value)
+	case uint64:
+		bound = int(value)
+	case float64:
+		bound = int(value)
+	default:
+		return 0, fmt.Errorf("%s '%s' field must be an integer, got %T. Example: %s: 3", key, boundField, raw, boundField)
+	}
+	if bound < 1 {
+		return 0, fmt.Errorf("%s '%s' field must be at least 1, got %d. Example:\n  %s:\n    query: %q\n    %s: 3", key, boundField, bound, key, exampleQuery, boundField)
+	}
+	return bound, nil
 }
 
 // processSkipIfMatchConfiguration extracts and processes skip-if-match configuration from frontmatter
