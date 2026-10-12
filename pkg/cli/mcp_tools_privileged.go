@@ -35,11 +35,9 @@ const (
 	// long time.
 	maxMCPLogsSubprocessTimeoutMinutes = 60
 
-	// defaultMCPAuditTimeoutMinutes is the default subprocess timeout for the audit
-	// tool.  Auditing a single run typically takes 5–30 s, but large runs with many
-	// artifact sets can take longer.  5 minutes gives ample headroom while still
-	// bounding the subprocess lifetime.
-	defaultMCPAuditTimeoutMinutes = 5
+	// Leave time to return an incomplete envelope before the default 60s RPC limit.
+	defaultMCPAuditResponseTimeout = 55 * time.Second
+	mcpAuditResponseMargin         = 5 * time.Second
 	// defaultMCPAuditDiffTimeoutMinutes is the default subprocess timeout for the
 	// audit-diff tool.  5 minutes gives ample headroom for the artifact-download
 	// and diff steps while still bounding the subprocess lifetime.
@@ -555,7 +553,22 @@ Single-run returns JSON with:
 - experiments: A/B experiment assignments if present (assignments map, cumulative_counts map)
 - graders: Deterministic grader results if present (results with id, name, status, value, unit, passed, direction, threshold, plus aggregate counts: total, passed, failed, error_count, unavailable_count)
 
-Multi-run diff returns JSON describing changes between the base and each comparison run.`
+Multi-run diff returns JSON describing changes between the base and each comparison run.
+
+Audit reserves response time before the default 60-second tool deadline. On timeout,
+returns an error envelope with partial:true and complete:false, plus partial_results
+when single-run metadata or analysis results are available. Incomplete results are
+not complete audit reports. Retry to reuse downloaded artifacts, or narrow artifacts.`
+
+func mcpAuditResponseDeadline(ctx context.Context) time.Time {
+	responseDeadline := time.Now().Add(defaultMCPAuditResponseTimeout)
+	if deadline, ok := ctx.Deadline(); ok {
+		if earlier := deadline.Add(-mcpAuditResponseMargin); earlier.Before(responseDeadline) {
+			return earlier
+		}
+	}
+	return responseDeadline
+}
 
 // newAuditToolHandler builds the handler for the audit tool.
 func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, auditArgs) (*mcp.CallToolResult, any, error) {
@@ -582,11 +595,16 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 		}
 
 		cmdArgs := buildAuditCommandArgs(args, runItems)
+		responseDeadline := mcpAuditResponseDeadline(ctx)
+		timeout := time.Until(responseDeadline)
+		if timeout <= mcpAuditResponseMargin {
+			return buildAuditErrorResult(context.DeadlineExceeded, "", runItems)
+		}
+		cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
 
 		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
-		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
-		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
+		subCtx, subCancel := context.WithDeadline(ctx, responseDeadline)
 		defer subCancel()
 
 		// Execute the CLI command.
@@ -600,6 +618,9 @@ func newAuditToolHandler(execCmd execCmdFunc, actor string, validateActor bool) 
 		outputStr := string(stdout)
 
 		if execErr != nil {
+			if subCtx.Err() != nil {
+				execErr = subCtx.Err()
+			}
 			return buildAuditErrorResult(execErr, outputStr, runItems)
 		}
 
@@ -667,9 +688,8 @@ func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 
 // buildAuditErrorResult converts a failed audit subprocess execution into a JSON
 // error envelope instead of an MCP protocol error so callers always receive
-// consistent JSON and the run IDs are always present. IsError must be false so
-// that callers (e.g. mcp_cli_bridge) treat this as a graceful not-found /
-// failure response rather than a fatal protocol error.
+// consistent JSON and the run IDs are always present. Timeouts are tool errors;
+// other failures retain the existing graceful JSON error envelope.
 func buildAuditErrorResult(err error, outputStr string, runItems []string) (*mcp.CallToolResult, any, error) {
 	// Try to get stderr for message extraction
 	var stderr string
@@ -701,12 +721,27 @@ func buildAuditErrorResult(err error, outputStr string, runItems []string) (*mcp
 			"Use the 'logs' tool to list recent run IDs",
 		},
 	}
+	var partial map[string]any
+	if json.Unmarshal([]byte(outputStr), &partial) == nil && partial["partial"] == true && partial["complete"] == false {
+		errorEnvelope["partial"] = true
+		errorEnvelope["complete"] = false
+		errorEnvelope["partial_results"] = partial
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errorEnvelope["partial"] == true {
+		errorEnvelope["partial"] = true
+		errorEnvelope["complete"] = false
+		errorEnvelope["error"] = "audit timed out before analysis completed"
+		errorEnvelope["suggestions"] = []string{
+			"Retry the same audit to reuse downloaded artifacts",
+			"Request fewer artifact sets with artifacts",
+		}
+	}
 	jsonBytes, jsonErr := json.Marshal(errorEnvelope)
 	if jsonErr != nil {
 		return nil, nil, newMCPError(jsonrpc.CodeInternalError, errorMsg, nil)
 	}
 	return &mcp.CallToolResult{
-		IsError: false,
+		IsError: errorEnvelope["partial"] == true,
 		Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 	}, nil, nil
 }

@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -31,22 +32,22 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) (bool
 		return false, err
 	}
 	if err := ensureAuditNotCancelled(ctx); err != nil {
-		return false, err
+		return false, renderIncompleteAuditIfTimedOut(cfg, WorkflowRun{}, auditAnalysisResults{}, "metadata", err)
 	}
 	announceAuditRun(cfg)
 	if cfg.jobID > 0 {
 		return false, auditJobRun(cfg.jobOptions())
 	}
 	if done, skipped, err := renderCachedAuditIfAvailable(ctx, cfg); done {
-		return skipped, err
+		return skipped, renderIncompleteAuditIfTimedOut(cfg, WorkflowRun{}, auditAnalysisResults{}, "cached_report", err)
 	}
 	run, err := prepareAuditWorkflowRun(ctx, cfg)
 	if err != nil {
-		return false, err
+		return false, renderIncompleteAuditIfTimedOut(cfg, run, auditAnalysisResults{}, "artifacts", err)
 	}
 	results, err := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName.String(), cfg.artifactFilter))
 	if err != nil {
-		return false, err
+		return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "analysis", err)
 	}
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
@@ -57,7 +58,39 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) (bool
 	if shouldSkipForEvals(ctx, cfg, run) {
 		return true, nil
 	}
-	return false, renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
+	err = renderAuditReport(ctx, processedRun, results.metrics, results.mcpToolUsage, cfg.auditOptions())
+	return false, renderIncompleteAuditIfTimedOut(cfg, run, results, "report", err)
+}
+
+// Incomplete reports are never written to the full-audit or run-summary caches.
+func renderIncompleteAuditIfTimedOut(cfg auditRunConfig, run WorkflowRun, results auditAnalysisResults, stage string, err error) error {
+	if !cfg.jsonOutput || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	if run.DatabaseID == 0 {
+		run.DatabaseID = cfg.runID
+	}
+	envelope := map[string]any{
+		"partial":  true,
+		"complete": false,
+		"error":    "audit timed out before analysis completed",
+		"stage":    stage,
+		"overview": buildAuditOverview(run, nil),
+		"suggestions": []string{
+			"Retry the same audit to reuse downloaded artifacts",
+			"Request fewer artifact sets with artifacts",
+		},
+	}
+	if stage == "analysis" || stage == "report" {
+		envelope["jobs"] = buildAuditJobs(results.jobDetails)
+		envelope["missing_tools"] = results.missingTools
+		envelope["missing_data"] = results.missingData
+		envelope["mcp_failures"] = results.mcpFailures
+	}
+	if encodeErr := json.NewEncoder(os.Stdout).Encode(envelope); encodeErr != nil {
+		return errors.Join(err, fmt.Errorf("failed to write incomplete audit: %w", encodeErr))
+	}
+	return err
 }
 
 func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
@@ -317,7 +350,7 @@ func prepareAuditWorkflowRun(ctx context.Context, cfg auditRunConfig) (WorkflowR
 	if !useLocalCache {
 		useLocalCache, err = downloadAuditArtifactsIfNeeded(ctx, cfg, run, hasLocalCache)
 		if err != nil {
-			return WorkflowRun{}, err
+			return run, err
 		}
 	}
 	return prepareRunForAnalysis(run, cfg, useLocalCache), nil
