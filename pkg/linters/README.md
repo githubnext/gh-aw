@@ -82,6 +82,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `unchecked_deferredclose` — reports deferred `Close()` calls that ignore error return values.
 - `uncheckedtypeassertion` — reports single-value type assertions where unchecked panics are possible.
 - `uncheckedflushreturn` — reports `Flush()` method calls where the error return is discarded, which silently drops buffered data on failure.
+- `walkdirignoredeerror` — reports `filepath.Walk` and `filepath.WalkDir` calls where the error return is discarded, hiding traversal failures. The analyzer lives in `walk-dir-ignored-error`.
 - `wgdonenotdeferred` — reports non-deferred `sync.WaitGroup.Done()` calls that can deadlock on panics or early returns.
 - `writebytestring` — reports `w.Write([]byte(s))` calls where `s` is a string, which can be replaced with `io.WriteString` to avoid an unnecessary `[]byte` allocation.
 - `internal` — shared helper packages for analyzers (file checks, `nolint` handling, and coverage-aware perf gating).

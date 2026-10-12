@@ -173,6 +173,47 @@ func f() {
 	}
 }
 
+func TestMatchDiscardedErrorCallParenthesized(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		stmt   string
+		wantOK bool
+	}{
+		{name: "bare", stmt: `conv.Atoi("1")`, wantOK: true},
+		{name: "parenthesized-bare", stmt: `(conv.Atoi("1"))`, wantOK: true},
+		{name: "nested-bare", stmt: `((conv.Atoi("1")))`, wantOK: true},
+		{name: "parenthesized-assignment", stmt: `_, _ = (conv.Atoi("1"))`, wantOK: true},
+		{name: "nested-assignment", stmt: `_, _ = ((conv.Atoi("1")))`, wantOK: true},
+		{name: "handled-error", stmt: `_, err = ((conv.Atoi("1")))`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			pass, file := typecheckSnippet(t, `package p
+import conv "strconv"
+var err error
+func f() { `+tt.stmt+` }`)
+			var stmt ast.Stmt
+			ast.Inspect(file, func(node ast.Node) bool {
+				if fn, ok := node.(*ast.FuncDecl); ok {
+					stmt = fn.Body.List[0]
+					return false
+				}
+				return true
+			})
+			call, pkgPath, funcName, ok := MatchDiscardedErrorCall(pass, stmt)
+			if ok != tt.wantOK {
+				t.Fatalf("MatchDiscardedErrorCall() matched = %v, want %v", ok, tt.wantOK)
+			}
+			if ok && (call == nil || pkgPath != "strconv" || funcName != "Atoi") {
+				t.Fatalf("MatchDiscardedErrorCall() = (%v, %q, %q), want a strconv.Atoi call", call, pkgPath, funcName)
+			}
+		})
+	}
+}
+
 func TestIsStringLiteral(t *testing.T) {
 	t.Parallel()
 
