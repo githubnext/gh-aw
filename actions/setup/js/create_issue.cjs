@@ -17,7 +17,7 @@ const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount, linkSubIssue } = require("./sub_issue_helpers.cjs");
-const { closeOlderIssues, searchOlderIssues, addIssueComment } = require("./close_older_issues.cjs");
+const { closeOlderIssues, searchOlderIssues } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -1149,7 +1149,12 @@ async function main(config = {}) {
         });
         if (todayIssue) {
           core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
-          const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
+          const { data: comment } = await githubClient.rest.issues.createComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: todayIssue.number,
+            body,
+          });
           core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
           // No issue was created (content was grouped into a comment), so free
           // the reserved slot for subsequent create_issue calls.
@@ -1402,7 +1407,7 @@ async function main(config = {}) {
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: effectiveParentIssueNumber,
-              body: `Created related issue: #${issue.number}`,
+              body: appendExecutionProvenance(`Created related issue: #${issue.number}`, workflowName, runUrl),
             });
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {

@@ -11,6 +11,14 @@ export const executionEnv = {
   GITHUB_SERVER_URL: "https://github.com",
 };
 
+export const requiredExecutionEnvKeys = Object.keys(executionEnv).filter(key => key !== "GITHUB_SERVER_URL");
+
+export async function expectMissingRuntimeFailure(invoke, key) {
+  vi.stubEnv(key, undefined);
+  const result = await invoke().catch(error => ({ success: false, error: error.message }));
+  expect(result).toEqual(expect.objectContaining({ success: false, error: expect.stringContaining(key) }));
+}
+
 export function useExecutionProvenanceFixture() {
   beforeEach(() => {
     for (const [key, value] of Object.entries(executionEnv)) {

@@ -84,27 +84,31 @@ func TestSafeOutputsPublishingJobIdentity(t *testing.T) {
 func TestSafeOutputsReplayPublishingJobIdentity(t *testing.T) {
 	opts := buildMaintenanceWorkflowYAMLOptions{runsOnValue: "ubuntu-latest"}
 	for _, tc := range []struct {
-		name     string
-		jobKey   string
-		stepName string
-		content  string
+		name       string
+		jobKey     string
+		stepName   string
+		workflowID string
+		content    string
 	}{
 		{
-			name:     "maintenance dispatch",
-			jobKey:   "apply_safe_outputs",
-			stepName: "Apply Safe Outputs",
-			content:  buildMaintenanceApplySafeOutputsJob(opts, "./actions/setup"),
+			name:       "maintenance dispatch",
+			jobKey:     "apply_safe_outputs",
+			stepName:   "Apply Safe Outputs",
+			workflowID: "agentics-maintenance",
+			content:    buildMaintenanceApplySafeOutputsJob(opts, "./actions/setup"),
 		},
 		{
-			name:     "maintenance label",
-			jobKey:   "label_apply_safe_outputs",
-			stepName: "Apply safe outputs from referenced run",
-			content:  buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
+			name:       "maintenance label",
+			jobKey:     "label_apply_safe_outputs",
+			stepName:   "Apply safe outputs from referenced run",
+			workflowID: "agentics-maintenance",
+			content:    buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
 		},
 		{
-			name:     "side repository",
-			jobKey:   "apply_safe_outputs",
-			stepName: "Apply Safe Outputs",
+			name:       "side repository",
+			jobKey:     "apply_safe_outputs",
+			stepName:   "Apply Safe Outputs",
+			workflowID: "agentics-maintenance-owner-target",
 			content: "  apply_safe_outputs:\n    steps:\n" + buildApplySafeOutputsStep(sideRepoMaintenanceRenderContext{
 				repoSlug: "owner/target",
 				token:    "${{ secrets.GITHUB_TOKEN }}",
@@ -119,6 +123,11 @@ func TestSafeOutputsReplayPublishingJobIdentity(t *testing.T) {
 			job, ok := parsed.Jobs[tc.jobKey]
 			require.True(t, ok)
 			assertPublishingStepIdentity(t, job, tc.stepName)
+			for _, step := range job.Steps {
+				if step.Name == tc.stepName {
+					assert.Equal(t, tc.workflowID, step.Env["GH_AW_WORKFLOW_ID"])
+				}
+			}
 			assert.Equal(t, 1, strings.Count(tc.content, "GH_AW_JOB_CHECK_RUN_ID:"))
 		})
 	}

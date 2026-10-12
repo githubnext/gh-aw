@@ -4,7 +4,7 @@ import { createRequire } from "module";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { expectExecutionProvenance, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+import { expectExecutionProvenance, expectMissingRuntimeFailure, requiredExecutionEnvKeys, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
 
 useExecutionProvenanceFixture();
 
@@ -80,6 +80,18 @@ describe("create_pull_request - body sanitization", () => {
     delete global.context;
     delete global.exec;
     vi.clearAllMocks();
+  });
+
+  it.each(requiredExecutionEnvKeys)("should not publish a PR or fallback issue when %s is missing", async key => {
+    global.github.rest.issues.create = vi.fn();
+    await expectMissingRuntimeFailure(async () => {
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({ allow_empty: true });
+      return handler({ title: "Missing runtime", body: "PR content" }, {});
+    }, key);
+
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+    expect(global.github.rest.issues.create).not.toHaveBeenCalled();
   });
 
   it.each([

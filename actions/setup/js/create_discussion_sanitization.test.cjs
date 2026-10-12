@@ -1,7 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
-import { expectExecutionProvenance, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+import { expectExecutionProvenance, expectMissingRuntimeFailure, requiredExecutionEnvKeys, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
 
 useExecutionProvenanceFixture();
 
@@ -105,6 +105,17 @@ describe("create_discussion body sanitization", () => {
     }
     Object.assign(process.env, originalEnv);
     vi.clearAllMocks();
+  });
+
+  it.each(requiredExecutionEnvKeys)("should not publish a discussion or fallback issue when %s is missing", async key => {
+    mockGithub.rest.issues = { create: vi.fn() };
+    await expectMissingRuntimeFailure(async () => {
+      const handler = await createDiscussionMain({ category: "general", fallback_to_issue: true });
+      return handler({ title: "Missing runtime", body: "Discussion content" }, {});
+    }, key);
+
+    expect(mockGithub.graphql.mock.calls.some(call => call[0].includes("createDiscussion"))).toBe(false);
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
   it.each([

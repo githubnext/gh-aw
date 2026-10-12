@@ -50,6 +50,8 @@ The runtime's `execution_provenance.cjs` exports `resolvePublishingJobId(github,
 
 The marker describes execution, not authorship. The triggering `github.actor` is not the publishing bot or App; use the artifact's GitHub author identity for the publisher. Recompile older workflows to provide the required publishing check-run context.
 
+Maintenance replays record the publishing maintenance workflow's identifier, repository, run, attempt, and check run—not the earlier run whose agent output is being replayed.
+
 ### Searching for Workflow-Created Items
 
 Use the `gh-aw-workflow-id` marker (the workflow filename without `.md`) to find items in GitHub search:

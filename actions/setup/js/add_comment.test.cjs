@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
-import { expectExecutionProvenance, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+import { expectExecutionProvenance, expectMissingRuntimeFailure, requiredExecutionEnvKeys, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
 
 useExecutionProvenanceFixture();
 
@@ -3493,6 +3493,23 @@ describe("add_comment", () => {
   });
 
   describe("footer configuration", () => {
+    it.each(requiredExecutionEnvKeys)("should not publish or update a comment when %s is missing", async key => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      mockGithub.rest.issues.createComment = vi.fn(mockGithub.rest.issues.createComment);
+      mockGithub.rest.issues.updateComment = vi.fn(mockGithub.rest.issues.updateComment);
+      mockGithub.rest.pulls.createReplyForReviewComment = vi.fn(mockGithub.rest.pulls.createReplyForReviewComment);
+      mockGithub.graphql = vi.fn(mockGithub.graphql);
+      await expectMissingRuntimeFailure(async () => {
+        const handler = await eval(`(async () => { ${script}; return await main({}); })()`);
+        return handler({ type: "add_comment", body: "Missing runtime" }, {});
+      }, key);
+
+      expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.updateComment).not.toHaveBeenCalled();
+      expect(mockGithub.rest.pulls.createReplyForReviewComment).not.toHaveBeenCalled();
+      expect(mockGithub.graphql.mock.calls.some(call => call[0].includes("addDiscussionComment"))).toBe(false);
+    });
+
     it.each(
       ["create", "status update", "discussion fallback"].flatMap(mode =>
         [
