@@ -89,7 +89,7 @@ Reload VS Code after making changes.
 
 ## Configuring with Docker
 
-If `gh` is not installed locally, use the `ghcr.io/github/gh-aw` Docker image. The image ships with the GitHub CLI and gh-aw pre-installed and uses `mcp-server` as the default command.
+If `gh` is not installed locally, use the `ghcr.io/github/gh-aw` Docker image. The image ships with the GitHub CLI, gh-aw, and native ShellCheck pre-installed and uses `mcp-server` as the default command. Strict dry-run compilation keeps ShellCheck validation enabled without requiring Docker-in-Docker; missing required scanners remain errors.
 
 ```json wrap
 {
@@ -127,6 +127,8 @@ The MCP server exposes these workflow-management tools:
 > The `actionlint`, `zizmor`, and `poutine` scanners used by `compile` prefer compatible local binaries on `PATH` (actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6), falling back to Docker otherwise. Docker-based scanners, including `grant`, pull images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.
 
 For `audit`, each run identifier may be a numeric run ID, a run URL, a job URL, or a job URL with a step anchor such as `https://github.com/owner/repo/actions/runs/123/job/456#step:7:1`.
+
+The MCP `audit` tool reserves time to respond before the default 60-second tool deadline. Timeout responses are tool errors with `partial: true`, `complete: false`, an `error`, and recovery `suggestions`. When available, `partial_results` contains single-run metadata and collected analysis results; it is not a complete audit report and is never stored as a full-audit cache entry. Retry the same audit to reuse downloaded artifacts, or narrow `artifacts`. CLI callers can set a separate duration with `gh aw audit <run-id> --json --timeout 50s`; timeout still exits unsuccessfully while returning available single-run data.
 
 If `compile` fails before producing JSON, its fallback errors prioritize the actionable cause and remediation rather than debug stderr. Each diagnostic is limited to 4 KiB, and the fallback JSON is limited to 48 KiB. Omitted debug output or oversized diagnostics are marked explicitly. If per-workflow errors exceed that budget, the response contains one invalid `scope: "batch"` compile result with the affected workflow count. Structured compiler and scanner results are not subject to this fallback budget. The deprecated `compile` parameter `max_tokens` remains ignored.
 
