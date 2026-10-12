@@ -8405,6 +8405,10 @@
                     }
                   ]
                 },
+                "replace-older-comments": {
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, replaces the newest comment on the target issue or pull request with a matching workflow-call-id marker, or creates one if none exists. Cannot be enabled together with hide-older-comments. Default: false."
+                },
                 "allows-comment-ids": {
                   "type": "array",
                   "description": "Trusted allowlist of issue or pull request comment IDs the agent may update when target is '*'.",
@@ -8493,6 +8497,9 @@
                 }
               },
               "additionalProperties": false,
+              "not": {
+                "required": ["hide-older-comments", "replace-older-comments"]
+              },
               "examples": [
                 {
                   "max": 1,

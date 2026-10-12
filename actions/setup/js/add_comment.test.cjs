@@ -3548,6 +3548,84 @@ describe("add_comment", () => {
     });
   });
 
+  describe("replace-older-comments behavior", () => {
+    it("updates the newest comment with the same caller marker and refreshes its footer", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const oldCaller = process.env.GH_AW_CALLER_WORKFLOW_ID;
+      const oldWorkflow = process.env.GH_AW_WORKFLOW_ID;
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
+      process.env.GH_AW_WORKFLOW_ID = "shared-workflow";
+      try {
+        mockGithub.rest.issues.listComments = vi.fn(async ({ page }) => ({
+          data:
+            page === 1
+              ? [{ id: 1, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" }, ...Array.from({ length: 99 }, (_, index) => ({ id: index + 2, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" }))]
+              : page === 2
+                ? [{ id: 101, body: "<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->" }]
+                : [],
+        }));
+        mockGithub.rest.issues.updateComment = vi.fn(async ({ comment_id }) => ({
+          data: { id: comment_id, html_url: `https://github.com/owner/repo/issues/8535#issuecomment-${comment_id}` },
+        }));
+        mockGithub.rest.issues.createComment = vi.fn();
+        const handler = await eval(`(async () => { ${script}; return await main({ replace_older_comments: true }); })()`);
+        const result = await handler({ type: "add_comment", body: "Fresh risk rating" }, {});
+        expect(result.success).toBe(true);
+        expect(result.commentId).toBe(101);
+        expect(mockGithub.rest.issues.updateComment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            comment_id: 101,
+            body: expect.stringContaining("Fresh risk rating"),
+          })
+        );
+        expect(mockGithub.rest.issues.updateComment.mock.calls[0][0].body).toContain("<!-- gh-aw-workflow-call-id: owner/repo/MyWorkflow -->");
+        expect(mockGithub.rest.issues.updateComment.mock.calls[0][0].body).toContain("/actions/runs/12345");
+        expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+        expect(mockGithub.rest.issues.listComments).toHaveBeenCalledTimes(2);
+      } finally {
+        if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;
+        if (oldWorkflow === undefined) delete process.env.GH_AW_WORKFLOW_ID;
+        else process.env.GH_AW_WORKFLOW_ID = oldWorkflow;
+      }
+    });
+
+    it("creates a comment when no caller marker matches", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const oldCaller = process.env.GH_AW_CALLER_WORKFLOW_ID;
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "owner/repo/MyWorkflow";
+      try {
+        mockGithub.rest.issues.listComments = vi.fn(async () => ({
+          data: [{ id: 2, body: "<!-- gh-aw-workflow-call-id: owner/repo/OtherWorkflow -->" }],
+        }));
+        mockGithub.rest.issues.updateComment = vi.fn();
+        mockGithub.rest.issues.createComment = vi.fn(mockGithub.rest.issues.createComment);
+        const handler = await eval(`(async () => { ${script}; return await main({ replace_older_comments: true }); })()`);
+        expect((await handler({ type: "add_comment", body: "Fresh rating" }, {})).success).toBe(true);
+        expect(mockGithub.rest.issues.createComment).toHaveBeenCalledOnce();
+        expect(mockGithub.rest.issues.updateComment).not.toHaveBeenCalled();
+      } finally {
+        if (oldCaller === undefined) delete process.env.GH_AW_CALLER_WORKFLOW_ID;
+        else process.env.GH_AW_CALLER_WORKFLOW_ID = oldCaller;
+      }
+    });
+
+    it("does not look up or edit comments in staged mode", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      mockGithub.rest.issues.listComments = vi.fn();
+      mockGithub.rest.issues.updateComment = vi.fn();
+      const handler = await eval(`(async () => { ${script}; return await main({ replace_older_comments: true, staged: true }); })()`);
+      expect((await handler({ type: "add_comment", body: "Preview" }, {})).staged).toBe(true);
+      expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.updateComment).not.toHaveBeenCalled();
+    });
+
+    it("rejects simultaneous hiding and replacement", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      await expect(eval(`(async () => { ${script}; return await main({ hide_older_comments: true, replace_older_comments: true }); })()`)).rejects.toThrow("replace-older-comments cannot be combined with hide-older-comments");
+    });
+  });
+
   describe("hide-older-comments behavior", () => {
     it("should normalize workflow ID match lists", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");

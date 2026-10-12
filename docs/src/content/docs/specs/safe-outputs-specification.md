@@ -2429,6 +2429,7 @@ These extensions apply to safe-output processor messages for `add_comment` (incl
 5. When an agent supplies `comment_id`, implementations MUST reject the operation unless `safe-outputs.add-comment.allows-comment-ids` is configured and contains that exact positive integer ID. The allowlist is trusted workflow state and MAY be computed by earlier workflow steps.
 6. Agent-supplied `comment_id` MUST NOT be honored for discussion comments and MUST NOT be treated as a substitute for the trusted status comment ID used by `target: "status"`.
 7. When updating an existing comment through either controlled reuse path, implementations SHOULD skip hide-older-comments behavior for that operation.
+8. With `replace-older-comments: true`, implementations MUST update the newest issue/PR comment on the target item whose `gh-aw-workflow-call-id` marker matches the current caller workflow, or create a new comment if none matches. When no caller ID is available, implementations MAY use the workflow ID marker instead. The replacement MUST include the newly generated body, footer, and markers; staged mode MUST NOT perform the lookup or update. Explicit trusted comment reuse takes precedence.
 
 **Enforced Constraints**:
 
@@ -2446,6 +2447,7 @@ These extensions apply to safe-output processor messages for `add_comment` (incl
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `allows-comment-ids`: Trusted allowlist of issue/PR comment IDs that the agent may update with `comment_id` when `target: "*"` is configured. This field is REQUIRED before any agent-supplied `comment_id` is honored. Accepts an array of positive integer IDs, strings containing positive integer IDs, or a GitHub Actions expression that resolves to such a list.
 - `hide-older-comments`: Hide previous workflow comments
+- `replace-older-comments`: Replace the newest matching issue/PR comment instead of creating another (default: false). MUST NOT be enabled together with `hide-older-comments`.
 - `discussions`: Control `discussions:write` permission (default: false). Set to `true` to comment on discussions.
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
