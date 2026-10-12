@@ -65,7 +65,7 @@ func checkDiscardedJSONAssign(pass *analysis.Pass, assign *ast.AssignStmt, noLin
 				rhs = expr
 				break
 			}
-			call, ok := rhs.(*ast.CallExpr)
+			call, ok := astutil.UnwrapParenExpr(rhs).(*ast.CallExpr)
 			if ok && isJSONFunc(pass, call, "Unmarshal") {
 				reportDiscardedJSONCall(pass, call, noLintIndex, "error return from json.Unmarshal is discarded; unmarshal failures leave the target value in a partial state")
 			}

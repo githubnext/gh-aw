@@ -72,7 +72,7 @@ func analyzeAssignStmt(pass *analysis.Pass, assign *ast.AssignStmt, generatedFil
 // analyzeExprStmt checks for patterns like:
 // filepath.Walk(...) or filepath.WalkDir(...) (bare call with error ignored)
 func analyzeExprStmt(pass *analysis.Pass, exprStmt *ast.ExprStmt, generatedFiles filecheck.GeneratedIndex, nolintIndex nolint.DirectiveIndex) {
-	call, ok := exprStmt.X.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(exprStmt.X).(*ast.CallExpr)
 	if !ok {
 		return
 	}

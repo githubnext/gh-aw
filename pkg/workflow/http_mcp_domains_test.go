@@ -228,7 +228,7 @@ func TestGetClaudeAllowedDomainsWithTools(t *testing.T) {
 
 	// Should include explicitly requested Claude domain set, Node ecosystem, and example HTTP MCP domain
 	require.Contains(t, result, "mcp.example.org", "Should include HTTP MCP domain")
-	require.Contains(t, result, "anthropic.com", "Should include Claude domain set")
+	require.NotContains(t, result, "api.anthropic.com", "Static Claude domain set should exclude Anthropic's API")
 	require.Contains(t, result, "registry.npmjs.org", "Should include Node ecosystem")
 }
 
