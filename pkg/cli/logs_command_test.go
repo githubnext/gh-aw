@@ -136,7 +136,7 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"repo", ""},
 		{"artifacts", "[usage]"},
 		{"max-github-api-rate-limit", "0"},
-		{"max-storage", "0"},
+		{"max-storage", "1024"},
 		{"prune-older-runs", "false"},
 		{"cached-jsonl", ""},
 		{"drain3-weights", ""},
@@ -163,6 +163,36 @@ func TestLogsCommandResourceBudgetFlags(t *testing.T) {
 	assert.Equal(t, -2000, opts.MaxGitHubAPIRateLimit)
 	assert.Equal(t, 10240, opts.MaxStorageMB)
 	assert.True(t, opts.PruneOlderRuns)
+}
+
+func TestLogsCommandStorageBudgetDefaultsAndOverrides(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name string
+		flag string
+		want int
+	}{
+		{name: "default", want: 1024},
+		{name: "unlimited", flag: "0", want: 0},
+		{name: "larger budget", flag: "2048", want: 2048},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cmd := NewLogsCommand()
+			if tt.flag != "" {
+				require.NoError(t, cmd.Flags().Set("max-storage", tt.flag))
+			}
+			opts, err := loadCommonLogsOptions(cmd)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, opts.MaxStorageMB)
+			assert.Equal(t, tt.flag != "", opts.MaxStorageMBSet)
+			assert.Equal(t, tt.want, normalizeLogsDownloadOptions(opts).MaxStorageMB)
+			stdinOpts, err := loadStdinLogsOptions(cmd)
+			require.NoError(t, err)
+			assert.Equal(t, tt.flag != "", stdinOpts.MaxStorageMBSet)
+			assert.Equal(t, tt.want, normalizeStdinLogsOptions(stdinOpts).MaxStorageMB)
+		})
+	}
 }
 
 func TestLogsCommandCachedJSONLOption(t *testing.T) {

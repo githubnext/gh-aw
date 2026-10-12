@@ -87,6 +87,7 @@ import (
 	uncheckedsliceindex "github.com/github/gh-aw/pkg/linters/unchecked-slice-index"
 	"github.com/github/gh-aw/pkg/linters/uncheckedflushreturn"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
+	walkdirignoredeerror "github.com/github/gh-aw/pkg/linters/walk-dir-ignored-error"
 	"github.com/github/gh-aw/pkg/linters/walkfuncerrshadow"
 	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/writebytestring"
@@ -105,7 +106,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 79 analyzer
+// "Public API > Subpackages" table. The README documents 80 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -117,7 +118,7 @@ type docAnalyzer struct {
 //	logfatallibrary, manualmutexunlock, manualpathconcat, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
 //	reflectdeepequalusage, regexpcompileinfunction, regexpdynamicpattern, seenmapbool, slicemakezerolength, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
 //	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
-//	tolowerequalfold, trimleftright, typeassertionnil, typeassertionokdiscarded, unchecked_deferredclose, uncheckedflushreturn, uncheckedsliceindex, uncheckedtypeassertion, walkfuncerrshadow, wgdonenotdeferred, writebytestring
+//	tolowerequalfold, trimleftright, typeassertionnil, typeassertionokdiscarded, unchecked_deferredclose, uncheckedflushreturn, uncheckedsliceindex, uncheckedtypeassertion, walkdirignoredeerror, walkfuncerrshadow, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
 		{"appendbytestring", appendbytestring.Analyzer},
@@ -196,6 +197,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"uncheckedsliceindex", uncheckedsliceindex.Analyzer},
 		{"uncheckedtypeassertion", uncheckedtypeassertion.Analyzer},
 		{"uncheckedflushreturn", uncheckedflushreturn.Analyzer},
+		{"walkdirignoredeerror", walkdirignoredeerror.Analyzer},
 		{"walkfuncerrshadow", walkfuncerrshadow.Analyzer},
 		{"wgdonenotdeferred", wgdonenotdeferred.Analyzer},
 		{"writebytestring", writebytestring.Analyzer},

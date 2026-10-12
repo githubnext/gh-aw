@@ -318,7 +318,7 @@ func TestWorkQueueControlsRunAfterCompletionWithBoundedCompilerConfiguration(t *
 	require.Contains(t, step, "requireAssignment: true")
 	require.NotContains(t, step, "authorized")
 	require.Equal(t, 1, strings.Count(step, "const { setupGlobals }"))
-	require.Equal(t, 1, strings.Count(step, "setupGlobals(core, github, context, exec, io, getOctokit);"))
+	require.Equal(t, 1, strings.Count(step, "setupGlobals(core, github, context, exec, io, getOctokit, process.env.GH_AW_GITHUB_TOKEN_SOURCE);"))
 	steps, err := compiler.buildSafeOutputsSetupAndDownloadSteps(data, "")
 	require.NoError(t, err)
 	all := strings.Join(steps, "")

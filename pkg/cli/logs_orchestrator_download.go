@@ -197,6 +197,7 @@ type processWorkflowRunBatchOptions struct {
 }
 
 func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDownloadRuntime, error) {
+	opts = normalizeLogsDownloadOptions(opts)
 	logLogsDownloadStart(opts)
 	if err := validateMaxStorageMB(opts.MaxStorageMB); err != nil {
 		return logsDownloadRuntime{}, err
