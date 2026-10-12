@@ -117,6 +117,35 @@ func TestProcessWorkflowFileWithInfo_RejectsNonConvergingCodemods(t *testing.T) 
 	assert.Equal(t, content, string(unchanged))
 }
 
+func TestProcessWorkflowFileWithInfo_StopsAfterThreePasses(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "workflow.md")
+	content := "---\nstage: 0\n---\nBody\n"
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+	transitions := [][2]string{
+		{"stage: 0", "stage: 1"},
+		{"stage: 1", "stage: 2"},
+		{"stage: 2", "stage: 3"},
+		{"stage: 3", "stage: 4"},
+	}
+	calls := 0
+	codemods := []Codemod{{
+		ID: "advance-stage", Name: "Advance stage",
+		Apply: func(content string, _ map[string]any) (string, bool, error) {
+			from, to := transitions[calls][0], transitions[calls][1]
+			calls++
+			updated := strings.Replace(content, from, to, 1)
+			return updated, updated != content, nil
+		},
+	}}
+
+	_, _, err := processWorkflowFileWithInfo(file, codemods, true, false)
+	require.ErrorContains(t, err, "did not converge")
+	assert.Equal(t, maxCodemodPasses, calls)
+	unchanged, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(unchanged))
+}
+
 func TestFixCommand_TimeoutMinutesMigration(t *testing.T) {
 	t.Parallel()
 	// Create a temporary directory for test files

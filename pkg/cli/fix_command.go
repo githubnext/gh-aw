@@ -346,13 +346,15 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 	return true, appliedCodemods, nil
 }
 
+const maxCodemodPasses = 3
+
 func applyCodemodsUntilStable(content, filePath string, codemods []Codemod) (string, []string, error) {
 	currentContent := content
 	var appliedCodemods []string
 	// Repeat the registry because a later codemod can enable an earlier one.
-	// Repeated content or more passes than codemods indicates a non-converging registry.
+	// Repeated content or reaching the pass limit indicates a non-converging registry.
 	seen := make(map[string]struct{})
-	for pass := 0; pass <= len(codemods); pass++ {
+	for pass := 0; pass < maxCodemodPasses; pass++ {
 		if _, exists := seen[currentContent]; exists {
 			return "", nil, fmt.Errorf("codemods did not converge for %s", filepath.Base(filePath))
 		}
@@ -392,7 +394,7 @@ func applyCodemodsUntilStable(content, filePath string, codemods []Codemod) (str
 		if currentContent == passStart {
 			break
 		}
-		if pass == len(codemods) {
+		if pass == maxCodemodPasses-1 {
 			return "", nil, fmt.Errorf("codemods did not converge for %s", filepath.Base(filePath))
 		}
 	}
