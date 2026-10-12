@@ -97,7 +97,8 @@ The package is designed to adapt to the execution environment. Native builds det
 | `RenderErrorBox` | `func RenderErrorBox(title string) []string` | Renders an error-emphasis box, with TTY and plain-text variants. |
 | `RenderInfoSection` | `func RenderInfoSection(content string) []string` | Renders an informational section with left-border emphasis or plain indentation. |
 | `RenderStruct` | `func RenderStruct(v any) string` | Reflectively renders structs, slices, arrays, and maps into structured console output. |
-| `RenderStructStderr` | `func RenderStructStderr(v any) string` | Renders reflected data and nested tables using stderr styling, preserving unbounded layout. |
+| `RenderTableStdout` | `func RenderTableStdout(config TableConfig) string` | Renders a table using stdout terminal/color detection; companion `Format*Stdout` helpers exist for the unsuffixed message formatters. |
+| `RenderStructStdout` | `func RenderStructStdout(v any) string` | Renders reflected data and nested tables using stdout terminal/color detection (via `RenderTableStdout`). |
 | `RenderStructWithOptions` | `func RenderStructWithOptions(v any, options RenderOptions) string` | Propagates an explicit destination and width budget through reflected output and nested tables. |
 | `RenderTable` | `func RenderTable(config TableConfig) string` | Renders a table from `TableConfig`, optionally including a title and total row. |
 | `RenderTableStderr` | `func RenderTableStderr(config TableConfig) string` | Uses stderr TTY/color detection with the caller's explicit width budget. WASM retains tab-separated output. |
