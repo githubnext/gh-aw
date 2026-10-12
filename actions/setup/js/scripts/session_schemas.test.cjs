@@ -90,7 +90,7 @@ describe("Generated session schemas", () => {
     expect(validateSession(jsonl([header, unified({ type: "vendor.progress", data: { arbitrary: { body: false } } })]))).toBe(2);
   });
 
-  it("validates optional episode lineage without accepting arbitrary caller context", () => {
+  it("validates optional caller context and episode lineage", () => {
     const canonical = {
       type: "workflow.info",
       data: {
@@ -99,6 +99,7 @@ describe("Generated session schemas", () => {
       },
     };
     const compact = normalizeUnifiedSessionEvent(canonical);
+    expect(compact.data.awContext).toEqual(canonical.data.context);
     expect(validateSession(jsonl([header, unified(compact)]))).toBe(2);
     expect(validateSession(jsonl([header, unified({ type: "workflow.info", data: {} })]))).toBe(2);
     expect(validateSession(jsonl([header, unified({ type: "workflow.info", data: { episode: null } })]))).toBe(2);
@@ -106,6 +107,10 @@ describe("Generated session schemas", () => {
       expect(() => validateSession(jsonl([header, unified({ type: "workflow.info", data: { episode } })]))).toThrow("Invalid session event");
     }
     expect(() => validateSession(jsonl([header, unified(canonical)]))).toThrow("Invalid session event");
+    expect(validateSession(jsonl([header, unified({ type: "workflow.info", data: { awContext: { nested: { values: [false, 0, null] } } } })]))).toBe(2);
+    for (const awContext of [null, [], "caller", false, 0]) {
+      expect(() => validateSession(jsonl([header, unified({ type: "workflow.info", data: { awContext } })]))).toThrow("Invalid session event");
+    }
   });
 
   it.each(["claude", "copilot", "codex", "gemini", "pi", "custom", "opencode", "goose"])("validates the %s parser's native passthrough and unified collection", engine => {

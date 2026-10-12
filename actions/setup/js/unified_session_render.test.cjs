@@ -222,7 +222,9 @@ describe("unified session publication views", () => {
         0
       ),
     ];
-    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
+    const normalized = mergeSessionSources([{ component: "workflow", phase: "activation", path: "aw_info.json", events: events.slice(1) }]);
+    expect(normalized[0].data.awContext.private).toBe("PRIVATE_CONTEXT");
+    for (const output of [generatePlainTextSummary([header, ...normalized]), generateCopilotCliStyleSummary([header, ...normalized])]) {
       expect(output).toContain("runId=300");
       expect(output).toContain("episodeId=100-1:root");
       expect(output).toContain("hopId=200-1:caller");
