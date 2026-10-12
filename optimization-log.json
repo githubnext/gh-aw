@@ -1,14 +1,5 @@
 [
   {
-    "date": "2026-06-23",
-    "workflow_name": "Smoke Copilot",
-    "workflow_file": "smoke-copilot",
-    "total_aic_analyzed": 976.926,
-    "runs_audited": 3,
-    "recommendations_count": 3,
-    "estimated_aic_savings_per_run": 40
-  },
-  {
     "date": "2026-06-24",
     "workflow_name": "Design Decision Gate 🏗️",
     "workflow_file": "design-decision-gate",
@@ -290,5 +281,15 @@
     "recommendations_count": 4,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 85
+  },
+  {
+    "date": "2026-10-12",
+    "workflow_name": "Contribution Check",
+    "workflow_file": "contribution-check",
+    "total_aic_analyzed": 42.196,
+    "runs_audited": 1,
+    "recommendations_count": 4,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 20
   }
 ]
