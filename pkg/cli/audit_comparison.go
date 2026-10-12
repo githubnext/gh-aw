@@ -610,14 +610,20 @@ func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun
 	return runs, nil
 }
 
-func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, currentSnapshot auditComparisonSnapshot, outputDir string, owner, repo, hostname string, verbose bool) *AuditComparisonData {
+func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, currentSnapshot auditComparisonSnapshot, outputDir string, owner, repo, hostname string, verbose bool) (*AuditComparisonData, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	baselineRuns, err := findPreviousSuccessfulWorkflowRuns(ctx, currentRun.Run, owner, repo, hostname)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		auditLog.Printf("Skipping audit comparison: failed to find baseline: %v", err)
-		return &AuditComparisonData{BaselineFound: false}
+		return &AuditComparisonData{BaselineFound: false}, nil
 	}
 	if len(baselineRuns) == 0 {
-		return &AuditComparisonData{BaselineFound: false}
+		return &AuditComparisonData{BaselineFound: false}, nil
 	}
 
 	candidates := make([]auditComparisonCandidate, 0, len(baselineRuns))
@@ -625,6 +631,9 @@ func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, cu
 		baselineOutputDir := filepath.Join(outputDir, fmt.Sprintf("baseline-%d", baselineRun.DatabaseID))
 		if _, err := os.Stat(baselineOutputDir); err != nil {
 			if downloadErr := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: baselineRun.DatabaseID, outputDir: baselineOutputDir, verbose: verbose, owner: owner, repo: repo, hostname: hostname}); downloadErr != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
 				auditLog.Printf("Skipping candidate baseline for run %d: failed to download baseline artifacts: %v", baselineRun.DatabaseID, downloadErr)
 				continue
 			}
@@ -640,7 +649,7 @@ func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, cu
 
 	selected := selectAuditComparisonBaseline(currentRun, candidates)
 	if selected == nil {
-		return &AuditComparisonData{BaselineFound: false}
+		return &AuditComparisonData{BaselineFound: false}, nil
 	}
 
 	comparison := buildAuditComparison(currentRun.Run.Conclusion, currentSnapshot, &selected.Run, &selected.Snapshot)
@@ -648,5 +657,5 @@ func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, cu
 		comparison.Baseline.Selection = selected.Selection
 		comparison.Baseline.MatchedOn = selected.MatchedOn
 	}
-	return comparison
+	return comparison, nil
 }

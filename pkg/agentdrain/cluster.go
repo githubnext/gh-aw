@@ -39,6 +39,9 @@ func (s *clusterStore) add(template []string, stage string) *Cluster {
 // get retrieves a cluster by ID.
 func (s *clusterStore) get(id int) (*Cluster, bool) {
 	c, ok := s.clusters[id]
+	if !ok {
+		clusterLog.Printf("Cluster lookup miss: id=%d", id)
+	}
 	return c, ok
 }
 
@@ -48,5 +51,6 @@ func (s *clusterStore) all() []Cluster {
 	for _, c := range s.clusters {
 		out = append(out, *c)
 	}
+	clusterLog.Printf("Returning snapshot of %d clusters", len(out))
 	return out
 }
