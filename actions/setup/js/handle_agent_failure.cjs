@@ -34,6 +34,7 @@ const { buildEmptyOutputOutcome, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSE
 const { isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { collectUnifiedSession, isModelEndpointMismatchData } = require("./unified_session.cjs");
 const { validateSessionFileHeader } = require("./unified_session_render.cjs");
+const { isTaskCompleteRegistrationIssue, hasAgentTerminalReasonCompleted, shouldIgnoreTaskCompleteRegistrationReports } = require("./load_agent_output.cjs");
 const fs = require("fs");
 const https = require("https");
 const os = require("os");
@@ -1770,42 +1771,6 @@ function loadReportIncompleteMessages(items) {
   }
 }
 
-const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
-const TASK_COMPLETE_REGISTRATION_SIGNALS = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
-const TASK_COMPLETE_COMPLETION_SIGNALS = ["completed successfully", "safe-output", "safe output", "no remaining work"];
-const TASK_COMPLETE_COMPLETION_REGEXPS = [/\banalysis steps? completed\b/, /\ball steps completed\b/];
-
-/**
- * Determine whether agent output contains at least one real task-level item.
- * @param {Array<any> | undefined} items
- * @returns {boolean}
- */
-function hasTaskLevelAgentOutput(items) {
-  if (!Array.isArray(items)) {
-    return false;
-  }
-  return items.some(item => item && typeof item.type === "string" && !DIAGNOSTIC_AGENT_OUTPUT_TYPES.has(item.type));
-}
-
-/**
- * Detect a spurious report_incomplete caused only by task_complete registration/recognition
- * trouble after the agent already finished the real task work.
- * @param {{reason?: string, details?: string} | undefined} item
- * @returns {boolean}
- */
-function isTaskCompleteRegistrationIssue(item) {
-  if (!item) {
-    return false;
-  }
-  const text = `${item.reason || ""}\n${item.details || ""}`.toLowerCase();
-  if (!text.includes("task_complete")) {
-    return false;
-  }
-  const hasRegistrationSignal = TASK_COMPLETE_REGISTRATION_SIGNALS.some(signal => text.includes(signal));
-  const hasCompletionSignal = TASK_COMPLETE_COMPLETION_SIGNALS.some(signal => text.includes(signal)) || TASK_COMPLETE_COMPLETION_REGEXPS.some(regexp => regexp.test(text));
-  return hasRegistrationSignal && hasCompletionSignal;
-}
-
 /**
  * Build report_incomplete context string for display in failure issues/comments.
  * This surfaces the agent's structured incompletion signal so maintainers can
@@ -3041,39 +3006,6 @@ function buildSecretVerificationContext(secretVerificationResult, engineSecretFa
 }
 
 /**
- * Check whether agent-stdio.log contains a terminal_reason: "completed" result entry,
- * indicating the agent finished its task successfully despite a non-zero job exit code.
- * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
- *
- * Lazy strategy: tests a single regex against the entire file content in one pass and
- * returns immediately on the first match, avoiding line splitting and JSON parsing.
- * The pattern is specific enough (`"terminal_reason"` key with `"completed"` value,
- * 0 or 1 literal space around the colon) that false positives from unrelated content
- * are negligible in practice.
- *
- * @returns {boolean} true if terminal_reason: "completed" was found in the log
- */
-function hasAgentTerminalReasonCompleted() {
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
-  try {
-    if (!fs.existsSync(stdioLogPath)) {
-      return false;
-    }
-    const logContent = fs.readFileSync(stdioLogPath, "utf8");
-    // Single-pass scan: "terminal_reason" key with 0 or 1 literal space around
-    // the colon and "completed" value. JSON uses either compact ("key":"val") or
-    // single-spaced ("key" : "val") formatting. `[ ]?` matches only a space
-    // character (not tabs or newlines). Returns on first match without splitting
-    // lines or parsing JSON.
-    return /"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent);
-  } catch {
-    // IO error is ignored — assume not completed.
-  }
-  return false;
-}
-
-/**
  * Detect Copilot authorization failures while the API proxy is using the
  * organization-billed GITHUB_TOKEN supplied by copilot-requests: write.
  * @param {string} [stdioLogPathOverride]
@@ -4214,13 +4146,7 @@ async function main() {
       core.warning(`Unable to read queue-scoped agent output for failure diagnostics: ${getErrorMessage(error)}`);
       agentOutputResult = { success: false, items: [] };
     }
-    const taskCompleteRegistrationIssueOnlyReportIncomplete =
-      agentOutputResult.success &&
-      agentOutputResult.items &&
-      agentOutputResult.items.some(item => item.type === "report_incomplete") &&
-      hasAgentTerminalReasonCompleted() &&
-      hasTaskLevelAgentOutput(agentOutputResult.items) &&
-      agentOutputResult.items.filter(item => item.type === "report_incomplete").every(isTaskCompleteRegistrationIssue);
+    const taskCompleteRegistrationIssueOnlyReportIncomplete = agentOutputResult.success && shouldIgnoreTaskCompleteRegistrationReports(agentOutputResult.items);
 
     if (agentConclusion === "success") {
       if (!agentOutputResult.success || !agentOutputResult.items || agentOutputResult.items.length === 0) {
