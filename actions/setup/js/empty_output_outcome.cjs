@@ -79,36 +79,25 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   if (flag.status === "recorded") {
     availability = "unavailable (gateway registered zero tools)";
   } else if (flag.status === "unreadable") {
+    // An unreadable authoritative override prevents a confident registration claim.
     availability = "unknown (registration evidence could not be read)";
   } else {
-    let invalidRegistration = false;
-    let unreadableRegistration = false;
-    for (const { evidence, source } of [
-      { evidence: cache, source: "setup" },
-      { evidence: gateway, source: "gateway snapshot" },
-    ]) {
-      if (evidence.status === "unreadable") {
-        unreadableRegistration = true;
-        continue;
-      }
-      if (evidence.status !== "recorded") continue;
-      try {
-        const value = JSON.parse(evidence.content);
-        const tools = source === "setup" ? value : value?.servers?.safeoutputs;
-        if (!validTools(tools)) {
-          invalidRegistration = true;
-          continue;
+    for (const evidence of [cache, gateway]) {
+      if (evidence.status === "recorded") {
+        try {
+          const value = JSON.parse(evidence.content);
+          const tools = evidence === cache ? value : value?.servers?.safeoutputs;
+          if (validTools(tools)) {
+            availability = `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`;
+            break;
+          }
+          availability = "unknown (invalid registration evidence)";
+        } catch {
+          availability = "unknown (registration evidence could not be read)";
         }
-        availability = `${tools.length ? "available" : "unavailable"} at ${source} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`;
-        break;
-      } catch {
-        unreadableRegistration = true;
+      } else if (evidence.status === "unreadable") {
+        availability = "unknown (registration evidence could not be read)";
       }
-    }
-    if (availability.startsWith("unknown") && unreadableRegistration) {
-      availability = "unknown (registration evidence could not be read)";
-    } else if (availability.startsWith("unknown") && invalidRegistration) {
-      availability = "unknown (invalid registration evidence)";
     }
   }
   const summary = [`Safe-output tools: ${availability}`];

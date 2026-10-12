@@ -1,4 +1,4 @@
-This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
+This issue tracks runs from agentic workflows that emit only no-op outputs. Comments distinguish agent-reported no-action outcomes from incomplete runs using structured run status, without publishing agent messages.
 
 <details>
 <summary>What is a No-Op?</summary>
@@ -8,7 +8,7 @@ A no-op (no operation) occurs when an agentic workflow runs successfully but det
 - An update checker that finds nothing to update
 - A monitoring workflow that finds everything is healthy
 
-These are successful outcomes, not failures, and help provide transparency into workflow behavior.
+A successful agent run that emits only no-op outputs is categorized as `reported_no_action`. This is an agent report, not independent proof of task completion: missing data or blocked publication cannot be inferred from arbitrary agent prose. A failed agent run that emits only no-op outputs is categorized as `incomplete`, not a successful no-op or a presumed transient error. Where completion evidence is unavailable, the outcome remains unconfirmed.
 
 </details>
 

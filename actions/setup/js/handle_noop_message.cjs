@@ -7,11 +7,42 @@ const { ERR_API, ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput, shouldIgnoreTaskCompleteRegistrationReports } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { buildNoopConclusionSummary } = require("./conclusion_summary.cjs");
+
+/**
+ * A noop is an agent-reported outcome, not independent completion evidence.
+ * @param {string} agentConclusion
+ * @param {boolean} [hasIncompleteReport]
+ * @returns {{category: string, description: string}}
+ */
+function classifyNoopOutcome(agentConclusion, hasIncompleteReport = false) {
+  if (hasIncompleteReport) {
+    return {
+      category: "incomplete",
+      description: "The agent explicitly reported incomplete work. A no-op output does not establish task completion.",
+    };
+  }
+  if (agentConclusion === "failure") {
+    return {
+      category: "incomplete",
+      description: "The agent failed after emitting a no-op output. Task completion is unconfirmed; the no-op does not establish success or a transient failure.",
+    };
+  }
+  if (agentConclusion === "success") {
+    return {
+      category: "reported_no_action",
+      description: "The agent completed and reported no action. A no-op output alone does not verify that all required work was completed or that publication was possible.",
+    };
+  }
+  return {
+    category: "unconfirmed",
+    description: "The agent emitted a no-op output, but successful task completion is unconfirmed.",
+  };
+}
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -155,15 +186,18 @@ function buildHistoryLink() {
  * Render the no-op comment body shared by the no-op runs issue comment and the
  * comment posted on other run-scoped tracking items.
  * @param {string} workflowName
- * @param {string} message
+ * @param {string} agentConclusion
  * @param {string} runUrl
+ * @param {boolean} hasIncompleteReport
  * @returns {string}
  */
-function buildNoopCommentBody(workflowName, message, runUrl) {
+function buildNoopCommentBody(workflowName, agentConclusion, runUrl, hasIncompleteReport) {
+  const outcome = classifyNoopOutcome(agentConclusion, hasIncompleteReport);
   const commentTemplatePath = getPromptPath("noop_comment.md");
   const commentBody = renderTemplateFromFile(commentTemplatePath, {
     workflow_name: workflowName,
-    message,
+    category: outcome.category,
+    description: outcome.description,
     run_url: runUrl,
     aic_suffix: buildAICSuffix(),
     ambient_context_suffix: buildAmbientContextSuffix(),
@@ -220,9 +254,6 @@ async function main() {
     }
 
     // --- Write step summary ---
-    for (let index = 0; index < noopItems.length; index++) {
-      core.info(`No-op message ${index + 1}: ${noopItems[index].message}`);
-    }
     const summaryContent = buildNoopConclusionSummary(
       noopItems.map(item => item.message),
       { runUrl: process.env.GH_AW_RUN_URL }
@@ -237,13 +268,13 @@ async function main() {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
     const runUrl = process.env.GH_AW_RUN_URL || "";
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
+    const hasIncompleteReport = result.items.some(/** @param {any} item */ item => item.type === "report_incomplete") && !shouldIgnoreTaskCompleteRegistrationReports(result.items);
     const reportAsIssue = process.env.GH_AW_NOOP_REPORT_AS_ISSUE !== "false"; // Default to true
 
-    // Render the comment body once so later steps (e.g. discarding an unused
-    // another run-scoped tracking item) can post the exact same message.
+    // Reuse this privacy-safe body in the run's completion status comment.
     let commentBody = "";
     try {
-      commentBody = buildNoopCommentBody(workflowName, noopMessage, runUrl);
+      commentBody = buildNoopCommentBody(workflowName, agentConclusion, runUrl, hasIncompleteReport);
       core.setOutput("noop_comment_body", commentBody);
     } catch (error) {
       core.warning(`Could not render no-op comment body: ${getErrorMessage(error)}`);
@@ -251,7 +282,7 @@ async function main() {
 
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Run URL: ${runUrl}`);
-    core.info(`Agent conclusion: ${agentConclusion}`);
+    core.info(`No-op outcome: ${classifyNoopOutcome(agentConclusion, hasIncompleteReport).category}`);
     core.info(`Report as issue: ${reportAsIssue}`);
 
     if (!reportAsIssue) {
@@ -261,11 +292,11 @@ async function main() {
 
     // Only post to "agent runs" issue if:
     // 1. The agent succeeded (agentConclusion === "success"), OR
-    // 2. The agent failed but produced only noop outputs, which indicates a transient AI model
-    //    error after the meaningful work (noop) was already captured. Skipped/cancelled runs
+    // 2. The agent failed but produced only noop outputs; report it as incomplete.
+    //    Skipped/cancelled runs
     //    and other non-success/non-failure conclusions are always skipped.
     if (agentConclusion !== "success" && agentConclusion !== "failure") {
-      core.info(`Agent did not succeed (conclusion: ${agentConclusion}), skipping no-op message posting`);
+      core.info("Agent did not succeed or fail, skipping no-op message posting");
       return;
     }
 
@@ -277,7 +308,7 @@ async function main() {
     }
 
     if (agentConclusion === "failure") {
-      core.info("Agent failed but produced only noop outputs (transient AI model error after noop was captured) - posting noop message");
+      core.info("Agent failed with only noop outputs - reporting incomplete outcome");
     } else {
       core.info("Agent succeeded with only noop outputs - posting to no-op runs issue");
     }
@@ -319,4 +350,4 @@ async function main() {
   }
 }
 
-module.exports = { main, ensureAgentRunsIssue };
+module.exports = { main, ensureAgentRunsIssue, classifyNoopOutcome };
