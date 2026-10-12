@@ -147,6 +147,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
       `
 const fs = require("node:fs");
 if (!fs.readFileSync(process.env.GH_AW_PROMPT, "utf8").includes("fixture prompt")) process.exit(2);
+fs.mkdirSync(require("node:path").dirname(process.env.GH_AW_OUTPUT), { recursive: true });
 fs.writeFileSync(process.env.GH_AW_OUTPUT, "guest output");
 process.exit(17);
 `
@@ -158,7 +159,7 @@ process.exit(17);
         PATH: "/usr/bin:/bin",
         HOME: path.join(temp, "guest-home"),
         GH_AW_PROMPT: path.join(stateLink, "aw-prompts", "prompt.txt"),
-        GH_AW_OUTPUT: path.join(stateLink, "result.txt"),
+        GH_AW_OUTPUT: path.join(stateLink, "agent", "result.txt"),
         ...(toolCache ? { RUNNER_TOOL_CACHE: toolCache } : {}),
       },
       encoding: "utf8",
@@ -167,7 +168,7 @@ process.exit(17);
     expect(result.signal, result.stderr).toBeNull();
     expect(result.status, result.stderr).toBe(17);
     collect(environment, state);
-    expect(fs.readFileSync(path.join(state, "result.txt"), "utf8")).toBe("guest output");
+    expect(fs.readFileSync(path.join(state, "agent", "result.txt"), "utf8")).toBe("guest output");
     expect(fs.existsSync(root)).toBe(false);
     expect(fs.existsSync(path.join(hostRoot, "nvx-assets.json"))).toBe(false);
   });
@@ -199,10 +200,97 @@ process.exit(17);
   it("refuses guest symlinks during output collection and still removes runtime assets", () => {
     stage(environment, state);
     const root = path.join(workspace, ".gh-aw-nvx");
-    fs.symlinkSync(path.join(hostRoot, "provider-token"), path.join(root, "state", "escape"));
+    fs.mkdirSync(path.join(root, "state", "agent"));
+    fs.symlinkSync(path.join(hostRoot, "provider-token"), path.join(root, "state", "agent", "escape"));
     expect(() => collect(environment, state)).toThrow(/regular file or directory/);
     expect(fs.existsSync(root)).toBe(false);
     expect(fs.readFileSync(path.join(hostRoot, "provider-token"), "utf8")).toBe("must not be exported");
+  });
+
+  it("collects only expected artifacts without overwriting host scripts or other state", () => {
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    for (const name of ["agent", "threat-detection", "sandbox/agent/logs", "actions-source/actions/setup", "cache-memory"]) {
+      fs.mkdirSync(path.join(root, "state", name), { recursive: true });
+      fs.writeFileSync(path.join(root, "state", name, "fixture.txt"), "guest artifact");
+    }
+    fs.mkdirSync(path.join(state, "actions-source", "actions", "setup"), { recursive: true });
+    const cleanup = path.join(state, "actions-source", "actions", "setup", "clean.sh");
+    fs.writeFileSync(cleanup, "trusted cleanup");
+    fs.writeFileSync(path.join(root, "state", "actions-source", "actions", "setup", "clean.sh"), "untrusted cleanup");
+    fs.writeFileSync(path.join(root, "state", "gateway-secret"), "untrusted secret");
+    fs.writeFileSync(path.join(root, "state", "pi-streaming.jsonl"), "pi events");
+    fs.writeFileSync(path.join(root, "state", "claude-debug.log"), "claude events");
+    fs.writeFileSync(path.join(root, "state", "agent-step-summary.md"), "agent summary");
+    fs.writeFileSync(path.join(root, "state", "step-summary.md"), "detector summary");
+    const safeoutputs = path.join(root, "gh-aw", "safeoutputs");
+    fs.writeFileSync(path.join(safeoutputs, "outputs.jsonl"), '{"type":"noop"}\n');
+    fs.writeFileSync(path.join(safeoutputs, "unexpected.json"), "untrusted file");
+    fs.mkdirSync(path.join(safeoutputs, "upload-artifacts"));
+    fs.writeFileSync(path.join(safeoutputs, "upload-artifacts", "result.txt"), "upload artifact");
+    fs.mkdirSync(path.join(hostRoot, "safeoutputs"));
+    fs.writeFileSync(path.join(hostRoot, "safeoutputs", "config.json"), '{"max":1}');
+    collect(environment, state);
+    for (const name of ["agent", "threat-detection", "sandbox/agent/logs"]) {
+      expect(fs.readFileSync(path.join(state, name, "fixture.txt"), "utf8")).toBe("guest artifact");
+    }
+    expect(fs.readFileSync(path.join(state, "pi-streaming.jsonl"), "utf8")).toBe("pi events");
+    expect(fs.readFileSync(path.join(state, "claude-debug.log"), "utf8")).toBe("claude events");
+    expect(fs.readFileSync(path.join(state, "agent-step-summary.md"), "utf8")).toBe("agent summary");
+    expect(fs.readFileSync(path.join(state, "step-summary.md"), "utf8")).toBe("detector summary");
+    expect(fs.readFileSync(cleanup, "utf8")).toBe("trusted cleanup");
+    expect(fs.existsSync(path.join(state, "actions-source", "actions", "setup", "fixture.txt"))).toBe(false);
+    expect(fs.existsSync(path.join(state, "cache-memory"))).toBe(false);
+    expect(fs.readFileSync(path.join(state, "gateway-secret"), "utf8")).toBe("must not be exported");
+    expect(fs.readFileSync(path.join(hostRoot, "safeoutputs", "config.json"), "utf8")).toBe('{"max":1}');
+    expect(fs.readFileSync(path.join(hostRoot, "safeoutputs", "outputs.jsonl"), "utf8")).toBe('{"type":"noop"}\n');
+    expect(fs.readFileSync(path.join(hostRoot, "safeoutputs", "upload-artifacts", "result.txt"), "utf8")).toBe("upload artifact");
+    expect(fs.existsSync(path.join(hostRoot, "safeoutputs", "unexpected.json"))).toBe(false);
+    expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it.each(["config.json", "tools.json", "validation.json"])("rejects guest policy files without changing host policy (%s)", name => {
+    fs.mkdirSync(path.join(hostRoot, "safeoutputs"));
+    const policy = path.join(hostRoot, "safeoutputs", name);
+    fs.writeFileSync(policy, "trusted policy");
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    fs.writeFileSync(path.join(root, "gh-aw", "safeoutputs", name), "untrusted policy");
+    expect(() => collect(environment, state)).toThrow(/must not export safe-output policy/);
+    expect(fs.readFileSync(policy, "utf8")).toBe("trusted policy");
+    expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it.each(["agent", "sandbox", "sandbox/agent", "sandbox/agent/logs", "gh-aw/safeoutputs"])("rejects redirected output directories (%s)", name => {
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    const source = name.startsWith("gh-aw/") ? path.join(root, name) : path.join(root, "state", name);
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    if (fs.existsSync(source)) fs.rmdirSync(source);
+    fs.symlinkSync(hostRoot, source);
+    expect(() => collect(environment, state)).toThrow(/directory|symlink/);
+    expect(fs.readFileSync(path.join(hostRoot, "provider-token"), "utf8")).toBe("must not be exported");
+    expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it("rejects redirected host parents for nested log collection", () => {
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    fs.mkdirSync(path.join(root, "state", "sandbox", "agent", "logs"), { recursive: true });
+    fs.writeFileSync(path.join(root, "state", "sandbox", "agent", "logs", "fixture.log"), "untrusted output");
+    fs.symlinkSync(hostRoot, path.join(state, "sandbox"));
+    expect(() => collect(environment, state)).toThrow(/parent must be a directory/);
+    expect(fs.existsSync(path.join(hostRoot, "agent"))).toBe(false);
+    expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it.each(["pi-streaming.jsonl", "gh-aw/safeoutputs/outputs.jsonl"])("rejects directories in file output slots (%s)", name => {
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    const source = name.startsWith("gh-aw/") ? path.join(root, name) : path.join(root, "state", name);
+    fs.mkdirSync(source);
+    expect(() => collect(environment, state)).toThrow(/must be a regular file/);
+    expect(fs.existsSync(root)).toBe(false);
   });
 
   it("refuses a symlink destination during collection", () => {
