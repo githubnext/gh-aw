@@ -605,6 +605,21 @@ describe("smoke_model_routing_assertions", () => {
       expect(cliCheck().failures).toEqual(["FAIL P1 recommended profile (mode) is auto, expected one of economy, balanced, robust"]);
     });
 
+    it("explains degraded classification in P1", () => {
+      cliFixture();
+      write(ROUTING, [
+        ...jsonl(ROUTING).map(record => ({
+          event: "model_routing",
+          ...record,
+          ...(record.stage === "selection" ? { degraded_classification: true, degraded_reason: "invalid_classifier_output", mode: null } : {}),
+        })),
+        { event: "model_routing", stage: "classification", classifier_model: "github-copilot/claude-opus-5" },
+      ]);
+      expect(cliCheck().failures).toEqual([
+        "FAIL P1 classification degraded: degraded_reason=invalid_classifier_output; classifier_model=github-copilot/claude-opus-5; recommended profile (mode) is missing, expected one of economy, balanced, robust",
+      ]);
+    });
+
     it("fails P1 when there is no selection record", () => {
       cliFixture();
       write(ROUTING, []);

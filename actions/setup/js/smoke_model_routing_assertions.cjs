@@ -342,6 +342,13 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
     if (!selection) {
       p1Problems.push("no firewall model_routing selection record with a selected model");
     } else {
+      if (selection.degradedClassification === true) {
+        const classification = events.filter(event => event?.type === "firewall.model_routing" && event.data?.stage === "classification").at(-1)?.data;
+        const classifierRequest = requests.filter(isClassifierRequest).at(-1);
+        const degradedReason = selection.degradedReason ?? "missing";
+        const classifierModel = classification?.classifierModel ?? selection.classifierModel ?? classifierRequest?.model ?? "<missing>";
+        p1Problems.push(`classification degraded: degraded_reason=${degradedReason}; classifier_model=${classifierModel}`);
+      }
       const requested = selection.objective?.mode;
       if (requested !== expectations.routingMode) p1Problems.push(`requested mode (objective.mode) is ${requested ?? "missing"}, expected ${expectations.routingMode}`);
       if (!ROUTING_PROFILES.includes(selection.mode)) p1Problems.push(`recommended profile (mode) is ${selection.mode ?? "missing"}, expected one of ${ROUTING_PROFILES.join(", ")}`);

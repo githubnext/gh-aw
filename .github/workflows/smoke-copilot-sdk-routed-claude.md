@@ -58,7 +58,6 @@ post-steps:
           executionOutcome: process.env.SMOKE_EXECUTION,
           allowedModels: ["claude-haiku-4.5"],
           mainEndpoint: "/chat/completions",
-          routingMode: "economy",
           subAgents: [{ name: "mini-whoami", model: "gpt-5.4-mini", endpoint: "/responses" }],
           requireDeclaredAgentNames: true,
         });
