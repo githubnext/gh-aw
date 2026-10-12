@@ -242,6 +242,7 @@ func TestAgyExecutionDomainsRequireOptIn(t *testing.T) {
 		{name: "explicit domain", allowed: []string{"example.com"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			engine := NewAgyEngine()
 			data := &WorkflowData{
 				AI: "agy",
 				NetworkPermissions: &NetworkPermissions{
@@ -249,13 +250,22 @@ func TestAgyExecutionDomainsRequireOptIn(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true},
 				},
 			}
-			steps := NewAgyEngine().GetExecutionSteps(data, "agent-stdio.log")
+
+			expected := GetAllowedDomainsForEngine(constants.AgyEngine, data.NetworkPermissions, nil, nil)
+			expected = mergeAPITargetDomains(expected, GetGeminiAPITarget(data, string(constants.AgyEngine)))
+			assert.Equal(t, expected, engine.agyAllowedDomains(data), "uncached execution domains")
+
+			sanitized, err := NewCompiler().computeAllowedDomainsForSanitization(data)
+			require.NoError(t, err)
+			assert.Equal(t, expected, sanitized)
+			assert.Equal(t, sanitized, engine.agyAllowedDomains(data), "cached execution domains")
+
+			steps := engine.GetExecutionSteps(data, "agent-stdio.log")
 			require.Len(t, steps, 1)
 			content := strings.Join(steps[0], "\n")
 			require.Contains(t, content, "awf --config")
 			assert.Contains(t, content, "NO_PROXY: "+constants.AWFNoProxyHosts, "gateway transport must remain available")
 
-			expected := GetAllowedDomainsForEngine(constants.AgyEngine, data.NetworkPermissions, nil, nil)
 			if expected == "" {
 				assert.NotContains(t, content, `\"allowDomains\"`)
 			} else {
@@ -263,10 +273,6 @@ func TestAgyExecutionDomainsRequireOptIn(t *testing.T) {
 				require.NoError(t, err)
 				assert.Contains(t, content, `\"allowDomains\":`+strings.ReplaceAll(string(domainsJSON), `"`, `\"`))
 			}
-
-			sanitized, err := NewCompiler().computeAllowedDomainsForSanitization(data)
-			require.NoError(t, err)
-			assert.Equal(t, mergeAPITargetDomains(expected, GetGeminiAPITarget(data, "agy")), sanitized)
 		})
 	}
 }

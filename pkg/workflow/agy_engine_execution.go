@@ -48,9 +48,20 @@ func (e *AgyEngine) buildExecutionCommand(workflowData *WorkflowData, logFile, e
 		WorkflowData:       workflowData,
 		UsesTTY:            false,
 		PathSetup:          "touch " + AgentStepSummaryPath,
-		AllowedDomains:     GetAllowedDomainsForEngine(constants.AgyEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes),
+		AllowedDomains:     e.agyAllowedDomains(workflowData),
 		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
 	})
+}
+
+func (e *AgyEngine) agyAllowedDomains(workflowData *WorkflowData) string {
+	allowedDomains := workflowData.CachedAllowedDomainsStr
+	if !workflowData.CachedAllowedDomainsComputed {
+		allowedDomains = GetAllowedDomainsForEngine(constants.AgyEngine, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+	}
+	if apiTarget := GetGeminiAPITarget(workflowData, string(constants.AgyEngine)); apiTarget != "" {
+		allowedDomains = mergeAPITargetDomains(allowedDomains, apiTarget)
+	}
+	return allowedDomains
 }
 
 func (e *AgyEngine) buildExecutionEnv(workflowData *WorkflowData, firewallEnabled bool) map[string]string {
