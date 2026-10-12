@@ -108,120 +108,70 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 // before the repository is checked out. Imported pre-steps are merged before the main
 // workflow's pre-steps so that the main workflow can override or extend the imports.
 func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
-	workflowBuilderLog.Print("Processing and merging pre-steps")
-
-	mainPreStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-steps")
-
-	// Parse imported pre-steps if present (these go before the main workflow's pre-steps)
-	var importedPreSteps []any
-	if importsResult.MergedPreSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
-			return fmt.Errorf("imported pre-steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
-		}
-		typedImported, err := SliceToSteps(importedPreSteps)
-		if err != nil {
-			return fmt.Errorf("imported pre-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
-		}
-		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
-		if err != nil {
-			return fmt.Errorf("imported pre-steps: %w", err)
-		}
-		importedPreSteps = StepsToSlice(typedImported)
-	}
-
-	// Parse main workflow pre-steps if present
-	var mainPreSteps []any
-	if mainPreStepsYAML != "" {
-		var mainWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(mainPreStepsYAML), &mainWrapper); err != nil {
-			return fmt.Errorf("pre-steps YAML is not recognized, expected a 'pre-steps:' mapping with a valid list of steps: %w", err)
-		}
-		if mainVal, ok := mainWrapper["pre-steps"]; ok {
-			if steps, ok := mainVal.([]any); ok {
-				mainPreSteps = steps
-				typedMain, err := SliceToSteps(mainPreSteps)
-				if err != nil {
-					return fmt.Errorf("pre-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
-				}
-				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
-				if err != nil {
-					return fmt.Errorf("pre-steps: %w", err)
-				}
-				mainPreSteps = StepsToSlice(typedMain)
-			}
-		}
-	}
-
-	// Merge in order: imported pre-steps first, then main workflow's pre-steps
-	var allPreSteps []any
-	if len(importedPreSteps) > 0 || len(mainPreSteps) > 0 {
-		allPreSteps = append(allPreSteps, importedPreSteps...)
-		allPreSteps = append(allPreSteps, mainPreSteps...)
-
-		stepsWrapper := map[string]any{"pre-steps": allPreSteps}
-		stepsYAML, err := yaml.Marshal(stepsWrapper)
-		if err == nil {
-			workflowData.PreSteps = unquoteUsesWithComments(string(stepsYAML))
-		}
-	}
-	return nil
+	return c.processAndMergePreStepSection(frontmatter, workflowData, "pre-steps", importsResult.MergedPreSteps, &workflowData.PreSteps)
 }
 
 // processAndMergePreAgentSteps handles processing and merging of pre-agent-steps with action pinning.
 // Imported pre-agent-steps are prepended so main workflow pre-agent-steps run last.
 func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
-	workflowBuilderLog.Print("Processing and merging pre-agent-steps")
+	return c.processAndMergePreStepSection(frontmatter, workflowData, "pre-agent-steps", importsResult.MergedPreAgentSteps, &workflowData.PreAgentSteps)
+}
 
-	mainPreAgentStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-agent-steps")
+// processAndMergePreStepSection pins actions and prepends imported steps to main steps.
+func (c *Compiler) processAndMergePreStepSection(frontmatter map[string]any, workflowData *WorkflowData, sectionName, importedYAML string, output *string) error {
+	workflowBuilderLog.Printf("Processing and merging %s", sectionName)
 
-	var importedPreAgentSteps []any
-	if importsResult.MergedPreAgentSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedPreAgentSteps), &importedPreAgentSteps); err != nil {
-			return fmt.Errorf("imported pre-agent-steps YAML is not recognized, expected a valid list of GitHub Actions steps: %w", err)
+	mainYAML := c.extractTopLevelYAMLSection(frontmatter, sectionName)
+
+	var importedSteps []any
+	if importedYAML != "" {
+		if err := yaml.Unmarshal([]byte(importedYAML), &importedSteps); err != nil {
+			return fmt.Errorf("imported %s YAML is not recognized, expected a valid list of GitHub Actions steps: %w", sectionName, err)
 		}
-		typedImported, err := SliceToSteps(importedPreAgentSteps)
+		typedImported, err := SliceToSteps(importedSteps)
 		if err != nil {
-			return fmt.Errorf("imported pre-agent-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
+			return fmt.Errorf("imported %s could not be converted to typed steps, expected each entry to be a valid step object: %w", sectionName, err)
 		}
 		typedImported, err = applyActionPinsToTypedSteps(typedImported, workflowData)
 		if err != nil {
-			return fmt.Errorf("imported pre-agent-steps: %w", err)
+			return fmt.Errorf("imported %s: %w", sectionName, err)
 		}
-		importedPreAgentSteps = StepsToSlice(typedImported)
+		importedSteps = StepsToSlice(typedImported)
 	}
 
-	var mainPreAgentSteps []any
-	if mainPreAgentStepsYAML != "" {
+	var mainSteps []any
+	if mainYAML != "" {
 		var mainWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(mainPreAgentStepsYAML), &mainWrapper); err != nil {
-			return fmt.Errorf("pre-agent-steps YAML is not recognized, expected a 'pre-agent-steps:' mapping with a valid list of steps: %w", err)
+		if err := yaml.Unmarshal([]byte(mainYAML), &mainWrapper); err != nil {
+			return fmt.Errorf("%s YAML is not recognized, expected a '%s:' mapping with a valid list of steps: %w", sectionName, sectionName, err)
 		}
-		if mainVal, ok := mainWrapper["pre-agent-steps"]; ok {
+		if mainVal, ok := mainWrapper[sectionName]; ok {
 			if steps, ok := mainVal.([]any); ok {
-				mainPreAgentSteps = steps
-				typedMain, err := SliceToSteps(mainPreAgentSteps)
+				mainSteps = steps
+				typedMain, err := SliceToSteps(mainSteps)
 				if err != nil {
-					return fmt.Errorf("pre-agent-steps could not be converted to typed steps, expected each entry to be a valid step object: %w", err)
+					return fmt.Errorf("%s could not be converted to typed steps, expected each entry to be a valid step object: %w", sectionName, err)
 				}
 				typedMain, err = applyActionPinsToTypedSteps(typedMain, workflowData)
 				if err != nil {
-					return fmt.Errorf("pre-agent-steps: %w", err)
+					return fmt.Errorf("%s: %w", sectionName, err)
 				}
-				mainPreAgentSteps = StepsToSlice(typedMain)
+				mainSteps = StepsToSlice(typedMain)
 			}
 		}
 	}
 
-	var allPreAgentSteps []any
-	if len(importedPreAgentSteps) > 0 || len(mainPreAgentSteps) > 0 {
-		allPreAgentSteps = append(allPreAgentSteps, importedPreAgentSteps...)
-		allPreAgentSteps = append(allPreAgentSteps, mainPreAgentSteps...)
+	var allSteps []any
+	if len(importedSteps) > 0 || len(mainSteps) > 0 {
+		allSteps = append(allSteps, importedSteps...)
+		allSteps = append(allSteps, mainSteps...)
 
-		stepsWrapper := map[string]any{"pre-agent-steps": allPreAgentSteps}
+		stepsWrapper := map[string]any{sectionName: allSteps}
 		stepsYAML, err := yaml.Marshal(stepsWrapper)
-		if err == nil {
-			workflowData.PreAgentSteps = unquoteUsesWithComments(string(stepsYAML))
+		if err != nil {
+			return fmt.Errorf("%s could not be marshaled to YAML: %w", sectionName, err)
 		}
+		*output = unquoteUsesWithComments(string(stepsYAML))
 	}
 	return nil
 }
