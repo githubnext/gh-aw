@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-✅ **VALIDATION RESULT**: The specification accurately reflects the implementation in compiled `.lock.yml` files and JavaScript implementation (full validation on 2026-07-15; RS-05a targeted revalidation on 2026-10-09). This targeted review does not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
+⚠️ **VALIDATION STATUS**: The specification reflected the implementation at the time of full validation on 2026-07-15 and RS-05a targeted revalidation on 2026-10-09. The v1.1.2 review-checkout update has not yet received targeted revalidation (see §7b); this document does not claim that it has. These validations do not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
