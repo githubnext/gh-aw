@@ -14,7 +14,6 @@ func BadExprStmtClose() {
 	f, _ := os.Open("file.txt")
 	f.Close()   // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 	(f.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
-	(f.Close()) // want `Close\(\) error is explicitly discarded; resource cleanup failures may be silently ignored`
 }
 
 // BadBlankAssignClose assigns Close() error to blank identifier.

@@ -10,13 +10,11 @@ func Bad() {
 	_ = val
 	json.Marshal(f)          // want `error return from json\.Marshal is discarded`
 	(json.Marshal(f))        // want `error return from json\.Marshal is discarded`
-	(json.Marshal(f))        // want `error return from json\.Marshal is discarded`
 	_, _ = (json.Marshal(f)) // want `error return from json\.Marshal is discarded`
 
 	var f2 Foo
 	_ = json.Unmarshal([]byte(`{}`), &f2)   // want `error return from json\.Unmarshal is discarded`
 	json.Unmarshal([]byte(`{}`), &f2)       // want `error return from json\.Unmarshal is discarded`
-	(json.Unmarshal([]byte(`{}`), &f2))     // want `error return from json\.Unmarshal is discarded`
 	(json.Unmarshal([]byte(`{}`), &f2))     // want `error return from json\.Unmarshal is discarded`
 	_ = (json.Unmarshal([]byte(`{}`), &f2)) // want `error return from json\.Unmarshal is discarded`
 }
