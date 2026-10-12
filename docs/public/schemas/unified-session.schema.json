@@ -278,6 +278,21 @@
           }
         }
       },
+      { "if": { "properties": { "type": { "const": "skill.conflict" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillConflictData" } } } },
+      {
+        "if": { "properties": { "type": { "const": "skill.context_delivered_ref" } }, "required": ["type"] },
+        "then": {
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": { "interactionId": { "$ref": "#/definitions/JsonValue" }, "source": { "$ref": "#/definitions/JsonValue" }, "contentId": { "$ref": "#/definitions/JsonValue" } },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      { "if": { "properties": { "type": { "const": "skill.inventory" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillInventoryData" } } } },
+      { "if": { "properties": { "type": { "const": "skill.invoked" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SkillInvokedData" } } } },
       {
         "if": { "properties": { "type": { "const": "tool.execution_complete" } }, "required": ["type"] },
         "then": {
@@ -866,6 +881,40 @@
       "required": ["component", "phase", "path", "index"],
       "additionalProperties": false,
       "description": "Collector metadata is separate from native engine event metadata."
+    },
+    "SkillConflictData": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "kind": { "type": "string", "enum": ["name_collision", "scope_collision"] }, "sources": { "type": "array", "items": { "type": "string" } } },
+      "required": ["name", "kind", "sources"],
+      "additionalProperties": false
+    },
+    "SkillInventoryData": {
+      "type": "object",
+      "properties": {
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "name": { "type": "string" }, "source": { "type": "string" }, "scope": { "type": "string" }, "digest": { "type": "string" }, "purpose": { "type": "string" } },
+            "required": ["name", "source", "scope", "digest"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["skills"],
+      "additionalProperties": false
+    },
+    "SkillInvokedData": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/definitions/JsonValue" },
+        "path": { "$ref": "#/definitions/JsonValue" },
+        "source": { "$ref": "#/definitions/JsonValue" },
+        "trigger": { "$ref": "#/definitions/JsonValue" },
+        "model": { "$ref": "#/definitions/JsonValue" },
+        "invokedAtTurn": { "$ref": "#/definitions/JsonValue" }
+      },
+      "additionalProperties": false
     },
     "SteeringNotice": {
       "type": "object",

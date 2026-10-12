@@ -19,6 +19,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	if len(data.Plugins) > 0 {
 		paths = append(paths, pluginInstallationsPath)
 	}
+	if hasSkillInventory(data) {
+		paths = append(paths, constants.TmpGhAwDirSlash+"skill_inventory.json")
+	}
 
 	// Merge engine-declared output files into the unified artifact instead of creating a
 	// separate agent_outputs artifact.
