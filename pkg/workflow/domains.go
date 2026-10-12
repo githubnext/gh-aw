@@ -115,7 +115,8 @@ var CopilotDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["
 // CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
 var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["codex"])
 
-// ClaudeDefaultDomains are the opt-in Claude API and gateway/GitHub transport baseline.
+// ClaudeDefaultDomains are the opt-in Claude gateway/GitHub transport baseline.
+// Direct Anthropic API access is added only when Claude's effective target is Anthropic.
 // Claude uses API-key or gateway authentication, not interactive browser login.
 // Do not include anthropic.com: AWF also allows subdomains, which would re-enable
 // statsig.anthropic.com. Infrastructure and downloads belong in ecosystem opt-ins.
@@ -806,7 +807,10 @@ func GetAPITargetDomains(apiTarget string) []string {
 // When engine.api-target is set, both the API hostname and its base hostname are added to the allow-list.
 // Returns the original string unchanged when apiTarget is empty.
 func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
-	extraDomains := GetAPITargetDomains(apiTarget)
+	return mergeAllowedDomainList(domainsStr, GetAPITargetDomains(apiTarget)...)
+}
+
+func mergeAllowedDomainList(domainsStr string, extraDomains ...string) string {
 	if len(extraDomains) == 0 {
 		return domainsStr
 	}

@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -242,6 +243,65 @@ func TestClaudeEngineCopilotModelPrefixUsesIsolatedGateway(t *testing.T) {
 	assert.Contains(t, stepContent, "GH_AW_LLM_PROVIDER: github")
 	assert.Contains(t, stepContent, fmt.Sprintf("ANTHROPIC_BASE_URL: http://api-proxy:%d", constants.CopilotLLMGatewayPort))
 	assert.NotContains(t, stepContent, "ANTHROPIC_BASE_URL: http://host.docker.internal:")
+}
+
+func TestClaudeEngineAllowedDomainsFollowEffectiveTarget(t *testing.T) {
+	tests := []struct {
+		name       string
+		data       *WorkflowData
+		wantAPI    bool
+		wantTarget string
+	}{
+		{
+			name: "default Anthropic target",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{Allowed: []string{"claude"}},
+			},
+			wantAPI: true,
+		},
+		{
+			name: "custom Anthropic base URL",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{Allowed: []string{"claude"}},
+				EngineConfig:       &EngineConfig{Env: map[string]string{"ANTHROPIC_BASE_URL": "https://gateway.example.com/anthropic"}},
+			},
+		},
+		{
+			name: "custom engine API target",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{Allowed: []string{"claude"}},
+				EngineConfig:       &EngineConfig{APITarget: "relay.example.com"},
+			},
+			wantTarget: "relay.example.com",
+		},
+		{
+			name: "GitHub provider gateway",
+			data: &WorkflowData{
+				Model:              "copilot/claude-sonnet-4",
+				NetworkPermissions: &NetworkPermissions{Allowed: []string{"claude"}},
+			},
+			wantTarget: "host.docker.internal",
+		},
+		{
+			name: "Claude set not opted in",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{Allowed: []string{"github"}},
+			},
+			wantTarget: "github.com",
+		},
+	}
+
+	engine := NewClaudeEngine()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domains := strings.Split(engine.claudeAllowedDomains(tt.data), ",")
+			assert.Equal(t, tt.wantAPI, slices.Contains(domains, "api.anthropic.com"))
+			assert.NotContains(t, domains, "anthropic.com")
+			if tt.wantTarget != "" {
+				assert.Contains(t, domains, tt.wantTarget)
+			}
+		})
+	}
 }
 
 func TestClaudeEngineCopilotCustomCommandUsesIsolatedGatewayBootstrap(t *testing.T) {

@@ -529,7 +529,6 @@ func TestCodexDefaultDomains(t *testing.T) {
 
 func TestClaudeDefaultDomains(t *testing.T) {
 	expectedDomains := []string{
-		"api.anthropic.com",
 		"api.github.com",
 		"github.com",
 		"host.docker.internal",
@@ -544,12 +543,13 @@ func TestClaudeDefaultDomains(t *testing.T) {
 }
 
 func TestClaudeDomainSetGatesOptionalEcosystems(t *testing.T) {
+	baseline := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
+		&NetworkPermissions{Allowed: []string{"claude"}}, nil, nil))
+
 	for _, ecosystem := range []string{"defaults", "github", "containers", "playwright"} {
 		t.Run(ecosystem, func(t *testing.T) {
 			optionalDomains := getEcosystemDomains(ecosystem)
 			require.NotEmpty(t, optionalDomains)
-			baseline := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
-				&NetworkPermissions{Allowed: []string{"claude"}}, nil, nil))
 			optedIn := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
 				&NetworkPermissions{Allowed: []string{"claude", ecosystem}}, nil, nil))
 			for _, domain := range optionalDomains {
@@ -564,8 +564,6 @@ func TestClaudeDomainSetGatesOptionalEcosystems(t *testing.T) {
 
 	for _, domain := range []string{"sentry.io", "statsig.anthropic.com", "anthropic.com", "*.anthropic.com"} {
 		t.Run(domain, func(t *testing.T) {
-			baseline := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
-				&NetworkPermissions{Allowed: []string{"claude"}}, nil, nil))
 			assert.NotContains(t, baseline, domain)
 			optedIn := domainSet(t, GetAllowedDomainsForEngine(constants.ClaudeEngine,
 				&NetworkPermissions{Allowed: []string{"claude", domain}}, nil, nil))
