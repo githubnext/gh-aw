@@ -299,7 +299,7 @@ async function inspectLegacyAgentArtifact(artifactClient, artifacts, downloadRoo
  * @returns {Promise<number>}
  */
 async function getRunAIC(artifactClient, runId, token, owner, repo, run, inspection) {
-  const components = run ? await loadBillableJobs(inspection, owner, repo, run) : null;
+  const { components, priorJobs } = run ? await loadBillableJobs(inspection, owner, repo, run) : { components: null, priorJobs: null };
   if (components && allBillableJobsSkipped(components)) {
     logDailyGuardrail("Computed run AIC", {
       runId,
@@ -384,7 +384,7 @@ async function getRunAIC(artifactClient, runId, token, owner, repo, run, inspect
     });
     const artifactRoot = download.downloadPath || downloadRoot;
     const legacyAgentEvidence = components ? await inspectLegacyAgentArtifact(artifactClient, artifacts, artifactRoot, token, owner, repo, run, components) : null;
-    const aic = components ? sumCoveredComponents(artifactRoot, components, artifact.createdAt.getTime(), artifacts, artifact.name, run.run_attempt, run.id, legacyAgentEvidence) : sumAICFromUsageJSONLFiles(usageJSONLFiles);
+    const aic = components ? sumCoveredComponents(artifactRoot, components, artifact.createdAt.getTime(), artifacts, artifact.name, run.run_attempt, run.id, legacyAgentEvidence, priorJobs) : sumAICFromUsageJSONLFiles(usageJSONLFiles);
     logDailyGuardrail("Computed run AIC from artifact", {
       runId,
       artifactId: artifact.id,
