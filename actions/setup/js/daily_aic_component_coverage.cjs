@@ -67,15 +67,15 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   if (!complete || (components.size > 0 && !components.has("agent"))) throw new Error("Cannot prove complete billable-component coverage");
   const priorJobs = new Map();
   for (const [name, selected] of components) {
-    const earlier = jobsByComponent
-      .get(name)
-      .filter(job => job.conclusion !== "skipped" && job.run_attempt < selected.run_attempt)
-      .sort((a, b) => b.run_attempt - a.run_attempt);
-    const prior = earlier[0];
-    if (prior && earlier.some(job => job.run_attempt === prior.run_attempt && job.id !== prior.id)) {
-      throw new Error("Ambiguous daily AIC component jobs");
+    if (selected.conclusion === "cancelled") {
+      priorJobs.set(
+        name,
+        jobsByComponent
+          .get(name)
+          .filter(job => job.conclusion !== "skipped" && job.run_attempt < selected.run_attempt)
+          .sort((a, b) => b.run_attempt - a.run_attempt)
+      );
     }
-    if (prior) priorJobs.set(name, prior);
   }
   return { components, priorJobs };
 }
@@ -162,9 +162,13 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
       const producer = artifacts.find(artifact => artifact.name === producerName);
       const produced = producer?.createdAt?.getTime();
       if (!producer?.id || producer.expired || !Number.isFinite(produced) || produced < started || produced >= completed + 1000) {
-        const prior = priorJobs.get(name);
+        const earlier = priorJobs.get(name) || [];
+        const prior = earlier[0];
         const priorStarted = Date.parse(prior?.started_at);
         const priorCompleted = Date.parse(prior?.completed_at);
+        if (job.conclusion === "cancelled" && prior && earlier.some(item => item.run_attempt === prior.run_attempt && item.id !== prior.id)) {
+          throw new Error("Ambiguous daily AIC component jobs");
+        }
         if (
           job.conclusion !== "cancelled" ||
           !prior ||

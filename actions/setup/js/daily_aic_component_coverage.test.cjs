@@ -577,6 +577,11 @@ it("rejects an ambiguous previous attempt rather than choosing arbitrary carried
   await expect(f.result).rejects.toThrow("Ambiguous daily AIC component jobs");
 });
 
+it("ignores ambiguous older jobs when the latest job has its own producer", async () => {
+  const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, [job("agent", { id: 10, run_attempt: 2, started_at: later, completed_at: later }), job("agent"), job("Agent", { id: 11 })], { attempt: 2, runStarted: later, producerTime: later });
+  await expect(f.result).resolves.toBe(2);
+});
+
 it("rejects a cancelled rerun when the carried-forward accounting is missing", async () => {
   const f = evaluate({}, [job("agent"), job("agent", { id: 10, run_attempt: 2, conclusion: "cancelled", started_at: later, completed_at: later })], { attempt: 2, runStarted: later, producerTime: time });
   await expect(f.result).rejects.toThrow("Missing accounting for executed agent");
