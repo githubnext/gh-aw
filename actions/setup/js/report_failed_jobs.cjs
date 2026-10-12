@@ -13,6 +13,8 @@ const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
 
 const GITHUB_API_VERSION = "2022-11-28";
 const FAILED_JOBS_ISSUE_EXPIRES_HOURS = 24 * 7; // 1 week
+const MAX_FAILED_STEP_NUMBER = 10000;
+const MAX_FAILED_STEPS_REPORTED = 10;
 const STATE_PUSH_JOB_IDS = new Set(["push_ledger_changes", "push_repo_memory", "push_evals_state", "push_experiment_state"]);
 
 /**
@@ -77,7 +79,9 @@ function formatFailedJobsList(jobs) {
   return jobs
     .map(job => {
       const safeName = sanitizeContent(job.name);
-      const steps = job.failed_steps ? `\n\n  Failed step numbers (up to 10): ${job.failed_steps.length ? job.failed_steps.map(number => `\`${number}\``).join(", ") : "unavailable"}. See the linked job for details.` : "";
+      const steps = job.failed_steps
+        ? `\n\n  Failed step numbers (up to ${MAX_FAILED_STEPS_REPORTED}): ${job.failed_steps.length ? job.failed_steps.map(number => `\`${number}\``).join(", ") : "unavailable"}. See the linked job for details.`
+        : "";
       const detail = job.error_detail
         ? `\n\n  \`\`\`text\n${job.error_detail
             .split("\n")
@@ -148,9 +152,10 @@ async function getFailedNonBuiltinJobs() {
         continue;
       }
       // Step names can contain interpolated inputs; retain only bounded numeric metadata.
-      const failedSteps = Array.isArray(job.steps)
-        ? [...new Set(job.steps.filter(step => step?.conclusion === "failure" && Number.isSafeInteger(step.number) && step.number > 0 && step.number <= 10000).map(step => step.number))].slice(0, 10)
+      const failedStepNumbers = Array.isArray(job.steps)
+        ? job.steps.filter(step => step?.conclusion === "failure" && Number.isSafeInteger(step.number) && step.number > 0 && step.number <= MAX_FAILED_STEP_NUMBER).map(step => step.number)
         : undefined;
+      const failedSteps = failedStepNumbers ? [...new Set(failedStepNumbers)].slice(0, MAX_FAILED_STEPS_REPORTED) : undefined;
       runJobs.push({ name: job.name, html_url: job.html_url, ...(job.id ? { id: job.id } : {}), ...(failedSteps ? { failed_steps: failedSteps } : {}) });
     }
 

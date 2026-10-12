@@ -91,15 +91,16 @@ describe("empty output outcome", () => {
     expect(buildEmptyOutputOutcome([], rootDir)).not.toHaveProperty("engineErrorType");
   });
 
-  it.each([1, 137, 139])("classifies a silent driver exit %s separately from agent behavior", exitCode => {
+  it.each([1, 137, 139])("classifies a silent driver exit %s as unknown rather than an outage", exitCode => {
     fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("engine_driver_failure");
-    expect(outcome.failureCause).toBe("engine_outage");
+    expect(outcome.failureCause).toBe("unknown");
     expect(outcome.driverExitCode).toBe(exitCode);
     expect(outcome.details).toContain(`Driver exit code: ${exitCode}`);
     expect(outcome.details.match(/Driver exit code:/g)).toHaveLength(1);
-    expect(outcome.details).toContain("Failure classification: engine_outage");
+    expect(outcome.details).toContain("Failure classification: unknown");
+    expect(outcome.details).not.toContain("engine_outage");
     expect(outcome.details).toContain("Last engine error type: unknown");
   });
 
@@ -299,15 +300,29 @@ describe("empty output outcome", () => {
     expect(outcome.details).not.toContain("private-");
   });
 
+  it("retains outage classification when a nonzero exit has an independent provider HTTP error", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "CAPIError: 502 Bad Gateway private-provider");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.reason).toBe("engine_driver_failure");
+    expect(outcome.failureCause).toBe("engine_outage");
+    expect(outcome.details).toContain("Engine HTTP error codes: 502");
+    expect(outcome.details).not.toContain("private-provider");
+  });
+
   it.each([
     ["capi_server_error", [502], "engine_outage"],
+    ["agentic_engine_timeout", [], "engine_outage"],
+    ["sandbox_runtime_crash", [], "unknown"],
+    ["", [503], "engine_outage"],
+    ["", [], "unknown"],
     ["http_400_response_error", [400], "request_rejection"],
     ["invocation_cap_exceeded", [], "prompt_exhaustion"],
   ])("classifies %s using collector execution metadata", (category, errorCodes, failureCause) => {
     writeEvents([
       {
         type: "agent.execution",
-        data: { categories: [category], errorCodes, errorTypes: [], exitCode: 1 },
+        data: { categories: category ? [category] : [], errorCodes, errorTypes: [], exitCode: 1 },
       },
     ]);
     const outcome = buildEmptyOutputOutcome([], rootDir);

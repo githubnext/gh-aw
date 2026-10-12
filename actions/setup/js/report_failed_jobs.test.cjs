@@ -215,6 +215,7 @@ describe("getFailedNonBuiltinJobs", () => {
     const body = global.github.rest.issues.create.mock.calls[0][0].body;
     expect(body).toContain("Failed step numbers (up to 10): `5`.");
     expect(body).toContain("**Failure boundary:** Non-agent job.");
+    expect(body).toContain("A failure boundary identifies where failure was observed, not its cause: either the engine driver process or a non-agent job.");
     expect(body).toContain("does not establish a provider outage");
     expect(body).not.toMatch(/private|unbounded error payload/);
     expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
@@ -243,6 +244,28 @@ describe("getFailedNonBuiltinJobs", () => {
     const jobs = await getFailedNonBuiltinJobs();
     expect(jobs).toEqual([{ name: "publisher", html_url: null, failed_steps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]);
     expect(formatFailedJobsList(jobs)).not.toMatch(/private|`11`|`99`/);
+  });
+
+  it("accepts the maximum failed step number and deduplicates before applying the reporting limit", async () => {
+    vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ publisher: { result: "failure" } }));
+    global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
+      data: {
+        jobs: [
+          {
+            name: "publisher",
+            conclusion: "failure",
+            html_url: null,
+            steps: [
+              { number: 10000, conclusion: "failure" },
+              { number: 10001, conclusion: "failure" },
+              ...Array.from({ length: 12 }, () => ({ number: 10000, conclusion: "failure" })),
+              ...Array.from({ length: 12 }, (_, index) => ({ number: index + 1, conclusion: "failure" })),
+            ],
+          },
+        ],
+      },
+    });
+    expect(await getFailedNonBuiltinJobs()).toEqual([{ name: "publisher", html_url: null, failed_steps: [10000, 1, 2, 3, 4, 5, 6, 7, 8, 9] }]);
   });
 
   it("does not attach step metadata to an ambiguous job match", async () => {

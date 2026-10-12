@@ -806,6 +806,25 @@ describe("handle_agent_failure", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
     });
 
+    it.each([
+      [1, [], [], "[aw] Test Workflow finished without a clear failure cause"],
+      [137, [], [], "[aw] Test Workflow finished without a clear failure cause"],
+      [139, [], [], "[aw] Test Workflow finished without a clear failure cause"],
+      [1, ["capi_server_error"], [502], "[aw] Test Workflow experienced an engine outage"],
+    ])("uses runtime evidence rather than a bare driver exit %s to choose an outage title", (exitCode, categories, errorCodes, title) => {
+      const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
+      const { tmpdir } = require("os");
+      const rootDir = mkdtempSync(join(tmpdir(), "failure-driver-title-"));
+      try {
+        writeFileSync(join(rootDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories, errorCodes, errorTypes: [], exitCode } }));
+        const outcome = buildEmptyOutputOutcome([], rootDir);
+        expect(outcome.reason).toBe("engine_driver_failure");
+        expect(buildFailureIssueTitle({ ...baseOptions, hasReportIncomplete: true, emptyOutputCause: outcome.reason, terminalOutputFailureCause: outcome.failureCause })).toBe(title);
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
+    });
+
     it("focuses on report_incomplete when missing terminal output is classified as prompt exhaustion", () => {
       expect(
         buildFailureIssueTitle({
@@ -5577,6 +5596,27 @@ describe("handle_agent_failure", () => {
   // ──────────────────────────────────────────────────────
 
   describe("buildReportIncompleteContext", () => {
+    it.each([
+      [1, [], [], "unknown"],
+      [137, [], [], "unknown"],
+      [139, [], [], "unknown"],
+      [1, ["capi_server_error"], [502], "engine_outage"],
+    ])("renders a driver failure classification supported by runtime evidence for exit %s", (exitCode, categories, errorCodes, failureCause) => {
+      const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
+      const { tmpdir } = require("os");
+      const rootDir = mkdtempSync(join(tmpdir(), "failure-driver-details-"));
+      try {
+        writeFileSync(join(rootDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories, errorCodes, errorTypes: [], exitCode } }));
+        const outcome = buildEmptyOutputOutcome([], rootDir);
+        const result = buildReportIncompleteContext([outcome], { collectorEmptyOutputCause: outcome.reason, rootDir });
+        expect(result).toContain(`Failure classification: ${failureCause}`);
+        expect(result).toContain(`Driver exit code: ${exitCode}`);
+        if (failureCause === "unknown") expect(result).not.toContain("engine_outage");
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
+    });
+
     it("explains collector-generated incompletion without assuming a prompt or infrastructure failure", () => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
       const { mkdtempSync, rmSync, writeFileSync } = require("fs");
