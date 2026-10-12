@@ -235,7 +235,8 @@ function eventDetail(event) {
       return (
         fields(data, ["engineId", "model", "requestedModel", "modelRouting", "triggerType", "cliVersion", "awfVersion", "mcpgVersion", "agentVersion", "workflow", "repository", "runId"]) +
         " " +
-        fields(data.episode, ["episodeId", "hopId", "parentHopId", "originEvent", "rootRepo", "rootWorkflowId", "rootRunId"])
+        fields(data.episode, ["episodeId", "hopId", "parentHopId", "originEvent", "rootRepo", "rootWorkflowId", "rootRunId"]) +
+        (data.awContext !== undefined ? ` awContext=${inline(JSON.stringify(data.awContext))}` : "")
       );
     case "session.collection_warning":
       return fields(data, ["path", "line", "code", "message"]);

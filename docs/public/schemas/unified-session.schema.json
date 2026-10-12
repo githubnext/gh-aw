@@ -790,6 +790,7 @@
       "additionalProperties": false
     },
     "Pick<MessageData,\"content\">": { "type": "object", "properties": { "content": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false },
+    "Record<string,JsonValue>": { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } },
     "RuntimeObservationData": {
       "type": "object",
       "properties": {
@@ -980,6 +981,7 @@
         "workflow": { "$ref": "#/definitions/JsonValue" },
         "repository": { "$ref": "#/definitions/JsonValue" },
         "runId": { "$ref": "#/definitions/JsonValue" },
+        "awContext": { "$ref": "#/definitions/Record%3Cstring%2CJsonValue%3E" },
         "episode": { "anyOf": [{ "$ref": "#/definitions/EpisodeLineageData" }, { "type": "null" }] }
       },
       "additionalProperties": false

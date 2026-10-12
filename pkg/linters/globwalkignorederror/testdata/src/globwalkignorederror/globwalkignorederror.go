@@ -17,6 +17,13 @@ func badBareCalls() {
 	os.ReadDir(".")       // want `error return from os\.ReadDir is discarded`
 }
 
+func badParenthesizedCalls() {
+	(filepath.Glob("*.go"))        // want `error return from filepath\.Glob is discarded`
+	(os.ReadDir("."))              // want `error return from os\.ReadDir is discarded`
+	_, _ = (filepath.Glob("*.go")) // want `error return from filepath\.Glob is discarded`
+	_, _ = (os.ReadDir("."))       // want `error return from os\.ReadDir is discarded`
+}
+
 func good() {
 	files, err := filepath.Glob("*.go")
 	if err != nil {
@@ -37,4 +44,5 @@ func suppressed() {
 	_ = files
 	entries, _ := os.ReadDir(".") //nolint:globwalkignorederror
 	_ = entries
+	(filepath.Glob("*.go")) //nolint:globwalkignorederror
 }
