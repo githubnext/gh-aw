@@ -37,9 +37,9 @@ experiments:
     issue: 67698
 evals:
   - id: emoji_assignment_followed
-    question: "Does the final paragraph contain zero emoji when assigned minimal, or exactly three emoji when assigned heavy, while spelling out the environment, test type, and weekday rationale in words? If the independent assignment is unavailable, answer UNKNOWN."
+    question: "Using the independent assignment in run_evidence, does the final paragraph contain zero emoji when assigned minimal, or exactly three emoji when assigned heavy, while spelling out the environment, test type, and weekday rationale in words? If the assignment is unavailable, answer UNKNOWN."
   - id: choice_correct
-    question: "Does the output evidence show exactly one test_environment declaration selecting staging/smoke on Monday, Wednesday, or Friday, or production/integration on Tuesday or Thursday, with an explanation that agrees with the declaration and run's UTC weekday? If the structured declaration or UTC date is unavailable, answer UNKNOWN; do not infer the declaration from prose."
+    question: "Using the UTC run date and structured_choice_correct in run_evidence, does exactly one test_environment declaration select staging/smoke on Monday, Wednesday, or Friday, or production/integration on Tuesday or Thursday, with an explanation that agrees with the declaration? If the deterministic check is UNKNOWN, answer UNKNOWN; do not infer the declaration from prose."
 
 network:
   allowed:

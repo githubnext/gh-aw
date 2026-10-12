@@ -99,7 +99,7 @@ async function setupMain() {
     core.warning(`Agent output not found at ${agentOutputPath}. ` + "Ensure the agent artifact includes agent_output.json. " + "Evaluation will proceed without agent context.");
   }
 
-  const prompt = buildEvalPrompt(questions, agentOutputContent);
+  const prompt = buildEvalPrompt(questions, agentOutputContent, getExperimentEvidence(agentOutputContent));
 
   try {
     fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
@@ -230,12 +230,14 @@ async function main() {
  * Builds a multi-question binary evaluation prompt.
  * @param {Array<{id: string, question: string}>} questions
  * @param {string} agentOutput
+ * @param {{assignments: Record<string, string>, utc_run_date: string | null, structured_choice_correct: string} | null} [experimentEvidence]
  * @returns {string}
  */
-function buildEvalPrompt(questions, agentOutput) {
+function buildEvalPrompt(questions, agentOutput, experimentEvidence = null) {
   const questionList = questions.map((q, i) => `<question number="${i + 1}" id="${q.id}">${q.question}</question>`).join("\n");
 
   const agentSection = agentOutput ? `<agent_output>\n${agentOutput}\n</agent_output>` : "<agent_output>\n(no agent output available)\n</agent_output>";
+  const evidenceSection = experimentEvidence ? `<run_evidence>\n${JSON.stringify(experimentEvidence)}\n</run_evidence>` : "";
 
   return `# BinEval: Binary Evaluation
 
@@ -247,6 +249,7 @@ ${questionList}
 </questions>
 
 ${agentSection}
+${evidenceSection}
 
 <instructions>
 Answer each question on a separate line using EXACTLY this format:
@@ -256,9 +259,66 @@ Answer each question on a separate line using EXACTLY this format:
 
 Use only YES, NO, or UNKNOWN. Do not provide explanations or reasoning.
 Use the exact question IDs provided in <questions>.
-If the agent output does not provide enough evidence to safely answer YES or NO, answer UNKNOWN.
-Evaluate each question solely based on the agent output shown above.
+If the agent output and run evidence do not provide enough evidence to safely answer YES or NO, answer UNKNOWN.
+Evaluate each question solely based on the agent output and run evidence shown above.
 </instructions>`;
+}
+
+function getExperimentEvidence(agentOutput) {
+  const assignments = readExperimentAssignments();
+  if (!assignments) return null;
+
+  const runID = process.env.GITHUB_RUN_ID;
+  let timestamp;
+  try {
+    const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
+    const stateFile = path.join(stateDir, "state.jsonl");
+    const state = fs.readFileSync(stateFile, "utf8");
+    const records =
+      state.trim().startsWith("{") && !state.includes("\n")
+        ? [JSON.parse(state)]
+        : state
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .map(line => JSON.parse(line));
+    const record = records.reverse().find(entry => entry.run_id === runID || (Array.isArray(entry.runs) && entry.runs.some(run => run.run_id === runID)));
+    const run =
+      record?.run_id === runID
+        ? record
+        : record?.runs
+            ?.slice()
+            .reverse()
+            .find(entry => entry.run_id === runID);
+    if (
+      run?.assignments &&
+      Object.keys(run.assignments).length === Object.keys(assignments).length &&
+      Object.entries(assignments).every(([name, variant]) => run.assignments[name] === variant) &&
+      typeof run.timestamp === "string" &&
+      !Number.isNaN(Date.parse(run.timestamp))
+    ) {
+      timestamp = run.timestamp;
+    }
+  } catch {
+    // Missing or invalid state leaves the run date unknown.
+  }
+
+  let choice = "UNKNOWN";
+  if (timestamp && agentOutput) {
+    try {
+      const items = JSON.parse(agentOutput).items;
+      if (Array.isArray(items)) {
+        const declarations = items.filter(item => item?.type === "test_environment");
+        const weekday = new Date(timestamp).getUTCDay();
+        if (weekday >= 1 && weekday <= 5) {
+          const expected = weekday % 2 === 1 ? ["staging", "smoke"] : ["production", "integration"];
+          choice = declarations.length === 1 && declarations[0].environment === expected[0] && declarations[0].test_type === expected[1] ? "YES" : "NO";
+        }
+      }
+    } catch {
+      // Unavailable structured output cannot prove declaration correctness.
+    }
+  }
+  return { assignments, utc_run_date: timestamp || null, structured_choice_correct: choice };
 }
 
 /**
