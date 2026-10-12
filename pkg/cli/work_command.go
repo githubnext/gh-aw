@@ -275,7 +275,7 @@ func workTraceCommand() *cobra.Command {
 	return cmd
 }
 
-func workReadJSON(cmd *cobra.Command) ([]byte, error) {
+func workReadJSON(cmd *cobra.Command) (data []byte, retErr error) {
 	path, _ := cmd.Flags().GetString("file")
 	if path == "" {
 		return nil, errors.New("--file is required")
@@ -290,7 +290,11 @@ func workReadJSON(cmd *cobra.Command) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
+		defer func() {
+			if closeErr := file.Close(); closeErr != nil {
+				retErr = errors.Join(retErr, closeErr)
+			}
+		}()
 		reader = file
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, 4<<20+1))

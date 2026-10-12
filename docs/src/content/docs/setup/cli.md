@@ -22,10 +22,15 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw status`](#status) | Check current state of all workflows | Verifying workflows are enabled and seeing their last run result |
 | [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts | Debugging a past run by inspecting output, tokens used, and artifacts |
 | [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
-| [`gh aw work-queue`](#work-queue) | Inspect and publish a Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 > [!TIP]
 > New to `gh aw`? Start with the [day-one commands](#day-one-commands). The advanced and enterprise setup is further down the page and can be skipped for most users.
+
+## Utility and advanced commands
+
+| Command | Description | When to use |
+|---------|-------------|-------------|
+| [`gh aw work-queue`](#work-queue) | Experimental Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 ## Installation
 
