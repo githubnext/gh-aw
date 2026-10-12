@@ -16,6 +16,7 @@ Use this reference for security guidelines when implementing or reviewing gh-aw 
 - [Supply Chain Security](#supply-chain-security)
 - [Workflow Structure and Permissions](#workflow-structure-and-permissions)
 - [Static Analysis Integration](#static-analysis-integration)
+- [Review Reporting](#review-reporting)
 - [Security Checklist](#security-checklist)
 
 ### Template Injection Prevention
@@ -353,6 +354,14 @@ gh aw compile --poutine
 gh aw compile --strict --actionlint --zizmor --poutine
 ```
 
+### Review Reporting
+
+Show a findings table only when confirmed findings exist. Otherwise, state
+"No confirmed vulnerabilities found" without an empty table or placeholder row.
+Report validation blockers and incomplete coverage separately. Follow the
+[debug security-review gate](../../aw/debug-security-review.md#user-visible-result)
+for workflow execution reviews.
+
 ### Security Checklist
 
 #### Template Injection
@@ -384,4 +393,3 @@ gh aw compile --strict --actionlint --zizmor --poutine
 - [ ] actionlint passes (no errors)
 - [ ] zizmor passes (High/Critical addressed)
 - [ ] poutine passes (supply chain secure)
-

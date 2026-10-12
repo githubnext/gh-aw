@@ -12,7 +12,7 @@ const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
-const { createAPIBudget, retryNotBefore, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
+const { createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError } = require("./daily_aic_api_budget.cjs");
 const { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
@@ -30,8 +30,8 @@ const REPO_MEMORY_BACKEND = "repo-memory";
 /**
  * @returns {Promise<any>}
  */
-async function getArtifactClient(onResponse) {
-  return new DefaultArtifactClient({ onResponse });
+async function getArtifactClient(onResponse, request) {
+  return new DefaultArtifactClient({ onResponse, request });
 }
 
 /**
@@ -456,6 +456,7 @@ function hasHttpStatus(error, status) {
  * @returns {boolean}
  */
 function isStructuralGuardrailError(error) {
+  if (isQuotaError(error)) return false;
   const response = error && typeof error === "object" && "response" in error ? error.response : null;
   const headers = safeResponseHeaders(response && typeof response === "object" && "headers" in response ? response.headers : null);
   return hasHttpStatus(error, 404) || hasHttpStatus(error, 401) || (hasHttpStatus(error, 403) && headers["x-ratelimit-remaining"] !== "0" && !headers["retry-after"]);
@@ -468,20 +469,26 @@ function isStructuralGuardrailError(error) {
 /**
  * @param {any} githubClient
  * @param {{ owner: string, repo: string, workflowId: number, created: string, page: number, perPage: number, lookupMode: WorkflowRunLookupMode }} params
+ * @param {{ request: Function }} [budget]
  * @returns {Promise<{ response: any, lookupMode: WorkflowRunLookupMode, sourceRunCount: number, oldestUnfilteredCreatedAt?: string | null }>}
  */
-async function listCompletedWorkflowRunsPage(githubClient, params) {
+async function listCompletedWorkflowRunsPage(githubClient, params, budget = createAPIBudget()) {
   const { owner, repo, workflowId, created, page, perPage, lookupMode } = params;
   if (lookupMode === "repo_workflow_id_fallback") {
-    const response = await githubClient.rest.actions.listWorkflowRunsForRepo({
-      owner,
-      repo,
-      status: "completed",
-      created,
-      per_page: perPage,
-      page,
-    });
-    const allRuns = response.data.workflow_runs || [];
+    const response = await budget.request(() =>
+      githubClient.rest.actions.listWorkflowRunsForRepo({
+        owner,
+        repo,
+        status: "completed",
+        created,
+        per_page: perPage,
+        page,
+      })
+    );
+    const allRuns = response.data?.workflow_runs;
+    if (!Array.isArray(allRuns) || allRuns.some(run => !Number.isSafeInteger(run?.workflow_id) || run.workflow_id <= 0)) {
+      throw new Error("Incomplete daily AIC repository workflow history");
+    }
     const filteredRuns = allRuns.filter(run => run?.workflow_id === workflowId);
     logDailyGuardrail("Filtered repository workflow runs by workflow ID fallback", {
       workflowId,
@@ -508,36 +515,43 @@ async function listCompletedWorkflowRunsPage(githubClient, params) {
   }
 
   try {
-    const response = await githubClient.rest.actions.listWorkflowRuns({
-      owner,
-      repo,
-      workflow_id: workflowId,
-      status: "completed",
-      per_page: perPage,
-      page,
-    });
+    const response = await budget.request(() =>
+      githubClient.rest.actions.listWorkflowRuns({
+        owner,
+        repo,
+        workflow_id: workflowId,
+        status: "completed",
+        per_page: perPage,
+        page,
+      })
+    );
+    if (!Array.isArray(response.data?.workflow_runs)) throw new Error("Incomplete daily AIC workflow history");
     return {
       response,
       lookupMode,
       sourceRunCount: response?.data?.workflow_runs?.length || 0,
     };
   } catch (error) {
-    if (!hasHttpStatus(error, 404)) {
+    if (!hasHttpStatus(error, 404) || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) {
       throw error;
     }
     logDailyGuardrail("Workflow-specific run history query returned 404; falling back to repository run listing by workflow ID", {
       workflowId,
       page,
     });
-    return listCompletedWorkflowRunsPage(githubClient, {
-      owner,
-      repo,
-      workflowId,
-      created,
-      page,
-      perPage,
-      lookupMode: "repo_workflow_id_fallback",
-    });
+    return listCompletedWorkflowRunsPage(
+      githubClient,
+      {
+        owner,
+        repo,
+        workflowId,
+        created,
+        page,
+        perPage,
+        lookupMode: "repo_workflow_id_fallback",
+      },
+      budget
+    );
   }
 }
 
@@ -671,7 +685,8 @@ async function main(options = {}) {
     return;
   }
 
-  // API failures stop this scan; do not spend more quota on the next history run.
+  // Quota and permanent API failures stop the scan; transient historical reads
+  // may use conservative per-run estimates after bounded retries.
   try {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GH_AW_WORKFLOW_ID || "workflow";
     let actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || process.env.GITHUB_ACTOR || "";
@@ -697,7 +712,7 @@ async function main(options = {}) {
         conclusion: "completed",
         aic: entry.aic,
       }));
-      const totalAIC = countedRuns.reduce((sum, run) => sum + run.aic, 0);
+      const totalAIC = calculateDailyAICStats(countedRuns).total;
       const rateLimit = null;
       const summaryMeta = {
         candidateRunsCount: countedRuns.length,
@@ -727,7 +742,7 @@ async function main(options = {}) {
     }
     const githubClient = createRateLimitAwareGithub(github);
     const budget = createAPIBudget();
-    const artifactClient = await module.exports.getArtifactClient(budget.observe);
+    const artifactClient = await module.exports.getArtifactClient(undefined, budget.request);
     const { countedRuns, candidateRunsCount, cacheHits, current } = await scanDailyAIC({
       github: githubClient,
       context,
@@ -739,7 +754,7 @@ async function main(options = {}) {
       fallbackAIC: maxAICredits,
       cachePath: options.cachePath,
     });
-    const totalAIC = countedRuns.reduce((sum, run) => sum + run.aic, 0);
+    const totalAIC = calculateDailyAICStats(countedRuns).total;
     const estimatedAIC = countedRuns.reduce((sum, run) => sum + (run.source === "estimated" ? run.aic : 0), 0);
     actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || current.triggering_actor?.login || current.actor?.login || process.env.GITHUB_ACTOR || "";
     const rateLimit = budget.snapshot();
@@ -792,7 +807,7 @@ async function main(options = {}) {
     core.setOutput("daily_ai_credits_guardrail_status", status);
     core.setOutput("daily_ai_credits_guardrail_error", message);
     logDailyGuardrail("AIC inspection failed", { status, error: getErrorMessage(error) });
-    const retryAt = retryNotBefore(error?.response?.headers);
+    const retryAt = retryNotBefore(error?.response?.headers, Date.now(), isQuotaError(error));
     if (retryAt) core.info(`Daily AIC inspection must not retry before ${retryAt}`);
     core.setFailed(message);
   }

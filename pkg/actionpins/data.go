@@ -138,6 +138,7 @@ func collectEntriesWithEmptySHA(entries map[string]ActionPin) []string {
 
 // buildByRepoIndex groups pins by repository and sorts each group by version descending.
 func buildByRepoIndex(pins []ActionPin) map[string][]ActionPin {
+	actionPinsLog.Printf("Indexing %d action pins by repository", len(pins))
 	byRepo := make(map[string][]ActionPin, len(pins))
 	for _, pin := range pins {
 		byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)

@@ -59,7 +59,7 @@ describe("create_report_incomplete_issue.cjs", () => {
     expect(result.success).toBe(true);
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("incomplete_signal_not_provided"),
+        body: expect.stringContaining("**Task completion:** unconfirmed"),
       })
     );
   });
@@ -71,8 +71,24 @@ describe("create_report_incomplete_issue.cjs", () => {
     expect(result.success).toBe(true);
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("incomplete_signal_not_provided"),
+        body: expect.stringContaining("**Task completion:** unconfirmed"),
       })
     );
+  });
+
+  it.each([false, true])("excludes agent-supplied reason, details, and timestamp from tracking reports (existing=%s)", async existing => {
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: { total_count: existing ? 1 : 0, items: existing ? [{ number: 50, html_url: "https://github.com/test-owner/test-repo/issues/50" }] : [] },
+    });
+    const handler = await main({});
+    const result = await handler({
+      workflow_name: "Test Workflow",
+      run_url: "https://github.com/test-owner/test-repo/actions/runs/123",
+      incomplete_signals: [{ reason: "private-reason", details: "private-details", timestamp: "private-timestamp" }],
+    });
+    expect(result.success).toBe(true);
+    const body = (existing ? mockGithub.rest.issues.createComment : mockGithub.rest.issues.create).mock.calls[0][0].body;
+    expect(body).toContain("Task completion");
+    expect(body).not.toContain("private-");
   });
 });

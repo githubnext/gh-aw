@@ -77,11 +77,11 @@ func MatchDiscardedErrorCall(pass *analysis.Pass, stmt ast.Stmt) (call *ast.Call
 			return nil, "", "", false
 		}
 		for _, rhs := range stmt.Rhs {
-			call, ok = rhs.(*ast.CallExpr)
+			call, ok = UnwrapParenExpr(rhs).(*ast.CallExpr)
 			break
 		}
 	case *ast.ExprStmt:
-		call, ok = stmt.X.(*ast.CallExpr)
+		call, ok = UnwrapParenExpr(stmt.X).(*ast.CallExpr)
 	default:
 		return nil, "", "", false
 	}

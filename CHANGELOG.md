@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+`gh aw logs` now defaults to a 1024 MB (1 GB) storage budget instead of unlimited
+downloads. Use `--max-storage 0` to retain unlimited storage, or set a larger
+budget explicitly. MCP logs calls inherit this default unless `max_storage` is
+provided; `max_storage: 0` disables the limit.
+
 Global work-queue configuration moves to `.github/workflows/aw.json` under
 `work_queue`, including scheduling and backing Issue/label settings. AW handles
 authorization, credentials and approved worker routes; no queue enrollment or

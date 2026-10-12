@@ -17,7 +17,7 @@ const { spawnSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
-const { apiError } = require("./daily_aic_api_budget.cjs");
+const { apiError, isTransientError } = require("./daily_aic_api_budget.cjs");
 
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
@@ -290,6 +290,7 @@ function formatRetentionTimestamp(retentionDays) {
 class DefaultArtifactClient {
   constructor(options = {}) {
     this.onResponse = options.onResponse;
+    this.request = options.request || (operation => operation());
   }
 
   async listArtifacts(options = {}) {
@@ -309,24 +310,36 @@ class DefaultArtifactClient {
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
       let response;
+      /** @type {any} */
+      let payload;
       try {
-        response = await fetch(url.toString(), {
-          headers: {
-            Authorization: "Bearer " + findBy.token,
-            Accept: "application/vnd.github+json",
-            "User-Agent": "gh-aw-artifact-client",
-          },
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        response = await this.request(async () => {
+          const fetched = await fetch(url.toString(), {
+            headers: {
+              Authorization: "Bearer " + findBy.token,
+              Accept: "application/vnd.github+json",
+              "User-Agent": "gh-aw-artifact-client",
+            },
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          });
+          this.onResponse?.(fetched);
+          if (fetched.ok) {
+            try {
+              payload = await readResponseJSON(fetched, "list artifacts");
+            } catch (error) {
+              Object.assign(error, { response: fetched });
+              throw error;
+            }
+          }
+          return fetched;
         });
       } catch (err) {
+        if (err?.response) throw err;
         throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
       }
-      this.onResponse?.(response);
       if (!response.ok) {
         throw apiError(response.status, response.headers, `failed to list artifacts (${response.status})`);
       }
-      /** @type {any} */
-      const payload = await readResponseJSON(response, "list artifacts");
       const pageArtifacts = Array.isArray(payload?.artifacts) ? payload.artifacts : [];
       for (const item of pageArtifacts) {
         artifacts.push({
@@ -368,16 +381,19 @@ class DefaultArtifactClient {
     );
     let redirectResponse;
     try {
-      redirectResponse = await fetch(apiUrl.toString(), {
-        headers: {
-          Authorization: "Bearer " + findBy.token,
-          Accept: "application/vnd.github+json",
-          "User-Agent": "gh-aw-artifact-client",
-        },
-        redirect: "manual",
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
+      redirectResponse = await this.request(() =>
+        fetch(apiUrl.toString(), {
+          headers: {
+            Authorization: "Bearer " + findBy.token,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "gh-aw-artifact-client",
+          },
+          redirect: "manual",
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        })
+      );
     } catch (err) {
+      if (err?.response) throw err;
       throw new Error(`unable to download artifact: ${getErrorMessage(err)}`, { cause: err });
     }
     this.onResponse?.(redirectResponse);
@@ -389,43 +405,42 @@ class DefaultArtifactClient {
       throw new Error("unable to download artifact: missing redirect location");
     }
 
-    let blobResponse;
-    try {
-      blobResponse = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
-    } catch (err) {
-      throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
-    }
-    if (!blobResponse.ok) {
-      throw new Error(`artifact blob download failed (${blobResponse.status})`);
-    }
-
     let digest;
-    const contentType = blobResponse.headers.get("content-type") || "";
-    const zipLike = isZipResponse(location, contentType);
-    if (zipLike && !options.skipDecompress) {
-      ensureUnzipAvailable();
-      const tempDownloadDir = makeTempDir("gh-aw-artifact-download-");
-      const tempZip = path.join(tempDownloadDir, "artifact.zip");
+    const tempDownloadDir = makeTempDir("gh-aw-artifact-download-");
+    const tempFile = path.join(tempDownloadDir, "artifact");
+    try {
+      let blobResponse;
       try {
-        digest = await streamToFile(blobResponse, tempZip);
-        const unzipResult = spawnSync("unzip", ["-q", tempZip, "-d", destination], { encoding: "utf8", timeout: ARCHIVE_COMMAND_TIMEOUT_MS });
+        blobResponse = await this.request(async () => {
+          const fetched = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
+          if (!fetched.ok) throw apiError(fetched.status, fetched.headers, `artifact blob download failed (${fetched.status})`);
+          digest = await streamToFile(fetched, tempFile);
+          return fetched;
+        }, false);
+      } catch (err) {
+        if (err?.response) throw err;
+        throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
+      }
+      const contentType = blobResponse.headers.get("content-type") || "";
+      if (isZipResponse(location, contentType) && !options.skipDecompress) {
+        ensureUnzipAvailable();
+        const unzipResult = spawnSync("unzip", ["-q", tempFile, "-d", destination], { encoding: "utf8", timeout: ARCHIVE_COMMAND_TIMEOUT_MS });
         if (unzipResult.error) {
           throw unzipResult.error;
         }
         if (unzipResult.status !== 0) {
           throw new Error(`unzip failed: ${unzipResult.stderr || unzipResult.stdout || "unknown error"}`);
         }
-      } finally {
-        try {
-          fs.rmSync(tempDownloadDir, { recursive: true, force: true });
-        } catch {
-          // Ignore cleanup errors — best effort only.
-        }
+      } else {
+        const fileName = parseFilenameFromContentDisposition(blobResponse.headers.get("content-disposition") || "");
+        fs.copyFileSync(tempFile, path.join(destination, fileName));
       }
-    } else {
-      const fileName = parseFilenameFromContentDisposition(blobResponse.headers.get("content-disposition") || "");
-      const outputPath = path.join(destination, fileName);
-      digest = await streamToFile(blobResponse, outputPath);
+    } finally {
+      try {
+        fs.rmSync(tempDownloadDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors — best effort only.
+      }
     }
 
     const computed = digest ? `sha256:${digest}` : "";

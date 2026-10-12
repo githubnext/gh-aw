@@ -353,6 +353,7 @@ export interface WorkflowInfoData {
   workflow?: JsonValue;
   repository?: JsonValue;
   runId?: JsonValue;
+  awContext?: Record<string, JsonValue>;
   episode?: EpisodeLineageData | null;
 }
 

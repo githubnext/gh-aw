@@ -16,7 +16,13 @@ func bad() {
 }
 
 func badBareCalls() {
-	strconv.Atoi("42") // want `error return from strconv\.Atoi is discarded`
+	strconv.Atoi("42")                // want `error return from strconv\.Atoi is discarded`
+	(strconv.Atoi("42"))              // want `error return from strconv\.Atoi is discarded`
+	(strconv.ParseInt("42", 10, 64))  // want `error return from strconv\.ParseInt is discarded`
+	(strconv.ParseFloat("3.14", 64))  // want `error return from strconv\.ParseFloat is discarded`
+	(strconv.ParseBool("true"))       // want `error return from strconv\.ParseBool is discarded`
+	(strconv.ParseUint("42", 10, 64)) // want `error return from strconv\.ParseUint is discarded`
+	_, _ = (strconv.Atoi("42"))       // want `error return from strconv\.Atoi is discarded`
 }
 
 func good() {
@@ -39,4 +45,5 @@ func suppressed() {
 	_ = n
 	x, _ := strconv.ParseInt("42", 10, 64) //nolint:strconvparseignorederror
 	_ = x
+	(strconv.Atoi("42")) //nolint:strconvparseignorederror
 }

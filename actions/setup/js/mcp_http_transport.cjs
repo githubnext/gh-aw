@@ -42,11 +42,12 @@ class MCPServer {
    * @param {Object} [options.capabilities] - Server capabilities
    * @param {string} [options.logDir] - Log directory path
    * @param {(toolName: string, args: any, tool?: any) => any} [options.normalizeArguments] - Optional tool argument normalizer
+   * @param {(message: string) => string} [options.redactLogMessage] - Optional diagnostic payload redactor
    */
   constructor(serverInfo, options = {}) {
     // Extract logDir for createServer, keep capabilities for this class
-    const { capabilities, logDir, normalizeArguments } = options;
-    this._coreServer = createServer(serverInfo, { logDir, normalizeArguments });
+    const { capabilities, logDir, normalizeArguments, redactLogMessage } = options;
+    this._coreServer = createServer(serverInfo, { logDir, normalizeArguments, redactLogMessage });
     this.serverInfo = serverInfo;
     this.capabilities = capabilities || { tools: {} };
     this.tools = new Map();
@@ -117,6 +118,7 @@ class MCPHTTPTransport {
    * @param {Function} [options.sessionIdGenerator] - Function that generates session IDs (undefined for stateless)
    * @param {boolean} [options.enableJsonResponse] - Enable JSON responses instead of SSE (default: true for simplicity)
    * @param {boolean} [options.enableDnsRebindingProtection] - Enable DNS rebinding protection (default: false)
+   * @param {(message: string) => string} [options.redactLogMessage] - Optional diagnostic payload redactor
    */
   constructor(options = {}) {
     this.sessionIdGenerator = options.sessionIdGenerator;
@@ -125,6 +127,7 @@ class MCPHTTPTransport {
     this.server = null;
     this.sessionId = null;
     this.started = false;
+    this.logger = createLogger("MCPHTTPTransport", options.redactLogMessage);
   }
 
   /**
@@ -291,8 +294,7 @@ class MCPHTTPTransport {
       res.writeHead(200, headers);
       res.end(JSON.stringify(response));
     } catch (error) {
-      // Log the full error with stack trace on the server for debugging
-      console.error("MCP HTTP Transport error:", error);
+      this.logger.debugError("MCP HTTP Transport error: ", error);
 
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "application/json" });

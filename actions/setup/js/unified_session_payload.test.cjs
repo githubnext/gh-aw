@@ -456,7 +456,7 @@ describe("essential unified session payloads", () => {
     expect(normalizeUnifiedSessionEvent(metadata)).toEqual(metadata);
   });
 
-  it("projects only recorded episode lineage from workflow context and round trips canonical fields", () => {
+  it("preserves caller context alongside recorded episode lineage and round trips canonical fields", () => {
     const source = {
       type: "workflow.info",
       data: {
@@ -469,9 +469,9 @@ describe("essential unified session payloads", () => {
           root_repo: "org/repo",
           root_workflow_id: "org/repo/.github/workflows/root.yml@refs/heads/main",
           root_run_id: "100",
-          token: "PRIVATE_TOKEN",
-          otel_trace_id: "PRIVATE_TRACE",
-          work_queue_assignment: { payload: "PRIVATE_ASSIGNMENT" },
+          workflow_call_id: "200-1:caller",
+          otel_trace_id: "trace-1",
+          work_queue_assignment: { payload: { enabled: false, count: 0, items: [], optional: null } },
         },
       },
     };
@@ -479,6 +479,7 @@ describe("essential unified session payloads", () => {
     const compact = normalizeUnifiedSessionEvent(source);
     expect(compact.data).toEqual({
       runId: "300",
+      awContext: source.data.context,
       episode: {
         episodeId: "100-1:root",
         hopId: "200-1:caller",
@@ -490,7 +491,8 @@ describe("essential unified session payloads", () => {
       },
     });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
-    expect(JSON.stringify(compact)).not.toContain("PRIVATE_");
+    expect(compact.data.awContext).not.toBe(source.data.context);
+    expect(compact.data.awContext.work_queue_assignment).not.toBe(source.data.context.work_queue_assignment);
     expect(source).toEqual(original);
   });
 
@@ -503,12 +505,25 @@ describe("essential unified session payloads", () => {
       },
     };
     const compact = normalizeUnifiedSessionEvent(event);
-    expect(compact.data).toEqual({ episode: { episodeId: "", parentHopId: null, rootRunId: "00100" } });
+    expect(compact.data).toEqual({ awContext: event.data.context, episode: { episodeId: "", parentHopId: null, rootRunId: "00100" } });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
-    expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { episode: null, context: { episode_id: "wrong" } } }).data).toEqual({ episode: null });
+    expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { episode: null, context: { episode_id: "wrong" } } }).data).toEqual({ awContext: { episode_id: "wrong" }, episode: null });
     for (const context of [undefined, null, {}, [], { workflow_call_id: "legacy", run_id: "100", workflow_id: "caller" }]) {
-      expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } }).data).toEqual({ runId: "200" });
+      expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } }).data).toEqual({
+        runId: "200",
+        ...(context && typeof context === "object" && !Array.isArray(context) ? { awContext: context } : {}),
+      });
     }
+  });
+
+  it("prefers canonical caller context and omits absent or non-object context", () => {
+    const compact = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext: { run_id: "100" }, context: { run_id: "wrong" } } });
+    expect(compact.data).toEqual({ awContext: { run_id: "100" } });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
+    for (const awContext of [undefined, null, [], "", false, 0]) {
+      expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext, context: { run_id: "wrong" } } }).data).not.toHaveProperty("awContext");
+    }
+    expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: {} }).data).not.toHaveProperty("awContext");
   });
 
   it("uses one accounting shape without losing zero values or adding overlapping totals", () => {

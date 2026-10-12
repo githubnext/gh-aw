@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"cda54b55a196f8c9857f669c7966ce5a622c0ff83193891a07cc38589c0c3a22","body_hash":"a7984845c0de515f3db17dbf7092892a71787c6e4160877efa22fbf17544dc7f","strict":true,"agent_id":"codex","agent_model":"copilot/gpt-6-luna","engine_versions":{"codex":"0.162.1"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51","digest":"sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51","digest":"sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51","digest":"sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v1.12.2","digest":"sha256:508a0857ec762b1ab1cece29193345b501fab1dd9d1228a7b617062954cecac6","pinned_image":"ghcr.io/github/github-mcp-server:v1.12.2@sha256:508a0857ec762b1ab1cece29193345b501fab1dd9d1228a7b617062954cecac6"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"mcpscripts","tools":["go","make"]},{"name":"safeoutputs","tools":["add_comment","create_discussion","create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"5810dd8f2de4bf213b17092ed21d54a64f822bb6bc392b5046181da5cd5b8ae2","body_hash":"66413dd8388b986dffc4e1add8ca3020a4f0d08c0fd850ba1bde2cb41b60f651","strict":true,"agent_id":"codex","agent_model":"copilot/gpt-6-luna","engine_versions":{"codex":"0.162.1"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51","digest":"sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51","digest":"sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51","digest":"sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"mcpscripts","tools":["go","make"]},{"name":"safeoutputs","tools":["add_comment","create_discussion","create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -56,7 +56,7 @@
 #   - ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983
 #   - ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba
 #   - ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f
-#   - ghcr.io/github/github-mcp-server:v1.12.2@sha256:508a0857ec762b1ab1cece29193345b501fab1dd9d1228a7b617062954cecac6
+#   - ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796
 
 name: "Daily CLI Performance Agent"
 on:
@@ -537,6 +537,11 @@ jobs:
           evidence_tmp="/tmp/gh-aw/agent_execution.json.tmp"
           printf '{"version":1,"component":"agent","run_id":%s,"run_attempt":%s,"state":"not_started"}\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$evidence_tmp"
           mv "$evidence_tmp" "/tmp/gh-aw/agent_execution.json"
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -617,7 +622,7 @@ jobs:
           GH_AW_SKILL_DIR: ".codex/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983 ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f ghcr.io/github/github-mcp-server:v1.12.2@sha256:508a0857ec762b1ab1cece29193345b501fab1dd9d1228a7b617062954cecac6
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983 ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796
       - name: Configure Codex
         run: |
           set -o pipefail
@@ -863,7 +868,7 @@ jobs:
         # runner-guard:ignore RGS-018 -- writes first-party mcp-scripts tools.json manifest and mcp-server.cjs shim generated verbatim from the gh-aw compiler template, not an attacker-controlled dropper.
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_bab178232d2c40e3_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_fc298563fb41fb80_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -871,12 +876,15 @@ jobs:
             "tools": [
               {
                 "name": "go",
-                "description": "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide arguments as an array of strings without the 'go' prefix (e.g., args: ['test', './...']). Each array element is one literal argument; do not add shell quoting.",
                 "inputSchema": {
                   "properties": {
                     "args": {
-                      "description": "Arguments to pass to go CLI (without the 'go' prefix). Examples: 'test ./...', 'build ./cmd/gh-aw', 'mod tidy', 'fmt ./...', 'vet ./...'",
-                      "type": "string"
+                      "description": "Array of argument strings to pass to go CLI (without the 'go' prefix). Examples: ['test', './...'], ['build', './cmd/gh-aw'], ['mod', 'tidy'], ['fmt', './...'], ['vet', './...']",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     }
                   },
                   "required": [
@@ -884,17 +892,20 @@ jobs:
                   ],
                   "type": "object"
                 },
-                "handler": "go.sh",
+                "handler": "go.cjs",
                 "timeout": 60
               },
               {
                 "name": "make",
-                "description": "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide target names and options as an array of strings (e.g., args: ['fmt', 'build']). Each array element is one literal argument; do not add shell quoting.",
                 "inputSchema": {
                   "properties": {
                     "args": {
-                      "description": "Arguments to pass to make (target names and options). Examples: 'build', 'test-unit', 'lint', 'recompile', 'agent-finish', 'fmt build test-unit'",
-                      "type": "string"
+                      "description": "Array of target names and option strings to pass to make. Examples: ['build'], ['test-unit'], ['lint'], ['recompile'], ['agent-finish'], ['fmt', 'build', 'test-unit']",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     }
                   },
                   "required": [
@@ -902,12 +913,12 @@ jobs:
                   ],
                   "type": "object"
                 },
-                "handler": "make.sh",
+                "handler": "make.cjs",
                 "timeout": 60
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_bab178232d2c40e3_EOF
+          GH_AW_MCP_SCRIPTS_TOOLS_fc298563fb41fb80_EOF
           cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_e0a10bf70e571677_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
@@ -927,34 +938,48 @@ jobs:
 
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_7b45399736bf1900_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: go
-          # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-
-          set +o histexpand
-          set -euo pipefail
-
-          echo "go $INPUT_ARGS"
-          go $INPUT_ARGS
-
-
-          GH_AW_MCP_SCRIPTS_SH_GO_7b45399736bf1900_EOF
-          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_7e3f3e7ed66106db_EOF'
-          #!/bin/bash
-          # Auto-generated mcp-script tool: make
-          # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-
-          set +o histexpand
-          set -euo pipefail
-
-          echo "make $INPUT_ARGS"
-          make $INPUT_ARGS
-
-
-          GH_AW_MCP_SCRIPTS_SH_MAKE_7e3f3e7ed66106db_EOF
-          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.cjs" << 'GH_AW_MCP_SCRIPTS_JS_GO_c5e07a1f7280b030_EOF'
+            async function execute(inputs) {
+              const { args } = inputs || {};
+              const { execFile } = require("node:child_process");
+              const { promisify } = require("node:util");
+              const { buildEnhancedError } = require("./mcp_handler_process.cjs");
+              if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+                throw new Error("args must be an array of strings");
+              }
+              try {
+                const { stdout, stderr } = await promisify(execFile)("go", args, { maxBuffer: 10 * 1024 * 1024 });
+                return { stdout, stderr, outputs: {} };
+              } catch (error) {
+                throw buildEnhancedError(error, "go", error.stdout || "", error.stderr || "");
+              }
+            }
+            module.exports = { execute };
+            if (require.main === module) {
+              require("./mcp-scripts-runner.cjs")(execute);
+            }
+          GH_AW_MCP_SCRIPTS_JS_GO_c5e07a1f7280b030_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.cjs" << 'GH_AW_MCP_SCRIPTS_JS_MAKE_21105834362d28ed_EOF'
+            async function execute(inputs) {
+              const { args } = inputs || {};
+              const { execFile } = require("node:child_process");
+              const { promisify } = require("node:util");
+              const { buildEnhancedError } = require("./mcp_handler_process.cjs");
+              if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+                throw new Error("args must be an array of strings");
+              }
+              try {
+                const { stdout, stderr } = await promisify(execFile)("make", args, { maxBuffer: 10 * 1024 * 1024 });
+                return { stdout, stderr, outputs: {} };
+              } catch (error) {
+                throw buildEnhancedError(error, "make", error.stdout || "", error.stderr || "");
+              }
+            }
+            module.exports = { execute };
+            if (require.main === module) {
+              require("./mcp-scripts-runner.cjs")(execute);
+            }
+          GH_AW_MCP_SCRIPTS_JS_MAKE_21105834362d28ed_EOF
 
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config
@@ -1042,11 +1067,11 @@ jobs:
 
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_d6911d639bb0319f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_e5ff93c4d22f2feb_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
-                "container": "ghcr.io/github/github-mcp-server:v1.12.2",
+                "container": "ghcr.io/github/github-mcp-server:v2.0.2",
                 "env": {
                   "GITHUB_FEATURES": "fields_param",
                   "GITHUB_HOST": "$GITHUB_SERVER_URL",
@@ -1130,7 +1155,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_d6911d639bb0319f_EOF
+          GH_AW_MCP_CONFIG_e5ff93c4d22f2feb_EOF
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p "${CODEX_HOME}"

@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -92,39 +91,29 @@ func (c *Compiler) generateGoManifests(workflowDataList []*WorkflowData, workflo
 	return true, nil
 }
 
+// collectDependencies keeps the last dependency for each key and sorts the result by key.
+func collectDependencies[T any](workflowDataList []*WorkflowData, extract func(*WorkflowData) []string, parse func(string) T, key func(T) string) []T {
+	depMap := make(map[string]T)
+	for _, workflowData := range workflowDataList {
+		for _, pkg := range extract(workflowData) {
+			dep := parse(pkg)
+			depMap[key(dep)] = dep
+		}
+	}
+
+	var deps []T
+	for _, name := range sliceutil.SortedKeys(depMap) {
+		deps = append(deps, depMap[name])
+	}
+	return deps
+}
+
 // collectNpmDependencies collects all npm dependencies from workflow data
 func (c *Compiler) collectNpmDependencies(workflowDataList []*WorkflowData) []NpmDependency {
 	dependabotLog.Print("Collecting npm dependencies from workflows")
 
-	depMap := make(map[string]string) // package name -> version (last seen)
-
-	for _, workflowData := range workflowDataList {
-		packages := extractNpxPackages(workflowData)
-		for _, pkg := range packages {
-			dep := parseNpmPackage(pkg)
-			depMap[dep.Name] = dep.Version
-		}
-	}
-
-	// Convert map to sorted slice
-	var deps []NpmDependency
-	for name, version := range depMap {
-		deps = append(deps, NpmDependency{
-			Name:    name,
-			Version: version,
-		})
-	}
-
-	// Sort by name for deterministic output
-	slices.SortFunc(deps, func(a, b NpmDependency) int {
-		switch {
-		case a.Name < b.Name:
-			return -1
-		case a.Name > b.Name:
-			return 1
-		default:
-			return 0
-		}
+	deps := collectDependencies(workflowDataList, extractNpxPackages, parseNpmPackage, func(dep NpmDependency) string {
+		return dep.Name
 	})
 
 	dependabotLog.Printf("Collected %d unique dependencies", len(deps))
@@ -339,35 +328,8 @@ func runNpmInstallPackageLockOnly(ctx context.Context, npmPath, workflowDir stri
 func (c *Compiler) collectPipDependencies(workflowDataList []*WorkflowData) []PipDependency {
 	dependabotLog.Print("Collecting pip dependencies from workflows")
 
-	depMap := make(map[string]string) // package name -> version (last seen)
-
-	for _, workflowData := range workflowDataList {
-		packages := extractPipPackages(workflowData)
-		for _, pkg := range packages {
-			dep := parsePipPackage(pkg)
-			depMap[dep.Name] = dep.Version
-		}
-	}
-
-	// Convert map to sorted slice
-	var deps []PipDependency
-	for name, version := range depMap {
-		deps = append(deps, PipDependency{
-			Name:    name,
-			Version: version,
-		})
-	}
-
-	// Sort by name for deterministic output
-	slices.SortFunc(deps, func(a, b PipDependency) int {
-		switch {
-		case a.Name < b.Name:
-			return -1
-		case a.Name > b.Name:
-			return 1
-		default:
-			return 0
-		}
+	deps := collectDependencies(workflowDataList, extractPipPackages, parsePipPackage, func(dep PipDependency) string {
+		return dep.Name
 	})
 
 	dependabotLog.Printf("Collected %d unique pip dependencies", len(deps))
@@ -482,35 +444,8 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 func (c *Compiler) collectGoDependencies(workflowDataList []*WorkflowData) []GoDependency {
 	dependabotLog.Print("Collecting Go dependencies from workflows")
 
-	depMap := make(map[string]string) // package path -> version (last seen)
-
-	for _, workflowData := range workflowDataList {
-		packages := extractGoPackages(workflowData)
-		for _, pkg := range packages {
-			dep := parseGoPackage(pkg)
-			depMap[dep.Path] = dep.Version
-		}
-	}
-
-	// Convert map to sorted slice
-	var deps []GoDependency
-	for path, version := range depMap {
-		deps = append(deps, GoDependency{
-			Path:    path,
-			Version: version,
-		})
-	}
-
-	// Sort by path for deterministic output
-	slices.SortFunc(deps, func(a, b GoDependency) int {
-		switch {
-		case a.Path < b.Path:
-			return -1
-		case a.Path > b.Path:
-			return 1
-		default:
-			return 0
-		}
+	deps := collectDependencies(workflowDataList, extractGoPackages, parseGoPackage, func(dep GoDependency) string {
+		return dep.Path
 	})
 
 	dependabotLog.Printf("Collected %d unique Go dependencies", len(deps))

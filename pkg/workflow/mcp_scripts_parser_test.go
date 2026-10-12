@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -39,6 +40,55 @@ func TestHasMCPScripts(t *testing.T) {
 			result := HasMCPScripts(tt.config)
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestMCPScriptArrayItems(t *testing.T) {
+	compiler := NewCompiler()
+	for _, itemType := range []MCPParamType{
+		MCPParamTypeString, MCPParamTypeNumber, MCPParamTypeBoolean, MCPParamTypeArray, MCPParamTypeObject,
+	} {
+		t.Run(string(itemType), func(t *testing.T) {
+			toolMap := map[string]any{
+				"description": "Array input",
+				"script":      "return args;",
+				"inputs": map[string]any{
+					"args": map[string]any{
+						"type":  "array",
+						"items": map[string]any{"type": string(itemType)},
+					},
+					"untyped": map[string]any{"type": "array"},
+				},
+			}
+			tool := parseMCPScriptToolConfig("example", toolMap)
+			want := &MCPScriptParamItems{Type: itemType}
+			if !reflect.DeepEqual(tool.Inputs["args"].Items, want) {
+				t.Fatalf("parsed items = %#v, want %#v", tool.Inputs["args"].Items, want)
+			}
+			if tool.Inputs["untyped"].Items != nil {
+				t.Fatal("array without items should remain unconstrained")
+			}
+			importJSON, err := json.Marshal(map[string]any{"example": toolMap})
+			if err != nil {
+				t.Fatal(err)
+			}
+			imported := compiler.mergeMCPScripts(nil, []string{string(importJSON)})
+			if !reflect.DeepEqual(imported.Tools["example"].Inputs["args"].Items, want) {
+				t.Fatal("imported item type was not preserved")
+			}
+			var generated MCPScriptsConfigJSON
+			if err := json.Unmarshal([]byte(GenerateMCPScriptsToolsConfig(imported)), &generated); err != nil {
+				t.Fatal(err)
+			}
+			props := generated.Tools[0].InputSchema["properties"].(map[string]any)
+			items := props["args"].(map[string]any)["items"]
+			if !reflect.DeepEqual(items, map[string]any{"type": string(itemType)}) {
+				t.Fatalf("generated items = %#v", items)
+			}
+			if _, exists := props["untyped"].(map[string]any)["items"]; exists {
+				t.Fatal("array without items should not emit an items schema")
 			}
 		})
 	}

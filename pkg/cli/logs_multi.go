@@ -239,6 +239,7 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 	targets []logsWorkflowTarget,
 	initialErrors []error,
 ) (err error) {
+	opts = normalizeLogsDownloadOptions(opts)
 	if len(targets) == 0 {
 		return errors.Join(initialErrors...)
 	}
@@ -340,6 +341,7 @@ func logsTargetRateLimitHosts(targets []logsWorkflowTarget) []string {
 }
 
 func collectLogsTargets(ctx context.Context, opts LogsDownloadOptions, targets []logsWorkflowTarget) []logsTargetResult {
+	opts = normalizeLogsDownloadOptions(opts)
 	resultChannel := make(chan logsTargetResult, len(targets))
 	var wg sync.WaitGroup
 	workerCount := min(len(targets), getMaxConcurrentWorkflowDownloads())

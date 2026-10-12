@@ -93,7 +93,7 @@ A response pattern used by the `gh aw` MCP server's `logs` tool when a gateway t
 
 ### Logs Storage Budget (`--max-storage`)
 
-A `gh aw logs` flag that caps total on-disk storage in MB for downloaded run artifacts and cache data. When downloads approach the configured limit, the command performs selective pruning: it removes non-essential cache data (such as prunable log-cache files not needed by already-completed runs) before falling back to stopping further downloads with `errLogsStorageLimitReached`. Reserving space per download and recording pruned bytes lets long-running multi-workflow log collection stay within a fixed disk budget instead of exhausting it. See [Monitoring Costs with `gh aw logs`](/gh-aw/reference/cost-management/#monitoring-costs-with-gh-aw-logs).
+A `gh aw logs` flag that sets a soft budget for total on-disk storage in MB for downloaded run artifacts and cache data (default: 1024 MB, or 1 GB; `0` disables the limit). Concurrent in-flight downloads can temporarily exceed the budget. When downloads approach the configured limit, the command performs selective pruning: it removes non-essential cache data (such as prunable log-cache files not needed by already-completed runs) before falling back to stopping further downloads with `errLogsStorageLimitReached`. Reserving space per download and recording pruned bytes lets long-running multi-workflow log collection stay within a fixed disk budget instead of exhausting it. See [Monitoring Costs with `gh aw logs`](/gh-aw/reference/cost-management/#monitoring-costs-with-gh-aw-logs).
 
 ### QMD Documentation Search (`qmd:`)
 

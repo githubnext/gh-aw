@@ -302,6 +302,7 @@ func buildContinuationIfNeeded(
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (err error) {
+	opts = normalizeLogsDownloadOptions(opts)
 	logsOrchestratorLog.Printf("Downloading workflow logs: workflow=%q, count=%d, outputDir=%q", opts.WorkflowName, opts.Count, opts.OutputDir)
 	if err := prepareCachedLogsJSONL(&opts); err != nil {
 		return err
@@ -351,6 +352,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (err er
 }
 
 func collectWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (workflowLogsResult, error) {
+	opts = normalizeLogsDownloadOptions(opts)
 	runtime, err := prepareLogsDownload(ctx, opts)
 	if err != nil {
 		return workflowLogsResult{}, err

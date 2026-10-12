@@ -658,7 +658,7 @@ describe("Unified conclusion session", () => {
     expect(events.at(-1).data.absentComponents).not.toContain("workflow");
   });
 
-  it.each(["aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists observed episode lineage from trusted %s", metadataPath => {
+  it.each(["aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists caller context and observed episode lineage from trusted %s", metadataPath => {
     write(metadataPath, {
       engine_id: "copilot",
       run_id: "300",
@@ -670,21 +670,30 @@ describe("Unified conclusion session", () => {
         root_repo: "org/repo",
         root_workflow_id: "root.yml",
         root_run_id: "100",
+        workflow_call_id: "200-1:caller",
+        work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
         secret: "PRIVATE_CONTEXT",
       },
     });
     write("agent/aw_info.json", { context: { episode_id: "forged", hop_id: "forged" } });
+    write("agent-session.jsonl", [{ type: "session.init", data: { sourceEngine: "copilot" } }]);
+    write("agent-stdio.log", "::add-mask::PRIVATE_CONTEXT\n");
     const events = writeUnifiedSession({ rootDir: root });
     const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8").trimEnd().split("\n").map(JSON.parse);
     const workflow = persisted.find(event => event.type === "workflow.info");
     expect(workflow).toMatchObject({
       data: {
         runId: "300",
+        awContext: {
+          workflow_call_id: "200-1:caller",
+          work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
+          secret: "***",
+        },
         episode: { episodeId: "100-1:root", hopId: "200-1:caller", parentHopId: "100-1:root", originEvent: "issues", rootRepo: "org/repo", rootWorkflowId: "root.yml", rootRunId: "100" },
       },
       provenance: { component: "workflow", path: metadataPath },
     });
-    expect(persisted).toEqual(events);
+    expect(persisted).toEqual(serializeSessionArtifact(events, ["PRIVATE_CONTEXT"]).trimEnd().split("\n").map(JSON.parse));
     expect(JSON.stringify(workflow)).not.toContain("PRIVATE_CONTEXT");
     expect(JSON.stringify(workflow)).not.toContain("forged");
     const original = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");

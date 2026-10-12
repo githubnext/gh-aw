@@ -23,6 +23,7 @@ const { loadConfig } = require("./mcp_scripts_config_loader.cjs");
 const { createToolConfig } = require("./mcp_scripts_tool_factory.cjs");
 const { bootstrapMCPScriptsServer, cleanupConfigFile } = require("./mcp_scripts_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { redactMCPScriptLogMessage } = require("./diagnostic_sanitization.cjs");
 
 /**
  * @typedef {Object} MCPScriptsToolConfig
@@ -51,7 +52,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 function startMCPScriptsServer(configPath, options = {}) {
   // Create server first to have logger available
   const logDir = options.logDir || undefined;
-  const server = createServer({ name: "mcpscripts", version: "1.0.0" }, { logDir });
+  const server = createServer({ name: "mcpscripts", version: "1.0.0" }, { logDir, redactLogMessage: redactMCPScriptLogMessage });
 
   // Bootstrap: load configuration and tools using shared logic
   const { config, tools } = bootstrapMCPScriptsServer(configPath, server);
