@@ -248,5 +248,13 @@
     "direction": "higher_is_better",
     "min": 0,
     "max": 1
+  },
+  "code-edit-precision": {
+    "name": "Code Edit Precision",
+    "description": "Fraction of distinct edited files touched by the reference patch",
+    "unit": "ratio",
+    "direction": "higher_is_better",
+    "min": 0,
+    "max": 1
   }
 }

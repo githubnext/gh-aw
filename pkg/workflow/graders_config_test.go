@@ -88,6 +88,29 @@ func TestParseGradersFromFrontmatter_CodeReadPrecision(t *testing.T) {
 	}
 }
 
+func TestParseGradersFromFrontmatter_CodeEditPrecision(t *testing.T) {
+	var c Compiler
+	cfg, err := c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{"code-edit-precision": map[string]any{}},
+	})
+	require.NoError(t, err)
+	grader := cfg.Graders["code-edit-precision"]
+	require.NotNil(t, grader)
+	assert.Equal(t, "Code Edit Precision", grader.Name)
+	assert.Empty(t, grader.Script)
+	assert.Equal(t, "ratio", grader.Unit)
+	assert.Equal(t, "higher_is_better", grader.Direction)
+	require.NotNil(t, grader.Min)
+	require.NotNil(t, grader.Max)
+	assert.InDelta(t, 0.0, *grader.Min, 1e-9)
+	assert.InDelta(t, 1.0, *grader.Max, 1e-9)
+
+	_, err = c.parseGradersFromFrontmatter(map[string]any{
+		"graders": map[string]any{"code-edit-precision": map[string]any{"script": "return 1;"}},
+	})
+	require.Error(t, err)
+}
+
 func TestBuiltinGraderRegistry_WorkingSetRebuildFactor(t *testing.T) {
 	meta, ok := builtinGraderMetaByID["working-set-rebuild-factor"]
 	if !ok {
