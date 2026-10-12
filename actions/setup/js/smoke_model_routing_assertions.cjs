@@ -32,6 +32,16 @@
  *   (when configured)
  *
  * Every check that iterates over requests fails when there are none to check.
+ *
+ * Threat-detection checks (`detectionMain`, run from
+ * `safe-outputs.threat-detection.post-steps` in the detection job) read the
+ * detection run's own evidence under `/tmp/gh-aw/threat-detection`:
+ * - D1 detection execution outcome is success and the structured result file
+ *   parses with the verdict keys (`execution.json` is not completion evidence)
+ * - D2 detection requests exist, all on the configured detection model, which is
+ *   disjoint from allowed-models
+ * - D3 no routing_classification request, no model-routing selection, and no
+ *   model-routing block in the detection's resolved AWF config
  */
 
 const fs = require("fs");
@@ -439,6 +449,172 @@ async function main(options) {
   return results;
 }
 
+const DETECTION_ROOT_DIR = "/tmp/gh-aw/threat-detection";
+const DETECTION_RESULT_PATH = "detection_result.json";
+const DETECTION_VERDICT_FLAGS = ["prompt_injection", "secret_leak", "malicious_patch"];
+const DETECTION_VERDICT_LISTS = ["reasons", "warnings"];
+const MODEL_ROUTING_LOG = "model-routing.jsonl";
+const RESOLVED_CONFIG_PATH = "sandbox/firewall/audit/awf-resolved-config.json";
+
+/**
+ * @typedef {{ detectionModel: string, allowedModels: string[], executionOutcome?: string }} DetectionExpectations
+ * @typedef {{ D1?: string[], D2?: string[], D3?: string[] }} DetectionEvidenceProblems
+ */
+
+/** @param {any} value @returns {boolean} */
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Evaluate the threat-detection run's own evidence: detection must complete on
+ * its configured model and must not be routed.
+ * @param {{ result?: any, requests: any[], routingEvents?: any[], resolvedConfig?: any, problems?: DetectionEvidenceProblems, expectations: DetectionExpectations }} input
+ * @returns {RoutingAssertionResults}
+ */
+function evaluateDetectionEvidence({ result, requests, routingEvents = [], resolvedConfig, problems = {}, expectations }) {
+  /** @type {RoutingAssertionResults} */
+  const results = { passes: [], failures: [] };
+  /** @param {string} id @param {string[]} found @param {string} message */
+  const report = (id, found, message) => {
+    if (found.length) results.failures.push(`FAIL ${id} ${found.join("; ")}`);
+    else results.passes.push(`PASS ${id} ${message}`);
+  };
+
+  const allowedList = [...new Set((expectations.allowedModels ?? []).map(servedModel).filter(Boolean))];
+  const allowed = new Set(allowedList);
+  const detectionModel = servedModel(expectations.detectionModel);
+
+  // D1: the detection step succeeded and the structured result parses with the
+  // verdict keys. execution.json stays "started" after success, so it is not used.
+  const d1 = [...(problems.D1 ?? [])];
+  if (expectations.executionOutcome !== "success") d1.push(`detection execution outcome is ${expectations.executionOutcome || "<empty>"}, expected success`);
+  if (!isPlainObject(result)) {
+    if (!problems.D1?.length) d1.push(`no parsed ${DETECTION_RESULT_PATH}`);
+  } else {
+    const badKeys = [...DETECTION_VERDICT_FLAGS.filter(key => typeof result[key] !== "boolean"), ...DETECTION_VERDICT_LISTS.filter(key => !Array.isArray(result[key]))];
+    if (badKeys.length) d1.push(`${DETECTION_RESULT_PATH} is missing or has malformed verdict key(s) [${badKeys.join(", ")}]; observed keys: [${Object.keys(result).join(", ")}]`);
+  }
+  report("D1", d1, `detection completed and ${DETECTION_RESULT_PATH} has verdict keys [${[...DETECTION_VERDICT_FLAGS, ...DETECTION_VERDICT_LISTS].join(", ")}]`);
+
+  // D2: every detection request used the configured detection model, which must
+  // be disjoint from the routing candidates.
+  const d2 = [...(problems.D2 ?? [])];
+  if (!detectionModel) d2.push("no configured detection model to check");
+  else if (allowed.has(detectionModel)) d2.push(`configured detection model ${detectionModel} is in allowed-models [${allowedList.join(", ")}]; it must be disjoint from the routing candidates`);
+  if (!requests.length) {
+    if (!problems.D2?.length) d2.push("no detection requests in the api-proxy token usage");
+  } else {
+    const offModel = requests.filter(request => servedModel(request?.model) !== detectionModel);
+    const routed = requests.filter(request => allowed.has(servedModel(request?.model)));
+    if (offModel.length) d2.push(`detection request(s) not on configured model ${detectionModel || "<none>"}: ${describeRequests(offModel)}`);
+    if (routed.length) d2.push(`detection request(s) on allowed-models [${allowedList.join(", ")}]: ${describeRequests(routed)}`);
+  }
+  report("D2", d2, `all ${requests.length} detection request(s) used ${detectionModel}, outside allowed-models [${allowedList.join(", ")}]`);
+
+  // D3: detection was not routed.
+  const d3 = [...(problems.D3 ?? [])];
+  const classifierRequests = requests.filter(isClassifierRequest);
+  if (classifierRequests.length) d3.push(`detection made ${classifierRequests.length} ${CLASSIFIER_PURPOSE} request(s): ${describeRequests(classifierRequests)}`);
+  const selections = routingEvents.filter(event => event?.stage === "selection");
+  if (selections.length)
+    d3.push(
+      `detection ${MODEL_ROUTING_LOG} has ${selections.length} selection event(s): ${selections.map(event => `${servedModel(event.wire_model ?? event.selected_model) || "<no model>"} ${normalizeEndpoint(event.endpoint) || "<no endpoint>"}`).join(", ")}`
+    );
+  if (!isPlainObject(resolvedConfig)) {
+    if (!problems.D3?.length) d3.push("no parsed detection AWF resolved config");
+  } else {
+    const routingKeys = [];
+    if (resolvedConfig.modelRouting !== undefined && resolvedConfig.modelRouting !== null) routingKeys.push("modelRouting");
+    if (resolvedConfig.experimentalModelRouting === true) routingKeys.push("experimentalModelRouting");
+    if (routingKeys.length) d3.push(`detection AWF resolved config has model-routing setting(s) [${routingKeys.join(", ")}]`);
+  }
+  report("D3", d3, `detection made no ${CLASSIFIER_PURPOSE} request, has no model-routing selection, and its AWF config has no model routing`);
+
+  return results;
+}
+
+/**
+ * @param {string} file
+ * @param {string[]} problems
+ * @returns {any}
+ */
+function readJsonFile(file, problems) {
+  if (!fs.existsSync(file)) {
+    problems.push(`missing ${file}`);
+    return undefined;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    problems.push(`${file} is not valid JSON: ${getErrorMessage(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Collect the detection run's own evidence. The detection job copies its AWF
+ * proxy and audit logs under the threat-detection directory before post-steps run.
+ * @param {{ rootDir?: string }} [options]
+ * @returns {{ result: any, requests: any[], routingEvents: any[], resolvedConfig: any, problems: Required<DetectionEvidenceProblems> }}
+ */
+function collectDetectionEvidence({ rootDir = DETECTION_ROOT_DIR } = {}) {
+  /** @type {Required<DetectionEvidenceProblems>} */
+  const problems = { D1: [], D2: [], D3: [] };
+
+  const result = readJsonFile(path.join(rootDir, DETECTION_RESULT_PATH), problems.D1);
+
+  /** @type {string[]} */
+  const tokenProblems = [];
+  let requests = [];
+  const tokenFile = TOKEN_USAGE_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file));
+  if (tokenFile) {
+    requests = readJsonl(tokenFile, tokenProblems).filter(record => isPlainObject(record) && (record.event === undefined || record.event === "token_usage"));
+  } else {
+    tokenProblems.push(`missing api-proxy token-usage.jsonl (looked in ${TOKEN_USAGE_PATHS.join(", ")})`);
+  }
+  // D3's classifier check reads the same requests, so token-usage problems fail both.
+  problems.D2.push(...tokenProblems);
+  problems.D3.push(...tokenProblems);
+
+  const routingEvents = [];
+  for (const file of [...new Set(TOKEN_USAGE_PATHS.map(tokenPath => path.join(rootDir, path.dirname(tokenPath), MODEL_ROUTING_LOG)))]) {
+    if (fs.existsSync(file)) routingEvents.push(...readJsonl(file, problems.D3));
+  }
+
+  const resolvedConfig = readJsonFile(path.join(rootDir, RESOLVED_CONFIG_PATH), problems.D3);
+  return { result, requests, routingEvents, resolvedConfig, problems };
+}
+
+/**
+ * Collect detection evidence and evaluate D1–D3.
+ * @param {DetectionExpectations & { rootDir?: string }} options
+ * @returns {RoutingAssertionResults}
+ */
+function checkDetectionEvidence(options) {
+  const { rootDir, ...expectations } = options;
+  const evidence = collectDetectionEvidence({ rootDir });
+  return evaluateDetectionEvidence({ ...evidence, expectations });
+}
+
+/**
+ * Detection-job post-step entry point: logs every check and fails the step on any failure.
+ * @param {DetectionExpectations & { rootDir?: string, core?: any }} options
+ * @returns {Promise<RoutingAssertionResults>}
+ */
+async function detectionMain(options) {
+  const { core: actionsCore = global.core, ...rest } = options;
+  const results = checkDetectionEvidence(rest);
+  for (const line of results.passes) actionsCore.info(line);
+  for (const line of results.failures) actionsCore.error(line);
+  if (results.failures.length) {
+    actionsCore.setFailed(`Threat-detection smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
+  } else {
+    actionsCore.info(`All ${results.passes.length} threat-detection smoke assertions passed`);
+  }
+  return results;
+}
+
 module.exports = {
   CLASSIFIER_PURPOSE,
   TOKEN_USAGE_PATHS,
@@ -449,4 +625,8 @@ module.exports = {
   collectModelRoutingEvidence,
   checkModelRoutingEvidence,
   main,
+  evaluateDetectionEvidence,
+  collectDetectionEvidence,
+  checkDetectionEvidence,
+  detectionMain,
 };
