@@ -354,7 +354,7 @@ func applyCodemodsUntilStable(content, filePath string, codemods []Codemod) (str
 	// Repeat the registry because a later codemod can enable an earlier one.
 	// Repeated content or reaching the pass limit indicates a non-converging registry.
 	seen := make(map[string]struct{})
-	for pass := 0; pass < maxCodemodPasses; pass++ {
+	for pass := range maxCodemodPasses {
 		if _, exists := seen[currentContent]; exists {
 			return "", nil, fmt.Errorf("codemods did not converge for %s", filepath.Base(filePath))
 		}
