@@ -1,25 +1,24 @@
 {
-  "run_date": "2026-10-11T18:36:47Z",
-  "run_id": "38163905555",
+  "run_date": "2026-10-12T01:12:18Z",
+  "run_id": "38190771941",
   "source": "pr-triage-agent",
-  "eligible_total": 2,
+  "eligible_total": 1,
   "cooldown_skipped": 2,
   "category_counts": {
-    "feature": 1,
     "bug": 1
   },
   "risk_counts": {
-    "medium": 2
+    "medium": 1
   },
   "priority_counts": {
-    "medium": 2
+    "medium": 1
   },
   "action_counts": {
-    "batch_review": 1,
-    "fast_track": 1,
     "auto_merge": 0,
+    "batch_review": 0,
     "defer": 0,
-    "close": 0
+    "close": 0,
+    "fast_track": 1
   },
   "batches": [],
   "selected_candidates": [
@@ -28,37 +27,24 @@
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 65,
+      "priority_score": 72,
       "score_breakdown": {
-        "impact": 32,
-        "urgency": 18,
+        "impact": 35,
+        "urgency": 22,
         "quality": 15
       },
       "action": "fast_track"
-    },
-    {
-      "number": 67738,
-      "title": "Add governance and Copilot Automation tools to GitHub MCP mapping",
-      "category": "feature",
-      "risk": "medium",
-      "priority_score": 56,
-      "score_breakdown": {
-        "impact": 28,
-        "urgency": 15,
-        "quality": 13
-      },
-      "action": "batch_review"
     }
   ],
   "skipped_prs": [
     {
-      "number": 67758,
-      "title": "Bump gh-aw-firewall to v0.28.51",
+      "number": 67797,
+      "title": "Add a replay test for the Copilot startup model/endpoint mismatch fail-fast",
       "reason": "updated within 1 hour"
     },
     {
-      "number": 67755,
-      "title": "docs(model-routing): explain Copilot CLI vs SDK mode, define allowed-models, add compiling examples",
+      "number": 67810,
+      "title": "Report skipped threat detection when the detector was not installed",
       "reason": "updated within 1 hour"
     }
   ],
@@ -73,21 +59,34 @@
       "updated_at": "2026-09-13T14:48:36Z",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 65,
+      "priority_score": 72,
       "action": "fast_track"
     },
     {
-      "number": 67738,
-      "title": "Add governance and Copilot Automation tools to GitHub MCP mapping",
+      "number": 67797,
+      "title": "Add a replay test for the Copilot startup model/endpoint mismatch fail-fast",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "created_at": "2026-10-11T22:23:27Z",
+      "updated_at": "2026-10-12T00:35:13Z",
+      "category": "skipped",
+      "risk": "unknown",
+      "priority_score": 0,
+      "action": "skipped"
+    },
+    {
+      "number": 67810,
+      "title": "Report skipped threat detection when the detector was not installed",
       "state": "open",
       "user": "Copilot",
       "draft": true,
-      "created_at": "2026-10-11T15:57:24Z",
-      "updated_at": "2026-10-11T16:14:11Z",
-      "category": "feature",
-      "risk": "medium",
-      "priority_score": 56,
-      "action": "batch_review"
+      "created_at": "2026-10-11T23:54:04Z",
+      "updated_at": "2026-10-12T00:11:32Z",
+      "category": "skipped",
+      "risk": "unknown",
+      "priority_score": 0,
+      "action": "skipped"
     }
   ]
 }
