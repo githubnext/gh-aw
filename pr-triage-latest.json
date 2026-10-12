@@ -1,30 +1,139 @@
 {
-  "run_date": "2026-10-12T07:07:02Z",
-  "run_id": "38215099908",
+  "run_date": "2026-10-12T12:53:01Z",
+  "run_id": "38251588754",
   "source": "pr-triage-agent",
-  "eligible_total": 1,
-  "cooldown_skipped": 2,
-  "category_counts": {"bug": 1},
-  "risk_counts": {"medium": 1},
-  "priority_counts": {"medium": 1},
-  "action_counts": {"auto_merge": 0, "batch_review": 0, "defer": 0, "close": 0, "fast_track": 1},
+  "eligible_total": 3,
+  "cooldown_skipped": 8,
+  "category_counts": {
+    "test": 2,
+    "bug": 1
+  },
+  "risk_counts": {
+    "low": 2,
+    "medium": 1
+  },
+  "priority_counts": {
+    "low": 2,
+    "medium": 1
+  },
+  "action_counts": {
+    "auto_merge": 2,
+    "fast_track": 1,
+    "batch_review": 0,
+    "defer": 0,
+    "close": 0
+  },
   "batches": [],
   "selected_candidates": [
+    {
+      "number": 67835,
+      "title": "Add Claude-engine model-routing smoke (smoke-claude-routed)",
+      "category": "test",
+      "risk": "low",
+      "priority_score": 38,
+      "score_breakdown": {
+        "impact": 12,
+        "urgency": 11,
+        "quality": 15
+      },
+      "action": "auto_merge"
+    },
+    {
+      "number": 67837,
+      "title": "smoke-copilot-routed: run the default threat-detection engine and check that detection stays unrouted (D1\u2013D3)",
+      "category": "test",
+      "risk": "low",
+      "priority_score": 38,
+      "score_breakdown": {
+        "impact": 12,
+        "urgency": 11,
+        "quality": 15
+      },
+      "action": "auto_merge"
+    },
     {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "category": "bug",
       "risk": "medium",
       "priority_score": 72,
-      "score_breakdown": {"impact": 35, "urgency": 22, "quality": 15},
+      "score_breakdown": {
+        "impact": 35,
+        "urgency": 22,
+        "quality": 15
+      },
       "action": "fast_track"
     }
   ],
   "skipped_prs": [
-    {"number": 67797, "title": "Add a replay test for the Copilot startup model/endpoint mismatch fail-fast", "reason": "updated within 1 hour"},
-    {"number": 67810, "title": "Report skipped threat detection when the detector was not installed", "reason": "updated within 1 hour"}
+    {
+      "number": 68002,
+      "title": "[WIP] Fix permission issue with logs in ambient context optimizer",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67999,
+      "title": "[WIP] Close designer mapping and reference-routing gaps",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67998,
+      "title": "[WIP] Expand Windows CLI integration coverage across scenario matrix",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67997,
+      "title": "Surface compiler warnings in MCP dry-run results",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67996,
+      "title": "Add file-level code-edit-precision trajectory grader",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67993,
+      "title": "Remove unsupported Copilot web-search and make `gh aw fix` converge",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67992,
+      "title": "Consolidate workqueue helpers and settings parsing",
+      "reason": "updated within 1 hour"
+    },
+    {
+      "number": 67989,
+      "title": "Require opt-in for Copilot telemetry during threat detection",
+      "reason": "updated within 1 hour"
+    }
   ],
   "prs": [
+    {
+      "number": 67835,
+      "title": "Add Claude-engine model-routing smoke (smoke-claude-routed)",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "created_at": "2026-10-12T02:49:46Z",
+      "updated_at": "2026-10-12T05:23:37Z",
+      "category": "test",
+      "risk": "low",
+      "priority_score": 38,
+      "action": "auto_merge"
+    },
+    {
+      "number": 67837,
+      "title": "smoke-copilot-routed: run the default threat-detection engine and check that detection stays unrouted (D1\u2013D3)",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "created_at": "2026-10-12T02:57:11Z",
+      "updated_at": "2026-10-12T05:28:05Z",
+      "category": "test",
+      "risk": "low",
+      "priority_score": 38,
+      "action": "auto_merge"
+    },
     {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
@@ -37,32 +146,6 @@
       "risk": "medium",
       "priority_score": 72,
       "action": "fast_track"
-    },
-    {
-      "number": 67797,
-      "title": "Add a replay test for the Copilot startup model/endpoint mismatch fail-fast",
-      "state": "open",
-      "user": "Copilot",
-      "draft": false,
-      "created_at": "2026-10-11T22:23:27Z",
-      "updated_at": "2026-10-12T00:35:13Z",
-      "category": "skipped",
-      "risk": "unknown",
-      "priority_score": 0,
-      "action": "skipped"
-    },
-    {
-      "number": 67810,
-      "title": "Report skipped threat detection when the detector was not installed",
-      "state": "open",
-      "user": "Copilot",
-      "draft": true,
-      "created_at": "2026-10-11T23:54:04Z",
-      "updated_at": "2026-10-12T00:11:32Z",
-      "category": "skipped",
-      "risk": "unknown",
-      "priority_score": 0,
-      "action": "skipped"
     }
   ]
 }
