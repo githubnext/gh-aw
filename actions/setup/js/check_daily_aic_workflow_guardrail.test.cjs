@@ -420,6 +420,81 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
+  it.each([false, true])("main() reports exhausted historical 502 estimates with exceeded=%s", async exceeded => {
+    vi.useFakeTimers();
+    const outputs = {};
+    const setFailed = vi.fn();
+    global.core = {
+      setOutput: (key, value) => {
+        outputs[key] = value;
+      },
+      info: vi.fn(),
+      warning: vi.fn(),
+      setFailed,
+      summary: { addDetails: vi.fn(), write: vi.fn() },
+    };
+    const time = new Date(Date.now() - 60000).toISOString();
+    const jobs = vi.fn().mockRejectedValue(httpError(502, "Server Error"));
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: vi.fn(async () => ({ status: 200, data: { workflow_id: 7 } })),
+          listWorkflowRuns: vi.fn(async () => ({ status: 200, data: { workflow_runs: [{ id: 1, run_attempt: 1, status: "completed", conclusion: "success", created_at: time, updated_at: time }] } })),
+          listJobsForWorkflowRun: jobs,
+        },
+      },
+    };
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = exceeded ? "1000" : "2000";
+    process.env.GH_AW_MAX_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "synthetic";
+    try {
+      const pending = runMain();
+      await vi.runAllTimersAsync();
+      await pending;
+      expect(outputs.daily_ai_credits_guardrail_status).toBe(exceeded ? "exceeded" : "under_budget");
+      expect(outputs.daily_ai_credits_exceeded).toBe(String(exceeded));
+      expect(outputs.daily_ai_credits_total).toBe("1000");
+      expect(outputs.daily_ai_credits_estimated).toBe("1000");
+      expect(setFailed).not.toHaveBeenCalled();
+      expect(jobs).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_MAX_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
+
+  it("main() does not report a quota-reset retry deadline for an ordinary 502", async () => {
+    vi.useFakeTimers();
+    const info = vi.fn();
+    const error = httpError(502, "Server Error");
+    error.response.headers = { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(Date.now() / 1000 + 3600) };
+    global.core = { setOutput: vi.fn(), setFailed: vi.fn(), info, warning: vi.fn() };
+    global.github = { rest: { actions: { getWorkflowRun: vi.fn().mockRejectedValue(error) } } };
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "synthetic";
+    try {
+      const pending = runMain();
+      await vi.runAllTimersAsync();
+      await pending;
+      expect(global.core.setFailed).toHaveBeenCalledWith("Daily workflow AI Credits are unknown: Server Error");
+      expect(info.mock.calls.some(([message]) => message.includes("must not retry before"))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
+
   it("main() counts business requests instead of unrelated rate-limit snapshots", async () => {
     // The unrelated quota endpoint must not supply the business-request budget.
     const coreInfos = [];
@@ -1036,6 +1111,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
                 data: {
                   workflow_runs: Array.from({ length: 100 }, (_, i) => ({
                     id: 100 + i,
+                    workflow_id: 999,
                     name: "Other Workflow",
                     html_url: `https://example.test/runs/${100 + i}`,
                     created_at: nowIso,

@@ -4145,6 +4145,11 @@
                           "const": true,
                           "description": "API proxy credential isolation is always enabled."
                         },
+                        "guest-libc": {
+                          "type": "string",
+                          "enum": ["glibc", "musl"],
+                          "description": "Required guest libc ABI contract used to select compatible staged engine assets."
+                        },
                         "mount-policy": {
                           "type": "string",
                           "enum": ["workspace-only", "workspace-and-tool-cache"],
@@ -4223,7 +4228,7 @@
                           "description": "Optional guest working directory, restricted to /workspace or a descendant."
                         }
                       },
-                      "required": ["preview", "network-isolation", "api-proxy", "layer-path", "openvmm-path", "kernel-path", "initramfs-path", "artifact-manifest-path", "artifact-manifest-bundle-path"]
+                      "required": ["guest-libc"]
                     },
                     "config": {
                       "type": "object",
@@ -13822,6 +13827,18 @@
                     "default": "string",
                     "description": "The JSON schema type of the input parameter."
                   },
+                  "items": {
+                    "type": "object",
+                    "description": "Element type for an array input parameter.",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["string", "number", "boolean", "array", "object"]
+                      }
+                    },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  },
                   "description": {
                     "type": "string",
                     "description": "Description of the input parameter."
@@ -13833,6 +13850,14 @@
                   },
                   "default": {
                     "description": "Default value for the input parameter."
+                  }
+                },
+                "dependencies": {
+                  "items": {
+                    "required": ["type"],
+                    "properties": {
+                      "type": { "const": "array" }
+                    }
                   }
                 },
                 "additionalProperties": false

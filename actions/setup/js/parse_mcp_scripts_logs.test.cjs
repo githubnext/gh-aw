@@ -145,6 +145,36 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   });
 
   describe("generatePlainTextSummary", () => {
+    it("redacts argument arrays and results that may echo inputs", () => {
+      const args = ["test", "./...", "-run", "a  b", "", "it's", "$(id)"];
+      const summary = generatePlainTextSummary([
+        { serverName: "mcpscripts", message: `[go] Invoking handler with args: ${JSON.stringify({ args })}` },
+        { serverName: "mcpscripts", message: '[go] Serialized result: {"stderr":"failed"}' },
+        { serverName: "mcpscripts", message: "Error: Failed to process request" },
+      ]);
+
+      expect(summary).toContain("● go (MCP: mcpscripts) · args: [REDACTED]");
+      expect(summary).toContain("└ [REDACTED]");
+      expect(summary).not.toContain("$(id)");
+      expect(summary).toContain("Additional MCP diagnostics:");
+    });
+
+    it("uses the same redaction for empty argument vectors", () => {
+      const summary = generatePlainTextSummary([{ serverName: "mcpscripts", message: '[go] Invoking handler with args: {"args":[]}' }]);
+      expect(summary).toBe("● go (MCP: mcpscripts) · args: [REDACTED]");
+    });
+
+    it.each([
+      ["build", 42],
+      ["build", null],
+      ["build", {}],
+      ["build", ["nested"]],
+    ])("redacts malformed array args %j without a raw JSON fallback", (...args) => {
+      const payload = JSON.stringify({ args });
+      const summary = generatePlainTextSummary([{ serverName: "mcpscripts", message: `[go] Invoking handler with args: ${payload}` }]);
+      expect(summary).toBe("● go (MCP: mcpscripts) · args: [REDACTED]");
+    });
+
     it("should render Copilot-style MCP tool lines with args and result preview", () => {
       const logEntries = [
         {
@@ -163,8 +193,9 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26467 --repo github/gh-aw --json number"');
-      expect(summary).toContain('└ {"stdout":"gh pr view 26467 --repo github/gh-aw --json number","stderr":""}');
+      expect(summary).toContain("● gh (MCP: mcpscripts) · args: [REDACTED]");
+      expect(summary).toContain("└ [REDACTED]");
+      expect(summary).not.toContain("26467");
     });
 
     it("should render backend tool call format in Copilot-style", () => {
@@ -179,7 +210,8 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain('● gh (MCP: mcp-gateway) · args: "pr view 26450 --repo github/gh-aw --json number"');
+      expect(summary).toContain("● gh (MCP: mcp-gateway) · args: [REDACTED]");
+      expect(summary).not.toContain("26450");
     });
 
     it("should include multiple tool calls", () => {
@@ -200,8 +232,9 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26444 --repo github/gh-aw --json number"');
-      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26380 --repo github/gh-aw --json number"');
+      expect(summary.match(/● gh \(MCP: mcpscripts\) · args: \[REDACTED\]/g)).toHaveLength(2);
+      expect(summary).not.toContain("26444");
+      expect(summary).not.toContain("26380");
     });
 
     it("should include diagnostics for error lines", () => {
@@ -218,7 +251,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
       const summary = generatePlainTextSummary(logEntries);
 
       expect(summary).toContain("Additional MCP diagnostics:");
-      expect(summary).toContain("Failed to process request");
+      expect(summary).toContain("Error: [REDACTED]");
     });
 
     it("should fall back to raw logs when no tool calls are present", () => {
@@ -262,6 +295,18 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   });
 
   describe("generateMCPScriptsSummary", () => {
+    it("redacts payloads from full logs and error details, not only compact summaries", () => {
+      const logEntries = [
+        { serverName: "mcpscripts", message: '[go] Invoking handler with args: {"args":["private-input"]}' },
+        { serverName: "mcpscripts", message: "[go] JavaScript script error: private-input\nprivate-next-line" },
+        { raw: true, message: '[go] Input JSON (60 bytes): {"args":["private-input"]' },
+      ];
+      for (const summary of [generateMCPScriptsSummary(logEntries), generatePlainTextSummary(logEntries)]) {
+        expect(summary).not.toContain("private");
+        expect(summary).toContain("[REDACTED]");
+      }
+    });
+
     it("should generate markdown summary with details/summary structure", () => {
       const logEntries = [
         { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
@@ -308,7 +353,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
       expect(summary).toContain("**Errors**");
       expect(summary).toContain("<summary>View error details</summary>");
       expect(summary).toContain("```");
-      expect(summary).toContain("Failed to process request");
+      expect(summary).toContain("Error: [REDACTED]");
       expect(summary).toContain("Request failed with status 500");
     });
 

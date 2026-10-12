@@ -86,9 +86,13 @@ func validateNVXPathInputs(nvx *AgentNVXConfig) error {
 }
 
 func validateNVXResourceOptions(nvx *AgentNVXConfig) error {
+	if nvx.GuestLibc != "glibc" && nvx.GuestLibc != "musl" {
+		return nvxValidationError("sandbox.agent.nvx.guest-libc", nvx.GuestLibc, "NVX requires an explicit supported guest libc", "Set guest-libc to glibc or musl to select ABI-compatible engine assets.")
+	}
 	if nvx.MountPolicy != "" && nvx.MountPolicy != "workspace-only" && nvx.MountPolicy != "workspace-and-tool-cache" {
 		return nvxValidationError("sandbox.agent.nvx.mount-policy", nvx.MountPolicy, "unsupported NVX mount policy", "Choose workspace-only or workspace-and-tool-cache.")
 	}
+
 	if nvx.SignerWorkflow != "" {
 		if _, ok := trustedNVXSignerWorkflows[nvx.SignerWorkflow]; !ok {
 			return nvxValidationError("sandbox.agent.nvx.signer-workflow", nvx.SignerWorkflow, "NVX artifact signer workflow is not trusted", "Use the AWF release workflow or one of the documented NVX validation/smoke workflows.")
@@ -121,6 +125,17 @@ func validateNVXResourceOptions(nvx *AgentNVXConfig) error {
 		}
 	}
 	return nil
+}
+
+func getNVXGuestLibc(workflowData *WorkflowData) string {
+	if !isNVXRuntime(workflowData) {
+		return ""
+	}
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.NVX == nil {
+		return ""
+	}
+	return agentConfig.NVX.GuestLibc
 }
 
 func validateNVXCompatibility(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {

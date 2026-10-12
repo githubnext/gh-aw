@@ -12,6 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBuildSafeOutputsSectionsCodeCoverage(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		config   *UploadCodeCoverageConfig
+		expected string
+	}{
+		{name: "disabled"},
+		{name: "default budget", config: &UploadCodeCoverageConfig{}, expected: "upload_code_coverage"},
+		{name: "single upload", config: &UploadCodeCoverageConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}, expected: "upload_code_coverage"},
+		{name: "multiple uploads", config: &UploadCodeCoverageConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}}, expected: "upload_code_coverage(max:3)"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &SafeOutputsConfig{
+				NoOp:               &NoOpConfig{},
+				UploadCodeCoverage: tt.config,
+			}
+			sections := buildSafeOutputsSections(config, nil)
+			require.NotEmpty(t, sections)
+			_, enabled := computeEnabledToolNames(&WorkflowData{SafeOutputs: config})["upload_code_coverage"]
+			assert.Equal(t, tt.config != nil, enabled)
+			if tt.expected == "" {
+				assert.NotContains(t, sections[0].Content, "upload_code_coverage")
+			} else {
+				assert.Equal(t, "<safe-output-tools>\nTools: "+tt.expected+", noop", sections[0].Content)
+			}
+		})
+	}
+}
+
 // TestBuildSafeOutputsSectionsCustomTools verifies that custom and workflow-derived tools
 // defined in safe-outputs are included in the compiled <safe-output-tools> prompt block.
 // This prevents silent drift between the runtime configuration surface and the

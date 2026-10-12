@@ -72,6 +72,7 @@ const UNKNOWN_PARAMETER_LIST_PREVIEW_MAX = 10;
  * @property {string} [logFilePath] - Optional log file path
  * @property {boolean} logFileInitialized - Whether log file has been initialized
  * @property {(toolName: string, args: any, tool?: Tool) => any} [normalizeArguments] - Optional tool argument normalizer
+ * @property {(message: string) => string} [redactLogMessage] - Optional diagnostic payload redactor
  */
 
 /**
@@ -101,7 +102,8 @@ function initLogFile(server) {
 function createDebugFunction(server) {
   return msg => {
     const timestamp = new Date().toISOString();
-    const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
+    const safeMessage = server.redactLogMessage ? server.redactLogMessage(msg) : msg;
+    const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${safeMessage}\n`;
 
     // Always write to stderr
     process.stderr.write(formattedMsg);
@@ -194,6 +196,7 @@ function createReplyErrorFunction(server) {
  * @param {Object} [options] - Optional server configuration
  * @param {string} [options.logDir] - Directory for log file (optional)
  * @param {(toolName: string, args: any, tool?: Tool) => any} [options.normalizeArguments] - Optional tool argument normalizer
+ * @param {(message: string) => string} [options.redactLogMessage] - Optional diagnostic payload redactor
  * @returns {MCPServer} The MCP server instance
  */
 function createServer(serverInfo, options = {}) {
@@ -214,6 +217,7 @@ function createServer(serverInfo, options = {}) {
     logFilePath,
     logFileInitialized: false,
     normalizeArguments: typeof options.normalizeArguments === "function" ? options.normalizeArguments : undefined,
+    redactLogMessage: options.redactLogMessage,
   };
 
   // Initialize functions with references to server
