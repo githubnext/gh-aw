@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { API_READ_OPERATIONS } = require("./daily_aic_api_budget.cjs");
 
 // These are the compiler-owned jobs and collect_usage_artifact_files.sh paths.
 // Raw firewall accounting is preferred to the overlapping engine summary.
@@ -30,15 +31,18 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   const jobsByComponent = new Map();
   let complete = false;
   for (let page = 1; page <= 10; page++) {
-    const response = await budget.request(() =>
-      github.rest.actions.listJobsForWorkflowRun({
-        owner,
-        repo,
-        run_id: run.id,
-        filter: "all",
-        per_page: 100,
-        page,
-      })
+    const response = await budget.request(
+      () =>
+        github.rest.actions.listJobsForWorkflowRun({
+          owner,
+          repo,
+          run_id: run.id,
+          filter: "all",
+          per_page: 100,
+          page,
+        }),
+      true,
+      API_READ_OPERATIONS.RUN_JOBS
     );
     const jobs = response.data.jobs;
     if (!Array.isArray(jobs)) throw new Error("Incomplete daily AIC job metadata");
@@ -51,7 +55,9 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
       if (!jobsByComponent.has(name)) jobsByComponent.set(name, []);
       jobsByComponent.get(name).push(job);
       const prior = components.get(name);
-      if (!prior || (prior.conclusion === "skipped" && job.conclusion !== "skipped") || (job.conclusion !== "skipped" && job.run_attempt > prior.run_attempt) || (prior.conclusion === "skipped" && job.run_attempt > prior.run_attempt)) {
+      const notStarted = job.conclusion === "skipped" || provesJobExecutionNotStarted(job);
+      const priorNotStarted = prior && (prior.conclusion === "skipped" || provesJobExecutionNotStarted(prior));
+      if (!prior || (priorNotStarted && !notStarted) || (notStarted === priorNotStarted && job.run_attempt > prior.run_attempt)) {
         components.set(name, job);
       }
     }
@@ -79,6 +85,10 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
     }
   }
   return { components, priorJobs };
+}
+
+function allBillableJobsNotStarted(components) {
+  return [...components.values()].every(job => job.conclusion === "skipped" || provesJobExecutionNotStarted(job));
 }
 
 function allBillableJobsSkipped(components) {
@@ -272,4 +282,4 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
   return total;
 }
 
-module.exports = { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents };
+module.exports = { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents };

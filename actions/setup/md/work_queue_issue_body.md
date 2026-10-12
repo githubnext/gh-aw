@@ -1,16 +1,18 @@
-### 🌱 A new home for this Work
+### Work queue task
 
-This Issue follows one task already admitted to the Git-backed queue. Follow the live summary below for progress, run links, and verified delivery.
+This Issue tracks a task admitted to the Git-backed work queue. The queue schedules the work; this Issue shows its progress. Check the summary comment below for the current status, worker runs, and verified results.
 
 | At a glance | Link |
 | --- | --- |
-| Work | `{work_id}` |
+| Work ID | `{work_id}` (short ID) |
 | Admission | [{admission_link_label}]({admission_run_url}) |
 | Source of truth | [Checked Git ledger]({ledger_url}) |
 
-The `{tracking_label}` label keeps this Work easy to find. {projection_note}
+<!-- work-id: {full_work_id} -->
+
+The `{tracking_label}` label identifies queue-managed Issues. {projection_note}
 
 > [!NOTE]
-> This is a window into the queue, not a second queue. Editing or closing this Issue does not cancel Work or establish a verified Result.
+> This Issue is a status mirror, not the queue itself. Editing or closing it does not cancel the task or verify its result.
 
 {generated_footer}

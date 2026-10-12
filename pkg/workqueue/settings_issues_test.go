@@ -23,6 +23,7 @@ func TestSettingsIssuesEnabledWithoutPolicyAuthority(t *testing.T) {
 		{`{"issues":true}`, "work"},
 		{`{"issues":{}}`, "work"},
 		{`{"issues":{"label":"tasks"}}`, "tasks"},
+		{`{"issues":{"title_prefix":"[tasks]"}}`, "work"},
 		{`{"issues":{"label":"  work  "}}`, "  work  "},
 		{`{"issues":{"label":"` + strings.Repeat("a", 33) + `"}}`, strings.Repeat("a", 33)},
 		{`{"issues":{"label":"` + strings.Repeat("😀", 8) + `a"}}`, strings.Repeat("😀", 8) + "a"},
@@ -31,6 +32,13 @@ func TestSettingsIssuesEnabledWithoutPolicyAuthority(t *testing.T) {
 			settings, err := ParseSettings([]byte(test.section))
 			if err != nil || settings.Issues == nil || settings.Issues.Label != test.label {
 				t.Fatalf("Issues preferences did not retain the configured label: %+v %v", settings.Issues, err)
+			}
+			wantPrefix := "[work queue]"
+			if strings.Contains(test.section, "title_prefix") {
+				wantPrefix = "[tasks]"
+			}
+			if settings.Issues.TitlePrefix != wantPrefix {
+				t.Fatalf("Issues preferences did not retain the title prefix: %+v", settings.Issues)
 			}
 			policy := DefaultPolicy(testPrincipal, testRepository)
 			result, err := settings.Apply(policy)
@@ -47,22 +55,28 @@ func TestSettingsIssuesEnabledWithoutPolicyAuthority(t *testing.T) {
 
 func TestSettingsIssuesMalformedConfiguration(t *testing.T) {
 	for input, property := range map[string]string{
-		`{"issues":null}`:                                        "work_queue.issues",
-		`{"issues":[]}`:                                          "work_queue.issues",
-		`{"issues":0}`:                                           "work_queue.issues",
-		`{"issues":"true"}`:                                      "work_queue.issues",
-		`{"issues":{"label":null}}`:                              "work_queue.issues.label",
-		`{"issues":{"label":true}}`:                              "work_queue.issues.label",
-		`{"issues":{"label":""}}`:                                "work_queue.issues.label",
-		`{"issues":{"label":" \t "}}`:                            "work_queue.issues.label",
-		`{"issues":{"label":"${{ vars.LABEL }}"}}`:               "work_queue.issues.label",
-		`{"issues":{"label":"work\n"}}`:                          "work_queue.issues.label",
-		`{"issues":{"label":"work\u0085"}}`:                      "work_queue.issues.label",
-		`{"issues":{"label":"` + strings.Repeat("a", 34) + `"}}`: "work_queue.issues.label",
-		`{"issues":{"label":"` + strings.Repeat("😀", 9) + `"}}`:  "work_queue.issues.label",
-		`{"issues":{"tracking-label":"work"}}`:                   "work_queue.issues.tracking-label",
-		`{"issues":{"status-label-prefix":"queue"}}`:             "work_queue.issues.status-label-prefix",
-		`{"issues":{"routes":[]}}`:                               "work_queue.issues.routes",
+		`{"issues":null}`:                                               "work_queue.issues",
+		`{"issues":[]}`:                                                 "work_queue.issues",
+		`{"issues":0}`:                                                  "work_queue.issues",
+		`{"issues":"true"}`:                                             "work_queue.issues",
+		`{"issues":{"label":null}}`:                                     "work_queue.issues.label",
+		`{"issues":{"label":true}}`:                                     "work_queue.issues.label",
+		`{"issues":{"label":""}}`:                                       "work_queue.issues.label",
+		`{"issues":{"label":" \t "}}`:                                   "work_queue.issues.label",
+		`{"issues":{"label":"${{ vars.LABEL }}"}}`:                      "work_queue.issues.label",
+		`{"issues":{"label":"work\n"}}`:                                 "work_queue.issues.label",
+		`{"issues":{"label":"work\u0085"}}`:                             "work_queue.issues.label",
+		`{"issues":{"label":"` + strings.Repeat("a", 34) + `"}}`:        "work_queue.issues.label",
+		`{"issues":{"label":"` + strings.Repeat("😀", 9) + `"}}`:         "work_queue.issues.label",
+		`{"issues":{"title_prefix":null}}`:                              "work_queue.issues.title_prefix",
+		`{"issues":{"title_prefix":""}}`:                                "work_queue.issues.title_prefix",
+		`{"issues":{"title_prefix":"${{ vars.TITLE }}"}}`:               "work_queue.issues.title_prefix",
+		`{"issues":{"title_prefix":"queue\n"}}`:                         "work_queue.issues.title_prefix",
+		`{"issues":{"title_prefix":"queue\u0085"}}`:                     "work_queue.issues.title_prefix",
+		`{"issues":{"title_prefix":"` + strings.Repeat("a", 81) + `"}}`: "work_queue.issues.title_prefix",
+		`{"issues":{"tracking-label":"work"}}`:                          "work_queue.issues.tracking-label",
+		`{"issues":{"status-label-prefix":"queue"}}`:                    "work_queue.issues.status-label-prefix",
+		`{"issues":{"routes":[]}}`:                                      "work_queue.issues.routes",
 	} {
 		t.Run(input, func(t *testing.T) {
 			if _, err := ParseSettings([]byte(input)); err == nil || !strings.Contains(err.Error(), property) ||

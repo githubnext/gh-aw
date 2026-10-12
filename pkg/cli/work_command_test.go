@@ -88,6 +88,30 @@ func TestWorkCommandClosedOperatorSurfaces(t *testing.T) {
 	}
 }
 
+func TestWorkCommandPersistentOutputAndRepositoryFlags(t *testing.T) {
+	command := NewWorkCommand()
+	for _, tc := range []struct {
+		name, shorthand, usage string
+	}{
+		{"repo", "r", "Target repository (owner/repo format)"},
+		{"json", "j", "Output results in JSON format"},
+	} {
+		flag := command.PersistentFlags().Lookup(tc.name)
+		if flag == nil || flag.Shorthand != tc.shorthand || flag.Usage != tc.usage {
+			t.Fatalf("--%s should be a persistent -%s flag with usage %q; got %v", tc.name, tc.shorthand, tc.usage, flag)
+		}
+	}
+	child, _, err := command.Find([]string{"stats"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, shorthand := range []string{"r", "j"} {
+		if child.InheritedFlags().ShorthandLookup(shorthand) == nil {
+			t.Errorf("stats does not inherit -%s", shorthand)
+		}
+	}
+}
+
 func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 	t.Setenv("GH_HOST", "github.com")
 	t.Setenv("GH_TOKEN", "test-token")

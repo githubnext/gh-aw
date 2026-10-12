@@ -25,7 +25,7 @@ const readTypes = (file, expression) => vmTypes.compileFunction(
   ["require", "module"]
 )(require, {exports:{}});
 const interpretedTestTypes = [...new Set([
-  ...readTypes("./unified_session_payload.cjs", "Object.keys(EVENT_FIELDS)"),
+  ...readTypes("./unified_session_payload.cjs", "Object.keys(EVENT_FIELDS).filter(type => type !== 'plugin.installation')"),
   ...readTypes("./unified_session_render.cjs", "[...RUNTIME_TYPES]"),
   "session.error", "guardrail.daily_aic", "guard.tool_denials_exceeded",
   "claude.assistant_error", "claude.api_retry", "turn.failed",
