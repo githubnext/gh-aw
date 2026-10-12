@@ -29,6 +29,7 @@ const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapMCPScriptsServer, cleanupConfigFile } = require("./mcp_scripts_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { redactMCPScriptLogMessage } = require("./diagnostic_sanitization.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { runHttpServer, logStartupError } = require("./mcp_http_server_runner.cjs");
 
@@ -41,7 +42,7 @@ const { runHttpServer, logStartupError } = require("./mcp_http_server_runner.cjs
  */
 function createMCPServer(configPath, options = {}) {
   // Create logger early
-  const logger = createLogger("mcpscripts");
+  const logger = createLogger("mcpscripts", redactMCPScriptLogMessage);
 
   logger.debug(`=== Creating MCP Server ===`);
   logger.debug(`Configuration file: ${configPath}`);
@@ -66,6 +67,7 @@ function createMCPServer(configPath, options = {}) {
       capabilities: {
         tools: {},
       },
+      redactLogMessage: redactMCPScriptLogMessage,
     }
   );
 
@@ -157,6 +159,7 @@ async function startHttpServer(configPath, options = {}) {
       sessionIdGenerator: stateless ? undefined : () => randomUUID(),
       enableJsonResponse: true,
       enableDnsRebindingProtection: false, // Disable for local development
+      redactLogMessage: redactMCPScriptLogMessage,
     });
     logger.debug(`HTTP transport created`);
 

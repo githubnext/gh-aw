@@ -8,6 +8,7 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "http-mcp-test-"));
   let serverProcess = null,
     sessionId = null;
+  let serverOutput = "";
   const configPath = path.join(tempDir, "test-config.json"),
     handlerPath = path.join(tempDir, "echo-handler.cjs");
   async function makeRequest(payload, additionalHeaders = {}) {
@@ -51,7 +52,6 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
     ),
     it("should start HTTP MCP server successfully", { timeout: 15e3 }, async () => {
       serverProcess = spawn("node", ["mcp_scripts_mcp_server_http.cjs", configPath, "--port", (4100).toString()], { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] });
-      let serverOutput = "";
       (serverProcess.stderr.on("data", chunk => {
         serverOutput += chunk.toString();
       }),
@@ -109,16 +109,20 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
       const tool = response.data.result.tools[0];
       (expect(tool.name).toBe("echo_tool"), expect(tool.description).toBe("Echoes the input message"), expect(tool.inputSchema).toBeDefined(), expect(tool.inputSchema.properties.message).toBeDefined());
     }),
-    it("should execute tool via HTTP", async () => {
+    it("should execute tool via HTTP without logging private inputs or echoed outputs", async () => {
+      const privateInput = 'private-http-input-"quoted"\nsecond-line';
       const headers = sessionId ? { "Mcp-Session-Id": sessionId } : {},
-        response = await makeRequest({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "echo_tool", arguments: { message: "Hello from HTTP transport!" } } }, headers);
+        response = await makeRequest({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "echo_tool", arguments: { message: privateInput } } }, headers);
       (expect(response.status).toBe(200),
         expect(response.data.result).toBeDefined(),
         expect(response.data.result.content).toBeInstanceOf(Array),
         expect(response.data.result.content.length).toBe(1),
         expect(response.data.result.content[0].type).toBe("text"));
       const result = JSON.parse(response.data.result.content[0].text);
-      (expect(result.echo).toBe("Hello from HTTP transport!"), expect(result.timestamp).toBeDefined());
+      (expect(result.echo).toBe(privateInput), expect(result.timestamp).toBeDefined());
+      expect(serverOutput).not.toContain("private-http-input");
+      expect(serverOutput).not.toContain("second-line");
+      expect(serverOutput).toContain("[REDACTED]");
     }),
     it("should handle CORS preflight requests", async () =>
       new Promise((resolve, reject) => {

@@ -1493,6 +1493,9 @@ function extractShellCommandPreview(data) {
  */
 function formatRecentToolCall(toolName, mcpServerName, data) {
   const base = mcpServerName ? `${mcpServerName}.${toolName}` : toolName;
+  if (mcpServerName.replace(/[_-]/g, "").toLowerCase() === "mcpscripts" || /^(?:mcp[._-]+)?mcp[._-]*scripts[._-]/i.test(toolName)) {
+    return `${base}([REDACTED])`;
+  }
   const normalizedToolName = typeof toolName === "string" ? toolName.toLowerCase() : "";
   if (!RECENT_TOOL_CALLS_WITH_COMMAND_PREVIEW.has(normalizedToolName)) {
     return base;
