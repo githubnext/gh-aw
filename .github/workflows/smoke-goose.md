@@ -73,9 +73,16 @@ post-steps:
       SMOKE_EXECUTION: ${{ steps.agentic_execution.outcome }}
     with:
       script: |
-        const assert = require("node:assert/strict");
-        const fs = require("node:fs");
         const path = require("node:path");
+        const { withSmokeEvidence } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_evidence_diagnostics.cjs"));
+        await withSmokeEvidence({ kind: "goose", core, paths: {
+          gooseResult: path.join(process.env.SMOKE_ROOT, `smoke-test-goose-${process.env.SMOKE_RUN_ID}.json`),
+          gooseText: path.join(process.env.SMOKE_ROOT, `smoke-test-goose-${process.env.SMOKE_RUN_ID}.txt`),
+          webReceipt: path.join(process.env.SMOKE_STATE, "web-fetch.json"),
+          binary: path.join(process.env.GITHUB_WORKSPACE, "gh-aw"),
+          stdio: "/tmp/gh-aw/agent-stdio.log",
+          nativeSession: "/tmp/gh-aw/agent-session.jsonl",
+        } }, async ({ assert, fs, parse }) => {
         const read = file => {
           const stat = fs.lstatSync(file);
           assert.ok(stat.isFile() && !stat.isSymbolicLink(), "Smoke evidence must be a regular file");
@@ -85,35 +92,35 @@ post-steps:
         assert.equal(process.env.SMOKE_EXECUTION, "success", "Goose execution failed");
         const root = process.env.SMOKE_ROOT;
         const run = process.env.SMOKE_RUN_ID;
-        const result = JSON.parse(read(path.join(root, `smoke-test-goose-${run}.json`)));
-        assert.deepEqual(Object.keys(result).sort(), ["bash", "build", "fileWrite", "pullRequests", "runtime", "webFetch"]);
+        const result = parse(read(path.join(root, `smoke-test-goose-${run}.json`)));
+        assert.deepEqual(Object.keys(result).sort(), ["bash", "build", "fileWrite", "pullRequests", "runtime", "webFetch"], "Goose result fields are invalid");
         for (const key of ["bash", "build", "fileWrite", "runtime", "webFetch"]) {
           assert.equal(result[key], true, `Goose smoke check ${key} did not pass`);
         }
         assert.equal(result.pullRequests.length, 2, "Exactly two merged PRs are required");
         assert.equal(new Set(result.pullRequests.map(pr => pr.number)).size, 2, "PRs must be distinct");
         for (const pr of result.pullRequests) {
-          assert.deepEqual(Object.keys(pr).sort(), ["number", "title"]);
-          assert.ok(Number.isSafeInteger(pr.number) && pr.number > 0);
+          assert.deepEqual(Object.keys(pr).sort(), ["number", "title"], "Pull request evidence fields are invalid");
+          assert.ok(Number.isSafeInteger(pr.number) && pr.number > 0, "Pull request number is invalid");
           const { data } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.number });
-          assert.ok(data.merged_at, `PR ${pr.number} is not merged`);
-          assert.equal(pr.title, data.title);
+          assert.ok(data.merged_at, "Pull request must be merged");
+          assert.equal(pr.title, data.title, "Pull request title does not match GitHub");
         }
-        assert.deepEqual(JSON.parse(read(path.join(process.env.SMOKE_STATE, "web-fetch.json"))), { containsGitHub: true });
-        assert.match(read(path.join(root, `smoke-test-goose-${run}.txt`)), /^Smoke test passed for Goose at .+\n?$/);
+        assert.deepEqual(parse(read(path.join(process.env.SMOKE_STATE, "web-fetch.json"))), { containsGitHub: true }, "Web fetch receipt is invalid");
+        assert.match(read(path.join(root, `smoke-test-goose-${run}.txt`)), /^Smoke test passed for Goose at .+\n?$/, "Goose file-write receipt is invalid");
         const binary = fs.lstatSync(path.join(process.env.GITHUB_WORKSPACE, "gh-aw"));
         assert.ok(binary.isFile() && !binary.isSymbolicLink() && (binary.mode & 0o111) !== 0, "gh-aw build output is missing");
         const log = fs.readFileSync("/tmp/gh-aw/agent-stdio.log", "utf8");
         assert.ok(log.includes("[goose-harness] verified Goose 1.53.0"), "Pinned CLI verification is missing");
         assert.ok(!log.includes("Failed to start extension"), "A Goose MCP extension failed to connect");
-        const events = log.split("\n").filter(line => line.trim().startsWith("{")).map(line => JSON.parse(line));
+        const events = log.split("\n").filter(line => line.trim().startsWith("{")).map(line => parse(line));
         assert.ok(events.some(event => event.type === "complete"), "Goose did not finish a structured run");
         const requests = events.flatMap(event => event.message?.content || []).filter(item =>
           item.type === "toolRequest" && item.toolCall?.status === "success" && item.toolCall.value.name.startsWith("github__"));
         const responses = events.flatMap(event => event.message?.content || []).filter(item =>
           item.type === "toolResponse" && item.toolResult?.status === "success" && item.toolResult.value.isError !== true);
         assert.ok(requests.some(request => responses.some(response => response.id === request.id)), "No successful native GitHub MCP round-trip");
-        const session = fs.readFileSync("/tmp/gh-aw/agent-session.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line));
+        const session = fs.readFileSync("/tmp/gh-aw/agent-session.jsonl", "utf8").trim().split("\n").map(line => parse(line));
         assert.ok(session.every(event => event.type.includes(".") && event.data && typeof event.data === "object"), "Goose session contains non-canonical events");
         assert.ok(session.some(event => event.type === "session.init" && event.data.sourceEngine === "goose"), "Goose session initialization is missing");
         assert.ok(session.some(event => event.type === "assistant.message" && typeof event.data.content === "string"), "Goose assistant text is missing");
@@ -130,10 +137,11 @@ post-steps:
         for (const key of ["input_tokens", "output_tokens", "total_tokens", "cache_read_input_tokens"]) {
           if (native[key] !== undefined) assert.equal(parsed.usage[key], native[key], `Goose session ${key} differs from native usage`);
         }
-        if (native.cache_write_input_tokens !== undefined) assert.equal(parsed.usage.cache_creation_input_tokens, native.cache_write_input_tokens);
-        assert.equal(parsed.usage.input_tokens_include_cache, true);
+        if (native.cache_write_input_tokens !== undefined) assert.equal(parsed.usage.cache_creation_input_tokens, native.cache_write_input_tokens, "Goose cache-write usage differs from native usage");
+        assert.equal(parsed.usage.input_tokens_include_cache, true, "Goose cache accounting is missing");
         assert.ok(session.some(event => event.type === "agent.execution" && event.data.exitCode === 0), "Goose execution result is missing");
         await core.summary.addHeading("Goose smoke: PASS", 2).addRaw("All six checks passed with host-verified file, build, web-fetch, PR, native MCP, and canonical unified-session evidence.\n").write();
+        });
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   add-comment:
@@ -201,6 +209,8 @@ Write `/tmp/gh-aw/agent/smoke-test-goose-${{ github.run_id }}.json` with exactly
 the corresponding check succeeds. The host post-step independently checks this
 evidence and fails the job for missing evidence or any failed check.
 Do not skip this file. A PASS issue without this file is a failed smoke test.
+Assertion failures record only the failed check and inspected file names in the
+runtime failure issue; evidence contents and assertion values are not published.
 
 ## Output
 

@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
+const { readSmokeFailure } = require("./smoke_evidence_diagnostics.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
@@ -1905,11 +1906,15 @@ function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentC
   } else {
     context += "\n";
   }
+  const smokeFailure = readSmokeFailure(failingStep);
+  if (smokeFailure) {
+    context += smokeFailure;
+  }
   if (engineFailureContext.trim()) {
     context += engineFailureContext.trim() + "\n\n";
   } else if (hasModelEndpointMismatch) {
     context += "The model/endpoint mismatch above is the classified cause.\n\n";
-  } else {
+  } else if (!smokeFailure) {
     context += "The runtime did not record a specific cause. Check the linked run for failure details.\n\n";
   }
   if (attributionUnavailable) {

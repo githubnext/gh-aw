@@ -63,14 +63,19 @@ post-steps:
       SMOKE_EXECUTION: ${{ steps.agentic_execution.outcome }}
     with:
       script: |
-        const assert = require("node:assert/strict");
-        const fs = require("node:fs");
         const path = require("node:path");
         const root = "/tmp/gh-aw";
+        const { withSmokeEvidence } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_evidence_diagnostics.cjs"));
+        await withSmokeEvidence({ kind: "subagents", core, paths: {
+          session: path.join(root, "usage/aw_session.jsonl"),
+          proxy: path.join(root, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl"),
+          proxyAudit: path.join(root, "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl"),
+          proxyLegacy: path.join(root, "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl"),
+        } }, async ({ assert, fs, parse }) => {
         const { writeUnifiedSession } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/unified_session.cjs"));
         writeUnifiedSession({ rootDir: root, engine: "copilot" });
         const readJsonl = file => fs.readFileSync(file, "utf8")
-          .split("\n").filter(line => line.trim()).map(line => JSON.parse(line));
+          .split("\n").filter(line => line.trim()).map(line => parse(line));
         const events = readJsonl(path.join(root, "usage/aw_session.jsonl"));
         const started = events.filter(event => event.type === "subagent.started");
         if (process.env.SMOKE_VARIANT === "single_agent_control") {
@@ -116,11 +121,16 @@ post-steps:
             request.purpose !== "routing_classification"),
             `${agentName} has no successful ${model} request on ${endpoint}`);
         }
+        });
 ---
 
 # Smoke Test: Copilot SDK Inline Sub-Agents
 
 **IMPORTANT: Keep all outputs extremely short.**
+
+The post-step verifies session and proxy evidence independently. Failures report
+the failed check and inspected files in the runtime failure issue, without
+publishing session contents or assertion values.
 
 ## Tasks
 

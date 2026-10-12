@@ -37,6 +37,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { FILES, ROUTING_CHECKS, routingFailureDescription, recordSmokeFailure } = require("./smoke_evidence_diagnostics.cjs");
 
 const DEFAULT_ROOT_DIR = "/tmp/gh-aw";
 const SESSION_PATH = "usage/aw_session.jsonl";
@@ -54,7 +55,7 @@ const MAX_OBSERVED = 12;
  *   requireDeclaredAgentNames?: boolean,
  *   executionOutcome?: string,
  * }} RoutingExpectations
- * @typedef {{ passes: string[], failures: string[] }} RoutingAssertionResults
+ * @typedef {{ passes: string[], failures: string[], inspectedFiles?: string[] }} RoutingAssertionResults
  */
 
 /**
@@ -352,7 +353,13 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
  */
 function readJsonl(file, problems) {
   const records = [];
-  const lines = fs.readFileSync(file, "utf8").split("\n");
+  let lines;
+  try {
+    lines = fs.readFileSync(file, "utf8").split("\n");
+  } catch {
+    problems.push(`${file} is unreadable`);
+    return records;
+  }
   for (const [index, line] of lines.entries()) {
     if (!line.trim()) continue;
     try {
@@ -368,11 +375,22 @@ function readJsonl(file, problems) {
  * Collect evidence from the gh-aw temp directory. Post-steps run before the
  * usage-artifact step writes aw_session.jsonl, so the unified session is built first.
  * @param {{ rootDir?: string, engine?: string, buildSession?: boolean }} [options]
- * @returns {{ events: any[], requests: any[], reflect: any, problems: string[] }}
+ * @returns {{ events: any[], requests: any[], reflect: any, problems: string[], inspectedFiles: string[] }}
  */
 function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true } = {}) {
   /** @type {string[]} */
   const problems = [];
+  const inspectedFiles = ["session"];
+  /** @param {string[]} files */
+  const locate = files => {
+    for (const file of files) {
+      const key = Object.keys(FILES).find(key => FILES[key] === file);
+      if (key) inspectedFiles.push(key);
+      const fullPath = path.join(rootDir, file);
+      if (fs.existsSync(fullPath)) return fullPath;
+    }
+    return undefined;
+  };
   if (buildSession) {
     try {
       const { writeUnifiedSession } = require("./unified_session.cjs");
@@ -388,7 +406,7 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
   else problems.push(`missing ${SESSION_PATH}`);
 
   let requests = [];
-  const tokenFile = TOKEN_USAGE_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file));
+  const tokenFile = locate(TOKEN_USAGE_PATHS);
   if (tokenFile) {
     requests = readJsonl(tokenFile, problems).filter(record => record && typeof record === "object" && !Array.isArray(record) && (record.event === undefined || record.event === "token_usage"));
   } else {
@@ -396,7 +414,7 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
   }
 
   let reflect = null;
-  const reflectFile = REFLECT_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file));
+  const reflectFile = locate(REFLECT_PATHS);
   if (reflectFile) {
     try {
       reflect = JSON.parse(fs.readFileSync(reflectFile, "utf8"));
@@ -404,7 +422,7 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
       problems.push(`${reflectFile} is not valid JSON: ${getErrorMessage(error)}`);
     }
   }
-  return { events, requests, reflect, problems };
+  return { events, requests, reflect, problems, inspectedFiles };
 }
 
 /**
@@ -418,6 +436,7 @@ function checkModelRoutingEvidence(options) {
   const results = evaluateModelRoutingEvidence({ events: evidence.events, requests: evidence.requests, reflect: evidence.reflect, expectations });
   if (evidence.problems.length) results.failures.unshift(...evidence.problems.map(problem => `FAIL E2 evidence: ${problem}`));
   else results.passes.unshift("PASS E2 evidence: unified session and api-proxy token usage present");
+  results.inspectedFiles = evidence.inspectedFiles;
   return results;
 }
 
@@ -428,11 +447,35 @@ function checkModelRoutingEvidence(options) {
  */
 async function main(options) {
   const { core: actionsCore = global.core, ...rest } = options;
-  const results = checkModelRoutingEvidence(rest);
-  for (const line of results.passes) actionsCore.info(line);
-  for (const line of results.failures) actionsCore.error(line);
+  let results;
+  try {
+    results = checkModelRoutingEvidence(rest);
+  } catch {
+    const message = ROUTING_CHECKS.E2;
+    actionsCore.error(message);
+    try {
+      recordSmokeFailure({ kind: "routing", rootDir: rest.rootDir, failures: [message], files: [] });
+    } catch {
+      actionsCore.warning("Unable to persist smoke evidence diagnostics");
+    }
+    actionsCore.setFailed(message);
+    return { passes: [], failures: [`FAIL E2 ${message}`] };
+  }
+  for (const line of results.passes) actionsCore.info(`${line.split(" ").slice(0, 2).join(" ")} evidence check passed`);
+  const safeFailures = results.failures.map(line => {
+    const id = line.split(" ")[1];
+    return `FAIL ${id} ${routingFailureDescription(line)}`;
+  });
+  for (const line of safeFailures) actionsCore.error(line);
   if (results.failures.length) {
-    actionsCore.setFailed(`Model-routing smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
+    const failures = results.failures.map(routingFailureDescription);
+    try {
+      recordSmokeFailure({ kind: "routing", rootDir: rest.rootDir, failures, files: results.inspectedFiles || [] });
+    } catch {
+      actionsCore.warning("Unable to persist smoke evidence diagnostics");
+    }
+    actionsCore.error(`Files inspected: ${(results.inspectedFiles || []).map(key => FILES[key]).join(", ")}`);
+    actionsCore.setFailed(`Model-routing smoke assertions failed (${results.failures.length}):\n${safeFailures.join("\n")}`);
   } else {
     actionsCore.info(`All ${results.passes.length} model-routing smoke assertions passed`);
   }

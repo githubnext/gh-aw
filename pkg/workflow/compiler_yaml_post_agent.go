@@ -54,6 +54,13 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect agent stdio logs path for unified upload
 	paths = append(paths, logFileFull)
+	if hasSmokeEvidenceDiagnostics(data) {
+		diagnosticsPath := "'/tmp/gh-aw/smoke-evidence.json'"
+		if isArcDindTopology(data) {
+			diagnosticsPath = "format('{0}/gh-aw/smoke-evidence.json', runner.temp)"
+		}
+		paths = append(paths, "${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && "+diagnosticsPath+" || '' }}")
+	}
 
 	// Include the pre-agent audit file (file listing of agent-related directories captured
 	// before agent execution) so it is available in the agent artifact for post-run inspection.
@@ -285,6 +292,12 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+	if hasSmokeEvidenceDiagnostics(data) {
+		yaml.WriteString("      - name: Sanitize smoke evidence diagnostics\n")
+		yaml.WriteString("        id: smoke_evidence_diagnostics\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString("        run: node \"$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs\" --sanitize\n")
+	}
 
 	// For ARC/DinD, consolidate all artifact files under ${{ runner.temp }}/gh-aw/
 	// before upload. Without this, upload-artifact receives paths from two roots
@@ -321,4 +334,9 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 		return fmt.Errorf("step ordering validation failed: %w", err)
 	}
 	return nil
+}
+
+func hasSmokeEvidenceDiagnostics(data *WorkflowData) bool {
+	return strings.Contains(data.PostSteps, "smoke_evidence_diagnostics.cjs") ||
+		strings.Contains(data.PostSteps, "smoke_model_routing_assertions.cjs")
 }

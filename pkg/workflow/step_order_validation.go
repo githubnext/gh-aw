@@ -224,6 +224,13 @@ func isPathScannedBySecretRedaction(artifactPath string) bool {
 }
 
 func normalizeArtifactPathForRedaction(artifactPath string) (normalizedPath string, isDirectory bool) {
+	// These compiler-owned conditions can only upload the fixed JSON path or nothing.
+	switch artifactPath {
+	case "${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && '/tmp/gh-aw/smoke-evidence.json' || '' }}":
+		artifactPath = constants.TmpGhAwDirSlash + "smoke-evidence.json"
+	case "${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && format('{0}/gh-aw/smoke-evidence.json', runner.temp) || '' }}":
+		artifactPath = constants.GhAwRootDirSlash + "smoke-evidence.json"
+	}
 	normalizedSeparators := strings.ReplaceAll(artifactPath, `\`, "/")
 	// Keep UNC/double-slash paths uncleaned so path.Clean cannot collapse them
 	// into an approved local root that the redaction script does not scan.

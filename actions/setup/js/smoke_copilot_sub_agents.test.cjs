@@ -1,8 +1,11 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, test, expect } from "vitest";
 
 const require = createRequire(import.meta.url);
+const { withSmokeEvidence } = require("./smoke_evidence_diagnostics.cjs");
 const workflow = fs.readFileSync(new URL("../../../.github/workflows/smoke-copilot-sub-agents.md", import.meta.url), "utf8");
 const script = workflow
   .split("      script: |\n")[1]
@@ -26,7 +29,20 @@ function evidence() {
 }
 
 async function assertEvidence({ events, requests }, variant = "inline_strict") {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "smoke-subagents-test-"));
   const mockRequire = name => {
+    if (name.endsWith("smoke_evidence_diagnostics.cjs"))
+      return {
+        withSmokeEvidence: (options, verify) =>
+          withSmokeEvidence(
+            {
+              ...options,
+              rootDir,
+              fs: mockRequire("node:fs"),
+            },
+            verify
+          ),
+      };
     if (name.endsWith("unified_session.cjs")) return { writeUnifiedSession() {} };
     if (name === "node:fs") {
       return {
@@ -36,9 +52,17 @@ async function assertEvidence({ events, requests }, variant = "inline_strict") {
     }
     return require(name);
   };
-  await new AsyncFunction("require", "process", script)(mockRequire, {
-    env: { RUNNER_TEMP: "/tmp", SMOKE_VARIANT: variant, SMOKE_EXECUTION: "success" },
-  });
+  try {
+    await new AsyncFunction("require", "process", "core", script)(
+      mockRequire,
+      {
+        env: { RUNNER_TEMP: "/tmp", SMOKE_VARIANT: variant, SMOKE_EXECUTION: "success" },
+      },
+      { error() {} }
+    );
+  } finally {
+    fs.rmSync(rootDir, { recursive: true });
+  }
 }
 
 describe("Copilot sub-agent smoke evidence", () => {

@@ -27,6 +27,7 @@ post-steps:
           fi
         done
         echo "::error::No non-empty Copilot session events.jsonl found in the agent logs"
+        node "$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs" copilot-events
         exit 1
       fi
 
@@ -39,5 +40,6 @@ post-steps:
       done
 
       echo "::error::No non-empty agent-stdio.log found in the agent logs"
+      node "$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs" agent-stdio
       exit 1
 ---

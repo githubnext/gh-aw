@@ -1208,6 +1208,10 @@ jobs:
         with:
           script: "const path = require(\"node:path\");\nconst { main } = require(path.join(process.env.RUNNER_TEMP, \"gh-aw/actions/smoke_model_routing_assertions.cjs\"));\nawait main({\n  core,\n  engine: \"copilot\",\n  executionOutcome: process.env.SMOKE_EXECUTION,\n  allowedModels: [\"gpt-5.6-luna\"],\n  mainEndpoint: \"/responses\",\n  subAgents: [{ name: \"haiku-whoami\", model: \"claude-haiku-4.5\", endpoint: \"/chat/completions\" }],\n  requireDeclaredAgentNames: true,\n});"
 
+      - name: Sanitize smoke evidence diagnostics
+        id: smoke_evidence_diagnostics
+        if: always()
+        run: node "$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs" --sanitize
       # Small dedicated copy of the agent output so safe-output processing
       # survives a failed or timed-out upload of the larger agent artifact
       - name: Upload agent output fallback artifact
@@ -1255,6 +1259,7 @@ jobs:
             /tmp/gh-aw/agent_usage.jsonl
             /tmp/gh-aw/agent/model-endpoint-mismatch.json
             /tmp/gh-aw/agent-stdio.log
+            ${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && '/tmp/gh-aw/smoke-evidence.json' || '' }}
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/otel.jsonl

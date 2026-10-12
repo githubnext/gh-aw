@@ -68,12 +68,12 @@ func TestGooseSmokeCheckerRequiresOperationalEvidence(t *testing.T) {
 	}{
 		{name: "passing evidence"},
 		{name: "failed execution", execution: "failure", wantError: "Goose execution failed"},
-		{name: "missing evidence", file: "smoke-test-goose-123.json", wantError: "ENOENT"},
+		{name: "missing evidence", file: "smoke-test-goose-123.json", wantError: "Smoke evidence file is missing"},
 		{name: "failed build", file: "smoke-test-goose-123.json", content: `{"pullRequests":[{"number":1,"title":"PR 1"},{"number":2,"title":"PR 2"}],"bash":true,"build":false,"fileWrite":true,"runtime":true,"webFetch":true}`, wantError: "build did not pass"},
-		{name: "invented PR", file: "smoke-test-goose-123.json", content: `{"pullRequests":[{"number":1,"title":"invented"},{"number":2,"title":"PR 2"}],"bash":true,"build":true,"fileWrite":true,"runtime":true,"webFetch":true}`, wantError: "invented"},
-		{name: "missing web receipt", file: "web-fetch.json", wantError: "ENOENT"},
-		{name: "missing build binary", file: "gh-aw", wantError: "ENOENT"},
-		{name: "missing unified session", file: "agent-session.jsonl", wantError: "ENOENT"},
+		{name: "invented PR", file: "smoke-test-goose-123.json", content: `{"pullRequests":[{"number":1,"title":"invented"},{"number":2,"title":"PR 2"}],"bash":true,"build":true,"fileWrite":true,"runtime":true,"webFetch":true}`, wantError: "Pull request title does not match GitHub"},
+		{name: "missing web receipt", file: "web-fetch.json", wantError: "Smoke evidence file is missing"},
+		{name: "missing build binary", file: "gh-aw", wantError: "Smoke evidence file is missing"},
+		{name: "missing unified session", file: "agent-session.jsonl", wantError: "Smoke evidence file is missing"},
 		{name: "legacy session events", file: "agent-session.jsonl", content: `{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]}}`, wantError: "Goose session contains non-canonical events"},
 		{name: "failed MCP", file: "agent-stdio.log", content: `[goose-harness] verified Goose 1.53.0
 {"type":"message","message":{"content":[{"type":"toolRequest","id":"tool-1","toolCall":{"status":"success","value":{"name":"github__pull_request_read"}}},{"type":"toolResponse","id":"tool-1","toolResult":{"status":"success","value":{"isError":true,"content":[]}}}]}}
@@ -112,23 +112,75 @@ func runGooseSmokeChecker(t *testing.T, dir, checker, execution string) (string,
 	t.Helper()
 	scriptPath := filepath.Join(dir, "checker.cjs")
 	require.NoError(t, os.WriteFile(scriptPath, []byte(checker), 0o600))
+	helper, err := filepath.Abs("../../actions/setup/js/smoke_evidence_diagnostics.cjs")
+	require.NoError(t, err)
 	runner := `const fs = require("node:fs");
 const path = require("node:path");
-const wrapper = name => name === "node:fs" ? {
+const trackedFs = {
 	...fs,
 	readFileSync: (file, ...args) => fs.readFileSync(["/tmp/gh-aw/agent-stdio.log", "/tmp/gh-aw/agent-session.jsonl"].includes(file) ? path.join(process.env.SMOKE_ROOT, path.basename(file)) : file, ...args)
+};
+const wrapper = name => name.endsWith("smoke_evidence_diagnostics.cjs") ? {
+  withSmokeEvidence: (options, verify) => require(process.env.SMOKE_HELPER).withSmokeEvidence({...options, rootDir: process.env.SMOKE_ROOT, fs: trackedFs}, verify)
 } : require(name);
 const github = { rest: { pulls: { get: async ({pull_number}) => ({data: {merged_at: "2026-10-01", title: "PR " + pull_number}}) } } };
 const summary = {addHeading() {return this;}, addRaw() {return this;}, async write() {}};
 const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
 new AsyncFunction("require", "github", "context", "core", fs.readFileSync(process.argv[1], "utf8"))(
-	wrapper, github, {repo: {owner: "test", repo: "test"}}, {summary}
+	wrapper, github, {repo: {owner: "test", repo: "test"}}, {summary, error: message => console.error(message)}
 ).catch(error => {console.error(error.message); process.exitCode = 1;});`
 	cmd := exec.Command("node", "-e", runner, scriptPath)
 	cmd.Env = append(os.Environ(), "SMOKE_ROOT="+dir, "SMOKE_STATE="+dir,
-		"GITHUB_WORKSPACE="+dir, "SMOKE_RUN_ID=123", "SMOKE_EXECUTION="+execution)
+		"GITHUB_WORKSPACE="+dir, "SMOKE_RUN_ID=123", "SMOKE_EXECUTION="+execution,
+		"RUNNER_TEMP="+dir, "SMOKE_HELPER="+helper)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+func TestSmokeEvidenceDiagnosticsArtifactScope(t *testing.T) {
+	for _, expression := range []string{
+		"${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && '/tmp/gh-aw/smoke-evidence.json' || '' }}",
+		"${{ steps.smoke_evidence_diagnostics.outputs.ready == 'true' && format('{0}/gh-aw/smoke-evidence.json', runner.temp) || '' }}",
+	} {
+		assert.True(t, isPathScannedBySecretRedaction(expression))
+		assert.False(t, isPathScannedBySecretRedaction(strings.ReplaceAll(expression, "smoke-evidence.json", "private.bin")))
+		assert.False(t, isPathScannedBySecretRedaction(strings.ReplaceAll(expression, "smoke-evidence.json", "../private.json")))
+	}
+	for _, helper := range []string{"smoke_evidence_diagnostics.cjs", "smoke_model_routing_assertions.cjs", "unrelated.cjs"} {
+		t.Run(helper, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "smoke.md")
+			source := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+post-steps:
+  - name: Evidence assertion
+    run: echo ` + helper + `
+---
+Smoke evidence contract fixture.
+`
+			require.NoError(t, os.WriteFile(file, []byte(source), 0o600))
+			require.NoError(t, NewCompiler().CompileWorkflow(file))
+			content, err := os.ReadFile(filepath.Join(dir, "smoke.lock.yml"))
+			require.NoError(t, err)
+			lock := string(content)
+			if helper == "unrelated.cjs" {
+				assert.NotContains(t, lock, "Sanitize smoke evidence diagnostics")
+				assert.NotContains(t, lock, "/tmp/gh-aw/smoke-evidence.json")
+				return
+			}
+			assert.Contains(t, lock, "/tmp/gh-aw/smoke-evidence.json")
+			assert.Contains(t, lock, "steps.smoke_evidence_diagnostics.outputs.ready == 'true'")
+			sanitize := strings.Index(lock, "- name: Sanitize smoke evidence diagnostics")
+			require.Positive(t, sanitize)
+			assert.Contains(t, lock[sanitize:], "if: always()")
+			upload := strings.Index(lock[sanitize:], "smoke-evidence.json")
+			assert.Positive(t, upload, "Sanitization must precede the diagnostics upload")
+		})
+	}
 }
 
 func TestGooseSmokeRuntimeProbeTrimsNativeVersionOutput(t *testing.T) {
