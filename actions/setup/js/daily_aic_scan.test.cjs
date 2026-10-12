@@ -150,6 +150,16 @@ describe("daily AIC confirmed-zero diagnostics", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Job metadata unavailable"));
   });
 
+  it("rechecks recorded zero observations made before the corrected rerun coverage rules", async () => {
+    const f = fixture([run(1)]);
+    const legacy = { ...scanCacheEntry(run(1), 0, repository, 7, now), coverage_version: 2 };
+    writeEntries([legacy]);
+    const result = await scanDailyAIC(f);
+    expect(result.cacheHits).toBe(0);
+    expect(result.countedRuns).toMatchObject([{ aic: 2, source: "recorded" }]);
+    expect(f.getRunAIC).toHaveBeenCalledOnce();
+  });
+
   it("reports artifact discovery failures without replacing the underlying API error", async () => {
     const f = fixture([run(1)]);
     const error = apiError(403, {}, "Resource not accessible by integration");
@@ -403,7 +413,7 @@ describe("complete daily AIC scan observations", () => {
     const result = await scanDailyAIC(f);
     expect(result.cacheHits).toBe(0);
     expect(result.countedRuns[0].aic).toBeCloseTo(48.11352);
-    expect(readScanCache(fs.readFileSync(cachePath, "utf8"), repository, 7, now).get(1)).toMatchObject({ coverage_version: 2, source: "recorded" });
+    expect(readScanCache(fs.readFileSync(cachePath, "utf8"), repository, 7, now).get(1)).toMatchObject({ coverage_version: 3, source: "recorded" });
     expect((await scanDailyAIC(f)).cacheHits).toBe(1);
   });
 

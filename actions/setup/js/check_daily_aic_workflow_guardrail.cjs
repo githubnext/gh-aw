@@ -587,7 +587,7 @@ function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns,
           .sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""))
           .map(
             run =>
-              `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatAICCredits(run.aic)} | ${run.accountingReason === "confirmed_zero" ? "Confirmed zero (no AI jobs ran)" : run.source === "estimated" ? "Estimated" : "Recorded"} |`
+              `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatAICCredits(run.aic) || "0"} | ${run.accountingReason === "confirmed_zero" ? "Confirmed zero (no AI jobs ran)" : run.source === "estimated" ? "Estimated" : "Recorded"} |`
           )
           .join("\n")
       : "| _none_ | — | — | 0 | — |";
@@ -596,7 +596,7 @@ function renderDailyAICSummary(workflowName, actorLogin, threshold, countedRuns,
   const totalAICFormatted = formatAICCredits(stats.total) || "0";
   const avgAICFormatted = noRunData ? "—" : formatAICCredits(stats.average) || "0";
   const stddevAICFormatted = noRunData ? "—" : formatAICCredits(stats.stddev) || "0";
-  const minMaxAICFormatted = noRunData ? "— / —" : `${formatAICCredits(stats.min)} / ${formatAICCredits(stats.max)}`;
+  const minMaxAICFormatted = noRunData ? "— / —" : `${formatAICCredits(stats.min) || "0"} / ${formatAICCredits(stats.max) || "0"}`;
 
   const noteLines = [];
   if (meta.truncatedByRateLimit && rateLimit) {

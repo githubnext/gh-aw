@@ -316,6 +316,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     expect(markdown).toContain("Subsequent scans retry unresolved accounting");
     expect(markdown).toContain("| Confirmed-zero runs (no AI jobs ran) | 1 |");
     expect(markdown).toContain("Confirmed zero (no AI jobs ran)");
+    expect(markdown).toContain("| cancelled | 0 | Confirmed zero (no AI jobs ran) |");
     expect(markdown).toContain("not provider billing");
   });
 
