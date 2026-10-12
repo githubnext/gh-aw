@@ -4,6 +4,7 @@
 const { getErrorMessage, isLockedError, isRateLimitError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { withRetry } = require("./error_recovery.cjs");
 
 const MAX_CONNECTION_RETRIES = 2;
 const CONNECTION_RETRY_DELAY_MS = 1000;
@@ -199,23 +200,32 @@ function handleReactionError(error) {
  */
 async function addReaction(route, params, reaction) {
   let response;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      response = await github.request(route, {
-        ...params,
-        content: reaction,
-        headers: {
-          Accept: "application/vnd.github+json",
-        },
-      });
-      break;
-    } catch (error) {
-      if (!isConnectTimeoutError(error) || attempt >= MAX_CONNECTION_RETRIES) {
-        throw error;
-      }
-      core.info(`GitHub API connection timed out; retrying reaction request (${attempt + 1}/${MAX_CONNECTION_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, CONNECTION_RETRY_DELAY_MS));
+  try {
+    response = await withRetry(
+      () =>
+        github.request(route, {
+          ...params,
+          content: reaction,
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        }),
+      {
+        maxRetries: MAX_CONNECTION_RETRIES,
+        initialDelayMs: CONNECTION_RETRY_DELAY_MS,
+        maxDelayMs: CONNECTION_RETRY_DELAY_MS,
+        backoffMultiplier: 1,
+        jitterMs: 0,
+        shouldRetry: isConnectTimeoutError,
+      },
+      "add reaction"
+    );
+  } catch (error) {
+    // Preserve the API error's status for callers handling locked resources.
+    if (error && typeof error === "object" && "originalError" in error) {
+      throw error.originalError;
     }
+    throw error;
   }
 
   const reactionId = response.data?.id;
