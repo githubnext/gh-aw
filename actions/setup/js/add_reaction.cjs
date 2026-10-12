@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage, isLockedError, isRateLimitError } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError, isRateLimitError, isConnectTimeoutError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { withRetry } = require("./error_recovery.cjs");
@@ -231,17 +231,6 @@ async function addReaction(route, params, reaction) {
   const reactionId = response.data?.id;
   core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
   core.setOutput("reaction-id", reactionId?.toString() ?? "");
-}
-
-/**
- * @param {unknown} error
- * @returns {boolean}
- */
-function isConnectTimeoutError(error) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-  return ("code" in error && error.code === "UND_ERR_CONNECT_TIMEOUT") || ("message" in error && error.message === "Connect Timeout Error");
 }
 
 /**
