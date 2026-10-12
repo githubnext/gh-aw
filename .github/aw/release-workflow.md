@@ -72,6 +72,8 @@ Key frontmatter decisions:
 - `threat-detection: false` — disable threat scanning on `update-release` because release notes intentionally include code snippets and technical content that can trigger false positives
 - Global `permissions: contents: read` with per-job overrides for write operations
 
+When changing this repository's release credentials, follow the [release credential review requirements](../../CONTRIBUTING.md#release-credential-changes). Token minting or permission changes require explicit human security sign-off before merge; the release environment gate does not replace that review.
+
 ## Classic Jobs
 
 Design these jobs exactly as you would a standard GitHub Actions workflow. The compiler handles action version pinning automatically.
