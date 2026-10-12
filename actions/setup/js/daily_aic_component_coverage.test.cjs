@@ -548,6 +548,40 @@ it("counts carried-forward agent usage and rerun detection once after a failed-o
   expect(f.list).toHaveBeenCalledWith(expect.objectContaining({ filter: "all" }));
 });
 
+it("counts verified prior usage when a runner-assigned agent rerun is cancelled without a producer artifact", async () => {
+  const f = evaluate(
+    { "agent_usage.jsonl": '{"aic":2}' },
+    [job("agent"), job("agent", { id: 10, run_attempt: 2, conclusion: "cancelled", runner_id: 123, runner_name: "runner", steps: [{ name: "Set up job" }], started_at: later, completed_at: later })],
+    { attempt: 2, runStarted: later, producerTime: time }
+  );
+  await expect(f.result).resolves.toBe(2);
+  expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Usage from the cancelled attempt may be unaccounted for"));
+});
+
+it("rejects a cancelled rerun without a verifiable earlier producer", async () => {
+  const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, [job("agent"), job("agent", { id: 10, run_attempt: 2, conclusion: "cancelled", started_at: later, completed_at: later })], {
+    attempt: 2,
+    runStarted: later,
+    producerTime: "2025-01-01T11:00:00Z",
+  });
+  await expect(f.result).rejects.toThrow("Cannot verify the agent producer artifact");
+  expect(global.core.warning).not.toHaveBeenCalled();
+});
+
+it("rejects an ambiguous previous attempt rather than choosing arbitrary carried-forward usage", async () => {
+  const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, [job("agent"), job("Agent", { id: 11 }), job("agent", { id: 10, run_attempt: 2, conclusion: "cancelled", started_at: later, completed_at: later })], {
+    attempt: 2,
+    runStarted: later,
+    producerTime: time,
+  });
+  await expect(f.result).rejects.toThrow("Ambiguous daily AIC component jobs");
+});
+
+it("rejects a cancelled rerun when the carried-forward accounting is missing", async () => {
+  const f = evaluate({}, [job("agent"), job("agent", { id: 10, run_attempt: 2, conclusion: "cancelled", started_at: later, completed_at: later })], { attempt: 2, runStarted: later, producerTime: time });
+  await expect(f.result).rejects.toThrow("Missing accounting for executed agent");
+});
+
 it("accepts an earlier usage artifact when only a nonbillable job was rerun", async () => {
   const f = evaluate({ "agent_usage.jsonl": '{"aic":2}' }, [job("agent"), { ...job("conclusion"), id: 8, run_attempt: 2, started_at: later, completed_at: later }], { attempt: 2, runStarted: later, artifactTime: time });
   await expect(f.result).resolves.toBe(2);
