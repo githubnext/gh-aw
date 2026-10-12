@@ -50,11 +50,11 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.PersistentFlags().String("repo", "", "GitHub repository owner/repo")
+	cmd.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	cmd.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
 	cmd.PersistentFlags().String("storage", "git", "Queue storage (git only)")
 	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
-	cmd.PersistentFlags().Bool("json", false, "Output JSON")
+	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(),

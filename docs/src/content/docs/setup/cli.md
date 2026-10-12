@@ -22,6 +22,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw status`](#status) | Check current state of all workflows | Verifying workflows are enabled and seeing their last run result |
 | [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts | Debugging a past run by inspecting output, tokens used, and artifacts |
 | [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
+| [`gh aw work-queue`](#work-queue) | Inspect and publish a Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 > [!TIP]
 > New to `gh aw`? Start with the [day-one commands](#day-one-commands). The advanced and enterprise setup is further down the page and can be skipped for most users.
@@ -426,6 +427,8 @@ gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
 **Options:** `--engine/-e`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--no-security-scanner`, `--delete-host-repo-before`, `--json/-j`, `--timeout`, `--yes/-y`
+
+Unlike `run --repo/-r`, `trial` has no `--repo/-r`: `--logical-repo/-l` sets the simulated `github.repository` context, while `--host-repo` selects where the trial actually runs. `--json/-j` is available for trial output.
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -1013,6 +1016,20 @@ gh aw domains weekly-research --json    # Output workflow domains in JSON format
 When no workflow is specified, lists all workflows with a summary of allowed and blocked domain counts. When a workflow is specified, lists all effective allowed and blocked domains including domains expanded from named domain sets (e.g., `node`, `python`, `github`, `copilot`) and engine defaults.
 
 ### Utility Commands
+
+#### `work-queue`
+
+Inspect and publish the fair Git-backed DAG work queue. The alias `work` accepts the same subcommands and flags. Direct claims and operator finishes are not supported; `dispatch-next` grants scheduled work.
+
+```bash wrap
+gh aw work-queue state --repo owner/repo --json
+gh aw work-queue explain --repo owner/repo --work-id my-work
+gh aw work-queue stats --repo owner/repo
+```
+
+**Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (`owner/repo`), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
+
+**Subcommands:** `cancel-claim`, `cancel-work`, `compact`, `control`, `deploy`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for subcommand-specific options.
 
 #### `version`
 
