@@ -84,7 +84,9 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
       try {
         const value = JSON.parse(evidence.content);
         const tools = evidence === cache ? value : value?.servers?.safeoutputs;
-        availability = validTools(tools) ? `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tools)` : "unknown (invalid registration evidence)";
+        availability = validTools(tools)
+          ? `${tools.length ? "available" : "unavailable"} at ${evidence === cache ? "setup" : "gateway snapshot"} (registered ${tools.length} tool${tools.length === 1 ? "" : "s"})`
+          : "unknown (invalid registration evidence)";
       } catch {
         availability = "unknown (registration evidence could not be read)";
       }
@@ -108,7 +110,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
         malformed++;
       }
     }
-    summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed records)` : ""}` : `unknown (${evidence.status})`}`);
+    summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed record${malformed === 1 ? "" : "s"})` : ""}` : `unknown (${evidence.status})`}`);
   }
   const output = readCompletionEvidence(rootDir, "safeoutputs.jsonl");
   const lines = (output.content || "").split("\n").filter(line => line.trim());
@@ -121,7 +123,9 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
       malformed++;
     }
   }
-  summary.push(`Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} records, ${malformed} malformed; not validation or publication evidence)` : output.status}`);
+  summary.push(
+    `Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} record${lines.length === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
+  );
   return summary;
 }
 

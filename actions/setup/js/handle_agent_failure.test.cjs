@@ -5669,7 +5669,7 @@ describe("handle_agent_failure", () => {
           { rootDir }
         );
         expect(result).toContain("Completion signal: agent reported incomplete");
-        expect(result).toContain("available at gateway snapshot (registered 1 tools)");
+        expect(result).toContain("available at gateway snapshot (registered 1 tool)");
         expect(result).toContain("Safe-output persistence: nonempty (2 records, 0 malformed");
         expect(result).not.toContain("missing_terminal_safe_output");
         expect(result).not.toContain("Failure classification:");

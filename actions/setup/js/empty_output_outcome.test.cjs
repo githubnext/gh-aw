@@ -172,6 +172,21 @@ describe("empty output outcome", () => {
     expect(buildEmptyOutputOutcome([], rootDir).details).toContain("Safe-output tools: unavailable (gateway registered zero tools)");
   });
 
+  it.each([
+    [0, "tools"],
+    [1, "tool"],
+    [2, "tools"],
+  ])("pluralizes registration metadata for %i tools", (count, noun) => {
+    const tools = Array.from({ length: count }, (_, index) => ({ name: `tool-${index}` }));
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: tools } }));
+    const availability = count ? "available" : "unavailable";
+    expect(buildCompletionEvidence(rootDir)[0]).toBe(`Safe-output tools: ${availability} at gateway snapshot (registered ${count} ${noun})`);
+    fs.mkdirSync(path.join(rootDir, "gh-aw/mcp-cli/tools"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "gh-aw/mcp-cli/tools/safeoutputs.json"), JSON.stringify(tools));
+    expect(buildCompletionEvidence(rootDir)[0]).toBe(`Safe-output tools: ${availability} at setup (registered ${count} ${noun})`);
+  });
+
   it("surfaces unreadable registration evidence without copying its contents or masking the outcome", () => {
     const toolsDir = path.join(rootDir, "gh-aw/mcp-cli/tools");
     fs.mkdirSync(toolsDir, { recursive: true });
@@ -187,7 +202,7 @@ describe("empty output outcome", () => {
     fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: [{ name: "private-tool", description: "private-description", inputSchema: { private: "private-schema" } }] } }));
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.failureCause).toBe("missing_terminal_safe_output");
-    expect(outcome.details).toContain("available at gateway snapshot (registered 1 tools)");
+    expect(outcome.details).toContain("available at gateway snapshot (registered 1 tool)");
     expect(outcome.details).not.toContain("private-");
   });
 
@@ -216,8 +231,32 @@ describe("empty output outcome", () => {
     fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), [{ event: "call_start", tool: "private-tool" }, { event: "tools_call_start" }, { event: "call_complete" }].map(JSON.stringify).join("\n"));
     const summary = buildCompletionEvidence(rootDir).join("\n");
     expect(summary).toContain("Safe-output CLI calls observed: 1");
-    expect(summary).toContain("Safe-output MCP calls observed: 1 (partial evidence: 1 malformed records)");
+    expect(summary).toContain("Safe-output MCP calls observed: 1 (partial evidence: 1 malformed record)");
     expect(summary).not.toContain("private-");
+  });
+
+  it.each([
+    [0, ""],
+    [1, " (partial evidence: 1 malformed record)"],
+    [2, " (partial evidence: 2 malformed records)"],
+  ])("pluralizes partial call evidence for %i malformed records", (count, suffix) => {
+    fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    const content = Array(count).fill("invalid-json").join("\n");
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), content);
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/rpc-messages.jsonl"), content);
+    const summary = buildCompletionEvidence(rootDir);
+    expect(summary).toContain(`Safe-output CLI calls observed: 0${suffix}`);
+    expect(summary).toContain(`Safe-output MCP calls observed: 0${suffix}`);
+  });
+
+  it.each([
+    [0, "records"],
+    [1, "record"],
+    [2, "records"],
+  ])("pluralizes persistence metadata for %i records", (count, noun) => {
+    fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), Array(count).fill("invalid-json").join("\n"));
+    expect(buildCompletionEvidence(rootDir)).toContain(`Safe-output persistence: ${count ? "nonempty" : "empty"} (${count} ${noun}, ${count} malformed; not validation or publication evidence)`);
   });
 
   it("distinguishes missing call evidence from an observed tools-list-only gateway log", () => {
