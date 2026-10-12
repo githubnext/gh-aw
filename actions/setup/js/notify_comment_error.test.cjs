@@ -61,6 +61,8 @@ const mockCore = {
           GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
           GH_AW_SAFE_OUTPUTS_RESULT: process.env.GH_AW_SAFE_OUTPUTS_RESULT,
           GH_AW_AGENT_OUTPUT: process.env.GH_AW_AGENT_OUTPUT,
+          GH_AW_NOOP_COMMENT_BODY: process.env.GH_AW_NOOP_COMMENT_BODY,
+          GH_AW_NOOP_REPORT_AS_ISSUE: process.env.GH_AW_NOOP_REPORT_AS_ISSUE,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL,
@@ -76,7 +78,7 @@ const mockCore = {
       }),
       describe("when comment ID is not provided", () => {
         it("should write a regular linked conclusion summary for noop messages", async () => {
-          const tempDir = fs.mkdtempSync("/tmp/gh-aw-conclusion-summary-");
+          const tempDir = fs.mkdtempSync(path.join(process.cwd(), "gh-aw-conclusion-summary-"));
           const outputPath = path.join(tempDir, "agent-output.json");
           fs.writeFileSync(outputPath, JSON.stringify({ items: [{ type: "noop", message: "No changes were needed." }] }));
           try {
@@ -105,6 +107,61 @@ const mockCore = {
             expect(mockCore.info).toHaveBeenCalledWith("No comment ID found and no noop messages to process, skipping comment update"),
             expect(mockGithub.request).not.toHaveBeenCalled(),
             expect(mockGithub.graphql).not.toHaveBeenCalled());
+        });
+      }),
+      describe("categorized no-op completion comments", () => {
+        it.each([
+          { conclusion: "success", incomplete: false, category: "reported_no_action" },
+          { conclusion: "failure", incomplete: false, category: "incomplete" },
+          { conclusion: "cancelled", incomplete: false, category: "unconfirmed" },
+          { conclusion: "success", incomplete: true, category: "incomplete" },
+        ])("publishes the no-op step body without agent prose: %j", async ({ conclusion, incomplete, category }) => {
+          const outputPath = path.join(process.cwd(), "noop-completion-output.json");
+          const privateMessage = "private repository contents, credentials, prompt and tool payload";
+          const items = [{ type: "noop", message: privateMessage }];
+          if (incomplete) items.push({ type: "report_incomplete", reason: "private incomplete reason" });
+          fs.writeFileSync(outputPath, JSON.stringify({ items }));
+          try {
+            process.env.GH_AW_AGENT_OUTPUT = outputPath;
+            process.env.GH_AW_COMMENT_ID = "123456";
+            process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+            process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+            process.env.GH_AW_AGENT_CONCLUSION = conclusion;
+            process.env.GH_AW_NOOP_REPORT_AS_ISSUE = "false";
+            delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+            delete process.env.GH_AW_DETECTION_CONCLUSION;
+            const { main } = require("./handle_noop_message.cjs");
+            await main();
+            process.env.GH_AW_NOOP_COMMENT_BODY = mockCore.setOutput.mock.calls.find(call => call[0] === "noop_comment_body")[1];
+
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`);
+
+            const body = mockGithub.request.mock.calls.find(call => call[0] === "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}")[1].body;
+            expect(body).toContain(process.env.GH_AW_NOOP_COMMENT_BODY);
+            expect(body).toContain(`**Outcome:** \`${category}\``);
+            expect(body).not.toContain(privateMessage);
+            expect(body).not.toContain("private incomplete reason");
+          } finally {
+            fs.rmSync(outputPath, { force: true });
+          }
+        });
+
+        it("does not fall back to publishing raw noop messages when no categorized body is available", async () => {
+          const outputPath = path.join(process.cwd(), "noop-completion-output.json");
+          fs.writeFileSync(outputPath, JSON.stringify({ items: [{ type: "noop", message: "private agent prose" }] }));
+          try {
+            process.env.GH_AW_AGENT_OUTPUT = outputPath;
+            process.env.GH_AW_COMMENT_ID = "123456";
+            process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+            process.env.GH_AW_AGENT_CONCLUSION = "success";
+            delete process.env.GH_AW_NOOP_COMMENT_BODY;
+            delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`);
+            expect(mockGithub.request.mock.calls[0][1].body).not.toContain("private agent prose");
+            expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("omitting agent messages"));
+          } finally {
+            fs.rmSync(outputPath, { force: true });
+          }
         });
       }),
       describe("when append-only comments are enabled", () => {

@@ -4222,8 +4222,7 @@
                           "pattern": "^/workspace(?:/[^\\r\\n]*)?$",
                           "description": "Optional guest working directory, restricted to /workspace or a descendant."
                         }
-                      },
-                      "required": ["preview", "network-isolation", "api-proxy", "layer-path", "openvmm-path", "kernel-path", "initramfs-path", "artifact-manifest-path", "artifact-manifest-bundle-path"]
+                      }
                     },
                     "config": {
                       "type": "object",

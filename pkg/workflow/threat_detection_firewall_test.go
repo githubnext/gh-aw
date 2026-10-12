@@ -230,6 +230,34 @@ func TestGetThreatDetectionAdditionalAllowedDomains_DetectionOnlyBaseURL(t *test
 	}
 }
 
+func TestThreatDetectionExecutionPreservesCopilotVendorOptIn(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"copilot-vendor"},
+		},
+	}
+
+	for name, build := range map[string]func(*WorkflowData) []string{
+		"inline":   compiler.buildDetectionEngineExecutionStep,
+		"external": compiler.buildExternalDetectorExecutionStep,
+	} {
+		t.Run(name, func(t *testing.T) {
+			command := strings.Join(build(data), "")
+			if !strings.Contains(command, "allowDomains") {
+				t.Fatalf("expected generated detection command to configure allowDomains, got:\n%s", command)
+			}
+			if !strings.Contains(command, "telemetry.enterprise.githubcopilot.com") {
+				t.Fatalf("expected explicit copilot-vendor opt-in in generated detection command, got:\n%s", command)
+			}
+		})
+	}
+}
+
 func TestAppendThreatDetectionRWMount(t *testing.T) {
 	threatDetectionMount := constants.ThreatDetectionDir + ":" + constants.ThreatDetectionDir + ":rw"
 

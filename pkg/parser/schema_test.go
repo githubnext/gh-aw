@@ -129,37 +129,37 @@ func TestValidateMainWorkflowFrontmatter_NVX(t *testing.T) {
 		t.Fatalf("expected complete expression-valued NVX configuration to validate: %v", err)
 	}
 
-	for _, field := range []string{
-		"preview",
-		"network-isolation",
-		"api-proxy",
-		"layer-path",
-		"openvmm-path",
-		"kernel-path",
-		"initramfs-path",
-		"artifact-manifest-path",
-		"artifact-manifest-bundle-path",
-	} {
-		t.Run("missing "+field, func(t *testing.T) {
-			frontmatter := map[string]any{
-				"on": "workflow_dispatch",
-				"sandbox": map[string]any{
-					"agent": map[string]any{
-						"runtime": "nvx",
-						"nvx":     map[string]any{},
+	t.Run("accepts defaulted NVX settings", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"runtime": "nvx",
+					"nvx":     map[string]any{},
+				},
+			},
+		}
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err != nil {
+			t.Fatalf("expected defaulted NVX configuration to validate: %v", err)
+		}
+	})
+
+	t.Run("rejects removed guest libc option", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"runtime": "nvx",
+					"nvx": map[string]any{
+						"guest-libc": "musl",
 					},
 				},
-			}
-			for key, value := range valid["sandbox"].(map[string]any)["agent"].(map[string]any)["nvx"].(map[string]any) {
-				if key != field {
-					frontmatter["sandbox"].(map[string]any)["agent"].(map[string]any)["nvx"].(map[string]any)[key] = value
-				}
-			}
-			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err == nil {
-				t.Fatalf("expected missing %q to fail schema validation", field)
-			}
-		})
-	}
+			},
+		}
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err == nil {
+			t.Fatal("expected removed guest-libc option to fail schema validation")
+		}
+	})
 
 	t.Run("NVX settings require the NVX runtime", func(t *testing.T) {
 		frontmatter := map[string]any{
