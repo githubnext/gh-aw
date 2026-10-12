@@ -10,11 +10,12 @@ import (
 )
 
 func TestBuildLogsCommandArgsIncludesResourceBudgets(t *testing.T) {
+	maxStorageMB := 10240
 	cmdArgs, _, _ := buildLogsCommandArgs(context.Background(), logsArgs{
 		Count:                 1,
 		Timeout:               1,
 		MaxGitHubAPIRateLimit: -2000,
-		MaxStorageMB:          10240,
+		MaxStorageMB:          &maxStorageMB,
 		PruneOlderRuns:        true,
 		IgnoreWorkflowRuns:    []int64{123, 456},
 	})
