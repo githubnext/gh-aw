@@ -296,6 +296,8 @@ func modelRoutingEngineSupportsModel(engineName, candidate string) bool {
 
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
 	switch strings.ToLower(engineName) {
+	case "copilot":
+		return NewCopilotEngine().ResolveLLMProvider(data)
 	case "claude":
 		return NewClaudeEngine().ResolveLLMProvider(data)
 	case "codex":
@@ -359,11 +361,10 @@ func validateModelRouting(workflowData *WorkflowData, engineName string) error {
 	if !isFirewallEnabled(workflowData) {
 		return NewValidationError("engine.model-routing", "", "task-level model routing requires the AWF firewall", "Enable the AWF firewall for this workflow.")
 	}
-	if engineName != "copilot" {
-		provider := modelRoutingProvider(engineName, workflowData)
-		if provider != LLMProviderGitHub {
-			return NewValidationError("engine.model-routing", string(provider), "task-level model routing requires GitHub Copilot inference", "Configure the engine's provider to use GitHub Copilot inference.")
-		}
+	if provider := modelRoutingProvider(engineName, workflowData); provider != LLMProviderGitHub {
+		return NewValidationError("engine.model-provider", string(provider),
+			fmt.Sprintf("task-level model routing requires GitHub Copilot inference, but the %s engine resolves to the %q provider", engineName, provider),
+			"Set engine.model-provider: github, or remove engine.model-routing.")
 	}
 	if routing.Goal != "cost" && routing.Goal != "cost-speed" {
 		return NewValidationError("engine.model-routing.goal", routing.Goal, "unsupported model-routing goal", "Use cost or cost-speed.")
