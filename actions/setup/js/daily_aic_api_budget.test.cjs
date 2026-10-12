@@ -69,12 +69,25 @@ describe("bounded daily AIC read retries", () => {
     Object.assign(new Error("connection reset"), { code: "ECONNRESET" }),
     Object.assign(new Error("timeout"), { name: "TimeoutError" }),
     new Error("fetch failed", { cause: Object.assign(new Error("timeout"), { code: "UND_ERR_CONNECT_TIMEOUT" }) }),
+    Object.assign(new Error("failed to read response body", { cause: Object.assign(new Error("body timeout"), { code: "UND_ERR_BODY_TIMEOUT" }) }), { response: response() }),
   ])("recovers recognized transport failures", async error => {
     const request = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(response());
-    const pending = createAPIBudget().request(request);
+    const budget = createAPIBudget();
+    const assertion = expect(budget.request(request)).resolves.toEqual(response());
     await vi.runAllTimersAsync();
-    await expect(pending).resolves.toEqual(response());
+    await assertion;
     expect(request).toHaveBeenCalledTimes(2);
+    expect(budget.snapshot().requests).toBe(error.response ? 2 : 1);
+  });
+
+  it.each([{ "x-ratelimit-remaining": "100" }, { "retry-after": "120" }])("never retries body timeouts through response restrictions %j", async headers => {
+    const error = Object.assign(new Error("failed to read response body", { cause: Object.assign(new Error("body timeout"), { code: "UND_ERR_BODY_TIMEOUT" }) }), { response: response(200, headers) });
+    const request = vi.fn().mockRejectedValue(error);
+    const budget = createAPIBudget();
+    await expect(budget.request(request)).rejects.toThrow();
+    expect(request).toHaveBeenCalledOnce();
+    expect(budget.snapshot().requests).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("does not retry arbitrary accounting or programming errors", async () => {

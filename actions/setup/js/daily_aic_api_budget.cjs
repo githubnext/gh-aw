@@ -39,7 +39,7 @@ function isTransientError(error) {
   if (isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) return false;
   const status = getErrorStatus(error);
   if (status >= 400) return status >= 500 && status < 600;
-  const codes = ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"];
+  const codes = ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_SOCKET"];
   return ["TimeoutError", "AbortError"].includes(error?.name) || codes.includes(error?.code) || (!!error?.cause && isTransientError(error.cause));
 }
 

@@ -494,7 +494,7 @@ The workflow-specific endpoint is tried first. A 404 MAY switch to repository hi
 
 Current-run lookup failures, missing or malformed history arrays, invalid run/workflow identities, unknown timestamps, incomplete attempt metadata, history failures, and pagination exhaustion MUST NOT use the per-run estimate: they do not establish which historical runs must be counted. Repository-history entries MUST expose valid workflow IDs before filtering. A snapshot cannot substitute for this history.
 
-The current implementation applies a lower creation-time bound, not an additional future-time rejection, to Actions history. The model assumes authoritative membership facts rather than proving timestamp parsing or GitHub's ordering.
+The current implementation applies a lower creation-time bound, not an additional future-time rejection, to Actions history. It relies on GitHub's creation-time ordering when an older run ends the history scan.
 
 ### 9.10 Scan Observations and Producer Trust
 
