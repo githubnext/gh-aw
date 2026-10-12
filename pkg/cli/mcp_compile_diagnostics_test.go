@@ -177,6 +177,24 @@ func TestMCPCompileDiagnosticsStreaming(t *testing.T) {
 	}
 }
 
+func TestMCPCompileDiagnosticsBoundsAggregateWarnings(t *testing.T) {
+	t.Parallel()
+	diagnostics := &mcpCompileDiagnostics{}
+	first := "workflow.md:10: warning: " + strings.Repeat("x", maxMCPCompileDiagnosticBytes) + " remediation"
+	_, err := io.WriteString(diagnostics, first+"\n⚠ later warning\n")
+	require.NoError(t, err)
+	diagnostics.finishLine()
+	output := injectDevelopmentCompilerDiagnostics(`[{"scope":"batch","workflow":"compiler","valid":false,"errors":[{"type":"compiler_warning","message":"compiler reported warnings"}],"warnings":[]}]`, diagnostics)
+	var results []ValidationResult
+	require.NoError(t, json.Unmarshal([]byte(output), &results))
+	message := results[0].Errors[0].Message
+	assert.Contains(t, message, "workflow.md:10: warning:")
+	assert.Contains(t, message, "remediation")
+	assert.Contains(t, message, "later warning")
+	assert.Contains(t, message, "truncated")
+	assert.LessOrEqual(t, len(message), maxMCPCompileDiagnosticBytes)
+}
+
 func TestMCPCompileDiagnosticsExcludeScannerFindingsFromFailure(t *testing.T) {
 	t.Parallel()
 	for _, header := range []string{"shellcheck findings in a.lock.yml:", "⚠ shellcheck findings in a.lock.yml:"} {

@@ -63,6 +63,7 @@ type mcpCompileDiagnostics struct {
 	errorSeen  bool
 	omitted    bool
 	warning    string
+	warnings   strings.Builder
 	shellcheck strings.Builder
 	inFinding  bool
 }
@@ -109,9 +110,9 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 	case line == "":
 		diagnostics.inFinding = false
 	}
-	if line == "" || isCompileProgressLine(line) {
-		if strings.HasPrefix(line, "⚠") {
-			diagnostics.warning = boundMCPCompileDiagnostic(line)
+	if line == "" || isCompileProgressLine(line) || isCompileWarningLine(line) {
+		if isCompileWarningLine(line) {
+			diagnostics.recordWarning(line)
 		}
 		diagnostics.inBlock = false
 		return
@@ -132,6 +133,24 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 	}
 }
 
+func (diagnostics *mcpCompileDiagnostics) recordWarning(line string) {
+	diagnostics.warning = boundMCPCompileDiagnostic(line)
+	if diagnostics.warnings.Len() == 0 && len(line) > maxMCPCompileDiagnosticBytes/2 {
+		line = strings.ToValidUTF8(line[:maxMCPCompileDiagnosticBytes/4], "") +
+			compileDiagnosticTruncation + "\n" +
+			strings.ToValidUTF8(line[len(line)-maxMCPCompileDiagnosticBytes/4:], "")
+		diagnostics.omitted = true
+	}
+	if diagnostics.warnings.Len()+len(line)+1 <= maxMCPCompileDiagnosticBytes {
+		if diagnostics.warnings.Len() > 0 {
+			diagnostics.warnings.WriteByte('\n')
+		}
+		diagnostics.warnings.WriteString(line)
+	} else {
+		diagnostics.omitted = true
+	}
+}
+
 func isCompileDebugLine(line string) bool {
 	return compileDebugLinePattern.MatchString(line)
 }
@@ -143,6 +162,11 @@ func isCompileProgressLine(line string) bool {
 		}
 	}
 	return false
+}
+
+func isCompileWarningLine(line string) bool {
+	return strings.HasPrefix(line, "⚠") || strings.HasPrefix(line, "warning:") ||
+		strings.HasPrefix(line, "Warning:") || strings.Contains(line, ": warning:")
 }
 
 func (diagnostics *mcpCompileDiagnostics) failureMessage(err error) string {
@@ -183,6 +207,47 @@ func runMCPCompileOutput(ctx context.Context, execCmd execCmdFunc, args ...strin
 	err := cmd.Run()
 	diagnostics.finishLine()
 	return stdout.Bytes(), diagnostics, err
+}
+
+func injectDevelopmentCompilerDiagnostics(outputStr string, diagnostics *mcpCompileDiagnostics) string {
+	if diagnostics.warnings.Len() == 0 {
+		return outputStr
+	}
+	var results []ValidationResult
+	if err := json.Unmarshal([]byte(outputStr), &results); err != nil {
+		return outputStr
+	}
+	updated := false
+	for i := range results {
+		if i < 0 || i >= len(results) {
+			continue
+		}
+		result := &results[i]
+		if result.Scope != "batch" || result.Workflow != "compiler" || result.Valid {
+			continue
+		}
+		for j := range result.Errors {
+			if j < 0 || j >= len(result.Errors) {
+				continue
+			}
+			issue := &result.Errors[j]
+			if issue.Type == "compiler_warning" {
+				updated = true
+				issue.Message = boundMCPCompileDiagnostic("compiler reported warnings:\n" + diagnostics.warnings.String())
+				if diagnostics.omitted {
+					issue.Message = boundMCPCompileDiagnostic(issue.Message + "\n... (additional diagnostics omitted)")
+				}
+			}
+		}
+	}
+	if !updated {
+		return outputStr
+	}
+	output, err := formatValidationOutput(results)
+	if err != nil {
+		return outputStr
+	}
+	return output
 }
 
 func marshalMCPCompileErrorResults(workflows []string, message string) ([]byte, error) {
