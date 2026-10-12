@@ -292,12 +292,6 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
-	if hasSmokeEvidenceDiagnostics(data) {
-		yaml.WriteString("      - name: Sanitize smoke evidence diagnostics\n")
-		yaml.WriteString("        id: smoke_evidence_diagnostics\n")
-		yaml.WriteString("        if: always()\n")
-		yaml.WriteString("        run: node \"$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs\" --sanitize\n")
-	}
 
 	// For ARC/DinD, consolidate all artifact files under ${{ runner.temp }}/gh-aw/
 	// before upload. Without this, upload-artifact receives paths from two roots
@@ -306,6 +300,18 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// See gh-aw#34896 Bug B.
 	if isArcDindTopology(data) {
 		c.generateArcDindArtifactConsolidationStep(yaml)
+	}
+
+	// Gate the uploaded bytes, including pre-existing ARC consolidation destinations.
+	if hasSmokeEvidenceDiagnostics(data) {
+		yaml.WriteString("      - name: Sanitize smoke evidence diagnostics\n")
+		yaml.WriteString("        id: smoke_evidence_diagnostics\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString("        run: node \"$RUNNER_TEMP/gh-aw/actions/smoke_evidence_diagnostics.cjs\" --sanitize")
+		if isArcDindTopology(data) {
+			yaml.WriteString(" \"$RUNNER_TEMP/gh-aw\"")
+		}
+		yaml.WriteByte('\n')
 	}
 
 	// Generate single unified artifact upload with all collected paths.

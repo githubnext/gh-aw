@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { recordSmokeFailure, readSmokeFailure, withSmokeEvidence, sanitizeSmokeFailure, routingFailureDescription } from "./smoke_evidence_diagnostics.cjs";
 import { buildFailureDiagnosticsContext } from "./handle_agent_failure.cjs";
 
 const roots = [];
 function root() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "smoke-diagnostics-test-"));
+  const dir = fs.mkdtempSync(path.join(process.cwd(), ".smoke-diagnostics-test-"));
   roots.push(dir);
   return dir;
 }
@@ -21,6 +21,22 @@ describe("smoke assertion diagnostics", () => {
     expect(routingFailureDescription("FAIL E2 evidence: missing usage/aw_session.jsonl")).toBe("Unified session usage/aw_session.jsonl is missing");
     expect(routingFailureDescription("FAIL S1 sub-agent mini-whoami: observed PRIVATE payload")).toContain("mini-whoami:");
     expect(routingFailureDescription("FAIL S1 sub-agent PRIVATE: observed PRIVATE payload")).not.toContain("PRIVATE");
+  });
+  it.each([
+    "usage/aw_session.jsonl",
+    "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
+    "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
+    "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl",
+    "sandbox/firewall/awf-reflect.json",
+    "agent/awf-reflect.json",
+  ])("keeps only the catalogued artifact and cause for E2 failures in %s", file => {
+    expect(routingFailureDescription(`FAIL E2 evidence: /PRIVATE/root/${file} is unreadable`)).toBe(`Smoke evidence file is missing or unreadable: ${file}`);
+    const description = routingFailureDescription(`FAIL E2 evidence: /PRIVATE/root/${file}:2 is not valid JSON: PRIVATE parser excerpt`);
+    expect(description).toBe(`Smoke evidence contains invalid JSON: ${file}`);
+    const rootDir = root();
+    recordSmokeFailure({ rootDir, kind: "routing", failures: [description], files: [] });
+    expect(readSmokeFailure("Assert model-routing evidence", rootDir)).toContain(description);
+    expect(readSmokeFailure("Assert model-routing evidence", rootDir)).not.toContain("PRIVATE");
   });
   it("records missing evidence and the actual inspected file without exception payloads", async () => {
     const rootDir = root();
@@ -85,16 +101,34 @@ describe("smoke assertion diagnostics", () => {
     expect(fs.existsSync(file)).toBe(false);
   });
 
-  it("preserves the safe assertion failure when diagnostics cannot be persisted", async () => {
+  it.each([true, false])("preserves the safe assertion failure when diagnostics cannot be persisted (warning available: %s)", async hasWarning => {
     const rootDir = root();
     fs.writeFileSync(path.join(rootDir, "not-a-directory"), "");
-    const core = { error: vi.fn(), warning: vi.fn() };
+    const warning = vi.fn();
+    const core = { error: vi.fn(), ...(hasWarning ? { warning } : {}) };
     await expect(
       withSmokeEvidence({ rootDir: path.join(rootDir, "not-a-directory"), kind: "goose", core, paths: {} }, async ({ assert }) => {
         assert.equal(false, true, "Goose execution failed");
       })
     ).rejects.toThrow("Goose execution failed");
-    expect(core.warning).toHaveBeenCalledWith("Unable to persist smoke evidence diagnostics");
+    if (hasWarning) expect(warning).toHaveBeenCalledWith("Unable to persist smoke evidence diagnostics");
+    expect(core.error).toHaveBeenCalledWith("Goose execution failed. Files inspected: none recorded");
+  });
+
+  it("sanitizes and rejects evidence through the CLI at the explicit root", () => {
+    const rootDir = root();
+    const file = path.join(rootDir, "smoke-evidence.json");
+    const outputFile = path.join(rootDir, "step-output");
+    const run = () => execFileSync(process.execPath, [path.join(__dirname, "smoke_evidence_diagnostics.cjs"), "--sanitize", rootDir], { env: { ...process.env, GITHUB_OUTPUT: outputFile }, stdio: "pipe" });
+    fs.writeFileSync(file, JSON.stringify({ kind: "routing", failures: ["Agent execution did not succeed"], files: ["session"], payload: "PRIVATE raw logs" }));
+    run();
+    expect(fs.readFileSync(file, "utf8")).not.toContain("PRIVATE");
+    expect(fs.readFileSync(outputFile, "utf8")).toBe("ready=true\n");
+    fs.writeFileSync(outputFile, "");
+    fs.writeFileSync(file, JSON.stringify({ kind: "routing", failures: ["PRIVATE raw logs"], files: ["session"] }));
+    run();
+    expect(fs.existsSync(file)).toBe(false);
+    expect(fs.readFileSync(outputFile, "utf8")).toBe("");
   });
 
   it("does not authorize upload if catalogue reconstruction fails", () => {

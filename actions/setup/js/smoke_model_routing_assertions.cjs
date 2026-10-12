@@ -380,14 +380,16 @@ function readJsonl(file, problems) {
 function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true } = {}) {
   /** @type {string[]} */
   const problems = [];
-  const inspectedFiles = ["session"];
+  const inspectedFiles = [];
   /** @param {string[]} files */
   const locate = files => {
     for (const file of files) {
       const key = Object.keys(FILES).find(key => FILES[key] === file);
-      if (key) inspectedFiles.push(key);
       const fullPath = path.join(rootDir, file);
-      if (fs.existsSync(fullPath)) return fullPath;
+      if (fs.existsSync(fullPath)) {
+        if (key) inspectedFiles.push(key);
+        return fullPath;
+      }
     }
     return undefined;
   };
@@ -402,8 +404,10 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
 
   let events = [];
   const sessionFile = path.join(rootDir, SESSION_PATH);
-  if (fs.existsSync(sessionFile)) events = readJsonl(sessionFile, problems);
-  else problems.push(`missing ${SESSION_PATH}`);
+  if (fs.existsSync(sessionFile)) {
+    inspectedFiles.push("session");
+    events = readJsonl(sessionFile, problems);
+  } else problems.push(`missing ${SESSION_PATH}`);
 
   let requests = [];
   const tokenFile = locate(TOKEN_USAGE_PATHS);
@@ -456,7 +460,7 @@ async function main(options) {
     try {
       recordSmokeFailure({ kind: "routing", rootDir: rest.rootDir, failures: [message], files: [] });
     } catch {
-      actionsCore.warning("Unable to persist smoke evidence diagnostics");
+      actionsCore.warning?.("Unable to persist smoke evidence diagnostics");
     }
     actionsCore.setFailed(message);
     return { passes: [], failures: [`FAIL E2 ${message}`] };
@@ -472,7 +476,7 @@ async function main(options) {
     try {
       recordSmokeFailure({ kind: "routing", rootDir: rest.rootDir, failures, files: results.inspectedFiles || [] });
     } catch {
-      actionsCore.warning("Unable to persist smoke evidence diagnostics");
+      actionsCore.warning?.("Unable to persist smoke evidence diagnostics");
     }
     actionsCore.error(`Files inspected: ${(results.inspectedFiles || []).map(key => FILES[key]).join(", ")}`);
     actionsCore.setFailed(`Model-routing smoke assertions failed (${results.failures.length}):\n${safeFailures.join("\n")}`);

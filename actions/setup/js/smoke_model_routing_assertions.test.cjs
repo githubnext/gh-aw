@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { checkModelRoutingEvidence, main, normalizeEndpoint, servedModel } from "./smoke_model_routing_assertions.cjs";
+import { readSmokeFailure } from "./smoke_evidence_diagnostics.cjs";
 
 const TOKEN_USAGE = "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 const ROUTED_ALLOWED = ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"];
@@ -130,7 +130,7 @@ const R3_ENDPOINTS = "(/responses, ws:/responses)";
 describe("smoke_model_routing_assertions", () => {
   let root;
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-smoke-routing-"));
+    root = fs.mkdtempSync(path.join(process.cwd(), ".gh-aw-smoke-routing-"));
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -416,6 +416,20 @@ describe("smoke_model_routing_assertions", () => {
   });
 
   describe("evidence files", () => {
+    it("does not report absent candidates as inspected", () => {
+      expect(check(copilotExpectations).inspectedFiles).toEqual([]);
+    });
+
+    it.each([false, true])("reports only the audit fallback after a missing session (buildSession: %s)", buildSession => {
+      if (buildSession) write("usage", "");
+      write("sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl", copilotRequests());
+      write("agent/awf-reflect.json", reflect);
+      const results = checkModelRoutingEvidence({ rootDir: root, buildSession, ...copilotExpectations });
+      expect(results.inspectedFiles).toEqual(["proxyAudit", "reflectAgent"]);
+      expect(results.failures).toContain("FAIL E2 evidence: missing usage/aw_session.jsonl");
+      if (buildSession) expect(results.failures[0]).toMatch(/^FAIL E2 evidence: failed to build the unified session:/);
+    });
+
     it("fails E2 when token-usage.jsonl is missing", () => {
       fixture({ session: [workflowInfo(), selection()] });
       const { failures } = check(copilotExpectations);
@@ -451,6 +465,25 @@ describe("smoke_model_routing_assertions", () => {
   });
 
   describe("main", () => {
+    it.each([
+      ["usage/aw_session.jsonl", true],
+      ["usage/aw_session.jsonl", false],
+      [TOKEN_USAGE, false],
+      ["sandbox/firewall/awf-reflect.json", false],
+    ])("reports the safe artifact-level E2 cause for %s (unreadable: %s)", async (file, unreadable) => {
+      fixture(copilotPass());
+      if (unreadable) {
+        fs.rmSync(path.join(root, file));
+        fs.mkdirSync(path.join(root, file));
+      } else write(file, "{ PRIVATE invalid JSON");
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      await main({ core, rootDir: root, buildSession: false, ...copilotExpectations });
+      const cause = `Smoke evidence ${unreadable ? "file is missing or unreadable" : "contains invalid JSON"}: ${file}`;
+      expect(core.error).toHaveBeenCalledWith(`FAIL E2 ${cause}`);
+      expect(readSmokeFailure("Assert model-routing evidence", root)).toContain(cause);
+      expect(JSON.stringify([core.error.mock.calls, core.setFailed.mock.calls, fs.readFileSync(path.join(root, "smoke-evidence.json"), "utf8")])).not.toContain("PRIVATE");
+    });
+
     it("logs every check and fails the step on failure", async () => {
       fixture({ session: [workflowInfo()], requests: copilotRequests() });
       const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };

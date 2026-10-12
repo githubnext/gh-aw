@@ -975,7 +975,7 @@ This documentation provides:
      - `smoke-copilot-routed`: Copilot CLI with routing and no sub-agents
      - `smoke-pi-routed`: pi with routing and two cross-family declared sub-agents (Claude and GPT)
      - `smoke-copilot-sdk-routed`: Copilot SDK with routing and a Claude sub-agent under a GPT main agent
-   - Each routed smoke's post-step (`actions/setup/js/smoke_model_routing_assertions.cjs`) checks runner- and proxy-written evidence, not the agent's reply. Every failed check logs its ID (`R1`–`R4`, `S1`–`S4`, `M1`, `E1`, `E2`) with the observed model, endpoint, status and event, so the step log is enough to diagnose a failure
+   - Each routed smoke's post-step (`actions/setup/js/smoke_model_routing_assertions.cjs`) checks runner- and proxy-written evidence, not the agent's reply. Step logs and failure issues show only check IDs (`C1`, `R1`–`R4`, `S1`–`S4`, `M1`, `E1`, `E2`), fixed catalogue descriptions, and inspected artifact paths; they never include raw logs, observed values, or parser exception text. The sanitized `smoke-evidence.json` file in the agent artifact preserves this summary. For detailed model, endpoint, status, and event evidence, inspect `usage/aw_session.jsonl`, the available `sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl` (or audit fallback), and `awf-reflect.json` in the run artifacts
    - `label_command` removes the `smoke-routing` label when the runs start. To run them again, re-add the label, then approve workflows again
 
 ## Release Process

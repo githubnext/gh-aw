@@ -109,6 +109,14 @@ function routingFailureDescription(line) {
   const id = line.split(" ")[1];
   if (line === "FAIL E2 evidence: missing usage/aw_session.jsonl") return MISSING_ROUTING_FILES[0];
   if (line.startsWith("FAIL E2 evidence: missing api-proxy token-usage.jsonl")) return MISSING_ROUTING_FILES[1];
+  if (line.startsWith("FAIL E2 evidence: ")) {
+    for (const key of ["session", "proxy", "proxyAudit", "proxyLegacy", "reflect", "reflectAgent"]) {
+      const file = FILES[key];
+      const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (new RegExp(`^FAIL E2 evidence: (?:.*\\/)?${escaped} is unreadable$`).test(line)) return `${CHECKS[1]}: ${file}`;
+      if (new RegExp(`^FAIL E2 evidence: (?:.*\\/)?${escaped}(?::\\d+)? is not valid JSON(?::|$)`).test(line)) return `${CHECKS[2]}: ${file}`;
+    }
+  }
   const name = SUBAGENTS.find(name => line.startsWith(`FAIL ${id} sub-agent ${name}:`));
   if (name && ["S1", "S2", "S3", "S4"].includes(id)) return `${name}: ${ROUTING_CHECKS[id]}`;
   return ROUTING_CHECKS[id] || CHECKS[0];
@@ -188,7 +196,7 @@ async function withSmokeEvidence(options, verify) {
     try {
       recordSmokeFailure({ ...options, failures: [missing], files: [...inspected] });
     } catch {
-      options.core.warning("Unable to persist smoke evidence diagnostics");
+      options.core.warning?.("Unable to persist smoke evidence diagnostics");
     }
     throw new Error(message);
   }
@@ -262,7 +270,7 @@ module.exports = { DIAGNOSTICS_FILE, FILES, ROUTING_CHECKS, routingFailureDescri
 
 if (require.main === module) {
   if (process.argv[2] === "--sanitize") {
-    sanitizeSmokeFailure();
+    sanitizeSmokeFailure(process.argv[3]);
   } else {
     const copilot = process.argv[2] === "copilot-events";
     const failures = [copilot ? "No non-empty Copilot session events.jsonl found in the agent logs" : "No non-empty agent-stdio.log found in the agent logs"];
