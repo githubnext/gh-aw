@@ -247,10 +247,13 @@ function sumAICFromUsageJSONLFiles(filePaths, options = {}) {
           ...(options.strict && typeof parsed.input_tokens_include_cache === "boolean" ? { inputTokensIncludeCache: parsed.input_tokens_include_cache } : {}),
         };
         const hasTokens = [inference.inputTokens, inference.outputTokens, inference.cacheReadTokens, inference.cacheWriteTokens, inference.reasoningTokens].some(value => value > 0);
-        if (options.strict && explicitValues.length === 0 && hasTokens && !findModelPricing(inference.provider, inference.model)) {
+        if (options.strict && hasTokens && !findModelPricing(inference.provider, inference.model)) {
           throw new Error("No pricing for a daily AIC usage record");
         }
         const computed = computeInferenceAIC(inference);
+        if (options.strict && (!Number.isFinite(computed) || computed < 0)) {
+          throw new Error("Computed daily AIC value is not finite and non-negative");
+        }
         if (Number.isFinite(computed) && computed > 0) {
           total += computed;
           observations++;
@@ -276,16 +279,20 @@ function sumAICFromUsageJSONLFiles(filePaths, options = {}) {
  * @returns {{count:number,total:number,average:number,min:number,max:number,stddev:number}}
  */
 function calculateDailyAICStats(runs) {
-  const values = runs.map(run => Number(run?.aic || 0)).filter(value => Number.isFinite(value) && value > 0);
+  const values = runs.map(run => {
+    if (!Number.isFinite(run?.aic) || run.aic < 0) throw new Error("Daily AIC run value is not finite and non-negative");
+    return run.aic;
+  });
   if (values.length === 0) {
     return { count: 0, total: 0, average: 0, min: 0, max: 0, stddev: 0 };
   }
 
   const total = values.reduce((sum, value) => sum + value, 0);
+  if (!Number.isFinite(total)) throw new Error("Daily AIC aggregate total is not finite");
   const average = total / values.length;
   const min = values.reduce((smallest, value) => (value < smallest ? value : smallest), values[0]);
   const max = values.reduce((largest, value) => (value > largest ? value : largest), values[0]);
-  const variance = values.length > 1 ? values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1) : 0;
+  const variance = values.length > 1 && max > 0 ? values.reduce((sum, value) => sum + ((value - average) / max) ** 2, 0) / (values.length - 1) : 0;
 
   return {
     count: values.length,
@@ -293,7 +300,7 @@ function calculateDailyAICStats(runs) {
     average,
     min,
     max,
-    stddev: Math.sqrt(variance),
+    stddev: Math.sqrt(variance) * max,
   };
 }
 

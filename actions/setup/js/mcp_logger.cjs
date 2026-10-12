@@ -20,9 +20,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Create a logger object with debug and debugError methods
  * @param {string} serverName - Name to include in log messages
+ * @param {(message: string) => string} [redactLogMessage] - Optional diagnostic payload redactor
  * @returns {Object} Logger object with debug and debugError methods
  */
-function createLogger(serverName) {
+function createLogger(serverName, redactLogMessage) {
   const logger = {
     /**
      * Log a debug message to stderr with timestamp
@@ -30,7 +31,8 @@ function createLogger(serverName) {
      */
     debug: msg => {
       const timestamp = new Date().toISOString();
-      process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
+      const safeMessage = redactLogMessage ? redactLogMessage(msg) : msg;
+      process.stderr.write(`[${timestamp}] [${serverName}] ${safeMessage}\n`);
     },
 
     /**
