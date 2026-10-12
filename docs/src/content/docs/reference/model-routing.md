@@ -144,6 +144,7 @@ All six candidates are covered by the routing tables of router 0.1.3.
 These smoke workflows run every 2 days with `mode: economy`. They check main-agent request models against the candidate models and use the unified session and AWF's api-proxy `token-usage.jsonl` as model/endpoint evidence, including a successful request on a supported or declared endpoint:
 
 - [`smoke-copilot-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed.md): Copilot CLI mode, routing over three models (`gpt-5.4-mini`, `gpt-5.6-luna`, `claude-haiku-4.5`) with no sub-agents.
+- [`smoke-claude-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-claude-routed.md): Claude Code with `model-provider: github`, routing over `claude-sonnet-5` with no sub-agents. AWF selects `/chat/completions`; the main agent must use `/v1/messages`.
 - [`smoke-copilot-sdk-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed.md): Copilot SDK mode, routing over `gpt-5.6-luna` with a `claude-haiku-4.5` sub-agent.
 - [`smoke-pi-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-pi-routed.md): pi, routing over `gpt-5.6-luna` with `claude-haiku-4.5` (`/v1/messages`) and `gpt-5.4-mini` (`/responses`) sub-agents.
 
