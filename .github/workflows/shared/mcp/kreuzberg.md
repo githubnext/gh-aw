@@ -2,7 +2,7 @@
 mcp-servers:
   kreuzberg:
     container: "ghcr.io/xberg-io/xberg"
-    # Resolve the digest from actions-lock.json so daily pin refreshes reach scans.
+    # Resolve pins from actions-lock.json, falling back to the embedded catalog when no cache entry exists.
     version: "1.3.6"
     entrypointArgs:
       - "mcp"

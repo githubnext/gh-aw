@@ -36,7 +36,7 @@ func TestNamedCustomEngineReportUsesUnifiedConversation(t *testing.T) {
 	report, err := os.ReadFile(filepath.Join(root, "log.md"))
 	require.NoError(t, err)
 	require.Contains(t, string(report), "Observed Crush assistant answer")
-	require.Contains(t, string(report), "Agent conversation")
+	require.Contains(t, string(report), "<summary>Unified session</summary>")
 	require.Contains(t, string(report), "Chronological trace")
 	require.Contains(t, string(report), "tools/list")
 }
