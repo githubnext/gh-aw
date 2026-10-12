@@ -519,7 +519,13 @@ max-daily-ai-credits:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
-By default, the activation job fails when the guardrail cannot determine the complete 24-hour AI Credits total. Set `continue-on-error: true` to report the unknown total as a warning and allow the workflow to continue:
+Accounting reads retry transient server and network/timeout failures up to three total attempts with short backoff. If a historical run's accounting remains unavailable, a positive `max-ai-credits` value supplies a conservative per-run estimate, reported separately from measured usage. Later scans reinspect estimates. Permission failures, rate limiting, quota-reserve stops, and explicit server retry restrictions do not use this fallback.
+
+Scan snapshots from matching default-branch `issues` and `issue_comment` runs can be reused after repository, workflow, and producer validation. A fresh, complete run listing still determines which observations count toward the 24-hour total.
+
+Activation logs report retry delays, recovery or stop reasons, and snapshot-producer validation or missing-data decisions. These diagnostics omit credentials, signed download URLs, and response bodies.
+
+By default, the activation job fails when the guardrail cannot determine the complete 24-hour AI Credits total, including when authoritative run history remains unreadable or no positive per-run fallback is available. Set `continue-on-error: true` to report the unknown total as a warning and allow the workflow to continue:
 
 ```yaml wrap
 max-daily-ai-credits:

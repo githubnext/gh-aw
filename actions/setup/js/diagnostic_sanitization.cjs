@@ -43,4 +43,22 @@ function redactAndBoundDiagnostics(text, options = {}) {
   return normalize(redactDiagnosticText(normalized, options));
 }
 
-module.exports = { redactDiagnosticText, redactAndBoundDiagnostics };
+/**
+ * Withhold MCP script payloads, including outputs and errors that may echo inputs.
+ * Apply the shared secret redactor to the remaining diagnostic metadata.
+ * @param {string} message
+ * @returns {string}
+ */
+function redactMCPScriptLogMessage(message) {
+  const metadata = message
+    .replace(
+      /(\b(?:Invoking handler with args|(?:JavaScript|Python|Go|Shell) handler args|Input JSON \(\d+ bytes\)|stdout|stderr|Serialized result|Output file content|Parsed output|Shell handler completed, outputs|Error for notification|recv|send):\s*)[\s\S]*$/i,
+      "$1[REDACTED]"
+    )
+    .replace(/(\bSet env:\s*[^=\r\n]+=)[\s\S]*$/, "$1[REDACTED]")
+    .replace(/(\bargs=)[\s\S]*$/, "$1[REDACTED]")
+    .replace(/(\b(?:error|threw|Stack trace):\s*)[\s\S]*$/i, "$1[REDACTED]");
+  return redactDiagnosticText(metadata);
+}
+
+module.exports = { redactDiagnosticText, redactAndBoundDiagnostics, redactMCPScriptLogMessage };

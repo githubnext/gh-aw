@@ -97,6 +97,62 @@ describe("mcp_scripts_mcp_server.cjs", () => {
   });
 
   describe("startMCPScriptsServer integration", () => {
+    it("redacts stdio and file logs without changing successful or failed tool responses", async () => {
+      const { spawn } = await import("child_process");
+      const secret = 'private-input-"quoted"\nsecond-line';
+      const handlerPath = path.join(tempDir, "echo.cjs");
+      fs.writeFileSync(
+        handlerPath,
+        `let input = "";
+process.stdin.on("data", chunk => { input += chunk; });
+process.stdin.on("end", () => {
+  const args = JSON.parse(input);
+  console.error(args.message);
+  console.log(JSON.stringify({ echo: args.message }));
+  if (args.fail) process.exitCode = 1;
+});`
+      );
+      const logDir = path.join(tempDir, "logs");
+      const configPath = path.join(tempDir, "config.json");
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({
+          tools: [{ name: "echo", handler: handlerPath, inputSchema: { type: "object", properties: { message: { type: "string" }, fail: { type: "boolean" } } } }],
+        })
+      );
+      const child = spawn(process.execPath, [path.join(__dirname, "mcp_scripts_mcp_server.cjs"), configPath, "--log-dir", logDir], { timeout: 10000 });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", chunk => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on("data", chunk => {
+        stderr += chunk.toString();
+      });
+      const closed = new Promise((resolve, reject) => {
+        child.on("error", reject);
+        child.on("close", code => resolve(code));
+      });
+      const requests = [false, true].map((fail, id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "echo", arguments: { message: secret, fail } } }));
+      const notification = { jsonrpc: "2.0", method: "tools/call", params: { name: "echo", arguments: { message: secret, fail: true } } };
+      child.stdin.end([...requests, notification].map(message => JSON.stringify(message)).join("\n") + "\n");
+      expect(await closed).toBe(0);
+      const responses = stdout
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(responses).toHaveLength(2);
+      expect(JSON.parse(responses[0].result.content[0].text).echo).toBe(secret);
+      expect(responses[1].error.message).toContain(secret);
+      for (const log of [stderr, fs.readFileSync(path.join(logDir, "server.log"), "utf8")]) {
+        expect(log).not.toContain("private-input");
+        expect(log).not.toContain("second-line");
+        expect(log).toContain("[REDACTED]");
+        expect(log).toContain("Calling handler for tool: echo");
+        expect(log).toContain("Error for notification: [REDACTED]");
+      }
+    });
+
     it("should start server with JavaScript handler", async () => {
       // Create a handler file that reads from stdin and writes to stdout
       const handlerPath = path.join(tempDir, "test_handler.cjs");

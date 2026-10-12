@@ -179,11 +179,21 @@ mcp-scripts:
         type: number
         default: 42
         description: "This has a default value"
+      args:
+        type: array
+        items:
+          type: string
+        description: "An array of argument strings"
       choice-param:
         type: string
         enum: ["option1", "option2", "option3"]
         description: "Limited to specific values"
 ```
+
+Array parameters accept an optional `items: { type: string }` declaration to
+validate every element. Item types support `string`, `number`, `boolean`, `array`,
+and `object`; only the item `type` is supported. Omitting `items` leaves element
+types unrestricted. `items` requires the parameter's `type` to be `array`.
 
 ## Timeout Configuration
 
@@ -268,10 +278,12 @@ Analyze provided text using the `analyze-text` tool and create a discussion with
 
 MCP Scripts tools run on the GitHub Actions **runner host** — outside the agent container — so they can access the runner's file system and environment but are isolated from the AI's own execution environment. Tools also provide secret isolation (only specified env vars are forwarded), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.
 
+MCP script arguments are withheld from server logs, step summaries, and recent-tool-call diagnostics. Output payloads and error details are also withheld from server logs because they may echo arguments. Handlers receive the original inputs, and tool responses remain unchanged. Do not return secrets to the agent.
+
 ## Troubleshooting
 
 - **Tool Not Found**: The tool name the agent calls must exactly match the key under `mcp-scripts:` in frontmatter (case-sensitive). Check the agent's tool list in the run logs against your `mcp-scripts:` block.
-- **Script Errors**: Open the workflow run logs and search for the mcp-scripts server output (`MCP Scripts` step) for a stack trace or syntax error; the line number in the trace maps directly to your `script:`/`run:`/`py:`/`go:` block.
+- **Script Errors**: Check the tool's error response for details. The `MCP Scripts` step logs tool names and execution status, but redacts payloads and error details that may contain secrets.
 - **Secret Not Available**: Confirm the secret referenced in `env:` (e.g., `${{ secrets.API_KEY }}`) is defined at the repository or organization level under **Settings > Secrets and variables > Actions**, and that its name matches exactly.
 - **Large Output**: When output exceeds 500 characters, the agent receives a file path instead of inline content (see [Large Output Handling](#large-output-handling)); read that file if the agent's response looks truncated.
 
