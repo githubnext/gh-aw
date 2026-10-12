@@ -1,6 +1,8 @@
 ### {workflow_name}
 
-Threat detection produced a **{conclusion}** result for this run.
+**Outcome:** `{category}`
+
+{description}
 
 <details>
 <summary>Run details</summary>
@@ -12,3 +14,5 @@ Threat detection produced a **{conclusion}** result for this run.
 | Run | [View run]({run_url}) |
 
 </details>
+
+The conclusion reflects the configured detection policy; it does not change the outcome category. Agent text and detection payloads are omitted.
