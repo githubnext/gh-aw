@@ -17,6 +17,22 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_security_reporting_omits_empty_findings_tables(self):
+        for path in (
+            ROOT / ".github/aw/debug-security-review.md",
+            ROOT / ".github/skills/developer-security/SKILL.md",
+        ):
+            with self.subTest(path=path):
+                text = path.read_text()
+                self.assertIn(
+                    "Show a findings table only when confirmed findings exist.", text
+                )
+                self.assertIn("No confirmed vulnerabilities found", text)
+                self.assertIn("placeholder row", text)
+        gate = (ROOT / ".github/aw/debug-security-review.md").read_text()
+        self.assertIn("without labeling them as vulnerabilities", gate)
+        self.assertIn("rendering an empty overview table", gate)
+
     def test_single_security_reviewer_and_markdown_overview(self):
         gate = (ROOT / ".github/aw/debug-security-review.md").read_text()
         self.assertIn("exactly one read-only security-review agent", gate)
