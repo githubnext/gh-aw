@@ -4,7 +4,7 @@ network:
     - go
 mcp-scripts:
   go:
-    description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the arguments after 'go' (e.g., args: 'test ./...'). Arguments are parsed with POSIX shell quoting; quote paths containing spaces. Shell expansions and operators are not evaluated."
     inputs:
       args:
         type: string
@@ -12,10 +12,14 @@ mcp-scripts:
         required: true
     run: |
       echo "go $INPUT_ARGS"
-      go $INPUT_ARGS
+      python3 - <<'PY'
+      import os
+      import shlex
+      os.execvp("go", ["go", *shlex.split(os.environ["INPUT_ARGS"])])
+      PY
 
   make:
-    description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) and options (e.g., args: 'fmt build'). Arguments are parsed with POSIX shell quoting; quote paths containing spaces. Shell expansions and operators are not evaluated."
     inputs:
       args:
         type: string
@@ -23,8 +27,19 @@ mcp-scripts:
         required: true
     run: |
       echo "make $INPUT_ARGS"
-      make $INPUT_ARGS
+      python3 - <<'PY'
+      import os
+      import shlex
+      os.execvp("make", ["make", *shlex.split(os.environ["INPUT_ARGS"])])
+      PY
 ---
+
+Both tools keep `args` as a string. Python's standard-library `shlex.split`
+preserves multiple arguments, quoted empty arguments, and quoted or escaped
+spaces (for example, `build -o 'path with spaces/output'`). Globs, variables,
+command substitutions, and shell operators are passed literally, not expanded
+or executed. Invalid quoting fails before invoking Go or Make. The wrappers
+require `python3` on the runner and preserve command output and exit status.
 
 **IMPORTANT — bash vs. MCP for validation:**
 
