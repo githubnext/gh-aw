@@ -17,7 +17,7 @@ const { spawnSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
-const { apiError, isTransientError } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, apiError, isTransientError } = require("./daily_aic_api_budget.cjs");
 
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
@@ -309,36 +309,38 @@ class DefaultArtifactClient {
       const url = parseURL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl, `Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
-      let response;
       /** @type {any} */
       let payload;
       try {
-        response = await this.request(async () => {
-          const fetched = await fetch(url.toString(), {
-            headers: {
-              Authorization: "Bearer " + findBy.token,
-              Accept: "application/vnd.github+json",
-              "User-Agent": "gh-aw-artifact-client",
-            },
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-          });
-          this.onResponse?.(fetched);
-          if (fetched.ok) {
-            try {
-              payload = await readResponseJSON(fetched, "list artifacts");
-            } catch (error) {
-              Object.assign(error, { response: fetched });
-              throw error;
+        await this.request(
+          async () => {
+            const fetched = await fetch(url.toString(), {
+              headers: {
+                Authorization: "Bearer " + findBy.token,
+                Accept: "application/vnd.github+json",
+                "User-Agent": "gh-aw-artifact-client",
+              },
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+            this.onResponse?.(fetched);
+            if (fetched.ok) {
+              try {
+                payload = await readResponseJSON(fetched, "list artifacts");
+              } catch (error) {
+                Object.assign(error, { response: fetched });
+                throw error;
+              }
+            } else {
+              throw apiError(fetched.status, fetched.headers, `failed to list artifacts (${fetched.status})`);
             }
-          }
-          return fetched;
-        });
+            return fetched;
+          },
+          true,
+          API_READ_OPERATIONS.ARTIFACT_LIST
+        );
       } catch (err) {
         if (err?.response) throw err;
         throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
-      }
-      if (!response.ok) {
-        throw apiError(response.status, response.headers, `failed to list artifacts (${response.status})`);
       }
       const pageArtifacts = Array.isArray(payload?.artifacts) ? payload.artifacts : [];
       for (const item of pageArtifacts) {
@@ -381,25 +383,30 @@ class DefaultArtifactClient {
     );
     let redirectResponse;
     try {
-      redirectResponse = await this.request(() =>
-        fetch(apiUrl.toString(), {
-          headers: {
-            Authorization: "Bearer " + findBy.token,
-            Accept: "application/vnd.github+json",
-            "User-Agent": "gh-aw-artifact-client",
-          },
-          redirect: "manual",
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        })
+      redirectResponse = await this.request(
+        async () => {
+          const fetched = await fetch(apiUrl.toString(), {
+            headers: {
+              Authorization: "Bearer " + findBy.token,
+              Accept: "application/vnd.github+json",
+              "User-Agent": "gh-aw-artifact-client",
+            },
+            redirect: "manual",
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          });
+          if (![301, 302, 303, 307, 308].includes(fetched.status)) {
+            throw apiError(fetched.status, fetched.headers, `unable to download artifact: unexpected status ${fetched.status}`);
+          }
+          return fetched;
+        },
+        true,
+        API_READ_OPERATIONS.ARTIFACT_REDIRECT
       );
     } catch (err) {
       if (err?.response) throw err;
       throw new Error(`unable to download artifact: ${getErrorMessage(err)}`, { cause: err });
     }
     this.onResponse?.(redirectResponse);
-    if (![301, 302, 303, 307, 308].includes(redirectResponse.status)) {
-      throw apiError(redirectResponse.status, redirectResponse.headers, `unable to download artifact: unexpected status ${redirectResponse.status}`);
-    }
     const location = redirectResponse.headers.get("location");
     if (!location) {
       throw new Error("unable to download artifact: missing redirect location");
@@ -411,12 +418,16 @@ class DefaultArtifactClient {
     try {
       let blobResponse;
       try {
-        blobResponse = await this.request(async () => {
-          const fetched = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
-          if (!fetched.ok) throw apiError(fetched.status, fetched.headers, `artifact blob download failed (${fetched.status})`);
-          digest = await streamToFile(fetched, tempFile);
-          return fetched;
-        }, false);
+        blobResponse = await this.request(
+          async () => {
+            const fetched = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
+            if (!fetched.ok) throw apiError(fetched.status, fetched.headers, `artifact blob download failed (${fetched.status})`);
+            digest = await streamToFile(fetched, tempFile);
+            return fetched;
+          },
+          false,
+          API_READ_OPERATIONS.ARTIFACT_DOWNLOAD
+        );
       } catch (err) {
         if (err?.response) throw err;
         throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
