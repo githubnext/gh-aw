@@ -157,8 +157,8 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
 	engineID := resolveActivationEngineID(ctx.data)
-	hasSkills := len(ctx.data.Skills) > 0 || len(ctx.data.SkillReferences) > 0
-	if hasSkills {
+	skillInventoryEnabled := hasSkillInventory(ctx.data)
+	if skillInventoryEnabled {
 		c.addActivationSkillInventoryStep(ctx, engineID)
 	}
 	c.addActivationInfoArtifactUploadStep(ctx)
@@ -202,15 +202,19 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	}
 	// Always include the engine-specific skill directory when either inline skills are enabled
 	// or frontmatter skills are configured (via Skills or SkillReferences).
-	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) || hasSkills {
+	if skillInventoryEnabled {
 		skillDir := path.Join(engineConfigBaseDirForRegistry(c.engineRegistry, engineID), "skills")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}
-	if hasSkills {
+	if skillInventoryEnabled {
 		ctx.steps = append(ctx.steps, "            /tmp/gh-aw/skill_inventory.json\n")
 	}
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")
 	ctx.steps = append(ctx.steps, "          retention-days: 1\n")
+}
+
+func hasSkillInventory(data *WorkflowData) bool {
+	return data != nil && (len(data.Skills) > 0 || len(data.SkillReferences) > 0 || isFeatureEnabled(constants.FeatureFlag("inline-agents"), data))
 }
 
 func (c *Compiler) addActivationSkillInventoryStep(ctx *activationJobBuildContext, engineID string) {

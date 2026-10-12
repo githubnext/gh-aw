@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"path"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -61,7 +60,7 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 		compilerActivationJobLog.Printf("Skipped secret validation steps (no required secrets)")
 		return
 	}
-	if slices.Equal(stepIDs, []string{"validate-secret"}) {
+	if len(stepIDs) == 1 && stepIDs[0] == "validate-secret" { //nolint:uncheckedsliceindex // len(stepIDs) guarantees index 0 is in range
 		ctx.outputs["secret_verification_result"] = "${{ steps.validate-secret.outputs.verification_result }}"
 		compilerActivationJobLog.Printf("Added engine secret validation step to activation job")
 		return

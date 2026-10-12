@@ -59,8 +59,30 @@ func TestSkillInventoryIncludedInAgentArtifact(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	engine, err := compiler.engineRegistry.GetEngine("copilot")
 	require.NoError(t, err)
-	paths := compiler.collectArtifactPaths(&WorkflowData{Skills: []string{"skills/review"}}, engine, "/tmp/gh-aw/agent-stdio.log", nil)
-	assert.Contains(t, paths, "/tmp/gh-aw/skill_inventory.json")
+	for _, data := range []*WorkflowData{
+		{Skills: []string{"skills/review"}},
+		{Features: map[string]any{"inline-agents": true}},
+	} {
+		paths := compiler.collectArtifactPaths(data, engine, "/tmp/gh-aw/agent-stdio.log", nil)
+		assert.Contains(t, paths, "/tmp/gh-aw/skill_inventory.json")
+	}
+}
+
+func TestBuildActivationJob_IncludesInlineSkillInventory(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+	data := &WorkflowData{
+		Name:     "inline-skills-workflow",
+		On:       "\"on\":\n  workflow_dispatch:",
+		AI:       "copilot",
+		Features: map[string]any{"inline-agents": true},
+	}
+	job, err := compiler.buildActivationJob(data, false, "", "inline-skills.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, "Inventory installed skills")
+	assert.Contains(t, steps, "/tmp/gh-aw/skill_inventory.json")
 }
 
 func TestBuildActivationJob_AddsPerSkillAuthSteps(t *testing.T) {

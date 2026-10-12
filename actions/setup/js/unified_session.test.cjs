@@ -43,13 +43,28 @@ describe("Unified conclusion session", () => {
   it("projects installed skill inventory, conflicts, and observed skill selection without instructions", () => {
     write("skill_inventory.json", {
       skills: [{ name: "review", source: "staged/.claude/skills/review", scope: "engine", digest: "sha256:abc", purpose: "Review", content: "PRIVATE_SKILL" }],
-      conflicts: [{ name: "review", kind: "scope_collision", sources: ["skills/review", "staged/.claude/skills/review"], instructions: "PRIVATE_CONFLICT" }],
+      conflicts: [
+        { name: "review", kind: "scope_collision", sources: ["skills/review", "staged/.claude/skills/review"], instructions: "PRIVATE_CONFLICT" },
+        { name: "invalid", kind: "tampered_kind", sources: ["skills/invalid"] },
+      ],
     });
-    write("agent-session.jsonl", [{ type: "skill.invoked", data: { name: "review", source: "engine", instructions: "PRIVATE_INSTRUCTIONS" } }]);
+    write("agent-session.jsonl", [
+      { type: "skill.invoked", data: { name: "review", source: "engine", instructions: "PRIVATE_INSTRUCTIONS" } },
+      {
+        type: "skill.inventory",
+        data: {
+          skills: [{ name: "native", source: "staged/native", scope: "engine", digest: "sha256:def", purpose: "Native", content: "PRIVATE_NATIVE_CONTENT", instructions: { text: "PRIVATE_NATIVE_INSTRUCTIONS" } }],
+        },
+      },
+    ]);
     const events = writeUnifiedSession({ rootDir: root });
-    expect(events.filter(event => event.type === "skill.inventory")).toMatchObject([{ data: { skills: [{ name: "review", scope: "engine" }] }, provenance: { component: "skill", phase: "activation", path: "skill_inventory.json" } }]);
+    expect(events.find(event => event.type === "skill.inventory")).toMatchObject({ data: { skills: [{ name: "review", scope: "engine" }] }, provenance: { component: "skill", phase: "activation", path: "skill_inventory.json" } });
     expect(events.filter(event => event.type === "skill.conflict")).toHaveLength(1);
     expect(events.filter(event => event.type === "skill.invoked").map(event => event.data)).toEqual([{ name: "review", source: "engine" }]);
+    expect(events.filter(event => event.type === "skill.inventory").map(event => event.data.skills)).toEqual([
+      [{ name: "review", source: "staged/.claude/skills/review", scope: "engine", digest: "sha256:abc", purpose: "Review" }],
+      [{ name: "native", source: "staged/native", scope: "engine", digest: "sha256:def", purpose: "Native" }],
+    ]);
     expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("PRIVATE_");
   });
 

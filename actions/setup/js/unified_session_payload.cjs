@@ -464,6 +464,17 @@ function normalizeUnifiedSessionEvent(event, phase) {
       if (Object.keys(lineage).length || Object.hasOwn(source, "episode")) data.episode = lineage;
     }
   }
+  if (event.type === "skill.inventory" && Array.isArray(source.skills)) {
+    data.skills = source.skills.map(skill =>
+      selectFields(skill, {
+        name: ["name"],
+        source: ["source"],
+        scope: ["scope"],
+        digest: ["digest"],
+        purpose: ["purpose"],
+      })
+    );
+  }
   if (SCOPED_AGENT_TYPES.has(event.type) || (Object.hasOwn(COPILOT_WORKFLOW_EVENT_FIELDS, event.type) && event.type.startsWith("subagent."))) {
     const parentToolCallId = Object.hasOwn(source, "parentToolCallId") ? source.parentToolCallId : event.parentToolCallId;
     const hasParentToolUseId = ["parentToolUseId", "parent_tool_use_id"].some(key => Object.hasOwn(source, key) || Object.hasOwn(event, key));

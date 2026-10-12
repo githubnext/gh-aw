@@ -327,7 +327,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
           ...(typeof skill.purpose === "string" ? { purpose: skill.purpose } : {}),
         }));
       const conflicts = inventory.conflicts.filter(
-        conflict => conflict && typeof conflict.name === "string" && typeof conflict.kind === "string" && Array.isArray(conflict.sources) && conflict.sources.every(source => typeof source === "string")
+        conflict => conflict && typeof conflict.name === "string" && ["name_collision", "scope_collision"].includes(conflict.kind) && Array.isArray(conflict.sources) && conflict.sources.every(source => typeof source === "string")
       );
       sources.push({
         component: "skill",

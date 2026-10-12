@@ -3,8 +3,25 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+/** @type {(source: string, options: { version: string; uniqueKeys: boolean }) => { errors: unknown[]; toJS: () => Record<string, unknown> | null } | null} */
+const parseDocument = require("./work_queue_yaml.cjs").parseDocument;
 
 const INVENTORY_PATH = "/tmp/gh-aw/skill_inventory.json";
+const INSTALL_HISTORY_PATH = "/tmp/gh-aw/skill_install_history.json";
+
+function declaredPurpose(text) {
+  const frontmatter = text.match(/^---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m)?.[1];
+  if (frontmatter === undefined) return undefined;
+  try {
+    const document = parseDocument(frontmatter, { version: "1.2", uniqueKeys: true });
+    if (!document || document.errors.length) return undefined;
+    const metadata = document.toJS();
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata) || typeof metadata.description !== "string") return undefined;
+    return metadata.description.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Inventory only regular skill files in the staged engine directory and the
@@ -21,11 +38,7 @@ function inventoryDirectory(directory, scope, source) {
     const file = path.join(directory, entry.name, "SKILL.md");
     if (!fs.existsSync(file) || !fs.lstatSync(file).isFile()) continue;
     const content = fs.readFileSync(file);
-    const text = content.toString("utf8");
-    const purpose = text
-      .match(/^---\s*\r?\n([\s\S]*?)\r?\n---/)?.[1]
-      ?.match(/^description:\s*["']?([^\r\n"']+)/m)?.[1]
-      ?.trim();
+    const purpose = declaredPurpose(content.toString("utf8"));
     skills.push({ name: entry.name, source: `${source}/${entry.name}`, scope, digest: `sha256:${crypto.createHash("sha256").update(content).digest("hex")}`, ...(purpose ? { purpose } : {}) });
   }
   return skills;
@@ -44,11 +57,12 @@ function detectSkillConflicts(skills) {
     }));
 }
 
-function main() {
+function main({ stagedRoot = "/tmp/gh-aw", inventoryPath = INVENTORY_PATH, historyPath = INSTALL_HISTORY_PATH } = {}) {
   const skillDir = process.env.GH_AW_SKILL_DIR || "";
   const workspace = process.env.GITHUB_WORKSPACE || "";
-  const staged = path.resolve("/tmp/gh-aw", skillDir);
-  if (!skillDir || !staged.startsWith("/tmp/gh-aw/")) throw new Error("Invalid staged skill directory");
+  const resolvedStagedRoot = path.resolve(stagedRoot);
+  const staged = path.resolve(resolvedStagedRoot, skillDir);
+  if (!skillDir || (staged !== resolvedStagedRoot && !staged.startsWith(resolvedStagedRoot + path.sep))) throw new Error("Invalid staged skill directory");
   const skills = inventoryDirectory(staged, "engine", `staged/${skillDir}`);
   if (workspace) {
     for (const directory of ["skills", ".github/skills"]) {
@@ -57,18 +71,19 @@ function main() {
   }
   skills.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || (a.source < b.source ? -1 : a.source > b.source ? 1 : 0));
   const conflicts = detectSkillConflicts(skills);
-  const historyFile = "/tmp/gh-aw/skill_install_history.json";
-  if (fs.existsSync(historyFile)) {
-    const history = JSON.parse(fs.readFileSync(historyFile, "utf8"));
+  if (fs.existsSync(historyPath)) {
+    const history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
     if (!Array.isArray(history)) throw new Error("Invalid skill installation history");
     for (const conflict of detectSkillConflicts(history.filter(entry => entry && typeof entry.name === "string" && typeof entry.digest === "string" && typeof entry.source === "string").map(entry => ({ ...entry, scope: "engine" })))) {
-      if (!conflicts.some(existing => existing.name === conflict.name && existing.kind === conflict.kind)) conflicts.push(conflict);
+      const existing = conflicts.find(item => item.name === conflict.name && item.kind === conflict.kind);
+      if (existing) existing.sources = [...new Set([...existing.sources, ...conflict.sources])].sort();
+      else conflicts.push(conflict);
     }
   }
-  fs.mkdirSync(path.dirname(INVENTORY_PATH), { recursive: true });
-  fs.writeFileSync(INVENTORY_PATH, JSON.stringify({ skills, conflicts }) + "\n");
+  fs.mkdirSync(path.dirname(inventoryPath), { recursive: true });
+  fs.writeFileSync(inventoryPath, JSON.stringify({ skills, conflicts }) + "\n");
   for (const conflict of conflicts) core.warning(`Skill conflict (${conflict.kind}): ${conflict.name} in ${conflict.sources.join(", ")}`);
   core.info(`Inventoried ${skills.length} skills; ${conflicts.length} conflict(s)`);
 }
 
-module.exports = { main, inventoryDirectory, detectSkillConflicts };
+module.exports = { main, inventoryDirectory, detectSkillConflicts, declaredPurpose };
