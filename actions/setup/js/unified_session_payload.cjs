@@ -446,6 +446,10 @@ function normalizeUnifiedSessionEvent(event, phase) {
   const known = Object.hasOwn(EVENT_FIELDS, event.type);
   const data = known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "workflow.info") {
+    const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
+    if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {
+      data.awContext = structuredClone(awContext);
+    }
     const modelRouting = source.modelRouting ?? source.model_routing;
     if (modelRouting && typeof modelRouting === "object" && !Array.isArray(modelRouting)) {
       data.modelRouting = selectFields(modelRouting, MODEL_ROUTING_FIELDS);
