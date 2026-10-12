@@ -40,9 +40,42 @@ func TestReadDetectionModelUsage(t *testing.T) {
 		assert.NotContains(t, agentUsage.ByModel, "claude-haiku-5.5", "detection usage must not be folded into the agent's token usage")
 	})
 
+	t.Run("resolves the workflow_call prefixed usage artifact", func(t *testing.T) {
+		t.Parallel()
+		runDir := t.TempDir()
+		writeDetectionTokenUsage(t, filepath.Join(runDir, "abc123-usage", "detection", "token_usage.jsonl"))
+
+		assert.Equal(t, []DetectionModelUsage{{Model: "claude-haiku-5.5", Requests: 2}}, readDetectionModelUsage(runDir))
+	})
+
+	for _, tt := range []struct {
+		name string
+		path []string
+	}{
+		{name: "detection artifact firewall logs", path: []string{"detection", "sandbox", "firewall", "logs", "api-proxy-logs", "token-usage.jsonl"}},
+		{name: "detection artifact AWF audit dir", path: []string{"detection", "sandbox", "firewall", "audit", "api-proxy-logs", "token-usage.jsonl"}},
+		{name: "legacy firewall-audit-logs in prefixed detection artifact", path: []string{"abc123-detection", "firewall-audit-logs", "api-proxy-logs", "token-usage.jsonl"}},
+	} {
+		t.Run("falls back to "+tt.name, func(t *testing.T) {
+			t.Parallel()
+			runDir := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(runDir, "usage", "agent"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(runDir, "usage", "agent", "token_usage.jsonl"), []byte(routedAgentTokenUsage), 0o600))
+			writeDetectionTokenUsage(t, filepath.Join(append([]string{runDir}, tt.path...)...))
+
+			assert.Equal(t, []DetectionModelUsage{{Model: "claude-haiku-5.5", Requests: 2}}, readDetectionModelUsage(runDir))
+		})
+	}
+
 	t.Run("returns nil without detection token usage", func(t *testing.T) {
 		t.Parallel()
 		assert.Nil(t, readDetectionModelUsage(t.TempDir()))
 		assert.Nil(t, readDetectionModelUsage(""))
 	})
+}
+
+func writeDetectionTokenUsage(t *testing.T, path string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(detectionTokenUsage), 0o600))
 }
