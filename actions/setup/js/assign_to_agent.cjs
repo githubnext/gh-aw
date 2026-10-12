@@ -43,14 +43,28 @@ async function createAssignToAgentGitHubClient(config) {
  */
 function describeAssignmentCredentialFailure(config, errorMessage) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
-  const source = config["github-token"]
-    ? "the configured assign-to-agent credential"
-    : process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN
-      ? "GH_AW_ASSIGN_TO_AGENT_TOKEN (GH_AW_AGENT_TOKEN, GH_AW_GITHUB_TOKEN, or GITHUB_TOKEN)"
-      : "the step-level GitHub token";
+  const compiledSource = process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE || "";
+  const knownSources = new Set(["GH_AW_AGENT_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"]);
+  const dedicatedSource =
+    compiledSource === "configured" ? "the configured assignment credential" : knownSources.has(compiledSource) ? compiledSource : "GH_AW_ASSIGN_TO_AGENT_TOKEN (selected source unavailable; recompile the workflow for source metadata)";
+  const source = config["github-token"] ? "the configured assign-to-agent credential" : process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN ? dedicatedSource : "the step-level GitHub token (selected source unavailable)";
   const remedy = renderTemplateFromFile(getPromptPath("copilot_assignment_credential_remedy.md"), {}).trim();
-  const installationToken = typeof token === "string" && token.startsWith("ghs_") ? " The selected credential is a GitHub App installation token." : "";
-  return `${errorMessage}. Agent assignment credential source: ${source}.${installationToken} ${remedy}`;
+  const presence = token ? "present" : "absent (using the step-level client)";
+  const tokenFormat =
+    typeof token !== "string"
+      ? "unknown"
+      : token.startsWith("ghs_")
+        ? "GitHub App installation token"
+        : token.startsWith("github_pat_")
+          ? "fine-grained PAT"
+          : token.startsWith("ghp_")
+            ? "classic PAT"
+            : token.startsWith("ghu_")
+              ? "GitHub App user access token"
+              : token.startsWith("gho_")
+                ? "OAuth access token"
+                : "unknown";
+  return `${errorMessage}. Agent assignment credential source: ${source}. Dedicated assignment credential: ${presence}. Credential format: ${tokenFormat} (validity and permissions unverified). ${remedy}`;
 }
 
 /**

@@ -118,6 +118,17 @@ func TestGetEffectiveAgentGitHubToken(t *testing.T) {
 	}
 }
 
+func TestGetEffectiveAgentGitHubTokenSource(t *testing.T) {
+	if got := getEffectiveCopilotCodingAgentGitHubTokenSource(""); got != "${{ secrets.GH_AW_AGENT_TOKEN != '' && 'GH_AW_AGENT_TOKEN' || secrets.GH_AW_GITHUB_TOKEN != '' && 'GH_AW_GITHUB_TOKEN' || secrets.GITHUB_TOKEN != '' && 'GITHUB_TOKEN' || 'unavailable' }}" {
+		t.Fatalf("Unexpected default assignment credential source expression: %s", got)
+	}
+	for _, customToken := range []string{"${{ secrets.PRIVATE_TOKEN_NAME }}", "${{ inputs.token }}", "test-sensitive-value"} {
+		if got := getEffectiveCopilotCodingAgentGitHubTokenSource(customToken); got != `"configured"` {
+			t.Fatal("Custom assignment credential source must use only the configured category")
+		}
+	}
+}
+
 func TestGetEffectiveCITriggerGitHubToken(t *testing.T) {
 	tests := []struct {
 		name        string

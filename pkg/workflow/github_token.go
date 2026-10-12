@@ -96,6 +96,14 @@ func getEffectiveCopilotCodingAgentGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
+// Match the assignment token's precedence without exposing a custom expression or secret value.
+func getEffectiveCopilotCodingAgentGitHubTokenSource(customToken string) string {
+	if customToken != "" {
+		return `"configured"`
+	}
+	return "${{ secrets.GH_AW_AGENT_TOKEN != '' && 'GH_AW_AGENT_TOKEN' || secrets.GH_AW_GITHUB_TOKEN != '' && 'GH_AW_GITHUB_TOKEN' || secrets.GITHUB_TOKEN != '' && 'GITHUB_TOKEN' || 'unavailable' }}"
+}
+
 // getEffectiveProjectGitHubToken returns the GitHub token to use for GitHub Projects v2 operations,
 // with precedence:
 // 1. Custom token passed as parameter (e.g., from safe-outputs.update-project.github-token)

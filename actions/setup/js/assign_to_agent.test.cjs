@@ -109,6 +109,9 @@ describe("assign_to_agent", () => {
     vi.clearAllMocks();
     mockSleep.mockClear();
     vi.stubEnv("GH_AW_PROMPTS_DIR", path.join(process.cwd(), "../md"));
+    vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "");
+    vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "");
+    vi.stubGlobal("getOctokit", vi.fn().mockReturnValue(mockGithub));
 
     // Reset REST mocks to default implementations (vi.clearAllMocks() cleared them)
     mockGithub.request.mockResolvedValue({ data: { id: "task-123" } });
@@ -163,6 +166,75 @@ describe("assign_to_agent", () => {
   });
 
   describe("failure-only credential diagnostics", () => {
+    it.each(["GH_AW_AGENT_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"])("reports the selected %s source without listing other candidates", async source => {
+      const token = "github_pat_test_sensitive";
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", token);
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", source);
+      const diagnostic = await eval(`(async () => {
+        ${assignToAgentScript};
+        return describeAssignmentCredentialFailure({}, "Bad credentials");
+      })()`);
+      expect(diagnostic).toContain(`credential source: ${source}.`);
+      expect(diagnostic).toContain("Dedicated assignment credential: present.");
+      expect(diagnostic).toContain("Credential format: fine-grained PAT (validity and permissions unverified)");
+      expect(diagnostic).not.toContain(token);
+      expect(diagnostic).not.toContain("GH_AW_ASSIGN_TO_AGENT_TOKEN (");
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
+
+    it.each(["", "test-sensitive-metadata", "unavailable"])("does not disclose or trust unknown source metadata %j", async source => {
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "opaque-test-credential");
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", source);
+      const diagnostic = await eval(`(async () => {
+        ${assignToAgentScript};
+        return describeAssignmentCredentialFailure({}, "Bad credentials");
+      })()`);
+      expect(diagnostic).toContain("GH_AW_ASSIGN_TO_AGENT_TOKEN (selected source unavailable; recompile");
+      expect(diagnostic).toContain("Credential format: unknown");
+      expect(diagnostic).not.toContain("opaque-test-credential");
+      expect(diagnostic).not.toContain("test-sensitive-metadata");
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
+
+    it("gives an explicit handler token precedence over compiled source metadata", async () => {
+      const token = "ghp_test_sensitive";
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "GITHUB_TOKEN");
+      const diagnostic = await eval(`(async () => {
+        ${assignToAgentScript};
+        return describeAssignmentCredentialFailure({ "github-token": token }, "Bad credentials");
+      })()`);
+      expect(diagnostic).toContain("credential source: the configured assign-to-agent credential.");
+      expect(diagnostic).toContain("Credential format: classic PAT");
+      expect(diagnostic).not.toContain(token);
+    });
+
+    it("reports only the configured category for a compiler-selected custom expression", async () => {
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "opaque-test-credential");
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "configured");
+      const diagnostic = await eval(`(async () => {
+        ${assignToAgentScript};
+        return describeAssignmentCredentialFailure({}, "Bad credentials");
+      })()`);
+      expect(diagnostic).toContain("credential source: the configured assignment credential.");
+      expect(diagnostic).not.toContain("opaque-test-credential");
+    });
+
+    it.each([
+      ["ghs_test_sensitive", "GitHub App installation token"],
+      ["ghp_test_sensitive", "classic PAT"],
+      ["github_pat_test_sensitive", "fine-grained PAT"],
+      ["ghu_test_sensitive", "GitHub App user access token"],
+      ["gho_test_sensitive", "OAuth access token"],
+      ["opaque-test-sensitive", "unknown"],
+    ])("reports only the bounded format category for %s", async (token, category) => {
+      const diagnostic = await eval(`(async () => {
+        ${assignToAgentScript};
+        return describeAssignmentCredentialFailure({ "github-token": token }, "Bad credentials");
+      })()`);
+      expect(diagnostic).toContain(`Credential format: ${category} (validity and permissions unverified).`);
+      expect(diagnostic).not.toContain(token);
+    });
+
     it("renders the credential remedy from its markdown template", async () => {
       const diagnostic = await eval(`(async () => {
         ${assignToAgentScript};
@@ -213,6 +285,7 @@ describe("assign_to_agent", () => {
       })()`);
       const result = await handler({ type: "assign_to_agent", issue_number: 42 }, {}, new Map());
       expect(result.error).toContain("credential source: the step-level GitHub token");
+      expect(result.error).toContain("Dedicated assignment credential: absent (using the step-level client)");
       expect(result.error).toContain("Configure GH_AW_AGENT_TOKEN or assign-to-agent.github-token");
       expect(result.error).toContain("GITHUB_TOKEN");
       expect(mockGithub.request).toHaveBeenCalledExactlyOnceWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", expect.anything());
@@ -240,6 +313,7 @@ describe("assign_to_agent", () => {
 
     it("adds actionable diagnostics only after failed attempts, including ignored 401 errors", async () => {
       vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "github_pat_test_expired");
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "GH_AW_GITHUB_TOKEN");
       vi.stubGlobal("getOctokit", vi.fn().mockReturnValue(mockGithub));
       mockGithub.request.mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
       const handler = await eval(`(async () => {
@@ -252,7 +326,7 @@ describe("assign_to_agent", () => {
       const errors = handler.getAssignToAgentErrors();
       expect(errors).toContain("issue:42:copilot:Bad credentials (HTTP 401)");
       expect(errors).toContain("issue:43:copilot:Bad credentials (HTTP 401)");
-      expect(errors).toContain("GH_AW_ASSIGN_TO_AGENT_TOKEN (GH_AW_AGENT_TOKEN, GH_AW_GITHUB_TOKEN, or GITHUB_TOKEN)");
+      expect(errors).toContain("credential source: GH_AW_GITHUB_TOKEN.");
       expect(errors).toContain("Bad credentials (HTTP 401)");
       expect(errors).toContain("metadata: read");
       expect(errors).toContain("organization approval/SSO");
@@ -305,6 +379,7 @@ describe("assign_to_agent", () => {
 
     it("attempts assignment with the selected credential before adding diagnostics", async () => {
       vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "ghs_test_installation_token");
+      vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "GITHUB_TOKEN");
       vi.stubGlobal("getOctokit", vi.fn().mockReturnValue(mockGithub));
       const handler = await eval(`(async () => {
         ${assignToAgentScript};
@@ -315,9 +390,15 @@ describe("assign_to_agent", () => {
       const result = await handler({ type: "assign_to_agent", issue_number: 42 }, {}, new Map());
 
       expect(result.error).toContain("GitHub App installation token");
+      expect(result.error).toContain("credential source: GITHUB_TOKEN.");
       expect(mockGithub.request).toHaveBeenCalledExactlyOnceWith("GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}", expect.anything());
       expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
       expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining("credential source: GITHUB_TOKEN."),
+        })
+      );
     });
   });
 
