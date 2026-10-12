@@ -108,7 +108,7 @@ func TestCompileToolDevelopmentPreservesBatchDiagnosticsOnFailure(t *testing.T) 
 func TestCompileToolDevelopmentExposesCompilerWarningsWithJSONStdout(t *testing.T) {
 	t.Parallel()
 	const stdout = `[{"workflow":"archie.md","valid":true,"errors":[],"warnings":[]},{"scope":"batch","workflow":"compiler","valid":false,"errors":[{"type":"compiler_warning","message":"compiler reported warnings; review the complete compiler diagnostics"}],"warnings":[]},{"scope":"batch","workflow":"dry-run","valid":false,"errors":[{"type":"development_validation","message":"development testing checks failed"}],"warnings":[]}]`
-	const stderr = "archie.md:12: warning: unknown setting\n✓ compiled archie.md\n⚠ archie.md:25: deprecated setting\n"
+	const stderr = "archie.md:12: warning: unknown setting\n  remediation: update the setting\n  https://docs.example.test/config\n✓ compiled archie.md\n⚠ archie.md:25: deprecated setting\n  remediation: replace the deprecated setting\n"
 	mockExec := func(ctx context.Context, _ ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" >&2; exit 1`, "sh", stdout, stderr)
 	}
@@ -127,7 +127,10 @@ func TestCompileToolDevelopmentExposesCompilerWarningsWithJSONStdout(t *testing.
 	require.Len(t, decoded[1].Errors, 1)
 	assert.Equal(t, "compiler_warning", decoded[1].Errors[0].Type)
 	assert.Contains(t, decoded[1].Errors[0].Message, "archie.md:12: warning: unknown setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "remediation: update the setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "https://docs.example.test/config")
 	assert.Contains(t, decoded[1].Errors[0].Message, "archie.md:25: deprecated setting")
+	assert.Contains(t, decoded[1].Errors[0].Message, "remediation: replace the deprecated setting")
 	assert.NotContains(t, decoded[1].Errors[0].Message, "compiled archie.md")
 	assert.False(t, decoded[2].Valid)
 	assert.Equal(t, "development testing checks failed", decoded[2].Errors[0].Message)

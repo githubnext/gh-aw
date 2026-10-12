@@ -64,6 +64,7 @@ type mcpCompileDiagnostics struct {
 	omitted    bool
 	warning    string
 	warnings   strings.Builder
+	inWarning  bool
 	shellcheck strings.Builder
 	inFinding  bool
 }
@@ -99,6 +100,7 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 	}
 	switch {
 	case strings.Contains(line, "shellcheck findings in "):
+		diagnostics.inWarning = false
 		diagnostics.shellcheck.WriteString("\n\n")
 		diagnostics.shellcheck.WriteString(line)
 		diagnostics.inFinding = true
@@ -110,16 +112,36 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 	case line == "":
 		diagnostics.inFinding = false
 	}
-	if line == "" || isCompileProgressLine(line) || isCompileWarningLine(line) {
-		if isCompileWarningLine(line) {
-			diagnostics.recordWarning(line)
-		}
+	if line == "" {
+		diagnostics.inWarning = false
 		diagnostics.inBlock = false
 		return
 	}
 	isError := strings.HasPrefix(line, "✗") || strings.HasPrefix(line, "Error:") ||
 		strings.HasPrefix(line, "error:") || strings.HasPrefix(line, "fatal:") ||
 		strings.Contains(line, ": error:")
+	if isCompileWarningLine(line) {
+		diagnostics.recordWarning(line)
+		diagnostics.inWarning = true
+		diagnostics.inBlock = false
+		return
+	}
+	if isCompileProgressLine(line) {
+		diagnostics.inWarning = false
+		diagnostics.inBlock = false
+		return
+	}
+	if isError {
+		diagnostics.inWarning = false
+	}
+	if diagnostics.inWarning && !isError {
+		diagnostics.appendWarningContinuation(line)
+		return
+	}
+	diagnostics.recordFailureLine(line, isError)
+}
+
+func (diagnostics *mcpCompileDiagnostics) recordFailureLine(line string, isError bool) {
 	if isError || !diagnostics.inBlock && !diagnostics.errorSeen {
 		diagnostics.message = line
 		diagnostics.errorSeen = diagnostics.errorSeen || isError
@@ -141,6 +163,19 @@ func (diagnostics *mcpCompileDiagnostics) recordWarning(line string) {
 			strings.ToValidUTF8(line[len(line)-maxMCPCompileDiagnosticBytes/4:], "")
 		diagnostics.omitted = true
 	}
+	diagnostics.appendWarningLine(line)
+}
+
+func (diagnostics *mcpCompileDiagnostics) appendWarningContinuation(line string) {
+	warning := diagnostics.warning + "\n" + line
+	if len(warning) > maxMCPCompileDiagnosticBytes {
+		diagnostics.omitted = true
+	}
+	diagnostics.warning = boundMCPCompileDiagnostic(warning)
+	diagnostics.appendWarningLine(line)
+}
+
+func (diagnostics *mcpCompileDiagnostics) appendWarningLine(line string) {
 	if diagnostics.warnings.Len()+len(line)+1 <= maxMCPCompileDiagnosticBytes {
 		if diagnostics.warnings.Len() > 0 {
 			diagnostics.warnings.WriteByte('\n')

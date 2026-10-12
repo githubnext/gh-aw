@@ -152,6 +152,8 @@ func TestMCPCompileDiagnosticsStreaming(t *testing.T) {
 		{"plain", compileDependencyCause + "\n  " + compileDependencyRemediation + "\ncli:test noise +1ms\n", compileDependencyCause + "\n" + compileDependencyRemediation},
 		{"ansi", "\x1b[31m✗ cause\x1b[0m\n  remediation\nℹ cleanup\n", "✗ cause\nremediation"},
 		{"warning", "⚠ dependency unavailable\n✓ cleanup\n", "⚠ dependency unavailable"},
+		{"warning-continuation", "workflow.md:10: warning: unknown setting\n  update the setting\n  https://docs.example.test/config\n✓ cleanup\n", "workflow.md:10: warning: unknown setting\nupdate the setting\nhttps://docs.example.test/config"},
+		{"warning-error-boundary", "⚠ dependency unavailable\n  remediation\nError: terminal failure\n", "Error: terminal failure"},
 		{"empty", "", "exit status 1"},
 		{"debug-only", "cli:test noise +1ms\n", "exit status 1"},
 		{"multiple-errors", "✗ earlier error\n✗ terminal cause\n  remediation\n", "✗ terminal cause\nremediation"},
