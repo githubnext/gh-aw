@@ -1,0 +1,91 @@
+// @ts-check
+
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import path from "path";
+
+const { main, classifyDetectionOutcome } = require("./handle_detection_runs.cjs");
+
+describe("handle_detection_runs", () => {
+  let originalEnv;
+  let mockCore;
+  let mockGithub;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_PROMPTS_DIR = path.resolve(import.meta.dirname, "../md");
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
+    mockCore = { info: vi.fn(), warning: vi.fn() };
+    mockGithub = {
+      rest: {
+        search: {
+          issuesAndPullRequests: vi.fn().mockResolvedValue({
+            data: { total_count: 1, items: [{ number: 42, node_id: "ID", html_url: "https://github.com/test-owner/test-repo/issues/42" }] },
+          }),
+        },
+        issues: { create: vi.fn(), createComment: vi.fn().mockResolvedValue({ data: {} }) },
+      },
+    };
+    vi.stubGlobal("core", mockCore);
+    vi.stubGlobal("github", mockGithub);
+    vi.stubGlobal("context", { repo: { owner: "test-owner", repo: "test-repo" } });
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, originalEnv);
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["agent_failure", "detector_execution_failure"],
+    ["parse_error", "detector_result_invalid"],
+    ["threat_detected", "threat_finding"],
+    ["", "detection_outcome_unknown"],
+  ])("classifies structured reason %s as %s under both policies", async (reason, category) => {
+    process.env.GH_AW_DETECTION_REASON = reason;
+    for (const conclusion of ["warning", "failure"]) {
+      process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+      await main();
+      const call = mockGithub.rest.issues.createComment.mock.lastCall[0];
+      expect(call.issue_number).toBe(42);
+      expect(call.body).toContain(`**Outcome:** \`${category}\``);
+      expect(call.body).toContain(`| Conclusion | \`${conclusion}\` |`);
+      expect(call.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
+    }
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("does not publish or log an unrecognized reason payload", async () => {
+    const privateText = "private prompt and tool result: threat_detected agent_failure";
+    process.env.GH_AW_DETECTION_REASON = privateText;
+    process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+    await main();
+    const body = mockGithub.rest.issues.createComment.mock.lastCall[0].body;
+    expect(body).toContain("detection_outcome_unknown");
+    expect(body).toContain("| Reason | `unknown` |");
+    expect(body).not.toContain(privateText);
+    expect(JSON.stringify(mockCore.info.mock.calls)).not.toContain(privateText);
+    expect(classifyDetectionOutcome(privateText).category).toBe("detection_outcome_unknown");
+  });
+
+  it.each(["success", "skipped", "cancelled", "", "private conclusion"])("does not report conclusion %s", async conclusion => {
+    process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+    process.env.GH_AW_DETECTION_REASON = "threat_detected";
+    await main();
+    expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("warns on publication failure without changing detection policy", async () => {
+    process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+    process.env.GH_AW_DETECTION_REASON = "agent_failure";
+    mockGithub.rest.issues.createComment.mockRejectedValue(new Error("API unavailable"));
+    await main();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to post comment"));
+    expect(process.env.GH_AW_DETECTION_CONCLUSION).toBe("failure");
+  });
+});
