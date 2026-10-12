@@ -27,6 +27,40 @@ func TestConfigSourceWorkerApprovalRequiresTypedDeclaration(t *testing.T) {
 	}
 }
 
+func TestWorkerRouteDeduplicationPreservesAssignmentOrder(t *testing.T) {
+	branch, mock := newQueueAPI(t)
+	policy := DefaultPolicy(testPrincipal, testRepository)
+	pool := policy.Pools["default"]
+	profile := pool.Profiles["default"]
+	profile.Ref = strings.Repeat("f", 40)
+	pool.Profiles["default"] = profile
+	pool.Profiles["alias"] = profile
+	policy.Pools["default"] = pool
+
+	assignments := []Assignment{
+		{Pool: "default", WorkerProfile: "default"},
+		{Pool: "default", WorkerProfile: "alias"},
+	}
+	if err := branch.verifyAssignmentWorkerRoutes(context.Background(), policy, assignments); err != nil {
+		t.Fatal(err)
+	}
+	if mock.routeReads[profile.Workflow] != 1 || mock.registrationReads[profile.Workflow] != 1 {
+		t.Fatalf("duplicate assignment routes were reverified: routes=%v registrations=%v", mock.routeReads, mock.registrationReads)
+	}
+	if err := branch.verifyWorkerRoutes(context.Background(), policy); err != nil {
+		t.Fatal(err)
+	}
+	if mock.routeReads[profile.Workflow] != 2 || mock.registrationReads[profile.Workflow] != 2 {
+		t.Fatalf("duplicate policy routes were reverified: routes=%v registrations=%v", mock.routeReads, mock.registrationReads)
+	}
+
+	mock.workerStatus = http.StatusNotFound
+	assignments = append(assignments, Assignment{Pool: "missing", WorkerProfile: "default"})
+	if err := branch.verifyAssignmentWorkerRoutes(context.Background(), policy, assignments); err == nil || !strings.HasPrefix(err.Error(), "policy_missing:") {
+		t.Fatalf("later invalid assignment replaced earlier route error: %v", err)
+	}
+}
+
 func TestProductionInitializationRequiresVerifiedWorkerRoute(t *testing.T) {
 	for _, test := range []struct {
 		name    string
