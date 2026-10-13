@@ -1,38 +1,11 @@
-// Package goroutineresourceleak implements a Go analysis linter that flags
-// goroutines that acquire resources (contexts, locks, channels) without
-// guaranteed cleanup or synchronization.
-//
-// The linter detects several problematic patterns:
-//
-// 1. Goroutines that create cancellable contexts but don't defer cancel:
-//    go func() {
-//        ctx, cancel := context.WithCancel(parent)
-//        // cancel not deferred — context leak and goroutine leak
-//        use(ctx)
-//    }()
-//
-// 2. Goroutines that acquire mutexes without defer unlock:
-//    go func() {
-//        mu.Lock()
-//        // Unlock not deferred — can deadlock if function panics
-//        use()
-//    }()
-//
-// 3. Goroutines creating channels without receiver/draining:
-//    go func() {
-//        ch := make(chan T)
-//        // Channel not drained — sends may block forever
-//    }()
-//
-// 4. Goroutines launched in tight loops without WaitGroup:
-//    for i := 0; i < n; i++ {
-//        go doWork(i)
-//        // No synchronization — main may exit before work finishes
-//    }
+// Package goroutineresourceleak detects goroutine resource leaks, missing
+// cleanup, and unsynchronized goroutines launched from loops.
 package goroutineresourceleak
 
 import (
 	"go/ast"
+	"go/constant"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -49,7 +22,7 @@ var pkgLog = logger.New("linters:goroutineresourceleak")
 // Analyzer is the goroutine-resource-leak analysis pass.
 var Analyzer = analyzerutil.New(
 	"goroutineresourceleak",
-	"reports goroutines that acquire resources (contexts, locks, channels) without guaranteed cleanup or synchronization",
+	"reports goroutine resource leaks, unmatched channel operations, and loop-launched goroutines without WaitGroup synchronization",
 	run,
 )
 
@@ -61,9 +34,14 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
+	parents := buildParentMap(pass.Files)
 	nodeFilter := []ast.Node{(*ast.GoStmt)(nil)}
 	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		checkGoroutineResourceLeak(pass, n.(*ast.GoStmt), noLintIndex, generatedFiles)
+		goStmt, ok := n.(*ast.GoStmt)
+		if !ok {
+			return
+		}
+		checkGoroutineResourceLeak(pass, goStmt, parents, noLintIndex, generatedFiles)
 	})
 }
 
@@ -71,18 +49,13 @@ func run(pass *analysis.Pass) (any, error) {
 func checkGoroutineResourceLeak(
 	pass *analysis.Pass,
 	goStmt *ast.GoStmt,
+	parents map[ast.Node]ast.Node,
 	noLintIndex nolint.DirectiveIndex,
 	generatedFiles filecheck.GeneratedIndex,
 ) {
 	// GoStmt.Call is already a *ast.CallExpr.
 	call := goStmt.Call
 	if call == nil {
-		return
-	}
-
-	// Only check goroutines with function literals.
-	funcLit, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.FuncLit)
-	if !ok {
 		return
 	}
 
@@ -95,22 +68,31 @@ func checkGoroutineResourceLeak(
 		return
 	}
 
+	if checkLoopWaitGroupLeak(pass, goStmt, parents) {
+		pass.ReportRangef(goStmt, "goroutine launched in a loop without matching WaitGroup Add and Wait calls")
+	}
+
+	funcLit, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.FuncLit)
+	if !ok {
+		return
+	}
+
 	// Check for resource leaks in the function body.
-	if checkCancelLeak(pass, funcLit.Body, noLintIndex) {
+	if checkCancelLeak(pass, funcLit.Body) {
 		pkgLog.Printf("flagging goroutine with context cancel leak at %s", position)
 		pass.ReportRangef(goStmt, "goroutine launches context.WithCancel/WithTimeout/WithDeadline without deferred cancel; context and goroutine may leak")
 		return
 	}
 
-	if checkMutexLeak(pass, funcLit.Body, noLintIndex) {
+	if checkMutexLeak(pass, funcLit.Body) {
 		pkgLog.Printf("flagging goroutine with mutex lock leak at %s", position)
 		pass.ReportRangef(goStmt, "goroutine acquires lock without deferred unlock; may deadlock if function panics")
 		return
 	}
 
-	if checkChannelLeak(pass, funcLit.Body, noLintIndex) {
+	if checkChannelLeak(pass, funcLit.Body) {
 		pkgLog.Printf("flagging goroutine with channel leak at %s", position)
-		pass.ReportRangef(goStmt, "goroutine creates channel without guaranteed close or drain; may cause send deadlock")
+		pass.ReportRangef(goStmt, "goroutine creates channel without safe buffered send/receive pairing or close; may deadlock")
 		return
 	}
 }
@@ -120,60 +102,23 @@ func checkGoroutineResourceLeak(
 func checkCancelLeak(
 	pass *analysis.Pass,
 	body *ast.BlockStmt,
-	noLintIndex nolint.DirectiveIndex,
 ) bool {
 	if body == nil {
 		return false
 	}
 
-	// Track cancel variables in the function body to detect if they're deferred.
-	cancelVars := make(map[string]bool) // varName -> isDeferred
-	deferredCancels := make(map[string]bool)
-
-	// First pass: identify all deferred cancel calls.
-	for _, stmt := range body.List {
-		if deferStmt, ok := stmt.(*ast.DeferStmt); ok {
-			callExpr := deferStmt.Call
-			if callExpr != nil {
-				if ident, ok := callExpr.Fun.(*ast.Ident); ok {
-					deferredCancels[ident.Name] = true
-				}
+	return anyBlock(body, func(block *ast.BlockStmt) bool {
+		var pending types.Object
+		hasPending := false
+		for _, stmt := range block.List {
+			if hasPending && !isDeferredCancel(pass, stmt, pending) {
+				return true
 			}
+			cancel, ok := contextCancelAcquisition(pass, stmt)
+			pending, hasPending = cancel, ok
 		}
-	}
-
-	// Second pass: find context.WithCancel/WithTimeout/WithDeadline assignments
-	// that don't defer their cancel.
-	for _, stmt := range body.List {
-		assignStmt, ok := stmt.(*ast.AssignStmt)
-		if !ok || len(assignStmt.Rhs) < 1 {
-			continue
-		}
-
-		// Check if this is a ctx, cancel := context.With* assignment.
-		if len(assignStmt.Lhs) >= 2 {
-			cancelIdent, ok := assignStmt.Lhs[1].(*ast.Ident)
-			if !ok || cancelIdent.Name == "_" {
-				continue
-			}
-
-			callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr)
-			if !ok {
-				continue
-			}
-
-			if isContextWithCancelCall(pass, callExpr) {
-				// Found context.WithCancel/WithTimeout/WithDeadline assignment.
-				// Check if cancel is deferred.
-				if !deferredCancels[cancelIdent.Name] {
-					cancelVars[cancelIdent.Name] = true
-					return true
-				}
-			}
-		}
-	}
-
-	return false
+		return hasPending
+	})
 }
 
 // checkMutexLeak reports whether the function body acquires a lock without
@@ -181,152 +126,120 @@ func checkCancelLeak(
 func checkMutexLeak(
 	pass *analysis.Pass,
 	body *ast.BlockStmt,
-	noLintIndex nolint.DirectiveIndex,
 ) bool {
 	if body == nil {
 		return false
 	}
 
-	// Track Lock calls and their corresponding Unlock calls.
-	deferredUnlocks := make(map[string]bool)
-
-	// First pass: find deferred Unlock calls.
-	for _, stmt := range body.List {
-		if deferStmt, ok := stmt.(*ast.DeferStmt); ok {
-			callExpr := deferStmt.Call
-			if callExpr != nil {
-				if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-					// Track both Unlock and RUnlock.
-					if selExpr.Sel.Name == "Unlock" || selExpr.Sel.Name == "RUnlock" {
-						if ident, ok := selExpr.X.(*ast.Ident); ok {
-							deferredUnlocks[ident.Name] = true
-						}
-					}
-				}
+	return anyBlock(body, func(block *ast.BlockStmt) bool {
+		var pending receiverKey
+		var pendingUnlock string
+		hasPending := false
+		for _, stmt := range block.List {
+			if hasPending && !isDeferredUnlock(pass, stmt, pending, pendingUnlock) {
+				return true
 			}
+			key, unlock, ok := mutexLockAcquisition(pass, stmt)
+			pending, pendingUnlock, hasPending = key, unlock, ok
 		}
-	}
-
-	// Second pass: find Lock calls that are not guaranteed to have deferred Unlock.
-	for _, stmt := range body.List {
-		exprStmt, ok := stmt.(*ast.ExprStmt)
-		if !ok {
-			continue
-		}
-
-		callExpr, ok := exprStmt.X.(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-
-		selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
-		if !ok {
-			continue
-		}
-
-		// Check for mu.Lock() or mu.RLock() calls.
-		if (selExpr.Sel.Name == "Lock" || selExpr.Sel.Name == "RLock") && isMutexType(pass, selExpr.X) {
-			if ident, ok := selExpr.X.(*ast.Ident); ok {
-				receiverName := ident.Name
-				// Flag if there's no corresponding deferred Unlock or RUnlock.
-				if !deferredUnlocks[receiverName] {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
+		return hasPending
+	})
 }
 
-// checkChannelLeak reports whether the function body creates a channel
-// without guaranteed close or drain.
+// checkChannelLeak reports channels without a safe buffered send/receive pair
+// or close.
 func checkChannelLeak(
 	pass *analysis.Pass,
 	body *ast.BlockStmt,
-	noLintIndex nolint.DirectiveIndex,
 ) bool {
 	if body == nil {
 		return false
 	}
 
-	// For now, we use a simplified heuristic: if a channel is created
-	// with make(chan T) but we don't see any send, close, or receive operations
-	// on it, it's likely a leak. However, this requires flow analysis.
-	// We'll focus on the most obvious case: channels created but never used.
+	channels := createdChannels(pass, body)
+	markChannelUsage(pass, body, channels)
+	for _, usage := range channels {
+		if usage.buffered && usage.sent && usage.received {
+			continue
+		}
+		if usage.closed && !usage.sent && !usage.received {
+			continue
+		}
+		return true
+	}
+	return false
+}
 
-	// Track all channel creations.
-	channels := make(map[string]bool) // varName -> isCreated
-
-	// First pass: find channel creations and usages.
+func createdChannels(pass *analysis.Pass, body *ast.BlockStmt) map[types.Object]*channelUsage {
+	channels := make(map[types.Object]*channelUsage)
 	ast.Inspect(body, func(n ast.Node) bool {
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false
+		}
 		if assignStmt, ok := n.(*ast.AssignStmt); ok {
-			if len(assignStmt.Rhs) >= 1 {
-				callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-
-				// Check for make(chan T) pattern.
-				if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "make" {
-					if len(callExpr.Args) >= 1 {
-						if _, ok := callExpr.Args[0].(*ast.ChanType); ok {
-							// This is make(chan T, ...) — a channel creation.
-							for _, lhs := range assignStmt.Lhs {
-								if varIdent, ok := lhs.(*ast.Ident); ok && varIdent.Name != "_" {
-									channels[varIdent.Name] = true
-								}
-							}
-						}
+			var rhs ast.Expr
+			for _, value := range assignStmt.Rhs {
+				rhs = value
+				break
+			}
+			buffered, isMake := channelMake(pass, rhs)
+			if len(assignStmt.Rhs) != 1 || !isMake {
+				return true
+			}
+			for _, lhs := range assignStmt.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && ident.Name != "_" {
+					if obj := pass.TypesInfo.ObjectOf(ident); obj != nil {
+						channels[obj] = &channelUsage{buffered: buffered}
 					}
+					break
 				}
 			}
 		}
 		return true
 	})
+	return channels
+}
 
-	// Second pass: check if channels are used (sent to, received from, or closed).
-	// If a channel is created but never used in any way, it's likely a leak.
-	// This is a conservative heuristic; we only flag obvious cases.
-	usedChannels := make(map[string]bool)
-
+func markChannelUsage(pass *analysis.Pass, body *ast.BlockStmt, channels map[types.Object]*channelUsage) {
 	ast.Inspect(body, func(n ast.Node) bool {
-		// Look for send operations: ch <- value
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false
+		}
 		if sendStmt, ok := n.(*ast.SendStmt); ok {
 			if ident, ok := sendStmt.Chan.(*ast.Ident); ok {
-				usedChannels[ident.Name] = true
+				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
+					usage.sent = true
+				}
 			}
 		}
-
-		// Look for close() calls: close(ch)
 		if callExpr, ok := n.(*ast.CallExpr); ok {
 			if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "close" {
-				if len(callExpr.Args) >= 1 {
-					if argIdent, ok := callExpr.Args[0].(*ast.Ident); ok {
-						usedChannels[argIdent.Name] = true
+				for _, arg := range callExpr.Args {
+					if argIdent, ok := arg.(*ast.Ident); ok {
+						if usage := channels[pass.TypesInfo.ObjectOf(argIdent)]; usage != nil {
+							usage.closed = true
+						}
+						break
 					}
 				}
 			}
 		}
-
-		// Look for receive operations: value := <-ch or <-ch
-		if unaryExpr, ok := n.(*ast.UnaryExpr); ok && unaryExpr.Op.String() == "<-" {
+		if unaryExpr, ok := n.(*ast.UnaryExpr); ok && unaryExpr.Op == token.ARROW {
 			if ident, ok := unaryExpr.X.(*ast.Ident); ok {
-				usedChannels[ident.Name] = true
+				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
+					usage.received = true
+				}
 			}
 		}
-
 		return true
 	})
+}
 
-	// Check if any created channel is not used.
-	for ch := range channels {
-		if !usedChannels[ch] {
-			return true
-		}
-	}
-
-	return false
+type channelUsage struct {
+	sent     bool
+	received bool
+	closed   bool
+	buffered bool
 }
 
 // isContextWithCancelCall reports whether call is context.WithCancel,
@@ -373,6 +286,160 @@ func isMutexType(pass *analysis.Pass, expr ast.Expr) bool {
 	pkgPath := obj.Pkg().Path()
 	name := obj.Name()
 
-	return (pkgPath == "sync" || pkgPath == "sync/atomic") &&
-		(name == "Mutex" || name == "RWMutex")
+	return pkgPath == "sync" && (name == "Mutex" || name == "RWMutex")
+}
+
+type receiverKey struct {
+	base  types.Object
+	field types.Object
+}
+
+func anyBlock(body *ast.BlockStmt, check func(*ast.BlockStmt) bool) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false
+		}
+		if block, ok := n.(*ast.BlockStmt); ok && check(block) {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+func contextCancelAcquisition(pass *analysis.Pass, stmt ast.Stmt) (types.Object, bool) {
+	assign, ok := stmt.(*ast.AssignStmt)
+	if !ok || len(assign.Rhs) != 1 || len(assign.Lhs) < 2 {
+		return nil, false
+	}
+	var rhs ast.Expr
+	for _, value := range assign.Rhs {
+		rhs = value
+		break
+	}
+	call, ok := rhs.(*ast.CallExpr)
+	if !ok || !isContextWithCancelCall(pass, call) {
+		return nil, false
+	}
+	var cancelExpr ast.Expr
+	for i, value := range assign.Lhs {
+		if i == 1 {
+			cancelExpr = value
+			break
+		}
+	}
+	cancel, ok := cancelExpr.(*ast.Ident)
+	if !ok || cancel.Name == "_" {
+		return nil, false
+	}
+	object := pass.TypesInfo.ObjectOf(cancel)
+	return object, object != nil
+}
+
+func isDeferredCancel(pass *analysis.Pass, stmt ast.Stmt, cancel types.Object) bool {
+	deferStmt, ok := stmt.(*ast.DeferStmt)
+	if !ok || deferStmt.Call == nil {
+		return false
+	}
+	ident, ok := deferStmt.Call.Fun.(*ast.Ident)
+	return ok && pass.TypesInfo.ObjectOf(ident) == cancel
+}
+
+func mutexLockAcquisition(pass *analysis.Pass, stmt ast.Stmt) (receiverKey, string, bool) {
+	exprStmt, ok := stmt.(*ast.ExprStmt)
+	if !ok {
+		return receiverKey{}, "", false
+	}
+	call, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return receiverKey{}, "", false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || (sel.Sel.Name != "Lock" && sel.Sel.Name != "RLock") {
+		return receiverKey{}, "", false
+	}
+	key, ok := mutexReceiverKey(pass, sel.X)
+	if !ok {
+		return receiverKey{}, "", false
+	}
+	unlock := "Unlock"
+	if sel.Sel.Name == "RLock" {
+		unlock = "RUnlock"
+	}
+	return key, unlock, true
+}
+
+func isDeferredUnlock(pass *analysis.Pass, stmt ast.Stmt, key receiverKey, unlock string) bool {
+	deferStmt, ok := stmt.(*ast.DeferStmt)
+	if !ok || deferStmt.Call == nil {
+		return false
+	}
+	sel, ok := deferStmt.Call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != unlock {
+		return false
+	}
+	deferredKey, ok := mutexReceiverKey(pass, sel.X)
+	return ok && deferredKey == key
+}
+
+func mutexReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool) {
+	if !isMutexType(pass, receiver) {
+		return receiverKey{}, false
+	}
+	return getReceiverKey(pass, receiver)
+}
+
+func getReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool) {
+	switch expr := receiver.(type) {
+	case *ast.Ident:
+		object := pass.TypesInfo.ObjectOf(expr)
+		if object != nil {
+			return receiverKey{base: object}, true
+		}
+	case *ast.SelectorExpr:
+		if selection := pass.TypesInfo.Selections[expr]; selection != nil {
+			field := selection.Obj()
+			if base, ok := expr.X.(*ast.Ident); ok {
+				if object := pass.TypesInfo.ObjectOf(base); object != nil {
+					return receiverKey{base: object, field: field}, true
+				}
+			}
+			return receiverKey{base: field}, field != nil
+		}
+	}
+	return receiverKey{}, false
+}
+
+func channelMake(pass *analysis.Pass, expr ast.Expr) (bool, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false, false
+	}
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return false, false
+	}
+	if builtin, ok := pass.TypesInfo.ObjectOf(ident).(*types.Builtin); !ok || builtin.Name() != "make" {
+		return false, false
+	}
+	var channelType ast.Expr
+	var capacity ast.Expr
+	for i, arg := range call.Args {
+		switch i {
+		case 0:
+			channelType = arg
+		case 1:
+			capacity = arg
+		}
+	}
+	if _, ok := channelType.(*ast.ChanType); !ok {
+		return false, false
+	}
+	if capacity == nil {
+		return false, true
+	}
+	value := pass.TypesInfo.Types[capacity].Value
+	return value != nil && constant.Sign(value) > 0, true
 }
