@@ -110,6 +110,15 @@
           },
           "provider_type": "anthropic"
         },
+        "claude-haiku-5-5": {
+          "cost": {
+            "input": "1e-07",
+            "output": "5e-07",
+            "cache_read": "1e-08",
+            "cache_write": "1.25e-07"
+          },
+          "provider_type": "anthropic"
+        },
         "claude-opus-4-0": {
           "cost": {
             "input": "1.5e-05",

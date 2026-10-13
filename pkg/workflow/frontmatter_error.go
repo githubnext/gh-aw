@@ -73,6 +73,53 @@ func findFrontmatterFieldLine(frontmatterLines []string, frontmatterStart int, f
 	return 0
 }
 
+func findEngineIDPosition(result *parser.FrontmatterResult) (int, int) {
+	if result == nil {
+		return 0, 0
+	}
+
+	engineIndent := -1
+	engineChildIndent := -1
+	for i, line := range result.FrontmatterLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if engineIndent < 0 {
+			if indent == 0 && strings.HasPrefix(trimmed, "engine:") {
+				remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
+				if remainder == "" || strings.HasPrefix(remainder, "#") {
+					engineIndent = indent
+					continue
+				}
+				return result.FrontmatterStart + i, 1
+			}
+			continue
+		}
+
+		if indent <= engineIndent {
+			break
+		}
+		if engineChildIndent < 0 {
+			engineChildIndent = indent
+		}
+		if indent == engineChildIndent && strings.HasPrefix(trimmed, "id:") {
+			return result.FrontmatterStart + i, indent + 1
+		}
+	}
+
+	line := result.FieldLines["engine"]
+	if line == 0 {
+		line = findFrontmatterFieldLine(result.FrontmatterLines, result.FrontmatterStart, "engine")
+	}
+	if line == 0 {
+		return 0, 0
+	}
+	return line, 1
+}
+
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
 // frontmatterLineOffset is the line number where the frontmatter content begins (1-based)
 // Returns error in VSCode-compatible format: filename:line:column: error message

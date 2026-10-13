@@ -162,6 +162,8 @@ Use this exact structure:
 
 Then ask: **"Ready to generate, or want to adjust anything?"**
 
+For maintenance workflows, also add `Repository signals` and `Initial maintenance portfolio` fields (see [create-agentic-workflow.md](create-agentic-workflow.md)).
+
 ## Generation Template
 
 After confirmation, generate one workflow file using the same skeleton style as `.github/aw/create-agentic-workflow.md`.

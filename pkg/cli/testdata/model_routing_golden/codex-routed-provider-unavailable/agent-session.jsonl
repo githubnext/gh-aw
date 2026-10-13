@@ -1,0 +1,4 @@
+{"type":"session.init","thread_id":"01a119d6-9f80-7521-af04-b29be1cd7079","data":{"sourceEngine":"codex","sessionId":"01a119d6-9f80-7521-af04-b29be1cd7079"}}
+{"type":"session.result","message":"[redacted]","data":{"sourceType":"error","errors":["{\"error\":{\"message\":\"Invalid 'input[8].id': 'ctco_01a119d6-ab2a-73c0-be36-4329d931c4e8'. Expected an ID that begins with 'fc'.\",\"code\":\"invalid_request_body\"}}\n"]}}
+{"type":"session.result","error":{"message":"[redacted]"},"data":{"sourceType":"turn.failed","status":"failed","errors":[{"message":"[redacted]"}]}}
+{"type":"agent.execution","data":{"categories":[],"errorCodes":["invalid_request_body"],"errorTypes":[],"exitCode":78}}

@@ -39,8 +39,9 @@ function fixture() {
       if (index === 3) work.worker_profile = "other";
     },
   });
-  f.githubClient.rest.repos.get = vi.fn(async () => ({ status: 200, data: { full_name: REPOSITORY, id: 7, default_branch: "main" } }));
-  f.githubClient.rest.git = { getRef: vi.fn(async () => ({ data: { ref: "refs/heads/main", object: { sha: NEW_REF } } })) };
+  f.githubClient.rest.repos.get = vi.fn(async () => ({ status: 200, data: { full_name: REPOSITORY, id: 7, default_branch: "main", permissions: { push: true } } }));
+  const getRef = f.githubClient.rest.git.getRef;
+  f.githubClient.rest.git.getRef = vi.fn(async parameters => (parameters.ref === "heads/main" ? { status: 200, data: { ref: "refs/heads/main", object: { type: "commit", sha: NEW_REF } } } : getRef(parameters)));
   return f;
 }
 function deploy(f, name = "default", ref = NEW_REF, contract = CONTRACT, available = true) {
@@ -360,7 +361,7 @@ describe("prospective drain-free worker evolution", () => {
     };
     const launch = await launchAssignment({ ...options, config: {}, dispatchClient: f.githubClient, validateDispatchCredential: f.validateDispatchCredential, now: f.at, sleepFn: async () => {} }, assignment);
     expect(launch.state).toBe("bound");
-    expect(post.mock.calls[0][0].ref).toBe(REF);
+    expect(post.mock.calls[0][0].ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
     expect(getContent).toHaveBeenCalledTimes(1);
     expect(f.state.deployments.get("default").get("default").current_ref).toBe(REF);
     expect(f.state.deployments.get("default").get("default").revisions[REF].available).toBe(false);

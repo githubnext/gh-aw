@@ -1,0 +1,43 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "auto",
+  "version": "1.0.90",
+  "agent_version": "1.0.90",
+  "workflow_name": "Task",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": false,
+  "run_id": 38164386960,
+  "run_number": 1,
+  "run_attempt": "1",
+  "repository": "example-org/routing-fixture",
+  "ref": "refs/heads/main",
+  "sha": "e45b88f18f05b3f6595e21f7a7dccc463acc04f6",
+  "actor": "fixture-user",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": ["defaults", "python"],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.50",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-11T18:35:11.840Z",
+  "sub_agent_models": [
+    {
+      "model": "claude-haiku-4.5",
+      "name": "file-summarizer",
+      "patterns": ["github-copilot/claude-haiku-4.5"]
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "name": "quick-checker",
+      "patterns": ["github-copilot/gpt-5.6-luna"]
+    }
+  ]
+}

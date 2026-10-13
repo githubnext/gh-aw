@@ -1,0 +1,74 @@
+{
+  "model_routing": {
+    "status": "failed",
+    "failure": {
+      "code": "provider_unavailable"
+    },
+    "selected_model": "github-copilot/gpt-5.6-luna",
+    "selected_effort": "high",
+    "endpoint": "/responses",
+    "routed_counts": {
+      "as_selected": 2
+    },
+    "outcome_counts": {
+      "aborted": 1,
+      "failed": 1
+    },
+    "classifier_cost": {
+      "requests": 1,
+      "input_tokens": 802,
+      "output_tokens": 145,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0.03344
+    },
+    "selected_model_cost": {
+      "requests": 1,
+      "input_tokens": 8742,
+      "output_tokens": 153,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0.1932
+    },
+    "deviated_traffic_cost": {
+      "requests": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0
+    },
+    "main_agent_cost": {
+      "requests": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0
+    }
+  },
+  "firewall_token_usage": {
+    "total_input_tokens": 9544,
+    "total_output_tokens": 298,
+    "total_cache_read_tokens": 0,
+    "total_cache_write_tokens": 0,
+    "total_requests": 2,
+    "total_duration_ms": 5383,
+    "total_response_bytes": 90061,
+    "cache_efficiency": 0,
+    "total_aic": 0.22664,
+    "by_model": {
+      "gpt-5.6-luna": {
+        "provider": "copilot",
+        "input_tokens": 9544,
+        "output_tokens": 298,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 2,
+        "duration_ms": 5383,
+        "response_bytes": 90061,
+        "aic": 0.22664
+      }
+    }
+  }
+}

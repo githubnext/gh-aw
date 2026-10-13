@@ -194,10 +194,27 @@ function assertRemediationBackend(state, parameters, verifier) {
 }
 
 function rejectionReceipt(error, destination) {
-  const status = error?.response?.status;
-  const requestId = error?.response?.headers?.["x-github-request-id"];
+  const status = error?.provider_rejection?.status ?? error?.response?.status;
+  const requestId = error?.provider_rejection?.request_id ?? error?.response?.headers?.["x-github-request-id"];
   if (![400, 401, 403, 404, 422, 429].includes(status) || error.status !== status || typeof requestId !== "string" || !requestId) return null;
   return `github_rejection:${digest({ status, request_id: requestId, repository: destination.repository, workflow: destination.workflow, ref: destination.ref })}`;
+}
+
+function rejectedEvidence(latest, dispatch, assignment, profile, options) {
+  let receipt = dispatch.reason;
+  if (!receipt) {
+    for (const transaction of [...(latest.transactions || [])].reverse()) {
+      const marker = transaction.operations.find(operation => operation.kind === "Dispatch" && operation.dispatch_id === assignment.dispatch_id && operation.state === "rejected");
+      if (marker?.evidence?.kind === "nonlaunch") {
+        receipt = marker.evidence.receipt;
+        break;
+      }
+    }
+  }
+  if (typeof receipt !== "string" || !/^(?:github_rejection|tag_prepost):[a-f0-9]{64}$/.test(receipt)) throw new Error("work_queue_rejection_evidence_unavailable");
+  const senderRepository = dispatch.sender?.repository;
+  if (typeof senderRepository !== "string") throw new Error("work_queue_rejection_evidence_unavailable");
+  return lifecycleEvidence(assignment, profile, senderRepository, "nonlaunch", "github_api", options.now ?? Date.now(), { receipt, principal: dispatchPrincipal(dispatch) });
 }
 
 async function launchAssignment(options, supplied) {
@@ -207,7 +224,11 @@ async function launchAssignment(options, supplied) {
   const { assignment, dispatch, profile } = validateStoredAssignment(latest.projection, supplied, { allowReleased: true });
   log.debug("launch.assignment.checked", { claims: assignment.claims.length, released: dispatch.released, reserved: dispatch.state === "reserved", staged: isStagedMode(options) || isStagedMode(options.config) });
   if (isStagedMode(options) || isStagedMode(options.config)) return { state: "staged_preview", released: false, dispatched: false };
-  if (dispatch.released) return { state: "released", released: true, dispatched: false };
+  if (dispatch.released) return { state: dispatch.state === "rejected" ? "rejected" : "released", released: true, dispatched: false };
+  if (dispatch.state === "rejected") {
+    const evidence = rejectedEvidence(latest, dispatch, assignment, profile, options);
+    return { ...(await releaseAssignment(options, assignment, evidence)), state: "rejected", dispatched: false };
+  }
   if (dispatch.state !== "reserved") return { ...(await reconcileDispatch({ ...options, assignment })), dispatched: false };
   immutableRef(profile.ref);
   if (latest.projection.policy.authorization === "aw") {
@@ -217,7 +238,8 @@ async function launchAssignment(options, supplied) {
     }
   }
   if (typeof options.validateDispatchCredential !== "function") throw new Error("work_queue_dispatch_credential_validator_required");
-  const credential = await options.validateDispatchCredential({ assignment, profile });
+  const repository = `${options.context.repo.owner}/${options.context.repo.repo}`;
+  const credential = await options.validateDispatchCredential({ assignment, profile, repository });
   if (profile.principal !== undefined && credential?.principal !== profile.principal) throw new Error("work_queue_dispatch_credential_principal_mismatch");
   if (!isDispatchCredentialProof(credential, options.dispatchClient || options.githubClient, profile)) throw new Error("work_queue_dispatch_credential_proof_invalid");
   log.debug("launch.credential.checked");
@@ -247,14 +269,15 @@ async function launchAssignment(options, supplied) {
     returned = await postQueueDispatch(options.dispatchClient || options.githubClient, destination, { work_queue_assignment: canonical(assignment) });
     log.debug("launch.post.complete");
   } catch (error) {
-    log.failure("launch.post.failed", error);
+    log.failure("launch.post.failed", error, true);
     const checkedAt = options.now ?? Date.now();
     const receipt = rejectionReceipt(error, destination);
-    if (receipt) {
-      log.debug("launch.post.definitive_rejection");
-      const evidence = lifecycleEvidence(assignment, profile, sender.repository, "nonlaunch", "github_api", checkedAt, { receipt, principal: credential.principal });
-      await publishOperations(options, trustedContext, ["reject", assignment.dispatch_id, receipt], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "rejected", evidence }]);
-      return { ...(await releaseAssignment(options, assignment, evidence)), dispatched: true };
+    if (receipt || ["work_queue_dispatch_tag_mismatch", "work_queue_dispatch_tag_preparation_failed"].includes(error?.code)) {
+      const rejection = receipt || `tag_prepost:${digest({ repository: destination.repository, workflow: destination.workflow, ref: destination.ref })}`;
+      log.debug(error?.code?.startsWith("work_queue_dispatch_tag_") ? "launch.tag_preparation.definitive_nonlaunch" : "launch.post.definitive_rejection");
+      const evidence = lifecycleEvidence(assignment, profile, sender.repository, "nonlaunch", "github_api", checkedAt, { receipt: rejection, principal: credential.principal });
+      await publishOperations(options, trustedContext, ["reject", assignment.dispatch_id, rejection], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "rejected", reason: rejection, evidence }]);
+      return { ...(await releaseAssignment(options, assignment, evidence)), state: "rejected", dispatched: false };
     }
     try {
       await publishOperations(options, trustedContext, ["uncertain", assignment.dispatch_id], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "uncertain", reason: "post_response_unconfirmed" }]);
@@ -473,7 +496,15 @@ async function dispatchQueueIntent(options) {
   const launches = [];
   for (const assignment of groups) launches.push({ dispatch_id: assignment.dispatch_id, ...(await launchAssignment(configured, assignment)) });
   log.debug("intent.dispatch.complete", { assignments: groups.length, launches: launches.length });
-  return { success: true, status: groups.length ? "durable" : "no_grant", request_id: request.id, reason: published.reason, dispatches: groups.length, launches, control: controlReceiptForRequest(published.state, request.id) };
+  return {
+    success: launches.every(launch => ["bound", "released", "staged_preview"].includes(launch.state)),
+    status: groups.length ? "durable" : "no_grant",
+    request_id: request.id,
+    reason: published.reason,
+    dispatches: groups.length,
+    launches,
+    control: controlReceiptForRequest(published.state, request.id),
+  };
 }
 
 async function processWorkQueueIntents(options) {
@@ -608,17 +639,25 @@ async function main(options = {}) {
   }
   const durable = result.receipts.filter(receipt => receipt.status === "durable").length;
   const blocked = result.receipts.filter(receipt => receipt.status === "blocked").length;
-  const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "staged_preview"].includes(launch.state)).length, 0);
-  const recoveryRequired = blocked > 0 || unresolved > 0;
-  log.debug("controls.complete", { durable, blocked, unresolved, recovery_required: recoveryRequired });
+  const rejected = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => launch.state === "rejected").length, 0);
+  const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "rejected", "staged_preview"].includes(launch.state)).length, 0);
+  const recoveryRequired = blocked > 0 || unresolved > 0 || rejected > 0;
+  log.diagnostic("controls.complete", { durable, blocked, rejected, unresolved, recovery_required: recoveryRequired });
   const status = recoveryRequired ? "recovery_required" : "ok";
-  const summary = ["## Work queue controls", "", `Status: **${recoveryRequired ? "Recovery required" : "Complete"}**`, "", `- Durable requests: ${durable}`, `- Blocked intents: ${blocked}`, `- Unresolved launches: ${unresolved}`].join(
-    "\n"
-  );
+  const summary = [
+    "## Work queue controls",
+    "",
+    `Status: **${recoveryRequired ? "Recovery required" : "Complete"}**`,
+    "",
+    `- Durable requests: ${durable}`,
+    `- Blocked intents: ${blocked}`,
+    `- Rejected launches: ${rejected}`,
+    `- Unresolved launches: ${unresolved}`,
+  ].join("\n");
   result = { ...result, status, success: !recoveryRequired, summary };
   coreApi.setOutput("work_queue_requests", JSON.stringify(result));
   coreApi.setOutput("work_queue_controls_status", status);
-  coreApi.info(`Work queue controls: ${durable} durable requests; ${blocked} blocked intents; ${unresolved} unresolved launches`);
+  coreApi.info(`Work queue controls: ${durable} durable requests; ${blocked} blocked intents; ${rejected} rejected launches; ${unresolved} unresolved launches`);
   if (coreApi.summary?.addRaw && coreApi.summary?.write) {
     coreApi.summary.addRaw(summary);
     await coreApi.summary.write();

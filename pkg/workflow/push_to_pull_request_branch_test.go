@@ -1234,3 +1234,43 @@ By default, check-branch-protection is not set (JS handler defaults to true).
 		t.Errorf("Handler config should NOT contain check_branch_protection when not explicitly set")
 	}
 }
+
+func TestPushToPullRequestBranchWithNumericTarget(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create a test markdown file with numeric target: 123
+	testMarkdown := `---
+on:
+  schedule:
+    - cron: "0 0 * * *"
+safe-outputs:
+  push-to-pull-request-branch:
+    target: 123
+---
+
+# Test Push to Branch with Numeric Target
+
+This workflow specifies an explicit numeric pull request target.
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-numeric-target.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	if pushConfig["target"] != "123" {
+		t.Errorf("Expected target to be '123', got %v", pushConfig["target"])
+	}
+}

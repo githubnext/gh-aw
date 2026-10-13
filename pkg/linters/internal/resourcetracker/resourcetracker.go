@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -209,12 +210,12 @@ func (c Config[K]) inspectNode(pass *analysis.Pass, noLintIndex nolint.Directive
 	// (e.g. closeErr := f.Close()), are manual cleanups.
 	switch stmt := node.(type) {
 	case *ast.ExprStmt:
-		if call, ok := stmt.X.(*ast.CallExpr); ok {
+		if call, ok := astutil.UnwrapParenExpr(stmt.X).(*ast.CallExpr); ok {
 			c.markManual(pass, tracked, call)
 		}
 	case *ast.AssignStmt:
 		for _, rhs := range stmt.Rhs {
-			if call, ok := rhs.(*ast.CallExpr); ok {
+			if call, ok := astutil.UnwrapParenExpr(rhs).(*ast.CallExpr); ok {
 				c.markManual(pass, tracked, call)
 			}
 		}

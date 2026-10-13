@@ -15,7 +15,7 @@ const { MAX_PROJECTION_TARGETS, LABELS_PAGE_SIZE, STATUSES, statusLabelName, ens
 const { wrapGithubClient } = require("./work_queue_issue_pacing.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { validateJournal } = require("./work_queue_issue_journal.cjs");
-const { issueBody, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
+const { issueBody, issueTitle, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
 
 function issuesConfiguration(value) {
   if (value === undefined || value === false) return null;
@@ -247,6 +247,7 @@ async function projectBatch(options, initial, origin, assignment, config, target
   }
   const operations = [];
   const creates = [];
+  const publicationMasks = options.publicationMaskedValues;
   const existingResources = new Set(
     targets
       .filter(target => target.resource && initial.state.works.get(target.work_id) && (initial.state.works.get(target.work_id).backing_issue || initial.state.works.get(target.work_id).issue_link))
@@ -265,6 +266,10 @@ async function projectBatch(options, initial, origin, assignment, config, target
     const discovered = discovery.get(origin.repository);
     const work = current.state.works.get(target.work_id);
     const status = workIssueStatus(current.state, work, options.now ?? Date.now());
+    // Conclusion receives sanitized artifacts, not the original runtime masks or
+    // configured secret environment. An empty mask scan cannot establish that
+    // ledger payloads are safe; omit them without an explicit trusted context.
+    const displayWork = publicationMasks === undefined ? { ...work, payload: undefined } : work;
     journal.create = { nonce: projectionNonce(), origin: actor, ref: origin.ref, ...(target.authority_claim_id ? { authority_claim_id: target.authority_claim_id } : {}) };
     creates.push({
       key: target.work_id,
@@ -272,8 +277,8 @@ async function projectBatch(options, initial, origin, assignment, config, target
       type: "CreateIssueInput",
       input: {
         repositoryId: discovered.repositoryId,
-        title: `${config.title_prefix} ${work.work_id.slice(0, 12)}`,
-        body: issueBody(current.state, work, origin, config, current.branch),
+        title: issueTitle(displayWork, config, publicationMasks),
+        body: issueBody(current.state, displayWork, origin, config, current.branch, publicationMasks),
         labelIds: [discovered.labelId, statusLabels.get(`${origin.repository}:${status}`)],
       },
       selection: `issue { ${ISSUE_SELECTION} }`,

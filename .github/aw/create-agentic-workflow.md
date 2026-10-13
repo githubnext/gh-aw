@@ -49,40 +49,14 @@ When the user has not already stated an automation goal, start with exactly:
 
 > What do you want to automate today?
 
-When the request already states a goal, infer its intent and ask only for information that is still needed. Then follow a progressive interview — ask one question at a time, advance only when the current phase is clear:
+Run the structured interview in [designer.md#interview-framework](designer.md#interview-framework) — it covers goal/intent, repository survey, architecture/trigger, scope, data strategy, guardrails, context/network, engine, and confirmation, plus the progressive-disclosure rules and the confirmation summary format. This file covers generation, compile, and PR mechanics once the design is confirmed.
 
-1. **Goal and intent** — confirm the workflow name, description, and a concise outcome-oriented `intent:`. Derive activation, required-effect, no-op, success, and uncertainty conditions before choosing implementation; see [intent.md](intent.md).
-2. **Repository survey and intent mining** — only for maintenance or underspecified automation requests, inspect bounded repository evidence using [maintainer.md](maintainer.md). Summarize observed signals, propose evidence-backed candidate intents, then select and augment one before choosing a portfolio or cadence.
-3. **Architecture and trigger** — compare feasible architectures against the augmented intent's coverage, timeliness, attention cost, safety, boundedness, determinism, state, complexity, and evidence. Then ask "When should this run?" and map the selected architecture to an `on:` block. For scheduled workflows that create issues or pull requests, also choose how previous results are handled using [Choose the previous-result strategy](#choose-the-previous-result-strategy).
-4. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
-5. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
-6. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
-7. **Context & network** — ask about external APIs, MCP servers, and required secrets; map to `network.allowed` and `env:`.
-8. **Engine** — preserve explicit engine hints. With no engine preference or
-   engine-specific requirement, omit `engine:` and let the configured default
-   apply. If an explicit model requirement forces engine selection, try Copilot
-   first.
-9. **Confirmation** — present a structured summary before generating:
+Two additions used only here:
 
-   ```text
-   Proposed workflow:
-   - Name: <workflow-id>
-   - Trigger: <event + key options>
-   - Engine: <explicit engine or default (omitted)>
-   - Tools: <tool summary>
-   - Safe outputs: <list or none>
-   - Network: <allowed summary>
-   - Integrations/Auth: <service/mcp + required secrets/env vars>
-   - Repository signals: <maintenance workflows only>
-   - Initial maintenance portfolio: <maintenance workflows only>
-   - Intent: <one-sentence task>
-   ```
+- For scheduled workflows that create issues or pull requests, choose how previous results are handled using [Choose the previous-result strategy](#choose-the-previous-result-strategy) during the architecture/trigger phase.
+- For maintenance workflows, add `Repository signals` and `Initial maintenance portfolio` fields to the confirmation summary, in addition to the fields in [designer.md#confirmation-format](designer.md#confirmation-format).
 
-   Ask: **"Ready to generate, or want to adjust anything?"**
-
-Skip phases when the answer is already clear from earlier statements. Apply progressive disclosure: at most 5 questions before presenting the confirmation summary; then ask "anything else?" if needed. Detect done signals (`that's it`, `looks good`, `generate it`) and proceed to generation.
-
-For detailed trigger/safe-output/network/tool decision heuristics and integration auth setup patterns, load [designer-mappings.md](designer-mappings.md). For token-optimization defaults, load [designer.md](designer.md).
+For detailed trigger/safe-output/network/tool decision heuristics and integration auth setup patterns, load [designer-mappings.md](designer-mappings.md).
 
 ### Issue-form mode
 
@@ -193,6 +167,7 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 ### 4. Select tools
 
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
+- When selecting Codex, do not configure a non-empty per-command `tools.bash` allowlist: Codex cannot enforce it. Set `tools.bash: false` to disable shell execution or select an engine that supports command allowlists.
 - For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
 - For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
 - Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
@@ -245,6 +220,7 @@ Rules:
 
 - Default behavior is team-only triggering.
 - For community-facing issue triage or other public entrypoints, recommend `roles: all`.
+- Prefer `pull_request` over `pull_request_target`. Use `pull_request_target` only when base-repository context is necessary; it may have access to secrets and write permissions. Set `checkout: false` unless a trusted checkout is needed, and never check out or execute the pull request's head code. See the [`pull_request_target` checkout guidance](https://github.github.com/gh-aw/reference/checkout/#pull_request_target-checkout).
 
 ### 8. Add cost-aware triage and context flow
 

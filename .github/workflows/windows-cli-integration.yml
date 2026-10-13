@@ -86,6 +86,7 @@ jobs:
               [hashtable] $EnvironmentOverrides = @{},
               [string[]] $UnsetEnvironment = @(),
               [switch] $MinimalEnvironment,
+              [switch] $CloseStandardInput,
               [switch] $ExpectFailure,
               [string] $ExpectedErrorPattern = "",
               [switch] $AssertNoAnsi
@@ -95,6 +96,7 @@ jobs:
             $psi.FileName = $FilePath
             $psi.WorkingDirectory = $WorkingDirectory
             $psi.UseShellExecute = $false
+            $psi.RedirectStandardInput = $CloseStandardInput
             $psi.RedirectStandardOutput = $true
             $psi.RedirectStandardError = $true
 
@@ -130,37 +132,47 @@ jobs:
 
             $displayArgs = if ($RawArguments) { $RawArguments } else { $ArgumentList -join ' ' }
 
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             $proc = [System.Diagnostics.Process]::Start($psi)
+            if ($CloseStandardInput) {
+              $proc.StandardInput.Close()
+            }
             $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
             $stderrTask = $proc.StandardError.ReadToEndAsync()
             if (-not $proc.WaitForExit($TimeoutMs)) {
               try { $proc.Kill($true) } catch {}
-              throw "TIMEOUT: '$FilePath $displayArgs' exceeded ${TimeoutMs}ms"
+              [void]$proc.WaitForExit(1000)
+              $stdout = if ($stdoutTask.Wait(1000)) { $stdoutTask.GetAwaiter().GetResult() } else { "<stdout capture timed out after process termination>" }
+              $stderr = if ($stderrTask.Wait(1000)) { $stderrTask.GetAwaiter().GetResult() } else { "<stderr capture timed out after process termination>" }
+              $stopwatch.Stop()
+              throw "TIMEOUT: '$FilePath $displayArgs' exceeded ${TimeoutMs}ms (elapsed $($stopwatch.ElapsedMilliseconds)ms)`nCaptured output:`n$stdout`n$stderr"
             }
 
             $proc.WaitForExit()
             $stdout = $stdoutTask.GetAwaiter().GetResult()
             $stderr = $stderrTask.GetAwaiter().GetResult()
             $output = "$stdout`n$stderr"
+            $stopwatch.Stop()
 
             if ($AssertNoAnsi -and $output -match "\x1B\[[0-9;]*[A-Za-z]") {
-              throw "Unexpected ANSI escape sequences in output"
+              throw "Unexpected ANSI escape sequences for '$FilePath $displayArgs' after $($stopwatch.ElapsedMilliseconds)ms`nCaptured output:`n$output"
             }
 
             if ($ExpectFailure) {
               if ($proc.ExitCode -eq 0) {
-                throw "Expected failure but command exited 0"
+                throw "Expected failure but '$FilePath $displayArgs' exited 0 after $($stopwatch.ElapsedMilliseconds)ms`nCaptured output:`n$output"
               }
               if ($ExpectedErrorPattern -and $output -notmatch $ExpectedErrorPattern) {
-                throw "Expected error pattern '$ExpectedErrorPattern' not found"
+                throw "Expected error pattern '$ExpectedErrorPattern' not found for '$FilePath $displayArgs' (exit $($proc.ExitCode), elapsed $($stopwatch.ElapsedMilliseconds)ms)`nCaptured output:`n$output"
               }
             } elseif ($proc.ExitCode -ne 0) {
-              throw "Exit code $($proc.ExitCode) for '$FilePath $displayArgs'`n$output"
+              throw "Exit code $($proc.ExitCode) for '$FilePath $displayArgs' after $($stopwatch.ElapsedMilliseconds)ms`nCaptured output:`n$output"
             }
 
             return @{
-              ExitCode = $proc.ExitCode
-              Output   = $output
+              ExitCode            = $proc.ExitCode
+              Output              = $output
+              ElapsedMilliseconds = $stopwatch.ElapsedMilliseconds
             }
           }
 
@@ -326,6 +338,19 @@ jobs:
 
           Invoke-CliProcess -FilePath $binary -ArgumentList @("totally-unknown-subcommand-xyz") -TimeoutMs 10000 -ExpectFailure -ExpectedErrorPattern "unknown|not found|invalid|unrecognized" | Out-Null
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Unknown subcommand fails fast with explicit error output"
+
+          $terminalCommand = "'$binary' new (CI=true; stdin closed; stdout/stderr redirected)"
+          $terminalStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+          try {
+            $terminalResult = Invoke-CliProcess -FilePath $binary -ArgumentList @("new") -TimeoutMs 5000 -EnvironmentOverrides @{ CI = "true" } -CloseStandardInput -ExpectFailure -ExpectedErrorPattern ([regex]::Escape("interactive mode cannot be used in CI environments. Please provide a workflow name"))
+            $terminalStopwatch.Stop()
+            $terminalOutput = ($terminalResult.Output.Trim() -replace "[\r\n]+", " ")
+            Add-Content $env:GITHUB_STEP_SUMMARY "✅ Controlled no-TTY scenario passed: command=$terminalCommand, elapsed=$($terminalResult.ElapsedMilliseconds)ms, exit=$($terminalResult.ExitCode), output=$terminalOutput"
+          } catch {
+            $terminalStopwatch.Stop()
+            $failureDetails = $_.Exception.Message -replace "[\r\n]+", " "
+            throw "Controlled no-TTY scenario failed: command=$terminalCommand, elapsed=$($terminalStopwatch.ElapsedMilliseconds)ms, captured output/error=$failureDetails"
+          }
 
       - name: Configure ConPTY
         shell: pwsh

@@ -161,7 +161,7 @@ class LocalGitHub {
   }
 
   async reference(ref) {
-    assert.match(ref, /^refs\/heads\/[A-Za-z0-9/_-]+$/);
+    assert.match(ref, /^refs\/(?:heads\/[A-Za-z0-9/_-]+|tags\/gh-aw\/work-queue\/[a-f0-9]{40,64})$/);
     try {
       return (await this.git(["show-ref", "--verify", "--hash", ref])).toString().trim();
     } catch (error) {
@@ -195,8 +195,11 @@ class LocalGitHub {
         const contents = await this.git(["show", `${args.ref}:${args.path}`]);
         return data({ type: "file", path: args.path, encoding: "base64", content: contents.toString("base64"), size: contents.length });
       }
-      case "git.getRef":
-        return data({ object: { sha: await this.reference(`refs/${args.ref}`) } });
+      case "git.getRef": {
+        const ref = `refs/${args.ref}`;
+        const sha = await this.reference(ref);
+        return data({ ref, object: { type: "commit", sha } });
+      }
       case "git.getCommit": {
         assert.match(args.commit_sha, /^[a-f0-9]{40}$/);
         const text = (await this.git(["cat-file", "-p", args.commit_sha])).toString();
@@ -234,6 +237,7 @@ class LocalGitHub {
         return data({ sha });
       }
       case "git.createRef": {
+        assert.match(args.ref, /^refs\/(?:heads\/[A-Za-z0-9/_-]+|tags\/gh-aw\/work-queue\/[a-f0-9]{40,64})$/);
         const branch = args.ref.replace(/^refs\/heads\//, "");
         await this.barrier(branch, meta);
         const fault = this.faults.get(branch);
@@ -251,7 +255,7 @@ class LocalGitHub {
             this.metrics.lost_success_responses++;
             throw apiError(503, "injected lost successful create response");
           }
-          return data({ object: { sha: args.sha } });
+          return data({ ref: args.ref, object: { type: "commit", sha: args.sha } });
         } finally {
           if (changed && fault?.next) {
             fault.next.resolve();
@@ -305,7 +309,8 @@ class LocalGitHub {
         return data(structuredClone(run));
       }
       case "actions.createWorkflowDispatch": {
-        assert.equal(args.ref, this.ref);
+        assert.match(args.ref, /^refs\/tags\/gh-aw\/work-queue\/[a-f0-9]{40,64}$/);
+        assert.equal(await this.reference(args.ref), this.ref, "workflow dispatch must resolve to the approved immutable commit");
         assert.equal(args.workflow_id, path.basename(WORKFLOW));
         assert.equal(args.headers["X-GitHub-Api-Version"], "2026-03-10");
         assert.equal(args.request.retries, 0);
