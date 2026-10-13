@@ -30,6 +30,18 @@ func TestExtractEngineMaxContextRebuild(t *testing.T) {
 	}
 }
 
+func TestExtractInlineEngineMaxContextRebuild(t *testing.T) {
+	_, config, _ := NewCompiler().ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"runtime":             map[string]any{"id": "codex"},
+			"max-context-rebuild": uint64(50),
+		},
+	})
+	require.NotNil(t, config)
+	assert.Equal(t, "codex", config.ID)
+	assert.InDelta(t, 50, config.MaxContextRebuild, 0)
+}
+
 func TestValidateMaxContextRebuildConfig(t *testing.T) {
 	for _, engine := range []CodingAgentEngine{NewCopilotEngine(), NewClaudeEngine(), NewGeminiEngine(), NewPiEngine(), NewAgyEngine()} {
 		t.Run(engine.GetID(), func(t *testing.T) {
@@ -195,6 +207,47 @@ func TestCompileWorkflowMaxContextRebuild(t *testing.T) {
 	}
 }
 
+func TestCompileWorkflowMaxContextRebuildImportedPreferencePreservesConfig(t *testing.T) {
+	dir := testutil.TempDir(t, "max-context-rebuild-import-override")
+	shared := `---
+engine:
+  id: codex
+  max-context-rebuild: 29.5
+  auth:
+    type: github-oidc
+    provider: gcp
+    workload-identity-provider: projects/123/locations/global/workloadIdentityPools/test/providers/test
+    service-account: test@example.iam.gserviceaccount.com
+    project: test-project
+  env:
+    IMPORTED_ENGINE_SETTING: preserved
+---
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte(shared), 0o644))
+	workflow := `---
+on: workflow_dispatch
+permissions:
+  id-token: write
+imports:
+  - shared.md
+engine:
+  max-context-rebuild: 50
+---
+
+Run the workflow.
+`
+	file := filepath.Join(dir, "workflow.md")
+	require.NoError(t, os.WriteFile(file, []byte(workflow), 0o644))
+	require.NoError(t, NewCompiler(WithVersion("dev")).CompileWorkflow(file))
+
+	lock, err := os.ReadFile(filepath.Join(dir, "workflow.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(lock), "GH_AW_CODEX_MAX_REBUILD_FACTOR: 50")
+	assert.Contains(t, string(lock), "AWF_AUTH_TYPE: github-oidc")
+	assert.Contains(t, string(lock), "AWF_AUTH_PROVIDER: gcp")
+	assert.Contains(t, string(lock), "IMPORTED_ENGINE_SETTING: preserved")
+}
+
 func TestCompileWorkflowThreatDetectionMaxContextRebuild(t *testing.T) {
 	for _, external := range []bool{false, true} {
 		for _, engine := range []string{"codex", "copilot", "claude", "pi"} {
@@ -240,4 +293,31 @@ func TestThreatDetectionMaxContextRebuildInheritance(t *testing.T) {
 	assert.InDelta(t, 50.0, cloneThreatDetectionEngineConfig("codex", source).MaxContextRebuild, 0)
 	assert.Zero(t, cloneThreatDetectionEngineConfig("copilot", source).MaxContextRebuild)
 	assert.InDelta(t, 50.0, source.MaxContextRebuild, 0)
+}
+
+func TestThreatDetectionMaxContextRebuildNormalizesLegacyEngineAndEnv(t *testing.T) {
+	data := &WorkflowData{
+		AI: "codex",
+		EngineConfig: &EngineConfig{
+			MaxContextRebuild: 50,
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					MaxContextRebuild: 50,
+					Env: map[string]string{
+						"GH_AW_CODEX_MAX_REBUILD_FACTOR": "50",
+						"KEEP_ME":                        "preserved",
+					},
+				},
+			},
+		},
+	}
+
+	detectionConfig := resolveExternalDetectorEngineConfig(data, "copilot")
+	assert.Zero(t, detectionConfig.MaxContextRebuild)
+	assert.NotContains(t, detectionConfig.Env, "GH_AW_CODEX_MAX_REBUILD_FACTOR")
+	assert.Equal(t, "preserved", detectionConfig.Env["KEEP_ME"])
+	assert.InDelta(t, 50, data.SafeOutputs.ThreatDetection.EngineConfig.MaxContextRebuild, 0)
+	assert.Equal(t, "50", data.SafeOutputs.ThreatDetection.EngineConfig.Env["GH_AW_CODEX_MAX_REBUILD_FACTOR"])
 }

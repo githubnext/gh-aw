@@ -317,8 +317,8 @@ func TestSpec_PublicAPI_ConvertToInt(t *testing.T) {
 // TestSpec_PublicAPI_ConvertToFloat validates the documented behavior of
 // ConvertToFloat as described in the package README.md.
 //
-// Specification: Safely converts any value (float64, int, int64, string) to
-// float64, returning 0 on failure.
+// Specification: Safely converts any value (float64, int, int64, uint64, string)
+// to float64, returning 0 on failure.
 func TestSpec_PublicAPI_ConvertToFloat(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -339,6 +339,11 @@ func TestSpec_PublicAPI_ConvertToFloat(t *testing.T) {
 			name:     "int64 input returns float value",
 			input:    int64(20),
 			expected: 20.0,
+		},
+		{
+			name:     "uint64 input returns float value",
+			input:    uint64(30),
+			expected: 30.0,
 		},
 		{
 			name:     "numeric string returns parsed value",

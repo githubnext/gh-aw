@@ -117,6 +117,7 @@ func TestConvertToFloat(t *testing.T) {
 		{"float64", 123.45, 123.45},
 		{"int", 100, 100.0},
 		{"int64", int64(200), 200.0},
+		{"uint64", uint64(300), 300.0},
 		{"string", "99.99", 99.99},
 		{"invalid string", "not a number", 0.0},
 		{"nil", nil, 0.0},

@@ -39,6 +39,18 @@ func TestMainWorkflowSchema_MaxContextRebuild(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_MaxContextRebuildPreference(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"engine": map[string]any{
+			"max-context-rebuild": 50,
+		},
+	}
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("factor-only engine preference should be valid: %v", err)
+	}
+}
+
 func TestMainWorkflowSchema_DeclarativeMaxContextRebuild(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {

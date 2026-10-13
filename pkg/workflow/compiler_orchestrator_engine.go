@@ -401,10 +401,10 @@ func (c *Compiler) mergeImportedModelRoutingConfigs(engineConfig *EngineConfig, 
 // mergeImportedEngineConfig resolves the engine config contributed by imports and
 // included files. The main workflow frontmatter may produce a non-nil engineConfig
 // without selecting an engine: top-level `model:`/`max-turns:`/budgets, or a
-// preference-only `engine:` object (`model`/`mcp` only). Such a config carries only
-// overrides, so the imported engine config must still be extracted and the overrides
-// re-applied on top of it; otherwise imported settings such as `engine.auth` would be
-// silently dropped.
+// preference-only `engine:` object (`model`/`mcp`/`max-context-rebuild` only). Such a
+// config carries only overrides, so the imported engine config must still be extracted
+// and the overrides re-applied on top of it; otherwise imported settings such as
+// `engine.auth` would be silently dropped.
 func (c *Compiler) mergeImportedEngineConfig(
 	frontmatter map[string]any,
 	allEngines []string,
@@ -482,7 +482,7 @@ func isPreferenceOnlyEngineObject(engineObj map[string]any) bool {
 	hasPreference := false
 	for k := range engineObj {
 		switch k {
-		case "model", "mcp":
+		case "model", "mcp", "max-context-rebuild":
 			hasPreference = true
 		default:
 			return false
@@ -492,11 +492,12 @@ func isPreferenceOnlyEngineObject(engineObj map[string]any) bool {
 }
 
 // applyMainWorkflowEngineOverrides copies the overrides declared by the main workflow
-// (top-level max-turns and budgets, plus preference-only `engine.mcp` settings) onto an
-// engine config extracted from an import, so that main-workflow keys keep taking
-// precedence over imported engine values. The copied fields must stay in sync with the
-// preference keys accepted by isPreferenceOnlyEngineObject (currently `model`, handled via
-// the returned model, and `mcp`); adding a preference key there requires copying the
+// (top-level max-turns and budgets, plus preference-only `engine.mcp` and
+// `engine.max-context-rebuild` settings) onto an engine config extracted from an import,
+// so that main-workflow keys keep taking precedence over imported engine values. The
+// copied fields must stay in sync with the preference keys accepted by
+// isPreferenceOnlyEngineObject (currently `model`, handled via the returned model, `mcp`,
+// and `max-context-rebuild`); adding a preference key there requires copying the
 // corresponding EngineConfig fields here so the override is not silently dropped.
 func applyMainWorkflowEngineOverrides(engineConfig, overrides *EngineConfig) {
 	if engineConfig == nil || overrides == nil {
@@ -525,6 +526,9 @@ func applyMainWorkflowEngineOverrides(engineConfig, overrides *EngineConfig) {
 	}
 	if overrides.MCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = overrides.MCPToolTimeout
+	}
+	if overrides.MaxContextRebuild > 0 {
+		engineConfig.MaxContextRebuild = overrides.MaxContextRebuild
 	}
 }
 

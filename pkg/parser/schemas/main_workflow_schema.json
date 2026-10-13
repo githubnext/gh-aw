@@ -16115,6 +16115,31 @@
           },
           "required": ["model"],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Context-rebuild preference that overrides the matching setting from an imported engine without selecting a different engine",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Optional model preference applied to the imported engine."
+            },
+            "mcp": {
+              "type": "object",
+              "properties": {
+                "session-timeout": { "type": "string" },
+                "tool-timeout": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "max-context-rebuild": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Maximum context-rebuild factor for the imported engine."
+            }
+          },
+          "required": ["max-context-rebuild"],
+          "additionalProperties": false
         }
       ]
     },

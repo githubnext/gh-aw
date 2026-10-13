@@ -105,12 +105,13 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 
 // TestEngineCatalogMatchesSchema asserts that the engine_config schema has the expected
 // structure: a plain-string variant (for built-ins and named catalog entries), an
-// object-with-id variant, and an inline-definition variant (object-with-runtime).
+// object-with-id variant, an inline-definition variant (object-with-runtime), and
+// preference-only variants for imported engine overrides.
 // A failure here means the schema structure has changed unexpectedly.
 func TestEngineCatalogMatchesSchema(t *testing.T) {
 	variants := engineSchemaOneOfVariants(t)
 
-	require.Len(t, variants, 6, "engine_config oneOf should have exactly 6 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only, model-only")
+	require.Len(t, variants, 7, "engine_config oneOf should have exactly 7 variants: string, object-with-id, object-with-runtime, engine-definition, mcp-only, model-only, context-rebuild preference")
 
 	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
 	assert.Equal(t, "string", variants[0]["type"],
@@ -175,4 +176,14 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 		"model-only variant must NOT have an 'id' property")
 	assert.NotContains(t, props5, "runtime",
 		"model-only variant must NOT have a 'runtime' property")
+
+	// Variant 6: context-rebuild preference form for imported engines
+	assert.Equal(t, "object", variants[6]["type"],
+		"seventh variant should be type object (context-rebuild preference)")
+	props6, ok := variants[6]["properties"].(map[string]any)
+	require.True(t, ok, "seventh variant should have properties")
+	assert.Contains(t, props6, "max-context-rebuild",
+		"context-rebuild preference variant should have a 'max-context-rebuild' property")
+	assert.NotContains(t, props6, "id",
+		"context-rebuild preference variant must NOT have an 'id' property")
 }

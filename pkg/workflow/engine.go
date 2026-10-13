@@ -427,6 +427,7 @@ func applyInlineEngineFields(config *EngineConfig, engineObj map[string]any, top
 	applyEngineBareField(config, engineObj)
 	applyEnginePermissionMode(config, engineObj)
 	applyEngineContextWindowField(config, engineObj)
+	applyEngineMaxContextRebuildField(config, engineObj)
 	config.MaxTurns = topLevel.maxTurns
 	config.MaxToolDenials = topLevel.maxToolDenials
 	config.MaxToolCalls = topLevel.maxToolCalls
@@ -453,11 +454,7 @@ func applyReferencedEngineFields(config *EngineConfig, engineObj map[string]any,
 	applyEngineProviderFields(config, engineObj)
 	applyEnginePermissionMode(config, engineObj)
 	applyEngineContextWindowField(config, engineObj)
-	if factor, ok := engineObj["max-context-rebuild"].(uint64); ok {
-		config.MaxContextRebuild = float64(factor)
-	} else {
-		config.MaxContextRebuild = typeutil.ConvertToFloat(engineObj["max-context-rebuild"])
-	}
+	applyEngineMaxContextRebuildField(config, engineObj)
 	applyEngineModelRoutingField(config, engineObj)
 	if models, ok := engineObj["fallback-models"].([]any); ok {
 		for _, model := range models {
@@ -477,6 +474,10 @@ func applyReferencedEngineFields(config *EngineConfig, engineObj map[string]any,
 	applyEngineExtensionsField(config, engineObj)
 	applyEngineBooleanFields(config, engineObj)
 	applyEngineTopLevelOverrides(config, topLevel)
+}
+
+func applyEngineMaxContextRebuildField(config *EngineConfig, engineObj map[string]any) {
+	config.MaxContextRebuild = typeutil.ConvertToFloat(engineObj["max-context-rebuild"])
 }
 
 func applyEngineModelRoutingField(config *EngineConfig, engineObj map[string]any) {

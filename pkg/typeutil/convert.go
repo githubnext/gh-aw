@@ -23,8 +23,8 @@
 //   - ConvertToInt() - Leniently convert any value (int/int64/float64/string) to int,
 //     returning 0 on failure. Use for heterogeneous sources such as JSON metrics,
 //     log-parsed data, or user-provided strings where a zero default is acceptable.
-//   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64,
-//     returning 0 on failure.
+//   - ConvertToFloat() - Safely convert any value (float64/int/int64/uint64/string)
+//     to float64, returning 0 on failure.
 package typeutil
 
 import (
@@ -116,7 +116,7 @@ func ConvertToInt(val any) int {
 
 // ConvertToFloat safely converts any value to float64, returning 0 on failure.
 //
-// Supported input types: float64, int, int64, and string (parsed via strconv.ParseFloat).
+// Supported input types: float64, int, int64, uint64, and string (parsed via strconv.ParseFloat).
 // Returns 0 for any other type or for strings that cannot be parsed as a float.
 func ConvertToFloat(val any) float64 {
 	switch v := val.(type) {
@@ -125,6 +125,8 @@ func ConvertToFloat(val any) float64 {
 	case int:
 		return float64(v)
 	case int64:
+		return float64(v)
+	case uint64:
 		return float64(v)
 	case string:
 		if f, err := strconv.ParseFloat(v, 64); err == nil {

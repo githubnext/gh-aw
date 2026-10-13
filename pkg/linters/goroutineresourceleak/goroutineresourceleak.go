@@ -4,31 +4,31 @@
 //
 // The linter detects several problematic patterns:
 //
-//  1. Goroutines that create cancellable contexts but don't defer cancel:
-//     go func() {
-//     ctx, cancel := context.WithCancel(parent)
-//     // cancel not deferred — context leak and goroutine leak
-//     use(ctx)
-//     }()
+// 1. Goroutines that create cancellable contexts but don't defer cancel:
+//    go func() {
+//        ctx, cancel := context.WithCancel(parent)
+//        // cancel not deferred — context leak and goroutine leak
+//        use(ctx)
+//    }()
 //
-//  2. Goroutines that acquire mutexes without defer unlock:
-//     go func() {
-//     mu.Lock()
-//     // Unlock not deferred — can deadlock if function panics
-//     use()
-//     }()
+// 2. Goroutines that acquire mutexes without defer unlock:
+//    go func() {
+//        mu.Lock()
+//        // Unlock not deferred — can deadlock if function panics
+//        use()
+//    }()
 //
-//  3. Goroutines creating channels without receiver/draining:
-//     go func() {
-//     ch := make(chan T)
-//     // Channel not drained — sends may block forever
-//     }()
+// 3. Goroutines creating channels without receiver/draining:
+//    go func() {
+//        ch := make(chan T)
+//        // Channel not drained — sends may block forever
+//    }()
 //
-//  4. Goroutines launched in tight loops without WaitGroup:
-//     for i := 0; i < n; i++ {
-//     go doWork(i)
-//     // No synchronization — main may exit before work finishes
-//     }
+// 4. Goroutines launched in tight loops without WaitGroup:
+//    for i := 0; i < n; i++ {
+//        go doWork(i)
+//        // No synchronization — main may exit before work finishes
+//    }
 package goroutineresourceleak
 
 import (

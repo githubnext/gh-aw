@@ -101,7 +101,7 @@ count := typeutil.ConvertToInt(jsonData["count"])
 
 #### `ConvertToFloat(val any) float64`
 
-Safely converts any value (`float64`, `int`, `int64`, `string`) to `float64`, returning `0` on failure.
+Safely converts any value (`float64`, `int`, `int64`, `uint64`, `string`) to `float64`, returning `0` on failure.
 
 ```go
 ratio := typeutil.ConvertToFloat(jsonData["ratio"])

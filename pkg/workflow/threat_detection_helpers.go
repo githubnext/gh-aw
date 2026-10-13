@@ -214,15 +214,24 @@ func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *E
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil
 	if hasThreatDetectionEngineOverride {
-		return cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
+		return cloneThreatDetectionEngineConfigForWorkflow(data, engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
 	}
 	if data.EngineConfig != nil && ResolveEngineID(data) == engineID {
-		config := cloneThreatDetectionEngineConfig(engineID, data.EngineConfig)
+		config := cloneThreatDetectionEngineConfigForWorkflow(data, engineID, data.EngineConfig)
 		resetDetectionEngineTaskSettings(config)
 		return config
 	}
 
 	return &EngineConfig{ID: engineID}
+}
+
+func cloneThreatDetectionEngineConfigForWorkflow(data *WorkflowData, engineID string, source *EngineConfig) *EngineConfig {
+	if source != nil && source.ID == "" {
+		sourceWithID := *source
+		sourceWithID.ID = ResolveEngineID(data)
+		source = &sourceWithID
+	}
+	return cloneThreatDetectionEngineConfig(engineID, source)
 }
 
 func resetDetectionEngineTaskSettings(config *EngineConfig) {
@@ -261,6 +270,10 @@ func cloneThreatDetectionEngineConfig(engineID string, source *EngineConfig) *En
 		cloned.InlineDriver = nil
 		cloned.Extensions = nil
 		cloned.MaxContextRebuild = 0
+		if _, ok := cloned.Env["GH_AW_CODEX_MAX_REBUILD_FACTOR"]; ok {
+			cloned.Env = maps.Clone(cloned.Env)
+			delete(cloned.Env, "GH_AW_CODEX_MAX_REBUILD_FACTOR")
+		}
 	}
 	return &cloned
 }
