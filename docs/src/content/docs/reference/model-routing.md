@@ -67,7 +67,7 @@ Routing requires the AWF firewall enabled and GitHub Copilot inference. It suppo
 | v0.28.33 or later | Separate router candidates (`routing.candidateModels`) from the request policy; `allowed-models` becomes optional. With older versions, AWF admits only `allowed-models` and `allowed-models` is required. |
 | v0.28.35 or later | Model-routing audit log |
 
-Since [gh-aw#66291](https://github.com/github/gh-aw/pull/66291), routed workflows use gh-aw's default AWF version (currently **v0.28.51**) and router **0.1.3**, with version-matched, digest-pinned images. Most authors need no version or image overrides. An override of `sandbox.agent.version` must name a published AWF release, not just a Git tag.
+Since [gh-aw#66291](https://github.com/github/gh-aw/pull/66291), routed workflows use gh-aw's default AWF version (currently **v0.28.56**) and router **0.1.3**, with version-matched, digest-pinned images. Most authors need no version or image overrides. An override of `sandbox.agent.version` must name a published AWF release, not just a Git tag.
 
 Organizations requiring approved registries can override the router image through `sandbox.agent.images.router`. Use a compatible, digest-pinned image; see [Sandbox image overrides](/gh-aw/reference/sandbox/).
 
@@ -192,7 +192,7 @@ Threat-detection jobs are not routed; they use their configured detection model 
 
 ### Steering notices
 
-With AWF v0.28.51 or later, the run's AI-credit budget and timeout produce advisory steering notices, which `gh aw audit` lists as `steering_notices` ([gh-aw#67597](https://github.com/github/gh-aw/pull/67597)). This matters for routing because runs routed to expensive models can approach the default 1,000-credit budget. Since gh-aw's default AWF version is v0.28.51, routed workflows get these notices by default; workflows that pin an older `sandbox.agent.version` don't. See [Token steering](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
+With AWF v0.28.51 or later, the run's AI-credit budget and timeout produce advisory steering notices, which `gh aw audit` lists as `steering_notices` ([gh-aw#67597](https://github.com/github/gh-aw/pull/67597)). This matters for routing because runs routed to expensive models can approach the default 1,000-credit budget. Since gh-aw's default AWF version is v0.28.56, routed workflows get these notices by default; workflows that pin an older `sandbox.agent.version` don't. See [Token steering](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
 
 Claude, Codex, and pi log the selected model, effort, and effective endpoint before starting inference. When a runtime uses its own API instead of AWF's selected endpoint, `selected_endpoint` records AWF's original choice. Copilot CLI retains its existing model-and-effort log:
 

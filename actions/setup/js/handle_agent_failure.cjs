@@ -1803,9 +1803,10 @@ function buildReportIncompleteContext(items, { collectorEmptyOutputCause, rootDi
 
 /**
  * Find the failed agent step using Actions metadata only, never agent-generated log text.
- * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string}>}
+ * @param {{startupFailure?: boolean}} [options] - Select the first failed step only for a validated collector startup failure.
+ * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string, hasNoJobs?: boolean}>}
  */
-async function getFailedAgentDiagnostics() {
+async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
   let jobs;
   try {
     const { owner, repo } = context.repo;
@@ -1823,11 +1824,19 @@ async function getFailedAgentDiagnostics() {
     return { failingStep: "", attributionUnavailable: reason };
   }
 
+  if (!Array.isArray(jobs)) {
+    const reason = "The Actions jobs API returned invalid job metadata.";
+    core.warning(reason);
+    return { failingStep: "", attributionUnavailable: reason };
+  }
+  if (jobs.length === 0) {
+    return { failingStep: "", hasNoJobs: true, attributionUnavailable: "The Actions jobs API returned no jobs for this run." };
+  }
   const agentJob = jobs.find(job => job.name === "agent");
   if (!agentJob) {
     return {
       failingStep: "",
-      attributionUnavailable: jobs.length === 0 ? "The Actions jobs API returned no jobs for this run." : "The Actions jobs API returned no agent job.",
+      attributionUnavailable: "The Actions jobs API returned no agent job.",
     };
   }
   const agentConclusion = ALLOWED_AGENT_CONCLUSIONS.has(agentJob.conclusion) ? agentJob.conclusion : "";
@@ -1837,10 +1846,9 @@ async function getFailedAgentDiagnostics() {
   if (agentConclusion !== "failure" && agentConclusion !== "timed_out") {
     return { failingStep: "", agentConclusion };
   }
-  const failedStep = agentJob.steps
-    ?.slice()
-    .reverse()
-    .find(step => ["failure", "timed_out"].includes(step.conclusion) && typeof step.name === "string");
+  const steps = agentJob.steps?.slice();
+  if (!startupFailure) steps?.reverse();
+  const failedStep = steps?.find(step => ["failure", "timed_out"].includes(step.conclusion) && typeof step.name === "string");
   if (!failedStep) {
     return { failingStep: "", agentConclusion, attributionUnavailable: "The failed agent job had no failed step metadata." };
   }
@@ -1859,7 +1867,7 @@ async function getFailedAgentDiagnostics() {
  */
 function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", engineFailureContext, items = [] }) {
   const infrastructureMessages = items.filter(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
-  const isGenericFailure = failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || infrastructureMessages.length > 0;
+  const isGenericFailure = failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || failureCategories.includes("agent_startup_failure") || infrastructureMessages.length > 0;
   const hasModelEndpointMismatch = failureCategories.includes("model_endpoint_mismatch");
   if (!isGenericFailure && !hasModelEndpointMismatch) {
     return "";
@@ -4530,8 +4538,15 @@ async function main() {
 
     const agentOutputItems = reportItems;
     const needsFailureDiagnostics =
-      failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
-    const failureDiagnostics = needsFailureDiagnostics || hasModelEndpointMismatch ? await getFailedAgentDiagnostics() : { failingStep: "" };
+      failureCategories.includes("agent_failure") ||
+      failureCategories.includes("engine_driver_failure") ||
+      failureCategories.includes("agent_startup_failure") ||
+      agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
+    const failureDiagnostics = await getFailedAgentDiagnostics({ startupFailure: emptyOutputCause === "agent_startup_failure" });
+    if (failureDiagnostics.hasNoJobs) {
+      core.info("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
+      return;
+    }
 
     // Check if parent issue creation is enabled (defaults to false)
     const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
