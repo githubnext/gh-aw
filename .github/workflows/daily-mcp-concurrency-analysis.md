@@ -55,15 +55,8 @@ sandbox:
           - /tmp/gh-aw/agent
 tools:
   bash:
-  - cat pkg/workflow/js/safe_outputs_tools.json
   - jq -r ".[].name" pkg/workflow/js/safe_outputs_tools.json
-  - find actions/setup/js -name "*.cjs" ! -name "*.test.cjs" -type f
-  - cat actions/setup/js/*.cjs
-  - "grep -r \"let \\\\|var \\\\|const \" actions/setup/js --include=\"*.cjs\""
-  - grep -r "module.exports" actions/setup/js --include="*.cjs"
-  - head -n * actions/setup/js/*.cjs
-  - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
-  - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
+  - "git log -30 --format=\"%ai %s\" --name-only -- actions/setup/js/*.cjs"
   cache-memory: true
   ledger:
     concurrency-audits:
@@ -127,11 +120,20 @@ When issues are identified, create detailed issues with specific recommendations
 - **Tools Location**: `actions/setup/js/*.cjs`
 - **Tool Definitions**: `pkg/workflow/js/safe_outputs_tools.json`
 
+## Tool Usage Boundaries
+
+- Use native `glob`, `grep`, `view`, and Serena tools to discover and read files. Use `glob` to verify a path exists before reading it.
+- Bash is restricted to the declared `jq` and `git log` commands. Run each command separately, without `cd`, pipes, redirection, command substitution, or additional shell commands.
+- Use native file-editing tools for cache updates. Never use bash heredocs or redirection to write reports or cache files.
+- Send issue reports directly in the `create_issue` safe-output tool's `body` argument; no intermediate report file is needed.
+- If a tool is denied, do not retry it with another bash spelling. Use an available native tool, or report the blocked capability with `missing_tool` and stop without claiming completion.
+
 ## Analysis Process
 
 ### Step 1: Load Round-Robin State from Cache
 
 Use the cache-memory tool to track which tools you've recently analyzed.
+Discover cache files under `/tmp/gh-aw/cache-memory/` with native `glob` and read them with `view`; do not use bash to list or read the cache.
 
 Check your cache for:
 - `last_analyzed_tool`: The most recently analyzed tool
@@ -146,23 +148,27 @@ Extract the complete list of tools from the safe-outputs MCP server configuratio
 
 ```bash
 # Get all tool names from the JSON schema
-cat pkg/workflow/js/safe_outputs_tools.json | jq -r '.[].name' | sort
+jq -r ".[].name" pkg/workflow/js/safe_outputs_tools.json
 ```
 
-This will give you the complete list of ~32 tools to analyze.
+This gives the complete tool list. Sort and prioritize the returned names without a shell pipeline. If using native tools instead, read the JSON and select only top-level tool names, not nested parameter fields named `name`.
 
 ### Step 3: Select Today's Tool for Analysis
 
 Using a **round-robin scheme with priority for recently modified tools**:
 
 1. Get the list of all tools from Step 2
-2. For each tool, find its corresponding implementation file:
-   - Most tools map to `actions/setup/js/<tool_name>.cjs`
-   - Some tools may be handled in `safe_outputs_handlers.cjs` or other files
-3. Check git history to see when each tool was last modified:
+2. Resolve each candidate's implementation before selecting it:
+   - Read `attachHandlers` in `actions/setup/js/safe_outputs_tools_loader.cjs`, including `handlerMap`, `defaultHandler`, and ledger/dynamic-tool overrides, to map the MCP tool name to its actual handler function.
+   - Locate that function in `actions/setup/js/safe_outputs_handlers.cjs` using native search or Serena, and follow relevant imports.
+   - For downstream safe-output processing, inspect `actions/setup/js/safe_output_handler_manager.cjs` and verify the implementation path with native `glob`.
+   - Do not assume a tool named `<tool_name>` has a file named `<tool_name>.cjs`. For example, `upload_asset` maps to `uploadAssetHandler` in `safe_outputs_handlers.cjs`; its downstream upload job uses `upload_assets.cjs` (plural), and its work-queue adapter uses `work_queue_upload_assets.cjs`.
+   - If a candidate's implementation cannot be resolved, record the discovery gap and select the next resolvable candidate. A missing guessed filename is not a concurrency finding.
+3. Get recent implementation changes with this exact allowed command:
    ```bash
-   git log -1 --format="%ai" -- actions/setup/js/<tool_name>.cjs
+   git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs
    ```
+   Match the returned paths to the verified implementation files without changing the command or adding a pipeline. For handlers sharing a file, the modification time is file-level evidence, not proof that every handler changed. Files absent from this bounded history have unknown modification times; use cache age for their priority.
 4. Sort tools by:
    - Tools never analyzed (highest priority)
    - Tools modified since last analysis
@@ -178,18 +184,9 @@ For the selected tool, perform comprehensive concurrency analysis:
 
 #### 4.1 Locate Implementation File(s)
 
-```bash
-# Find the main implementation file
-TOOL_FILE="actions/setup/js/${TOOL_NAME}.cjs"
+Use the verified handler function and implementation paths from Step 3. Record `TOOL_FILE` as the actual implementation file, not a filename derived from `TOOL_NAME`.
 
-# Check if it exists
-if [ -f "$TOOL_FILE" ]; then
-  echo "Found: $TOOL_FILE"
-else
-  # Look in handlers or other locations
-  grep -r "HANDLER_TYPE = \"${TOOL_NAME}\"" actions/setup/js/*.cjs
-fi
-```
+For `upload_asset`, analyze `uploadAssetHandler` and the shared state it closes over in `safe_outputs_handlers.cjs`. Follow the downstream upload script or work-queue adapter only when relevant to that tool's concurrency behavior.
 
 #### 4.2 Read and Understand the Tool
 
@@ -204,10 +201,7 @@ Use Serena to:
 Analyze the tool for these specific concurrency issues:
 
 **A. Global/Module-Level State**
-```bash
-# Search for module-level mutable state
-grep -E "^(let|var) " "$TOOL_FILE"
-```
+Use native `grep` with pattern `^(let|var) ` and the verified implementation path. Also inspect mutable state captured by handler closures in shared modules.
 
 Look for:
 - Module-level `let` or `var` declarations (mutable)
@@ -331,6 +325,7 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 #### Create Detailed Issue
 
 Use the following template:
+Pass the completed Markdown directly as the `body` argument of `create_issue`.
 
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`
@@ -454,7 +449,7 @@ For CRITICAL or HIGH severity issues, consider creating a Copilot coding agent s
 ```markdown
 Fix the concurrency safety issue in \`${TOOL_NAME}\` tool.
 
-**File**: \`actions/setup/js/${TOOL_NAME}.cjs\`
+**File**: \`${TOOL_FILE}\` (the verified implementation path)
 
 **Issue**: [Brief description from issue]
 
@@ -494,6 +489,7 @@ Continue to next tool.
 ### Step 8: Update Cache Memory
 
 Save your progress to cache-memory:
+Use native file-editing tools to update the JSON cache under `/tmp/gh-aw/cache-memory/`. If a required cache operation is unavailable, report it rather than attempting a shell write or claiming the update succeeded.
 
 - Update `last_analyzed_tool` to today's tool name
 - Add/update entry in `analyzed_tools` with:
