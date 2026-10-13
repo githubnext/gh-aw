@@ -128,9 +128,7 @@ admission.
 - Daily report rotation and Claims:
   [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
   and [shared worker instructions](../workflows/shared/daily-report-worker.md).
-- Contracts and implementation boundaries:
-  [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
-- Executable models, fixtures and bounded verification:
-  [formal reference](../../specs/work-queue/README.md).
+- Contracts: [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
+- Models, fixtures and bounded verification: [formal reference](../../specs/work-queue/README.md).
 
 Tests prove neither Result nor live deployment.
