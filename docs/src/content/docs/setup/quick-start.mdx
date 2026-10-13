@@ -203,6 +203,18 @@ import dailyRepoReportResult from '../../../assets/daily-repo-report-result.png'
 
 With GitHub Agentic Workflows, you are in control! Your repository automation is fully customizable. You should shape your repo automation to match your priorities and your needs.
 
+> [!CAUTION]
+> Prefer `pull_request` over `pull_request_target`. The latter runs in the base repository's privileged context; checking out or executing a pull request's head code can expose secrets or write permissions. If you must use `pull_request_target` and do not need a local checkout, disable checkout:
+>
+> ```yaml
+> on:
+>   pull_request_target:
+>     types: [opened]
+> checkout: false
+> ```
+>
+> For trusted-ref checkouts, see the [`pull_request_target` checkout guidance](/gh-aw/reference/checkout/#pull_request_target-checkout).
+
 To customize it now:
 
 1. Open the workflow markdown file located at `.github/workflows/repo-status.md` in your repository.
