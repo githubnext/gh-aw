@@ -412,11 +412,39 @@ process.exit(0);`,
       expect(result.stderr).toContain("trusted budget-abort evidence");
     });
 
-    it("preempts an active attempt at the soft deadline even when it handles SIGTERM cleanly", () => {
-      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, { env: { GH_AW_TIMEOUT_MINUTES: "0.04" } });
+    it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
+      const tempDir = makeHarnessTempDir("soft-deadline-report-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const safeOutputsCLI = path.join(tempDir, "safeoutputs.cjs");
+      fs.writeFileSync(
+        safeOutputsCLI,
+        `#!${process.execPath}
+const fs = require("fs");
+const args = process.argv.slice(2);
+const item = { type: args[0] };
+for (let i = 1; i < args.length; i += 2) item[args[i].slice(2)] = args[i + 1];
+fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
+`
+      );
+      fs.chmodSync(safeOutputsCLI, 0o700);
+      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, {
+        env: {
+          GH_AW_TIMEOUT_MINUTES: "0.04",
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_SAFEOUTPUTS_CLI: safeOutputsCLI,
+        },
+      });
       expect(result.status).toBe(1);
       expect(calls).toHaveLength(1);
       expect(result.stderr).toContain("soft execution deadline");
+      const [item] = fs
+        .readFileSync(safeOutputsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(item).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
+      expect(item.details).toMatch(/^Codex run stopped by a runtime guard\./);
+      expect(item.details).toContain("Codex reached the soft execution deadline");
     });
 
     it("requires a path for stdin prompt delivery", () => {
@@ -611,11 +639,17 @@ process.exit(0);`,
       expect(cfg.termGraceMs).toBe(DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS);
     });
 
-    it("supports explicit disable via env", () => {
+    it.each(["false", "0", "off", "no", " FALSE ", "OFF", "No"])("supports explicit disable via env value %s", value => {
       const cfg = resolveContextRebuildCircuitBreakerConfig({
-        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false",
+        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: value,
       });
       expect(cfg.enabled).toBe(false);
+    });
+
+    it("allows a measured long run with a higher workload-specific threshold", () => {
+      const workingSet = { rebuild_factor: 29.53, cumulative_input_tokens: 4650000 };
+      expect(evaluateContextRebuildCircuitBreaker(workingSet, resolveContextRebuildCircuitBreakerConfig({})).terminate).toBe(true);
+      expect(evaluateContextRebuildCircuitBreaker(workingSet, resolveContextRebuildCircuitBreakerConfig({ GH_AW_CODEX_MAX_REBUILD_FACTOR: "50" })).terminate).toBe(false);
     });
 
     it("trips only when both rebuild factor and cumulative input exceed thresholds", () => {
@@ -1719,6 +1753,18 @@ process.exit(1);`,
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
       const tokenUsagePath = path.join(tempDir, "token-usage.jsonl");
+      const safeOutputsCLI = path.join(tempDir, "safeoutputs.cjs");
+      fs.writeFileSync(
+        safeOutputsCLI,
+        `#!${process.execPath}
+const fs = require("fs");
+const args = process.argv.slice(2);
+const item = { type: args[0] };
+for (let i = 1; i < args.length; i += 2) item[args[i].slice(2)] = args[i + 1];
+fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
+`
+      );
+      fs.chmodSync(safeOutputsCLI, 0o700);
       // Preserve any pre-existing token-usage log so the test never destroys real data,
       // while still always executing its assertions.
       const previousTokenUsage = fs.existsSync(tokenUsagePath) ? fs.readFileSync(tokenUsagePath) : null;
@@ -1745,6 +1791,7 @@ setInterval(() => {}, 1000);`,
             ...process.env,
             CODEX_HARNESS_STUB_CALLS: callsPath,
             GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+            GH_AW_SAFEOUTPUTS_CLI: safeOutputsCLI,
             CODEX_API_KEY: "fake-key-for-test",
             GH_AW_HARNESS_MAX_RETRIES: "1",
             GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
@@ -1764,6 +1811,15 @@ setInterval(() => {}, 1000);`,
         expect(result.stderr).toContain("runtime guard requested termination");
         expect(result.stderr).toContain("normalizing exit code to 1");
         expect(result.stderr).toContain("not retrying (circuit breaker)");
+        const items = fs
+          .readFileSync(safeOutputsPath, "utf8")
+          .trim()
+          .split("\n")
+          .map(line => JSON.parse(line));
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
+        expect(items[0].details).toMatch(/^Codex run stopped by a runtime guard\./);
+        expect(items[0].details).toContain("context-rebuild circuit breaker tripped: rebuild_factor=3.00 cumulative_input_tokens=300 thresholds=2/10");
       } finally {
         if (previousTokenUsage === null) {
           fs.rmSync(tokenUsagePath, { force: true });

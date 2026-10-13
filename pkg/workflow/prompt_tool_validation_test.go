@@ -153,8 +153,9 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 		{"empty", "engine: claude\ntools:\n  bash: []\n", "Run `jq --version`.", 1},
 		{"false", "engine: codex\ntools:\n  bash: false\n", "Run `jq --version`.", 1},
 		{"codex default", "engine: codex\n", "Run `jq --version`.", 0},
-		{"codex GitHub provider", "engine:\n  id: codex\n  model-provider: github\ntools:\n  bash: true\n", "Run `jq --version`.", 1},
-		{"codex copilot model", "engine:\n  id: codex\n  model: copilot/gpt-5.3-codex\ntools:\n  bash: true\n", "Use `bash`.", 1},
+		{"codex GitHub provider", "engine:\n  id: codex\n  model-provider: github\ntools:\n  bash: [\"*\"]\n", "Run `jq --version`.", 0},
+		{"codex copilot model", "engine:\n  id: codex\n  model: copilot/gpt-5.3-codex\ntools:\n  bash: true\n", "Use `bash`.", 0},
+		{"codex GitHub bash disabled", "engine:\n  id: codex\n  model-provider: github\ntools:\n  bash: false\n  cli-proxy: false\n", "Run `jq --version`.", 1},
 		{"provider-disabled native read", "engine:\n  id: codex\n  model: copilot/gpt-5.3-codex\n", "Use `Read(pkg/workflow/data.json)`.", 1},
 		{"codex OpenAI native read", "engine: codex\n", "Use `Read(pkg/workflow/data.json)`.", 0},
 		{"allowed", "engine: copilot\ntools:\n  bash: [\"jq *\"]\n", "Run `jq '.items | map(.id)' file.json`.", 0},
@@ -224,11 +225,6 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 				require.Contains(t, output, "github(issue_read)")
 				require.Contains(t, output, "tools.github.allowed")
 				require.NotContains(t, output, "shell(issue_read)")
-			}
-			if tt.want > 0 && (strings.HasPrefix(tt.name, "codex GitHub") || tt.name == "codex copilot model") {
-				require.Contains(t, output, "native shell is disabled for GitHub-backed Codex")
-				require.Contains(t, output, "explicitly configured MCP tool")
-				require.NotContains(t, output, "allow the specific command")
 			}
 			if tt.name == "provider-disabled native read" {
 				require.Contains(t, output, "native reads are unavailable for GitHub-backed Codex")

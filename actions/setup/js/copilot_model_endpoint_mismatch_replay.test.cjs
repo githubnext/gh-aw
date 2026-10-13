@@ -111,7 +111,7 @@ async function runFailureHandler(rootDir, detectorOutputs, exitCode, agentOutput
       pulls: { get: vi.fn() },
       actions: { listJobsForWorkflowRun: vi.fn() },
     },
-    paginate: vi.fn(async () => []),
+    paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [{ name: "Setup agent", conclusion: "failure" }] }]),
     graphql: vi.fn(),
   };
   vi.resetModules();

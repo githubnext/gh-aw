@@ -68,6 +68,7 @@ engine:
           response_usage = []
           observed_cost = None
           capturing_response = False
+          command_results = []
 
           def emit(event_type, data):
               print("\n" + json.dumps({
@@ -212,6 +213,20 @@ engine:
               return result
 
           original_run_cmd = base_coder.run_cmd
+          original_run_shell_commands = base_coder.Coder.run_shell_commands
+
+          def workflow_run_shell_commands(coder):
+              start = len(command_results)
+              shared_output = original_run_shell_commands(coder)
+              results = command_results[start:]
+              if results and not coder.reflected_message:
+                  coder.reflected_message = (
+                      "Continue the workflow using the shell results already in the conversation. "
+                      "If the task is finished, stop; otherwise perform the next step, including "
+                      "the required safeoutputs command. Do not repeat a recorded safe output.\n\n"
+                      + "\n\n".join(results)
+                  )
+              return shared_output
 
           def workflow_run_cmd(command, *args, **kwargs):
               tool_id = str(uuid4())
@@ -228,6 +243,7 @@ engine:
                       "durationMs": int((time.monotonic() - tool_started_at) * 1000),
                   })
                   raise
+              command_results.append(f"Command: {command}\nExit code: {exit_code}")
               emit("tool.execution_complete", {
                   "toolCallId": tool_id, "toolName": "bash", "success": exit_code == 0,
                   "exitCode": exit_code, "output": output,
@@ -239,6 +255,7 @@ engine:
           base_coder.Coder.show_send_output = workflow_show_send_output
           base_coder.Coder.calculate_and_show_tokens_and_cost = workflow_calculate_usage
           base_coder.run_cmd = workflow_run_cmd
+          base_coder.Coder.run_shell_commands = workflow_run_shell_commands
           emit("session.init", {"model": os.environ.get("AIDER_MODEL"), "cwd": os.getcwd()})
           emit("user.message", {
               "content": Path(os.environ["GH_AW_PROMPT"]).read_text(encoding="utf-8"),
@@ -527,6 +544,12 @@ deliberately declines when explicit confirmation is required. The adapter
 changes only the two shell-command confirmation prompts; other explicit
 confirmation requirements remain intact. Commands run in the configured
 workflow sandbox.
+After suggested commands execute, the entrypoint uses Aider's native reflection
+loop to let the model consume their output and exit codes before deciding the
+next step. Empty output and nonzero command exits also trigger continuation.
+The existing three-reflection limit is unchanged; exhausting it without a
+terminal safe output remains an incomplete task. Only the safe-output gateway,
+not shell text or the entrypoint, establishes that a terminal output was recorded.
 The entrypoint emits canonical session events for exact provider reply text,
 separate reasoning and structured refusals, shell commands and their results,
 errors, and session boundaries. Provider token counts and observed Aider cost
