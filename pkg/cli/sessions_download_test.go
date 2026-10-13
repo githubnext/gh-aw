@@ -148,7 +148,7 @@ func TestSessionsDownloadNormalizesPublishedPiObservations(t *testing.T) {
 				require.Contains(t, output, `"numTurns":1`)
 			} else {
 				require.Contains(t, output, "Chronological trace")
-				require.Equal(t, 1, strings.Count(output, "Session download works."))
+				require.Equal(t, 2, strings.Count(output, "Session download works."))
 			}
 			commands, err := os.ReadFile(calls)
 			require.NoError(t, err)
