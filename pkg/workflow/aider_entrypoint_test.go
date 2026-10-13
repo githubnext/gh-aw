@@ -37,6 +37,9 @@ func TestAiderEntrypointAcceptsOnlyShellConfirmations(t *testing.T) {
     return (7, "command failed") if command == "fail" else (0, "command output")
 
 class Coder:
+    def run_shell_commands(self):
+        return ""
+
     def show_send_output(self, completion):
         pass
 
