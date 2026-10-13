@@ -83,7 +83,8 @@ func (c *Compiler) resolveFallbackModelPricing(modelCosts map[string]any, data *
 func fallbackProviderSecretNames(data *WorkflowData) []string {
 	var names []string
 	for _, provider := range fallbackModelProviders(data) {
-		if provider == LLMProviderAnthropic && isAnthropicWIF(data) {
+		if provider == LLMProviderAnthropic && isAnthropicWIF(data) ||
+			provider == LLMProviderOpenAI && data.EngineConfig.ID == "codex" && isCodexAzureOIDC(data) {
 			continue
 		}
 		names = append(names, llmProviderSecretNames(provider)...)
@@ -93,7 +94,8 @@ func fallbackProviderSecretNames(data *WorkflowData) []string {
 
 func applyFallbackProviderEnv(env map[string]string, data *WorkflowData) {
 	for _, provider := range fallbackModelProviders(data) {
-		if provider == LLMProviderAnthropic && isAnthropicWIF(data) {
+		if provider == LLMProviderAnthropic && isAnthropicWIF(data) ||
+			provider == LLMProviderOpenAI && data.EngineConfig.ID == "codex" && isCodexAzureOIDC(data) {
 			continue
 		}
 		for _, name := range llmProviderSecretNames(provider) {

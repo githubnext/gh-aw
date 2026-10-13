@@ -104,10 +104,12 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 		proxy := map[string]any{
 			"name":                 codexOpenAIProxyProviderName,
 			"base_url":             e.getOpenAIProxyProviderBaseURL(workflowData),
-			"env_key":              "CODEX_API_KEY",
 			"wire_api":             "responses",
 			"requires_openai_auth": false,
 			"supports_websockets":  false,
+		}
+		if !isCodexAzureOIDC(workflowData) {
+			proxy["env_key"] = "CODEX_API_KEY"
 		}
 		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.HostedWeb != nil &&
 			workflowData.NetworkPermissions.HostedWeb.Enabled && e.ResolveLLMProvider(workflowData) == LLMProviderOpenAI {

@@ -33,9 +33,8 @@ Configure the authentication method your AI engine needs before running your fir
 
 ### Codex
 
-- **Required secret:** [`OPENAI_API_KEY`](#openai_api_key)
-- **Alternative:** `CODEX_API_KEY`
-- **Notes:** Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY`
+- **Standard:** [`OPENAI_API_KEY`](#openai_api_key) or `CODEX_API_KEY`; the runtime checks `CODEX_API_KEY` first
+- **Keyless alternative:** [Azure Entra OIDC](#codex-azure-entra-oidc) through the AWF API proxy
 
 ### Gemini
 
@@ -293,7 +292,7 @@ Available since: v0.79.6 (2026-06-11).
 
 ### `OPENAI_API_KEY`
 
-If using the Codex by OpenAI engine, you need to set a GitHub Actions secret `OPENAI_API_KEY` with an API key from OpenAI.
+For Codex using API-key authentication, set a GitHub Actions secret `OPENAI_API_KEY` with a key for the selected provider. [Azure Entra OIDC](#codex-azure-entra-oidc) does not require an API-key secret.
 
 **Setup**:
 
@@ -328,6 +327,56 @@ network:
 ```
 
 `AZURE_OPENAI_API_KEY` is a GitHub Actions repository secret you configure separately with `gh aw secrets set AZURE_OPENAI_API_KEY --value "<key>"`. Do not embed raw key values directly in the frontmatter.
+
+### Codex Azure Entra OIDC
+
+Codex can use an Entra-protected OpenAI-compatible Responses endpoint without
+`CODEX_API_KEY`, `OPENAI_API_KEY`, or a dummy API key. The AWF API proxy exchanges
+the GitHub OIDC assertion for an Entra access token and refreshes it. Codex receives
+the internal proxy address; the token and Actions OIDC request credentials stay
+outside the agent sandbox.
+
+The Entra application needs a federated credential matching the workflow's
+GitHub OIDC issuer (`https://token.actions.githubusercontent.com`), subject, and
+audience, plus access to the target API. The subject must match the workflow's
+repository and branch or environment context. The workflow requires
+`id-token: write` and the AWF agent sandbox; this path does not support
+`sandbox.agent: false`.
+
+```aw wrap
+permissions:
+  contents: read
+  id-token: write
+engine:
+  id: codex
+  model: gpt-5.4
+  auth:
+    type: github-oidc
+    provider: azure
+    azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+    azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+  env:
+    OPENAI_BASE_URL: https://RESOURCE.openai.azure.com/openai/v1
+network:
+  allowed:
+    - defaults
+    - RESOURCE.openai.azure.com
+    - login.microsoftonline.com
+```
+
+The OIDC audience defaults to `api://AzureADTokenExchange`; `azure-scope` defaults
+to `https://cognitiveservices.azure.com/.default`. For an internal Responses
+gateway, replace the Azure OpenAI URL and allowed domain with the gateway's API
+base URL and domain, and set `engine.auth.azure-scope` to its Entra scope, such as
+`${{ vars.AI_GATEWAY_SCOPE }}` or `api://APPLICATION_ID/.default`. The federated
+credential must trust the GitHub assertion's audience, while the gateway must
+accept the audience of the exchanged Entra token.
+
+The runtime refuses startup unless fresh AWF reflection reports a configured
+OpenAI proxy using `github-oidc/azure` and the managed Codex proxy configuration
+is available. Inherited Codex threat detection and same-provider OpenAI fallback
+models use the same authentication. Other fallback providers still require
+their own credentials.
 
 See also [AI Engines](/gh-aw/reference/engines/#built-in-ai-engines) for additional configuration needed when using Codex with GitHub MCP.
 
