@@ -106,7 +106,7 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     expect(work.worker_profile).toBe("workerB");
     expect(fixture.state.policy.pools.default.default_profile).toBe("artifacts-summary");
     expect(post).toHaveBeenCalledOnce();
-    expect(post.mock.calls[0][0]).toMatchObject({ workflow_id: "worker.lock.yml", ref: REF });
+    expect(post.mock.calls[0][0]).toMatchObject({ workflow_id: "worker.lock.yml", ref: `refs/tags/gh-aw/work-queue/${REF}` });
     expect([...fixture.state.dispatches.values()][0].run.principal).toBe("22");
     fs.writeFileSync(intentPath, canonical({ version: 3, ...submit }) + "\n");
     const before = canonical(fixture.transactions);
