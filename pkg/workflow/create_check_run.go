@@ -38,13 +38,9 @@ func (c *Compiler) parseCreateCheckRunConfig(outputMap map[string]any) *CreateCh
 		}
 
 		// Parse target (optional PR targeting mode)
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				checkRunConfig.Target = targetStr
-				createCheckRunLog.Printf("Using check run target: %s", targetStr)
-			} else {
-				createCheckRunLog.Printf("Warning: create-check-run target value %v is not a string and will be ignored", target)
-			}
+		if targetStr := extractTargetFromMap(configMap, createCheckRunLog); targetStr != "" {
+			checkRunConfig.Target = targetStr
+			createCheckRunLog.Printf("Using check run target: %s", targetStr)
 		}
 
 		// Parse optional output defaults block

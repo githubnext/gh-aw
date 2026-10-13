@@ -70,6 +70,7 @@ func (c *Compiler) parseCommentMemoryConfigValue(rawConfig any) *CommentMemoryCo
 		commentMemoryLog.Printf("Invalid footer value: %v", err)
 		return nil
 	}
+	preprocessTargetFieldAsString(configData, commentMemoryLog)
 
 	var config CommentMemoryConfig
 	normalizedOutputMap := map[string]any{"comment-memory": rawConfig}

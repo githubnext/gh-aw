@@ -27,10 +27,8 @@ func (c *Compiler) parseReplyToPullRequestReviewCommentConfig(outputMap map[stri
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)
 
 			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					config.Target = targetStr
-				}
+			if targetStr := extractTargetFromMap(configMap, replyToPRReviewCommentLog); targetStr != "" {
+				config.Target = targetStr
 			}
 
 			// Parse target-repo using shared helper with validation
