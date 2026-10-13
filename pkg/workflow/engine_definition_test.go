@@ -143,6 +143,14 @@ func TestEngineCatalog_Resolve_PrefixFallback(t *testing.T) {
 	assert.Equal(t, "codex", resolved.Runtime.GetID(), "prefix match should resolve to codex runtime")
 }
 
+func TestEngineCatalog_ResolveRejectsTypoThatExtendsBuiltinID(t *testing.T) {
+	catalog := NewEngineCatalog(NewEngineRegistry())
+
+	_, err := catalog.Resolve("codexx", &EngineConfig{ID: "codexx"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `unknown engine "codexx"; did you mean "codex"?`)
+}
+
 // TestEngineCatalog_Resolve_UnknownEngine verifies that unknown engine IDs return a
 // descriptive validation error containing the engine ID, a list of valid engines, and
 // the documentation URL.
@@ -152,8 +160,8 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 
 	_, err := catalog.Resolve("nonexistent-engine", &EngineConfig{ID: "nonexistent-engine"})
 	require.Error(t, err, "unknown engine should return an error")
-	require.ErrorContains(t, err, "invalid engine",
-		"error should mention 'invalid engine', got: %s", err.Error())
+	require.ErrorContains(t, err, "unknown engine",
+		"error should mention 'unknown engine', got: %s", err.Error())
 	require.ErrorContains(t, err, "nonexistent-engine",
 		"error should mention the unknown engine ID, got: %s", err.Error())
 	require.ErrorContains(t, err, string(constants.DocsEnginesURL),
@@ -242,7 +250,7 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 
 			_, err := catalog.Resolve(tt.engineID, &EngineConfig{ID: tt.engineID})
 			require.Error(t, err)
-			require.ErrorContains(t, err, "invalid engine")
+			require.ErrorContains(t, err, "unknown engine")
 			require.ErrorContains(t, err, tt.engineID)
 			require.ErrorContains(t, err, "Tip:", "error should contain an import tip for known engine")
 			require.ErrorContains(t, err, tt.wantImportPath, "tip should reference the known import path")
@@ -259,7 +267,7 @@ func TestEngineCatalog_Resolve_RemovedLegacyCustom(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 	_, err = catalog.Resolve("custom", &EngineConfig{ID: "custom"})
-	require.ErrorContains(t, err, "invalid engine: custom")
+	require.ErrorContains(t, err, `unknown engine "custom"`)
 	require.NotContains(t, err.Error(), "Tip:", "removed engines must not advertise an import")
 }
 
@@ -277,7 +285,7 @@ func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
 
 	_, err := catalog.Resolve("totally-unknown-engine", nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "invalid engine")
+	require.ErrorContains(t, err, "unknown engine")
 	require.NotContains(t, err.Error(), "Tip:", "error should not contain a tip for truly unknown engines")
 }
 
@@ -291,7 +299,7 @@ func TestEngineCatalog_Resolve_KnownImportDownloadFailureNoTip(t *testing.T) {
 
 	_, err := catalog.Resolve("opencode", nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "invalid engine")
+	require.ErrorContains(t, err, "unknown engine")
 	require.NotContains(t, err.Error(), "Tip:", "download failures should be silent")
 }
 

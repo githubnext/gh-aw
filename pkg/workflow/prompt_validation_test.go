@@ -174,6 +174,10 @@ func TestComposedPromptForNonMCPEngineStatesCLIIsOnlyTransport(t *testing.T) {
 	engine.id = "test-no-mcp"
 	engine.capabilities.MCP = false
 	require.NoError(t, compiler.engineRegistry.Register(engine))
+	compiler.engineCatalog.Register(&EngineDefinition{
+		ID:        "test-no-mcp",
+		RuntimeID: "test-no-mcp",
+	})
 	data := &WorkflowData{
 		EngineConfig: &EngineConfig{ID: "test-no-mcp"},
 		SafeOutputs: &SafeOutputsConfig{
