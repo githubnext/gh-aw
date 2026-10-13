@@ -27,7 +27,7 @@
 //   - generatedyamlheredoc — flags shell heredocs embedded in generated workflow YAML and directs callers to JavaScript rendering
 //   - globwalkignorederror — flags filepath.Glob and os.ReadDir calls where the error return is discarded with _
 //   - goroutinemissingrecover — flags goroutines started via a function literal whose body does not install a top-level defer/recover guard
-//   - goroutineresourceleak — reports goroutines that acquire resources (contexts, locks, channels) without guaranteed cleanup or synchronization
+//   - goroutineresourceleak — flags goroutine resource acquisitions without immediate deferred cleanup, channels without a close or safely buffered send/receive pair, and loop-launched goroutines without WaitGroup synchronization
 //   - hardcodedfilepath — flags hard-coded file path string literals that match known path constants or should be extracted as named constants
 //   - httpnoctx — flags HTTP calls that do not accept a context.Context
 //   - httprespbodyclose — flags HTTP response bodies that are not closed
