@@ -48,7 +48,7 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 		}
 		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
 		repository := entry.key.repository
-		if len(entry.allowRepos) > 0 {
+		if len(entry.allowedRepos) > 0 {
 			repository = ""
 		}
 		// Pass empty fallback so the app token defaults to github.event.repository.name.
@@ -82,7 +82,7 @@ func (cm *CheckoutManager) GenerateSafeOutputCheckoutAppTokenSteps(c *Compiler, 
 		}
 		checkoutManagerLog.Printf("Generating safe_outputs app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
 		repository := entry.key.repository
-		if len(entry.allowRepos) > 0 {
+		if len(entry.allowedRepos) > 0 {
 			repository = ""
 		}
 		steps = append(steps, collapseYAMLLinesIntoSteps(c.buildGitHubAppTokenMintStepForJob(
@@ -129,7 +129,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 		if entry.isDefault() {
 			continue
 		}
-		if len(entry.allowRepos) > 0 {
+		if len(entry.allowedRepos) > 0 {
 			lines = append(lines, generateDynamicCheckoutSteps(entry, checkoutIndex, cm.keepCredentialsForPush, cm.pushToken, getActionPin)...)
 			continue
 		}
@@ -209,7 +209,7 @@ func (cm *CheckoutManager) checkoutManifestEntries() ([]checkoutManifestEntry, [
 	var entries []checkoutManifestEntry
 	var dynamicIndexes []string
 	for checkoutIndex, entry := range cm.ordered {
-		if len(entry.allowRepos) > 0 {
+		if len(entry.allowedRepos) > 0 {
 			dynamicIndexes = append(dynamicIndexes, strconv.Itoa(checkoutIndex))
 			continue
 		}

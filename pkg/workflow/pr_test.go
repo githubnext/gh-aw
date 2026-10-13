@@ -185,8 +185,8 @@ func TestPRCheckoutRestoreWithMultiCheckout(t *testing.T) {
 		rootRepo   string
 		wantPRStep bool
 	}{
-		{name: "target repository at root", rootRepo: "${{ inputs.target_repo }}"},
-		{name: "workflow repository at root", rootRepo: "${{ github.repository }}", wantPRStep: true},
+		{name: "target repository at root", rootRepo: "org/target"},
+		{name: "workflow repository at root", rootRepo: `""`, wantPRStep: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -202,8 +202,7 @@ permissions:
 checkout:
   - repository: ` + tt.rootRepo + `
     path: .
-  - repository: ${{ github.repository }}
-    path: target
+  - path: target
 strict: false
 ---
 Test workflow.

@@ -16561,19 +16561,19 @@
         },
         "repository": {
           "type": "string",
-          "description": "Repository to checkout in owner/repo format. Defaults to the current repository.",
+          "description": "Repository to checkout in owner/repo format, or a newline-separated list when allowed-repos is set. Expressions require allowed-repos and must resolve to explicit repository names. Wildcards are not supported. Defaults to the current repository.",
           "examples": ["owner/repo", "github/gh-aw"]
         },
         "repo": {
           "type": "string",
-          "description": "Alias for repository. Specify only one of repo and repository."
+          "description": "Alias for repository. Specify only one of repo and repository. Expressions require allowed-repos. Wildcards are not supported."
         },
-        "allow-repos": {
+        "allowed-repos": {
           "oneOf": [
-            { "type": "string", "minLength": 1 },
-            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            { "type": "string", "minLength": 1, "not": { "enum": ["*", "*/*"] } },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "enum": ["*", "*/*"] } } }
           ],
-          "description": "Required allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or a GitHub Actions expression. Supports wildcard repository patterns. The path is a literal prefix; repositories are placed under prefix/owner/repo."
+          "description": "Required allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or a GitHub Actions expression. Supports scoped wildcard patterns such as owner/* or */repo, but not unrestricted wildcards such as * or */*. The path is a literal prefix; repositories are placed under prefix/owner/repo."
         },
         "ref": {
           "type": "string",

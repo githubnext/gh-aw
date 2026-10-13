@@ -107,25 +107,28 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) { //nolint
 		}
 		cfg.Repository = s
 	}
-	if v, ok := m["allow-repos"]; ok {
+	if _, ok := m["allow-repos"]; ok {
+		return nil, errors.New("checkout.allow-repos is not supported; use checkout.allowed-repos")
+	}
+	if v, ok := m["allowed-repos"]; ok {
 		switch value := v.(type) {
 		case string:
 			if strings.TrimSpace(value) != "" {
-				cfg.AllowRepos = []string{value}
+				cfg.AllowedRepos = []string{value}
 			}
 		case []any:
 			for _, item := range value {
 				s, ok := item.(string)
 				if !ok || strings.TrimSpace(s) == "" {
-					return nil, errors.New("checkout.allow-repos entries must be non-empty strings")
+					return nil, errors.New("checkout.allowed-repos entries must be non-empty strings")
 				}
-				cfg.AllowRepos = append(cfg.AllowRepos, s)
+				cfg.AllowedRepos = append(cfg.AllowedRepos, s)
 			}
 		default:
-			return nil, errors.New("checkout.allow-repos must be a string expression or an array of repository patterns")
+			return nil, errors.New("checkout.allowed-repos must be a string expression or an array of repository patterns")
 		}
-		if len(cfg.AllowRepos) == 0 {
-			return nil, errors.New("checkout.allow-repos must not be empty; specify allowed repository patterns such as owner/*")
+		if len(cfg.AllowedRepos) == 0 {
+			return nil, errors.New("checkout.allowed-repos must not be empty; specify allowed repository patterns such as owner/*")
 		}
 	}
 
@@ -320,26 +323,54 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) { //nolint
 		cfg.CleanGitCredentials = b
 	}
 
-	if strings.ContainsAny(cfg.Repository, "\r\n") && len(cfg.AllowRepos) == 0 {
-		return nil, errors.New("repository-list checkout requires allow-repos; specify allowed repository patterns such as owner/*")
+	if err := validateRuntimeCheckoutConfig(cfg); err != nil {
+		return nil, err
 	}
-	if len(cfg.AllowRepos) > 0 {
+	return cfg, nil
+}
+
+func validateRuntimeCheckoutConfigs(configs []*CheckoutConfig) error {
+	for _, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+		if err := validateRuntimeCheckoutConfig(cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
+	if strings.ContainsAny(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, ""), "*?[]") {
+		return errors.New("checkout.repository (or repo) must specify explicit owner/repo names; wildcards are only supported in checkout.allowed-repos")
+	}
+	if containsExpression(cfg.Repository) && len(cfg.AllowedRepos) == 0 {
+		return errors.New("checkout.repository (or repo) expressions require checkout.allowed-repos; specify allowed repository patterns such as owner/*")
+	}
+	if strings.ContainsAny(cfg.Repository, "\r\n") && len(cfg.AllowedRepos) == 0 {
+		return errors.New("repository-list checkout requires allowed-repos; specify allowed repository patterns such as owner/*")
+	}
+	if len(cfg.AllowedRepos) > 0 {
+		if err := validateCheckoutAllowedRepos(cfg.AllowedRepos); err != nil {
+			return err
+		}
 		if strings.TrimSpace(cfg.Repository) == "" {
-			return nil, errors.New("checkout.allow-repos requires repository (or repo) containing the runtime repository list")
+			return errors.New("checkout.allowed-repos requires repository (or repo) containing the runtime repository list")
 		}
 		if !cfg.PathExplicit || path.Clean(cfg.Path) == "." || strings.Contains(cfg.Path, "${{") {
-			return nil, errors.New("runtime repository-list checkout requires a literal, non-root path prefix. Example:\ncheckout:\n  repository: ${{ inputs.repos }}\n  path: repos\n  allow-repos: [owner/*]")
+			return errors.New("runtime repository-list checkout requires a literal, non-root path prefix. Example:\ncheckout:\n  repository: ${{ inputs.repos }}\n  path: repos\n  allowed-repos: [owner/*]")
 		}
 		if cfg.Current || cfg.Wiki {
-			return nil, errors.New("runtime repository-list checkout does not support current: true or wiki: true")
+			return errors.New("runtime repository-list checkout does not support current: true or wiki: true")
 		}
 		for _, app := range []*GitHubAppConfig{cfg.GitHubApp, cfg.SafeOutputGitHubApp} {
 			if app != nil && (app.Owner == "" || len(app.Repositories) == 0) {
-				return nil, errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")
+				return errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")
 			}
 		}
 	}
-	return cfg, nil
+	return nil
 }
 
 // validateCheckoutPath rejects checkout paths that escape the workspace root.
@@ -383,7 +414,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string { //nolint:
 		if cfg == nil {
 			continue
 		}
-		if len(cfg.AllowRepos) > 0 {
+		if len(cfg.AllowedRepos) > 0 {
 			line := fmt.Sprintf("  - Runtime-selected repositories are checked out under `${{ github.workspace }}/%s/<owner>/<repo>`. Read `${{ runner.temp }}/gh-aw/safeoutputs/checkout-manifest.json` for their exact repository names, paths, and default branches.\n", cfg.Path)
 			sb.WriteString(line)
 			continue

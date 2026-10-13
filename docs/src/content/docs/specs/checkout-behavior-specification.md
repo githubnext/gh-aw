@@ -91,15 +91,27 @@ Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `t
 #### Runtime Repository Lists
 
 `repo` MUST be accepted as an alias for `repository`; specifying both MUST fail.
-An entry with `allow-repos` MUST expand its repository value as newline-separated
+Any GitHub Actions expression in `repository` or `repo` MUST require
+`allowed-repos` at compile time, even for a single selected repository.
+`repository` and `repo` MUST select explicit repository names, not wildcard
+patterns. Literal repository wildcards MUST fail at compile time, and wildcard
+values in expression-resolved lists MUST fail at runtime. Wildcards MUST only
+be used in `allowed-repos`; the allowlist MUST NOT discover or select repositories.
+An entry with `allowed-repos` MUST expand its repository value as newline-separated
 `owner/repo` slugs at runtime. List expansion MUST require a non-empty allowlist
 and a literal, non-root path prefix. Each repository MUST be checked out under
 `<prefix>/<owner>/<repo>`. Matching and deduplication MUST be case-insensitive.
+Scoped wildcard patterns such as `owner/*` or `*/repo` MAY be used. Unrestricted
+patterns such as `*` or `*/*` MUST be rejected at compile time for literal values
+and at runtime for expression-resolved values.
 An empty selected list MUST NOT select every allowed repository.
 
 Before checkout, the runtime MUST verify every selected repository against the
 allowlist and GitHub API metadata. Redirected canonical names MUST be checked
-again. If the workflow repository is public, non-public targets MUST be rejected,
+again. A disallowed repository MUST fail the checkout job before creating any
+selected checkout and MUST be included in the agent failure issue according to
+the workflow's failure-reporting settings, including safe-output checkout failures.
+If the workflow repository is public, non-public targets MUST be rejected,
 regardless of the checkout credential's access. Missing or unverifiable visibility
 MUST fail closed. Public-host runtime checkouts MUST reject enabled submodules.
 Existing target directories and symlinked path ancestors MUST be rejected.
@@ -108,7 +120,6 @@ Runtime lists MUST NOT support `current: true` or `wiki: true`. GitHub App auth
 MUST specify its installation owner and repository scope explicitly. The agent
 and safe_outputs jobs MUST use identical expanded checkout paths, and the
 checkout manifest MUST record each expanded repository and default branch.
-Legacy single-repository expressions without `allow-repos` remain unchanged.
 
 ### 3.2 Entry Merge Rules
 
@@ -117,7 +128,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - `fetch-depth`: deepest wins (`0` wins over all)
 - `ref`: first non-empty wins
 - auth (`github-token` vs `github-app`): first auth wins
-- runtime `allow-repos`: first entry wins; later entries MUST NOT broaden the allowlist
+- runtime `allowed-repos`: first entry wins; later entries MUST NOT broaden the allowlist
 - safe_outputs auth (`safe-outputs-github-app`): first non-empty wins
 - sparse patterns: union
 - fetch refs: union

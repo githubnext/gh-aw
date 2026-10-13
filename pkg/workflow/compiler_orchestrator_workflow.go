@@ -106,7 +106,10 @@ func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
 	}
 	ctx.engineSetup = engineSetup
 	ctx.toolsResult = toolsResult
-	ctx.workflowData = c.buildInitialWorkflowData(ctx.frontmatter, toolsResult, engineSetup, engineSetup.importsResult)
+	ctx.workflowData, err = c.buildInitialWorkflowData(ctx.frontmatter, toolsResult, engineSetup, engineSetup.importsResult)
+	if err != nil {
+		return c.formatToolsProcessingError(ctx.cleanPath, err)
+	}
 	ctx.workflowData.WorkflowID = GetWorkflowIDFromPath(ctx.cleanPath)
 	resolveMaxDailyAICBackendIntoWorkflowData(ctx.workflowData, ctx.frontmatter.Frontmatter, engineSetup.importsResult.MergedMaxDailyAICredits)
 	return nil

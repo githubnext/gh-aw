@@ -444,6 +444,20 @@ describe("handle_agent_failure", () => {
   });
 
   describe("failure diagnostics", () => {
+    it("includes the runtime checkout rejection and remediation in failure diagnostics", () => {
+      const rendered = buildFailureDiagnosticsContext({
+        failureCategories: ["agent_failure"],
+        failingStep: "Validate runtime checkout repositories (0)",
+        agentConclusion: "failure",
+        engineFailureContext: "",
+        checkoutError: "Runtime checkout repository org/b is not permitted by allowed-repos",
+      });
+      expect(rendered).toContain("### Runtime Checkout Rejected");
+      expect(rendered).toContain("org/b is not permitted by allowed-repos");
+      expect(rendered).toContain("Update the explicit repository list");
+      expect(rendered).not.toContain("The runtime did not record a specific cause.");
+    });
+
     it("includes the last failed agent step when available", async () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue([
@@ -1237,6 +1251,39 @@ describe("handle_agent_failure", () => {
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it.each(["failure", "success"])("reports runtime checkout rejection in the failure issue when the agent conclusion is %s", async conclusion => {
+      const output = path.join(tmpDir, "output.json");
+      fs.writeFileSync(output, JSON.stringify({ items: [{ type: "noop", message: "Done" }] }));
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+      vi.stubEnv("GH_AW_CHECKOUT_ERROR", "Runtime checkout repository org/b is not permitted by allowed-repos");
+      vi.stubEnv("GH_AW_AGENT_CONCLUSION", conclusion);
+      vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+      vi.stubEnv("GH_AW_UNIFIED_SESSION", "");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+      const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create, createComment: vi.fn() },
+          pulls: { get: vi.fn() },
+          actions: { listJobsForWorkflowRun: vi.fn() },
+        },
+        paginate: vi.fn(async () => []),
+        graphql: vi.fn(),
+      };
+      try {
+        await main();
+        expect(create).toHaveBeenCalledOnce();
+        const body = create.mock.calls[0][0].body;
+        expect(body).toContain("### Runtime Checkout Rejected");
+        expect(body).toContain("org/b is not permitted by allowed-repos");
+        expect(body).toContain("failure_categories: agent_failure");
+        expect(global.core.setFailed).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllEnvs();
       }
     });
 

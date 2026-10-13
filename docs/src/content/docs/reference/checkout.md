@@ -48,9 +48,9 @@ checkout:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
-| `repo` | string | Alias for `repository`; specify only one. |
-| `allow-repos` | string \| string[] | Mandatory allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or an expression; supports `owner/*`, `*/repo`, and `"*"`. |
+| `repository` | string | Explicit repository in `owner/repo` format, or a newline-separated list with `allowed-repos`. Expressions require `allowed-repos`. Does not support wildcards. Defaults to the current repository. |
+| `repo` | string | Alias for `repository`; specify only one. Does not support wildcards. |
+| `allowed-repos` | string \| string[] | Mandatory allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or an expression; supports scoped patterns such as `owner/*` and `*/repo`, but not unrestricted `"*"` or `"*/*"`. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
@@ -66,7 +66,9 @@ checkout:
 
 ## Runtime Repository Lists
 
-An entry with `allow-repos` expands `repository` (or `repo`) at runtime into one checkout per newline-separated `owner/repo` slug. This allows scheduled workers to process a changing repository set supplied through variables, inputs, or earlier step outputs:
+An entry with `allowed-repos` expands `repository` (or `repo`) at runtime into one checkout per newline-separated `owner/repo` slug. This allows scheduled workers to process a changing repository set supplied through variables, inputs, or earlier step outputs:
+
+`repository` and `repo` select explicit repository names, not wildcard patterns. Their expressions must resolve to concrete `owner/repo` slugs. Wildcards are supported only in `allowed-repos`, which filters the selected list and never discovers or selects repositories.
 
 ```aw wrap
 on:
@@ -74,13 +76,15 @@ on:
 checkout:
   - repository: ${{ vars.WORKER_REPOS }}
     path: targets
-    allow-repos: ${{ vars.ALLOWED_WORKER_REPOS }}
+    allowed-repos: ${{ vars.ALLOWED_WORKER_REPOS }}
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
-For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the checkouts are placed at `targets/org/api` and `targets/org/web`. `path` must be a literal, non-root prefix. The allowlist is mandatory for list expansion and may contain wildcard patterns such as `org/*`. Matching and deduplication are case-insensitive; an empty selected list produces no additional checkouts, not all allowlisted repositories. Existing single-repository expressions without `allow-repos` retain their original behavior.
+For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the checkouts are placed at `targets/org/api` and `targets/org/web`. `path` must be a literal, non-root prefix. The compiler requires `allowed-repos` for every `repository` or `repo` expression, even when it selects a single repository. The allowlist may contain scoped wildcard patterns such as `org/*` or `*/api`. Unrestricted patterns such as `*` and `*/*` are rejected, including when an expression resolves to them at runtime. Matching and deduplication are case-insensitive; an empty selected list produces no additional checkouts, not all allowlisted repositories.
 
 Every selected repository must pass the allowlist and GitHub API metadata checks before the checkout action is generated. Redirected repository names are checked against the allowlist again. **Public workflow repositories cannot check out private or internal repositories**, even if the supplied token can access them. Failed or incomplete visibility checks stop the job. Submodule checkout is rejected in public workflows because submodule visibility cannot be verified.
+
+A disallowed repository fails the entire checkout step before any selected repository is cloned; it is never silently skipped. The rejection is included in the workflow's agent failure issue, subject to the existing `safe-outputs.report-failure-as-issue` settings. Failures in the agent and safe-output checkout jobs both use this reporting path.
 
 Runtime entries support the normal ref, history, sparse-checkout, LFS, fetch, and authentication options. GitHub App authentication requires explicit `owner` and `repositories` scoping. `current: true` and `wiki: true` are not supported for repository lists. Existing destination directories and symlinked path ancestors are rejected rather than cleaned or followed.
 

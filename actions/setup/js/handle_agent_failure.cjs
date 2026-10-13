@@ -331,7 +331,7 @@ function buildFailureMatchCategories(options) {
   // Keep agent_failure as the fallback class only when no existing
   // specific category already explains the failure cause.
   const hasSpecificFailureCategory = categories.length > 0;
-  if (options.agentConclusion === "failure" && !options.isTimedOut && !hasSpecificFailureCategory) {
+  if ((options.agentConclusion === "failure" || options.hasCheckoutFailure) && !options.isTimedOut && !hasSpecificFailureCategory) {
     categories.push("agent_failure");
   }
 
@@ -1854,18 +1854,21 @@ async function getFailedAgentDiagnostics() {
 
 /**
  * Add step-level context to generic agent and infrastructure failures.
- * @param {{failureCategories: string[], failingStep: string, agentConclusion?: string, attributionUnavailable?: string, engineFailureContext: string, items?: Array<any>}} options
+ * @param {{failureCategories: string[], failingStep: string, agentConclusion?: string, attributionUnavailable?: string, engineFailureContext: string, checkoutError?: string, items?: Array<any>}} options
  * @returns {string}
  */
-function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", engineFailureContext, items = [] }) {
+function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", engineFailureContext, checkoutError = "", items = [] }) {
+  const checkoutContext = checkoutError
+    ? `\n### Runtime Checkout Rejected\n\n${renderSafeInlineCodeSpan(checkoutError)}\n\nThe checkout job failed before creating the selected checkouts. Update the explicit repository list or its \`allowed-repos\` policy; public workflows cannot check out private or internal repositories.\n\n`
+    : "";
   const infrastructureMessages = items.filter(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
   const isGenericFailure = failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || infrastructureMessages.length > 0;
   const hasModelEndpointMismatch = failureCategories.includes("model_endpoint_mismatch");
   if (!isGenericFailure && !hasModelEndpointMismatch) {
-    return "";
+    return checkoutContext;
   }
 
-  let context = "\n### Failure Diagnostics\n\n";
+  let context = checkoutContext + "\n### Failure Diagnostics\n\n";
   context += "**Agent job:** `agent`  \n";
   if (agentConclusion) {
     const validatedConclusion = ALLOWED_AGENT_CONCLUSIONS.has(agentConclusion) ? agentConclusion : "unknown";
@@ -1886,6 +1889,8 @@ function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentC
     context += engineFailureContext.trim() + "\n\n";
   } else if (hasModelEndpointMismatch) {
     context += "The model/endpoint mismatch above is the classified cause.\n\n";
+  } else if (checkoutError) {
+    context += "Runtime checkout validation above is the failure cause.\n\n";
   } else {
     context += "The runtime did not record a specific cause. Check the linked run for failure details.\n\n";
   }
@@ -4114,6 +4119,8 @@ async function main() {
 
     // Check if any frontmatter skill installs failed (regardless of agent job status)
     const hasSkillInstallFailures = parseInt(skillInstallFailureCount, 10) > 0;
+    const checkoutError = process.env.GH_AW_CHECKOUT_ERROR || "";
+    const hasCheckoutFailure = checkoutError !== "";
 
     // Check if there are create_discussion errors (regardless of agent job status)
     const hasCreateDiscussionErrors = parseInt(createDiscussionErrorCount, 10) > 0;
@@ -4269,6 +4276,7 @@ async function main() {
       !hasAssignmentErrors &&
       !hasAssignCopilotFailures &&
       !hasSkillInstallFailures &&
+      !hasCheckoutFailure &&
       !hasCreateDiscussionErrors &&
       !hasCodePushFailures &&
       !hasPushRepoMemoryFailure &&
@@ -4295,7 +4303,7 @@ async function main() {
     }
 
     // If we only have noop outputs (and no report_incomplete/cache-miss/missing-tool/data/tool-denials-exceeded), skip failure handling
-    if (hasOnlyNoopOutputs && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData && !hasToolDenialsExceeded && !modelEndpointMismatchError) {
+    if (hasOnlyNoopOutputs && !hasCheckoutFailure && !hasReportIncomplete && !hasCacheMissMisconfiguration && !hasMissingTool && !hasMissingData && !hasToolDenialsExceeded && !modelEndpointMismatchError) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -4305,7 +4313,7 @@ async function main() {
     // This prevents false-positive failure issues when a transient AI model error occurs
     // after the agent has already finished its task (e.g., create_discussion produced but
     // the server returned a spurious error on teardown).
-    if (hasCompletedDespiteJobFailure && !hasReportIncomplete && !hasCacheMissMisconfiguration && !modelEndpointMismatchError) {
+    if (hasCompletedDespiteJobFailure && !hasCheckoutFailure && !hasReportIncomplete && !hasCacheMissMisconfiguration && !modelEndpointMismatchError) {
       core.info("Agent completed with valid safe outputs despite job failure (terminal_reason: completed) — skipping failure handling");
       return;
     }
@@ -4440,6 +4448,7 @@ async function main() {
       hasAssignmentErrors,
       hasAssignCopilotFailures,
       hasSkillInstallFailures,
+      hasCheckoutFailure,
       hasCreateDiscussionErrors,
       hasCodePushFailures,
       hasRepoMemoryValidationErrors: repoMemoryValidationErrors.length > 0,
@@ -4660,6 +4669,7 @@ async function main() {
           failureCategories,
           ...failureDiagnostics,
           engineFailureContext,
+          checkoutError,
           items: agentOutputItems,
         });
         // Build timeout context
@@ -4913,6 +4923,7 @@ async function main() {
           failureCategories,
           ...failureDiagnostics,
           engineFailureContext,
+          checkoutError,
           items: agentOutputItems,
         });
 

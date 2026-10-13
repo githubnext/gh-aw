@@ -17,7 +17,7 @@ function parseRepositories(value) {
     .filter(Boolean);
   for (const repo of repos) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*\/[a-zA-Z0-9_.-]+$/.test(repo) || [".", ".."].includes(repo.split("/")[1])) {
-      throw new Error("Runtime checkout repositories must be newline-separated owner/repo slugs");
+      throw new Error("Runtime checkout repositories must be newline-separated owner/repo slugs; wildcards are only supported in checkout.allowed-repos");
     }
   }
   return [...new Set(repos.map(repo => repo.toLowerCase()))];
@@ -27,17 +27,17 @@ function parseRepositories(value) {
  * @param {string} value
  * @returns {Set<string>}
  */
-function parseAllowRepos(value) {
+function parseAllowedRepos(value) {
   const patterns = value
     .split(/[\r\n,]+/)
     .map(pattern => pattern.trim().toLowerCase())
     .filter(Boolean);
   if (patterns.length === 0) {
-    throw new Error("Runtime checkout requires a non-empty allow-repos list");
+    throw new Error("Runtime checkout requires a non-empty allowed-repos list");
   }
   for (const pattern of patterns) {
-    if (pattern !== "*" && !/^[a-zA-Z0-9*-]+\/[a-zA-Z0-9_.*-]+$/.test(pattern)) {
-      throw new Error("checkout.allow-repos must contain owner/repo patterns, owner/*, or *");
+    if (!/^[a-zA-Z0-9*-]+\/[a-zA-Z0-9_.*-]+$/.test(pattern) || /^[*/]+$/.test(pattern)) {
+      throw new Error("checkout.allowed-repos must contain scoped patterns such as owner/repo, owner/*, or */repo; unrestricted wildcards are not allowed");
     }
   }
   return new Set(patterns);
@@ -97,15 +97,25 @@ function readConfig() {
 }
 
 /**
+ * @param {{ setOutput: (name: string, value: string) => void }} core
+ * @param {string} message
+ * @returns {never}
+ */
+function failCheckout(core, message) {
+  core.setOutput("checkout_error", message);
+  throw new Error(message);
+}
+
+/**
  * @typedef {{ repository: string, path: string, default_branch: string }} DynamicCheckout
- * @param {{ core: { setSecret: (value: string) => void }, github: import('@octokit/core').Octokit, getOctokit: (token: string) => import('@octokit/core').Octokit }} runtime
+ * @param {{ core: { setSecret: (value: string) => void, setOutput: (name: string, value: string) => void }, github: import('@octokit/core').Octokit, getOctokit: (token: string) => import('@octokit/core').Octokit }} runtime
  */
 async function prepare({ core, github, getOctokit }) {
   const config = readConfig();
   const repos = parseRepositories(process.env.GH_AW_DYNAMIC_REPOSITORIES || "");
-  const allowed = parseAllowRepos(process.env.GH_AW_DYNAMIC_ALLOW_REPOS || "");
+  const allowed = parseAllowedRepos(process.env.GH_AW_DYNAMIC_ALLOWED_REPOS || "");
   for (const repository of repos) {
-    if (!isRepoAllowed(repository, allowed)) throw new Error(`Runtime checkout repository ${repository} is not permitted by allow-repos`);
+    if (!isRepoAllowed(repository, allowed)) failCheckout(core, `Runtime checkout repository ${repository} is not permitted by allowed-repos`);
   }
   const token = process.env.GH_AW_DYNAMIC_TOKEN || "";
   if (!token) throw new Error("Runtime checkout requires a GitHub token");
@@ -147,10 +157,10 @@ async function prepare({ core, github, getOctokit }) {
       typeof data.default_branch !== "string" ||
       !data.default_branch
     ) {
-      throw new Error(`Unable to verify allowlist and metadata for runtime checkout repository ${repository}`);
+      failCheckout(core, `Unable to verify allowlist and metadata for runtime checkout repository ${repository}`);
     }
     if (isPublic && (data.private || data.visibility !== "public")) {
-      throw new Error(`Public workflows cannot check out non-public repository ${repository}`);
+      failCheckout(core, `Public workflows cannot check out non-public repository ${repository}`);
     }
     if (entries.some(entry => entry.repository === canonical[0])) continue;
     const checkoutPath = path.posix.join(config.prefix, canonical[0]);
@@ -275,4 +285,4 @@ async function finish(options = {}) {
   return entries;
 }
 
-module.exports = { prepare, finish, parseRepositories, parseAllowRepos, workspacePath };
+module.exports = { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath };

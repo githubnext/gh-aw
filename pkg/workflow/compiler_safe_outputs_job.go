@@ -782,6 +782,11 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	agentArtifactPrefix := opts.agentArtifactPrefix
 	steps := opts.steps
 	outputs := opts.outputs
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
+		if checkoutError := dynamicCheckoutFailureOutput(data.CheckoutConfigs); checkoutError != "" {
+			outputs["checkout_error"] = checkoutError
+		}
+	}
 	safeOutputStepNames := opts.safeOutputStepNames
 	permissions := opts.permissions
 	threatDetectionEnabled := opts.threatDetectionEnabled

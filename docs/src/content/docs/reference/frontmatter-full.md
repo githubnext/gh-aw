@@ -23668,26 +23668,31 @@ checkout:
   # (optional)
   pull-request: true
 
-  # Repository to checkout in owner/repo format. Defaults to the current repository.
+  # Repository to checkout in owner/repo format, or a newline-separated list when
+  # allowed-repos is set. Expressions require allowed-repos and must resolve to
+  # explicit repository names. Wildcards are not supported. Defaults to the
+  # current repository.
   # (optional)
   repository: "example-value"
 
-  # Alias for repository. Specify only one of repo and repository.
+  # Alias for repository. Specify only one of repo and repository. Expressions
+  # require allowed-repos. Wildcards are not supported.
   # (optional)
   repo: "example-value"
 
   # Required allowlist for runtime repository-list expansion. Accepts
   # newline-separated patterns, an array, or a GitHub Actions expression. Supports
-  # wildcard repository patterns. The path is a literal prefix; repositories are
+  # scoped wildcard patterns such as owner/* or */repo, but not unrestricted
+  # wildcards such as * or */*. The path is a literal prefix; repositories are
   # placed under prefix/owner/repo.
   # (optional)
   # Accepted formats:
 
   # Format 1: string
-  allow-repos: "example-value"
+  allowed-repos: "example-value"
 
   # Format 2: array
-  allow-repos: []
+  allowed-repos: []
     # Array items: string
 
   # Branch, tag, or SHA to checkout. Defaults to the ref that triggered the

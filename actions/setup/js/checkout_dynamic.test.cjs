@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execFileSync } from "child_process";
-import { prepare, finish, parseRepositories, parseAllowRepos, workspacePath } from "./checkout_dynamic.cjs";
+import { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath } from "./checkout_dynamic.cjs";
 import { buildCheckoutManifest, readManifestEntriesFromEnv } from "./build_checkout_manifest.cjs";
 
 describe("runtime repository checkout", () => {
@@ -32,7 +32,7 @@ describe("runtime repository checkout", () => {
       GH_AW_DYNAMIC_CHECKOUT_INDEX: "0",
       GH_AW_DYNAMIC_PREFIX: "targets",
       GH_AW_DYNAMIC_REPOSITORIES: "org/a\r\norg/b\n",
-      GH_AW_DYNAMIC_ALLOW_REPOS: "org/*",
+      GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*",
       GH_AW_DYNAMIC_TOKEN: "secret-token",
       GH_AW_DYNAMIC_CHECKOUT_ACTION: `actions/checkout@${"a".repeat(40)}`,
       GH_AW_DYNAMIC_SUBMODULES: "false",
@@ -42,7 +42,7 @@ describe("runtime repository checkout", () => {
     }))
       vi.stubEnv(key, value);
     runtime = {
-      core: { setSecret: vi.fn() },
+      core: { setSecret: vi.fn(), setOutput: vi.fn() },
       github: { request: vi.fn().mockResolvedValue({ data: metadata("host/workflows") }) },
       getOctokit: vi.fn().mockReturnValue({
         request: vi.fn().mockImplementation(async (_route, { owner, repo }) => ({ data: metadata(`${owner}/${repo}`) })),
@@ -79,22 +79,37 @@ describe("runtime repository checkout", () => {
     expect(action.runs.steps).toEqual([{ shell: "bash", run: "true" }]);
   });
 
-  it.each(["", "  \n", "org", "https://github.com/org/a"])("rejects invalid or missing allow-repos: %s", async allow => {
-    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_REPOS", allow);
-    await expect(prepare(runtime)).rejects.toThrow(/allow-repos/);
+  it.each(["", "  \n", "org", "https://github.com/org/a", "*", " * ", "*/*", "**/**", "org/*\n*", "org/*,*"])("rejects invalid or missing allowed-repos: %s", async allow => {
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOWED_REPOS", allow);
+    await expect(prepare(runtime)).rejects.toThrow(/allowed-repos/);
     expect(runtime.getOctokit).not.toHaveBeenCalled();
   });
 
   it("checks exact and wildcard patterns case-insensitively and denies unmatched repositories", async () => {
-    expect(parseAllowRepos("ORG/a\nother/*,*/c")).toEqual(new Set(["org/a", "other/*", "*/c"]));
-    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_REPOS", "org/a");
+    expect(parseAllowedRepos("ORG/a\nother/*,*/c")).toEqual(new Set(["org/a", "other/*", "*/c"]));
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOWED_REPOS", "org/a");
     await expect(prepare(runtime)).rejects.toThrow("org/b is not permitted");
     expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", "Runtime checkout repository org/b is not permitted by allowed-repos");
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+  });
+
+  it.each(["org/*", "*/a", "org/a*"])("uses allowed-repos pattern %s only to filter explicit selections", async pattern => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOWED_REPOS", pattern);
+    expect(await prepare(runtime)).toEqual([{ repository: "org/a", path: "targets/org/a", default_branch: "main" }]);
   });
 
   it.each(["org/a\n../secret", "org/a;echo pwned", "${{ secrets.TOKEN }}", "org/..", "org/a b", "org/a/b"])("rejects malformed repository data without executing it: %s", async value => {
     vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", value);
     await expect(prepare(runtime)).rejects.toThrow(/owner\/repo/);
+  });
+
+  it.each(["*", "org/*", "*/a", "org/a*", "org/a?", "org/[ab]", "org/a\norg/*"])("rejects repository wildcards instead of expanding them: %s", async value => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", value);
+    await expect(prepare(runtime)).rejects.toThrow("wildcards are only supported in checkout.allowed-repos");
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
   it.each(["private", "internal"])("blocks %s repositories in a public host before creating any checkout action", async visibility => {
@@ -124,6 +139,8 @@ describe("runtime repository checkout", () => {
   it("revalidates the canonical repository after redirects", async () => {
     runtime.getOctokit().request.mockResolvedValue({ data: metadata("outside/a") });
     await expect(prepare(runtime)).rejects.toThrow("Unable to verify allowlist");
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", "Unable to verify allowlist and metadata for runtime checkout repository org/a");
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
   it("fails closed when workflow repository visibility metadata is incomplete", async () => {
