@@ -29,6 +29,7 @@ func TestMCPWriteTools_DefaultServerDenies(t *testing.T) {
 			},
 		})
 		require.ErrorContains(t, err, "workflow-writing tools disabled")
+		require.ErrorContains(t, err, "--allow-write-tools")
 	}
 }
 
@@ -53,6 +54,7 @@ func TestMCPWriteTools_HTTPServerDenies(t *testing.T) {
 			Name: tool, Arguments: map[string]any{"workflows": []string{"owner/repo/workflow"}},
 		})
 		require.ErrorContains(t, err, "workflow-writing tools disabled")
+		require.ErrorContains(t, err, "--allow-write-tools")
 	}
 }
 
@@ -99,6 +101,9 @@ func TestMCPWriteTools_StartupCapabilityAndActorChecks(t *testing.T) {
 					})
 					if tc.wantError != "" {
 						require.ErrorContains(t, err, tc.wantError)
+						if tc.wantError == "workflow-writing tools disabled" {
+							require.ErrorContains(t, err, "--allow-write-tools")
+						}
 						assert.Equal(t, before, invocations.Load(), "denial must precede subprocess creation")
 					} else {
 						require.NoError(t, err)

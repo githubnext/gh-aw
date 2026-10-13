@@ -20,7 +20,7 @@ func mcpWriteToolsMiddleware(allowWriteTools bool, actor string, validateActor b
 			case "add", "update", "fix", "compile":
 				if !allowWriteTools {
 					mcpLog.Printf("Tool %s: access denied (workflow-writing tools disabled)", tool)
-					return nil, newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: workflow-writing tools disabled", map[string]any{
+					return nil, newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: workflow-writing tools disabled; restart gh aw mcp-server with --allow-write-tools to enable them for trusted clients and workflow sources", map[string]any{
 						"tool":   tool,
 						"reason": "The operator must start gh aw mcp-server with --allow-write-tools to allow workflow modifications. Enable this only for trusted clients and workflow sources.",
 					})
