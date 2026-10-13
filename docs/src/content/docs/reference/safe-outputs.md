@@ -142,6 +142,13 @@ safe-outputs:
 
 `team-id` accepts a Linear team model UUID, team key such as `ENG`, team name, or a GitHub Actions expression such as `${{ secrets.LINEAR_TEAM_ID }}`. UUIDs are passed directly to Linear; keys and names are resolved through the Linear API, with key matches taking precedence. Optional `project-id` fixes new issues to a trusted project and accepts either the 12-character identifier from a Linear project URL or its model UUID. When omitted, the compiler loads `LINEAR_TEAM_ID` from a repository or organization secret and `LINEAR_PROJECT_ID` from a same-named variable. Values in `safe-outputs.env` can override those defaults; explicit `team-id` and `project-id` values take precedence over environment fallbacks. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
 
+To find and configure `LINEAR_TEAM_ID`:
+
+1. In Linear, open the team that should receive the issues. Press **Cmd+K** (macOS) or **Ctrl+K** (Windows/Linux), then select **Copy model UUID**. The command uses the current page, so copy the team's UUID, not an issue or project's UUID. See [Linear's API documentation](https://linear.app/developers/graphql#queries--mutations).
+2. In the GitHub repository, open **Settings > Secrets and variables > Actions > New repository secret**. Name the secret `LINEAR_TEAM_ID` and paste the team's UUID. Alternatively, use an organization Actions secret with that name and grant the repository access.
+
+When the workflow references `${{ secrets.LINEAR_TEAM_ID }}`, a repository variable with the same name does not satisfy it. `LINEAR_TEAM_ID` identifies the destination team; it is separate from the `LINEAR_API_KEY` credential.
+
 ### System Types (Auto-Enabled)
 
 | Output | Key | Description |

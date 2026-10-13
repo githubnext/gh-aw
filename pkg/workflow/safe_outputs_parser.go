@@ -60,11 +60,9 @@ func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) 
 	config := SafeOutputTargetConfig{}
 
 	// Parse target
-	if target, exists := configMap["target"]; exists {
-		if targetStr, ok := target.(string); ok {
-			config.Target = targetStr
-			safeOutputParserLog.Printf("Target set to: %s", targetStr)
-		}
+	if targetStr := extractTargetFromMap(configMap, safeOutputParserLog); targetStr != "" {
+		config.Target = targetStr
+		safeOutputParserLog.Printf("Target set to: %s", targetStr)
 	}
 
 	// Parse target-repo; wildcard "*" is allowed and means "any repository"

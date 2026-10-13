@@ -358,6 +358,9 @@ gh aw compile --strict --actionlint --zizmor --poutine
 
 Show a findings table only when confirmed findings exist. Otherwise, state
 "No confirmed vulnerabilities found" without an empty table or placeholder row.
+This applies to final replies and task-completion summaries: omit the entire
+findings table when empty, including its header; never put the no-findings
+sentence in a table row.
 Report validation blockers and incomplete coverage separately. Follow the
 [debug security-review gate](../../aw/debug-security-review.md#user-visible-result)
 for workflow execution reviews.

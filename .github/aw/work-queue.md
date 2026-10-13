@@ -53,9 +53,9 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
 `work:<status>` labels. Optional `label` customizes the tracking and status-label
 prefixes; `title_prefix` defaults to `[work queue]`. Titles and summaries show
-12-character Work IDs; Issue bodies show full IDs. Per-workflow
-overrides/enrollment aren't required. Protected AW hooks project admissions/original
-Claims only. Immutable `backing_issue` binds one Work per Issue.
+12-character Work IDs; bodies include full IDs. No per-workflow
+override/enrollment. Protected AW hooks alone project their
+admissions/original Claims. Immutable `backing_issue` binds one Work per Issue.
 Agents never write mirrors; human edits never establish Result. Pre-existing
 Issues require exact installed `backing_issues` grants. Only trusted
 admission-time `completion_policy` permits closure, never payload. Keep uncertain
@@ -67,7 +67,7 @@ events outside agentic workflows; disabling it removes the workflow.
 
 ## Plan and dispatch
 
-- Read the immutable snapshot; predictions may be stale and cannot override
+- Read immutable snapshots; stale predictions cannot override
   Policy. Submit bounded, secret-free plans within scheduling limits.
 - Request a pool prefix with `work_queue_dispatch_next` (`pool`, `max_claims`,
   `max_dispatches`). Never choose winners/targets or use scalar dispatch.
@@ -83,16 +83,16 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 - Process only the assignment's original Claims and stored plans. Scope every
   safe output and finish intent to one original Claim.
 - Omit `claim_handle` only for an originally single-Claim assignment.
-  Multi-Claim assignments require it on every message even after other members
+  Multi-Claim assignments require it on every message even after others
   close. Reject malformed, null, foreign or conflicting selectors.
 - Finish each member with `work_queue_claim_finish`, using
   `outcome: "completed"` or `"cancelled"`. Missing finish authorizes no effects;
   valid siblings settle independently.
-- Default to one Claim; batch only compatible Work with reusable setup. A native
+- Default to one Claim; batch compatible Work with reusable setup. A native
   batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before
   scoped effects and Result only after independently verified delivery.
-- For a worker's effect beyond the built-in safe outputs, declare
+- For effects beyond built-in safe outputs, declare
   `safe-outputs.claim-adapters` (see
   [safe-outputs-runtime.md](safe-outputs-runtime.md)); the adapter binds one
   effect-type to an independently verified result, never to job success alone.
@@ -128,9 +128,7 @@ admission.
 - Daily report rotation and Claims:
   [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
   and [shared worker instructions](../workflows/shared/daily-report-worker.md).
-- Contracts and implementation boundaries:
-  [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
-- Executable models, fixtures and bounded verification:
-  [formal reference](../../specs/work-queue/README.md).
+- Contracts: [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
+- Models, fixtures and bounded verification: [formal reference](../../specs/work-queue/README.md).
 
-Tests do not prove Result or live deployment.
+Tests prove neither Result nor live deployment.

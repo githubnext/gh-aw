@@ -1745,6 +1745,7 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_COMMENT_BODY: ${{ steps.noop.outputs.noop_comment_body }}
           GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
+          GH_AW_ACTIVATION_COMMENT_LINKS: ${{ needs.safe_outputs.outputs.activation_comment_links }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎩 *Equipped by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}...\",\"runSuccess\":\"🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫\",\"runFailure\":\"🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days...\"}"
@@ -2269,6 +2270,7 @@ jobs:
       GH_AW_WORKFLOW_NAME: "Q"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/q.md"
     outputs:
+      activation_comment_links: ${{ steps.process_safe_outputs.outputs.activation_comment_links }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}

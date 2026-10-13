@@ -6,6 +6,7 @@ import "embed"
 // dependencies, not test fixtures. The CLI uses the same sources as Actions.
 //
 //go:embed js/session_cli.cjs js/unified_session.cjs js/unified_session_payload.cjs js/unified_session_render.cjs
+//go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
@@ -32,6 +33,7 @@ import "embed"
 //go:embed js/work_queue_summary_renderer.cjs
 //go:embed js/work_queue_memory.cjs js/work_queue_logging.cjs
 //go:embed js/work_queue_native.cjs js/work_queue_control_receipts.cjs js/work_queue_delivery.cjs
+//go:embed js/dispatch_workflow_transport.cjs
 //go:embed js/work_queue_effect_resource.cjs js/work_queue_effect_client.cjs js/work_queue_claim_adapters.cjs
 //go:embed js/work_queue_declared_verification.cjs js/work_queue_dependency_resolver.cjs js/work_queue_dispatch.cjs
 //go:embed js/work_queue_dispatch_credential.cjs js/work_queue_provisioning.cjs js/work_queue_reconciler.cjs
