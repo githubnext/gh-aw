@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.8<br>
+**Version**: 1.29.9<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-01<br>
+**Publication Date**: 2026-10-12<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -2568,6 +2568,8 @@ safe-outputs:
 10. **Ephemeral Fork Branch Model**: When `head-repo` differs from `target-repo`, implementations SHOULD create or refresh an ephemeral branch in `head-repo` from the resolved upstream base SHA, apply the agent changes, and open the pull request back to the upstream base. Implementations MAY support explicit synchronization of that ephemeral branch with a newer upstream base, but implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
 12. **`head_repo` Required for Same-Organization Forks**: The owner-qualified head reference (requirement 9) alone is insufficient when `head-repo` and `target-repo` share the same owner/organization, because multiple repositories under that owner can define the same branch name. Whenever `head-repo` differs from `target-repo` — including when both share the same owner/organization — every pull request creation or update API call MUST include the `head_repo` parameter naming the head repository, in addition to the owner-qualified `head` reference.
+13. **Signed Commit Delivery**: Branch delivery MUST satisfy the [signed commit delivery requirements](#signed-commit-delivery-requirements), shared with `push_to_pull_request_branch`.
+
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
@@ -2588,6 +2590,19 @@ safe-outputs:
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
+
+##### Signed Commit Delivery Requirements
+
+These requirements apply to `create_pull_request` and `push_to_pull_request_branch` when rebasing stale commits before GraphQL signed delivery.
+
+**SCD-001**: After a successful rebase onto the current GraphQL parent, `HEAD` MUST remain attached to the checked-out delivery branch, and that named branch MUST point to the rebased tip. A rebase MUST NOT leave the named branch at its pre-rebase tip while advancing a detached `HEAD`.
+
+**SCD-002**: If GraphQL signing subsequently fails and direct git-push fallback is permitted, the fallback MUST push the rebased named branch, not its pre-rebase tip. A remote branch seeded at the current GraphQL parent MUST receive the rebased changes without requiring a force push or ref deletion to compensate for a stale local branch.
+
+**SCD-003**: Rebase attachment MUST NOT broaden fallback policy or change signing defaults, credential selection, or head-repository routing. When the shared delivery helper is invoked with `allowGitPushFallback: false`, a signed-delivery failure MUST fail without attempting an unsigned push. Unsupported commit shapes and policy violations MUST continue to refuse unsigned fallback.
+
+**Conformance Evidence**: The real-git regression in `actions/setup/js/push_signed_commits.test.cjs` advances the base, seeds the remote delivery branch at that base, and simulates GraphQL signing failure with fallback enabled. It verifies attached `HEAD`, the updated named branch, advanced-base ancestry, and delivery of both agent and upstream file contents.
+
 **Security Requirements**:
 
 - Branch name sanitization (prevent injection)
@@ -3656,6 +3671,7 @@ For all Linear types, GraphQL source, endpoint, protocol, and host are implement
 - Arbitrary contributor forks MUST remain unsupported write targets even when the upstream repository itself is allowlisted
 - Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest
 - When the Convertible fallback (WTD2) opens a review or fallback pull request from `head-repo`, the `head_repo` parameter MUST be included on the pull request creation API call whenever `head-repo` differs from `target-repo`, including when both share the same owner/organization
+- Signed branch delivery MUST satisfy the shared [signed commit delivery requirements](#signed-commit-delivery-requirements).
 
 ---
 
@@ -6103,6 +6119,11 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.9** (2026-10-12):
+
+- **Specified**: Successful stale-base rebases preserve attached `HEAD` and advance the named delivery branch; permitted git-push fallback delivers that rebased tip without broadening signing or fallback policy.
+- **Added**: Shared signed commit delivery requirements and real-git conformance evidence for `create_pull_request` and `push_to_pull_request_branch`.
 
 **Version 1.29.8** (2026-10-01):
 
