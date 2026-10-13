@@ -105,6 +105,21 @@ function isSha(sha) {
 }
 
 /** @param {unknown} value */
+function isSafeBranchName(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9._/-]+$/.test(value) || value.includes("..") || value.includes("//") || value.startsWith("-") || value.startsWith("/") || value.endsWith("/") || value.endsWith(".")) {
+    return false;
+  }
+  return value.split("/").every(segment => !segment.startsWith(".") && !segment.toLowerCase().endsWith(".lock"));
+}
+
+/** @param {string} branch */
+function isContinueWorkflowBranch(branch) {
+  const segments = branch.split("/");
+  const namespaceIndex = segments.lastIndexOf("continue-workflow");
+  return namespaceIndex >= 0 && namespaceIndex + 2 < segments.length;
+}
+
+/** @param {unknown} value */
 function parseMaxHops(value) {
   const parsed = typeof value === "number" ? value : typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value.trim()) : NaN;
   if (Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= MAX_HOPS_LIMIT) return parsed;
@@ -120,8 +135,10 @@ function validateChain(chain, chainId) {
   if (!chain || typeof chain !== "object" || Array.isArray(chain)) fail("ledger_invalid", `continuation chain ${chainId} is not an object`);
   if (chain.version !== LEDGER_VERSION) fail("ledger_invalid", `continuation chain ${chainId} has unsupported version ${String(chain.version)}`);
   if (chain.chain_id !== chainId) fail("ledger_invalid", `continuation chain document does not match id ${chainId}`);
-  if (typeof chain.branch !== "string" || !chain.branch) fail("ledger_invalid", `continuation chain ${chainId} has no work branch`);
-  if (!Number.isSafeInteger(chain.max_hops) || chain.max_hops < 1) fail("ledger_invalid", `continuation chain ${chainId} has an invalid max_hops`);
+  if (!isSafeBranchName(chain.branch) || !isContinueWorkflowBranch(chain.branch)) fail("ledger_invalid", `continuation chain ${chainId} has an invalid work branch`);
+  if (!isSafeBranchName(chain.base_branch)) fail("ledger_invalid", `continuation chain ${chainId} has an invalid base branch`);
+  if (typeof chain.workflow_file !== "string" || !WORKFLOW_FILE_PATTERN.test(chain.workflow_file)) fail("ledger_invalid", `continuation chain ${chainId} has an invalid workflow file`);
+  if (!Number.isSafeInteger(chain.max_hops) || chain.max_hops < 1 || chain.max_hops > MAX_HOPS_LIMIT) fail("ledger_invalid", `continuation chain ${chainId} has an invalid max_hops`);
   if (chain.status !== ACTIVE && !TERMINAL_STATUSES.has(chain.status)) fail("ledger_invalid", `continuation chain ${chainId} has an invalid status`);
   if (!Array.isArray(chain.hops)) fail("ledger_invalid", `continuation chain ${chainId} has no hop history`);
   if (chain.status === ACTIVE && (!chain.next || typeof chain.next !== "object")) fail("ledger_invalid", `active continuation chain ${chainId} has no next hop`);

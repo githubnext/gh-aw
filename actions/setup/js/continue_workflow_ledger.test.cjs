@@ -179,6 +179,30 @@ describe("continue_workflow_ledger", () => {
     });
   });
 
+  describe("ledger validation", () => {
+    it.each([
+      [{ branch: "main" }, /invalid work branch/],
+      [{ branch: "continue-workflow/../main" }, /invalid work branch/],
+      [{ branch: "continue-workflow//workflow/100" }, /invalid work branch/],
+      [{ base_branch: "main.." }, /invalid base branch/],
+      [{ base_branch: "main/.hidden" }, /invalid base branch/],
+      [{ workflow_file: "../workflow.yml" }, /invalid workflow file/],
+      [{ workflow_file: "workflow.yaml.exe" }, /invalid workflow file/],
+      [{ max_hops: 0 }, /invalid max_hops/],
+      [{ max_hops: 11 }, /invalid max_hops/],
+      [{ max_hops: 1.5 }, /invalid max_hops/],
+    ])("rejects unsafe ledger fields %#", (overrides, error) => {
+      const chain = queuedChain();
+      expect(() => ledger.validateChain({ ...chain, ...overrides }, chain.chain_id)).toThrow(error);
+    });
+
+    it("accepts a namespaced branch with a configured prefix", () => {
+      const chain = queuedChain();
+      const prefixedChain = { ...chain, branch: "agent/continue-workflow/my-workflow/100" };
+      expect(ledger.validateChain(prefixedChain, chain.chain_id)).toBe(prefixedChain);
+    });
+  });
+
   describe("storage", () => {
     it("creates the ledger branch and reads chains back", async () => {
       const { github, store } = createLedgerFake();
