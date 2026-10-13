@@ -519,6 +519,7 @@ test-scripts: build
 	bash scripts/check-skill-file-paths_test.sh
 	bash scripts/check-safe-outputs-conformance_test.sh
 	bash scripts/resolve-base-commit_test.sh
+	bash scripts/pr-data-prefetch_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh
