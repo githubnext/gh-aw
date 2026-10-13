@@ -196,6 +196,7 @@ func buildContinueWorkflowHandlerConfig(cfg *SafeOutputsConfig) map[string]any {
 	config := newCreatePullRequestHandlerConfigBuilder(cfg, cfg.CreatePullRequests).Build()
 	config["max"] = 1
 	config["max_hops"] = c.EffectiveMaxHops()
+	delete(config, "staged")
 	if token := resolveHandlerGitHubToken(c.GitHubApp, "continue-workflow", c.GitHubToken); token != "" {
 		config["github-token"] = token
 	}
@@ -220,13 +221,13 @@ func (c *Compiler) generateContinueWorkflowCheckout(yaml *strings.Builder, data 
 	yaml.WriteString("        id: checkout-continuation\n")
 	RenderConditionAsIf(yaml, BuildEventTypeEquals("workflow_dispatch"), "          ")
 	yaml.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
-	safeOutputsToken := ""
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
+	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
+	checkoutToken := resolveGitHubToken("")
+	if override := checkoutManager.GetDefaultCheckoutOverride(); override != nil {
+		checkoutToken = resolveCheckoutTokenExpression(override, checkoutManager.defaultCheckoutIndex(override), true)
 	}
-	resolvedToken := resolveGitHubToken(safeOutputsToken)
 	yaml.WriteString("        with:\n")
-	yaml.WriteString("          github-token: " + resolvedToken + "\n")
+	yaml.WriteString("          github-token: " + checkoutToken + "\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")

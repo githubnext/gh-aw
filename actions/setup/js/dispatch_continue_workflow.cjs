@@ -20,6 +20,14 @@ const ledger = require("./continue_workflow_ledger.cjs");
 
 const MAX_CHAINS_PER_RUN = 50;
 
+function chainScanWindow(chainIds, runNumber = 1) {
+  if (!Array.isArray(chainIds) || chainIds.length === 0) return [];
+  const normalizedRun = Number.isSafeInteger(runNumber) && runNumber > 0 ? runNumber : 1;
+  const count = Math.min(MAX_CHAINS_PER_RUN, chainIds.length);
+  const start = (((normalizedRun - 1) % chainIds.length) * (MAX_CHAINS_PER_RUN % chainIds.length)) % chainIds.length;
+  return Array.from({ length: count }, (_, index) => chainIds[(start + index) % chainIds.length]);
+}
+
 /** @param {any} chain */
 function buildAwContext(chain, dispatchId) {
   return JSON.stringify({
@@ -60,12 +68,9 @@ async function main(options = {}) {
     return report;
   }
 
-  let processed = 0;
-  for (const chainId of chainIds) {
-    if (processed >= MAX_CHAINS_PER_RUN) {
-      core.info(`Reached the per-run limit of ${MAX_CHAINS_PER_RUN} continuation dispatches; remaining chains are handled by the next maintenance run`);
-      break;
-    }
+  const runNumber = options.runNumber ?? context.runNumber;
+  const scanIds = chainScanWindow(chainIds, runNumber);
+  for (const chainId of scanIds) {
     try {
       // Settled chains are skipped from one snapshot read; only active chains are mutated.
       const snapshot = await ledger.readChainAt(githubClient, repo, head.sha, chainId);
@@ -78,7 +83,6 @@ async function main(options = {}) {
       const dispatchId = newDispatchId();
       const claimed = await ledger.mutateChain(githubClient, repo, chainId, current => ledger.claimDispatch(current, { dispatchId, now: now() }), "Dispatch continuation hop");
       if (!claimed.changed) continue;
-      processed++;
       const chain = claimed.chain;
       try {
         const ref = await resolveDispatchRef(githubClient, chain);
@@ -96,8 +100,10 @@ async function main(options = {}) {
       report.errors.push(`${chainId}: ${getErrorMessage(error)}`);
     }
   }
+  core.info(`Scanned ${scanIds.length} of ${chainIds.length} continuation chains for run ${runNumber || 1}`);
 
   const lines = ["## Continue-workflow dispatch", ""];
+  if (scanIds.length < chainIds.length) lines.push(`Scanned ${scanIds.length} of ${chainIds.length} chains; the next maintenance run continues at the next bounded window.`, "");
   const section = (/** @type {string} */ title, /** @type {string[]} */ items) => {
     if (items.length === 0) return;
     lines.push(`### ${title}`, "", ...items.map(item => `- ${item}`), "");
@@ -113,4 +119,4 @@ async function main(options = {}) {
   return report;
 }
 
-module.exports = { main, buildAwContext };
+module.exports = { MAX_CHAINS_PER_RUN, chainScanWindow, main, buildAwContext };

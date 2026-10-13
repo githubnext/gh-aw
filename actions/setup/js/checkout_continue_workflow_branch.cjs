@@ -16,6 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { buildGitAuthEnv } = require("./git_auth_env.cjs");
 const { parseContinuationRequest, readChain } = require("./continue_workflow_ledger.cjs");
 
 const CONTEXT_DIR = "/tmp/gh-aw/continue-workflow";
@@ -59,8 +60,11 @@ async function main() {
     const branch = chain.branch;
     const baseSha = next.base_sha;
     const depthArgs = (await isShallowRepository()) ? ["--depth=50"] : [];
+    const checkoutToken = core.getInput("github-token");
+    if (!checkoutToken) throw new Error(`${ERR_VALIDATION}: continuation checkout requires the root checkout token`);
+    const gitAuthEnv = buildGitAuthEnv(checkoutToken, core.setSecret);
     core.info(`Fetching continuation branch ${branch}`);
-    await exec.exec("git", ["fetch", "--no-tags", ...depthArgs, "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`]);
+    await exec.exec("git", ["fetch", "--no-tags", ...depthArgs, "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`], { env: { ...process.env, ...gitAuthEnv } });
     const { stdout } = await exec.getExecOutput("git", ["rev-parse", `refs/remotes/origin/${branch}^{commit}`], { silent: true });
     const fetched = stdout.trim();
     if (fetched !== baseSha) {

@@ -10,7 +10,7 @@ global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(),
 global.context = { repo: { owner: "o", repo: "r" } };
 
 const ledger = require("./continue_workflow_ledger.cjs");
-const { main, buildAwContext } = require("./dispatch_continue_workflow.cjs");
+const { MAX_CHAINS_PER_RUN, chainScanWindow, main, buildAwContext } = require("./dispatch_continue_workflow.cjs");
 const { createLedgerFake } = require("./continue_workflow.test_helpers.cjs");
 
 const REPO = { owner: "o", repo: "r" };
@@ -48,6 +48,15 @@ describe("dispatch_continue_workflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     summary.addRaw.mockReturnValue(summary);
+  });
+
+  it("bounds chain scans and rotates through a deterministic run-number cursor", () => {
+    const ids = Array.from({ length: MAX_CHAINS_PER_RUN * 3 }, (_, index) => `chain-${index}`);
+    expect(chainScanWindow(ids, 1)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
+    expect(chainScanWindow(ids, 2)).toEqual(ids.slice(MAX_CHAINS_PER_RUN, MAX_CHAINS_PER_RUN * 2));
+    expect(chainScanWindow(ids, 3)).toEqual(ids.slice(MAX_CHAINS_PER_RUN * 2));
+    expect(chainScanWindow(ids, 4)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
+    expect(chainScanWindow(ids, 0)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
   });
 
   it("does nothing when no ledger exists", async () => {

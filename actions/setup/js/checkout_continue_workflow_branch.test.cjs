@@ -4,7 +4,7 @@ import fs from "fs";
 
 const require = createRequire(import.meta.url);
 
-global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn() };
+global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), getInput: vi.fn(() => "checkout-token"), setSecret: vi.fn() };
 global.context = { repo: { owner: "o", repo: "r" }, runId: 101, payload: {} };
 
 const ledger = require("./continue_workflow_ledger.cjs");
@@ -83,6 +83,13 @@ describe("checkout_continue_workflow_branch", () => {
     await main();
     expect(global.core.setFailed).not.toHaveBeenCalled();
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", WORK_BRANCH, HEAD]);
+    const fetchCall = global.exec.exec.mock.calls.find(([, args]) => args[0] === "fetch");
+    expect(fetchCall[2].env).toMatchObject({
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+      GIT_CONFIG_VALUE_0: expect.stringMatching(/^Authorization: basic /),
+    });
+    expect(global.core.setSecret).toHaveBeenCalledWith(expect.any(String));
     const [file, content] = writeSpy.mock.calls[0];
     expect(file).toBe(CONTEXT_FILE);
     expect(JSON.parse(content)).toMatchObject({

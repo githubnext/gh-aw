@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -123,4 +124,24 @@ func TestContinueWorkflowHandlerConfigSharesPullRequestPolicy(t *testing.T) {
 	assert.Equal(t, "${{ secrets.PR_TOKEN }}", config["github-token"])
 	data.SafeOutputs.ContinueWorkflow.GitHubToken = "${{ secrets.CONTINUE_TOKEN }}"
 	assert.Equal(t, "${{ secrets.CONTINUE_TOKEN }}", buildContinueWorkflowHandlerConfig(data.SafeOutputs)["github-token"])
+}
+
+func TestContinueWorkflowHandlerConfigUsesContinuationStaging(t *testing.T) {
+	data := continuationTestData()
+	data.SafeOutputs.CreatePullRequests.Staged = templatableBoolPtr("true")
+	config := buildContinueWorkflowHandlerConfig(data.SafeOutputs)
+	assert.NotContains(t, config, "staged")
+
+	data.SafeOutputs.ContinueWorkflow.Staged = templatableBoolPtr("true")
+	config = buildContinueWorkflowHandlerConfig(data.SafeOutputs)
+	assert.Equal(t, true, config["staged"])
+}
+
+func TestContinueWorkflowCheckoutUsesRootCheckoutToken(t *testing.T) {
+	data := continuationTestData()
+	data.CheckoutConfigs = []*CheckoutConfig{{GitHubToken: "${{ secrets.CHECKOUT_TOKEN }}"}}
+	var yaml strings.Builder
+	NewCompiler().generateContinueWorkflowCheckout(&yaml, data)
+	assert.Contains(t, yaml.String(), "github-token: ${{ secrets.CHECKOUT_TOKEN }}")
+	assert.NotContains(t, yaml.String(), "github-token: ${{ secrets.GITHUB_TOKEN }}")
 }
