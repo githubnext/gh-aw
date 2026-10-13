@@ -23672,6 +23672,24 @@ checkout:
   # (optional)
   repository: "example-value"
 
+  # Alias for repository. Specify only one of repo and repository.
+  # (optional)
+  repo: "example-value"
+
+  # Required allowlist for runtime repository-list expansion. Accepts
+  # newline-separated patterns, an array, or a GitHub Actions expression. Supports
+  # wildcard repository patterns. The path is a literal prefix; repositories are
+  # placed under prefix/owner/repo.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: string
+  allow-repos: "example-value"
+
+  # Format 2: array
+  allow-repos: []
+    # Array items: string
+
   # Branch, tag, or SHA to checkout. Defaults to the ref that triggered the
   # workflow.
   # (optional)

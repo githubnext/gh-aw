@@ -49,6 +49,8 @@ checkout:
 | Field | Type | Description |
 |-------|------|-------------|
 | `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
+| `repo` | string | Alias for `repository`; specify only one. |
+| `allow-repos` | string \| string[] | Mandatory allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or an expression; supports `owner/*`, `*/repo`, and `"*"`. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
@@ -61,6 +63,28 @@ checkout:
 | `lfs` | boolean | Download Git LFS objects. |
 | `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
 | `force-clean-git-credentials` | boolean | When `true`, the checkout step is generated with `persist-credentials: true` and followed by a dedicated cleanup step that scrubs both repo and submodule git credentials. Use this for submodule-heavy or sparse checkouts where the default `persist-credentials: false` post-step cleanup fails. See [Cleaning Submodule Credentials](#cleaning-submodule-credentials). |
+
+## Runtime Repository Lists
+
+An entry with `allow-repos` expands `repository` (or `repo`) at runtime into one checkout per newline-separated `owner/repo` slug. This allows scheduled workers to process a changing repository set supplied through variables, inputs, or earlier step outputs:
+
+```aw wrap
+on:
+  schedule: daily
+checkout:
+  - repository: ${{ vars.WORKER_REPOS }}
+    path: targets
+    allow-repos: ${{ vars.ALLOWED_WORKER_REPOS }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+```
+
+For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the checkouts are placed at `targets/org/api` and `targets/org/web`. `path` must be a literal, non-root prefix. The allowlist is mandatory for list expansion and may contain wildcard patterns such as `org/*`. Matching and deduplication are case-insensitive; an empty selected list produces no additional checkouts, not all allowlisted repositories. Existing single-repository expressions without `allow-repos` retain their original behavior.
+
+Every selected repository must pass the allowlist and GitHub API metadata checks before the checkout action is generated. Redirected repository names are checked against the allowlist again. **Public workflow repositories cannot check out private or internal repositories**, even if the supplied token can access them. Failed or incomplete visibility checks stop the job. Submodule checkout is rejected in public workflows because submodule visibility cannot be verified.
+
+Runtime entries support the normal ref, history, sparse-checkout, LFS, fetch, and authentication options. GitHub App authentication requires explicit `owner` and `repositories` scoping. `current: true` and `wiki: true` are not supported for repository lists. Existing destination directories and symlinked path ancestors are rejected rather than cleaned or followed.
+
+The checkout manifest records each expanded repository, its exact workspace path, and its default branch. PR safe-output jobs use the same expansion and directory layout, retaining their authenticated-write credentials; the agent receives credential-free checkouts.
 
 ## Fetching Additional Refs
 

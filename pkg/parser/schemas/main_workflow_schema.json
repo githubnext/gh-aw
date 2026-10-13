@@ -16564,6 +16564,17 @@
           "description": "Repository to checkout in owner/repo format. Defaults to the current repository.",
           "examples": ["owner/repo", "github/gh-aw"]
         },
+        "repo": {
+          "type": "string",
+          "description": "Alias for repository. Specify only one of repo and repository."
+        },
+        "allow-repos": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+          ],
+          "description": "Required allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or a GitHub Actions expression. Supports wildcard repository patterns. The path is a literal prefix; repositories are placed under prefix/owner/repo."
+        },
         "ref": {
           "type": "string",
           "description": "Branch, tag, or SHA to checkout. Defaults to the ref that triggered the workflow.",

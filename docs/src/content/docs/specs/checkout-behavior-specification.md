@@ -88,6 +88,28 @@ Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `t
 
 `safe-outputs-github-app` applies only to safe_outputs git auth/token resolution. It MUST NOT change agent/activation checkout authentication behavior.
 
+#### Runtime Repository Lists
+
+`repo` MUST be accepted as an alias for `repository`; specifying both MUST fail.
+An entry with `allow-repos` MUST expand its repository value as newline-separated
+`owner/repo` slugs at runtime. List expansion MUST require a non-empty allowlist
+and a literal, non-root path prefix. Each repository MUST be checked out under
+`<prefix>/<owner>/<repo>`. Matching and deduplication MUST be case-insensitive.
+An empty selected list MUST NOT select every allowed repository.
+
+Before checkout, the runtime MUST verify every selected repository against the
+allowlist and GitHub API metadata. Redirected canonical names MUST be checked
+again. If the workflow repository is public, non-public targets MUST be rejected,
+regardless of the checkout credential's access. Missing or unverifiable visibility
+MUST fail closed. Public-host runtime checkouts MUST reject enabled submodules.
+Existing target directories and symlinked path ancestors MUST be rejected.
+
+Runtime lists MUST NOT support `current: true` or `wiki: true`. GitHub App auth
+MUST specify its installation owner and repository scope explicitly. The agent
+and safe_outputs jobs MUST use identical expanded checkout paths, and the
+checkout manifest MUST record each expanded repository and default branch.
+Legacy single-repository expressions without `allow-repos` remain unchanged.
+
 ### 3.2 Entry Merge Rules
 
 Entries with the same `(repository, path, wiki)` key MUST merge with these rules:
@@ -95,6 +117,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - `fetch-depth`: deepest wins (`0` wins over all)
 - `ref`: first non-empty wins
 - auth (`github-token` vs `github-app`): first auth wins
+- runtime `allow-repos`: first entry wins; later entries MUST NOT broaden the allowlist
 - safe_outputs auth (`safe-outputs-github-app`): first non-empty wins
 - sparse patterns: union
 - fetch refs: union

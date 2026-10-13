@@ -44,6 +44,9 @@ type CheckoutConfig struct {
 	// Repository to checkout in owner/repo format. Defaults to the current repository.
 	Repository string `json:"repository,omitempty"`
 
+	// AllowRepos opts into runtime repository-list expansion with mandatory allowlisting.
+	AllowRepos []string `json:"allow-repos,omitempty"`
+
 	// Ref (branch, tag, or SHA) to checkout. Defaults to the ref that triggered the workflow.
 	Ref string `json:"ref,omitempty"`
 
@@ -145,6 +148,7 @@ type resolvedCheckout struct {
 	current        bool     // true if this checkout is the logical current repository
 	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
 	cleanCreds     bool     // true enables persist-credentials + injected cleanup step
+	allowRepos     []string // first-seen runtime repository allowlist
 	// wiki is intentionally not stored here; use entry.key.wiki instead.
 }
 
@@ -352,6 +356,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			lfs:           cfg.LFS,
 			current:       cfg.Current,
 			cleanCreds:    cfg.CleanGitCredentials,
+			allowRepos:    cfg.AllowRepos,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
