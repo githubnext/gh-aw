@@ -98,12 +98,6 @@ run-name: "Smoke Copilot - AOAI (Entra)"
 
 env:
   AZURE_CONFIG_DIR: /tmp/gh-aw/agent/.azure
-  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
-  OTEL_SERVICE_NAME: gh-aw.smoke-copilot-aoai-entra
-  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Copilot%20-%20AOAI%20%28Entra%29,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
-  OTEL_EXPORTER_OTLP_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
-  GH_AW_OTLP_ALL_HEADERS: x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
-  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
 
 jobs:
   activation:
@@ -607,6 +601,8 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_OTLP_ALL_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}'
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_PR_HEAD_BASE_BRANCH: ""
       GH_AW_PR_HEAD_BASE_PR_NUMBER: ""
@@ -616,6 +612,10 @@ jobs:
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: smokecopilotaoaientra
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Copilot%20-%20AOAI%20%28Entra%29,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-copilot-aoai-entra'
       PLAYWRIGHT_MCP_SANDBOX: false
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -2738,7 +2738,13 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
+      GH_AW_OTLP_ALL_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}'
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Copilot%20-%20AOAI%20%28Entra%29,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-copilot-aoai-entra'
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_comment_body: ${{ steps.noop.outputs.noop_comment_body }}
@@ -3126,7 +3132,13 @@ jobs:
       id-token: write
     timeout-minutes: 10
     env:
+      GH_AW_OTLP_ALL_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}'
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Copilot%20-%20AOAI%20%28Entra%29,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-copilot-aoai-entra'
     outputs:
       aic: ${{ steps.parse_detection_token_usage.outputs.aic }}
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
@@ -4035,6 +4047,8 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "o4-mini-aw"
       GH_AW_LABEL_COMMANDS: "[\"smoke\"]"
+      GH_AW_OTLP_ALL_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }},Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}'
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}","headers":"x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}"},{"url":"${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}","headers":"Authorization=${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}"}]'
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -4043,6 +4057,10 @@ jobs:
       GH_AW_WORKFLOW_ID: "smoke-copilot-aoai-entra"
       GH_AW_WORKFLOW_NAME: "Smoke Copilot - AOAI (Entra)"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/smoke-copilot-aoai-entra.md"
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: 'x-sentry-auth=${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Copilot%20-%20AOAI%20%28Entra%29,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-copilot-aoai-entra'
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}

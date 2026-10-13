@@ -70,14 +70,6 @@ concurrency:
 
 run-name: "Smoke Azure Codex"
 
-env:
-  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}
-  OTEL_SERVICE_NAME: gh-aw.smoke-azure-codex
-  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Azure%20Codex,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=codex'
-  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
-  GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
-  GH_AW_OTLP_IF_MISSING: ignore
-
 jobs:
   activation:
     name: activation
@@ -388,6 +380,8 @@ jobs:
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
+      GH_AW_OTLP_IF_MISSING: 'ignore'
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_PR_HEAD_BASE_BRANCH: ""
       GH_AW_PR_HEAD_BASE_PR_NUMBER: ""
@@ -397,6 +391,10 @@ jobs:
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: smokeazurecodex
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: '${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Azure%20Codex,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=codex'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-azure-codex'
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
@@ -1054,7 +1052,13 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
+      GH_AW_OTLP_IF_MISSING: 'ignore'
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: '${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Azure%20Codex,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=codex'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-azure-codex'
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_comment_body: ${{ steps.noop.outputs.noop_comment_body }}
@@ -1359,11 +1363,17 @@ jobs:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-azure-codex"
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5.3-codex"
+      GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
+      GH_AW_OTLP_IF_MISSING: 'ignore'
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID: "smoke-azure-codex"
       GH_AW_WORKFLOW_NAME: "Smoke Azure Codex"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/smoke-azure-codex.md"
+      OTEL_EXPORTER_OTLP_ENDPOINT: '${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}'
+      OTEL_EXPORTER_OTLP_HEADERS: '${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}'
+      OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=Smoke%20Azure%20Codex,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=codex'
+      OTEL_SERVICE_NAME: 'gh-aw.smoke-azure-codex'
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}

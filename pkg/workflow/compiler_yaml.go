@@ -88,8 +88,8 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("\n\n")
 
 	// Add env section if present
-	if data.Env != "" {
-		yaml.WriteString(data.Env)
+	if env := c.scopeEnvironmentOTLPEnv(data); env != "" {
+		yaml.WriteString(env)
 		yaml.WriteString("\n\n")
 	}
 
