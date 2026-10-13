@@ -217,7 +217,7 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized");
     });
 
-    it("should validate continue_workflow hops dispatched by maintenance against the chain initiator", async () => {
+    it("should deny continuation workflow_dispatches from trusting an unverified chain initiator", async () => {
       mockContext.eventName = "workflow_dispatch";
       mockContext.actor = "github-actions[bot]";
       mockContext.payload = {
@@ -229,19 +229,14 @@ describe("check_membership.cjs", () => {
           }),
         },
       };
-      process.env.GH_AW_REQUIRED_ROLES = "write";
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "read" },
-      });
 
       await runScript();
 
-      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
-        owner: "testorg",
-        repo: "testrepo",
-        username: "octocat",
-      });
-      expect(mockCore.setOutput).not.toHaveBeenCalledWith("result", "authorized");
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", "Access denied: continuation workflow_dispatch cannot use an unverified aw_context.actor.");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("continuation workflow_dispatch cannot use an unverified aw_context.actor"));
     });
 
     it("should deny centralized workflow_dispatch from fork-based pull requests", async () => {

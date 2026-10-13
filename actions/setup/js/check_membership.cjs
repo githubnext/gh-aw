@@ -104,11 +104,19 @@ async function main() {
     const commandName = typeof awContext?.command_name === "string" ? awContext.command_name.trim() : "";
     const triggerLabel = typeof awContext?.trigger_label === "string" ? awContext.trigger_label.trim() : "";
     const propagatedActor = typeof awContext?.actor === "string" ? awContext.actor.trim() : "";
-    // continue_workflow hops are dispatched by Agentic Maintenance on behalf of the actor
-    // who started the chain; validate that actor, exactly like centralized command dispatches.
     const isContinuation = awContext?.continuation !== undefined && awContext?.continuation !== null;
 
-    if ((commandName || triggerLabel || isContinuation) && actor === "github-actions[bot]") {
+    if (isContinuation && !commandName && !triggerLabel && actor === "github-actions[bot]") {
+      const errorMessage = "Access denied: continuation workflow_dispatch cannot use an unverified aw_context.actor.";
+      core.warning(errorMessage);
+      core.setOutput("is_team_member", "false");
+      core.setOutput("result", "config_error");
+      core.setOutput("error_message", errorMessage);
+      await writeDenialSummary(errorMessage, "Run continuations only with independently verified actor provenance.");
+      return;
+    }
+
+    if ((commandName || triggerLabel) && actor === "github-actions[bot]") {
       if (!propagatedActor) {
         const errorMessage = "Access denied: workflow_dispatch aw_context.actor is required for centralized command dispatches.";
         core.warning(errorMessage);
