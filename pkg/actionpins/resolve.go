@@ -10,17 +10,23 @@ import (
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
-var ghesArtifactPins = map[string]ActionPin{
-	"actions/upload-artifact": {
-		Repo:    "actions/upload-artifact",
-		Version: "v3.2.2",
-		SHA:     "c6a366c94c3e0affe28c06c8df20a878f24da3cf",
-	},
-	"actions/download-artifact": {
-		Repo:    "actions/download-artifact",
-		Version: "v3.1.0",
-		SHA:     "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59",
-	},
+func ghesArtifactPin(repo string) (ActionPin, bool) {
+	switch repo {
+	case "actions/upload-artifact":
+		return ActionPin{
+			Repo:    "actions/upload-artifact",
+			Version: "v3.2.2",
+			SHA:     "c6a366c94c3e0affe28c06c8df20a878f24da3cf",
+		}, true
+	case "actions/download-artifact":
+		return ActionPin{
+			Repo:    "actions/download-artifact",
+			Version: "v3.1.0",
+			SHA:     "a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59",
+		}, true
+	default:
+		return ActionPin{}, false
+	}
 }
 
 // recordPinResolutionFailure silently records an unresolved action-ref pinning event
@@ -60,7 +66,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (result strin
 	mapped := actionRepo != originalRepo || version != originalVersion
 
 	if ctx.GHES && !mapped {
-		if pin, ok := ghesArtifactPins[actionRepo]; ok {
+		if pin, ok := ghesArtifactPin(actionRepo); ok {
 			actionPinsLog.Printf("GHES mode: using %s@%s", actionRepo, pin.Version)
 			return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), nil
 		}
@@ -121,7 +127,7 @@ func validateActionPinMapping(actionRepo, version string, ctx *PinContext) (stri
 
 // ResolveGHESActionPin returns the GHES-compatible pin for repo, if one is required.
 func ResolveGHESActionPin(repo string) (string, bool) {
-	pin, ok := ghesArtifactPins[repo]
+	pin, ok := ghesArtifactPin(repo)
 	if !ok {
 		return "", false
 	}
