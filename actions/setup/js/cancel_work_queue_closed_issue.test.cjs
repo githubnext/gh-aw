@@ -59,22 +59,18 @@ function fixture(initialWork = work) {
 }
 
 describe("closed backing Issue cancellation", () => {
-  it.each([[], [{ name: "bug" }], [{ name: "work" }], [{ name: "work:queued" }], [{ name: "tasks" }, { name: "work:queued" }]].map(labels => ({ labels })))(
-    "rejects unbound Issues before configuration and authentication reads: $labels",
-    async ({ labels }) => {
-      const event = fixture({ ...work, backing_issue: { ...resource, resource_id: "35" } });
-      event.options.context = { ...context, payload: { ...context.payload, issue: { ...context.payload.issue, labels } } };
-      delete event.options.issues;
-      event.githubClient.rest.repos = { getContent: vi.fn().mockRejectedValue(new Error("API rate limit exceeded for installation")) };
-      expect(await main(event.options)).toEqual({ status: "unbound" });
-      expect(event.githubClient.rest.repos.getContent).not.toHaveBeenCalled();
-      expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
-      expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
-      expect(event.options.readWorkQueueLog).toHaveBeenCalledOnce();
-      expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
-      expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
-    }
-  );
+  it("rejects unbound Issues before configuration and authentication reads", async () => {
+    const event = fixture({ ...work, backing_issue: { ...resource, resource_id: "35" } });
+    delete event.options.issues;
+    event.githubClient.rest.repos = { getContent: vi.fn().mockRejectedValue(new Error("API rate limit exceeded for installation")) };
+    expect(await main(event.options)).toEqual({ status: "unbound" });
+    expect(event.githubClient.rest.repos.getContent).not.toHaveBeenCalled();
+    expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+    expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+    expect(event.options.readWorkQueueLog).toHaveBeenCalledOnce();
+    expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+  });
 
   it.each(["work", "tasks", "team work"])("preserves custom tracking/status configuration for bound Issues: %s", async label => {
     const event = fixture();

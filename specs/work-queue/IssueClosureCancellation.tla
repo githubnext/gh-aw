@@ -8,14 +8,14 @@ CONSTANTS InitialWorkState, QueueInitialized, IssueRelation,
          FreshIssueClosed, FreshIdentityMatches, FreshQueueLabels
 
 VARIABLES issueClosed, closureReports, closureStage, checkedLedgerReads,
-         candidateReads, configurationReads, nativeAuthReads,
+         configurationReads, nativeAuthReads,
          issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
          freshIdentityMatches, freshQueueLabels, cancellationIntent,
          workState, claimOpen, nativeRunning, verifiedResult,
          cancellationRecords, commentState, commentCount
 
 vars == <<issueClosed, closureReports, closureStage, checkedLedgerReads,
-         candidateReads, configurationReads, nativeAuthReads,
+         configurationReads, nativeAuthReads,
          issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
          freshIdentityMatches, freshQueueLabels, cancellationIntent,
          workState, claimOpen, nativeRunning, verifiedResult,
@@ -29,7 +29,7 @@ FreshIssueEligible ==
 Init ==
   /\ issueClosed = FALSE /\ closureReports = 0 /\ cancellationIntent = FALSE
   /\ closureStage = "idle"
-  /\ checkedLedgerReads = 0 /\ candidateReads = 0
+  /\ checkedLedgerReads = 0
   /\ configurationReads = 0 /\ nativeAuthReads = 0
   /\ issuePreflightReads = 0 /\ confirmationLedgerReads = 0
   /\ freshIssueClosed = FreshIssueClosed
@@ -45,7 +45,7 @@ BeginClosure ==
   /\ closureStage = "idle" /\ closureReports < 2
   /\ issueClosed' = TRUE /\ closureReports' = closureReports + 1
   /\ closureStage' = "ledger"
-  /\ UNCHANGED <<checkedLedgerReads, candidateReads, configurationReads,
+  /\ UNCHANGED <<checkedLedgerReads, configurationReads,
                 nativeAuthReads, issuePreflightReads, confirmationLedgerReads,
                 freshIssueClosed, freshIdentityMatches, freshQueueLabels,
                 cancellationIntent, workState, claimOpen, nativeRunning,
@@ -55,13 +55,10 @@ ReadCheckedLedger ==
   /\ closureStage = "ledger"
   /\ checkedLedgerReads' = checkedLedgerReads + 1
   /\ IF ~QueueInitialized
-       THEN /\ candidateReads' = candidateReads
-            /\ closureStage' = "queue_missing"
+       THEN closureStage' = "queue_missing"
        ELSE IF ExactQueueBinding
-              THEN /\ candidateReads' = candidateReads + 1
-                   /\ closureStage' = "configuration"
-              ELSE /\ candidateReads' = candidateReads
-                   /\ closureStage' = "unbound"
+              THEN closureStage' = "configuration"
+              ELSE closureStage' = "unbound"
   /\ UNCHANGED <<issueClosed, closureReports, configurationReads,
                 nativeAuthReads, issuePreflightReads, confirmationLedgerReads,
                 freshIssueClosed, freshIdentityMatches, freshQueueLabels,
@@ -73,7 +70,7 @@ ReadConfiguration ==
   /\ configurationReads' = configurationReads + 1
   /\ closureStage' = "authentication"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, nativeAuthReads, issuePreflightReads,
+                nativeAuthReads, issuePreflightReads,
                 confirmationLedgerReads, freshIssueClosed, freshIdentityMatches,
                 freshQueueLabels, cancellationIntent, workState, claimOpen,
                 nativeRunning, verifiedResult, cancellationRecords,
@@ -84,7 +81,7 @@ AuthenticateNativeRun ==
   /\ nativeAuthReads' = nativeAuthReads + 1
   /\ closureStage' = "preflight"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, issuePreflightReads,
+                configurationReads, issuePreflightReads,
                 confirmationLedgerReads, freshIssueClosed, freshIdentityMatches,
                 freshQueueLabels, cancellationIntent, workState, claimOpen,
                 nativeRunning, verifiedResult, cancellationRecords,
@@ -100,7 +97,7 @@ FreshIssuePreflight ==
                ELSE closureStage' = "publish"
        ELSE closureStage' = "stale"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 confirmationLedgerReads, freshIssueClosed, freshIdentityMatches,
                 freshQueueLabels, workState, claimOpen, nativeRunning,
                 verifiedResult, cancellationRecords, commentState, commentCount>>
@@ -112,7 +109,7 @@ RecordWorkCancellation ==
   /\ cancellationRecords' = cancellationRecords + 1
   /\ closureStage' = "ledger_confirmation"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 nativeRunning, verifiedResult, commentState, commentCount>>
@@ -122,7 +119,7 @@ IssueChangesBeforeCAS ==
   /\ freshIssueClosed' = FALSE /\ freshIdentityMatches' = FALSE
   /\ freshQueueLabels' = FALSE
   /\ UNCHANGED <<issueClosed, closureReports, closureStage, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
                 cancellationRecords, commentState, commentCount>>
@@ -131,7 +128,7 @@ RejectStaleAtCAS ==
   /\ closureStage = "publish" /\ ~FreshIssueEligible
   /\ closureStage' = "stale"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -141,7 +138,7 @@ PreserveTerminalOutcome ==
   /\ closureStage = "publish" /\ workState \in {"cancelled", "completed"}
   /\ closureStage' = "ledger_confirmation"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -153,7 +150,7 @@ ConfirmTerminalLedger ==
   /\ confirmationLedgerReads' = confirmationLedgerReads + 1
   /\ closureStage' = "confirmation"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, freshIssueClosed, freshIdentityMatches,
                 freshQueueLabels, cancellationIntent, workState, claimOpen,
                 nativeRunning, verifiedResult, cancellationRecords,
@@ -163,7 +160,7 @@ FinishUnbound ==
   /\ closureStage \in {"unbound", "queue_missing"}
   /\ closureStage' = "idle"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -173,7 +170,7 @@ FinishStale ==
   /\ closureStage = "stale"
   /\ closureStage' = "idle"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -183,7 +180,7 @@ CompleteWork ==
   /\ workState = "active"
   /\ workState' = "completed" /\ claimOpen' = FALSE
   /\ UNCHANGED <<issueClosed, closureReports, closureStage, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 nativeRunning, verifiedResult, cancellationRecords,
@@ -193,7 +190,7 @@ VerifyResult ==
   /\ workState = "completed" /\ ~verifiedResult
   /\ verifiedResult' = TRUE
   /\ UNCHANGED <<issueClosed, closureReports, closureStage, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, cancellationRecords,
@@ -203,7 +200,7 @@ ObserveNativeTermination ==
   /\ nativeRunning
   /\ nativeRunning' = FALSE
   /\ UNCHANGED <<issueClosed, closureReports, closureStage, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, verifiedResult, cancellationRecords,
@@ -215,7 +212,7 @@ PostClosureConfirmation ==
   /\ commentState' = workState /\ commentCount' = 1
   /\ closureStage' = "idle"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -225,7 +222,7 @@ ReuseClosureConfirmation ==
   /\ closureStage = "confirmation" /\ commentState # "none"
   /\ closureStage' = "idle"
   /\ UNCHANGED <<issueClosed, closureReports, checkedLedgerReads,
-                candidateReads, configurationReads, nativeAuthReads,
+                configurationReads, nativeAuthReads,
                 issuePreflightReads, confirmationLedgerReads, freshIssueClosed,
                 freshIdentityMatches, freshQueueLabels, cancellationIntent,
                 workState, claimOpen, nativeRunning, verifiedResult,
@@ -251,7 +248,7 @@ TypeOK ==
   /\ closureStage \in {"idle", "ledger", "queue_missing", "unbound",
                       "configuration", "authentication", "preflight",
                       "publish", "stale", "ledger_confirmation", "confirmation"}
-  /\ checkedLedgerReads \in 0..2 /\ candidateReads \in 0..2
+  /\ checkedLedgerReads \in 0..2
   /\ configurationReads \in 0..2 /\ nativeAuthReads \in 0..2
   /\ issuePreflightReads \in 0..2 /\ confirmationLedgerReads \in 0..2
   /\ freshIssueClosed \in BOOLEAN /\ freshIdentityMatches \in BOOLEAN
@@ -264,15 +261,13 @@ TypeOK ==
   /\ commentCount \in 0..1
 
 ReadOrdering ==
-  /\ candidateReads <= checkedLedgerReads
-  /\ configurationReads <= candidateReads
+  /\ configurationReads <= checkedLedgerReads
   /\ nativeAuthReads <= configurationReads
   /\ issuePreflightReads <= nativeAuthReads
   /\ confirmationLedgerReads <= issuePreflightReads
 
 UnboundAvoidsAmplification ==
   (IssueRelation = "dependency" \/ ~QueueInitialized) =>
-    /\ candidateReads = 0
     /\ configurationReads = 0
     /\ nativeAuthReads = 0
     /\ issuePreflightReads = 0
@@ -282,7 +277,7 @@ CancellationAuthority ==
   /\ cancellationRecords = 1 => cancellationIntent /\ workState = "cancelled"
   /\ workState = "cancelled" => ~claimOpen /\ ~verifiedResult
   /\ cancellationRecords = 1 =>
-       ExactQueueBinding /\ FreshIssueEligible /\ candidateReads > 0
+       ExactQueueBinding /\ FreshIssueEligible /\ checkedLedgerReads > 0
        /\ configurationReads > 0 /\ nativeAuthReads > 0 /\ issuePreflightReads > 0
   /\ IssueRelation = "dependency" =>
        ~cancellationIntent /\ cancellationRecords = 0
