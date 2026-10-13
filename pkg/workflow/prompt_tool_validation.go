@@ -77,10 +77,7 @@ func promptToolWarning(data *WorkflowData, requirement promptToolRequirement) st
 		name = "Read (native reads are unavailable for GitHub-backed Codex)"
 		advice = "replace the native read instruction with an available, explicitly configured MCP tool"
 	}
-	if (requirement.command != "" || requirement.server == "bash") && promptShellDisabledByProvider(data) {
-		name += " (native shell is disabled for GitHub-backed Codex)"
-		advice = "replace the shell instruction with an available, explicitly configured MCP tool"
-	} else if promptToolTransportUnavailable(data, requirement) {
+	if promptToolTransportUnavailable(data, requirement) {
 		advice = fmt.Sprintf("use the %s CLI instead, or disable tools.cli-proxy to retain native MCP access", requirement.server)
 		name = "mcp__" + requirement.server + "__" + requirement.tool + " (native MCP access is excluded by tools.cli-proxy)"
 	}
@@ -381,7 +378,7 @@ func promptToolAvailable(data *WorkflowData, requirement promptToolRequirement, 
 	// Framework-generated servers are not necessarily present in the tools map.
 	switch requirement.server {
 	case "native-read":
-		return !promptShellDisabledByProvider(data)
+		return ResolveEngineID(data) != "codex" || NewCodexEngine().ResolveLLMProvider(data) != LLMProviderGitHub
 	case "safeoutputs":
 		return slices.Contains(collectSafeOutputsManifestTools(data.SafeOutputs), requirement.tool)
 	case "mcpscripts":
@@ -419,14 +416,7 @@ func promptToolAvailable(data *WorkflowData, requirement promptToolRequirement, 
 	return true
 }
 
-func promptShellDisabledByProvider(data *WorkflowData) bool {
-	return ResolveEngineID(data) == "codex" && NewCodexEngine().ResolveLLMProvider(data) == LLMProviderGitHub
-}
-
 func promptShellAvailable(data *WorkflowData, command, fullCommand string, capabilities EngineCapabilities) bool {
-	if promptShellDisabledByProvider(data) {
-		return false
-	}
 	if data.BashDisabled || isBashExplicitlyRefused(data.Tools) {
 		return !capabilities.BashDisable && !capabilities.BashCommandAllowlist
 	}
