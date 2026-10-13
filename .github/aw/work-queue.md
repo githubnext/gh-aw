@@ -17,9 +17,9 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 - **Worker:** require compiler-supplied version-3 `claims`; never override
   reserved `work_queue_assignment` or caller context.
 
-Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
-revision; reruns cannot inherit attempt 1.
-Absent branches are empty; reject malformed/unsupported logs.
+Trust runtime roles, not snapshots. AW authenticates the native run, workflow and
+revision; reruns cannot inherit attempt 1. Absent branches are uninitialized/empty;
+reject malformed or unsupported logs.
 
 ## Configure deployment
 
@@ -32,19 +32,18 @@ tools:
     worker: true
 ```
 
-Dispatchers need `tools.work-queue: true`, worker allowlists and bounded
-`dispatch-workflow.max`. AW supplies approved routes and credentials and
-binds the actual immutable native run to each Claim; moving `target-ref` is ignored.
+Dispatchers need `tools.work-queue: true`, a worker allowlist and bounded
+`dispatch-workflow.max`. AW supplies approved routes and credentials, binding
+each Claim to its immutable native run; moved `target-ref` is ignored.
 
-`aw.json` `work_queue` configures scheduling and Issue settings
-(concurrency, pending limit, retries, pools, fairness, optional label and title
-prefix). Defaults: weighted-priority, one pool, concurrency 16, pending 4,096,
-singleton assignments, three attempts, 30-second backoff.
-First submit installs compiled Policy and Work.
-Standalone seeding is unsupported; AW and Actions authorize the trusted submission.
-Economic Policy updates require quiescence and explicit
+Optional `aw.json` `work_queue` configures scheduling and Issue settings
+(concurrency, pending limit, retries, pools, fairness, label and title prefix).
+Defaults: weighted-priority, one pool, concurrency 16, pending 4,096, singleton
+assignments, three attempts, 30-second backoff. First submit installs compiled
+Policy and Work. Standalone seeding is unsupported; AW and Actions authorize
+trusted submissions. Economic Policy updates require quiescence and explicit
 `policy --from-config --epoch EPOCH`; config edits never rewrite active state.
-Compatible deployments evolve without draining.
+Compatible deployments evolve future execution without draining.
 Never expose queue-write credentials to
 agents/snapshot MCP. Repository access rules are GitHub's responsibility, not
 queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-work-queue.md).
@@ -63,8 +62,8 @@ admission-time `completion_policy` permits closure, never payload. Keep uncertai
 writes pending; never recreate or globally repair. Upgrade closed-schema readers
 first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
-Mirroring generates `.github/workflows/agentic-workqueue.yml`
-for Issue lifecycle events; disabling removes it.
+Mirroring generates `.github/workflows/agentic-workqueue.yml` for Issue lifecycle
+events outside agentic workflows; disabling it removes the workflow.
 
 ## Plan and dispatch
 
@@ -75,8 +74,8 @@ for Issue lifecycle events; disabling removes it.
 - Trusted processing refreshes the ledger and commits a compatible fair prefix.
   CAS losers discard tentative choices/charges and recompute.
 
-ESLint/daily-report/conformance agents explain staged plans only.
-Trusted controls validate the batch; empty dispatcher intents fail.
+ESLint, daily-report and conformance agents only explain staged plans.
+Trusted controls validate batches; empty dispatcher intents fail.
 Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 
 ## Execute original Claims
@@ -98,15 +97,15 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
   [safe-outputs-runtime.md](safe-outputs-runtime.md)); the adapter binds one
   effect-type to an independently verified result, never to job success alone.
 
-Use `<mcp-clis>` with one JSON argument. `uninitialized` plus null SHA is empty;
+`<mcp-clis>` takes one JSON argument. `uninitialized` plus null SHA is empty;
 first `work_queue_submit` installs Policy and Work. Submit before dispatch.
 Policyless ledgers fail; workers require Policy; `status: "staged"` is no grant.
 
 ## Dependencies and recovery
 
 Require fresh completed-state evidence for Issue predecessors and actual merge
-evidence for PR predecessors; these nodes consume no Claims. Work successors
-wait for their own predecessor Results.
+evidence for PR predecessors; predecessors consume no Claims. Successors wait for
+predecessor Results.
 
 Never infer nonlaunch/termination from lost responses, dispatcher cancellation
 or elapsed deadlines. Retain reservations until exact evidence exists. Do not
@@ -115,14 +114,14 @@ yields Result or DeliveryFailure. Compatible deployments preserve obligations,
 debt, Results and frozen assignments; explicit `execution_ref` pins stay pinned.
 Unavailable/incompatible workers pause affected Work only. Quiesce economic
 Policy changes. Reject unsupported protocols and scalar assignments.
-Retries and repeated checkpoints preserve accepted submission identity; do not
-delete a queue to retry admission.
+Retries/checkpoints preserve submission identity; never delete a queue to retry
+admission.
 
 ## Load details only when needed
 
 - Operator commands, TUI and diagnostic artifacts:
   [queue reference](../../docs/src/content/docs/reference/work-queue.md).
-  Cancellation is terminal for Work, not a worker stop; reconcile separately.
+  Cancellation terminates Work, not workers; reconcile separately.
   Build `go build -o ./gh-aw ./cmd/gh-aw`; use
   `./gh-aw work-queue --repo OWNER/REPO stats --json`. `dispatch-next` grants
   reservations, never launches; use the authorized dispatcher.

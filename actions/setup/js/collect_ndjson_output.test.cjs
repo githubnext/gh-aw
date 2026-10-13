@@ -5,6 +5,8 @@ import path from "path";
 import { createRequire } from "module";
 const _require = createRequire(import.meta.url);
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = _require("./constants.cjs");
+const emptyOutputOutcome = _require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome } = emptyOutputOutcome;
 const incompleteOutput = JSON.stringify({
   items: [
     {
@@ -13,7 +15,7 @@ const incompleteOutput = JSON.stringify({
       failureCause: "missing_terminal_safe_output",
       retryCount: 0,
       details:
-        "Failure classification: missing_terminal_safe_output\nDriver exit code: not recorded\nLast tool call status: not recorded\nFailed tool calls observed: 0\nToken budget state: unknown (no exhaustion signal recorded)\nStep budget state (LLM invocations): unknown (no exhaustion signal recorded)\nSafe-output tools: unknown (registration evidence not recorded)\nSafe-output CLI calls observed: unknown (not recorded)\nSafe-output MCP calls observed: unknown (not recorded)\nSafe-output persistence: not recorded\nCheck the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.\nAgent finished without emitting a terminal safe output; task completion could not be confirmed.\nRetry attempts observed: 0",
+        "Failure classification: missing_terminal_safe_output\nSafe-output telemetry: not recorded\nNo terminal safe output was recorded. These observations do not establish why the agent omitted it; inspect the agent artifact (agent-session.jsonl and agent-stdio.log) for the final actions, then ensure the workflow emits a terminal safe output.",
     },
   ],
   errors: [],
@@ -22,8 +24,10 @@ const incompleteOutput = JSON.stringify({
   collectorRetryCount: 0,
 });
 describe("collect_ndjson_output.cjs", () => {
-  let mockCore, collectScript, legacyPatchSpy;
+  let mockCore, collectScript, legacyPatchSpy, diagnosticRoot, outcomeSpy;
   (beforeEach(() => {
+    diagnosticRoot = fs.mkdtempSync(path.join(os.tmpdir(), "collect-ndjson-diagnostics-"));
+    outcomeSpy = vi.spyOn(emptyOutputOutcome, "buildEmptyOutputOutcome").mockImplementation(errors => buildEmptyOutputOutcome(errors, diagnosticRoot));
     fs.rmSync("/tmp/gh-aw/mcp-cli-audit", { recursive: true, force: true });
     (fs.existsSync("/tmp/gh-aw") || fs.mkdirSync("/tmp/gh-aw", { recursive: !0 }),
       (global.originalConsole = global.console),
@@ -163,6 +167,8 @@ describe("collect_ndjson_output.cjs", () => {
       ));
   }),
     afterEach(() => {
+      outcomeSpy.mockRestore();
+      fs.rmSync(diagnosticRoot, { recursive: true, force: true });
       legacyPatchSpy.mockRestore();
       ["/tmp/gh-aw/test-ndjson-output.txt", "/tmp/gh-aw/agent_output.json"].forEach(file => {
         try {
@@ -263,7 +269,7 @@ describe("collect_ndjson_output.cjs", () => {
       expect(output.items[1].reason).toBe("missing_terminal_safe_output");
     }),
     it("records a silent driver exit in the collected terminal safe output", async () => {
-      const exitPath = "/tmp/gh-aw/agent_execution_exit_code.txt";
+      const exitPath = path.join(diagnosticRoot, "agent_execution_exit_code.txt");
       fs.writeFileSync(exitPath, "139");
       delete process.env.GH_AW_SAFE_OUTPUTS;
       try {
