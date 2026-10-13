@@ -145,12 +145,8 @@ func codexSkipsStaticSecret(provider LLMProvider, workflowData *WorkflowData) bo
 
 // Entra token exchange is owned by the AWF sidecar, never by the Codex process.
 func isCodexAzureOIDC(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
-		return false
-	}
-	auth := workflowData.EngineConfig.Auth
-	return auth.Type == "github-oidc" && auth.Provider == "azure" &&
-		NewCodexEngine().ResolveLLMProvider(workflowData) == LLMProviderOpenAI && isFirewallEnabled(workflowData)
+	return isAzureOIDCWithAWF(workflowData) &&
+		NewCodexEngine().ResolveLLMProvider(workflowData) == LLMProviderOpenAI
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {

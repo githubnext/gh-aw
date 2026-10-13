@@ -131,6 +131,42 @@ func TestPiEngine_GetRequiredSecretNames_CodexProvider(t *testing.T) {
 	assert.Contains(t, secrets, "OPENAI_API_KEY", "codex/ prefix should also require OPENAI_API_KEY (from Codex backend profile)")
 }
 
+func TestPiEngineAzureOIDCUsesKeylessOpenAIGateway(t *testing.T) {
+	data := &WorkflowData{
+		Name:  "test-pi-azure-oidc",
+		Model: "openai/gpt-5.4",
+		EngineConfig: &EngineConfig{
+			ID: "pi",
+			Auth: &EngineAuthConfig{
+				Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client",
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
+	}
+
+	engine := NewPiEngine()
+	assert.True(t, isPiAzureOIDC(data))
+	assert.NotContains(t, engine.GetRequiredSecretNames(data), "CODEX_API_KEY")
+	assert.NotContains(t, engine.GetRequiredSecretNames(data), "OPENAI_API_KEY")
+
+	profile := piProviderProfile(data)
+	env := engine.buildPiExecutionEnv(data, profile, resolvePiBackend(data), true, true, true)
+	assert.NotContains(t, env, "CODEX_API_KEY")
+	assert.NotContains(t, env, "OPENAI_API_KEY")
+	assert.Equal(t, "azure", env["GH_AW_PI_AZURE_OIDC_AUTH"])
+
+	steps := engine.GetExecutionSteps(data, PiStreamingLogFile)
+	stepText := strings.Join(steps[0], "\n")
+	assert.Contains(t, stepText, "GH_AW_PI_GATEWAY_SECRET_ENV=AWF_AZURE_OIDC")
+	assert.NotContains(t, stepText, "secrets.CODEX_API_KEY")
+	assert.NotContains(t, stepText, "secrets.OPENAI_API_KEY")
+
+	otherProvider := *data
+	otherProvider.Model = "anthropic/claude-sonnet-4"
+	assert.False(t, isPiAzureOIDC(&otherProvider))
+	assert.Contains(t, engine.GetRequiredSecretNames(&otherProvider), "ANTHROPIC_API_KEY")
+}
+
 func TestPiEngine_GetRequiredSecretNames_NoPrefix(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
@@ -342,14 +378,14 @@ func TestFilterPiArgs(t *testing.T) {
 func TestResolvePiGatewaySecretEnvVar(t *testing.T) {
 	t.Run("uses first core secret when present", func(t *testing.T) {
 		profile := universalLLMBackendProfile{coreSecretNames: []string{"CUSTOM_API_KEY", "SECOND"}}
-		assert.Equal(t, "CUSTOM_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic))
+		assert.Equal(t, "CUSTOM_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic, nil))
 	})
 
 	t.Run("falls back to backend defaults when core secrets are empty", func(t *testing.T) {
 		profile := universalLLMBackendProfile{}
-		assert.Equal(t, "ANTHROPIC_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic))
-		assert.Equal(t, "CODEX_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCodex))
-		assert.Equal(t, "COPILOT_GITHUB_TOKEN", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCopilot))
+		assert.Equal(t, "ANTHROPIC_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendAnthropic, nil))
+		assert.Equal(t, "CODEX_API_KEY", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCodex, nil))
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", resolvePiGatewaySecretEnvVar(profile, UniversalLLMBackendCopilot, nil))
 	})
 }
 

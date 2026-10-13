@@ -855,6 +855,23 @@ function resolveProviderEndpointFromReflect(options) {
 }
 
 /**
+ * Check that fresh reflection selects a configured endpoint authenticated by Azure OIDC.
+ *
+ * @param {any} reflectData
+ * @param {string} provider
+ * @returns {boolean}
+ */
+function hasAzureOIDCProviderEndpoint(reflectData, provider) {
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
+  const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: () => {} });
+  const aliases = REFLECT_PROVIDER_ALIASES[normalizeReflectProviderName(provider)] || new Set([normalizeReflectProviderName(provider)]);
+  const endpoint = endpoints.find(
+    candidate => candidate?.configured === true && aliases.has(normalizeReflectProviderName(candidate.provider)) && normalizeReflectProviderName(candidate.provider) === normalizeReflectProviderName(resolved?.endpointProvider)
+  );
+  return Boolean(endpoint && endpoint.auth_type === "github-oidc/azure");
+}
+
+/**
  * Resolve the OpenAI-compatible chat endpoint for a configured provider.
  *
  * Goose requires the endpoint origin and request path in separate environment
@@ -1128,6 +1145,7 @@ if (typeof module !== "undefined" && module.exports) {
     REFLECT_PROVIDER_ALIASES,
     resolveOpenAICompatibleEndpointFromReflect,
     resolveProviderEndpointFromReflect,
+    hasAzureOIDCProviderEndpoint,
     resolveMultiProviderFromReflect,
     rewriteAPIProxyURLForHostBridge,
   };

@@ -51,6 +51,7 @@ const {
   normalizeReflectProviderName,
   REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
+  hasAzureOIDCProviderEndpoint,
 } = require("./awf_reflect.cjs");
 const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -571,10 +572,7 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
  */
 function hasCodexAzureOIDCProxy(reflectData, env) {
   if (env.GH_AW_CODEX_OIDC_AUTH !== "azure" || env.AWF_REFLECT_ENABLED !== "1" || normalizeReflectProviderName(env.GH_AW_LLM_PROVIDER, "openai") !== "openai") return false;
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
-  const resolved = resolveProviderEndpointFromReflect({ provider: "openai", reflectData, logger: () => {} });
-  const endpoint = endpoints.find(candidate => candidate?.configured === true && candidate.provider === resolved?.endpointProvider);
-  return normalizeReflectProviderName(resolved?.endpointProvider) === "openai" && endpoint?.auth_type === "github-oidc/azure";
+  return hasAzureOIDCProviderEndpoint(reflectData, "openai");
 }
 
 /**
