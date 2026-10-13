@@ -412,11 +412,39 @@ process.exit(0);`,
       expect(result.stderr).toContain("trusted budget-abort evidence");
     });
 
-    it("preempts an active attempt at the soft deadline even when it handles SIGTERM cleanly", () => {
-      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, { env: { GH_AW_TIMEOUT_MINUTES: "0.04" } });
+    it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
+      const tempDir = makeHarnessTempDir("soft-deadline-report-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const safeOutputsCLI = path.join(tempDir, "safeoutputs.cjs");
+      fs.writeFileSync(
+        safeOutputsCLI,
+        `#!${process.execPath}
+const fs = require("fs");
+const args = process.argv.slice(2);
+const item = { type: args[0] };
+for (let i = 1; i < args.length; i += 2) item[args[i].slice(2)] = args[i + 1];
+fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
+`
+      );
+      fs.chmodSync(safeOutputsCLI, 0o700);
+      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, {
+        env: {
+          GH_AW_TIMEOUT_MINUTES: "0.04",
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_SAFEOUTPUTS_CLI: safeOutputsCLI,
+        },
+      });
       expect(result.status).toBe(1);
       expect(calls).toHaveLength(1);
       expect(result.stderr).toContain("soft execution deadline");
+      const [item] = fs
+        .readFileSync(safeOutputsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(item).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
+      expect(item.details).toMatch(/^Codex run stopped by a runtime guard\./);
+      expect(item.details).toContain("Codex reached the soft execution deadline");
     });
 
     it("requires a path for stdin prompt delivery", () => {
@@ -1790,7 +1818,7 @@ setInterval(() => {}, 1000);`,
           .map(line => JSON.parse(line));
         expect(items).toHaveLength(1);
         expect(items[0]).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
-        expect(items[0].details).toContain("Codex run stopped by a runtime guard.");
+        expect(items[0].details).toMatch(/^Codex run stopped by a runtime guard\./);
         expect(items[0].details).toContain("context-rebuild circuit breaker tripped: rebuild_factor=3.00 cumulative_input_tokens=300 thresholds=2/10");
       } finally {
         if (previousTokenUsage === null) {
