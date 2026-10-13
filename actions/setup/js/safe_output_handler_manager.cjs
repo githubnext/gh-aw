@@ -431,9 +431,10 @@ function bindHandlerToFactoryScope(handler) {
  * @param {Object} config - Safe outputs configuration
  * @param {Object} prReviewBufferRegistry - PR review buffer registry instance
  * @param {string[]} [resolvedAllowedMentionAliases] - Pre-resolved mention aliases shared across handlers
+ * @param {string[]} [activationCommentLinks] - Link accumulator shared across this invocation's handlers
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases) {
+async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases, activationCommentLinks = []) {
   const messageHandlers = new Map();
 
   /** @type {Map<string, string>} */
@@ -466,6 +467,9 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           // Inject shared PR review buffer registry into handlers that need it
           if (PR_REVIEW_HANDLER_TYPES.has(type)) {
             handlerConfig._prReviewBufferRegistry = prReviewBufferRegistry;
+          }
+          if (type === "create_pull_request" || type === "push_to_pull_request_branch") {
+            handlerConfig._activationCommentLinks = activationCommentLinks;
           }
 
           /** @type {any|null} */
@@ -1928,8 +1932,9 @@ async function settleClaimDelivery(scope, messages, results, options = {}) {
   return delivery;
 }
 
-/** @param {{claimPartition?: boolean, messages?: object[], verifyOutput?: Function, finalizeResults?: Function, controlIntentPath?: string, authorize?: (request: Record<string, unknown>) => unknown}} [options] */
+/** @param {{claimPartition?: boolean, messages?: object[], verifyOutput?: Function, finalizeResults?: Function, controlIntentPath?: string, authorize?: (request: Record<string, unknown>) => unknown, activationCommentLinks?: string[]}} [options] */
 async function main(options = {}) {
+  const activationCommentLinks = options.activationCommentLinks ?? [];
   const scope = readClaimScopeContext();
   if (scope && !options.claimPartition) {
     if (!scope.assignment) {
@@ -1985,7 +1990,7 @@ async function main(options = {}) {
               core.info(`Read-only preview for Claim ${handle}: ${scopedMessages.length} scoped output(s); no handlers or terminal facts`);
               return { success: true, messages: scopedMessages, delivery: await settleClaimDelivery(scope, scopedMessages, [], claimOptions) };
             }
-            const result = await main({ ...claimOptions, claimPartition: true, messages: scopedMessages });
+            const result = await main({ ...claimOptions, claimPartition: true, messages: scopedMessages, activationCommentLinks });
             if (result?.delivery) return result;
             return { ...result, delivery: await settleClaimDelivery(scope, scopedMessages, [], claimOptions) };
           })
@@ -2092,7 +2097,7 @@ async function main(options = {}) {
     const maxMentions = parseIntTemplatable(config.mentions?.max, 50);
 
     // Load and initialize handlers based on configuration (factory pattern)
-    const messageHandlers = await loadHandlers(config, prReviewBufferRegistry);
+    const messageHandlers = await loadHandlers(config, prReviewBufferRegistry, undefined, activationCommentLinks);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");

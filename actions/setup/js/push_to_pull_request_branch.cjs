@@ -328,6 +328,7 @@ function buildWorkflowsScopeSkip(context, coreLogger) {
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
+  const activationCommentLinks = config._activationCommentLinks ?? [];
   // Extract configuration from config parameter
   const target = config.target !== undefined && config.target !== null && config.target !== "" ? String(config.target) : "triggering";
   const titlePrefix = config.title_prefix || "";
@@ -865,7 +866,7 @@ async function main(config = {}) {
           `create manifest-protection review issue in ${repoParts.owner}/${repoParts.repo}`
         );
         core.info(`Created manifest-protection review issue #${issue.number}: ${issue.html_url}`);
-        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
         return attachExecutionState(
           {
             success: true,
@@ -1417,7 +1418,7 @@ async function main(config = {}) {
           }
 
           // Update activation comment with review PR link
-          await updateActivationComment(github, context, core, reviewPR.html_url, reviewPR.number, "pull_request");
+          await updateActivationComment(github, context, core, reviewPR.html_url, reviewPR.number, "pull_request", { activationCommentLinks });
 
           return {
             success: true,
@@ -1604,7 +1605,7 @@ async function main(config = {}) {
             });
 
             core.info(`Created fallback pull request #${fallbackPR.number}: ${fallbackPR.html_url}`);
-            await updateActivationComment(github, context, core, fallbackPR.html_url, fallbackPR.number, "pull_request");
+            await updateActivationComment(github, context, core, fallbackPR.html_url, fallbackPR.number, "pull_request", { activationCommentLinks });
 
             return {
               success: true,
@@ -1700,6 +1701,7 @@ async function main(config = {}) {
       }
       if (!isEmptyCommit) {
         await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, {
+          activationCommentLinks,
           targetIssueNumber: pullNumber,
           targetRepo: `${repoParts.owner}/${repoParts.repo}`,
           targetGithubClient: githubClient,
