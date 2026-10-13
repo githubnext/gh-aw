@@ -20,6 +20,7 @@ var workQueueAdapterProjectionPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z_0-9
 var workQueueAdapterBranchPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$`)
 var workQueueAdapterRestRoutePattern = regexp.MustCompile(`^/repos/\{owner\}/\{repo\}/[A-Za-z0-9_{}./-]+$`)
 var workQueueAdapterRestFieldPattern = regexp.MustCompile(`\{([A-Za-z_][A-Za-z_0-9]*)\}`)
+var workQueueCheckpointOutputPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,127}$`)
 
 // WorkQueueClaimAdapter binds custom output semantics to a trusted, independently
 // verified effect. Delegated code prepares data; only the guarded handler applies it.
@@ -50,10 +51,11 @@ type WorkQueueGraphQL struct {
 }
 
 type WorkQueueGitTree struct {
-	BaseRevision string `json:"base-revision" yaml:"base-revision"`
-	BranchPrefix string `json:"branch-prefix" yaml:"branch-prefix"`
-	PullRequest  bool   `json:"pull-request,omitempty" yaml:"pull-request,omitempty"`
-	BaseBranch   string `json:"base-branch,omitempty" yaml:"base-branch,omitempty"`
+	BaseRevision     string `json:"base-revision" yaml:"base-revision"`
+	BranchPrefix     string `json:"branch-prefix" yaml:"branch-prefix"`
+	PullRequest      bool   `json:"pull-request,omitempty" yaml:"pull-request,omitempty"`
+	BaseBranch       string `json:"base-branch,omitempty" yaml:"base-branch,omitempty"`
+	CheckpointOutput string `json:"checkpoint-output,omitempty" yaml:"checkpoint-output,omitempty"`
 }
 
 type WorkQueueRestRequest struct {
@@ -391,6 +393,9 @@ func validateWorkQueueGitTreeAdapter(name string, adapter *WorkQueueClaimAdapter
 	}
 	if config.PullRequest && (len(config.BaseBranch) > 128 || !workQueueAdapterBranchPattern.MatchString(config.BaseBranch)) {
 		return fail("git_tree pull request requires a fixed base branch")
+	}
+	if config.CheckpointOutput != "" && !workQueueCheckpointOutputPattern.MatchString(config.CheckpointOutput) {
+		return fail("git_tree checkpoint-output requires a fixed output name")
 	}
 	fields := workQueueClaimAdapterFields(adapter)
 	_, files := fields["files"]

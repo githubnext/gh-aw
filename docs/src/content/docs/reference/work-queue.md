@@ -390,6 +390,45 @@ verifies every required effect and publishes the predecessor's Result.
 The existing scheduler then selects the child using normal queue policy;
 the helper does not dispatch a workflow or maintain a separate ledger.
 
+#### Reusing a verified code checkpoint
+
+A `git_tree` Claim adapter can set `git-tree.checkpoint-output` to the fixed
+output name that publishes code checkpoints. Initial Work uses the configured
+`base-revision`. Continuation Work instead uses that output from its immediate
+predecessor's verified Result as the base for the next immutable Claim branch.
+
+```yaml wrap
+safe-outputs:
+  claim-adapters:
+    checkpoint:
+      mode: prepared
+      effect-type: git_tree
+      target-repo: owner/repo
+      field-map:
+        files: prepared_files
+      git-tree:
+        base-revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        branch-prefix: automation/checkpoints
+        checkpoint-output: checkpoint
+```
+
+The excerpt configures the adapter; the workflow must also declare its matching
+preparation job or script and the immutable Work's output contract.
+The predecessor must deliver exactly one matching `git_commit` output, with
+independent tree-readback evidence in the configured repository and Claim
+branch namespace. Missing, ambiguous, foreign, or inconsistent checkpoints
+fail before any writes; continuation Work never silently falls back to the
+initial revision. The runtime reads the exact immutable commit, tree, and
+parent before applying the new file declaration, preserving prior hops' files.
+It uses the verified commit SHA even if the predecessor's branch is later removed.
+
+Each hop still writes a new Claim-specific branch and independently verifies
+the full cumulative tree. A final `git_tree` adapter with `pull-request: true`
+can use the same checkpoint selector and namespace to deliver that cumulative
+tree as a PR. The helper does not yet automatically check out checkpoints in
+the agent workspace, and built-in `create_pull_request` /
+`push_to_pull_request_branch` integration remains separate work.
+
 ### Claim-scoped effects and delivery
 
 The compiler supplies the reserved `work_queue_assignment` input and caller

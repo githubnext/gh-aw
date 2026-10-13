@@ -16,6 +16,8 @@ const hash = value => crypto.createHash("sha1").update(value).digest("hex");
 const blobHash = value => hash(Buffer.concat([Buffer.from(`blob ${Buffer.byteLength(value)}\0`), Buffer.from(value)]));
 
 function assigned(dispatch = "dispatch", count = 2) {
+  /** @type {Array<{work_id: string, result_commit_id: string, descriptor: Record<string, any>}>} */
+  const resultRefs = [];
   return {
     version: 3,
     dispatch_id: dispatch,
@@ -29,7 +31,7 @@ function assigned(dispatch = "dispatch", count = 2) {
       claim_id: `${dispatch}:claim:${handle}`,
       work_id: `${dispatch}:work:${handle}`,
       work: { effect_contract: { version: 1, outputs: [{ type: "code", min: 1, max: 1 }] } },
-      result_refs: [],
+      result_refs: [...resultRefs],
     })),
   };
 }
@@ -89,7 +91,6 @@ function native() {
       },
       createTree: async ({ base_tree, tree }) => {
         writes.push("tree");
-        assert.equal(base_tree, BASE_TREE);
         const base = trees.get(base_tree);
         assert.ok(base);
         const leaves = new Map(base.filter(entry => entry.type !== "tree").map(entry => [entry.path, entry]));
@@ -107,7 +108,8 @@ function native() {
       },
       createCommit: async ({ tree, parents, message }) => {
         writes.push("commit");
-        assert.deepEqual(parents, [BASE]);
+        assert.equal(parents.length, 1);
+        assert.ok(commits.has(parents[0]));
         const sha = hash(canonical({ tree, parents, message }));
         commits.set(sha, { sha, tree: { sha: tree }, parents: parents.map(parent => ({ sha: parent })), message });
         return { data: { sha } };
@@ -143,6 +145,175 @@ async function prepare(root, assignment, handle, adapter, message, github) {
 
 function registerTests({ describe, it }) {
   describe("immutable per-Claim prepared code delivery", () => {
+    for (const finalPullRequest of [false, true]) {
+      it(`continues from verified checkpoints and verifies the cumulative tree${finalPullRequest ? " and final pull request" : ""}`, async () => {
+        const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-code-continuation");
+        const adapter = configured(false);
+        adapter["git-tree"]["checkpoint-output"] = "code";
+        const host = native();
+        const authorize = async request => ({ claim_handle: request.claim_handle, authorized: true });
+        let assignment = assigned("initial", 1);
+        let parentCommit = BASE;
+        let parentWork;
+        let descriptor;
+        try {
+          for (let hop = 0; hop < 3; hop++) {
+            if (hop > 0) {
+              assignment = assigned(`continuation-${hop}`, 1);
+              assignment.claims[0].work.work_queue_continuation = { root_work_id: "initial:work:h1", previous_work_id: parentWork, hop, handoff: "Resume checkpoint." };
+              assignment.claims[0].result_refs = [{ work_id: parentWork, result_commit_id: `result-${hop}`, descriptor }];
+            }
+            const member = assignment.claims[0];
+            const deliverPullRequest = finalPullRequest && hop === 2;
+            const currentAdapter = deliverPullRequest ? configured(true) : adapter;
+            currentAdapter["git-tree"]["checkpoint-output"] = "code";
+            const message = {
+              type: "code",
+              claim_handle: member.handle,
+              files: [{ path: `hop-${hop}.txt`, content: `checkpoint ${hop}` }],
+              ...(deliverPullRequest ? { title: "Completed cumulative task", body: "Three verified checkpoints." } : {}),
+            };
+            await withClaimExecution({ assignment, claim_handle: member.handle, authorize, effects: [] }, async () => {
+              const handler = await prepare(root, assignment, member.handle, currentAdapter, message, host.github);
+              const result = await handler(message);
+              const commit = host.commits.get(result.commit);
+              assert.ok(commit);
+              assert.equal(commit.parents[0].sha, parentCommit);
+              const delivery = await verifyClaimDelivery({
+                assignment,
+                claim_handle: member.handle,
+                messages: [message],
+                results: [{ messageIndex: 0, success: true, result }],
+                github: host.github,
+                authorize,
+                verifyOutput: input => verifyClaimAdapterOutput({ ...input, adapter: currentAdapter }),
+              });
+              assert.equal(delivery.verification, "verified", JSON.stringify(delivery));
+              descriptor = delivery.descriptor;
+              const tree = host.trees.get(commit.tree.sha);
+              assert.ok(tree);
+              for (let previous = 0; previous <= hop; previous++) {
+                assert.ok(tree.some(entry => entry.path === `hop-${previous}.txt` && entry.sha === blobHash(`checkpoint ${previous}`)));
+              }
+              parentCommit = result.commit;
+              if (hop < 2) host.refs.delete(`heads/${result.branch}`);
+            });
+            parentWork = member.work_id;
+          }
+          assert.equal(host.refs.size, 1);
+          assert.equal(host.pulls.size, finalPullRequest ? 1 : 0);
+          if (finalPullRequest) {
+            const pull = [...host.pulls.values()][0];
+            assert.equal(pull.head.sha, parentCommit);
+            assert.equal(pull.base.ref, "main");
+            assert.equal(descriptor.outputs[0].resource.kind, "pull_request");
+          }
+        } finally {
+          fs.rmSync(root, { recursive: true, force: true });
+        }
+      });
+    }
+
+    it("rejects missing, ambiguous, foreign and tampered predecessor checkpoint evidence before native mutation", async () => {
+      const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-code-checkpoint-invalid");
+      const adapter = configured(false);
+      adapter["git-tree"]["checkpoint-output"] = "code";
+      const proof = {
+        type: "code",
+        resource: { kind: "git_commit", repository: "owner/repo", id: BASE, ref: `heads/automation/code/claims/${"c".repeat(64)}` },
+        evidence: { source: "independent_git_tree_readback", commit: BASE, tree: BASE_TREE, parent: "d".repeat(40) },
+      };
+      const mutations = [
+        member => {
+          member.result_refs = [];
+        },
+        member => {
+          member.result_refs[0].work_id = "another-work";
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs = [];
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs = [null];
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs.push(structuredClone(proof));
+        },
+        member => {
+          member.result_refs[0].descriptor.version = 2;
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].resource.repository = "foreign/repo";
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].resource.kind = "pull_request";
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].resource.ref = "heads/main";
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].evidence.source = "agent_report";
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].evidence.commit = "e".repeat(40);
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].evidence.tree = "e".repeat(40);
+        },
+        member => {
+          member.result_refs[0].descriptor.outputs[0].evidence.parent = "main";
+        },
+        () => {},
+      ];
+      try {
+        for (const mutate of mutations) {
+          const assignment = assigned("invalid", 1);
+          const member = assignment.claims[0];
+          member.work.work_queue_continuation = { root_work_id: "parent", previous_work_id: "parent", hop: 1, handoff: "Resume." };
+          member.result_refs = [{ work_id: "parent", result_commit_id: "verified-result", descriptor: { version: 1, outputs: [structuredClone(proof)] } }];
+          mutate(member);
+          const host = native();
+          const message = { type: "code", claim_handle: member.handle, files: [{ path: "child.txt", content: "must not write" }] };
+          const authorize = async request => ({ claim_handle: request.claim_handle, authorized: true });
+          await withClaimExecution({ assignment, claim_handle: member.handle, authorize, effects: [] }, async () => {
+            const handler = await prepare(root, assignment, member.handle, adapter, message, host.github);
+            await assert.rejects(handler(message), /checkpoint|verified Result|base commit/);
+          });
+          assert.deepEqual(host.writes, []);
+        }
+        for (const value of ["", "Code", "../code", "a".repeat(129), 1, null]) {
+          const invalid = structuredClone(adapter);
+          invalid["git-tree"]["checkpoint-output"] = value;
+          assert.throws(() => validateAdapter(invalid), /checkpoint-output/);
+        }
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("retains fixed-base delivery when checkpoint reuse is not configured", async () => {
+      const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-code-fixed-base");
+      const assignment = assigned("fixed", 1);
+      const member = assignment.claims[0];
+      member.work.work_queue_continuation = { root_work_id: "parent", previous_work_id: "parent", hop: 1, handoff: "Resume." };
+      const adapter = configured(false);
+      const host = native();
+      const message = { type: "code", claim_handle: member.handle, files: [{ path: "fixed.txt", content: "fixed base" }] };
+      const authorize = async request => ({ claim_handle: request.claim_handle, authorized: true });
+      try {
+        await withClaimExecution({ assignment, claim_handle: member.handle, authorize, effects: [] }, async () => {
+          const handler = await prepare(root, assignment, member.handle, adapter, message, host.github);
+          const result = await handler(message);
+          const commit = host.commits.get(result.commit);
+          assert.ok(commit);
+          assert.equal(commit.parents[0].sha, BASE);
+          assert.equal((await verifyClaimAdapterOutput({ claim: member, result, github: host.github, adapter })).verified, true);
+        });
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
+
     for (const count of [1, 2]) {
       it(`prepares and independently settles every member of an original ${count}-Claim assignment`, async () => {
         const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-code-matrix");
