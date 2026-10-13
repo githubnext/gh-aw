@@ -24,20 +24,14 @@ func (b Branch) verifiedDefaultReference(ctx context.Context) (string, string, e
 		return "", "", queueError("policy_invalid", "AW configuration requires a verified repository and immutable approved default worker revision")
 	}
 	b.Remote = repository.FullName
-	var ref struct {
-		Ref    string `json:"ref"`
-		Object struct {
-			SHA string `json:"sha"`
-		} `json:"object"`
-	}
-	if err := b.request(ctx, http.MethodGet, "git/ref/heads/"+repository.DefaultBranch, nil, &ref); err != nil {
+	revision, err := b.resolveHeadRef(ctx, repository.DefaultBranch)
+	if err != nil {
+		if errors.Is(err, errInvalidHeadReference) {
+			return "", "", queueError("policy_invalid", "default worker revision is not immutable")
+		}
 		return "", "", err
 	}
-	if ref.Ref != "refs/heads/"+repository.DefaultBranch || !revisionPattern.MatchString(ref.Object.SHA) ||
-		strings.Trim(ref.Object.SHA, "0") == "" {
-		return "", "", queueError("policy_invalid", "default worker revision is not immutable")
-	}
-	return repository.FullName, ref.Object.SHA, nil
+	return repository.FullName, revision, nil
 }
 
 // DeploymentOperationsFromConfig proposes route-only changes for existing AW

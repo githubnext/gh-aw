@@ -19,8 +19,13 @@ describe("runtime tool timeouts", () => {
     const env = { GH_AW_STARTUP_TIMEOUT: "180", GH_AW_TOOL_TIMEOUT: "90" };
     const config = { gateway: { startupTimeout: 120 } };
     applyGatewayRuntimeTimeouts(config, env);
-    expect(config.gateway).toEqual({ startupTimeout: 180, toolTimeout: "90s" });
+    expect(config.gateway).toEqual({ startupTimeout: 180, toolTimeout: 90 });
     expect(env.GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS).toBe("180000");
+  });
+  it("preserves an existing engine.mcp.tool-timeout value", () => {
+    const config = { gateway: { toolTimeout: 120 } };
+    applyGatewayRuntimeTimeouts(config, { GH_AW_TOOL_TIMEOUT: "900" });
+    expect(config.gateway.toolTimeout).toBe(120);
   });
   it("preserves the more specific gateway tool timeout", () => {
     const config = { gateway: { toolTimeout: "2m" } };

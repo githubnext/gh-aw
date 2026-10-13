@@ -33,10 +33,35 @@ describe("empty output outcome", () => {
       retryCount: 0,
     });
     const { details } = buildEmptyOutputOutcome([], rootDir);
-    expect(details).toContain("Driver exit code: not recorded");
-    expect(details).toContain("Last tool call status: not recorded");
-    expect(details).toContain("Token budget state: unknown");
-    expect(details).toContain("Safe-output tools: unknown");
+    expect(details).toContain("Safe-output telemetry: not recorded");
+    expect(details).toContain("inspect the agent artifact (agent-session.jsonl and agent-stdio.log)");
+    expect(details).not.toContain("unknown (");
+    expect(details).not.toContain("Retry attempts observed: 0");
+  });
+
+  it("does not treat an empty persistence file as safe-output telemetry", () => {
+    fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), "");
+    const { details } = buildEmptyOutputOutcome([], rootDir);
+    expect(details).toContain("Safe-output telemetry: not recorded");
+    expect(details).not.toContain("Safe-output persistence: empty");
+  });
+
+  it("prioritizes the observed evidence from a successful run with no terminal output", () => {
+    writeEvents([
+      { type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 0 } },
+      { type: "tool.execution_complete", data: { success: true, result: "private-result" } },
+    ]);
+    fs.mkdirSync(path.join(rootDir, "mcp-logs"));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/tools.json"), JSON.stringify({ servers: { safeoutputs: Array(5).fill({ name: "private-tool" }) } }));
+    fs.writeFileSync(path.join(rootDir, "mcp-logs/rpc-messages.jsonl"), "");
+    const details = buildEmptyOutputOutcome([], rootDir).details;
+    expect(details).toContain("Driver exit code: 0");
+    expect(details).toContain("Last tool call status: succeeded");
+    expect(details).toContain("Safe-output tools: available at gateway snapshot (registered 5 tools)");
+    expect(details).toContain("Safe-output MCP calls observed: 0");
+    expect(details).not.toContain("unknown (");
+    expect(details).not.toContain("Token budget state:");
+    expect(details).not.toContain("private-");
   });
 
   it.each(["metadata", "environment"])("does not classify rejected Aider JSON as an engine failure with trusted %s attribution", attribution => {

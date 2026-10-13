@@ -88,6 +88,27 @@ func hasStatus(err error, status int) bool {
 	return errors.As(err, &apiError) && apiError.StatusCode == status
 }
 
+var errInvalidHeadReference = errors.New("invalid branch reference")
+
+type gitReference struct {
+	Ref    string `json:"ref"`
+	Object struct {
+		SHA string `json:"sha"`
+	} `json:"object"`
+}
+
+func (b Branch) resolveHeadRef(ctx context.Context, name string) (string, error) {
+	var ref gitReference
+	if err := b.request(ctx, http.MethodGet, "git/ref/heads/"+name, nil, &ref); err != nil {
+		return "", err
+	}
+	if ref.Ref != "refs/heads/"+name || !revisionPattern.MatchString(ref.Object.SHA) ||
+		strings.Trim(ref.Object.SHA, "0") == "" {
+		return "", errInvalidHeadReference
+	}
+	return ref.Object.SHA, nil
+}
+
 type branchSnapshot struct {
 	head string
 	tree string
@@ -95,25 +116,20 @@ type branchSnapshot struct {
 }
 
 func (b Branch) read(ctx context.Context) ([]QueueCommit, branchSnapshot, error) {
-	var ref struct {
-		Ref    string `json:"ref"`
-		Object struct {
-			SHA string `json:"sha"`
-		} `json:"object"`
-	}
-	if err := b.request(ctx, http.MethodGet, "git/ref/heads/"+b.Name, nil, &ref); err != nil {
+	head, err := b.resolveHeadRef(ctx, b.Name)
+	if err != nil {
 		if hasStatus(err, http.StatusNotFound) {
 			// A missing repository or missing read permission is not an empty queue.
 			var repository any
 			err = b.client.DoWithContext(ctx, http.MethodGet, "repos/"+b.Remote, nil, &repository)
 			return nil, branchSnapshot{}, err
 		}
+		if errors.Is(err, errInvalidHeadReference) {
+			err = errors.New("invalid queue branch reference")
+		}
 		return nil, branchSnapshot{}, err
 	}
-	if ref.Ref != "refs/heads/"+b.Name || ref.Object.SHA == "" {
-		return nil, branchSnapshot{}, errors.New("invalid queue branch reference")
-	}
-	snapshot := branchSnapshot{head: ref.Object.SHA}
+	snapshot := branchSnapshot{head: head}
 	var commit struct {
 		Tree struct {
 			SHA string `json:"sha"`

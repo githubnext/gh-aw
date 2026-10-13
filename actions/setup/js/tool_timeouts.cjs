@@ -30,7 +30,7 @@ function applyGatewayRuntimeTimeouts(config, env) {
     config.gateway.startupTimeout = startup / 1000;
     env.GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS = String(startup);
   }
-  if (tool !== undefined && !config.gateway.toolTimeout) config.gateway.toolTimeout = `${tool / 1000}s`;
+  if (tool !== undefined && !config.gateway.toolTimeout) config.gateway.toolTimeout = tool / 1000;
 }
 
 module.exports = { timeoutMilliseconds, applyClaudeRuntimeTimeouts, applyGatewayRuntimeTimeouts };
