@@ -119,6 +119,7 @@ var validDisabledMaintenanceJobs = map[string]string{
 	normalizeMaintenanceJobName("close_agentic_workflows_issues"): "close_agentic_workflows_issues",
 	normalizeMaintenanceJobName("create_labels"):                  "create_labels",
 	normalizeMaintenanceJobName("cleanup-cache-memory"):           "cleanup-cache-memory",
+	normalizeMaintenanceJobName("cleanup-stale-steering-issues"):  "cleanup-stale-steering-issues",
 }
 
 // IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
@@ -434,7 +435,7 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 				return fmt.Errorf("%s has a blank entry in maintenance.disabled_jobs. Expected a non-empty job name, for example: \"stale-issue-cleanup\"", RepoConfigFileName)
 			}
 			if _, ok := validDisabledMaintenanceJobs[normalizedJobName]; !ok {
-				return fmt.Errorf("%s references unrecognized maintenance.disabled_jobs entry %q. Valid values are: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs, run_operation, update_pull_request_branches, validate_workflows, activity_report, forecast_report, close_agentic_workflows_issues, create_labels, cleanup-cache-memory. Example:\nmaintenance:\n  disabled_jobs:\n    - close-expired-entities", RepoConfigFileName, jobName)
+				return fmt.Errorf("%s references unrecognized maintenance.disabled_jobs entry %q. Valid values are: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs, run_operation, update_pull_request_branches, validate_workflows, activity_report, forecast_report, close_agentic_workflows_issues, create_labels, cleanup-cache-memory, cleanup-stale-steering-issues. Example:\nmaintenance:\n  disabled_jobs:\n    - close-expired-entities", RepoConfigFileName, jobName)
 			}
 			if previous, exists := seenDisabledJobs[normalizedJobName]; exists {
 				return fmt.Errorf("%s has duplicate maintenance.disabled_jobs entries %q and %q after normalization. Expected each job to be listed once. Example:\nmaintenance:\n  disabled_jobs:\n    - close-expired-entities", RepoConfigFileName, previous, jobName)
