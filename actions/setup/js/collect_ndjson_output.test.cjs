@@ -13,7 +13,7 @@ const incompleteOutput = JSON.stringify({
       failureCause: "missing_terminal_safe_output",
       retryCount: 0,
       details:
-        "Failure classification: missing_terminal_safe_output\nDriver exit code: not recorded\nLast tool call status: not recorded\nFailed tool calls observed: 0\nToken budget state: unknown (no exhaustion signal recorded)\nStep budget state (LLM invocations): unknown (no exhaustion signal recorded)\nSafe-output tools: unknown (registration evidence not recorded)\nSafe-output CLI calls observed: unknown (not recorded)\nSafe-output MCP calls observed: unknown (not recorded)\nSafe-output persistence: not recorded\nCheck the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.\nAgent finished without emitting a terminal safe output; task completion could not be confirmed.\nRetry attempts observed: 0",
+        "Failure classification: missing_terminal_safe_output\nSafe-output telemetry: not recorded\nNo terminal safe output was recorded. These observations do not establish why the agent omitted it; inspect the agent artifact (agent-session.jsonl and agent-stdio.log) for the final actions, then ensure the workflow emits a terminal safe output.",
     },
   ],
   errors: [],

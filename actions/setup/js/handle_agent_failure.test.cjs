@@ -5637,8 +5637,8 @@ describe("handle_agent_failure", () => {
         expect(result).toContain("Last tool call status: started");
         expect(result).not.toContain("Last tool call: read");
         expect(result).toContain("Driver exit code: 0");
-        expect(result).toContain("Token budget state: unknown");
-        expect(result).toContain("Safe-output tools: unknown");
+        expect(result).toContain("Safe-output telemetry: not recorded");
+        expect(result).not.toContain("Token budget state: unknown");
         expect(result).not.toContain("private-path");
         expect(result).not.toContain("exhausted its prompt");
         expect(result).not.toContain("due to an infrastructure or tool failure");
@@ -5734,7 +5734,7 @@ describe("handle_agent_failure", () => {
           { collectorEmptyOutputCause: "missing_terminal_safe_output", rootDir }
         );
         expect(result).toContain("Failure classification: missing_terminal_safe_output");
-        expect(result).toContain("Driver exit code: not recorded");
+        expect(result).not.toContain("Driver exit code:");
         expect(result).not.toContain("private-");
         expect(result).not.toContain("255");
         expect(result).not.toContain("engine_outage");
