@@ -235,6 +235,45 @@ engine: copilot
 	assert.NotNil(t, result.frontmatterResult)
 }
 
+func TestParseFrontmatterSection_MissingScheduleColon(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-missing-schedule-colon")
+	testContent := `---
+on:
+  schedule daily on weekdays
+engine: copilot
+---
+
+# Scheduled Workflow
+`
+	testFile := filepath.Join(tmpDir, "schedule.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	_, err := NewCompiler().parseFrontmatterSection(testFile)
+	require.Error(t, err)
+	require.ErrorContains(t, err, testFile+":3:3: error:")
+	require.ErrorContains(t, err, "YAML syntax error")
+	require.ErrorContains(t, err, "schedule:")
+}
+
+func TestParseFrontmatterSection_MissingScheduleColonCaseInsensitive(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-missing-schedule-colon-case")
+	testContent := `---
+on:
+  Schedule daily on weekdays
+engine: copilot
+---
+
+# Scheduled Workflow
+`
+	testFile := filepath.Join(tmpDir, "schedule.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	_, err := NewCompiler().parseFrontmatterSection(testFile)
+	require.Error(t, err)
+	require.ErrorContains(t, err, testFile+":3:3: error:")
+	require.ErrorContains(t, err, "schedule:")
+}
+
 // TestParseFrontmatterSection_EventFilterValidation tests event filter validation
 func TestParseFrontmatterSection_EventFilterValidation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "frontmatter-filters")
