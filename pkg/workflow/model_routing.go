@@ -317,6 +317,46 @@ func modelRoutingDefaultCandidates(engineName string) []string {
 	return nil
 }
 
+func modelRoutingDefaultCandidatesExcludedByPolicy(engineName string, allowed, blocked []string) bool {
+	prefix, ok := modelRoutingEngineFamilyPrefixes[strings.ToLower(engineName)]
+	if !ok {
+		return false
+	}
+	if len(allowed) > 0 && !modelPolicyAllowsModelFamily(allowed, prefix) {
+		return true
+	}
+	return modelPolicyBlocksModelFamily(blocked, prefix)
+}
+
+func modelPolicyAllowsModelFamily(rules []string, familyPrefix string) bool {
+	for _, rule := range rules {
+		rule = strings.TrimPrefix(rule, "github-copilot/")
+		if strings.HasPrefix(rule, familyPrefix) {
+			return true
+		}
+		for _, suffix := range []string{"x", "sonnet", "opus"} {
+			if matched, _ := path.Match(rule, familyPrefix+suffix); matched {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func modelPolicyBlocksModelFamily(rules []string, familyPrefix string) bool {
+	for _, rule := range rules {
+		rule = strings.TrimPrefix(rule, "github-copilot/")
+		firstWildcard := strings.IndexAny(rule, "*?[")
+		if firstWildcard < 0 || !strings.HasPrefix(familyPrefix, rule[:firstWildcard]) {
+			continue
+		}
+		if strings.Trim(rule[firstWildcard:], "*") == "" {
+			return true
+		}
+	}
+	return false
+}
+
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
 	switch strings.ToLower(engineName) {
 	case "claude":

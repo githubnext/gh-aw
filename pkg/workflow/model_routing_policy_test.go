@@ -107,6 +107,16 @@ func TestBuildAWFConfigJSON_ModelRoutingPolicyErrors(t *testing.T) {
 		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "copilot", AllowedDomains: "github.com", WorkflowData: data})
 		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
 	})
+	t.Run("allowed policy excludes the default Claude family", func(t *testing.T) {
+		data := routedPolicyWorkflowData("claude", "", []string{"gpt-5.6-sol"}, nil, nil)
+		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "claude", AllowedDomains: "github.com", WorkflowData: data})
+		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
+	})
+	t.Run("blocked policy excludes the default Codex family", func(t *testing.T) {
+		data := routedPolicyWorkflowData("codex", "", nil, []string{"gpt-*"}, nil)
+		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "codex", AllowedDomains: "github.com", WorkflowData: data})
+		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
+	})
 	t.Run("expression candidates with a policy", func(t *testing.T) {
 		data := routedPolicyWorkflowData("copilot", "", nil, []string{"gpt-5.4-mini"}, []string{"${{ inputs.model }}"})
 		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "copilot", AllowedDomains: "github.com", WorkflowData: data})

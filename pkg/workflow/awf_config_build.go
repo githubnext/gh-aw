@@ -302,6 +302,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) { //nolint:larg
 			// The model policy alone is the request policy; candidates only limit the router's pick.
 			if len(candidates) == 0 {
 				candidates = modelRoutingDefaultCandidates(config.EngineName)
+				if modelRoutingDefaultCandidatesExcludedByPolicy(config.EngineName, allowedModels, disallowedModels) {
+					return "", NewValidationError("engine.model-routing.allowed-models", "", "model-routing candidates violate model policy",
+						"all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
+				}
 			}
 			apiProxy.Routing.CandidateModels = candidates
 		} else {

@@ -26,11 +26,11 @@ The optional `allowed-models` is the router's candidate list for the main agent 
 |---|---|---|---|---|
 | – | – | – | every routable model (engine family for Claude and Codex) | every model |
 | – | – | set | `allowed-models` | every model |
-| – | set | – | all models except blocked | all models except blocked |
+| – | set | – | all models except blocked (for Claude and Codex, the engine family intersected with the policy) | all models except blocked |
 | – | set | set | `allowed-models` except blocked | all models except blocked |
-| set | – | – | allowed models | allowed models |
+| set | – | – | allowed models (for Claude and Codex, the engine family intersected with the policy) | allowed models |
 | set | – | set | `allowed-models` that are allowed | allowed models |
-| set | set | – | allowed models except blocked | allowed models except blocked |
+| set | set | – | allowed models except blocked (for Claude and Codex, the engine family intersected with the policy) | allowed models except blocked |
 | set | set | set | `allowed-models` that are allowed and not blocked | allowed models except blocked |
 
 ## Configuration
