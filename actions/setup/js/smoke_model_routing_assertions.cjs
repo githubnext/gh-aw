@@ -36,6 +36,16 @@
  * - S1 sub-agent ran exactly once; S2 completed without failing; S3 status 200 on
  *   the declared model and endpoint; S4 events carry the declared agent name
  *   (when configured)
+ * - T1–T4 AWF AI-credit steering (only when `steering` is configured):
+ *   T1 an `ai_credit` 80% notice on a 200 response in token-usage.jsonl, the
+ *   same `steering` on the session `firewall.token_usage` event with the same
+ *   request ID, and no `subagent.started` events (the main agent received it);
+ *   T2 each `(type, threshold)` at most once, thresholds in {80, 90, 95, 99},
+ *   and each `ai_credit` notice's pre-request total at or above that share of
+ *   the budget (order is not checked: AWF sends the highest pending threshold
+ *   first); T3 the final `ai_credits_total` is below the budget, no
+ *   `ai_credits_limit_exceeded` routing failure, and agent execution
+ *   succeeded; T4 every other check passed
  *
  * Every check that iterates over requests fails when there are none to check.
  *
@@ -57,13 +67,20 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const DEFAULT_ROOT_DIR = "/tmp/gh-aw";
 const SESSION_PATH = "usage/aw_session.jsonl";
 const TOKEN_USAGE_PATHS = ["sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl", "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl", "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl"];
+const MODEL_ROUTING_PATHS = TOKEN_USAGE_PATHS.map(file => file.replace(/token-usage\.jsonl$/, "model-routing.jsonl"));
 const REFLECT_PATHS = ["sandbox/firewall/awf-reflect.json", "agent/awf-reflect.json"];
 const CLASSIFIER_PURPOSE = "routing_classification";
 const MAX_OBSERVED = 12;
+const STEERING_THRESHOLDS = [80, 90, 95, 99];
+// AWF clamps every budget to a non-overridable hard cap.
+const AI_CREDITS_HARD_CAP = 10000;
+const AI_CREDITS_LIMIT_CODE = "ai_credits_limit_exceeded";
+const CREDIT_EPSILON = 1e-6;
 const ROUTING_PROFILES = ["economy", "balanced", "robust"];
 
 /**
  * @typedef {{ name: string, model: string, endpoint: string | string[] }} SubAgentExpectation
+ * @typedef {{ maxAiCredits: number }} SteeringExpectation
  * @typedef {{
  *   allowedModels: string[],
  *   mainEndpoint?: string,
@@ -71,6 +88,7 @@ const ROUTING_PROFILES = ["economy", "balanced", "robust"];
  *   subAgents?: SubAgentExpectation[],
  *   requireDeclaredAgentNames?: boolean,
  *   executionOutcome?: string,
+ *   steering?: SteeringExpectation,
  * }} RoutingExpectations
  * @typedef {{ passes: string[], failures: string[], info?: string[] }} RoutingAssertionResults
  */
@@ -412,6 +430,130 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
   return results;
 }
 
+/** @param {unknown} value @returns {number | undefined} */
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** @param {any} steering @returns {string} */
+function steeringKey(steering) {
+  return `${steering?.type ?? "<no type>"}@${steering?.threshold ?? "<no threshold>"}`;
+}
+
+/** @param {any} request @returns {string} */
+function describeNotice(request) {
+  const total = finiteNumber(request?.ai_credits_total);
+  const thisResponse = finiteNumber(request?.ai_credits_this_response);
+  const before = total !== undefined && thisResponse !== undefined ? Number((total - thisResponse).toFixed(6)) : "<unknown>";
+  return `${steeringKey(request?.steering)} request=${requestId(request) || "<none>"} status=${request?.status ?? "<none>"} total_before=${before} total_after=${total ?? "<unknown>"}`;
+}
+
+/** @param {any[]} requests @returns {string} */
+function describeNotices(requests) {
+  if (!requests.length) return "none";
+  const shown = requests.slice(0, MAX_OBSERVED).map(describeNotice).join(", ");
+  return requests.length > MAX_OBSERVED ? `${shown}, … (${requests.length} total)` : shown;
+}
+
+/**
+ * Evaluate AWF AI-credit steering evidence (T1–T3). Reads only proxy- and
+ * runner-written records: the api-proxy token-usage log, the unified session
+ * and the api-proxy model-routing log.
+ * @param {{ events: any[], requests: any[], routingRecords?: any[], expectations: { steering: SteeringExpectation, executionOutcome?: string } }} input
+ * @returns {RoutingAssertionResults}
+ */
+function evaluateSteeringEvidence({ events, requests, routingRecords = [], expectations }) {
+  /** @type {RoutingAssertionResults} */
+  const results = { passes: [], failures: [] };
+  /** @param {string} id @param {string} message */
+  const pass = (id, message) => results.passes.push(`PASS ${id} ${message}`);
+  /** @param {string} id @param {string} message */
+  const fail = (id, message) => results.failures.push(`FAIL ${id} ${message}`);
+
+  const configured = expectations.steering?.maxAiCredits;
+  const budgetValid = typeof configured === "number" && Number.isInteger(configured) && configured >= 1;
+  const budget = budgetValid ? Math.min(configured, AI_CREDITS_HARD_CAP) : NaN;
+  const budgetProblem = `steering.maxAiCredits must be an integer of 1 or more, got ${configured ?? "<none>"}`;
+
+  // The classifier counts toward the budget but never carries a notice.
+  const agentTraffic = requests.filter(request => !isClassifierRequest(request));
+  const notices = agentTraffic.filter(request => request?.steering && typeof request.steering === "object");
+  const sessionUsage = events.filter(event => event?.type === "firewall.token_usage" && event.provenance?.component === "firewall" && event.provenance?.phase === "agent");
+  const sessionNotices = sessionUsage.filter(event => event.data?.steering && typeof event.data.steering === "object");
+  const describeSessionNotices = () => (sessionNotices.length ? sessionNotices.map(event => `${steeringKey(event.data.steering)} request=${eventRequestId(event) || "<none>"}`).join(", ") : "none");
+
+  // T1: the 80% notice reached the main agent and both logs agree on it.
+  const t1Problems = [];
+  const credit80 = notices.filter(request => request.steering.type === "ai_credit" && Number(request.steering.threshold) === 80);
+  if (!credit80.length) t1Problems.push(`no ai_credit@80 notice in token-usage.jsonl`);
+  else if (!credit80.some(request => Number(request.status) === 200)) t1Problems.push(`ai_credit@80 notice only on non-200 response(s), so it never reached the model`);
+  const noticeKey = (id, steering) => JSON.stringify([id, steeringKey(steering)]);
+  const tokenNoticeKeys = new Set(notices.map(request => noticeKey(requestId(request), request.steering)));
+  for (const request of notices) {
+    const id = requestId(request);
+    const matching = sessionUsage.filter(event => eventRequestId(event) === id);
+    if (!id) t1Problems.push(`notice ${steeringKey(request.steering)} has no request_id`);
+    else if (!matching.length) t1Problems.push(`no session firewall.token_usage event for notice ${steeringKey(request.steering)} request=${id}`);
+    else if (!matching.some(event => steeringKey(event.data?.steering) === steeringKey(request.steering))) {
+      t1Problems.push(`session event for request=${id} carries steering ${matching.map(event => steeringKey(event.data?.steering)).join(", ")}, expected ${steeringKey(request.steering)}`);
+    }
+  }
+  const unmatchedSession = sessionNotices.filter(event => !tokenNoticeKeys.has(noticeKey(eventRequestId(event), event.data.steering)));
+  if (unmatchedSession.length) t1Problems.push(`session notice(s) with no matching token-usage.jsonl record: ${unmatchedSession.map(event => `${steeringKey(event.data.steering)} request=${eventRequestId(event) || "<none>"}`).join(", ")}`);
+  const started = events.filter(event => event?.type === "subagent.started");
+  if (started.length) t1Problems.push(`${started.length} subagent.started event(s), so a notice may have gone to a sub-agent: ${describeEvents(started)}`);
+  if (t1Problems.length) fail("T1", `${t1Problems.join("; ")}; observed token-usage notices: ${describeNotices(notices)}; observed session notices: ${describeSessionNotices()}`);
+  else pass("T1", `main agent received ${describeNotice(credit80.find(request => Number(request.status) === 200))}; session event matches; no sub-agents`);
+
+  // T2: each (type, threshold) once, on a known threshold, and never early.
+  // Order is not checked: AWF sends the highest pending threshold first.
+  const t2Problems = [];
+  if (!notices.length) t2Problems.push("no steering notices to check");
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  for (const request of notices) counts.set(steeringKey(request.steering), (counts.get(steeringKey(request.steering)) ?? 0) + 1);
+  const repeated = [...counts].filter(([, count]) => count > 1);
+  if (repeated.length) t2Problems.push(`repeated notice(s): ${repeated.map(([key, count]) => `${key} x${count}`).join(", ")}`);
+  const unknown = notices.filter(request => !STEERING_THRESHOLDS.includes(request.steering.threshold));
+  if (unknown.length) t2Problems.push(`threshold(s) outside [${STEERING_THRESHOLDS.join(", ")}]: ${[...new Set(unknown.map(request => steeringKey(request.steering)))].join(", ")}`);
+  const creditNotices = notices.filter(request => request.steering.type === "ai_credit");
+  if (creditNotices.length && !budgetValid) t2Problems.push(budgetProblem);
+  else {
+    for (const request of creditNotices) {
+      const total = finiteNumber(request.ai_credits_total);
+      const thisResponse = finiteNumber(request.ai_credits_this_response);
+      const threshold = Number(request.steering.threshold);
+      if (total === undefined || thisResponse === undefined) {
+        t2Problems.push(`notice ${steeringKey(request.steering)} request=${requestId(request) || "<none>"} lacks numeric ai_credits_total/ai_credits_this_response`);
+        continue;
+      }
+      const required = (threshold / 100) * budget;
+      if (total - thisResponse + CREDIT_EPSILON < required) t2Problems.push(`early notice ${describeNotice(request)}: total before the request is below ${threshold}% of ${budget} (${Number(required.toFixed(6))})`);
+    }
+  }
+  if (t2Problems.length) fail("T2", `${t2Problems.join("; ")}; observed notices: ${describeNotices(notices)}`);
+  else pass("T2", `${notices.length} notice(s), each once and at or above its threshold of ${budget}: ${describeNotices(notices)}`);
+
+  // T3: the run ended under budget, without a budget rejection, and succeeded.
+  const t3Problems = [];
+  const totals = requests.map(request => finiteNumber(request?.ai_credits_total)).filter(value => value !== undefined);
+  const finalTotal = totals.length ? totals.reduce((a, b) => Math.max(a, b), -Infinity) : undefined;
+  if (!budgetValid) t3Problems.push(budgetProblem);
+  if (finalTotal === undefined) t3Problems.push("no ai_credits_total in token-usage.jsonl");
+  else if (budgetValid && finalTotal >= budget) t3Problems.push(`final ai_credits_total ${finalTotal} is at or above the budget ${budget}`);
+  /** @param {any} record */
+  const isBudgetFailure = record => record?.stage === "failure" && record?.code === AI_CREDITS_LIMIT_CODE;
+  const routingFailures = routingRecords.filter(isBudgetFailure);
+  const sessionFailures = events.filter(event => event?.type === "firewall.model_routing" && event.provenance?.component === "firewall" && isBudgetFailure(event.data));
+  if (routingFailures.length) t3Problems.push(`${routingFailures.length} ${AI_CREDITS_LIMIT_CODE} failure record(s) in model-routing.jsonl`);
+  if (sessionFailures.length) t3Problems.push(`${sessionFailures.length} ${AI_CREDITS_LIMIT_CODE} firewall.model_routing failure event(s) in the session`);
+  if (expectations.executionOutcome !== "success") t3Problems.push(`agent execution outcome is ${expectations.executionOutcome || "<empty>"}, expected success`);
+  if (t3Problems.length) fail("T3", t3Problems.join("; "));
+  else pass("T3", `final ai_credits_total ${finalTotal} is below the budget ${budget}; no budget rejection; agent execution succeeded`);
+
+  return results;
+}
+
 /**
  * @param {string} file
  * @param {string[]} problems
@@ -434,10 +576,10 @@ function readJsonl(file, problems) {
 /**
  * Collect evidence from the gh-aw temp directory. Post-steps run before the
  * usage-artifact step writes aw_session.jsonl, so the unified session is built first.
- * @param {{ rootDir?: string, engine?: string, buildSession?: boolean }} [options]
- * @returns {{ events: any[], requests: any[], reflect: any, problems: string[] }}
+ * @param {{ rootDir?: string, engine?: string, buildSession?: boolean, withRoutingRecords?: boolean }} [options]
+ * @returns {{ events: any[], requests: any[], routingRecords: any[], reflect: any, problems: string[] }}
  */
-function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true } = {}) {
+function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true, withRoutingRecords = false } = {}) {
   /** @type {string[]} */
   const problems = [];
   if (buildSession) {
@@ -462,6 +604,12 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
     problems.push(`missing api-proxy token-usage.jsonl (looked in ${TOKEN_USAGE_PATHS.join(", ")})`);
   }
 
+  // model-routing.jsonl is read only for the steering checks (T3), which look
+  // for budget rejections in it; a missing file is not an evidence problem.
+  let routingRecords = [];
+  const routingFile = withRoutingRecords ? MODEL_ROUTING_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file)) : undefined;
+  if (routingFile) routingRecords = readJsonl(routingFile, problems).filter(record => record && typeof record === "object" && !Array.isArray(record));
+
   let reflect = null;
   const reflectFile = REFLECT_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file));
   if (reflectFile) {
@@ -471,7 +619,7 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
       problems.push(`${reflectFile} is not valid JSON: ${getErrorMessage(error)}`);
     }
   }
-  return { events, requests, reflect, problems };
+  return { events, requests, routingRecords, reflect, problems };
 }
 
 /**
@@ -481,10 +629,24 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
  */
 function checkModelRoutingEvidence(options) {
   const { rootDir, engine, buildSession, ...expectations } = options;
-  const evidence = collectModelRoutingEvidence({ rootDir, engine, buildSession });
+  const evidence = collectModelRoutingEvidence({ rootDir, engine, buildSession, withRoutingRecords: Boolean(expectations.steering) });
   const results = evaluateModelRoutingEvidence({ events: evidence.events, requests: evidence.requests, reflect: evidence.reflect, expectations });
   if (evidence.problems.length) results.failures.unshift(...evidence.problems.map(problem => `FAIL E2 evidence: ${problem}`));
   else results.passes.unshift("PASS E2 evidence: unified session and api-proxy token usage present");
+  if (expectations.steering) {
+    // T4: the existing checks still pass alongside the steering checks.
+    const failedIds = [...new Set(results.failures.map(line => line.split(" ")[1]))];
+    const steering = evaluateSteeringEvidence({
+      events: evidence.events,
+      requests: evidence.requests,
+      routingRecords: evidence.routingRecords,
+      expectations: { steering: expectations.steering, executionOutcome: expectations.executionOutcome },
+    });
+    results.passes.push(...steering.passes);
+    results.failures.push(...steering.failures);
+    if (failedIds.length) results.failures.push(`FAIL T4 existing check(s) failed: ${failedIds.join(", ")}`);
+    else results.passes.push(`PASS T4 all ${results.passes.length - steering.passes.length} existing check(s) passed`);
+  }
   return results;
 }
 
@@ -676,11 +838,14 @@ async function detectionMain(options) {
 module.exports = {
   CLASSIFIER_PURPOSE,
   TOKEN_USAGE_PATHS,
+  MODEL_ROUTING_PATHS,
+  STEERING_THRESHOLDS,
   servedModel,
   normalizeEndpoint,
   supportedEndpoints,
   supportedEfforts,
   evaluateModelRoutingEvidence,
+  evaluateSteeringEvidence,
   collectModelRoutingEvidence,
   checkModelRoutingEvidence,
   main,
