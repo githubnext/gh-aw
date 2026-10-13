@@ -53,8 +53,8 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
 `work:<status>` labels. Optional `label` customizes the tracking and status-label
 prefixes; `title_prefix` defaults to `[work queue]`. Titles and summaries show
-12-character Work IDs; Issue bodies show full IDs. No workflow
-override/enrollment is needed. Protected AW hooks project admissions/original
+12-character Work IDs; Issue bodies show full IDs. Per-workflow
+overrides/enrollment aren't required. Protected AW hooks project admissions/original
 Claims only. Immutable `backing_issue` binds one Work per Issue.
 Agents never write mirrors; human edits never establish Result. Pre-existing
 Issues require exact installed `backing_issues` grants. Only trusted
