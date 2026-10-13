@@ -91,6 +91,38 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("Stack");
   });
 
+  it("emits explicitly requested failure diagnostics without DEBUG, exposing only status and fixed categories", () => {
+    const secret = "private-token-and-assignment";
+    const logger = createWorkQueueLogger("dispatch");
+    for (const message of [`No ref found for: ${secret}`, `Unexpected inputs provided: ${secret}`, "Workflow does not have 'workflow_dispatch' trigger", secret]) {
+      logger.failure("launch.post.failed", { status: 422, response: { data: { message, errors: [secret] }, headers: { authorization: secret } } }, true);
+    }
+    expect(output()).toContain("http_status=422");
+    expect(output()).toContain("ref_not_found=true");
+    expect(output()).toContain("unexpected_inputs=true");
+    expect(output()).toContain("dispatch_trigger_missing=true");
+    expect(output()).not.toContain(secret);
+  });
+
+  it("prints only numeric and boolean metadata in always-visible diagnostics", () => {
+    createWorkQueueLogger("native").diagnostic("dispatch.post.start", { input_count: 1, named_ref: true, assignment: "private", token: "private", ref: "private" });
+    expect(output()).toContain("dispatch.post.start input_count=1 named_ref=true");
+    expect(output()).not.toContain("private");
+  });
+
+  it("does not invoke nested response getters or print oversized error bodies in always-visible diagnostics", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private");
+    });
+    const logger = createWorkQueueLogger("dispatch");
+    logger.failure("launch.post.failed", { status: 422, response: Object.defineProperty({}, "data", { get: getter }) }, true);
+    logger.failure("launch.post.failed", Object.defineProperty({}, "response", { get: getter }), true);
+    logger.failure("launch.post.failed", { status: 422, response: { data: { message: "No ref found for:" + "private".repeat(2000) } } }, true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output()).not.toContain("ref_not_found=true");
+    expect(output()).not.toContain("private");
+  });
+
   it("does not invoke an error status getter or coerce invalid status values", () => {
     vi.stubEnv("DEBUG", "work-queue:*");
     const getter = vi.fn(() => {

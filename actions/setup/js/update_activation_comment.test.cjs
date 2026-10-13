@@ -297,6 +297,51 @@ describe("update_activation_comment.cjs", () => {
         ),
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with pull request link"));
     }),
+    it("should export activation_comment_links output after updating the activation comment", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.core.setOutput = vi.fn();
+      mockDependencies.github.request.mockImplementation(async method =>
+        method.startsWith("GET") ? { data: { body: "Agentic workflow triggered." } } : { data: { id: 123456, html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456" } }
+      );
+      const { updateActivationComment, updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+      const options = { activationCommentLinks: [] };
+      await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42, "pull_request", options);
+      expect(mockDependencies.core.setOutput).toHaveBeenLastCalledWith("activation_comment_links", "Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)");
+      await updateActivationCommentWithCommit(mockDependencies.github, mockDependencies.context, mockDependencies.core, "abcdef1234567890", "https://github.com/testowner/testrepo/commit/abcdef1234567890", options);
+      expect(mockDependencies.core.setOutput).toHaveBeenLastCalledWith(
+        "activation_comment_links",
+        "Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)\n\nCommit pushed: [`abcdef1`](https://github.com/testowner/testrepo/commit/abcdef1234567890)"
+      );
+    }),
+    it("should isolate independent accumulators without reloading the module", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.core.setOutput = vi.fn();
+      mockDependencies.github.request.mockImplementation(async method =>
+        method.startsWith("GET") ? { data: { body: "Agentic workflow triggered." } } : { data: { id: 123456, html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456" } }
+      );
+      const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+      const first = { activationCommentLinks: [] };
+      const second = { activationCommentLinks: [] };
+      for (const [number, options] of [
+        [42, first],
+        [43, second],
+        [44, first],
+      ]) {
+        await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, `https://github.com/testowner/testrepo/pull/${number}`, number, "pull_request", options);
+      }
+      expect(second.activationCommentLinks).toEqual(["Pull request created: [#43](https://github.com/testowner/testrepo/pull/43)"]);
+      expect(mockDependencies.core.setOutput).toHaveBeenLastCalledWith(
+        "activation_comment_links",
+        "Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)\n\nPull request created: [#44](https://github.com/testowner/testrepo/pull/44)"
+      );
+    }),
+    it("should not export activation_comment_links when the activation comment was not updated", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+      mockDependencies.core.setOutput = vi.fn();
+      const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+      await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
+      expect(mockDependencies.core.setOutput).not.toHaveBeenCalled();
+    }),
     it("should not fail workflow if comment update fails", async () => {
       ((mockDependencies.process.env.GH_AW_COMMENT_ID = "123456"), (mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo"), mockDependencies.github.request.mockRejectedValue(new Error("Comment update failed")));
       const { updateActivationComment } = createFunctionFromScript(mockDependencies);

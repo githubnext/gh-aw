@@ -48,6 +48,10 @@ authorize arbitrary dispatch. Queue dispatch uses the compatible approved
 execution revision (or explicit Work pin) and AW's selected credential, then binds the actual native run to its
 Claim, not the dispatcher's moving `target-ref`. Do not give the agent credentials
 that can write to the queue branch.
+The selected dispatch credential must read the revision's
+`gh-aw/work-queue/<SHA>` tag and create it if missing. Tag preparation and exact
+read-back happen before the launch is marked started; creation requires
+Contents write permission even when repository metadata reports push access.
 
 ## Optionally override scheduling
 

@@ -2,6 +2,8 @@
 
 This Issue tracks a task admitted to the Git-backed work queue. The queue schedules the work; this Issue shows its progress. Check the summary comment below for the current status, worker runs, and verified results.
 
+{description_section}
+
 | At a glance | Link |
 | --- | --- |
 | Work ID | `{work_id}` (short ID) |

@@ -2157,6 +2157,7 @@ jobs:
       GH_AW_WORKFLOW_SOURCE: "bradygaster/squad/workflows/squad-implement-worker.md@a70c752010f8adfb33f06c7aafb32db09aab1060"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/bradygaster/squad/blob/a70c752010f8adfb33f06c7aafb32db09aab1060/workflows/squad-implement-worker.md"
     outputs:
+      activation_comment_links: ${{ steps.process_safe_outputs.outputs.activation_comment_links }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}

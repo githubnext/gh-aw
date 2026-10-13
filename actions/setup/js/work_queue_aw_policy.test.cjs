@@ -106,7 +106,7 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     expect(work.worker_profile).toBe("workerB");
     expect(fixture.state.policy.pools.default.default_profile).toBe("artifacts-summary");
     expect(post).toHaveBeenCalledOnce();
-    expect(post.mock.calls[0][0]).toMatchObject({ workflow_id: "worker.lock.yml", ref: REF });
+    expect(post.mock.calls[0][0]).toMatchObject({ workflow_id: "worker.lock.yml", ref: `refs/tags/gh-aw/work-queue/${REF}` });
     expect([...fixture.state.dispatches.values()][0].run.principal).toBe("22");
     fs.writeFileSync(intentPath, canonical({ version: 3, ...submit }) + "\n");
     const before = canonical(fixture.transactions);
@@ -283,7 +283,7 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     const profile = fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile;
     const client = fixture.githubClient;
     const validator = createDispatchCredentialValidator(client, { kind: "authenticated" });
-    const proof = await validator({ profile });
+    const proof = await validator({ profile, repository: REPOSITORY });
     expect(proof.principal).toBe("22");
     expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
     expect(isDispatchCredentialProof({ principal: "22", kind: "authenticated" }, client, profile)).toBe(false);
@@ -297,16 +297,92 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     const token = "test-only-selected-token";
     const client = {
       auth: vi.fn().mockResolvedValue({ type: "token", token }),
-      rest: { users: { getByUsername: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot", login: "github-actions[bot]" } }) } },
+      rest: {
+        users: { getByUsername: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot", login: "github-actions[bot]" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, permissions: { push: true } } }) },
+        git: fixture.githubClient.rest.git,
+      },
     };
     const validator = createDispatchCredentialValidator(client, { kind: "github_token" }, token);
-    const proof = await validator({ profile });
+    const proof = await validator({ profile, repository: REPOSITORY });
     expect(proof.principal).toBe("22");
     expect(client.auth).toHaveBeenCalledWith({ type: "token" });
     expect(client.rest.users.getByUsername).toHaveBeenCalledWith(expect.objectContaining({ username: "github-actions[bot]" }));
     expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
     client.auth.mockResolvedValue({ type: "token", token: "different-client-token" });
-    await expect(validator({ profile })).rejects.toThrow(/client_mismatch/);
+    await expect(validator({ profile, repository: REPOSITORY })).rejects.toThrow(/client_mismatch/);
+  });
+
+  it("requires contents write from the actual dispatch credential", async () => {
+    const client = {
+      rest: {
+        users: { getAuthenticated: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, permissions: { push: false } } }) },
+      },
+    };
+    const validator = createDispatchCredentialValidator(client, { kind: "authenticated" });
+    await expect(validator({ profile: {}, repository: REPOSITORY })).rejects.toThrow(/contents_write_required/);
+    expect(client.rest.users.getAuthenticated).not.toHaveBeenCalled();
+  });
+
+  it("checks dispatch write permission before publishing the launch marker", async () => {
+    const { fixture, options, post } = setupAW();
+    fixture.githubClient.rest.repos.get = vi.fn().mockResolvedValue({
+      status: 200,
+      data: { full_name: REPOSITORY, id: 7, permissions: { push: false } },
+    });
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_required/);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).state).toBe("reserved");
+    expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => operation.kind === "Dispatch" && operation.state === "started")).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("rejects token-scoped tag creation denial before START despite repository push permission", async () => {
+    const { fixture, options, post } = setupAW();
+    const before = canonical(fixture.transactions);
+    const denied = Object.assign(new Error("Resource not accessible by integration"), { status: 403 });
+    fixture.githubClient.rest.git = {
+      getRef: vi.fn().mockRejectedValue({ status: 404 }),
+      createRef: vi.fn().mockRejectedValue(denied),
+    };
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toBe(denied);
+    expect(canonical(fixture.transactions)).toBe(before);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).state).toBe("reserved");
+    expect(fixture.githubClient.rest.git.getRef).toHaveBeenCalledOnce();
+    expect(fixture.githubClient.rest.git.createRef).toHaveBeenCalledOnce();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("prepares and reads back a missing tag before granting proof, then posts only once", async () => {
+    const { fixture, options, post } = setupAW();
+    const before = canonical(fixture.transactions);
+    const tag = `refs/tags/gh-aw/work-queue/${REF}`;
+    const verified = { status: 200, data: { ref: tag, object: { type: "commit", sha: REF } } };
+    const createRef = vi.fn().mockImplementation(async () => {
+      expect(canonical(fixture.transactions)).toBe(before);
+      expect(post).not.toHaveBeenCalled();
+      return { status: 201, data: verified.data };
+    });
+    fixture.githubClient.rest.git = { getRef: vi.fn().mockRejectedValueOnce({ status: 404 }).mockResolvedValue(verified), createRef };
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "bound" });
+    expect(createRef).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ ref: tag, sha: REF }));
+    expect(fixture.githubClient.rest.git.getRef.mock.invocationCallOrder[1]).toBeLessThan(post.mock.invocationCallOrder[0]);
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it("grants tag-prepared proof for an existing exact tag without requiring creation", async () => {
+    const { fixture } = setupAW();
+    const profile = fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile;
+    const tag = `refs/tags/gh-aw/work-queue/${REF}`;
+    fixture.githubClient.rest.git = {
+      getRef: vi.fn().mockResolvedValue({ status: 200, data: { ref: tag, object: { type: "commit", sha: REF } } }),
+      createRef: vi.fn().mockRejectedValue({ status: 403 }),
+    };
+    const validator = createDispatchCredentialValidator(fixture.githubClient, { kind: "authenticated" });
+    const proof = await validator({ profile, repository: REPOSITORY });
+    expect(proof).toMatchObject({ principal: "22", tag_prepared: true });
+    expect(isDispatchCredentialProof(proof, fixture.githubClient, profile)).toBe(true);
+    expect(fixture.githubClient.rest.git.createRef).not.toHaveBeenCalled();
   });
 
   it("launches only selected caller-approved routes in a Policy shared by independent pools", async () => {

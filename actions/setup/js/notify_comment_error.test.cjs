@@ -62,6 +62,7 @@ const mockCore = {
           GH_AW_SAFE_OUTPUTS_RESULT: process.env.GH_AW_SAFE_OUTPUTS_RESULT,
           GH_AW_AGENT_OUTPUT: process.env.GH_AW_AGENT_OUTPUT,
           GH_AW_NOOP_COMMENT_BODY: process.env.GH_AW_NOOP_COMMENT_BODY,
+          GH_AW_ACTIVATION_COMMENT_LINKS: process.env.GH_AW_ACTIVATION_COMMENT_LINKS,
           GH_AW_NOOP_REPORT_AS_ISSUE: process.env.GH_AW_NOOP_REPORT_AS_ISSUE,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
@@ -206,18 +207,30 @@ const mockCore = {
         });
       }),
       describe("when updating an issue/PR comment", () => {
-        (it("should update with success message when agent succeeds", async () => {
+        (it("should preserve pull request links appended to the activation comment by safe outputs", async () => {
           ((process.env.GH_AW_COMMENT_ID = "123456"),
             (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             (process.env.GH_AW_AGENT_CONCLUSION = "success"),
-            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
-            expect(mockGithub.request).toHaveBeenCalledWith(
-              "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-              expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("completed successfully!") })
-            ),
-            expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment"));
+            (process.env.GH_AW_ACTIVATION_COMMENT_LINKS = "Pull request created: [#900](https://github.com/owner/repo/pull/900)"),
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`));
+          const patchCall = mockGithub.request.mock.calls.find(call => call[0] === "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}");
+          expect(patchCall).toBeDefined();
+          expect(patchCall[1].body).toContain("completed successfully!");
+          expect(patchCall[1].body).toContain("Pull request created: [#900](https://github.com/owner/repo/pull/900)");
         }),
+          it("should update with success message when agent succeeds", async () => {
+            ((process.env.GH_AW_COMMENT_ID = "123456"),
+              (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+              (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+              (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+              await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+              expect(mockGithub.request).toHaveBeenCalledWith(
+                "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+                expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("completed successfully!") })
+              ),
+              expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment"));
+          }),
           it("should update with assignment failure message when agent succeeds but assign-to-agent fails", async () => {
             ((process.env.GH_AW_COMMENT_ID = "123456"),
               (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),

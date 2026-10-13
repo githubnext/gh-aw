@@ -123,6 +123,7 @@ async function main() {
   }
   const safeOutputsResult = process.env.GH_AW_SAFE_OUTPUTS_RESULT;
   const noopCommentBody = process.env.GH_AW_NOOP_COMMENT_BODY || "";
+  const activationCommentLinks = (process.env.GH_AW_ACTIVATION_COMMENT_LINKS || "").trim();
 
   const messagesConfig = getMessages();
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
@@ -234,6 +235,12 @@ async function main() {
   // Append detection warning caution section if present
   if (detectionWarningMessage) {
     message += "\n\n" + detectionWarningMessage;
+  }
+
+  // Preserve links (e.g. "Pull request created: #X") that safe outputs appended to the
+  // activation comment; otherwise this final status update would overwrite them.
+  if (activationCommentLinks) {
+    message += "\n\n" + activationCommentLinks;
   }
 
   // Never fall back to raw agent prose in a public comment if rendering failed.

@@ -423,6 +423,58 @@ func TestConclusionJobSafeOutputsResult(t *testing.T) {
 	}
 }
 
+func TestConclusionJobActivationCommentLinks(t *testing.T) {
+	// The conclusion job re-renders the activation comment, so it must receive the links
+	// (e.g. created pull requests) that the safe_outputs job appended to that comment.
+	compiler := NewCompiler()
+	statusCommentTrue := true
+	envVarDeclaration := "GH_AW_ACTIVATION_COMMENT_LINKS: ${{ needs.safe_outputs.outputs.activation_comment_links }}"
+
+	tests := []struct {
+		name         string
+		safeOutputs  *SafeOutputsConfig
+		expectEnvVar bool
+	}{
+		{
+			name:         "present with create-pull-request",
+			safeOutputs:  &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{}},
+			expectEnvVar: true,
+		},
+		{
+			name:         "present with push-to-pull-request-branch",
+			safeOutputs:  &SafeOutputsConfig{PushToPullRequestBranch: &PushToPullRequestBranchConfig{}},
+			expectEnvVar: true,
+		},
+		{
+			name:         "absent without PR-related safe outputs",
+			safeOutputs:  &SafeOutputsConfig{AddComments: &AddCommentsConfig{}},
+			expectEnvVar: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:          "Test Workflow",
+				AIReaction:    "eyes",
+				StatusComment: &statusCommentTrue,
+				SafeOutputs:   tt.safeOutputs,
+			}
+			job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{"safe_outputs"})
+			if err != nil {
+				t.Fatalf("Failed to build conclusion job: %v", err)
+			}
+			if job == nil {
+				t.Fatal("Expected conclusion job to be created")
+			}
+			hasEnvVar := strings.Contains(strings.Join(job.Steps, ""), envVarDeclaration)
+			if hasEnvVar != tt.expectEnvVar {
+				t.Errorf("Expected env var presence %v, got %v", tt.expectEnvVar, hasEnvVar)
+			}
+		})
+	}
+}
+
 func TestConclusionJobWithMessages(t *testing.T) {
 	// Test that the conclusion job includes custom messages when configured
 	compiler := NewCompiler()

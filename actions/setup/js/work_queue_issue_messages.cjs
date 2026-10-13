@@ -3,6 +3,53 @@
 
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
+const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
+
+function presentationText(value, limit, singleLine = false, maskedValues = []) {
+  if (typeof value !== "string") return "";
+  let text = redactDiagnosticText(value, { maskedValues }).trim();
+  if (singleLine) text = text.replace(/\s+/g, " ");
+  const render = candidate => {
+    let rendered = candidate;
+    for (;;) {
+      const sanitized = sanitizeContent(redactDiagnosticText(rendered, { maskedValues }));
+      if (sanitized === rendered) return sanitized;
+      rendered = sanitized;
+    }
+  };
+  const withinLimit = candidate => {
+    const rendered = render(candidate);
+    return [...rendered].length <= limit ? rendered : undefined;
+  };
+  const complete = render(text);
+  if ([...complete].length <= limit) return complete;
+
+  // Redact the complete value before cutting, so a boundary cannot expose a
+  // credential prefix that no longer matches its exact value or token pattern.
+  const characters = [...complete];
+  let low = 0;
+  let high = characters.length;
+  let result = withinLimit("...");
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = `${characters.slice(0, middle).join("").trimEnd()}...`;
+    const rendered = withinLimit(candidate);
+    if (rendered !== undefined) {
+      result = rendered;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return result;
+}
+
+function issueTitle(work, config, maskedValues = []) {
+  const base = `${config.title_prefix} ${work.work_id.slice(0, 12)}`;
+  const title = presentationText(work.payload?.title, 128, true, maskedValues);
+  return title ? `${base} — ${title}` : base;
+}
 
 const PROGRESS_NOTES = {
   Queued: "Ready for its next fair slot.",
@@ -34,10 +81,11 @@ function renderWorkQueueMessage(template, values, run) {
   return message.endsWith(footer) ? message : `${message}\n\n${footer}`;
 }
 
-function issueBody(state, work, origin, config, branch) {
+function issueBody(state, work, origin, config, branch, maskedValues = []) {
   const admission = state.workCreators?.get(work.work_id);
   if (!admission) throw new Error("work_queue_admission_provenance_missing");
   const ledgerUrl = `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`;
+  const description = presentationText(work.payload?.description, 4096, false, maskedValues);
   return renderWorkQueueMessage(
     "work_queue_issue_body.md",
     {
@@ -46,6 +94,7 @@ function issueBody(state, work, origin, config, branch) {
       admission_run_url: admission.run_id ? runLink(admission) : ledgerUrl,
       admission_link_label: admission.run_id ? "View the admitting run" : "View the admission receipt",
       ledger_url: ledgerUrl,
+      description_section: description ? `### Work description\n\n${description}\n` : "",
       tracking_label: config.label,
       projection_note: "Progress is projected into a status label; the live summary links to the checked ledger.",
     },
@@ -70,4 +119,4 @@ function renderClaim(values, run) {
   return renderWorkQueueMessage("work_queue_issue_claim.md", values, run);
 }
 
-module.exports = { issueBody, renderSummary, renderClaim, runLink };
+module.exports = { issueBody, issueTitle, renderSummary, renderClaim, runLink };

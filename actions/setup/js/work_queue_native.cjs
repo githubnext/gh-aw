@@ -5,6 +5,7 @@ const { posix } = require("node:path");
 
 const { canonical, closed, parseStrictJSON } = require("./work_queue_codec.cjs");
 const { actorFromContext } = require("./work_queue_policy.cjs");
+const { dispatchWorkflow } = require("./dispatch_workflow_transport.cjs");
 
 const API_VERSION = "2026-03-10";
 
@@ -125,15 +126,57 @@ function validateNativeRun(run, expected) {
   return { run_id: runId, run_attempt: 1, repository: run.repository.full_name, principal: nativeId(run.actor.id), terminal, status, conclusion: terminal ? run.conclusion : null };
 }
 
+async function dispatchTag(githubClient, destination) {
+  const [owner, repo] = destination.repository.split("/");
+  const sha = immutableRef(destination.ref);
+  const ref = `refs/tags/gh-aw/work-queue/${sha}`;
+  const parameters = { owner, repo, ref: ref.slice("refs/".length), headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0, timeout: 15000 } };
+  let response;
+  try {
+    response = await githubClient.rest.git.getRef(parameters);
+  } catch (error) {
+    const failure = error && typeof error === "object" ? /** @type {{status?: unknown}} */ error : undefined;
+    if (failure?.status !== 404) throw error;
+    try {
+      await githubClient.rest.git.createRef({ ...parameters, ref, sha });
+    } catch (creationError) {
+      // A concurrent creator may have won; never overwrite an existing tag.
+      const failure = creationError && typeof creationError === "object" ? /** @type {{status?: unknown, response?: {status?: unknown, data?: {message?: unknown}}}} */ creationError : undefined;
+      if (failure?.status !== 422 || failure.response?.status !== 422 || failure.response.data?.message !== "Reference already exists") throw creationError;
+      log.failure("dispatch.tag.create_conflict", creationError, true);
+    }
+    response = await githubClient.rest.git.getRef(parameters);
+  }
+  if (response.status !== 200 || response.data?.ref !== ref || response.data?.object?.type !== "commit" || response.data.object.sha !== sha) throw new Error("work_queue_dispatch_tag_mismatch");
+  log.diagnostic("dispatch.tag.verified", { verified: true });
+  return ref;
+}
+
 async function postQueueDispatch(githubClient, destination, inputs) {
   log.debug("dispatch.post.start");
   const [owner, repo] = destination.repository.split("/");
-  immutableRef(destination.ref);
-  const response = await githubClient.rest.actions.createWorkflowDispatch({
+  let ref;
+  try {
+    ref = await dispatchTag(githubClient, destination);
+  } catch (cause) {
+    const failure = cause && typeof cause === "object" ? /** @type {{message?: unknown, status?: unknown, response?: {status?: unknown, headers?: Record<string, unknown>}}} */ cause : undefined;
+    const code = failure?.message === "work_queue_dispatch_tag_mismatch" ? "work_queue_dispatch_tag_mismatch" : "work_queue_dispatch_tag_preparation_failed";
+    /** @type {Error & {code?: string, status?: number, provider_rejection?: {status: number, request_id: string}}} */
+    const error = new Error(code);
+    error.code = code;
+    const status = failure?.status;
+    const requestId = failure?.response?.headers?.["x-github-request-id"];
+    if (Number.isInteger(status) && failure?.response?.status === status && typeof requestId === "string" && requestId) {
+      error.status = status;
+      error.provider_rejection = { status, request_id: requestId };
+    }
+    throw error;
+  }
+  const response = await dispatchWorkflow(githubClient, {
     owner,
     repo,
     workflow_id: posix.basename(destination.workflow),
-    ref: destination.ref,
+    ref,
     inputs,
     headers: { "X-GitHub-Api-Version": API_VERSION },
     request: { retries: 0, retryCount: 0, timeout: 30000 },
@@ -236,6 +279,7 @@ module.exports = {
   fetchNativeRun,
   fetchNativeRunAttempt,
   validateNativeRun,
+  dispatchTag,
   postQueueDispatch,
   authenticatePublisher,
   authenticateIntentPublisher,

@@ -131,6 +131,21 @@ its dependent successors, without charging fairness or consuming attempts.
 Scheduling economics and genuinely conflicting shared resources use the
 separate quiescent Policy update.
 
+GitHub's workflow-dispatch API requires a named ref, not a raw commit SHA.
+Queue launches share the ordinary `dispatch_workflow` safe-output POST transport,
+but disable its legacy-response fallback: a queue launch sends at most one POST
+and requires the pinned API's run identity response.
+Trusted JavaScript dispatch creates or reuses the lightweight tag
+`refs/tags/gh-aw/work-queue/<approved-sha>` and reads it back to verify its exact
+commit before launching. It never moves or deletes an existing tag. This requires
+`contents: write` alongside `actions: write` on the trusted dispatch credential;
+the agent receives neither credential. The Claim and native-run binding retain
+the approved SHA, and a mismatched run cannot authorize worker effects.
+Rejected launches release their reservations but fail the dispatcher; release
+is not successful execution. Always-visible diagnostics report only static
+events, counts, flags, elapsed time and HTTP status, including known validation
+categories. They omit assignments, identities, tokens and raw error bodies.
+
 Protected producer/dispatcher processing synchronizes only its AW-approved
 targets before a new submission or dispatch request; replay of an accepted
 request does not retarget it. Workers cannot publish deployment updates.
@@ -167,6 +182,10 @@ may override `label` (for example, `cookie` produces `cookie:queued`) and
 `title_prefix` (for example, `[cookie queue] abcdef012345`); an empty object
 uses defaults. Titles and summaries show the first 12 characters of the Work
 ID, and the Issue body retains the full ID in a machine-readable comment.
+The conclusion job omits payload `title` and `description` fields from newly
+created Issues because it does not receive the original runtime masks and
+configured secret environment. Sanitized artifacts cannot recover those
+redaction sources, and the authoritative ledger payload remains unchanged.
 Absent or false disables the integration. The label prefix must be a
 nonblank literal of at most 33 UTF-8 bytes, leaving room for the longest status
 suffix within GitHub's 50-character label limit. The title prefix must be a
@@ -260,7 +279,9 @@ never authorizes closure.
 
 ### Synchronization and recovery
 
-Queue reads recover the known deployment-aliasing checkpoint defect from a
+Both Go operator and JavaScript runtime queue reads recover the known
+deployment-aliasing checkpoint defect, including when validating older checkpoints
+in Git history, from a
 verified, unchanged checkpoint in the direct Git parent. Recovery accepts only deployment
 state exactly explained by the retained, valid transactions; other corruption
 still fails validation. Reads do not write to Git. The next authorized checked
