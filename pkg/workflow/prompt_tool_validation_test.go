@@ -28,6 +28,15 @@ func TestPromptToolRequirements(t *testing.T) {
 		{"inline", "- Run `some-custom-command --verify`.", []promptToolRequirement{{command: "some-custom-command --verify"}}},
 		{"unquoted stem", "Run gh issue list.", []promptToolRequirement{{command: "gh issue list"}}},
 		{"unquoted option", "Run jq --version.", []promptToolRequirement{{command: "jq --version"}}},
+		{"named MCP tool", "Run the `status` tool of the `gh-aw` MCP server to verify configuration.", []promptToolRequirement{{server: "agenticworkflows", tool: "status", nativeMCP: true}}},
+		{"named MCP tool, tool-first phrasing", "Run the tool `status` of the `gh-aw` MCP server.", []promptToolRequirement{{server: "agenticworkflows", tool: "status", nativeMCP: true}}},
+		{"named MCP tool, mixed-case server", "Run the `issue_read` tool of the GitHub MCP server.", []promptToolRequirement{{server: "github", tool: "issue_read", nativeMCP: true}}},
+		{"named MCP tool, mixed-case playwright", "Run the `browser_snapshot` tool from the Playwright MCP server.", []promptToolRequirement{{server: "playwright", tool: "browser_snapshot", nativeMCP: true}}},
+		{"named MCP tool, mixed-case alias", "Run the tool `status` from the `GH-AW` MCP server.", []promptToolRequirement{{server: "agenticworkflows", tool: "status", nativeMCP: true}}},
+		{"named MCP tool, custom server casing", "Run the `lookup` tool of the `InventoryAPI` MCP server.", []promptToolRequirement{{server: "InventoryAPI", tool: "lookup", nativeMCP: true}}},
+		{"named MCP tool, mixed-case framework server", "Run the `status` tool of the AgenticWorkflows MCP server.", []promptToolRequirement{{server: "agenticworkflows", tool: "status", nativeMCP: true}}},
+		{"named MCP tool, mixed-case safeoutputs", "Run the `add_labels` tool of the SafeOutputs MCP server.", []promptToolRequirement{{server: "safeoutputs", tool: "add_labels", nativeMCP: true}}},
+		{"named MCP tool, mixed-case mcpscripts", "Run the `lookup` tool of the MCPScripts MCP server.", []promptToolRequirement{{server: "mcpscripts", tool: "lookup", nativeMCP: true}}},
 		{"qualified", "Call `mcp__github__issue_read`.", []promptToolRequirement{{server: "github", tool: "issue_read", nativeMCP: true}}},
 		{"multiple qualified", "Call mcp__github__findings and mcp__github__summary.", []promptToolRequirement{{server: "github", tool: "findings", nativeMCP: true}, {server: "github", tool: "summary", nativeMCP: true}}},
 		{"server", "Use the tool github(issue_read).", []promptToolRequirement{{server: "github", tool: "issue_read", nativeMCP: true}}},
@@ -160,6 +169,14 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 		{"CLI abstract tool", "engine: copilot\ntools:\n  cli-proxy: true\n  bash: [echo]\n", "Use issue_read.", 0},
 		{"CLI shell grant", "engine: copilot\ntools:\n  cli-proxy: true\n  bash: [echo]\n", "Run `github issue_read`.", 0},
 		{"native MCP retained", "engine: copilot\ntools:\n  cli-proxy: false\n  bash: [echo]\n", "Call mcp__github__issue_read.", 0},
+		{"named MCP status tool", "engine: copilot\npermissions:\n  actions: read\ntools:\n  cli-proxy: true\n  bash: [echo]\n  agentic-workflows: true\n", "Run the `status` tool of the `gh-aw` MCP server to verify configuration.", 1},
+		{"named MCP status tool-first", "engine: copilot\npermissions:\n  actions: read\ntools:\n  cli-proxy: true\n  bash: [echo]\n  agentic-workflows: true\n", "Run the tool `status` of the `gh-aw` MCP server.", 1},
+		{"named GitHub allowed", "engine: copilot\ntools:\n  cli-proxy: false\n  github:\n    toolsets: [issues]\n    allowed: [issue_read]\n", "Run the `issue_read` tool of the GitHub MCP server.", 0},
+		{"named GitHub restricted", "engine: copilot\ntools:\n  cli-proxy: false\n  github:\n    allowed: [list_issues]\n", "Run the `issue_read` tool of the GitHub MCP server.", 1},
+		{"named GitHub toolset", "engine: copilot\ntools:\n  cli-proxy: false\n  github:\n    toolsets: [repos]\n    allowed: ['*']\n", "Run the `issue_read` tool of the GitHub MCP server.", 1},
+		{"named GitHub CLI excluded", "engine: copilot\ntools:\n  cli-proxy: true\n  bash: [echo]\n", "Run the `issue_read` tool of the GitHub MCP server.", 1},
+		{"named custom exact casing", "engine: copilot\ntools:\n  cli-proxy: false\nmcp-servers:\n  InventoryAPI:\n    command: node\n    args: [server.js]\n    allowed: [lookup]\n", "Run the `lookup` tool of the `InventoryAPI` MCP server.", 0},
+		{"named custom casing mismatch", "engine: copilot\ntools:\n  cli-proxy: false\nmcp-servers:\n  InventoryAPI:\n    command: node\n    args: [server.js]\n    allowed: [lookup]\n", "Run the `lookup` tool of the `inventoryapi` MCP server.", 1},
 		{"SDK exact denial", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git status\"]\n", "Run `git status --short`.", 1},
 		{"SDK normalized exact denial", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git branch *\"]\n", "Run `git branch --show-current`.", 1},
 		{"SDK colon prefix", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git status:*\"]\n", "Run `git status --short`.", 0},
@@ -193,9 +210,20 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 			output := testutil.CaptureStderr(t, func() { err = compiler.CompileWorkflow(path) })
 			require.NoError(t, err)
 			require.Equal(t, tt.want, strings.Count(output, "Prompt explicitly requires"), output)
-			if tt.name == "CLI native mismatch" {
+			if tt.name == "CLI native mismatch" || tt.name == "named GitHub CLI excluded" {
 				require.Contains(t, output, "use the github CLI instead")
 				require.Contains(t, output, "disable tools.cli-proxy")
+			}
+			if strings.HasPrefix(tt.name, "named MCP status tool") {
+				require.Contains(t, output, "mcp__agenticworkflows__status")
+				require.Contains(t, output, "native MCP access is excluded by tools.cli-proxy")
+				require.NotContains(t, output, "shell(status)")
+				require.NotContains(t, output, "tools.bash")
+			}
+			if tt.name == "named GitHub restricted" || tt.name == "named GitHub toolset" {
+				require.Contains(t, output, "github(issue_read)")
+				require.Contains(t, output, "tools.github.allowed")
+				require.NotContains(t, output, "shell(issue_read)")
 			}
 			if tt.want > 0 && (strings.HasPrefix(tt.name, "codex GitHub") || tt.name == "codex copilot model") {
 				require.Contains(t, output, "native shell is disabled for GitHub-backed Codex")
