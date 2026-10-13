@@ -135,7 +135,7 @@ engine:
 
 	content := `---
 on: push
-engine:
+engine: # select the runtime
   id: codexx
 strict: false
 imports:

@@ -367,7 +367,7 @@ func (c *Compiler) createMissingScheduleColonError(filePath, content string) err
 		if indent <= onIndent {
 			break
 		}
-		if strings.HasPrefix(trimmed, "schedule ") {
+		if strings.HasPrefix(strings.ToLower(trimmed), "schedule ") {
 			cause := errors.New(message)
 			return formatCompilerErrorWithContext(filePath, i+1, indent+1, "error", message, cause, readSourceContextLines([]byte(content), i+1))
 		}

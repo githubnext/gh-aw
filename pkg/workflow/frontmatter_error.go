@@ -88,11 +88,12 @@ func findEngineIDPosition(result *parser.FrontmatterResult) (int, int) {
 
 		indent := len(line) - len(strings.TrimLeft(line, " \t"))
 		if engineIndent < 0 {
-			if indent == 0 && trimmed == "engine:" {
-				engineIndent = indent
-				continue
-			}
 			if indent == 0 && strings.HasPrefix(trimmed, "engine:") {
+				remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
+				if remainder == "" || strings.HasPrefix(remainder, "#") {
+					engineIndent = indent
+					continue
+				}
 				return result.FrontmatterStart + i, 1
 			}
 			continue
