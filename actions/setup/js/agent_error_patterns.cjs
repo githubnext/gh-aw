@@ -290,12 +290,7 @@ function detectErrors(logContent) {
   const missingModelPricingModelName = extractMissingModelPricingModelName(logContent);
   const modelDiagnostics = logContent
     .split(/\r?\n/)
-    .filter(
-      line =>
-        !/\bWARN\s+codex_models_manager::model_info: Unknown model\b.*\bfallback (?:model )?metadata\b/.test(line) &&
-        !/^"?Model metadata unavailable; using fallback metadata\."?$/.test(line) &&
-        !/^"?Model metadata for\s+\S+\s+not found\.\s+Defaulting to fallback metadata\b/i.test(line)
-    )
+    .filter(line => !/\bWARN\s+codex_models_manager::model_info: Unknown model\b.*\bfallback (?:model )?metadata\b/.test(line) && !/^"?Model metadata unavailable; using fallback metadata\."?$/.test(line))
     .join("\n");
   return {
     inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(logContent),
