@@ -16,7 +16,7 @@ func TestMaintenanceWorkflowJobMetadata(t *testing.T) {
 	generated, err := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule: "37 0 * * *", scheduleDesc: "Daily", runsOnValue: "ubuntu-slim",
 		actionMode: ActionModeDev, version: "dev", defaultBranch: "main",
-		hasCacheMemory: true, compactionLedgers: []LedgerConfig{{Name: "events"}},
+		hasCacheMemory: true, hasSteering: true, compactionLedgers: []LedgerConfig{{Name: "events"}},
 		maintenanceConfig: &MaintenanceConfig{LabelTriggers: &labelTriggers},
 	})
 	require.NoError(t, err)

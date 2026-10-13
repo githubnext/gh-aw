@@ -1,7 +1,7 @@
 // @ts-check
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockCore = { info: vi.fn() };
+const mockCore = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn() };
 const mockContext = {
   repo: { owner: "testowner", repo: "testrepo" },
   serverUrl: "https://github.com",
@@ -17,6 +17,19 @@ describe("cleanup_stale_steering_issues", () => {
     created_at: oldCreatedAt,
     ...overrides,
   });
+  const mockCandidates = () => {
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        issues: {
+          nodes: [101, 102].map(number => ({ number, title: "[WIP] Stale", createdAt: oldCreatedAt })),
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    });
+    mockGithub.rest.issues.get.mockResolvedValue({ data: { body: makeIssue().body } });
+    mockGithub.rest.actions.getWorkflowRun.mockResolvedValue({ data: { status: "completed", conclusion: "success" } });
+    mockGithub.paginate.mockResolvedValue([]);
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -39,6 +52,10 @@ describe("cleanup_stale_steering_issues", () => {
       },
     };
     global.github = mockGithub;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("comments on and closes stale steering issues linked to successful runs", async () => {
@@ -128,6 +145,86 @@ describe("cleanup_stale_steering_issues", () => {
 
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([{ status: 404 }, { response: { status: 404 } }])("skips missing workflow runs and continues cleanup (%j)", async status => {
+    mockCandidates();
+    mockGithub.rest.actions.getWorkflowRun.mockRejectedValueOnce(Object.assign(new Error("Not Found"), status));
+    const { main } = await import("./cleanup_stale_steering_issues.cjs");
+    await main();
+
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 102 }));
+    expect(mockCore.info).toHaveBeenCalledWith("Skipping stale steering issue #101: workflow run 12345 no longer exists");
+    expect(mockCore.warning).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each(["get", "getWorkflowRun", "listComments", "createComment", "update"])("reports a %s failure while continuing with later candidates", async operation => {
+    mockCandidates();
+    const failedOperation = operation === "getWorkflowRun" ? mockGithub.rest.actions.getWorkflowRun : operation === "listComments" ? mockGithub.paginate : mockGithub.rest.issues[operation];
+    failedOperation.mockRejectedValueOnce(Object.assign(new Error("Resource not accessible by integration"), { status: 403 }));
+    const { main } = await import("./cleanup_stale_steering_issues.cjs");
+    await main();
+
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 102 }));
+    if (operation === "listComments" || operation === "createComment") {
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 101 }));
+    }
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/#101:[\s\S]*Resource not accessible by integration/));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/#101:[\s\S]*Resource not accessible by integration/));
+    expect(failedOperation).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not treat a missing issue as a missing workflow run", async () => {
+    mockCandidates();
+    mockGithub.rest.issues.get.mockRejectedValueOnce(Object.assign(new Error("Not Found"), { status: 404 }));
+    const { main } = await import("./cleanup_stale_steering_issues.cjs");
+    await main();
+
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#101: Not Found"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("#101: Not Found"));
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 102 }));
+  });
+
+  it.each(["createComment", "update"])("retries a rate-limited %s using the longer installation retry policy", async operation => {
+    vi.useFakeTimers();
+    mockCandidates();
+    mockGithub.rest.issues[operation].mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded for installation"), { status: 403 }));
+    const startedAt = Date.now();
+    const { main } = await import("./cleanup_stale_steering_issues.cjs");
+    const cleanup = main();
+    await vi.runAllTimersAsync();
+    await cleanup;
+
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(30_000);
+    expect(mockGithub.rest.issues[operation]).toHaveBeenCalledTimes(3);
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 102 }));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each(["createComment", "update"])("continues cleanup when %s exhausts its rate-limit retries", async operation => {
+    vi.useFakeTimers();
+    mockCandidates();
+    mockGithub.rest.issues[operation].mockImplementation(async ({ issue_number }) => {
+      if (issue_number === 101) {
+        throw Object.assign(new Error("API rate limit exceeded for installation"), { status: 403 });
+      }
+      return { data: {} };
+    });
+    const { main } = await import("./cleanup_stale_steering_issues.cjs");
+    const cleanup = main();
+    await vi.runAllTimersAsync();
+    await cleanup;
+
+    expect(mockGithub.rest.issues[operation]).toHaveBeenCalledTimes(7);
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 102 }));
+    if (operation === "createComment") {
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 101 }));
+    }
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#101:"));
+    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("#101:"));
   });
 
   it("paginates only through issues created before the stale cutoff", async () => {

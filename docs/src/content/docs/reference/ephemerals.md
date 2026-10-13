@@ -59,6 +59,8 @@ Supported formats are an integer day count (for example, `7`) or a relative dura
 
 **Maintenance workflow generation is lazy**: `agentics-maintenance.yml` is only generated when at least one workflow explicitly opts in — by setting `expires` on `create-issue`, `create-discussion`, or `create-pull-request`, or by explicitly configuring `safe-outputs.noop`. The implicit `noop` fallback that is added automatically when `safe-outputs` is present defaults `report-as-issue` to `false`, so it does not create issues and does not generate a maintenance workflow.
 
+Enabled steering (`safe-outputs.steer`) also generates maintenance for stale steering issue cleanup, even without expiring safe outputs. The `cleanup-stale-steering-issues` job is included only when steering is enabled and runs on the maintenance schedule, daily when no expiration sets a shorter interval.
+
 **Maintenance workflow frequency**: The generated `agentics-maintenance.yml` workflow runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
 | Shortest Expiration | Maintenance Frequency |
@@ -164,6 +166,7 @@ Supported job IDs:
 | `close_agentic_workflows_issues` | Omits the issue cleanup job. |
 | `create_labels` | Omits the label creation job. |
 | `cleanup-cache-memory` | Omits the cache-memory cleanup job (generated only when a workflow uses cache memory). |
+| `cleanup-stale-steering-issues` | Omits scheduled stale steering issue cleanup (generated only when a workflow enables steering). |
 
 Unrecognized job IDs are rejected during config validation.
 

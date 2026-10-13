@@ -77,12 +77,14 @@ describe("complete_steering_issue", () => {
 
   it("retries a rate-limited closure without duplicating the completion comment", async () => {
     vi.useFakeTimers();
+    const startedAt = Date.now();
     global.github.rest.issues.update.mockRejectedValueOnce(Object.assign(new Error("API rate limit exceeded for installation"), { status: 403 }));
     const { main } = await import("./complete_steering_issue.cjs");
     const completion = main();
     await vi.runAllTimersAsync();
     await completion;
 
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(30_000);
     expect(global.github.rest.issues.createComment).toHaveBeenCalledTimes(1);
     expect(global.github.rest.issues.update).toHaveBeenCalledTimes(2);
     expect(global.core.info).toHaveBeenCalledWith("Closed steering issue #42");
@@ -91,6 +93,7 @@ describe("complete_steering_issue", () => {
 
   it("fails the step when rate limiting persists through all closure retries", async () => {
     vi.useFakeTimers();
+    const startedAt = Date.now();
     global.github.rest.issues.update.mockRejectedValue(Object.assign(new Error("API rate limit exceeded for installation"), { status: 403 }));
     const { main } = await import("./complete_steering_issue.cjs");
     const completion = main();
@@ -98,6 +101,8 @@ describe("complete_steering_issue", () => {
     await completion;
 
     expect(global.github.rest.issues.update).toHaveBeenCalledTimes(4);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(210_000);
+    expect(Date.now() - startedAt).toBeLessThan(225_000);
     expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to close steering issue #42:"));
     expect(global.core.info).not.toHaveBeenCalledWith("Closed steering issue #42");
   });

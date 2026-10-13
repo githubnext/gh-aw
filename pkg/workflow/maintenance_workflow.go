@@ -133,7 +133,8 @@ func isNoOpReportAsIssueEnabled(reportAsIssue *string) bool {
 }
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
-// if any workflows use expiring safe outputs or noop issue reporting.
+// if any workflows use expiring safe outputs, noop issue reporting, steering,
+// or queue compaction.
 // When opts.RepoConfig is non-nil and opts.RepoConfig.MaintenanceDisabled is true the
 // maintenance workflow is deleted and the function returns immediately.
 // opts.RepoSlug is the owner/repo slug used to determine the default branch for the push
@@ -206,9 +207,10 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	hasExpires, minExpires, triggerReason := scanWorkflowsForExpires(workflowDataList, repoConfig)
 	compactionLedgers := collectMaintenanceCompactionLedgers(workflowDataList)
 	hasWorkQueue := slices.ContainsFunc(workflowDataList, isWorkQueueEnabled)
+	hasSteering := slices.ContainsFunc(workflowDataList, isSteeringIssueEnabled)
 
-	if !hasExpires && len(compactionLedgers) == 0 && !hasWorkQueue {
-		maintenanceLog.Print("No workflows use expires field, skipping maintenance workflow generation")
+	if !hasExpires && len(compactionLedgers) == 0 && !hasWorkQueue && !hasSteering {
+		maintenanceLog.Print("No workflows require scheduled maintenance, skipping maintenance workflow generation")
 
 		// No maintenance workflow means no scheduled close-expired-issues consumer.
 		// Since the implicit 168-hour action-failure default was not an opt-in
@@ -266,6 +268,8 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	if triggerReason == "" {
 		if hasWorkQueue {
 			triggerReason = "work queue maintenance"
+		} else if hasSteering {
+			triggerReason = "steering issue cleanup"
 		} else {
 			triggerReason = fmt.Sprintf("%d compaction-enabled ledger(s)", len(compactionLedgers))
 		}
@@ -327,6 +331,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		compactionLedgers:   compactionLedgers,
 		hasWorkQueue:        hasWorkQueue,
 		hasCacheMemory:      hasCacheMemory,
+		hasSteering:         hasSteering,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to finalize maintenance workflow YAML: %w", err)

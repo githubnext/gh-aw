@@ -103,6 +103,9 @@ func buildMaintenanceCloseExpiredJobs(opts buildMaintenanceWorkflowYAMLOptions, 
 }
 
 func buildMaintenanceCleanupStaleSteeringIssuesJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+	if opts.maintenanceConfig.IsJobDisabled("cleanup-stale-steering-issues") {
+		return ""
+	}
 	var b strings.Builder
 	b.WriteString(`
   cleanup-stale-steering-issues:
@@ -116,9 +119,12 @@ func buildMaintenanceCleanupStaleSteeringIssuesJob(opts buildMaintenanceWorkflow
     permissions:
       actions: read
       issues: write
-    steps:
 `)
-	writeMaintenanceActionsFolderCheckoutStep(&b)
+	if opts.actionMode == ActionModeDev || opts.actionMode == ActionModeScript {
+		b.WriteString("      contents: read\n")
+	}
+	b.WriteString("    steps:\n")
+	writeMaintenanceConditionalActionsCheckoutStep(&b, opts)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	b.WriteString(`      - name: Close stale steering issues
         uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `

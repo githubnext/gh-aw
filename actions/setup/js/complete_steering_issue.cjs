@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { withRetry } = require("./error_recovery.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 async function main() {
   const issueNumber = Number.parseInt(process.env.GH_AW_STEERING_ISSUE_NUMBER || "", 10);
@@ -56,7 +56,7 @@ async function main() {
           state: "closed",
           state_reason: "completed",
         }),
-      {},
+      { ...RATE_LIMIT_RETRY_CONFIG, maxRetries: 3 },
       `close steering issue #${issueNumber}`
     );
     core.info(`Closed steering issue #${issueNumber}`);

@@ -25,8 +25,9 @@
 # It runs scheduled cleanup for expiring safe outputs and supports manual maintenance operations.
 #
 # This workflow is generated automatically when workflows use expiring safe outputs,
-# when workflows declare compaction-enabled ledgers (tools.ledger), or when repository
-# maintenance features are enabled in .github/workflows/aw.json.
+# when workflows enable steering (safe-outputs.steer), declare compaction-enabled
+# ledgers (tools.ledger) or work queues, or when repository maintenance features are
+# enabled in .github/workflows/aw.json.
 #
 # To disable maintenance workflow generation, set in .github/workflows/aw.json:
 # {"maintenance": false}
@@ -214,6 +215,7 @@ jobs:
     permissions:
       actions: read
       issues: write
+      contents: read
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
