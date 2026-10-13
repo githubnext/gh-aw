@@ -14,6 +14,8 @@ on:
     - 'actions/setup/sh/**'
     - '.github/workflows/ci.yml'
     - '.github/workflows/cgo.yml'
+    - '.github/workflows/CWI.yml'
+    - '.github/workflows/license-check.yml'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
     - '.github/aw/compat.json'
@@ -32,6 +34,8 @@ on:
     - 'actions/setup/sh/**'
     - '.github/workflows/ci.yml'
     - '.github/workflows/cgo.yml'
+    - '.github/workflows/CWI.yml'
+    - '.github/workflows/license-check.yml'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
     - '.github/aw/compat.json'
@@ -64,6 +68,8 @@ jobs:
         fi
     - name: Verify CGO/CJS workflow purity
       run: bash scripts/check-cgo-cjs-workflow-purity.sh
+    - name: Test workflow timing summaries
+      run: node --test scripts/workflow-timing.test.cjs
     - name: Cache repository checkout
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
@@ -2732,9 +2738,9 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         CACHE_KEY: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       run: |
-        cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+        cache_id=$(gh cache list --repo "$GITHUB_REPOSITORY" --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
         if [ -n "$cache_id" ]; then
-          gh cache delete "$cache_id"
+          gh cache delete "$cache_id" --repo "$GITHUB_REPOSITORY"
         fi
     - name: Summarize job and step durations
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
@@ -2756,12 +2762,21 @@ jobs:
           };
 
           const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-          const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            run_id: context.runId,
-            per_page: 100,
-          });
+          let jobs;
+          try {
+            jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+              per_page: 100,
+            });
+          } catch (error) {
+            if (![403, 429].includes(error.status) || !/rate limit exceeded/i.test(error.message)) throw error;
+            const message = 'Workflow timing is unavailable because the GitHub Actions API rate limit was exceeded. Build and test results are unchanged; see the individual job logs.';
+            core.warning(message);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Workflow timing summary\n\n${message}\n`);
+            return;
+          }
 
           const rows = [];
           for (const job of jobs) {
