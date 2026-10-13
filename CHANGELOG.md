@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+MCP workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled
+by default. Operators can enable them for trusted clients and workflow sources
+with `gh aw mcp-server --allow-write-tools`; `--validate-actor` additionally
+requires repository write access. MCP `mcp-inspect` only lists configuration
+and rejects live `server` and `tool` filters. Review and trust workflow commands,
+packages, container images, and endpoints before invoking
+`gh aw mcp inspect <workflow>` directly for live discovery.
+
 `gh aw logs` now defaults to a 1024 MB (1 GB) storage budget instead of unlimited
 downloads. Use `--max-storage 0` to retain unlimited storage, or set a larger
 budget explicitly. MCP logs calls inherit this default unless `max_storage` is

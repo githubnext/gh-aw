@@ -57,7 +57,7 @@ This is a test workflow for compilation.
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -214,7 +214,7 @@ This is the second test workflow.
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -302,7 +302,7 @@ This workflow has a syntax error in the frontmatter.
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -414,7 +414,7 @@ This workflow has an unknown field.
 	}, nil)
 
 	// Start the MCP server
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -506,7 +506,7 @@ This workflow has strict mode disabled in frontmatter.
 	}, nil)
 
 	// Start the MCP server
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -603,7 +603,7 @@ Second test workflow.
 	}, nil)
 
 	// Start the MCP server
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -675,7 +675,7 @@ func TestMCPServer_CompileToolDescriptionMentionsRecompileRequirement(t *testing
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

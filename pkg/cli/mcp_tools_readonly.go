@@ -336,9 +336,9 @@ Returns JSON array with validation results for each workflow:
 
 // mcpInspectArgs holds the input parameters for the mcp-inspect tool.
 type mcpInspectArgs struct {
-	WorkflowFile string `json:"workflow_file,omitempty" jsonschema:"Workflow file to inspect MCP servers from (empty to list all workflows with MCP servers)"`
-	Server       string `json:"server,omitempty" jsonschema:"Filter to inspect only the specified MCP server"`
-	Tool         string `json:"tool,omitempty" jsonschema:"Show detailed information about a specific tool (requires server parameter)"`
+	WorkflowFile string `json:"workflow_file,omitempty" jsonschema:"Workflow file to list MCP server configurations from (empty to list all workflows with MCP servers)"`
+	Server       string `json:"server,omitempty" jsonschema:"Unsupported for configuration-only inspection; use the trusted CLI for live server discovery"`
+	Tool         string `json:"tool,omitempty" jsonschema:"Unsupported for configuration-only inspection; use the trusted CLI for live tool discovery"`
 }
 
 // registerMCPInspectTool registers the mcp-inspect tool with the MCP server.
@@ -350,25 +350,21 @@ func registerMCPInspectTool(server *mcp.Server, execCmd execCmdFunc) { //nolint:
 			IdempotentHint: true,
 			OpenWorldHint:  boolPtr(true),
 		},
-		Description: `Inspect MCP servers used by a workflow and list available tools, resources, and roots.
+		Description: `List MCP server configurations used by a workflow without executing workflow commands.
 
-This tool starts each MCP server configured in the workflow, queries its capabilities,
-and displays the results. It supports stdio, Docker, and HTTP MCP servers.
-
-Secret checking is enabled by default to validate GitHub Actions secrets availability.
-If GitHub token is not available or has no permissions, secret checking is silently skipped.
+This tool never starts stdio or Docker servers, connects to HTTP endpoints, or checks secrets.
+Live tool, resource, and root discovery is available only through the operator's
+trusted CLI command: gh aw mcp inspect <workflow>. Review and trust the workflow
+before running that command.
 
 When called without workflow_file, lists all workflows that contain MCP server configurations.
-When called with workflow_file, inspects the MCP servers in that specific workflow.
-
-Use the server parameter to filter to a specific MCP server.
-Use the tool parameter (requires server) to show detailed information about a specific tool.
+When called with workflow_file, lists the MCP server configurations in that workflow.
+The server and tool parameters are retained for compatibility but return an error when supplied.
 
 Returns formatted text output showing:
 - Available MCP servers in the workflow
-- Tools, resources, and roots exposed by each server
-- Secret availability status (if GitHub token is available)
-- Detailed tool information when tool parameter is specified`,
+- Configured server types and commands or URLs
+- Configured allowed-tool counts and network access`,
 		Icons: mcpToolIcons("🔬"),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
@@ -378,23 +374,17 @@ Returns formatted text output showing:
 		default:
 		}
 
-		// Build command arguments
-		cmdArgs := []string{"mcp", "inspect"}
+		if args.Server != "" || args.Tool != "" {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "live MCP discovery is not available through MCP", map[string]any{
+				"reason": "Use gh aw mcp inspect <workflow> directly after reviewing and trusting the workflow. The MCP tool only lists configuration.",
+			})
+		}
 
+		// Configuration listing cannot launch workflow-declared commands.
+		cmdArgs := []string{"mcp", "list", "--verbose", "--"}
 		if args.WorkflowFile != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowFile)
 		}
-
-		if args.Server != "" {
-			cmdArgs = append(cmdArgs, "--server", args.Server)
-		}
-
-		if args.Tool != "" {
-			cmdArgs = append(cmdArgs, "--tool", args.Tool)
-		}
-
-		// Always enable secret checking (will be silently ignored if GitHub token is not available)
-		cmdArgs = append(cmdArgs, "--check-secrets")
 
 		// Execute the CLI command
 		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)

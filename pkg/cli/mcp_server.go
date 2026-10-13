@@ -43,7 +43,7 @@ type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 // The second return value is a reserved SDK extension slot and must be nil for now.
 
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string, env []string) *mcp.Server {
+func createMCPServer(cmdPath string, actor string, validateActor bool, allowWriteTools bool, manifestCacheFile string, env []string) *mcp.Server {
 	// Helper function to execute command with proper path
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		var cmd *exec.Cmd
@@ -81,6 +81,8 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, manifestC
 		Name:    "gh-aw",
 		Version: GetVersion(),
 	}, mcpServerOptions())
+
+	server.AddReceivingMiddleware(mcpWriteToolsMiddleware(allowWriteTools, actor, validateActor))
 
 	if err := registerMCPTools(server, execCmd, actor, validateActor, manifestCacheFile); err != nil {
 		return server

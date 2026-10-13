@@ -26,7 +26,7 @@ func TestMCPServer_FixTool(t *testing.T) {
 	}, nil)
 
 	// Start the MCP server as a subprocess with custom command path
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -125,7 +125,7 @@ This is a test workflow with deprecated timeout_minutes field.
 	}, nil)
 
 	// Start the MCP server as a subprocess with custom command path (absolute path)
-	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
+	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--allow-write-tools", "--cmd", absBinaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
