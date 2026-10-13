@@ -358,6 +358,108 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
         assert.match(summary, new RegExp(`Work:\\*\\* \`${shortId}\` \\(short ID\\)`));
       }
     });
+    it("shows bounded and redacted agent-generated work details in new Issues", async () => {
+      const credential = "ghp_" + "A".repeat(36);
+      const f = fixture({
+        backing: false,
+        payload: {
+          title: `Investigate @someone ${credential} ${"😀".repeat(200)}`,
+          description: `Details for @someone with ${credential}\n${"x".repeat(5000)}`,
+        },
+      });
+      const m = mock(f);
+      assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [] })).pending, []);
+      const issue = m.issues.get("1");
+      assert.ok(issue.title.startsWith(`[work queue] ${f.nodes[0].work_id.slice(0, 12)} — Investigate`));
+      assert.ok(issue.title.endsWith("..."));
+      assert.match(issue.title, /\*\*\*REDACTED\*\*\*/);
+      assert.ok(!issue.title.includes(credential));
+      assert.ok(issue.title.includes("`@someone`"));
+      assert.match(issue.body, /### Work description\n\nDetails for/);
+      assert.match(issue.body, /\*\*\*REDACTED\*\*\*/);
+      assert.ok(!issue.body.includes(credential));
+      assert.ok(issue.body.includes("`@someone`"));
+      assert.match(issue.body, /\.\.\.\n/);
+      assert.ok(issue.body.includes("<!-- work-id:"));
+    });
+    it("keeps sanitized title and description within their final character limits", async () => {
+      const cases = [
+        {
+          title: "z".repeat(104) + " @alice-bob-longname rest words to go over the limit for sure",
+          description: "z".repeat(4070) + " @alice-bob-longname more description beyond the safe limit",
+        },
+        {
+          title: "```" + "x".repeat(200),
+          description: "```\n" + "x".repeat(5000),
+        },
+      ];
+      for (const payload of cases) {
+        const f = fixture({ backing: false, payload });
+        const m = mock(f);
+        assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [] })).pending, []);
+        const issue = m.issues.get("1");
+        const title = issue.title.slice(issue.title.indexOf(" — ") + 3);
+        const description = issue.body.match(/### Work description\n\n([\s\S]*?)\n\n\| At a glance/)[1].trimEnd();
+        assert.ok([...title].length <= 128);
+        assert.ok([...description].length <= 4096);
+      }
+    });
+    it("redacts configured secrets and runtime masks from work details", async () => {
+      const secretName = "WORK_QUEUE_ISSUE_TEST";
+      const secret = "repo-specific-work-queue-secret";
+      const runtimeMask = "runtime-work-queue-mask";
+      const previousNames = process.env.GH_AW_SECRET_NAMES;
+      const previousSecret = process.env[`SECRET_${secretName}`];
+      process.env.GH_AW_SECRET_NAMES = [previousNames, secretName].filter(Boolean).join(",");
+      process.env[`SECRET_${secretName}`] = secret;
+      try {
+        const f = fixture({
+          backing: false,
+          payload: {
+            title: `Investigate ${secret.slice(0, 12)}<!-- removed -->${secret.slice(12)} ${runtimeMask}`,
+            description: `Details include ${secret.slice(0, 12)}<!-- removed -->${secret.slice(12)} and ${runtimeMask}`,
+          },
+        });
+        const m = mock(f);
+        assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [runtimeMask] })).pending, []);
+        const issue = m.issues.get("1");
+        assert.ok(!issue.title.includes(secret));
+        assert.ok(!issue.title.includes(runtimeMask));
+        assert.ok(!issue.body.includes(secret));
+        assert.ok(!issue.body.includes(runtimeMask));
+      } finally {
+        if (previousNames === undefined) delete process.env.GH_AW_SECRET_NAMES;
+        else process.env.GH_AW_SECRET_NAMES = previousNames;
+        if (previousSecret === undefined) delete process.env[`SECRET_${secretName}`];
+        else process.env[`SECRET_${secretName}`] = previousSecret;
+      }
+    });
+    it("withholds ledger payload details when the conclusion job has no original redaction context", async () => {
+      const secrets = ["repository-specific-private-value", "dynamically-minted-private-value"];
+      const f = fixture({
+        backing: false,
+        payload: { title: `Investigate ${secrets.join(" ")}`, description: `Private details ${secrets.join(" ")}` },
+      });
+      const m = mock(f);
+      const messages = [];
+      assert.deepEqual((await main({ ...m.options, core: { info: message => messages.push(message), warning: message => messages.push(message) } })).pending, []);
+      const issue = m.issues.get("1");
+      assert.equal(issue.title, `[work queue] ${f.nodes[0].work_id.slice(0, 12)}`);
+      assert.ok(!issue.body.includes("Work description"));
+      assert.ok(issue.body.includes(`<!-- work-id: ${f.nodes[0].work_id} -->`));
+      for (const secret of secrets) {
+        assert.ok(!issue.body.includes(secret));
+        assert.ok(!JSON.stringify([...m.comments.values(), ...messages]).includes(secret));
+      }
+      assert.equal(canonical(m.state().works.get(f.nodes[0].work_id).payload), canonical(f.nodes[0].payload));
+    });
+    it("omits absent or non-string work details without changing the identifier title", async () => {
+      const f = fixture({ backing: false, payload: { title: 42, description: { private: true } } });
+      const m = mock(f);
+      assert.deepEqual((await main(m.options)).pending, []);
+      assert.equal(m.issues.get("1").title, `[work queue] ${f.nodes[0].work_id.slice(0, 12)}`);
+      assert.ok(!m.issues.get("1").body.includes("Work description"));
+    });
     it("creates, binds, and recovers known native receipts without duplicate Issues or comments", async () => {
       const f = fixture({ backing: false });
       const m = mock(f);
