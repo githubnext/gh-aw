@@ -713,7 +713,7 @@ async function verifyCompiledDispatchIdentity(input) {
   assert.equal(input.policy.pools.default.profiles.default.ref, REF);
   assert.notEqual(dispatcherRevision, REF);
   assert.deepEqual(Object.keys(input.policy.producers).sort(), ["11", "12"]);
-  for (const mode of ["verified", "wrong-publisher", "wrong-credential", "wrong-worker", "wrong-triggering-actor", "wrong-worker-revision", "wrong-worker-workflow"]) {
+  for (const mode of ["verified", "wrong-publisher", "wrong-credential", "wrong-dispatch-tag", "wrong-worker", "wrong-triggering-actor", "wrong-worker-revision", "wrong-worker-workflow"]) {
     const root = temporaryDirectory("compiled-dispatch-identity");
     const keys = [
       "GH_AW_WORK_QUEUE_ENABLED",
@@ -731,6 +731,7 @@ async function verifyCompiledDispatchIdentity(input) {
     const fixture = queueFixture({ granted: false, count: 1, workerPrincipal: input.principal, configurePolicy: policy => Object.assign(policy, structuredClone(input.policy)) });
     fixture.dispatcherContext.sha = dispatcherRevision;
     let identityReads = 0;
+    let tagReads = 0;
     let posts = 0;
     let result;
     const controlFailures = [];
@@ -760,10 +761,23 @@ async function verifyCompiledDispatchIdentity(input) {
         git: fixture.githubClient.rest.git,
         users: { getByUsername: identity, getAuthenticated: identity },
         repos: fixture.githubClient.rest.repos,
+        git: {
+          // Octokit getRef omits refs/, whereas workflow dispatch uses the fully qualified tag.
+          getRef: async parameters => {
+            tagReads++;
+            assert.equal(parameters.ref, `tags/gh-aw/work-queue/${REF}`);
+            const dispatch = [...fixture.state.dispatches.values()][0];
+            assert.equal(dispatch.state, tagReads === 1 ? "reserved" : "started");
+            const response = await fixture.githubClient.rest.git.getRef(parameters);
+            if (mode === "wrong-dispatch-tag") response.data.object.sha = dispatcherRevision;
+            return response;
+          },
+        },
         actions: {
           createWorkflowDispatch: async parameters => {
             posts++;
             assert.equal(identityReads, 1);
+            assert.equal(tagReads, 2, "the selected launch client must verify the immutable tag before START and POST");
             const dispatch = [...fixture.state.dispatches.values()][0];
             assert.equal(dispatch.state, "started");
             assert.equal(dispatch.sender.principal, "11");
@@ -864,6 +878,7 @@ async function verifyCompiledDispatchIdentity(input) {
       if (mode !== "verified") assert.match(controlFailures[0], /Work queue controls require recovery/);
       if (mode === "wrong-publisher") {
         assert.equal(identityReads, 0);
+        assert.equal(tagReads, 0);
         assert.equal(posts, 0);
         assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
         assert.equal(fixture.state.dispatches.size, 0);
@@ -882,8 +897,9 @@ async function verifyCompiledDispatchIdentity(input) {
         assert.equal(dispatch.run.run_attempt, 1);
         assert.equal(dispatch.sender.principal, "11");
         assert.equal(dispatch.sender.run_attempt, 2);
-      } else if (mode === "wrong-credential") {
+      } else if (mode === "wrong-credential" || mode === "wrong-dispatch-tag") {
         assert.equal(posts, 0);
+        assert.equal(tagReads, mode === "wrong-dispatch-tag" ? 1 : 0);
         assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
         assert.equal(dispatch.state, "reserved");
         assert.equal(
