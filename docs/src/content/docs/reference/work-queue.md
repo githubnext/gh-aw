@@ -167,6 +167,10 @@ may override `label` (for example, `cookie` produces `cookie:queued`) and
 `title_prefix` (for example, `[cookie queue] abcdef012345`); an empty object
 uses defaults. Titles and summaries show the first 12 characters of the Work
 ID, and the Issue body retains the full ID in a machine-readable comment.
+When the Work payload contains string `title` or `description` fields, newly
+created Issues append the title after the short ID and show the description in
+the body. Both fields are sanitized, redacted, and ellipsized when long (128
+characters for the title, 4,096 for the description); absent fields are omitted.
 Absent or false disables the integration. The label prefix must be a
 nonblank literal of at most 33 UTF-8 bytes, leaving room for the longest status
 suffix within GitHub's 50-character label limit. The title prefix must be a

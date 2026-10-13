@@ -358,6 +358,37 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
         assert.match(summary, new RegExp(`Work:\\*\\* \`${shortId}\` \\(short ID\\)`));
       }
     });
+    it("shows bounded and redacted agent-generated work details in new Issues", async () => {
+      const credential = "ghp_" + "A".repeat(36);
+      const f = fixture({
+        backing: false,
+        payload: {
+          title: `Investigate @someone ${credential} ${"😀".repeat(200)}`,
+          description: `Details for @someone with ${credential}\n${"x".repeat(5000)}`,
+        },
+      });
+      const m = mock(f);
+      assert.deepEqual((await main(m.options)).pending, []);
+      const issue = m.issues.get("1");
+      assert.ok(issue.title.startsWith(`[work queue] ${f.nodes[0].work_id.slice(0, 12)} — Investigate`));
+      assert.ok(issue.title.endsWith("..."));
+      assert.match(issue.title, /\*\*\*REDACTED\*\*\*/);
+      assert.ok(!issue.title.includes(credential));
+      assert.ok(issue.title.includes("`@someone`"));
+      assert.match(issue.body, /### Work description\n\nDetails for/);
+      assert.match(issue.body, /\*\*\*REDACTED\*\*\*/);
+      assert.ok(!issue.body.includes(credential));
+      assert.ok(issue.body.includes("`@someone`"));
+      assert.match(issue.body, /\.\.\.\n/);
+      assert.ok(issue.body.includes("<!-- work-id:"));
+    });
+    it("omits absent or non-string work details without changing the identifier title", async () => {
+      const f = fixture({ backing: false, payload: { title: 42, description: { private: true } } });
+      const m = mock(f);
+      assert.deepEqual((await main(m.options)).pending, []);
+      assert.equal(m.issues.get("1").title, `[work queue] ${f.nodes[0].work_id.slice(0, 12)}`);
+      assert.ok(!m.issues.get("1").body.includes("Work description"));
+    });
     it("creates, binds, and recovers known native receipts without duplicate Issues or comments", async () => {
       const f = fixture({ backing: false });
       const m = mock(f);

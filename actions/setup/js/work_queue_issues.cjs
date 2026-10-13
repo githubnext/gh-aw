@@ -15,7 +15,7 @@ const { MAX_PROJECTION_TARGETS, LABELS_PAGE_SIZE, STATUSES, statusLabelName, ens
 const { wrapGithubClient } = require("./work_queue_issue_pacing.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { validateJournal } = require("./work_queue_issue_journal.cjs");
-const { issueBody, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
+const { issueBody, issueTitle, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
 
 function issuesConfiguration(value) {
   if (value === undefined || value === false) return null;
@@ -272,7 +272,7 @@ async function projectBatch(options, initial, origin, assignment, config, target
       type: "CreateIssueInput",
       input: {
         repositoryId: discovered.repositoryId,
-        title: `${config.title_prefix} ${work.work_id.slice(0, 12)}`,
+        title: issueTitle(work, config),
         body: issueBody(current.state, work, origin, config, current.branch),
         labelIds: [discovered.labelId, statusLabels.get(`${origin.repository}:${status}`)],
       },

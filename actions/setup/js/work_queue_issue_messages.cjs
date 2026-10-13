@@ -3,6 +3,29 @@
 
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
+const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+
+function presentationText(value, limit, singleLine = false) {
+  if (typeof value !== "string") return "";
+  let text = redactBuiltInPatterns(sanitizeContent(value)).content.trim();
+  if (singleLine) text = text.replace(/\s+/g, " ");
+  const characters = [...text];
+  text =
+    characters.length > limit
+      ? characters
+          .slice(0, limit - 3)
+          .join("")
+          .trimEnd() + "..."
+      : text;
+  return redactBuiltInPatterns(sanitizeContent(text)).content;
+}
+
+function issueTitle(work, config) {
+  const base = `${config.title_prefix} ${work.work_id.slice(0, 12)}`;
+  const title = presentationText(work.payload?.title, 128, true);
+  return title ? `${base} — ${title}` : base;
+}
 
 const PROGRESS_NOTES = {
   Queued: "Ready for its next fair slot.",
@@ -38,6 +61,7 @@ function issueBody(state, work, origin, config, branch) {
   const admission = state.workCreators?.get(work.work_id);
   if (!admission) throw new Error("work_queue_admission_provenance_missing");
   const ledgerUrl = `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`;
+  const description = presentationText(work.payload?.description, 4096);
   return renderWorkQueueMessage(
     "work_queue_issue_body.md",
     {
@@ -46,6 +70,7 @@ function issueBody(state, work, origin, config, branch) {
       admission_run_url: admission.run_id ? runLink(admission) : ledgerUrl,
       admission_link_label: admission.run_id ? "View the admitting run" : "View the admission receipt",
       ledger_url: ledgerUrl,
+      description_section: description ? `### Work description\n\n${description}\n` : "",
       tracking_label: config.label,
       projection_note: "Progress is projected into a status label; the live summary links to the checked ledger.",
     },
@@ -70,4 +95,4 @@ function renderClaim(values, run) {
   return renderWorkQueueMessage("work_queue_issue_claim.md", values, run);
 }
 
-module.exports = { issueBody, renderSummary, renderClaim, runLink };
+module.exports = { issueBody, issueTitle, renderSummary, renderClaim, runLink };
