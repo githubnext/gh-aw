@@ -1,6 +1,6 @@
 # ADR-68457: Keyless Codex Azure Entra OIDC via the AWF Proxy
 
-**Date**: 2026-02-10
+**Date**: 2026-10-13
 **Status**: Draft
 **Deciders**: Unknown [TODO: verify — PR author and maintainers]
 
