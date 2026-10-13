@@ -1079,7 +1079,7 @@ async function main() {
     handleFailure: ({ attempt, result }) => {
       if (result.runtimeGuardFired) {
         const details = result.runtimeGuardReason || "Codex runtime guard terminated the run after context rebuild thresholds were exceeded.";
-        emitInfrastructureIncomplete(details, { logger: log });
+        emitInfrastructureIncomplete(`Codex run stopped by a runtime guard. ${details}`, { logger: log });
         log(`attempt ${attempt + 1}: ${details} — not retrying (circuit breaker)`);
         return { action: "stop" };
       }

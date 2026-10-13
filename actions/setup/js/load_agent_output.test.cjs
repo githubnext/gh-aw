@@ -186,6 +186,13 @@ describe("load_agent_output.cjs", () => {
       });
     });
 
+    it("preserves the collector-owned startup failure classification", () => {
+      const outputFile = path.join(tempDir, "startup-diagnostics.json");
+      fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "report_incomplete", reason: "agent_startup_failure" }], collectorEmptyOutputCause: "agent_startup_failure", collectorFailureCause: "agent_startup_failure" }));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+      expect(loadAgentOutputModule.loadAgentOutput()).toMatchObject({ success: true, collectorEmptyOutputCause: "agent_startup_failure", collectorFailureCause: "agent_startup_failure" });
+    });
+
     it("should log file content length on successful parse", () => {
       const validFile = path.join(tempDir, "valid.json");
       const content = JSON.stringify({ items: [{ type: "test" }] });

@@ -107,6 +107,37 @@ Use `${ENV_VAR}` inside TOML strings to reference an environment value configure
 
 For shell environment filtering, use either `[shell_environment_policy.filters]` or the legacy `include_only`/`exclude` arrays. Selecting one representation replaces inherited settings from the other; declaring both in the same custom configuration is a compile-time error.
 
+## Context-rebuild circuit breaker
+
+The Codex harness enables a context-rebuild circuit breaker by default to limit excessive repeated input processing, such as runaway context-rebuilding loops. It stops a run when **both** `rebuild_factor >= 25` and `cumulative_input_tokens >= 1,000,000`. The factor is cumulative input tokens divided by the largest single request's input tokens, calculated from token-usage records. It is not a count of actual context resets or compactions: a long run making steady progress can also cross the threshold. After this attempt emits `noop`, any non-diagnostic task output, or a `missing_data` or `report_incomplete` diagnostic, the breaker allows Codex to finish; `missing_tool` does not exempt the run. A separate post-result watchdog handles slow shutdown.
+
+Configure these harness controls through `engine.env`, not through Codex's TOML configuration:
+
+| Environment variable | Default | Behavior |
+| --- | --- | --- |
+| `GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER` | Enabled | Set to `false`, `0`, `off`, or `no` to disable (case-insensitive, surrounding whitespace ignored). |
+| `GH_AW_CODEX_MAX_REBUILD_FACTOR` | `25` | Factor threshold; accepts finite numbers greater than or equal to `1`. |
+| `GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS` | `1000000` | Cumulative input floor; accepts finite numbers that round down to at least `1` token. |
+| `GH_AW_CODEX_REBUILD_GUARD_POLL_MS` | `15000` | Check interval in milliseconds; positive values round down and are clamped to a minimum of `1000`. |
+| `GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS` | `5000` | Grace period after SIGTERM before SIGKILL, in milliseconds; positive values round down and are clamped to a minimum of `250`. |
+
+Missing or invalid numeric values use the defaults. A guard stop is not retried. It emits `report_incomplete` with `reason: infrastructure_error`; its `details` start with `Codex run stopped by a runtime guard.` and include the measured factor, cumulative input, and thresholds for this breaker. Dashboards can use these details to distinguish a guard cutoff from a process crash.
+
+### Tuning for long runs that make progress
+
+Use successful runs of the same workload to establish a baseline and set the factor limit above their observed range with headroom. For workloads completing around factor `30`, `50` is a reasonable starting point, not a universal safe limit:
+
+```yaml wrap
+engine:
+  id: codex
+  env:
+    GH_AW_CODEX_MAX_REBUILD_FACTOR: "50"
+```
+
+Recompile and commit the generated workflow after changing `engine.env`. To disable this breaker instead, set `GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false"`. Raising or disabling the limit permits more input processing and potentially higher cost; retain a workflow timeout and an appropriate [`max-ai-credits` budget](/gh-aw/reference/frontmatter/).
+
+Inspect per-request `input_tokens` in the `agent` artifact's `token-usage.jsonl` alongside tool activity in `agent-stdio.log` or `agent-session.jsonl`. Steadily growing or plateauing input with new edits, test results, or completed subtasks is consistent with useful progress. Repeated equivalent tool calls, repeated failed approaches, or repeated context drops and regrowth without new results warrant investigation. Input growth between consecutive requests alone cannot prove a loop or progress; the breaker does not evaluate these signals, and a high factor alone does not establish a runaway loop.
+
 ## Session artifacts
 
 The `agent` artifact retains native `agent-stdio.log` and normalized `agent-session.jsonl`. The conclusion job projects essential fields into `usage/aw_session.jsonl`, following the [unified session contract](/gh-aw/specs/unified-agent-session-specification/).

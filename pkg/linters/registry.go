@@ -28,6 +28,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/generatedyamlheredoc"
 	"github.com/github/gh-aw/pkg/linters/globwalkignorederror"
 	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
+	"github.com/github/gh-aw/pkg/linters/goroutineresourceleak"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
@@ -119,6 +120,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	fprintferrorunchecked.Analyzer,
 	generatedyamlheredoc.Analyzer,
 	globwalkignorederror.Analyzer,
+	goroutineresourceleak.Analyzer,
 	goroutinemissingrecover.Analyzer,
 	hardcodedfilepath.Analyzer,
 	httpnoctx.Analyzer,
