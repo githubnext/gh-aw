@@ -132,7 +132,7 @@ func TestMCPInspect_ConfigurationOnlyArguments(t *testing.T) {
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
 	registerMCPInspectTool(server, execCmd)
 	session := connectInMemory(t, server)
-	for _, workflow := range []string{"", "test", "--inspector"} {
+	for _, workflow := range []string{"", "test", "workflow.md"} {
 		result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 			Name: "mcp-inspect", Arguments: map[string]any{"workflow_file": workflow},
 		})

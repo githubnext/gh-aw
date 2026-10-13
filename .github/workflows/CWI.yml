@@ -37,7 +37,8 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          # Keep reservations and cleanup isolated from other runs of this commit.
+          key: checkout-cwi-${{ github.run_id }}-${{ github.sha }}
           enableCrossOsArchive: true
 
   build-windows:
@@ -49,12 +50,19 @@ jobs:
       contents: read
     steps:
       - name: Restore checkout
+        id: restore-checkout
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: checkout-cwi-${{ github.run_id }}-${{ github.sha }}
           enableCrossOsArchive: true
-          fail-on-cache-miss: true
+      - name: Checkout on cache miss
+        if: steps.restore-checkout.outputs.cache-hit != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Set up Go
         id: setup-go
@@ -104,12 +112,19 @@ jobs:
       contents: read
     steps:
       - name: Restore checkout
+        id: restore-checkout
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
         with:
           path: .
-          key: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: checkout-cwi-${{ github.run_id }}-${{ github.sha }}
           enableCrossOsArchive: true
-          fail-on-cache-miss: true
+      - name: Checkout on cache miss
+        if: steps.restore-checkout.outputs.cache-hit != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e   # v6
@@ -172,15 +187,16 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          CACHE_KEY: checkout-cwi-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          CACHE_KEY: checkout-cwi-${{ github.run_id }}-${{ github.sha }}
         run: |
-          cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+          cache_id=$(gh cache list --repo "$GITHUB_REPOSITORY" --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
           if [ -n "$cache_id" ]; then
-            gh cache delete "$cache_id"
+            gh cache delete "$cache_id" --repo "$GITHUB_REPOSITORY"
           fi
       - name: Summarize job and step durations
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
         with:
+          retries: 3
           script: |
             const fs = require('fs');
 
@@ -198,12 +214,21 @@ jobs:
             };
 
             const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-              per_page: 100,
-            });
+            let jobs;
+            try {
+              jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+                per_page: 100,
+              });
+            } catch (error) {
+              if (error.status !== 429 && (error.status !== 403 || !/rate limit exceeded|exceeded a secondary rate limit/i.test(error.message))) throw error;
+              const message = 'Workflow timing is unavailable because the GitHub Actions API rate limit was exceeded. Build and test results are unchanged; see the individual job logs.';
+              core.warning(message);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Workflow timing summary\n\n${message}\n`);
+              return;
+            }
 
             const rows = [];
             for (const job of jobs) {

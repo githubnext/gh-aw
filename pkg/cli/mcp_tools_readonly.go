@@ -136,6 +136,10 @@ Returns JSON array with validation results for each workflow:
 		default:
 		}
 
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
+			return nil, nil, err
+		}
+
 		if args.DryRun {
 			var rawArgs map[string]json.RawMessage
 			if err := json.Unmarshal(req.Params.Arguments, &rawArgs); err != nil {
@@ -372,6 +376,10 @@ Returns formatted text output showing:
 		case <-ctx.Done():
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
+		}
+
+		if err := validateMCPPositionalArgs("workflow_file", args.WorkflowFile); err != nil {
+			return nil, nil, err
 		}
 
 		if args.Server != "" || args.Tool != "" {

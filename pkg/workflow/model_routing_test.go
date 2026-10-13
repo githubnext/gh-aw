@@ -43,8 +43,9 @@ func TestBuildAWFConfigJSON_ModelRouting(t *testing.T) {
 	require.Equal(t, true, config["experimental"].(map[string]any)["modelRouting"])
 
 	apiProxy := config["apiProxy"].(map[string]any)
-	require.Equal(t, []any{"github-copilot/claude-haiku-4.5", "github-copilot/gpt-5.4-mini"}, apiProxy["allowedModels"])
+	require.NotContains(t, apiProxy, "allowedModels")
 	routing := apiProxy["routing"].(map[string]any)
+	require.Equal(t, []any{"github-copilot/claude-haiku-4.5", "github-copilot/gpt-5.4-mini"}, routing["candidateModels"])
 	require.Equal(t, map[string]any{"goal": "cost", "mode": "balanced"}, routing["objective"])
 	require.Equal(t, map[string]any{"conversationFile": modelRoutingConversationFile}, routing["task"])
 
@@ -489,6 +490,7 @@ func TestValidateModelRoutingEngineCompatibility(t *testing.T) {
 		{name: "Claude rejects non-Copilot provider", engine: "claude", provider: LLMProviderAnthropic, model: "claude-sonnet-5", wantError: "requires GitHub Copilot inference"},
 		{name: "Codex rejects non-Copilot provider", engine: "codex", provider: LLMProviderOpenAI, model: "gpt-5.6-sol", wantError: "requires GitHub Copilot inference"},
 		{name: "pi rejects non-Copilot provider", engine: "pi", provider: LLMProviderOpenAI, model: "gpt-5.6-sol", wantError: "requires GitHub Copilot inference"},
+		{name: "Copilot rejects non-Copilot provider", engine: "copilot", provider: LLMProviderOpenAI, model: "gpt-5.6-sol", wantError: "requires GitHub Copilot inference"},
 		{name: "unknown engine rejected", engine: "gemini", model: "gpt-5.6-sol", wantError: "supported only by Copilot, Claude, Codex, and pi"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -506,6 +508,61 @@ func TestValidateModelRoutingEngineCompatibility(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestCompileModelRoutingRequiresGitHubProvider(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		engine       string
+		provider     string
+		fixedModel   string
+		allowedModel string
+		wantError    string
+	}{
+		{name: "codex without provider", engine: "codex", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
+		{name: "codex with copilot-prefixed fixed model and no provider", engine: "codex", fixedModel: "copilot/gpt-5.6-luna", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
+		{name: "claude without provider", engine: "claude", allowedModel: "claude-sonnet-5", wantError: `resolves to the "anthropic" provider`},
+		{name: "claude with anthropic", engine: "claude", provider: "anthropic", allowedModel: "claude-sonnet-5", wantError: `resolves to the "anthropic" provider`},
+		{name: "codex with openai", engine: "codex", provider: "openai", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
+		{name: "pi with anthropic", engine: "pi", provider: "anthropic", allowedModel: "claude-sonnet-5", wantError: `resolves to the "anthropic" provider`},
+		{name: "copilot with openai", engine: "copilot", provider: "openai", allowedModel: "gpt-5.6-luna", wantError: `resolves to the "openai" provider`},
+		{name: "codex with incompatible candidate", engine: "codex", provider: "github", allowedModel: "claude-sonnet-5", wantError: "incompatible with Codex's Responses API"},
+		{name: "claude with github", engine: "claude", provider: "github", allowedModel: "claude-sonnet-5"},
+		{name: "codex with github", engine: "codex", provider: "github", allowedModel: "gpt-5.6-luna"},
+		{name: "copilot default provider", engine: "copilot", allowedModel: "gpt-5.6-luna"},
+		{name: "pi default provider", engine: "pi", allowedModel: "gpt-5.6-luna"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var source strings.Builder
+			source.WriteString("---\non: workflow_dispatch\n")
+			if tc.fixedModel != "" {
+				source.WriteString("model: " + tc.fixedModel + "\n")
+			}
+			source.WriteString("engine:\n  id: " + tc.engine + "\n")
+			if tc.provider != "" {
+				source.WriteString("  model-provider: " + tc.provider + "\n")
+			}
+			source.WriteString("  model-routing:\n    goal: cost\n    mode: economy\n    allowed-models: [" + tc.allowedModel + "]\n---\nReport a finding.\n")
+			dir := t.TempDir()
+			workflowPath := filepath.Join(dir, "routed.md")
+			require.NoError(t, os.WriteFile(workflowPath, []byte(source.String()), 0o600))
+			err := NewCompiler().CompileWorkflow(workflowPath)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError)
+				if strings.Contains(tc.wantError, "provider") {
+					require.ErrorContains(t, err, "engine.model-provider: github")
+				}
+				_, statErr := os.Stat(filepath.Join(dir, "routed.lock.yml"))
+				require.True(t, os.IsNotExist(statErr), "lock file must not be written when routing validation fails")
+				return
+			}
+			require.NoError(t, err)
+			compiled, err := os.ReadFile(filepath.Join(dir, "routed.lock.yml"))
+			require.NoError(t, err)
+			require.Contains(t, string(compiled), `awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json"`)
+			require.Contains(t, string(compiled), `modelRouting\":true`)
 		})
 	}
 }

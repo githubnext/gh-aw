@@ -59,15 +59,7 @@ func TestExperimentalSubagentRoutingPolicy(t *testing.T) {
 		},
 		SubAgentModels: []parser.SubAgentModel{{Name: "reader", Model: "${{ experiments.model }}"}},
 	}
-	candidates := []string{"github-copilot/gpt-6-sol"}
-	allowed, warnings := subAgentRequestModels(data, candidates, nil, []string{"gpt-5.4"})
-	require.Empty(t, warnings)
-	require.Equal(t, []string{"github-copilot/gpt-6-sol", "github-copilot/*mini*"}, allowed)
-	allowed, warnings = subAgentRequestModels(data, candidates, []string{"gpt-6-sol", "gpt-5-mini"}, nil)
-	require.Empty(t, warnings)
-	require.Equal(t, []string{"github-copilot/gpt-6-sol", "github-copilot/gpt-5-mini"}, allowed)
-	require.Equal(t, []string{"github-copilot/gpt-6-sol"}, candidates, "sub-agents must not change routing candidates")
-	allowed, warnings = subAgentRequestModels(data, candidates, []string{"gpt-6-sol"}, nil)
-	require.Equal(t, candidates, allowed)
-	require.Len(t, warnings, 1, "excluded experiment alternatives must retain the existing admission warning")
+	require.Empty(t, subAgentModelPolicyWarnings(data, nil, []string{"gpt-5.4"}))
+	require.Empty(t, subAgentModelPolicyWarnings(data, []string{"gpt-6-sol", "gpt-5-mini"}, nil))
+	require.Len(t, subAgentModelPolicyWarnings(data, []string{"gpt-6-sol"}, nil), 1, "excluded experiment alternatives must warn that AWF will reject them")
 }

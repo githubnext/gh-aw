@@ -6,7 +6,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 
 const require = createRequire(import.meta.url);
-const { getBundlePreApplyFiles } = require("./push_to_pull_request_branch.cjs");
+const { getBundlePreApplyFiles, getBundleValidationBase } = require("./push_to_pull_request_branch.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 global.core = {
@@ -73,6 +73,184 @@ describe("push_to_pull_request_branch bundle integration", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
     vi.clearAllMocks();
+  });
+
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])("excludes trusted base changes while counting agent changes (conflict: %s, reverted change: %s)", async (conflict, revertedChange) => {
+    const repo = createRepo("push-pr-validation-base-");
+    tempDirs.push(repo);
+    const git = args => execGit(args, { cwd: repo });
+    writeRepoFile(repo, "conflict.txt", "original\n");
+    git(["add", "."]);
+    git(["commit", "-m", "common base"]);
+    git(["branch", "-M", "main"]);
+    git(["checkout", "-b", "feature"]);
+    writeRepoFile(repo, "existing-pr.txt", "existing PR work\n");
+    if (conflict) writeRepoFile(repo, "conflict.txt", "PR version\n");
+    git(["add", "."]);
+    git(["commit", "-m", "existing PR"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "main"]);
+    writeRepoFile(repo, "upstream.txt", "upstream\n".repeat(10000));
+    writeRepoFile(repo, "package.json", "{}\n");
+    if (conflict) writeRepoFile(repo, "conflict.txt", "base version\n");
+    git(["add", "."]);
+    git(["commit", "-m", "trusted upstream changes"]);
+    const trustedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "feature"]);
+    const merge = execGit(["merge", "--no-ff", "main", "-m", "merge base"], { cwd: repo, allowFailure: true });
+    expect(merge.status).toBe(conflict ? 1 : 0);
+    if (conflict) {
+      writeRepoFile(repo, "conflict.txt", "agent resolution\n");
+      git(["add", "."]);
+      git(["commit", "-m", "resolve conflict"]);
+    }
+    if (revertedChange) {
+      writeRepoFile(repo, "package.json", '{"agent":true}\n');
+      git(["commit", "-am", "agent modifies protected file"]);
+      writeRepoFile(repo, "package.json", "{}\n");
+      git(["commit", "-am", "agent reverts protected file"]);
+    }
+    writeRepoFile(repo, "agent.txt", "agent change\n");
+    git(["add", "."]);
+    git(["commit", "-m", "agent work"]);
+
+    const exec = createExecApi(repo);
+    const { ref: baseline, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
+    expect(baseline).not.toBe(oldHead);
+    const files = await getBundlePreApplyFiles(exec, {}, baseline, "HEAD", conflictedFiles);
+    expect(files.sort()).toEqual(conflict ? ["agent.txt", "conflict.txt"] : ["agent.txt"]);
+    expect(checkFileProtectionPostApply(files, { protected_files: ["package.json"] }).action).toBe("allow");
+    const originalPatch = git(["format-patch", "--stdout", `${oldHead}..HEAD`]).stdout;
+    const agentPatch = git(["diff", "--binary", baseline, "HEAD"]).stdout;
+    expect(Buffer.byteLength(originalPatch)).toBeGreaterThan(10240);
+    expect(Buffer.byteLength(agentPatch)).toBeLessThan(1024);
+    expect(files.reduce((size, file) => size + fs.statSync(path.join(repo, file)).size, 0)).toBeLessThan(1024);
+    expect(git(["rev-list", "--count", "--merges", `${oldHead}..HEAD`]).stdout.trim()).toBe("1");
+    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
+    expect([...new Set(historyFiles)].sort()).toEqual(revertedChange ? ["agent.txt", "package.json"] : conflict ? ["agent.txt", "conflict.txt"] : ["agent.txt"]);
+    expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe(revertedChange ? "deny" : "allow");
+  });
+
+  it.each([false, true])("detects protected changes made and restored only in agent merge commits (octopus: %s)", async octopus => {
+    const repo = createRepo("push-pr-merge-history-protection-");
+    tempDirs.push(repo);
+    const git = args => execGit(args, { cwd: repo });
+    writeRepoFile(repo, "package.json", "{}\n");
+    git(["add", "."]);
+    git(["commit", "-m", "base"]);
+    git(["branch", "-M", "main"]);
+    git(["checkout", "-b", "feature"]);
+    writeRepoFile(repo, "existing.txt", "PR work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "existing PR"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "main"]);
+    writeRepoFile(repo, "upstream.txt", "base work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "trusted base work"]);
+    const trustedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+    if (octopus) {
+      git(["checkout", "-b", "first-side", oldHead]);
+      writeRepoFile(repo, "first-side.txt", "first side\n");
+      git(["add", "."]);
+      git(["commit", "-m", "first side"]);
+    }
+    git(["checkout", "feature"]);
+    git(["merge", "--no-ff", "--no-commit", "main", ...(octopus ? ["first-side"] : [])]);
+    writeRepoFile(repo, "package.json", '{"agent":true}\n');
+    git(["commit", "-am", "merge-only protected change"]);
+    git(["checkout", "-b", "side"]);
+    writeRepoFile(repo, "side.txt", "side work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "side work"]);
+    if (octopus) {
+      git(["checkout", "-b", "second-side", "feature"]);
+      writeRepoFile(repo, "second-side.txt", "second side\n");
+      git(["add", "."]);
+      git(["commit", "-m", "second side"]);
+    }
+    git(["checkout", "feature"]);
+    git(["merge", "--no-ff", "--no-commit", "side", ...(octopus ? ["second-side"] : [])]);
+    writeRepoFile(repo, "package.json", "{}\n");
+    git(["commit", "-am", "merge-only protected restoration"]);
+
+    const exec = createExecApi(repo);
+    const { ref, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
+    const files = await getBundlePreApplyFiles(exec, {}, ref, "HEAD", conflictedFiles);
+    expect(files.sort()).toEqual(octopus ? ["first-side.txt", "second-side.txt", "side.txt"] : ["side.txt"]);
+    const octopusCommits = git(["rev-list", "--min-parents=3", "HEAD", "--not", oldHead, trustedBase]).stdout.trim();
+    if (octopus) {
+      expect(octopusCommits.split("\n")).toHaveLength(2);
+      return;
+    }
+    expect(octopusCommits).toBe("");
+    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
+    expect(historyFiles).toContain("package.json");
+    expect(historyFiles).not.toContain("upstream.txt");
+    expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe("deny");
+  });
+
+  it.each(["text", "binary", "modify/delete"])("keeps protected %s conflict resolutions in the validation file set", async kind => {
+    const repo = createRepo("push-pr-protected-resolution-");
+    tempDirs.push(repo);
+    const git = args => execGit(args, { cwd: repo });
+    writeRepoFile(repo, "package.json", kind === "binary" ? Buffer.from([0, 1]) : '{"version":"1"}\n');
+    git(["add", "."]);
+    git(["commit", "-m", "base"]);
+    git(["branch", "-M", "main"]);
+    git(["checkout", "-b", "feature"]);
+    const prContent = kind === "binary" ? Buffer.from([0, 2]) : '{"version":"2"}\n';
+    writeRepoFile(repo, "package.json", prContent);
+    git(["commit", "-am", "PR version"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "main"]);
+    if (kind === "modify/delete") {
+      git(["rm", "package.json"]);
+    } else {
+      writeRepoFile(repo, "package.json", kind === "binary" ? Buffer.from([0, 3]) : '{"version":"3"}\n');
+    }
+    git(["commit", "-am", "base version"]);
+    const trustedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "feature"]);
+    expect(execGit(["merge", "main"], { cwd: repo, allowFailure: true }).status).toBe(1);
+    writeRepoFile(repo, "package.json", kind === "text" ? '{"version":"4"}\n' : prContent);
+    git(["add", "package.json"]);
+    git(["commit", "-m", "agent resolution"]);
+    const exec = createExecApi(repo);
+    const { ref: baseline, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
+    const files = await getBundlePreApplyFiles(exec, {}, baseline, "HEAD", conflictedFiles);
+    expect(conflictedFiles).toEqual(["package.json"]);
+    if (kind !== "text") expect(git(["diff", "--name-only", baseline, "HEAD"]).stdout).toBe("");
+    expect(files).toEqual(["package.json"]);
+    expect(checkFileProtectionPostApply(files, { protected_files: ["package.json"] }).action).toBe("deny");
+  });
+
+  it("does not adjust the baseline for absent, unmerged, already merged, or unrelated base commits", async () => {
+    const repo = createRepo("push-pr-baseline-fallback-");
+    tempDirs.push(repo);
+    const git = args => execGit(args, { cwd: repo });
+    writeRepoFile(repo, "base.txt", "base\n");
+    git(["add", "."]);
+    git(["commit", "-m", "base"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "-b", "other"]);
+    writeRepoFile(repo, "other.txt", "unmerged\n");
+    git(["add", "."]);
+    git(["commit", "-m", "unmerged"]);
+    const unmerged = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "-b", "candidate", oldHead]);
+    writeRepoFile(repo, "agent.txt", "agent\n");
+    git(["add", "."]);
+    git(["commit", "-m", "agent"]);
+    const exec = createExecApi(repo);
+    for (const trustedBase of ["", "f".repeat(40), unmerged, oldHead]) {
+      expect(await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase)).toEqual({ ref: oldHead, conflictedFiles: [] });
+    }
+    expect(await getBundleValidationBase(exec, {}, unmerged, "HEAD", oldHead)).toEqual({ ref: unmerged, conflictedFiles: [] });
   });
 
   it("lists files from a fetched bundle before applying it", async () => {
