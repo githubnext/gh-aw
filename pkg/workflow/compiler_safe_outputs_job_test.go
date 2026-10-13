@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -264,6 +265,40 @@ func TestAddHandlerManagerOutputs(t *testing.T) {
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.created_pr_url }}", outputs["created_pr_url"])
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.comment_id }}", outputs["comment_id"])
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.activation_comment_links }}", outputs["activation_comment_links"])
+}
+
+func TestActivationCommentCallersExportLinks(t *testing.T) {
+	// Keep each caller's configuration isolated so another handler cannot mask a missing export.
+	callerConfigs := map[string]*SafeOutputsConfig{
+		"create_pull_request.cjs":         {CreatePullRequests: &CreatePullRequestsConfig{}},
+		"push_to_pull_request_branch.cjs": {PushToPullRequestBranch: &PushToPullRequestBranchConfig{}},
+	}
+	scripts, err := filepath.Glob("../../actions/setup/js/*.cjs")
+	require.NoError(t, err)
+	require.NotEmpty(t, scripts)
+	callPattern := regexp.MustCompile(`\bupdateActivationComment\w*\s*\(`)
+	callers := 0
+	for _, script := range scripts {
+		name := filepath.Base(script)
+		if strings.HasSuffix(name, ".test.cjs") || name == "update_activation_comment.cjs" {
+			continue
+		}
+		source, err := os.ReadFile(script)
+		require.NoError(t, err)
+		if !callPattern.Match(source) {
+			continue
+		}
+		callers++
+		t.Run(name, func(t *testing.T) {
+			config, ok := callerConfigs[name]
+			require.True(t, ok, "new activation-comment caller: add its standalone safe-output configuration here and update exportsActivationCommentLinks")
+			outputs := make(map[string]string)
+			addNamedSafeOutputHandlerOutputs(&WorkflowData{SafeOutputs: config}, outputs)
+			assert.Equal(t, "${{ steps.process_safe_outputs.outputs.activation_comment_links }}", outputs["activation_comment_links"],
+				"activation-comment callers must export links for the conclusion job")
+		})
+	}
+	require.Positive(t, callers, "expected runtime activation-comment callers")
 }
 
 func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *testing.T) {

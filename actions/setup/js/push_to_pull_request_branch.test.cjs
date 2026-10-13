@@ -219,7 +219,6 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Clear module cache
     delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
     delete require.cache[require.resolve("./staged_preview.cjs")];
-    delete require.cache[require.resolve("./update_activation_comment.cjs")];
     delete require.cache[require.resolve("./extra_empty_commit.cjs")];
   });
 
@@ -1005,6 +1004,7 @@ index 0000000..abc1234
         expect(result.commit_sha).toBe("remote-head-after");
         expect(result.commit_url).toContain("/commit/remote-head-after");
         expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", {
+          activationCommentLinks: [],
           targetIssueNumber: 123,
           targetRepo: "test-owner/test-repo",
           targetGithubClient: expect.anything(),

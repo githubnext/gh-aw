@@ -11,7 +11,7 @@ const safeOutputHandlerManager = require("./safe_output_handler_manager.cjs");
  * must never be packaged into artifacts.
  */
 async function main() {
-  await safeOutputHandlerManager.main();
+  await safeOutputHandlerManager.main({ activationCommentLinks: [] });
 }
 
 module.exports = { main };

@@ -14,24 +14,16 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
- * Link messages (e.g. "Pull request created: [#1](...)") that were appended to the
- * activation comment during this step. They are exported as the
- * `activation_comment_links` step output so the conclusion job can preserve them
- * when it re-renders the activation comment with the final run status.
- * @type {string[]}
- */
-const recordedActivationCommentLinks = [];
-
-/**
  * Record a link message appended to the activation comment and export the
  * accumulated list as the `activation_comment_links` step output.
  * @param {any} core - GitHub Actions core
  * @param {string} linkText - Rendered link message
+ * @param {string[]} links - Accumulator scoped to one safe-output invocation
  */
-function recordActivationCommentLink(core, linkText) {
-  recordedActivationCommentLinks.push(linkText);
+function recordActivationCommentLink(core, linkText, links) {
+  links.push(linkText);
   if (typeof core.setOutput === "function") {
-    core.setOutput("activation_comment_links", recordedActivationCommentLinks.join("\n\n"));
+    core.setOutput("activation_comment_links", links.join("\n\n"));
   }
 }
 
@@ -43,8 +35,9 @@ function recordActivationCommentLink(core, linkText) {
  * @param {string} itemUrl - URL of the created item (pull request or issue)
  * @param {number} itemNumber - Number of the item (pull request or issue)
  * @param {string} itemType - Type of item: "pull_request" or "issue" (defaults to "pull_request")
+ * @param {{activationCommentLinks?: string[]}} [options] - Invocation-scoped link accumulator
  */
-async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request", options = {}) {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const invocationContext = resolveInvocationContext(context);
@@ -55,7 +48,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
   const linkMessage = `\n\n${cautionSection}${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   if (await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {})) {
-    recordActivationCommentLink(core, body);
+    recordActivationCommentLink(core, body, options.activationCommentLinks ?? []);
   }
 }
 
@@ -70,6 +63,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
  * @param {string} [options.targetRepo] - Target repo "owner/repo" for fallback comment (cross-repo scenarios)
  * @param {any} [options.targetGithubClient] - Authenticated GitHub client for the target repo (cross-repo scenarios)
+ * @param {string[]} [options.activationCommentLinks] - Invocation-scoped link accumulator
  */
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
@@ -82,7 +76,7 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
   const commitMessage = getCommitPushedMessage({ commitSha, shortSha, commitUrl });
   const message = `\n\n${cautionSection}${commitMessage}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   if (await updateActivationCommentWithMessage(github, context, core, message, "commit", options)) {
-    recordActivationCommentLink(core, commitMessage);
+    recordActivationCommentLink(core, commitMessage, options.activationCommentLinks ?? []);
   }
 }
 
