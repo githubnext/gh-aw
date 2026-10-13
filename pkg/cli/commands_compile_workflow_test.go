@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow"
 
 	"github.com/github/gh-aw/pkg/testutil"
 
@@ -23,7 +24,7 @@ func TestCompileWorkflow(t *testing.T) {
 		verbose        bool
 		engineOverride string
 		expectError    bool
-		errorContains  string
+		errorContains  []string
 	}{
 		{
 			name: "successful compilation with valid workflow",
@@ -146,7 +147,7 @@ This workflow has invalid frontmatter.
 			verbose:        false,
 			engineOverride: "",
 			expectError:    true,
-			errorContains:  "error:",
+			errorContains:  []string{"error:"},
 		},
 		{
 			name: "compilation with nonexistent file",
@@ -156,13 +157,14 @@ This workflow has invalid frontmatter.
 			verbose:        false,
 			engineOverride: "",
 			expectError:    true,
-			errorContains:  "failed to read file",
+			errorContains:  []string{"failed to read file"},
 		},
 		{
 			name: "compilation with invalid engine override",
 			setupWorkflow: func(tmpDir string) (string, error) {
 				workflowContent := `---
 name: Invalid Engine Test
+engine: copilot
 on:
   push:
     branches: [main]
@@ -187,7 +189,12 @@ Test compilation with invalid engine.
 			verbose:        false,
 			engineOverride: "invalid-engine",
 			expectError:    true,
-			errorContains:  "invalid engine",
+			errorContains: []string{
+				`invalid-engine.md:3:1: error: unknown engine "invalid-engine".`,
+				"Valid engines are: " + strings.Join(workflow.NewEngineRegistry().GetSupportedEngines(), ", ") + ".",
+				"Example:\nengine: copilot",
+				string(constants.DocsEnginesURL),
+			},
 		},
 	}
 
@@ -228,8 +235,16 @@ Test compilation with invalid engine.
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
-				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("Expected error to contain '%s', but got: %v", tt.errorContains, err)
+				} else {
+					for _, expected := range tt.errorContains {
+						if !strings.Contains(err.Error(), expected) {
+							t.Errorf("Expected error to contain %q, but got: %v", expected, err)
+						}
+					}
+				}
+				lockFile := stringutil.MarkdownToLockFile(workflowFile)
+				if _, statErr := os.Stat(lockFile); !os.IsNotExist(statErr) {
+					t.Errorf("Expected failed compilation not to create lock file %s, got: %v", lockFile, statErr)
 				}
 			} else {
 				if err != nil {

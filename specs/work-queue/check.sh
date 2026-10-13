@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
         exit 1
         ;;
 esac
@@ -120,6 +120,14 @@ run_model BrokenLifecycleVerificationBudget DeliveryFailureBudget Invariant 12 Q
 run_model LifecycleMixedDAGWitness NoMixedLifecycleWitness Invariant 12 QueueLifecycle
 run_model LifecycleActivationWitness NoActivationRecoveryWitness Invariant 12 QueueLifecycle
 run_model LifecycleConflictWitness NoConflictReservationWitness Invariant 12 QueueLifecycle
+run_model ReservationRecovery "" Invariant 0 DispatchReservationRecovery
+run_model BrokenReservationEvidence PrelaunchEvidence Invariant 12 DispatchReservationRecovery
+run_model BrokenReservationCAS StartFence Invariant 12 DispatchReservationRecovery
+run_model BrokenReservationRefund NoRefund Invariant 12 DispatchReservationRecovery
+run_model BrokenReservationResend OneSender Invariant 12 DispatchReservationRecovery
+run_model ReservationSiblingWitness NoSiblingRecovery Invariant 12 DispatchReservationRecovery
+run_model ReservationRetryWitness NoRetryRecovery Invariant 12 DispatchReservationRecovery
+run_model ReservationRaceWitness NoPrelaunchRace Invariant 12 DispatchReservationRecovery
 run_model IssueExisting "" Invariant 0 IssueProjection
 run_model IssueCreated "" Invariant 0 IssueProjection
 run_model IssueDefaultOpen "" Invariant 0 IssueProjection
