@@ -761,6 +761,7 @@ async function verifyCompiledDispatchIdentity(input) {
         users: { getByUsername: identity, getAuthenticated: identity },
         repos: fixture.githubClient.rest.repos,
         git: {
+          // Octokit getRef omits refs/, whereas workflow dispatch uses the fully qualified tag.
           getRef: async parameters => {
             tagReads++;
             assert.equal(parameters.ref, `tags/gh-aw/work-queue/${REF}`);
