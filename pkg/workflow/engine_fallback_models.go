@@ -83,7 +83,8 @@ func (c *Compiler) resolveFallbackModelPricing(modelCosts map[string]any, data *
 func fallbackProviderSecretNames(data *WorkflowData) []string {
 	var names []string
 	for _, provider := range fallbackModelProviders(data) {
-		if provider == LLMProviderAnthropic && isAnthropicWIF(data) {
+		if provider == LLMProviderAnthropic && isAnthropicWIF(data) ||
+			provider == LLMProviderOpenAI && usesAzureOIDCForOpenAI(data) {
 			continue
 		}
 		names = append(names, llmProviderSecretNames(provider)...)
@@ -93,7 +94,8 @@ func fallbackProviderSecretNames(data *WorkflowData) []string {
 
 func applyFallbackProviderEnv(env map[string]string, data *WorkflowData) {
 	for _, provider := range fallbackModelProviders(data) {
-		if provider == LLMProviderAnthropic && isAnthropicWIF(data) {
+		if provider == LLMProviderAnthropic && isAnthropicWIF(data) ||
+			provider == LLMProviderOpenAI && usesAzureOIDCForOpenAI(data) {
 			continue
 		}
 		for _, name := range llmProviderSecretNames(provider) {
@@ -102,6 +104,20 @@ func applyFallbackProviderEnv(env map[string]string, data *WorkflowData) {
 	}
 	if len(fallbackModelProviders(data)) > 1 {
 		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
+	}
+}
+
+func usesAzureOIDCForOpenAI(data *WorkflowData) bool {
+	if data == nil || data.EngineConfig == nil {
+		return false
+	}
+	switch data.EngineConfig.ID {
+	case "codex":
+		return isCodexAzureOIDC(data)
+	case "pi":
+		return isPiAzureOIDC(data)
+	default:
+		return false
 	}
 }
 

@@ -25,6 +25,7 @@ const {
   fetchModelsFromUrl,
   waitForProviderListenerReady,
   getCatalogModelEntry,
+  hasAzureOIDCProviderEndpoint,
   hasAPIProxyLocalhostAlias,
   inferProviderTypeForModel,
   inferWireApiForModel,
@@ -36,6 +37,16 @@ const {
 } = require("./awf_reflect.cjs");
 
 describe("awf_reflect.cjs", () => {
+  describe("hasAzureOIDCProviderEndpoint", () => {
+    it("requires a configured resolved endpoint using Azure OIDC", () => {
+      const endpoint = { provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000 };
+      expect(hasAzureOIDCProviderEndpoint({ endpoints: [endpoint] }, "openai")).toBe(true);
+      expect(hasAzureOIDCProviderEndpoint({ endpoints: [{ ...endpoint, auth_type: "static-key" }] }, "openai")).toBe(false);
+      expect(hasAzureOIDCProviderEndpoint({ endpoints: [{ ...endpoint, configured: false }] }, "openai")).toBe(false);
+      expect(hasAzureOIDCProviderEndpoint({ endpoints: [endpoint] }, "anthropic")).toBe(false);
+    });
+  });
+
   describe("constants", () => {
     it("exports expected default values", () => {
       expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
