@@ -14,6 +14,39 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it("projects canonical MCP configuration through the shared metadata allowlist", () => {
+    const source = {
+      type: "mcp.configuration",
+      id: "configuration",
+      parentId: "session",
+      ts: 123,
+      agentId: "custom",
+      ephemeral: false,
+      url: "https://private.example",
+      credential: "secret",
+      data: {
+        servers: [{ serverName: "github", transport: "http", required: true, tools: ["get_issue"], url: "https://private.example", credential: "secret" }],
+        credential: "secret",
+      },
+    };
+    const original = structuredClone(source);
+    const event = normalizeUnifiedSessionEvent(source);
+    expect(event).toEqual({
+      type: "mcp.configuration",
+      id: "configuration",
+      parentId: "session",
+      timestamp: 123,
+      agentId: "custom",
+      ephemeral: false,
+      data: { servers: [{ serverName: "github", transport: "http", required: true, tools: ["get_issue"] }] },
+    });
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+    const [unified] = mergeSessionSources([{ component: "agent", phase: "agent", path: "custom.jsonl", events: [source] }]);
+    const validate = createSessionValidator("unified").event;
+    expect(validate(unified), JSON.stringify(validate.errors)).toBe(true);
+    expect(source).toEqual(original);
+  });
+
   it("retains background task correlation and observed errors on tool updates", () => {
     const source = {
       type: "tool.execution_update",

@@ -534,7 +534,9 @@ async function pushSignedCommits({
     // those on-demand promisor fetches can authenticate in private repos even
     // after checkout credentials have been scrubbed from .git/config.
     const runRebase = async () => {
-      const result = await getGitExecOutput(["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid, "HEAD"], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) }, ignoreReturnCode: true });
+      // An explicit "HEAD" branch argument detaches the rebase and leaves the
+      // named branch stale, so a later git push fallback would push the old tip.
+      const result = await getGitExecOutput(["rebase", "--onto", firstGraphqlParentOid, firstReplayParentOid], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) }, ignoreReturnCode: true });
       return result;
     };
     let rebaseResult = await runRebase();

@@ -93,6 +93,7 @@
       { "if": { "properties": { "type": { "const": "grader.manifest" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderManifestData" } } } },
       { "if": { "properties": { "type": { "const": "grader.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderResultData" } } } },
       { "if": { "properties": { "type": { "const": "guardrail.daily_aic" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/DailyAICDecisionData" } } } },
+      { "if": { "properties": { "type": { "const": "mcp.configuration" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpConfigurationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.difc.filtered" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       {
         "if": { "properties": { "type": { "const": "mcp.event" } }, "required": ["type"] },
@@ -715,6 +716,27 @@
         { "type": "array", "items": { "$ref": "#/definitions/JsonValue" } },
         { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } }
       ]
+    },
+    "McpConfigurationData": {
+      "type": "object",
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "serverName": { "type": "string" },
+              "transport": { "type": "string", "enum": ["stdio", "http", "sse", "streamable-http"] },
+              "required": { "type": "boolean" },
+              "tools": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["serverName"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["servers"],
+      "additionalProperties": false
     },
     "McpObservationData": {
       "type": "object",

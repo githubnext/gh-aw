@@ -83,7 +83,18 @@ function registerTests({ describe, it }) {
 
     it("preserves explicitly compiled observer manager outputs without treating missing snapshots as worker downgrade", async () => {
       const root = temporaryDirectory("observer-manager");
-      const keys = ["GH_AW_WORK_QUEUE_ENABLED", "GH_AW_WORK_QUEUE_ROLE", "GH_AW_WORK_QUEUE_SNAPSHOT"];
+      const keys = [
+        "GH_AW_WORK_QUEUE_ENABLED",
+        "GH_AW_WORK_QUEUE_ROLE",
+        "GH_AW_WORK_QUEUE_SNAPSHOT",
+        "GH_AW_WORKFLOW_ID",
+        "GH_AW_JOB_CHECK_RUN_ID",
+        "GITHUB_REPOSITORY_ID",
+        "GITHUB_REPOSITORY",
+        "GITHUB_RUN_ID",
+        "GITHUB_RUN_ATTEMPT",
+        "GITHUB_JOB",
+      ];
       const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
       const previousContext = global.context;
       const previousCore = global.core;
@@ -255,6 +266,13 @@ function registerTests({ describe, it }) {
         process.env.GH_AW_WORK_QUEUE_ENABLED = "true";
         process.env.GH_AW_WORK_QUEUE_ROLE = "observer";
         process.env.GH_AW_WORK_QUEUE_SNAPSHOT = filename;
+        process.env.GH_AW_WORKFLOW_ID = "observer-workflow";
+        process.env.GH_AW_JOB_CHECK_RUN_ID = "123";
+        process.env.GITHUB_REPOSITORY_ID = "456";
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+        process.env.GITHUB_RUN_ID = "15";
+        process.env.GITHUB_RUN_ATTEMPT = "1";
+        process.env.GITHUB_JOB = "safe_outputs";
         Reflect.set(global, "context", { repo: { owner: "owner", repo: "repo" }, runId: "15", payload: {} });
         Reflect.set(global, "core", { info() {}, warning() {}, error() {}, debug() {}, setOutput() {} });
         Reflect.set(global, "github", {

@@ -30,6 +30,9 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
+import { useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+
+useExecutionProvenanceFixture();
 
 const require = createRequire(import.meta.url);
 const promptsSourceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md");
