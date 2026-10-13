@@ -8,30 +8,32 @@ import (
 	"testing"
 )
 
-func TestDailyFactWorkflowUsesHostDockerInternalForMemPalace(t *testing.T) {
-	sourceContent, err := os.ReadFile("../../.github/workflows/shared/mcp/mempalace.md")
-	if err != nil {
-		t.Fatalf("failed to read shared mempalace import: %v", err)
-	}
-	source := string(sourceContent)
-
-	if strings.Contains(source, "http://localhost:8765/mcp") {
-		t.Fatalf("expected shared mempalace import to avoid localhost MCP URLs under network isolation")
-	}
-	if !strings.Contains(source, "http://host.docker.internal:8765/mcp") {
-		t.Fatalf("expected shared mempalace import to use host.docker.internal for the MCP URL")
+func TestDailyFactWorkflowDoesNotUseMemPalace(t *testing.T) {
+	if _, err := os.Stat("../../.github/workflows/shared/mcp/mempalace.md"); !os.IsNotExist(err) {
+		t.Fatalf("expected removed shared MemPalace workflow to be absent, got %v", err)
 	}
 
-	lockContent, err := os.ReadFile("../../.github/workflows/daily-fact.lock.yml")
-	if err != nil {
-		t.Fatalf("failed to read compiled workflow: %v", err)
-	}
-	lock := string(lockContent)
-
-	if strings.Contains(lock, "http://localhost:8765/mcp") {
-		t.Fatalf("expected compiled Daily Fact workflow to avoid localhost MCP URLs")
-	}
-	if !strings.Contains(lock, "http://host.docker.internal:8765/mcp") {
-		t.Fatalf("expected compiled Daily Fact workflow to use host.docker.internal for MemPalace")
+	for _, path := range []string{
+		"../../.github/workflows/daily-fact.md",
+		"../../.github/workflows/daily-fact.lock.yml",
+		"../../.github/workflows/requirements.txt",
+	} {
+		t.Run(path, func(t *testing.T) {
+			content, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("failed to read Daily Fact workflow: %v", err)
+			}
+			contentLower := strings.ToLower(string(content))
+			for _, removed := range []string{
+				"mempalace",
+				"cache-memory/palace",
+				"8765",
+				"palace memory",
+			} {
+				if strings.Contains(contentLower, removed) {
+					t.Errorf("Daily Fact workflow still references removed MemPalace dependency %q", removed)
+				}
+			}
+		})
 	}
 }
