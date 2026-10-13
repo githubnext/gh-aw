@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -105,8 +106,9 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		if server.Command != "gh" {
 			t.Errorf("Expected command to be 'gh', got %s", server.Command)
 		}
-		if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
-			t.Errorf("Expected args to be ['aw', 'mcp-server'], got %v", server.Args)
+		expectedArgs := []string{"aw", "mcp-server", "--allow-write-tools"}
+		if !reflect.DeepEqual(server.Args, expectedArgs) {
+			t.Errorf("Expected args to be %v, got %v", expectedArgs, server.Args)
 		}
 		expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"}
 		if len(server.Tools) != len(expectedTools) {
