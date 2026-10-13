@@ -133,6 +133,9 @@ run_model IssueClosureCompleted "" Invariant 0 IssueClosureCancellation
 run_model IssueClosureCancelled "" Invariant 0 IssueClosureCancellation
 run_model IssueClosureUnbound "" Invariant 0 IssueClosureCancellation
 run_model IssueClosureStaleLabels "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureReopened "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureIdentityChanged "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureMissingQueue "" Invariant 0 IssueClosureCancellation
 run_model BootstrapEmpty "" Invariant 0 QueueBootstrap
 run_model BootstrapInitialized "" Invariant 0 QueueBootstrap
 run_model BootstrapSameBranch "" Invariant 0 QueueBootstrap

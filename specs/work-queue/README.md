@@ -1075,16 +1075,27 @@ implementation, creation-receipt authenticity, runtime refinement, or liveness.
 
 [`IssueClosureCancellation.tla`](IssueClosureCancellation.tla) separately
 models closure of an exact Issue subject or immutable backing-Issue binding
-with fresh queue labels as intent, trusted terminal
-WorkCancellation, and an idempotent comment reporting the resulting ledger
-state. Its available/active/completed/cancelled configurations cover a running
-worker that is not automatically stopped, Completion winning the race,
-duplicate closure reports, already-terminal Work, and dependency-only or
-stale-label Issues that cannot create a cancellation intent. `Result` requires a
-separate completed-Work verification action; closure never creates one.
+only after a checked GraphQL ledger read. A verified-absent queue reference
+uses an empty state and returns without candidate reads; it is not replayed as
+an initialized ledger missing Policy. Initialized queues still require Policy.
+An unrelated/dependency Issue stops before
+configuration, native-run authentication, and the fresh GraphQL Issue preflight;
+the `ReadOrdering` and `UnboundAvoidsAmplification` invariants check this API
+read ordering. Candidate checks use fresh Issue closed state, immutable identity,
+and queue labels, with a modeled eligibility change before CAS to verify the
+recheck. The model also requires a checked terminal-ledger read before an
+idempotent confirmation comment. Its available/active/completed/cancelled
+configurations cover a running worker that is not automatically stopped,
+Completion winning the race, duplicate closure reports, already-terminal Work,
+and dependency-only, absent-queue, reopened, identity-changed, or stale-label
+Issues that cannot create a cancellation intent. `Result` requires a separate
+completed-Work verification action; closure never creates one.
 Run `TLC_MODEL_FILTER=IssueClosureCancellation` for these bounded safety
-checks. Exact relationship/label validation, authentic CAS writes, API comments, termination
-evidence, and eventual processing remain implementation obligations.
+checks. The model counts the checked-ledger read and candidate-only REST/fresh
+GraphQL reads, but abstracts exact API payload validation, transport/quota
+failures, Policy replay/validity, authentic CAS writes, actual API comments,
+termination evidence, and eventual processing; those remain implementation
+obligations.
 
 ### Daily evidence collection
 
