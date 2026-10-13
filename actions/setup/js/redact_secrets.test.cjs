@@ -131,6 +131,54 @@ describe("redact_secrets.cjs", () => {
           rename.mockRestore();
         }
       });
+      it("preserves the primary diagnostic when replacement and temp cleanup both fail", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "server.log");
+        fs.writeFileSync(file, "secret-value");
+        const write = vi.spyOn(fs, "writeFileSync").mockImplementationOnce(() => {
+          throw Object.assign(new Error("secret-value runtime-mask"), { code: "EACCES" });
+        });
+        const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => {
+          throw Object.assign(new Error("secret-value runtime-mask"), { code: "ENOSPC" });
+        });
+        const remove = vi.spyOn(fs, "rmSync").mockImplementationOnce(() => {
+          throw Object.assign(new Error("secret-value runtime-mask"), { code: "EPERM" });
+        });
+        try {
+          expect(processFile(file, ["secret-value"], ["runtime-mask"])).toBe(0);
+          expect(fs.existsSync(file)).toBe(false);
+          expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=replace, code=ENOSPC)");
+          expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=unlink, code=EPERM)");
+          expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed");
+        } finally {
+          write.mockRestore();
+          rename.mockRestore();
+          remove.mockRestore();
+        }
+      });
+      it("keeps a successfully replaced artifact when temporary-directory cleanup fails", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "server.log");
+        fs.writeFileSync(file, "secret-value");
+        const write = vi.spyOn(fs, "writeFileSync").mockImplementationOnce(() => {
+          throw Object.assign(new Error("secret-value runtime-mask"), { code: "EACCES" });
+        });
+        const remove = vi.spyOn(fs, "rmSync").mockImplementationOnce(() => {
+          throw Object.assign(new Error("secret-value runtime-mask"), { code: "EBUSY" });
+        });
+        try {
+          expect(processFile(file, ["secret-value"], ["runtime-mask"])).toBe(1);
+          expect(fs.existsSync(file)).toBe(true);
+          expect(fs.readFileSync(file, "utf8")).not.toContain("secret-value");
+          expect(mockCore.warning).toHaveBeenCalledWith("Failed to remove temporary redaction directory: Secret redaction failed (stage=unlink, code=EBUSY)");
+          expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
+          expect(mockCore.setFailed).not.toHaveBeenCalled();
+        } finally {
+          write.mockRestore();
+          remove.mockRestore();
+        }
+      });
       it.each([undefined, "secret-value", { secret: "runtime-mask" }])("does not publish unknown error codes %j", code => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "server.log");

@@ -364,6 +364,8 @@ function writeProcessedFile(filePath, content, changed) {
       }
       return;
     }
+    /** @type {RedactionOperationError | undefined} */
+    let operationDiagnostic;
     try {
       const replacement = path.join(temporaryDir, "redacted");
       stage = "write";
@@ -371,15 +373,24 @@ function writeProcessedFile(filePath, content, changed) {
       stage = "replace";
       fs.renameSync(replacement, filePath);
       core.warning(`Replaced non-writable file for secret redaction: ${filePath}`);
+    } catch (error) {
+      operationDiagnostic = error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error);
+      throw operationDiagnostic;
     } finally {
       try {
         fs.rmSync(temporaryDir, { recursive: true, force: true });
       } catch (error) {
         const cleanupDiagnostic = new RedactionOperationError("unlink", error);
-        throw cleanupDiagnostic;
+        if (operationDiagnostic) {
+          throw new AggregateError([operationDiagnostic, cleanupDiagnostic], "Secret redaction failed");
+        }
+        core.warning(`Failed to remove temporary redaction directory: ${cleanupDiagnostic.message}`);
       }
     }
   } catch (error) {
+    if (error instanceof AggregateError && error.errors.every(item => item instanceof RedactionOperationError)) {
+      throw error;
+    }
     throw error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error);
   }
 }
@@ -432,18 +443,18 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
       return 0;
     }
     // Uploads can run with always(); do not leave an unsanitized source behind.
-    const diagnostic = error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error);
+    const diagnostics = error instanceof AggregateError && error.errors.every(item => item instanceof RedactionOperationError) ? error.errors : [error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error)];
     try {
       fs.unlinkSync(filePath);
     } catch (cleanupError) {
       if (!isErrnoCode(cleanupError, "ENOENT")) {
         const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
-        core.warning(diagnostic.message);
+        diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
         core.warning(cleanupDiagnostic.message);
-        throw new AggregateError([diagnostic, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
+        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
       }
     }
-    core.warning(diagnostic.message);
+    diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
     core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed`);
     return 0;
   }
