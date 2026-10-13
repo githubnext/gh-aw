@@ -198,6 +198,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.ContinueWorkflow != nil {
+		if err := checkMaxField("continue_workflow", config.ContinueWorkflow.Max); err != nil {
+			return err
+		}
+	}
 	if config.DispatchWorkflow != nil {
 		if err := checkMaxField("dispatch_workflow", config.DispatchWorkflow.Max); err != nil {
 			return err

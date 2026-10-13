@@ -2730,6 +2730,7 @@ jobs:
       continue-on-error: true
       env:
         GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
         CACHE_KEY: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       run: |
         cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
@@ -2756,12 +2757,27 @@ jobs:
           };
 
           const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-          const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            run_id: context.runId,
-            per_page: 100,
-          });
+          let jobs;
+          try {
+            jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+              per_page: 100,
+            });
+          } catch (error) {
+            if (error.status === 403 && error.response?.data?.message?.includes('API rate limit exceeded')) {
+              core.warning('GitHub API rate limit exceeded; workflow timing details are unavailable.');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+                '## Workflow timing summary',
+                '',
+                'Timing details are unavailable because the GitHub Actions API rate limit was exceeded.',
+                '',
+              ].join('\n'));
+              return;
+            }
+            throw error;
+          }
 
           const rows = [];
           for (const job of jobs) {
