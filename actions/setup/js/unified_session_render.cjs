@@ -435,15 +435,20 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
   };
   const shellBytes = Buffer.byteLength(preamble + tail + bounded.map(section => block(section, [])).join(""), "utf8");
   let remaining = maxBytes - shellBytes;
-  if (remaining < 512) return "Unified session summary omitted: remaining step-summary byte limit reached.\n";
-  const blocks = bounded.map((section, index) => {
-    // Reserve an explicit omission notice for every later section.
-    const reserved = bounded.slice(index + 1).reduce((bytes, next) => bytes + Buffer.byteLength(next.notice, "utf8") + 1, 0);
+  const fallback = "Unified session summary omitted: remaining step-summary byte limit reached.\n";
+  if (remaining < 512) return Buffer.byteLength(fallback, "utf8") <= maxBytes ? fallback : "";
+  const contentBySection = new Map();
+  const priority = [bounded[1], bounded[0], bounded[2]];
+  for (const [index, section] of priority.entries()) {
+    // Reserve an explicit omission notice for every later priority section.
+    const reserved = priority.slice(index + 1).reduce((bytes, next) => bytes + Buffer.byteLength(next.notice, "utf8") + 1, 0);
     const budget = remaining - reserved;
-    const content = budget < 128 ? [section.notice] : boundSummaryLines(section.lines, budget, maxLineBytes);
+    const noticeBytes = Buffer.byteLength(section.notice, "utf8");
+    const content = budget < 128 ? (noticeBytes <= budget ? [section.notice] : []) : boundSummaryLines(section.lines, budget, maxLineBytes);
     remaining -= Buffer.byteLength(content.join("\n"), "utf8");
-    return block(section, content);
-  });
+    contentBySection.set(section, content);
+  }
+  const blocks = bounded.map(section => block(section, contentBySection.get(section)));
   return preamble + blocks.join("") + tail;
 }
 
@@ -468,7 +473,7 @@ async function publishUnifiedSessionSummary(filePath) {
       const { MAX_STEP_SUMMARY_SIZE } = require("./log_parser_shared.cjs");
       const available = MAX_STEP_SUMMARY_SIZE - used - 2;
       const markdown = generateCopilotCliStyleSummary(events, { maxBytes: available });
-      if (Buffer.byteLength(markdown, "utf8") > available) {
+      if (!markdown || Buffer.byteLength(markdown, "utf8") > available) {
         core.warning("Unified session step summary omitted: existing step-summary byte limit reached");
         return;
       }

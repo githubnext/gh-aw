@@ -820,7 +820,7 @@ describe("unified session publication views", () => {
     expect(events.at(-1).data.content).toHaveLength(2000);
   });
 
-  it("keeps the timeline section visible when the overview uses the byte budget and collects secrets once", () => {
+  it("prioritizes conversation over the overview and keeps the timeline visible while collecting secrets once", () => {
     const existsSync = vi.spyOn(fs, "existsSync");
     const events = [header, ...Array.from({ length: 128 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(9000)}.jsonl`))];
     const output = generateCopilotCliStyleSummary(events);
@@ -829,9 +829,21 @@ describe("unified session publication views", () => {
     expect(Buffer.byteLength(output)).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
     expect(output).toContain("<summary>Session overview</summary>");
     expect(output).toContain("### Conversation");
+    expect(output).toContain("Agent source: agent/source-0-");
+    expect(output).toContain("◆ answer");
     expect(output).toContain("<summary>Full timeline</summary>");
     expect(output).toContain("Full timeline omitted: byte limit reached");
+    expect(output).not.toContain("Conversation omitted: byte limit reached");
     expect(gatewayConfigChecks).toBe(MCP_GATEWAY_CONFIG_PATHS.length);
+  });
+
+  it("keeps tight summary budgets byte-safe, including omission notices", () => {
+    const events = [header, ...Array.from({ length: 12 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(2000)}.jsonl`))];
+
+    for (const maxBytes of [0, 1, 32, 511, 900, 901, 1024]) {
+      const output = generateCopilotCliStyleSummary(events, { maxBytes });
+      expect(Buffer.byteLength(output, "utf8")).toBeLessThanOrEqual(maxBytes);
+    }
   });
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {
