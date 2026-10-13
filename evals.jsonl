@@ -74,3 +74,5 @@
 {"id":"detection_report_created","question":"Did the agent create a report with evidence-backed detection findings or recommendations?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-09T23:37:54.078Z","runid":"38003942277"}
 {"id":"detection_runs_analyzed","question":"Did the agent analyze detection jobs for workflow misconfiguration and performance differences?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-12T23:33:53.566Z","runid":"38321707271"}
 {"id":"detection_report_created","question":"Did the agent create a report with evidence-backed detection findings or recommendations?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-12T23:33:53.566Z","runid":"38321707271"}
+{"id":"detection_runs_analyzed","question":"Did the agent analyze detection jobs for workflow misconfiguration and performance differences?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-13T23:30:31.417Z","runid":"38483211746"}
+{"id":"detection_report_created","question":"Did the agent create a report with evidence-backed detection findings or recommendations?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-13T23:30:31.417Z","runid":"38483211746"}
