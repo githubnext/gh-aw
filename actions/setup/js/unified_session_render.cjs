@@ -408,37 +408,48 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
   const tail = markdown ? "\n\n</details>" : "";
   if (!markdown) return boundSummaryLines(lines, maxBytes, maxLineBytes).join("\n").replace(/::/g, ": :");
   const sections = [
-    { title: "Session overview", lines: overview },
-    { title: "Full timeline", lines: traceLines },
+    { title: "Session overview", collapsed: true, lines: overview },
+    {
+      title: "Conversation",
+      collapsed: false,
+      lines: publicationAgentSessions(displayEvents, secrets).flatMap(group => {
+        const content = agentConversation(group.events, secrets);
+        return content.length ? [`Agent source: ${inline(group.label)}`, "", ...content, ""] : [];
+      }),
+    },
+    { title: "Full timeline", collapsed: true, lines: traceLines },
   ];
-  const bounded = sections.map(section => ({ ...section, lines: boundSummaryLines(section.lines, Number.MAX_SAFE_INTEGER, maxLineBytes) }));
+  const bounded = sections.map(section => ({
+    ...section,
+    lines: boundSummaryLines(section.lines.length ? section.lines : ["No agent conversation recorded."], Number.MAX_SAFE_INTEGER, maxLineBytes),
+    notice: `... (${section.title} omitted: byte limit reached)`,
+  }));
   let longest = 2;
   // Fenced code treats HTML as literal text; escaping here would print entities.
   for (const section of bounded) for (const line of section.lines) for (const run of line.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
   const fence = "`".repeat(longest + 1);
-  /** @param {{title: string}} section @param {string[]} content */
+  /** @param {{title: string, collapsed: boolean}} section @param {string[]} content */
   const block = (section, content) => {
-    return `#### ${section.title}\n\n${fence}\n${content.join("\n")}\n${fence}\n\n`;
+    const transcript = `${fence}text\n${content.join("\n")}\n${fence}\n\n`;
+    return section.collapsed ? `<details><summary>${section.title}</summary>\n\n${transcript}</details>\n\n` : `### ${section.title}\n\n${transcript}`;
   };
   const shellBytes = Buffer.byteLength(preamble + tail + bounded.map(section => block(section, [])).join(""), "utf8");
-  const bodyBudget = maxBytes - shellBytes;
-  if (bodyBudget < 128) return "Unified session summary omitted: remaining step-summary byte limit reached.\n";
-  const visible = boundSummaryLines(
-    bounded.flatMap(section => section.lines),
-    bodyBudget,
-    maxLineBytes
-  );
-  const truncationNotice = "... (summary truncated: byte limit reached)";
-  const timelineNotice = "... (Full timeline omitted: byte limit reached)";
-  const overviewContent = visible.slice(0, bounded[0].lines.length);
-  const timelineContent = visible.slice(bounded[0].lines.length);
-  const timelineVisible = timelineContent.some(line => line !== truncationNotice);
-  if (!timelineVisible) {
-    const timelineNoticeBytes = Buffer.byteLength(timelineNotice, "utf8") + 1;
-    const boundedOverview = boundSummaryLines(bounded[0].lines, bodyBudget - timelineNoticeBytes, maxLineBytes);
-    return preamble + block(bounded[0], boundedOverview) + block(bounded[1], [timelineNotice]) + tail;
+  let remaining = maxBytes - shellBytes;
+  const fallback = "Unified session summary omitted: remaining step-summary byte limit reached.\n";
+  if (remaining < 512) return Buffer.byteLength(fallback, "utf8") <= maxBytes ? fallback : "";
+  const contentBySection = new Map();
+  const priority = [bounded[1], bounded[0], bounded[2]];
+  for (const [index, section] of priority.entries()) {
+    // Reserve an explicit omission notice for every later priority section.
+    const reserved = priority.slice(index + 1).reduce((bytes, next) => bytes + Buffer.byteLength(next.notice, "utf8") + 1, 0);
+    const budget = remaining - reserved;
+    const noticeBytes = Buffer.byteLength(section.notice, "utf8");
+    const content = budget < 128 ? (noticeBytes <= budget ? [section.notice] : []) : boundSummaryLines(section.lines, budget, maxLineBytes);
+    remaining -= Buffer.byteLength(content.join("\n"), "utf8");
+    contentBySection.set(section, content);
   }
-  return preamble + block(bounded[0], overviewContent) + block(bounded[1], timelineContent) + tail;
+  const blocks = bounded.map(section => block(section, contentBySection.get(section)));
+  return preamble + blocks.join("") + tail;
 }
 
 /** @param {string} filePath @returns {Promise<void>} */
@@ -462,7 +473,7 @@ async function publishUnifiedSessionSummary(filePath) {
       const { MAX_STEP_SUMMARY_SIZE } = require("./log_parser_shared.cjs");
       const available = MAX_STEP_SUMMARY_SIZE - used - 2;
       const markdown = generateCopilotCliStyleSummary(events, { maxBytes: available });
-      if (Buffer.byteLength(markdown, "utf8") > available) {
+      if (!markdown || Buffer.byteLength(markdown, "utf8") > available) {
         core.warning("Unified session step summary omitted: existing step-summary byte limit reached");
         return;
       }
