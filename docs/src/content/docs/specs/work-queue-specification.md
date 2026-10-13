@@ -1066,6 +1066,24 @@ for the group; another publisher finding that marker only reconciles, never
 also sends. Once the marker exists, even its owner cannot assume a restarted
 process has not sent the POST.
 
+Bounded reconciliation MUST include unreleased `reserved` groups, not only
+groups with launch markers or native bindings. Automatic abandoned-reservation
+recovery MUST authenticate the originating grant publisher's exact
+`(run_id, run_attempt)` against its stored repository, workflow and principal,
+including the native repository identity, and observe that attempt terminal.
+The publisher attempt MAY be later than one; this does not relax the worker's
+separate original-attempt-one restriction. Active origins, missing conclusions,
+unavailable API evidence, and mismatched identities MUST retain the reservation.
+
+After terminal-origin verification, the reconciler MUST re-read the ledger and
+CAS-publish trusted prelaunch cancellation only while the group remains
+`reserved` with no sender, start marker or native run. A concurrent start marker
+MUST invalidate the release, including when it wins after the fresh read.
+Cancel only still-open original Claims and release native capacity atomically.
+Apply installed retry backoff and attempt-exhaustion rules without refunding
+service charges, replacing Work, or reopening original Claims. A later ordinary
+fair grant creates a new attempt; it is not a resend of the abandoned dispatch.
+
 #### Run binding and bounded reconciliation
 
 The first release requires the GitHub REST dispatch contract pinned to API
@@ -1115,6 +1133,7 @@ an administrative force-release shortcut while a run may still execute.
 | Latest durable state | Permitted recovery |
 |---|---|
 | Reserved, no start marker | CAS-commit a start marker and send once, or commit definitive prelaunch cancellation and cancel still-open Claims/release atomically |
+| Reserved, exact originating publisher attempt terminal | Bounded automatic recovery may CAS-cancel prelaunch after a fresh no-marker check; retain on unavailable/mismatched origin evidence or a concurrent start |
 | Started/uncertain, no binding | Validate and bind an actual run; otherwise retain reservation and report unresolved/conflict |
 | Bound, queued/running | Observe or request cancellation; neither request nor lease expiry releases the slot |
 | Bound, terminal | Cancel still-open Claims, reconcile completed members' result barriers, and release with exact run/attempt terminal evidence |
@@ -2363,6 +2382,14 @@ launched. If no start marker exists, checked recovery can resume or definitively
 cancel prelaunch. If a marker exists, reconcile the possible worker launch even
 when the dispatcher is terminal. Its conclusion is not worker-terminal evidence.
 
+For the ESLint factory's three singleton grants, a cancelled dispatcher may
+leave miner bound and refiner/monster reserved without start markers. A bounded
+sweep authenticates the dispatcher attempt and can release only the never-started
+siblings through checked prelaunch cancellation. The miner remains governed by
+its own native binding and exact terminal evidence. Repeated sweeps do not
+release twice, refund debt, or repeat a launch; retryable siblings later compete
+under the installed Policy with their original immutable Work.
+
 Cancelling a **worker** is a request until the exact bound `(run_id, attempt=1)`
 is observed terminal. Do not depend on its cancelled cleanup job running.
 Trusted recovery then cancels only still-open Claims and releases the shared
@@ -2627,6 +2654,7 @@ and runtime/host/deployment limitations remain explicit in the record.
 | Recovery | Definitive no-launch/terminal evidence releases exactly once; uncertain launch and still-running lease expiry do not |
 | Launch fencing/binding | Persist start marker before POST, do not blindly retry uncertain POSTs, bind actual worker run, and reject effects without a matching trusted binding |
 | Launch recovery | Lost HTTP-200 run details can be recovered by authenticated worker activation; duplicate/conflicting runs and unsupported response shapes retain capacity |
+| Abandoned prelaunch recovery | Bounded sweeps recover never-started reservations only after exact terminal-origin authentication; active/unknown/foreign/later-attempt evidence and concurrent start markers retain capacity, completed siblings and service charges |
 | Reconciliation budget | Deadline stops polling with an explicit unresolved outcome; empty discovery, timeout, cancellation request, and dispatcher termination never establish nonlaunch |
 | Trust | An agent cannot create keys, improve inherited priority, reset debt, alter the policy, or forge releases |
 | Worker safety | Losing/admission-failed workers cannot authorize ordinary safe outputs |
@@ -2871,6 +2899,7 @@ unexecuted formal, supported-host, performance, or deployment-security gate.
 | Exact fairness, FIFO defaults, deterministic fair-prefix packing and CAS recovery | Implemented in both engines, with exact integer passes, causal FIFO positions, literal shared expectations and mocked CAS/ambiguous-acknowledgment regressions. Charges are durable Claims, not CPU time or successful completions. Live Git/network contention remains unverified |
 | Work/Issue/PR DAG, observations, Result/DeliveryFailure and replacements | Implemented with atomic graph admission, typed bounded observations, immutable resource bindings and verified Result barriers. Native and runtime tests cover stale/error observations, mixed outcomes, delivery deadlines and safe replacements; actual external API availability/rate behavior is not established by injected clients |
 | Immutable arrays, actual run binding and conservative native recovery | Implemented with bounded arrays, attempt-1 authority, private authenticated evidence, one sender marker and conservative uncertain-launch retention. Local native/SDK recovery tests pass; hosted immutable-SHA dispatch compatibility remains a separate gate |
+| Abandoned prelaunch reservations | JavaScript reconciliation includes reserved groups, authenticates the exact originating publisher attempt, and uses fresh-prefix/CAS-guarded prelaunch cancellation. Mocked native regressions cover active/mismatched/unavailable evidence, later publisher attempts without worker rerun authority, automatic retry launch, and both start-marker race boundaries. `DispatchReservationRecovery` exhausts 11,665 states; four exact mutation controls and three safety-guarded witnesses cover evidence, CAS, no refund/resend, sibling recovery and new retry grants. API authentication, actual Git CAS, retry timing and hosted recovery remain outside this bounded evidence |
 | Universal Claim-scoped outputs, independent outcomes and custom/deferred paths | Built-in, custom/raw, prepared code/tree, GraphQL/REST, native asset, persistent-memory and queue-control paths are wired through scoped authorization and independent native readback. The joined queue and safe-output regression suite passes 3,206 tests in 86 files with eight skips. Real single-/multi-Claim entrypoints cover private execution after ambient flag changes, selectors, per-member minimum/maximum counts, retained factory fences, preparation, artifact identities/receipts and independent finalization. This is local path coverage, not proof of arbitrary external effect atomicity or exactly-once delivery |
 | Disabled-queue safe-output compatibility | Modified legacy integration surfaces were reviewed against the PR base. Regression coverage preserves ordinary payloads, parsing, global counts, custom inputs, dispatch conversion, diagnostics and patch discovery; a collector differential matches 24 of 24 baseline cases. Stray role/assignment metadata cannot activate the queue, while an existing private Claim frame remains enforced. The joined suite above includes existing ordinary safe-output tests; finite cases do not prove equivalence for every possible input |
 | Compiler/MCP/operator/explain/trace and workflow examples | Implemented with current-only operator/snapshot/intent validation and credential-free observers/previews. Earlier native/probe/compiler/parser, operator and WASM checks pass. Main at `303b402810` is merged; all 328 workflows compile and isolated drift checking passes. Three generated lock conflicts were regenerated from merged sources, not hand-edited. Compiler DryRun disables queue tools and mutation jobs. The onboarding Policy is exercised by the real runtime validator and uses supported empty-key/size bounds. Closed Claim-adapter parsing preserves exact numbers; log writers surface original/short-write failures |

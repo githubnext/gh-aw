@@ -91,6 +91,18 @@ describe("authenticated native queue runs", () => {
     expect(githubClient.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
   });
 
+  it("reads an exact bounded dispatcher attempt without relaxing worker attempt-one validation", async () => {
+    const getAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...run, run_attempt: 2 } });
+    const githubClient = nativeClient({ getWorkflowRunAttempt: getAttempt });
+    const original = await fetchNativeRunAttempt(githubClient, expected.repository, run.id, 2);
+    expect(getAttempt.mock.calls[0][0]).toMatchObject({ run_id: run.id, attempt_number: 2 });
+    expect(() => validateNativeRun(original, expected)).toThrow(/rerun_not_authorized/);
+    githubClient.rest.repos.get.mockClear();
+    for (const attempt of [0, "01", 4097]) await expect(fetchNativeRunAttempt(githubClient, expected.repository, run.id, attempt)).rejects.toThrow();
+    expect(githubClient.rest.repos.get).not.toHaveBeenCalled();
+    expect(getAttempt).toHaveBeenCalledTimes(1);
+  });
+
   it("recovers a protected original intent origin through its exact native attempt without changing request identity", async () => {
     const context = { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 2, actorId: "11", sha: ref, eventName: "workflow_dispatch", payload: { repository: { id: 7 } } };
     const origin = { role: "dispatcher", principal: "11", repository: "owner/repo", workflow: expected.workflow, run_id: run.id, run_attempt: 1 };
