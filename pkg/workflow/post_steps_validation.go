@@ -26,10 +26,41 @@ var postStepFileInputActions = map[string][]string{
 	"actions/upload-pages-artifact": {"path"},
 }
 
-// validatePostStepsSafeOutputs checks only user-provided post-steps, not compiler-generated steps.
-func validatePostStepsSafeOutputs(steps []any) error {
+func extractPostStepMap(raw any) (map[string]any, bool) {
+	if step, ok := raw.(map[string]any); ok {
+		return step, true
+	}
+	if m, isMapAny := raw.(map[any]any); isMapAny {
+		step := make(map[string]any, len(m))
+		for k, v := range m {
+			step[fmt.Sprint(k)] = v
+		}
+		return step, true
+	}
+	return nil, false
+}
+
+func extractPostStepScripts(step map[string]any) []string {
+	scripts := []string{}
+	if run, ok := step["run"].(string); ok {
+		scripts = append(scripts, run)
+	}
+	if withRaw, ok := step["with"]; ok {
+		if with, ok := extractPostStepMap(withRaw); ok {
+			if script, ok := with["script"].(string); ok {
+				scripts = append(scripts, script)
+			}
+		}
+	}
+	return scripts
+}
+
+// ValidatePostStepsSafeOutputs checks only user-provided post-steps, not compiler-generated steps.
+// It verifies that post-steps do not access safe outputs output files directly, do not create issues
+// directly without using safe-outputs, and do not expose secrets in env.
+func ValidatePostStepsSafeOutputs(steps []any) error {
 	for i, raw := range steps {
-		step, ok := raw.(map[string]any)
+		step, ok := extractPostStepMap(raw)
 		if !ok {
 			continue
 		}
@@ -42,17 +73,7 @@ func validatePostStepsSafeOutputs(steps []any) error {
 			return err
 		}
 
-		scripts := []string{}
-		if run, ok := step["run"].(string); ok {
-			scripts = append(scripts, run)
-		}
-		if with, ok := step["with"].(map[string]any); ok {
-			if script, ok := with["script"].(string); ok {
-				scripts = append(scripts, script)
-			}
-		}
-
-		for _, script := range scripts {
+		for _, script := range extractPostStepScripts(step) {
 			if postStepOctokitRE.MatchString(script) || postStepRequestRE.MatchString(script) {
 				return issueCreationError(location)
 			}
@@ -79,6 +100,11 @@ func validatePostStepsSafeOutputs(steps []any) error {
 	return nil
 }
 
+// validatePostStepsSafeOutputs is an unexported alias for ValidatePostStepsSafeOutputs.
+func validatePostStepsSafeOutputs(steps []any) error {
+	return ValidatePostStepsSafeOutputs(steps)
+}
+
 func validatePostStepInputs(step map[string]any, location string) error {
 	if containsPostStepSecretEnv(step["env"]) {
 		return fmt.Errorf("%s exposes a secret through its env section; secrets are not allowed in post-steps", location)
@@ -88,7 +114,7 @@ func validatePostStepInputs(step map[string]any, location string) error {
 		return nil
 	}
 	action, _, _ := strings.Cut(uses, "@")
-	with, ok := step["with"].(map[string]any)
+	with, ok := extractPostStepMap(step["with"])
 	if !ok {
 		return nil
 	}
@@ -111,6 +137,12 @@ func containsPostStepSecret(value string) bool {
 func containsPostStepSecretEnv(env any) bool {
 	switch values := env.(type) {
 	case map[string]any:
+		for _, value := range values {
+			if text, ok := value.(string); ok && containsPostStepSecret(text) {
+				return true
+			}
+		}
+	case map[any]any:
 		for _, value := range values {
 			if text, ok := value.(string); ok && containsPostStepSecret(text) {
 				return true

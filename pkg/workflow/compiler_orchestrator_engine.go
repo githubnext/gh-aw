@@ -50,7 +50,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	engineSetting, engineConfig = c.applyEngineOverride(engineSetting, engineConfig)
 	engineSetting, engineConfig = c.injectBuiltinEngineImportIfNeeded(result.Frontmatter, engineSetting, engineConfig)
 	if err := c.validateEarlyEngineSetting(result.Frontmatter, engineSetting, engineConfig); err != nil {
-		return nil, err
+		return nil, c.formatUnknownEngineError(result, cleanPath, content, err)
 	}
 	importsResult, networkPermissions, err := c.processEngineImportsAndMerge(result, cleanPath, content, markdownDir, engineSetting, networkPermissions)
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	})
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
-		return nil, err
+		return nil, c.formatUnknownEngineError(result, cleanPath, content, err)
 	}
 	if behaviorEngine, ok := agenticEngine.(*BehaviorDefinedEngine); ok && model == "" && parser.BuiltinVirtualFileExists(builtinEnginePath(agenticEngine.GetID())) {
 		model = behaviorEngine.definition.Models.Default
@@ -96,6 +96,19 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		importsResult:      importsResult,
 		configSteps:        configSteps,
 	}, nil
+}
+
+func (c *Compiler) formatUnknownEngineError(result *parser.FrontmatterResult, cleanPath string, content []byte, err error) error {
+	var unknownErr *unknownEngineError
+	if !errors.As(err, &unknownErr) {
+		return err
+	}
+
+	line, column := findEngineIDPosition(result)
+	if line == 0 {
+		return err
+	}
+	return formatCompilerErrorWithContext(cleanPath, line, column, "error", err.Error(), err, readSourceContextLines(content, line))
 }
 
 func (c *Compiler) emitGeminiDeprecationNotice(engine CodingAgentEngine) {

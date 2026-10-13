@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.95"
+//	const DefaultCopilotVersion Version = "1.0.96"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.296"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.95"
+const DefaultCopilotVersion Version = "1.0.96"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.16"

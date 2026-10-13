@@ -150,7 +150,7 @@ describe("unified session publication views", () => {
     const plain = generatePlainTextSummary(events);
     for (const summary of [markdown, plain]) expect(summary).not.toContain("mismatch-secret-fixture");
     expect(markdown).toContain("<img src=x>");
-    const opening = markdown.match(/^(`{3,})$/m)?.[1];
+    const opening = markdown.match(/^(`{3,})text$/m)?.[1];
     expect(opening.length).toBeGreaterThan(4);
     expect(plain).not.toContain("::error::");
   });
@@ -271,7 +271,7 @@ describe("unified session publication views", () => {
       expect(output).not.toContain("caller-secret");
     }
     expect(plain).not.toContain("::error::");
-    expect(markdown.match(/^(`{3,})$/m)?.[1].length).toBeGreaterThan(4);
+    expect(markdown.match(/^(`{3,})text$/m)?.[1].length).toBeGreaterThan(4);
     expect(events).toEqual(original);
   });
 
@@ -326,6 +326,54 @@ describe("unified session publication views", () => {
     expect(markdown).not.toContain("| Time |");
   });
 
+  it("leads with a source-local conversation and keeps statistics and runtime metadata collapsed", () => {
+    const events = [
+      header,
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shared", input: { command: "echo first" } }, "agent", 0, 1, "first.jsonl"),
+      event("tool.execution_start", { toolName: "Bash", toolCallId: "shared", input: { command: "echo second" } }, "agent", 0, 2, "second.jsonl"),
+      event("assistant.message", { content: "First answer\nwith two lines." }, "agent", 2, 3, "first.jsonl"),
+      event("tool.execution_complete", { toolCallId: "shared", success: true, output: "first output" }, "agent", 1, 4, "first.jsonl"),
+      event("tool.execution_complete", { toolCallId: "shared", success: false, error: { message: "second failure" } }, "agent", 1, 5, "second.jsonl"),
+      event("firewall.http_access", { host: "example.com", status: 403 }, "firewall", 0, 6),
+    ];
+    const original = structuredClone(events);
+    const markdown = generateCopilotCliStyleSummary(events);
+    const conversation = markdown.split("### Conversation\n\n")[1].split("<details><summary>Full timeline</summary>")[0];
+    const first = conversation.split("Agent source: agent/first.jsonl")[1].split("Agent source: agent/second.jsonl")[0];
+    const second = conversation.split("Agent source: agent/second.jsonl")[1];
+    expect(first).toContain("$ echo first");
+    expect(first).toContain("first output");
+    expect(first.indexOf("$ echo first")).toBeLessThan(first.indexOf("First answer"));
+    expect(first).toContain("with two lines.");
+    expect(first).not.toContain("second failure");
+    expect(second).toContain("$ echo second");
+    expect(second).toContain("second failure");
+    expect(second).not.toContain("first output");
+    expect(conversation).not.toContain("tool.execution");
+    expect(conversation).not.toContain("firewall.http_access");
+    expect(conversation).not.toContain("Statistics:");
+    expect(markdown).toContain("<details><summary>Session overview</summary>");
+    expect(markdown).not.toContain("<details open");
+    expect(events).toEqual(original);
+  });
+
+  it("explains an absent conversation without inventing agent activity", () => {
+    const markdown = generateCopilotCliStyleSummary([header, event("execution.result", { outcome: "failure" }, "execution", 0)]);
+    expect(markdown).toContain("### Conversation\n\n```text\nNo agent conversation recorded.\n```");
+    expect(markdown).toContain("outcome=failure");
+    expect(markdown).not.toContain("Agent source:");
+  });
+
+  it.each([128, 512, 1024, 2048, 4096])("keeps all generated containers balanced within a %i-byte budget", maxBytes => {
+    const events = [header, event("assistant.message", { content: "multibyte \u{1f600} ".repeat(2000) }, "agent", 0, 0)];
+    const markdown = generateCopilotCliStyleSummary(events, { maxBytes });
+    expect(Buffer.byteLength(markdown, "utf8")).toBeLessThanOrEqual(maxBytes);
+    expect(markdown.match(/<details>/g)?.length ?? 0).toBe(markdown.match(/<\/details>/g)?.length ?? 0);
+    expect(markdown.match(/^```(?:text)?$/gm)?.length ?? 0).toBe(markdown.includes("### Conversation") ? 6 : 0);
+    expect(markdown).not.toContain("\ufffd");
+    expect(events[1].data.content).toHaveLength("multibyte \u{1f600} ".repeat(2000).length);
+  });
+
   it.each(["completed", "failed", "stopped"])("distinguishes a Workflow launch from task status %s and renders progress without embedded prompts", status => {
     const records = dynamicWorkflow.map(record => (record.subtype === "task_notification" ? { ...record, status } : record));
     const events = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-stdio.log", events: normalizeClaudeSession(records) }]);
@@ -370,8 +418,11 @@ describe("unified session publication views", () => {
   it("collapses streamed text into one timeline message, preserving the native record count", () => {
     const events = [header, ...["Hello", " ", "world."].map((content, index) => event("assistant.message", { content, delta: true, messageId: "answer" }, "agent", index, index + 1))];
     const original = structuredClone(events);
-    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      expect(output.match(/◆ Hello world\./g)).toHaveLength(1);
+    for (const [output, copies] of [
+      [generatePlainTextSummary(events), 1],
+      [generateCopilotCliStyleSummary(events), 2],
+    ]) {
+      expect(output.match(/◆ Hello world\./g)).toHaveLength(copies);
       expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(1);
       expect(output).toContain("Records: 4");
       expect(output).toContain("agent/agent assistant.message +0s");
@@ -411,8 +462,11 @@ describe("unified session publication views", () => {
       ...scopes.map((scope, index) => event("assistant.message", { content: "answer", delta: true, messageId: "reused", sessionId: scope.sessionId, parentToolUseId: scope.parentToolUseId }, "agent", 1, index + 6, scope.path)),
     ];
     const original = structuredClone(events);
-    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events)]) {
-      for (const scope of scopes) expect(output.split(`◆ ${scope.content}answer`)).toHaveLength(2);
+    for (const [output, copies] of [
+      [generatePlainTextSummary(events), 1],
+      [generateCopilotCliStyleSummary(events), 2],
+    ]) {
+      for (const scope of scopes) expect(output.split(`◆ ${scope.content}answer`)).toHaveLength(copies + 1);
       expect(output.match(/agent\/agent assistant\.message /g)).toHaveLength(4);
       expect(output).toContain("Records: 10");
       expect(output.indexOf("◆ Root answer")).toBeLessThan(output.indexOf("◆ Child answer"));
@@ -745,15 +799,16 @@ describe("unified session publication views", () => {
       event("assistant.message", { content: "</details>\n<script>alert('fixture')</script>\n````\n# not a heading" }, "agent", 1, 1),
     ];
     const markdown = generateCopilotCliStyleSummary(events);
-    const fences = [...markdown.matchAll(/^(`{5,})$/gm)];
-    expect(fences).toHaveLength(4);
+    const fences = [...markdown.matchAll(/^(`{5,})(?:text)?$/gm)];
+    expect(fences).toHaveLength(6);
     expect(new Set(fences.map(match => match[1])).size).toBe(1);
     expect(markdown).toContain("&&");
     expect(markdown).toContain("2>/dev/null");
     expect(markdown).not.toContain("&amp;");
     expect(markdown).not.toContain("&gt;");
     expect(markdown.slice(fences[2].index, fences[3].index)).toContain("<script>");
-    expect(markdown.slice(fences[3].index + fences[3][0].length).trim()).toBe("</details>");
+    expect(markdown.slice(fences[4].index, fences[5].index)).toContain("<script>");
+    expect(markdown.slice(fences[5].index + fences[5][0].length).trim()).toMatch(/^<\/details>\s+<\/details>$/);
   });
 
   it("clips oversized views with explicit notices without trimming the source artifact", () => {
@@ -765,17 +820,30 @@ describe("unified session publication views", () => {
     expect(events.at(-1).data.content).toHaveLength(2000);
   });
 
-  it("keeps the timeline section visible when the overview uses the byte budget and collects secrets once", () => {
+  it("prioritizes conversation over the overview and keeps the timeline visible while collecting secrets once", () => {
     const existsSync = vi.spyOn(fs, "existsSync");
     const events = [header, ...Array.from({ length: 128 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(9000)}.jsonl`))];
     const output = generateCopilotCliStyleSummary(events);
     const gatewayConfigChecks = existsSync.mock.calls.filter(([candidate]) => MCP_GATEWAY_CONFIG_PATHS.includes(candidate)).length;
 
     expect(Buffer.byteLength(output)).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
-    expect(output).toContain("#### Session overview");
-    expect(output).toContain("#### Full timeline");
+    expect(output).toContain("<summary>Session overview</summary>");
+    expect(output).toContain("### Conversation");
+    expect(output).toContain("Agent source: agent/source-0-");
+    expect(output).toContain("◆ answer");
+    expect(output).toContain("<summary>Full timeline</summary>");
     expect(output).toContain("Full timeline omitted: byte limit reached");
+    expect(output).not.toContain("Conversation omitted: byte limit reached");
     expect(gatewayConfigChecks).toBe(MCP_GATEWAY_CONFIG_PATHS.length);
+  });
+
+  it("keeps tight summary budgets byte-safe, including omission notices", () => {
+    const events = [header, ...Array.from({ length: 12 }, (_, index) => event("assistant.message", { content: "answer" }, "agent", 0, index, `source-${index}-${"p".repeat(2000)}.jsonl`))];
+
+    for (const maxBytes of [0, 1, 32, 511, 900, 901, 1024]) {
+      const output = generateCopilotCliStyleSummary(events, { maxBytes });
+      expect(Buffer.byteLength(output, "utf8")).toBeLessThanOrEqual(maxBytes);
+    }
   });
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {
@@ -806,6 +874,25 @@ describe("unified session publication views", () => {
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("firewall.http_access"));
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("byte limit"));
     expect(fs.readFileSync(summary, "utf8")).toBe(existing);
+  });
+
+  it("does not publish a stale or incomplete session when assembly fails before the atomic write completes", async () => {
+    const summaryPath = path.join(directory, "summary.md");
+    const sessionPath = path.join(directory, "usage", "aw_session.jsonl");
+    process.env.GITHUB_STEP_SUMMARY = summaryPath;
+    fs.writeFileSync(summaryPath, "Earlier summary\n");
+    fs.mkdirSync(path.dirname(sessionPath));
+    fs.writeFileSync(sessionPath, trace.map(record => JSON.stringify(record)).join("\n") + "\n");
+    fs.writeFileSync(path.join(directory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "new answer" } }) + "\n");
+    vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw new Error("atomic write failed");
+    });
+
+    await expect(main({ rootDir: directory })).rejects.toThrow("atomic write failed");
+    expect(fs.readFileSync(summaryPath, "utf8")).toBe("Earlier summary\n");
+    expect(fs.existsSync(sessionPath)).toBe(false);
+    expect(fs.existsSync(`${sessionPath}.tmp`)).toBe(false);
+    expect(global.core.info).not.toHaveBeenCalled();
   });
 
   it("reports publication I/O failures while retaining the valid unified artifact", async () => {

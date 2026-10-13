@@ -755,6 +755,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
+  const activationCommentLinks = config._activationCommentLinks ?? [];
   // Extract configuration
   const rawBranchPrefix = config.branch_prefix || "";
   const normalizedBranchPrefix = normalizeBranchName(rawBranchPrefix);
@@ -1327,7 +1328,7 @@ async function main(config = {}) {
           const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
           return {
             success: true,
             fallback_used: true,
@@ -1972,7 +1973,7 @@ ${issueSafeFallbackFooter}`;
 
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
                   await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
 
                   return {
                     success: true,
@@ -2349,7 +2350,7 @@ ${issueSafeFallbackFooter}`;
                   //
                   // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
                   // in the same repo as the activation, so the global client has the correct context for updating the comment.
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
 
                   // Write summary to GitHub Actions summary
                   await core.summary
@@ -2542,7 +2543,7 @@ ${issueSafeFallbackFooter}`;
 
           await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
 
           return {
             success: true,
@@ -2749,7 +2750,7 @@ ${issueSafeFallbackFooter}`;
         //
         // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
         // in the same repo as the activation, so the global client has the correct context for updating the comment.
-        await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+        await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number, "pull_request", { activationCommentLinks });
 
         // Close older pull requests if enabled (best-effort: errors are logged but do not fail the workflow)
         if (closeOlderPullRequestsEnabled) {
@@ -2853,7 +2854,7 @@ ${issueSafeFallbackFooter}`;
             core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
             await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
 
-            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
 
             return {
               success: true,
@@ -2930,7 +2931,7 @@ ${issueSafeFallbackFooter}`;
           // Update the activation comment with issue link (if a comment was created)
           // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
           // in the same repo as the activation, so the global client has the correct context for updating the comment.
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
 
           // Return success with fallback flag
           return {

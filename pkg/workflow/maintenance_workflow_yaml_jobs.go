@@ -68,6 +68,15 @@ func writeMaintenanceAdminPermissionsStep(b *strings.Builder, opts buildMaintena
 `)
 }
 
+func quoteYAMLActionPin(actionPin string) string {
+	actionRef, version, hasVersion := strings.Cut(actionPin, " # ")
+	quotedActionRef := "'" + escapeYAMLSingleQuoted(actionRef) + "'"
+	if hasVersion {
+		return quotedActionRef + " # " + version
+	}
+	return quotedActionRef
+}
+
 func writeMaintenanceCloseExpiredJobYAML(b *strings.Builder, opts buildMaintenanceWorkflowYAMLOptions, setupActionRef, jobName, permissionLine, stepName, scriptName string) {
 	b.WriteString(`  ` + jobName + `:
     name: ` + stepName + `
@@ -99,6 +108,42 @@ func buildMaintenanceCloseExpiredJobs(opts buildMaintenanceWorkflowYAMLOptions, 
 	writeMaintenanceCloseExpiredJobYAML(&b, opts, setupActionRef, "close-expired-discussions", "discussions: write", "Close expired discussions", "close_expired_discussions")
 	writeMaintenanceCloseExpiredJobYAML(&b, opts, setupActionRef, "close-expired-issues", "issues: write", "Close expired issues", "close_expired_issues")
 	writeMaintenanceCloseExpiredJobYAML(&b, opts, setupActionRef, "close-expired-pull-requests", "pull-requests: write", "Close expired pull requests", "close_expired_pull_requests")
+	return b.String()
+}
+
+func buildMaintenanceCleanupStaleSteeringIssuesJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+	if opts.maintenanceConfig.IsJobDisabled("cleanup-stale-steering-issues") {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`
+  cleanup-stale-steering-issues:
+    name: Cleanup stale steering issues
+    if: ${{ ` + RenderCondition(BuildAnd(
+		buildNotForkCondition(),
+		BuildEventTypeEquals("schedule"),
+	)) + ` }}
+    runs-on: ` + opts.runsOnValue + `
+    # Reading workflow runs and closing issues requires these permissions.
+    permissions:
+      actions: read
+      issues: write
+`)
+	if opts.actionMode == ActionModeDev || opts.actionMode == ActionModeScript {
+		b.WriteString("      contents: read\n")
+	}
+	b.WriteString("    steps:\n")
+	writeMaintenanceConditionalActionsCheckoutStep(&b, opts)
+	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
+	b.WriteString(`      - name: Close stale steering issues
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cleanup_stale_steering_issues.cjs');
+            await main();
+`)
 	return b.String()
 }
 
@@ -583,9 +628,10 @@ func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, s
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
+	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Disable agentic workflow
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        uses: ` + actionPin + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -616,9 +662,10 @@ func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLO
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
+	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Apply safe outputs from referenced run
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        uses: ` + actionPin + `
         env:
           GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
           GH_AW_WORKFLOW_ID: "agentics-maintenance"

@@ -82,6 +82,22 @@ The `report-incomplete` safe-output is enabled by default and is distinct from `
 
   Resolved at compile time — the compiler fetches `action.yml`, parses inputs, and exposes them as MCP tool parameters. The agent calls the action by its normalized name (dashes → underscores). Each action runs as an injected step in the safe-outputs job. Local actions (`./path/to/action`) are also supported.
 
+- `claim-adapters:` - Work-queue custom claim delivery adapters, each bound to one independently-verified effect (object)
+
+  ```yaml
+  safe-outputs:
+    claim-adapters:
+      post-review:
+        mode: prepared       # or "script"
+        effect-type: add_comment  # create_issue, update_issue, close_issue, add_comment, add_labels,
+                                   # remove_labels, replace_label, github_rest, git_tree, or github_graphql
+        target-repo: owner/repo   # fixed repository; expressions are rejected
+        field-map:
+          body: review_body
+  ```
+
+  Binds a work-queue worker's Claim output to a trusted, independently verified effect: prepared/script claim handlers never receive write credentials directly, and the safe-outputs handler applies and verifies the effect afterward instead of trusting job success. `effect-type` selects a native builtin (`create_issue` … `replace_label`, restricted to that handler's own fields) or a generic `github_rest`/`git_tree`/`github_graphql` effect, each requiring its matching `request`/`verifier`, `git-tree`, or `graphql` sub-config. `field-map` maps declared effect fields to adapter-supplied source fields; `expected` fixes literal field values instead of mapping them; a field cannot use both. `verifier-id` names the immutable effect-contract verifier (defaults to the normalized adapter name) and must not collide with an enabled native verifier for the same effect. See [work-queue.md](work-queue.md) for the Claim lifecycle this binds into.
+
 **Global Safe Output Configuration:**
 - `github-token:` - Custom GitHub token for all safe output jobs
 

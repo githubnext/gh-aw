@@ -5,6 +5,9 @@ description: Select and authenticate OpenAI Codex as the AI engine for GitHub Ag
 
 [OpenAI Codex](https://openai.com/codex/) is OpenAI's coding-focused agent runtime for repository work. GitHub Agentic Workflows runs Codex through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
 
+> [!CAUTION]
+> Codex cannot enforce a per-command `tools.bash` allowlist. Configuring one does not restrict which shell commands can run. Set `tools.bash: false` to disable shell execution, or choose an engine that supports command allowlists.
+
 ## Selecting Codex + OpenAI as the AI engine
 
 To select Codex as the AI engine, with inference hosted and billed through the OpenAI API, add this to the workflow frontmatter:
@@ -75,7 +78,7 @@ Analyze the repository and create a concise daily status report covering:
 
 ## Capabilities and limitations
 
-Codex enables its shared native search/browsing tool when either `tools.web-search` or `tools.web-fetch` is enabled. Search and page fetching cannot be disabled independently; use `network.hosted-web` to restrict hosted retrieval. Codex can disable shell execution completely but cannot enforce a nonempty per-command `tools.bash` allowlist.
+Codex enables its shared native search/browsing tool when either `tools.web-search` or `tools.web-fetch` is enabled. Search and page fetching cannot be disabled independently; use `network.hosted-web` to restrict hosted retrieval. Codex can disable shell execution completely, but not restrict it to a per-command `tools.bash` allowlist.
 
 With OpenAI inference through the AWF sandbox, enabling `network.hosted-web` also enables Codex's standalone `web.run` search tool for Responses Lite models, which do not receive the hosted `web_search` tool. Without hosted web, this provider flag is not set. Codex standalone search does not support `network.hosted-web.max-uses`; omit that limit when using Codex with OpenAI inference.
 

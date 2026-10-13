@@ -564,17 +564,14 @@ func marshalEvalsQuestions(questions []EvalDefinition) string {
 	if len(questions) == 0 {
 		return "[]"
 	}
-	var sb strings.Builder
-	sb.WriteString("[")
-	for i, q := range questions {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		// Use json.Marshal for robust string quoting (handles all JSON escape sequences)
-		idJSON, _ := json.Marshal(q.ID)             //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		questionJSON, _ := json.Marshal(q.Question) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
-		sb.WriteString(`{"id":` + string(idJSON) + `,"question":` + string(questionJSON) + `}`)
+	type evalQuestion struct {
+		ID       string `json:"id"`
+		Question string `json:"question"`
 	}
-	sb.WriteString("]")
-	return sb.String()
+	serializedQuestions := make([]evalQuestion, 0, len(questions))
+	for _, question := range questions {
+		serializedQuestions = append(serializedQuestions, evalQuestion{ID: question.ID, Question: question.Question})
+	}
+	encoded, _ := json.Marshal(serializedQuestions) //nolint:jsonmarshalignoredeerror // marshaling strings cannot fail
+	return string(encoded)
 }

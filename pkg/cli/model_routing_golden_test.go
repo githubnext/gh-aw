@@ -56,6 +56,29 @@ var modelRoutingGoldenCases = []modelRoutingGoldenCase{
 		unifiedClassifierAIC: new(0.03908),
 		legacyClassifierAIC:  new(0.03908),
 	},
+	{
+		name:                 "copilot-budget-exhausted-steering",
+		legacyDifference:     "the session workflow.info routing status (rejected) and steering notices are read only from usage/aw_session.jsonl; the legacy variant reports the proxy status (failed) and lists no notices",
+		unifiedClassifierAIC: new(0.6796),
+		legacyClassifierAIC:  new(0.6796),
+	},
+	{
+		name:                 "codex-routed-provider-unavailable",
+		unifiedClassifierAIC: new(0.03344),
+		legacyClassifierAIC:  new(0.03344),
+	},
+	{
+		name:                 "copilot-sdk-claude-subagent-completions",
+		legacyDifference:     "routing endpoints come only from agent/aw_info.json and the session workflow.info; the root aw_info.json has no model_routing, so the legacy variant loses effective_endpoint and selected_endpoint and reconciles per-agent credits against an unknown endpoint",
+		unifiedClassifierAIC: new(0.06362),
+		legacyClassifierAIC:  new(0.06362),
+	},
+	{
+		name:                 "copilot-cli-builtin-subagents",
+		legacyDifference:     "routing endpoints come only from agent/aw_info.json and the session workflow.info; the root aw_info.json has no model_routing, so the legacy variant loses effective_endpoint and selected_endpoint and reconciles per-agent credits against an unknown endpoint",
+		unifiedClassifierAIC: new(0.6116),
+		legacyClassifierAIC:  new(0.6116),
+	},
 }
 
 type modelRoutingGoldenProjection struct {
@@ -65,6 +88,7 @@ type modelRoutingGoldenProjection struct {
 
 type modelRoutingGoldenRouting struct {
 	Status                          string                  `json:"status"`
+	Failure                         *ModelRoutingFailure    `json:"failure,omitempty"`
 	SelectedModel                   string                  `json:"selected_model,omitempty"`
 	SelectedEffort                  string                  `json:"selected_effort,omitempty"`
 	Endpoint                        string                  `json:"endpoint,omitempty"`
@@ -144,7 +168,7 @@ func TestModelRoutingGoldenAudit(t *testing.T) {
 
 			downloaded := results[testCase.name]["downloaded"]
 			legacy := results[testCase.name]["legacy"]
-			assertModelRoutingGoldenVariantAgreement(t, downloaded.projection, legacy.projection)
+			assertModelRoutingGoldenVariantAgreement(t, testCase, downloaded.projection, legacy.projection)
 			downloadedPath := filepath.Join("testdata", "model_routing_golden", testCase.name, "expected.json")
 			legacyPath := filepath.Join("testdata", "model_routing_golden", testCase.name, "expected.legacy.json")
 			if update {
@@ -255,7 +279,8 @@ func projectModelRoutingGoldenAudit(routing *ModelRoutingSummary, usage *TokenUs
 	projection := modelRoutingGoldenProjection{}
 	if routing != nil {
 		projected := &modelRoutingGoldenRouting{
-			Status: routing.Status, SelectedModel: routing.SelectedModel, SelectedEffort: routing.SelectedEffort,
+			Status:        routing.Status,
+			SelectedModel: routing.SelectedModel, SelectedEffort: routing.SelectedEffort,
 			Endpoint: routing.Endpoint, EffectiveEndpoint: routing.EffectiveEndpoint, SelectedEndpoint: routing.SelectedEndpoint,
 			RoutedCounts: routing.RoutedCounts, OutcomeCounts: routing.OutcomeCounts,
 			Deviations: slices.Clone(routing.Deviations), ClassifierCost: roundedModelRoutingCost(routing.ClassifierCost),
@@ -264,6 +289,10 @@ func projectModelRoutingGoldenAudit(routing *ModelRoutingSummary, usage *TokenUs
 			MainAgentCost:                   roundedModelRoutingCost(routing.MainAgentCost),
 			SubagentCosts:                   slices.Clone(routing.SubagentCosts),
 			EndpointOnlyDeviationNormalized: routing.EndpointOnlyDeviationNormalized,
+		}
+		if routing.Failure != nil {
+			failure := *routing.Failure
+			projected.Failure = &failure
 		}
 		slices.SortFunc(projected.Deviations, func(left, right ModelRoutingDeviation) int {
 			return strings.Compare(
@@ -436,7 +465,7 @@ func assertModelRoutingGoldenFile(t *testing.T, path string, actual []byte) {
 	}
 }
 
-func assertModelRoutingGoldenVariantAgreement(t *testing.T, downloaded, legacy modelRoutingGoldenProjection) {
+func assertModelRoutingGoldenVariantAgreement(t *testing.T, testCase modelRoutingGoldenCase, downloaded, legacy modelRoutingGoldenProjection) {
 	t.Helper()
 	if (downloaded.ModelRouting == nil) != (legacy.ModelRouting == nil) {
 		t.Fatalf("legacy fallback changed whether routing was available: downloaded=%+v legacy=%+v", downloaded.ModelRouting, legacy.ModelRouting)
@@ -444,6 +473,7 @@ func assertModelRoutingGoldenVariantAgreement(t *testing.T, downloaded, legacy m
 	if downloaded.ModelRouting != nil {
 		type routingIdentity struct {
 			Status            string
+			FailureCode       string
 			SelectedModel     string
 			SelectedEffort    string
 			Endpoint          string
@@ -454,14 +484,35 @@ func assertModelRoutingGoldenVariantAgreement(t *testing.T, downloaded, legacy m
 			Deviations        []ModelRoutingDeviation
 		}
 		identity := func(routing *modelRoutingGoldenRouting) routingIdentity {
+			failureCode := ""
+			if routing.Failure != nil {
+				failureCode = routing.Failure.Code
+			}
 			return routingIdentity{
-				Status: routing.Status, SelectedModel: routing.SelectedModel, SelectedEffort: routing.SelectedEffort,
+				Status: routing.Status, FailureCode: failureCode, SelectedModel: routing.SelectedModel, SelectedEffort: routing.SelectedEffort,
 				Endpoint: routing.Endpoint, EffectiveEndpoint: routing.EffectiveEndpoint, SelectedEndpoint: routing.SelectedEndpoint,
 				RoutedCounts: routing.RoutedCounts, OutcomeCounts: routing.OutcomeCounts, Deviations: routing.Deviations,
 			}
 		}
-		if !reflect.DeepEqual(identity(downloaded.ModelRouting), identity(legacy.ModelRouting)) {
-			t.Fatalf("raw routing facts should agree across variants: downloaded=%+v legacy=%+v", identity(downloaded.ModelRouting), identity(legacy.ModelRouting))
+		downloadedIdentity, legacyIdentity := identity(downloaded.ModelRouting), identity(legacy.ModelRouting)
+		switch testCase.name {
+		case "copilot-budget-exhausted-steering":
+			if downloadedIdentity.Status == legacyIdentity.Status {
+				t.Fatalf("documented status discrepancy for %s no longer occurs; remove its README entry", testCase.name)
+			}
+			downloadedIdentity.Status = legacyIdentity.Status
+		case "copilot-sdk-claude-subagent-completions", "copilot-cli-builtin-subagents":
+			if downloadedIdentity.EffectiveEndpoint == legacyIdentity.EffectiveEndpoint {
+				t.Fatalf("documented effective-endpoint discrepancy for %s no longer occurs; remove its README entry", testCase.name)
+			}
+			if downloadedIdentity.SelectedEndpoint == legacyIdentity.SelectedEndpoint {
+				t.Fatalf("documented selected-endpoint discrepancy for %s no longer occurs; remove its README entry", testCase.name)
+			}
+			downloadedIdentity.EffectiveEndpoint = legacyIdentity.EffectiveEndpoint
+			downloadedIdentity.SelectedEndpoint = legacyIdentity.SelectedEndpoint
+		}
+		if !reflect.DeepEqual(downloadedIdentity, legacyIdentity) {
+			t.Fatalf("raw routing facts should agree across variants: downloaded=%+v legacy=%+v", downloadedIdentity, legacyIdentity)
 		}
 	}
 	downloadedUsage, legacyUsage := downloaded.FirewallTokenUsage, legacy.FirewallTokenUsage

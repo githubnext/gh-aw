@@ -25,8 +25,9 @@
 # It runs scheduled cleanup for expiring safe outputs and supports manual maintenance operations.
 #
 # This workflow is generated automatically when workflows use expiring safe outputs,
-# when workflows declare compaction-enabled ledgers (tools.ledger), or when repository
-# maintenance features are enabled in .github/workflows/aw.json.
+# when workflows enable steering (safe-outputs.steer), declare compaction-enabled
+# ledgers (tools.ledger) or work queues, or when repository maintenance features are
+# enabled in .github/workflows/aw.json.
 #
 # To disable maintenance workflow generation, set in .github/workflows/aw.json:
 # {"maintenance": false}
@@ -204,6 +205,40 @@ jobs:
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'close_expired_pull_requests.cjs'));
+            await main();
+
+  cleanup-stale-steering-issues:
+    name: Cleanup stale steering issues
+    if: ${{ (!(github.event.repository.fork)) && github.event_name == 'schedule' }}
+    runs-on: ubuntu-slim
+    # Reading workflow runs and closing issues requires these permissions.
+    permissions:
+      actions: read
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Close stale steering issues
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'cleanup_stale_steering_issues.cjs'));
             await main();
 
   cleanup-cache-memory:
@@ -826,7 +861,7 @@ jobs:
 
       - name: Disable agentic workflow
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -877,7 +912,7 @@ jobs:
 
       - name: Apply safe outputs from referenced run
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9.0.0
         env:
           GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
           GH_AW_WORKFLOW_ID: "agentics-maintenance"

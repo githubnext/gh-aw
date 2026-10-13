@@ -80,10 +80,23 @@ func TestEngineRegistry(t *testing.T) {
 		assert.Equal(t, "codex", engine.GetID(), "engine matched by prefix 'codex-experimental' should be codex")
 	})
 
+	t.Run("GetEngineByPrefix matches exact engine ID", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		engine, err := registry.GetEngineByPrefix("codex")
+		require.NoError(t, err, "GetEngineByPrefix should not return an error for an exact engine ID")
+		assert.Equal(t, "codex", engine.GetID())
+	})
+
 	t.Run("GetEngineByPrefix returns error for non-matching prefix", func(t *testing.T) {
 		registry := NewEngineRegistry()
 		_, err := registry.GetEngineByPrefix("nonexistent-prefix")
 		assert.Error(t, err, "GetEngineByPrefix should return an error for a non-matching prefix")
+	})
+
+	t.Run("GetEngineByPrefix rejects a typo extending a builtin ID", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		_, err := registry.GetEngineByPrefix("codexx")
+		assert.Error(t, err, "GetEngineByPrefix should not treat a typo as an engine alias")
 	})
 }
 

@@ -1,6 +1,21 @@
 {
   "routes": [
     {
+      "task_type": "chore",
+      "scope": "multi_file",
+      "task_complexity": "[redacted]",
+      "mode": "economy",
+      "model": "github-copilot/gpt-5.6-sol",
+      "effort": "medium",
+      "router_version": "0.1.3",
+      "endpoint": "/responses",
+      "effective_endpoint": "/responses",
+      "selected_endpoint": "/responses",
+      "run_count": 1,
+      "total_aic": 59.0517,
+      "average_aic": 59.0517
+    },
+    {
       "task_type": "explain",
       "scope": "local",
       "task_complexity": "trivial",
@@ -32,6 +47,21 @@
     {
       "task_type": "explain",
       "scope": "multi_file",
+      "task_complexity": "[redacted]",
+      "mode": "economy",
+      "model": "github-copilot/gpt-5.6-luna",
+      "effort": "xhigh",
+      "router_version": "0.1.3",
+      "endpoint": "/responses",
+      "effective_endpoint": "/responses",
+      "selected_endpoint": "/responses",
+      "run_count": 1,
+      "total_aic": 4.945641,
+      "average_aic": 4.945641
+    },
+    {
+      "task_type": "explain",
+      "scope": "multi_file",
       "task_complexity": "medium",
       "mode": "economy",
       "model": "github-copilot/gpt-5.6-luna",
@@ -58,14 +88,14 @@
       "average_aic": 933.48553
     }
   ],
-  "classifier_aic": 1.67086,
+  "classifier_aic": 3.05912,
   "main_agent_cost": {
-    "requests": 50,
-    "input_tokens": 4575305,
-    "output_tokens": 32058,
-    "cache_read_tokens": 4355316,
-    "cache_write_tokens": 50671,
-    "aic": 390.997365
+    "requests": 61,
+    "input_tokens": 4812027,
+    "output_tokens": 34378,
+    "cache_read_tokens": 4546175,
+    "cache_write_tokens": 70700,
+    "aic": 410.820516
   },
   "subagent_costs": [
     {
@@ -80,6 +110,31 @@
       "cache_read_tokens": 141157,
       "cache_write_tokens": 0,
       "aic": 40.97735
+    },
+    {
+      "agent_name": "cost-table-explorer",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "low",
+      "requests": 3,
+      "input_tokens": 22248,
+      "output_tokens": 203,
+      "cache_read_tokens": 12004,
+      "cache_write_tokens": 10235,
+      "aic": 0.304423
+    },
+    {
+      "agent_name": "file-summarizer",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "requests": 3,
+      "input_tokens": 65748,
+      "output_tokens": 473,
+      "cache_read_tokens": 40686,
+      "cache_write_tokens": 0,
+      "aic": 3.765785
     },
     {
       "agent_name": "file-summarizer",
@@ -110,6 +165,20 @@
       "aic": 9.14105
     },
     {
+      "agent_name": "python-file-counter",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "medium",
+      "models": ["gpt-5.6-sol"],
+      "requests": 2,
+      "input_tokens": 36256,
+      "output_tokens": 114,
+      "cache_read_tokens": 17920,
+      "cache_write_tokens": 0,
+      "aic": 8.2792
+    },
+    {
       "agent_name": "quick-checker",
       "agent_type": "subagent",
       "instance_count": 1,
@@ -121,6 +190,60 @@
       "cache_read_tokens": 17408,
       "cache_write_tokens": 0,
       "aic": 1.557285
+    },
+    {
+      "agent_name": "quick-checker",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "xhigh",
+      "models": ["gpt-5.6-luna"],
+      "requests": 2,
+      "input_tokens": 29540,
+      "output_tokens": 119,
+      "cache_read_tokens": 14375,
+      "cache_write_tokens": 15159,
+      "aic": 0.422125
+    },
+    {
+      "agent_name": "readme-researcher",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "medium",
+      "requests": 2,
+      "input_tokens": 38925,
+      "output_tokens": 122,
+      "cache_read_tokens": 19349,
+      "cache_write_tokens": 19570,
+      "aic": 0.542708
+    },
+    {
+      "agent_name": "router-code-reviewer",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "medium",
+      "models": ["gpt-5.6-sol"],
+      "requests": 8,
+      "input_tokens": 281911,
+      "output_tokens": 1313,
+      "cache_read_tokens": 238080,
+      "cache_write_tokens": 0,
+      "aic": 29.6816
+    },
+    {
+      "agent_name": "router-test-runner",
+      "agent_type": "subagent",
+      "instance_count": 1,
+      "completed_count": 1,
+      "effort": "medium",
+      "requests": 5,
+      "input_tokens": 98998,
+      "output_tokens": 621,
+      "cache_read_tokens": 77907,
+      "cache_write_tokens": 21076,
+      "aic": 0.757534
     },
     {
       "agent_name": "subagent-research",
@@ -136,8 +259,8 @@
       "aic": 494.2065
     }
   ],
-  "total_requests": 124,
-  "deviated_requests": 20,
-  "deviated_traffic_share": 0.16129,
+  "total_requests": 176,
+  "deviated_requests": 36,
+  "deviated_traffic_share": 0.204545,
   "endpoint_only_deviation_normalized": true
 }

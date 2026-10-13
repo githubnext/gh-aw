@@ -1,0 +1,447 @@
+{
+  "model_routing": {
+    "status": "selected",
+    "selected_model": "github-copilot/gpt-5.6-sol",
+    "selected_effort": "medium",
+    "endpoint": "/responses",
+    "routed_counts": {
+      "as_selected": 18,
+      "deviated": 10
+    },
+    "outcome_counts": {
+      "completed": 28
+    },
+    "deviations": [
+      {
+        "requested_model": "gpt-5.6-luna",
+        "requested_effort": "low",
+        "selected_model": "github-copilot/gpt-5.6-sol",
+        "selected_effort": "medium",
+        "deviation": "model,effort",
+        "count": 3
+      },
+      {
+        "requested_model": "gpt-5.6-luna",
+        "requested_effort": "medium",
+        "selected_model": "github-copilot/gpt-5.6-sol",
+        "selected_effort": "medium",
+        "deviation": "model",
+        "count": 7
+      }
+    ],
+    "classifier_cost": {
+      "requests": 1,
+      "input_tokens": 974,
+      "output_tokens": 111,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0.6116
+    },
+    "selected_model_cost": {
+      "requests": 18,
+      "input_tokens": 496568,
+      "output_tokens": 2775,
+      "cache_read_tokens": 408576,
+      "cache_write_tokens": 0,
+      "aic": 57.08984
+    },
+    "deviated_traffic_cost": {
+      "requests": 10,
+      "input_tokens": 160171,
+      "output_tokens": 946,
+      "cache_read_tokens": 109260,
+      "cache_write_tokens": 0,
+      "aic": 1.35026
+    },
+    "main_agent_cost": {
+      "requests": 8,
+      "input_tokens": 178401,
+      "output_tokens": 1348,
+      "cache_read_tokens": 152576,
+      "cache_write_tokens": 0,
+      "aic": 19.12904
+    },
+    "subagent_costs": [
+      {
+        "agent_name": "cost-table-explorer",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "low",
+        "requests": 3,
+        "input_tokens": 22248,
+        "output_tokens": 203,
+        "cache_read_tokens": 12004,
+        "cache_write_tokens": 10235,
+        "aic": 0.304423
+      },
+      {
+        "agent_name": "python-file-counter",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "models": ["gpt-5.6-sol"],
+        "requests": 2,
+        "input_tokens": 36256,
+        "output_tokens": 114,
+        "cache_read_tokens": 17920,
+        "cache_write_tokens": 0,
+        "aic": 8.2792
+      },
+      {
+        "agent_name": "readme-researcher",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "requests": 2,
+        "input_tokens": 38925,
+        "output_tokens": 122,
+        "cache_read_tokens": 19349,
+        "cache_write_tokens": 19570,
+        "aic": 0.542708
+      },
+      {
+        "agent_name": "router-code-reviewer",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "models": ["gpt-5.6-sol"],
+        "requests": 8,
+        "input_tokens": 281911,
+        "output_tokens": 1313,
+        "cache_read_tokens": 238080,
+        "cache_write_tokens": 0,
+        "aic": 29.6816
+      },
+      {
+        "agent_name": "router-test-runner",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "requests": 5,
+        "input_tokens": 98998,
+        "output_tokens": 621,
+        "cache_read_tokens": 77907,
+        "cache_write_tokens": 21076,
+        "aic": 0.757534
+      }
+    ]
+  },
+  "firewall_token_usage": {
+    "total_input_tokens": 657713,
+    "total_output_tokens": 3832,
+    "total_cache_read_tokens": 517836,
+    "total_cache_write_tokens": 0,
+    "total_requests": 29,
+    "total_duration_ms": 128137,
+    "total_response_bytes": 9928729,
+    "cache_efficiency": 0,
+    "total_aic": 59.0517,
+    "by_model": {
+      "gpt-5.6-luna": {
+        "provider": "copilot",
+        "input_tokens": 160171,
+        "output_tokens": 946,
+        "cache_read_tokens": 109260,
+        "cache_write_tokens": 0,
+        "requests": 10,
+        "duration_ms": 28690,
+        "response_bytes": 3144084,
+        "aic": 1.35026
+      },
+      "gpt-5.6-sol": {
+        "provider": "copilot",
+        "input_tokens": 497542,
+        "output_tokens": 2886,
+        "cache_read_tokens": 408576,
+        "cache_write_tokens": 0,
+        "requests": 19,
+        "duration_ms": 99447,
+        "response_bytes": 6784645,
+        "aic": 57.70144
+      }
+    },
+    "subagent_model_requests": [
+      {
+        "agent_name": "cost-table-explorer",
+        "requested_model": "gpt-5.6-luna",
+        "resolved_model": "gpt-5.6-luna",
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "low",
+        "effective_model": "gpt-5.6-luna"
+      },
+      {
+        "agent_name": "python-file-counter",
+        "requested_model": "gpt-5.6-sol",
+        "resolved_model": "gpt-5.6-sol",
+        "served_models": ["gpt-5.6-sol"],
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "effective_model": "gpt-5.6-sol"
+      },
+      {
+        "agent_name": "readme-researcher",
+        "requested_model": "gpt-5.6-luna",
+        "resolved_model": "gpt-5.6-luna",
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "effective_model": "gpt-5.6-luna"
+      },
+      {
+        "agent_name": "router-code-reviewer",
+        "requested_model": "gpt-5.6-sol",
+        "resolved_model": "gpt-5.6-sol",
+        "served_models": ["gpt-5.6-sol"],
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "effective_model": "gpt-5.6-sol"
+      },
+      {
+        "agent_name": "router-test-runner",
+        "requested_model": "gpt-5.6-luna",
+        "resolved_model": "gpt-5.6-luna",
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "medium",
+        "effective_model": "gpt-5.6-luna"
+      }
+    ],
+    "declared_subagent_models": [
+      {
+        "agent_name": "file-summarizer",
+        "requested_model": "claude-haiku-4.5",
+        "invocation_count": 0,
+        "reason_code": "REQUESTED_MODEL_NOT_OBSERVED"
+      },
+      {
+        "agent_name": "quick-checker",
+        "requested_model": "gpt-5.6-luna",
+        "resolved_model": "gpt-5.6-luna",
+        "served_models": ["gpt-5.6-luna"],
+        "invocation_count": 0,
+        "effective_model": "gpt-5.6-luna"
+      }
+    ],
+    "subagent_model_actuals": [
+      {
+        "model": "gpt-5.6-luna",
+        "requests": 10,
+        "resolved_model": "gpt-5.6-luna",
+        "input_tokens": 160171,
+        "output_tokens": 946,
+        "cache_read_tokens": 109260,
+        "cache_write_tokens": 50881,
+        "reasoning_tokens": 328,
+        "aic": 1.604665
+      },
+      {
+        "model": "gpt-5.6-sol",
+        "requests": 10,
+        "resolved_model": "gpt-5.6-sol",
+        "served_models": ["gpt-5.6-sol"],
+        "input_tokens": 318167,
+        "output_tokens": 1427,
+        "cache_read_tokens": 256000,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 349,
+        "aic": 37.9608
+      }
+    ],
+    "agent_usage": [
+      {
+        "agent_name": "cost-table-explorer",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["gpt-5.6-luna"],
+        "resolved_models": ["gpt-5.6-luna"],
+        "effort": "low",
+        "requests": 3,
+        "input_tokens": 22248,
+        "output_tokens": 203,
+        "cache_read_tokens": 12004,
+        "cache_write_tokens": 10235,
+        "reasoning_tokens": 52,
+        "aic": 0.304423,
+        "total_api_duration_ms": 5905,
+        "models": [
+          {
+            "model": "gpt-5.6-luna",
+            "resolved_model": "gpt-5.6-luna",
+            "requests": 3,
+            "input_tokens": 22248,
+            "output_tokens": 203,
+            "cache_read_tokens": 12004,
+            "cache_write_tokens": 10235,
+            "reasoning_tokens": 52,
+            "aic": 0.304423
+          }
+        ]
+      },
+      {
+        "agent_name": "main",
+        "agent_type": "main",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "served_models": ["gpt-5.6-sol"],
+        "requests": 8,
+        "input_tokens": 178401,
+        "output_tokens": 1348,
+        "cache_read_tokens": 152576,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 286,
+        "aic": 19.12904,
+        "total_api_duration_ms": 46712,
+        "models": [
+          {
+            "model": "gpt-5.6-sol",
+            "resolved_model": "gpt-5.6-sol",
+            "requests": 8,
+            "input_tokens": 178401,
+            "output_tokens": 1348,
+            "cache_read_tokens": 152576,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 286,
+            "aic": 19.12904
+          }
+        ]
+      },
+      {
+        "agent_name": "python-file-counter",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["gpt-5.6-sol"],
+        "resolved_models": ["gpt-5.6-sol"],
+        "served_models": ["gpt-5.6-sol"],
+        "effort": "medium",
+        "requests": 2,
+        "input_tokens": 36256,
+        "output_tokens": 114,
+        "cache_read_tokens": 17920,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 48,
+        "aic": 8.2792,
+        "total_api_duration_ms": 10478,
+        "models": [
+          {
+            "model": "gpt-5.6-sol",
+            "resolved_model": "gpt-5.6-sol",
+            "requests": 2,
+            "input_tokens": 36256,
+            "output_tokens": 114,
+            "cache_read_tokens": 17920,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 48,
+            "aic": 8.2792
+          }
+        ]
+      },
+      {
+        "agent_name": "readme-researcher",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["gpt-5.6-luna"],
+        "resolved_models": ["gpt-5.6-luna"],
+        "effort": "medium",
+        "requests": 2,
+        "input_tokens": 38925,
+        "output_tokens": 122,
+        "cache_read_tokens": 19349,
+        "cache_write_tokens": 19570,
+        "reasoning_tokens": 22,
+        "aic": 0.542708,
+        "total_api_duration_ms": 4811,
+        "models": [
+          {
+            "model": "gpt-5.6-luna",
+            "resolved_model": "gpt-5.6-luna",
+            "requests": 2,
+            "input_tokens": 38925,
+            "output_tokens": 122,
+            "cache_read_tokens": 19349,
+            "cache_write_tokens": 19570,
+            "reasoning_tokens": 22,
+            "aic": 0.542708
+          }
+        ]
+      },
+      {
+        "agent_name": "router-code-reviewer",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["gpt-5.6-sol"],
+        "resolved_models": ["gpt-5.6-sol"],
+        "served_models": ["gpt-5.6-sol"],
+        "effort": "medium",
+        "requests": 8,
+        "input_tokens": 281911,
+        "output_tokens": 1313,
+        "cache_read_tokens": 238080,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 301,
+        "aic": 29.6816,
+        "total_api_duration_ms": 39934,
+        "models": [
+          {
+            "model": "gpt-5.6-sol",
+            "resolved_model": "gpt-5.6-sol",
+            "requests": 8,
+            "input_tokens": 281911,
+            "output_tokens": 1313,
+            "cache_read_tokens": 238080,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 301,
+            "aic": 29.6816
+          }
+        ]
+      },
+      {
+        "agent_name": "router-test-runner",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["gpt-5.6-luna"],
+        "resolved_models": ["gpt-5.6-luna"],
+        "effort": "medium",
+        "requests": 5,
+        "input_tokens": 98998,
+        "output_tokens": 621,
+        "cache_read_tokens": 77907,
+        "cache_write_tokens": 21076,
+        "reasoning_tokens": 254,
+        "aic": 0.757534,
+        "total_api_duration_ms": 18061,
+        "models": [
+          {
+            "model": "gpt-5.6-luna",
+            "resolved_model": "gpt-5.6-luna",
+            "requests": 5,
+            "input_tokens": 98998,
+            "output_tokens": 621,
+            "cache_read_tokens": 77907,
+            "cache_write_tokens": 21076,
+            "reasoning_tokens": 254,
+            "aic": 0.757534
+          }
+        ]
+      }
+    ],
+    "warnings": ["per-agent AI credits (58.695) differ from non-classifier proxy total (59.052) for endpoint unknown endpoint"]
+  }
+}

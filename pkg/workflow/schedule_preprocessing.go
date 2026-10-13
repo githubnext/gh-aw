@@ -113,6 +113,9 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 	// Check if "on" is a string - might be a schedule expression, slash command shorthand, label trigger shorthand, or other trigger shorthand
 	if onStr, ok := onValue.(string); ok {
 		schedulePreprocessingLog.Printf("Processing on field as string: %s", onStr)
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(onStr)), "schedule ") {
+			return c.createMissingScheduleColonError(markdownPath, content)
+		}
 
 		// Check if it's a slash command shorthand (starts with /)
 		commandName, isSlashCommand, err := parseSlashCommandShorthand(onStr)
@@ -333,6 +336,48 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 	}
 
 	return nil
+}
+
+func (c *Compiler) createMissingScheduleColonError(filePath, content string) error {
+	message := "YAML syntax error: expected 'schedule:' under 'on:'. Example:\non:\n  schedule: daily on weekdays"
+	lines := strings.Split(content, "\n")
+	onIndent := -1
+	onLine, onColumn := 0, 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
+			if onIndent >= 0 {
+				break
+			}
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if onIndent < 0 {
+			if indent == 0 && strings.HasPrefix(trimmed, "on:") {
+				onIndent = indent
+				onLine, onColumn = i+1, indent+1
+			}
+			continue
+		}
+
+		if indent <= onIndent {
+			break
+		}
+		if strings.HasPrefix(strings.ToLower(trimmed), "schedule ") {
+			cause := errors.New(message)
+			return formatCompilerErrorWithContext(filePath, i+1, indent+1, "error", message, cause, readSourceContextLines([]byte(content), i+1))
+		}
+	}
+
+	if onLine > 0 {
+		cause := errors.New(message)
+		return formatCompilerErrorWithContext(filePath, onLine, onColumn, "error", message, cause, readSourceContextLines([]byte(content), onLine))
+	}
+	return formatCompilerError(filePath, "error", message, errors.New(message))
 }
 
 // createTriggerParseError creates a detailed error for trigger parsing issues with source location
