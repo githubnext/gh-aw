@@ -128,12 +128,13 @@ function registerTests({ describe, it }) {
         const dispatchClient = {
           auth: async () => ({ type: "token", token: "protected-selected-token" }),
           rest: {
+            git: fixture.githubClient.rest.git,
             users: { getByUsername: identity, getAuthenticated: identity },
             repos: {
               get: async parameters => {
                 assert.equal(parameters.owner, "owner");
                 assert.equal(parameters.repo, "repo");
-                return { status: 200, data: { id: 7, full_name: REPOSITORY } };
+                return { status: 200, data: { id: 7, full_name: REPOSITORY, permissions: { push: true } } };
               },
             },
             actions: {
@@ -144,7 +145,7 @@ function registerTests({ describe, it }) {
                 assert.equal(dispatch.state, "started");
                 assert.equal(dispatch.sender.principal, "11");
                 assert.equal(dispatch.sender.run_attempt, 2);
-                assert.equal(parameters.ref, REF);
+                assert.equal(parameters.ref, `refs/tags/gh-aw/work-queue/${REF}`);
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
               getWorkflowRun: async parameters => {
@@ -221,6 +222,7 @@ function registerTests({ describe, it }) {
           publishWorkQueueRequest: fixture.publishWorkQueueRequest,
           getOctokit: () => ({
             rest: {
+              repos: fixture.githubClient.rest.repos,
               users: {
                 getAuthenticated: async () => {
                   identityReads++;
