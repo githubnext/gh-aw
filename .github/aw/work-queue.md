@@ -94,6 +94,10 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
   batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before
   scoped effects and Result only after independently verified delivery.
+- For a worker's effect beyond the built-in safe outputs, declare
+  `safe-outputs.claim-adapters` (see
+  [safe-outputs-runtime.md](safe-outputs-runtime.md)); the adapter binds one
+  effect-type to an independently verified result, never to job success alone.
 
 Use `<mcp-clis>` with one JSON argument. `uninitialized` plus null SHA is empty;
 first `work_queue_submit` installs Policy and Work. Submit before dispatch.
