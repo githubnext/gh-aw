@@ -65,6 +65,7 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 ## Conversation Rules
 
 - Keep the conversation short and iterative.
+- When the request already states a goal, proceed with the relevant mode and ask only about missing details that would change the workflow design.
 - Translate user intent into workflow structure.
 - When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode.
 - In ad hoc evaluation mode, do not create `.github/workflows/*.md`.

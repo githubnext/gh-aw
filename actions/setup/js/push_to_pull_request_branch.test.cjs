@@ -2327,12 +2327,15 @@ index 0000000..abc1234
     it.each([
       ["small agent change", "small patch\n", 16, "merge-agent.txt", null, false],
       ["oversized agent patch", "x".repeat(2048), 16, "merge-agent.txt", "Patch size", false],
+      ["oversized transient agent commit patch", "small patch\n", 16, "merge-agent.txt", "Patch size", false, "", false, false, "x".repeat(2048)],
       ["oversized expanded agent content", "small patch\n", 2048, "merge-agent.txt", "Changed content size", false],
       ["agent modification of a protected file", protectedPatch, 16, "package.json", "protected files", false],
       ["oversized unchanged-side binary resolution", "", 2048, "", "Changed content size", true],
       ["reverted protected-file change", "small patch\n", 16, "merge-agent.txt", "bundle modifies protected files", false, "package.json"],
+      ["reverted protected-file change after trusted-base fallback", "small patch\n", 16, "merge-agent.txt", "bundle modifies protected files", false, "package.json", false, true],
       ["agent-created octopus merge", "small patch\n", 16, "merge-agent.txt", "octopus merge", false, "", true],
-    ])("validates %s independently of merged base changes", async (_name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "", octopusMerge = false) => {
+      ["agent-created octopus merge after trusted-base fallback", "small patch\n", 16, "merge-agent.txt", "octopus merge", false, "", true, true],
+    ])("validates %s independently of merged base changes", async (_name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "", octopusMerge = false, mergeTreeFailure = false, historyPatch = agentPatch) => {
       const branch = "merge-size-validation";
       const trustedBase = "b".repeat(40);
       const validationTree = "a".repeat(40);
@@ -2346,9 +2349,13 @@ index 0000000..abc1234
         if (args[0] === "merge-base") {
           return { exitCode: args[3] === "remote-head" ? 1 : 0, stdout: "", stderr: "" };
         }
-        if (args[0] === "merge-tree") return { exitCode: binaryConflict ? 1 : 0, stdout: validationTree + (binaryConflict ? "\0merge-agent.txt\0\0" : "\0"), stderr: "" };
+        if (args[0] === "merge-tree") {
+          if (mergeTreeFailure) return { exitCode: 128, stdout: "", stderr: "unsupported merge-tree" };
+          return { exitCode: binaryConflict ? 1 : 0, stdout: validationTree + (binaryConflict ? "\0merge-agent.txt\0\0" : "\0"), stderr: "" };
+        }
         if (args[0] === "diff" && args[1] === "--binary") return { exitCode: 0, stdout: agentPatch, stderr: "" };
         if (args[0] === "diff" && args[1] === "--name-only") return { exitCode: 0, stdout: changedFile ? changedFile + "\0" : "", stderr: "" };
+        if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: historyPatch, stderr: "" };
         if (args[0] === "log" && args[1] === "--format=") return { exitCode: 0, stdout: historyFile ? historyFile + "\0" : "", stderr: "" };
         if (args[0] === "rev-list" && args[1] === "--min-parents=3") return { exitCode: 0, stdout: octopusMerge ? "c".repeat(40) + "\n" : "", stderr: "" };
         return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
@@ -2370,11 +2377,12 @@ index 0000000..abc1234
         }
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
         if (expectedError === "bundle modifies protected files") {
-          expect(mockExec.getExecOutput).toHaveBeenCalledWith(
-            "git",
-            ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", "remote-head", trustedBase],
-            expect.any(Object)
-          );
+          const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
+        }
+        if (expectedError === "octopus merge") {
+          const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["rev-list", "--min-parents=3", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
         }
         if (expectedError === "Changed content size") {
           expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "remote-head"], expect.any(Object));
@@ -2396,6 +2404,20 @@ index 0000000..abc1234
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("using PR-head validation"));
     });
 
+    it("keeps all conflicted paths when merge-tree omits its empty separator", async () => {
+      const validationTree = "a".repeat(40);
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "merge-base") return { exitCode: args[3] === "old-head" ? 1 : 0, stdout: "", stderr: "" };
+        if (args[0] === "merge-tree") return { exitCode: 1, stdout: `${validationTree}\0only-conflict.txt`, stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      const module = await loadModule();
+      expect(await module.getBundleValidationBase(mockExec, {}, "old-head", "candidate", "trusted-base")).toEqual({
+        ref: validationTree,
+        conflictedFiles: ["only-conflict.txt"],
+      });
+    });
+
     it("retains the preview size limit when the trusted base fetch fails", async () => {
       const branch = "merge-base-fetch-fails";
       createPatchFile(branch, "x".repeat(4096));
@@ -2405,6 +2427,10 @@ index 0000000..abc1234
       mockExec.exec.mockImplementation(async (_cmd, args) => {
         if (args[0] === "fetch" && args[2] === pr.base.sha) throw new Error("base unavailable");
         return 0;
+      });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: "x".repeat(4096), stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "" };
       });
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1, signed_commits: false });

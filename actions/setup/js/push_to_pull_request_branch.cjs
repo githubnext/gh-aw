@@ -150,7 +150,11 @@ async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, tru
     const merge = await exec.getExecOutput("git", ["merge-tree", "--write-tree", "--name-only", "-z", oldHead, trustedBase], opts);
     const [tree, ...fields] = merge.stdout.split("\0");
     if ((merge.exitCode === 0 || merge.exitCode === 1) && /^[0-9a-f]{40}$/.test(tree)) {
-      return { ref: tree, conflictedFiles: merge.exitCode === 1 ? fields.slice(0, fields.indexOf("")) : [] };
+      const separatorIndex = fields.indexOf("");
+      return {
+        ref: tree,
+        conflictedFiles: merge.exitCode === 1 ? fields.slice(0, separatorIndex === -1 ? fields.length : separatorIndex) : [],
+      };
     }
     core.warning("Unable to compute trusted base merge tree; using PR-head validation");
   } catch {
@@ -516,16 +520,20 @@ async function main(config = {}) {
       return { success: false, error: msg };
     }
     const isEmpty = !patchContent || !patchContent.trim();
-    /** @type {{ files: string[] | null }} Protected files found in the patch */
-    const protectedFilesForFallback = { files: null };
-    /** @param {string} patchContent */
+    let protectedFilesForFallback = [];
+    /**
+     * @param {string} patchContent
+     * @returns {{ error: { success: boolean, error: string, skipped?: boolean, reasonCode?: string } | null, fallbackFiles: string[] }}
+     */
     function validatePatch(patchContent) {
+      const fallbackFiles = [];
+      const isEmptyPatch = !patchContent || !patchContent.trim();
       // Validate patch/bundle size against `max_patch_size`.
       //
       // Size-check source of truth, in order of preference:
       // Use the uncompressed patch representation for both transport modes.
       // Bundle size is compressed and can undercount highly compressible changes.
-      if (!isEmpty) {
+      if (!isEmptyPatch) {
         const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
         const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
@@ -553,7 +561,7 @@ async function main(config = {}) {
         if (sizeForCheckKb > maxSizeKb) {
           let msg;
           msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-          return { success: false, error: msg };
+          return { error: { success: false, error: msg }, fallbackFiles };
         }
 
         core.info("Patch size validation passed");
@@ -561,7 +569,7 @@ async function main(config = {}) {
 
       // Check file protection: allowlist (strict) or protected-files policy.
       // Fallback-to-issue detection is deferred until after PR metadata is resolved below.
-      if (!isEmpty) {
+      if (!isEmptyPatch) {
         const protection = checkFileProtection(patchContent, config);
         if (protection.action === "deny") {
           const filesStr = protection.files.join(", ");
@@ -570,21 +578,22 @@ async function main(config = {}) {
               ? `Cannot push to pull request branch: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
               : `Cannot push to pull request branch: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
           core.warning(msg);
-          return { success: false, skipped: true, reasonCode: POLICY_FILE_PROTECTION_DENIED_REASON_CODE, error: msg };
+          return { error: { success: false, skipped: true, reasonCode: POLICY_FILE_PROTECTION_DENIED_REASON_CODE, error: msg }, fallbackFiles };
         }
         if (protection.action === "fallback") {
-          protectedFilesForFallback.files = protection.files;
+          fallbackFiles.push(...protection.files);
           core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
         }
       }
-      return null;
+      return { error: null, fallbackFiles };
     }
 
     // Bundle previews include merged base commits. Defer validation until the
     // fetched bundle can be compared with a trusted, merge-aware baseline.
     if (!deferBundleValidation) {
-      const validationError = validatePatch(patchContent);
-      if (validationError) return validationError;
+      const validation = validatePatch(patchContent);
+      if (validation.error) return validation.error;
+      protectedFilesForFallback = validation.fallbackFiles;
     }
 
     if (isEmpty) {
@@ -934,8 +943,8 @@ async function main(config = {}) {
 
     // Deferred protected file protection – fallback-to-issue path.
     // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
-    if (protectedFilesForFallback.files && protectedFilesForFallback.files.length > 0) {
-      return await createProtectedFilesFallbackIssue(protectedFilesForFallback.files);
+    if (protectedFilesForFallback.length > 0) {
+      return await createProtectedFilesFallbackIssue(protectedFilesForFallback);
     }
 
     const hasChanges = !isEmpty;
@@ -1179,16 +1188,17 @@ async function main(config = {}) {
           const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
-          let validationPatch = patchContent;
-          if (validationBaseRef !== rangeBaseRef) {
+          const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;
+          if (trustedBaseInValidationBase) {
             core.info(`Bundle validation baseline includes trusted base ${trustedBase}: ${validationBaseRef}`);
-            const preview = await exec.getExecOutput("git", ["diff", "--binary", "--no-ext-diff", "--no-textconv", validationBaseRef, bundleRef], baseGitOpts);
-            validationPatch = preview.stdout;
           }
+          const agentHistoryExclusions = [rangeBaseRef];
+          if (trustedBaseInValidationBase) agentHistoryExclusions.push(trustedBase);
           if (deferBundleValidation) {
-            const validationError = validatePatch(validationPatch);
-            if (validationError) return validationError;
-            if (protectedFilesForFallback.files?.length) return await createProtectedFilesFallbackIssue(protectedFilesForFallback.files);
+            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
+            const validation = validatePatch(agentPatchStream.stdout);
+            if (validation.error) return validation.error;
+            if (validation.fallbackFiles.length) return await createProtectedFilesFallbackIssue(validation.fallbackFiles);
           }
 
           // SECURITY: Use git's own diff against the fetched bundle ref as the
@@ -1198,14 +1208,14 @@ async function main(config = {}) {
           // content preserved only by the bundle transport).
           {
             let bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
-            if (validationBaseRef !== rangeBaseRef) {
-              const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
+            if (deferBundleValidation) {
+              const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
               if (octopus.stdout.trim()) {
                 return { success: false, error: "Cannot validate agent-created octopus merge commits in the bundle. Use two-parent merges instead." };
               }
               // Preserve protection for agent commits that change then revert a
               // file, without attributing trusted base-branch commits to the agent.
-              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
+              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
               bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
             }
             if (bundleFiles.length > 0) {
@@ -1521,12 +1531,8 @@ async function main(config = {}) {
       }
 
       // When signed commits are required, the GitHub GraphQL createCommitOnBranch mutation
-      // cannot represent merge commits.  If the range to be pushed contains merge commits
-      // (e.g. the agent ran `git merge origin/main` instead of `git rebase origin/main`),
-      // squash the entire range into a single regular commit that carries the same tree.
-      // This preserves the file-level outcome while producing a linear history that can
-      // be signed.  A warning is emitted so workflow authors and agents know that rebase
-      // should be preferred over merge in future runs.
+      // cannot represent merge commits. Squash merge-containing history into one regular
+      // commit that preserves the tree; unsigned bundle pushes keep their merge history.
       if (signedCommits && hasChanges) {
         const squashBase = rangeBaseRef;
         try {
@@ -1536,7 +1542,7 @@ async function main(config = {}) {
             core.warning(
               `push_to_pull_request_branch: detected ${mergeCount} merge commit(s) in range ${squashBase}..HEAD. ` +
                 `Merge commits cannot be pushed as signed commits. Squashing the range into a single regular commit to preserve content. ` +
-                `To avoid this, use 'git rebase' instead of 'git merge' when updating the PR branch.`
+                `Merge commits are squashed because signed commits cannot include merges. Set signed-commits: false to preserve merge history.`
             );
             // Prefer the message from the first non-merge commit in the range — it carries
             // the most meaningful description of the actual work.  Fall back to the last
