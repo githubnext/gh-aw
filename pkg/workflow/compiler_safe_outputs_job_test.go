@@ -263,6 +263,7 @@ func TestAddHandlerManagerOutputs(t *testing.T) {
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.created_issue_number }}", outputs["created_issue_number"])
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.created_pr_url }}", outputs["created_pr_url"])
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.comment_id }}", outputs["comment_id"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.activation_comment_links }}", outputs["activation_comment_links"])
 }
 
 func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *testing.T) {
