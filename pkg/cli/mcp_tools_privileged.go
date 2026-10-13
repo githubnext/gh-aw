@@ -242,7 +242,7 @@ The compact "usage" artifact set is downloaded by default (and added to any expl
 artifact selection) because it carries the per-run token usage data.`
 
 // newLogsToolHandler builds the handler for the logs tool.
-func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) {
+func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.
 	return func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
 			return nil, nil, err
@@ -637,8 +637,9 @@ func runMCPAuditSubprocess(ctx context.Context, responseDeadline time.Time, exec
 	if timeout <= mcpAuditResponseMargin {
 		return nil, context.DeadlineExceeded
 	}
-	cmdArgs := buildAuditCommandArgs(args, runItems)
+	cmdArgs := buildAuditCommandArgs(args, nil)
 	cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
+	cmdArgs = appendMCPPositionals(cmdArgs, runItems...)
 	return execCmd(ctx, cmdArgs...).Output()
 }
 
@@ -686,7 +687,6 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 // directly - the audit command handles single vs. diff mode.
 func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 	cmdArgs := []string{"audit"}
-	cmdArgs = append(cmdArgs, runItems...)
 	cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 	if len(args.Artifacts) > 0 {
 		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
@@ -700,7 +700,11 @@ func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 	if args.Runtime != "" {
 		cmdArgs = append(cmdArgs, "--runtime", args.Runtime)
 	}
-	return appendRepoFlagFromEnv(cmdArgs)
+	cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+	if len(runItems) > 0 {
+		cmdArgs = appendMCPPositionals(cmdArgs, runItems...)
+	}
+	return cmdArgs
 }
 
 // buildAuditErrorResult converts a failed audit subprocess execution into a JSON
@@ -831,14 +835,15 @@ func newAuditDiffToolHandler(execCmd execCmdFunc, actor string, validateActor bo
 		}
 
 		// Build: gh aw audit diff <base> <compare...> -o ... --json [--artifacts ...]
-		cmdArgs := []string{"audit", "diff", args.BaseRunID}
-		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
+		cmdArgs := []string{"audit", "diff"}
 		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+		cmdArgs = appendMCPPositionals(cmdArgs, args.BaseRunID)
+		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 

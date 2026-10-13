@@ -30,6 +30,12 @@ func reportAddWorkflowStart(workflowSpec *WorkflowSpec, sourceContent []byte, op
 }
 
 func validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo string, opts AddOptions) (bool, error) {
+	if err := validateAddedWorkflowDestination(githubWorkflowsDir, workflowName, ".md"); err != nil {
+		return false, err
+	}
+	if err := validateAddedWorkflowDestination(githubWorkflowsDir, workflowName, ".lock.yml"); err != nil {
+		return false, err
+	}
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if !fileutil.FileExists(existingFile) || opts.Force {
 		return false, nil
@@ -49,6 +55,32 @@ func validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo st
 	}
 	addLog.Printf("Destination %s already exists and force/wildcard not set, rejecting", existingFile)
 	return false, fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", workflowName)
+}
+
+func validateAddedWorkflowName(name string) error {
+	if name == "" || name == "." || strings.Contains(name, "..") || strings.ContainsAny(name, "/\\\x00") {
+		return fmt.Errorf("invalid workflow name %q: expected a filename without path separators or '..'", name)
+	}
+	return nil
+}
+
+func validateAddedWorkflowDestination(baseDir, name, extension string) error {
+	if err := validateAddedWorkflowName(name); err != nil {
+		return err
+	}
+	destination := filepath.Join(baseDir, name+extension)
+	// A dangling symlink cannot be resolved by the shared containment check.
+	if info, err := os.Lstat(destination); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		if _, err := filepath.EvalSymlinks(destination); err != nil {
+			return fmt.Errorf("invalid workflow destination for %q: cannot resolve symlink: %w", name, err)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("invalid workflow destination for %q: %w", name, err)
+	}
+	if err := fileutil.ValidatePathWithinBase(baseDir, destination); err != nil {
+		return fmt.Errorf("invalid workflow destination for %q: %w", name, err)
+	}
+	return nil
 }
 
 func compileAddedWorkflow(ctx context.Context, destFile string, workflowSpec *WorkflowSpec, githubWorkflowsDir string, tracker *FileTracker, opts AddOptions) {

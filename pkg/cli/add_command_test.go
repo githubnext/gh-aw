@@ -1208,13 +1208,12 @@ func TestAddWorkflowsWithTracking_PackageResourceRejectsLocalDrift(t *testing.T)
 	assert.Equal(t, `{"local":true}`, string(written))
 }
 
-func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing.T) {
+func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnDestinationValidationFailure(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-add-workflows-rollback-*")
 	workflowsDir := setupMinimalGitRepo(t, tempDir)
 
 	validContent := []byte("---\nengine: claude\n---\n\n# workflow\n")
-	// workflow name "nested/blocked" intentionally causes write failure because
-	// addWorkflowWithTracking does not create nested workflow directories.
+	// A later invalid destination must roll back earlier successful writes.
 	workflows := []*ResolvedWorkflow{
 		{
 			Spec: &WorkflowSpec{
@@ -1244,10 +1243,10 @@ func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing
 		Quiet:                  true,
 	})
 	require.Error(t, err)
-	require.ErrorContains(t, err, "failed to write destination file")
+	require.ErrorContains(t, err, "invalid workflow name")
 
 	_, statErr := os.Stat(filepath.Join(workflowsDir, "ok.md"))
-	assert.True(t, os.IsNotExist(statErr), "successful writes from this operation should be rolled back on later write failure")
+	assert.True(t, os.IsNotExist(statErr), "successful writes from this operation should be rolled back on later destination validation failure")
 
 	_, blockedStatErr := os.Stat(filepath.Join(workflowsDir, "nested", "blocked.md"))
 	assert.True(t, os.IsNotExist(blockedStatErr), "failing workflow should not leave partial output files")
