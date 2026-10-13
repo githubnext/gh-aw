@@ -465,8 +465,29 @@ describe("parse_token_usage", () => {
         expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
       });
 
-      test("still rejects a harness outcome whose wire model differs from the proxy selection", async () => {
-        const records = readFixtureRoutingRecords("copilot-budget-exhausted-steering").filter(record => record.stage !== "failure");
+      test.each([{ mirrors: [] }, { mirrors: ["sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl", "sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl"] }])(
+        "clears an earlier failure when an identical selection recurs within a log (mirrors: $mirrors)",
+        async ({ mirrors }) => {
+          const records = readFixtureRoutingRecords("copilot-budget-exhausted-steering");
+          const selection = { ...records.find(record => record.stage === "selection") };
+          delete selection.timestamp;
+          delete selection.interaction_id;
+          const failure = records.find(record => record.stage === "failure");
+          setupRoutingRun({ records: [selection, failure, selection], advisory: readFixtureAdvisory("copilot-budget-exhausted-steering"), mirrors });
+
+          await main();
+
+          const expectedRouting = { ...budgetFailedRouting, status: "selected" };
+          delete expectedRouting.failure_code;
+          const routing = readRecordedRouting();
+          expect(routing).toMatchObject(expectedRouting);
+          expect(routing).not.toHaveProperty("failure_code");
+          expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "selected");
+        }
+      );
+
+      test("still rejects a mismatched harness outcome when a proxy failure follows selection", async () => {
+        const records = readFixtureRoutingRecords("copilot-budget-exhausted-steering");
         setupRoutingRun({ records, advisory: { ...readFixtureAdvisory("copilot-budget-exhausted-steering"), wire_model: "gpt-5.6-luna" } });
 
         await main();
