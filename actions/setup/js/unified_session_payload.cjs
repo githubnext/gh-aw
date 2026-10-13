@@ -456,18 +456,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
   /** @type {any} */
   const source = event.data;
   const known = Object.hasOwn(EVENT_FIELDS, event.type);
-  let data;
-  if (event.type === "mcp.configuration") {
-    try {
-      data = normalizeMcpConfigurationData(source);
-    } catch {
-      data = { servers: [] };
-    }
-  } else if (known) {
-    data = selectFields(source, EVENT_FIELDS[event.type]);
-  } else {
-    data = structuredClone(source);
-  }
+  const data = event.type === "mcp.configuration" ? normalizeMcpConfigurationData(source) : known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {
