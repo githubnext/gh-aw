@@ -11,7 +11,7 @@ const context = {
   issue: { number: 7 },
   sha: "a".repeat(40),
   eventName: "issues",
-  payload: { action: "closed", issue: { id: 34, number: 7 }, repository: { id: 12, full_name: "owner/repo" } },
+  payload: { action: "closed", issue: { id: 34, number: 7, labels: [{ name: "work" }, { name: "work:queued" }] }, repository: { id: 12, full_name: "owner/repo" } },
 };
 const trusted = {
   role: "administrator",
@@ -59,6 +59,86 @@ function fixture(initialWork = work) {
 }
 
 describe("closed backing Issue cancellation", () => {
+  it.each([[], [{ name: "bug" }], [{ name: "work" }], [{ name: "work:queued" }], [{ name: "tasks" }, { name: "work:queued" }]].map(labels => ({ labels })))(
+    "rejects unbound Issues before configuration and authentication reads: $labels",
+    async ({ labels }) => {
+      const event = fixture({ ...work, backing_issue: { ...resource, resource_id: "35" } });
+      event.options.context = { ...context, payload: { ...context.payload, issue: { ...context.payload.issue, labels } } };
+      delete event.options.issues;
+      event.githubClient.rest.repos = { getContent: vi.fn().mockRejectedValue(new Error("API rate limit exceeded for installation")) };
+      expect(await main(event.options)).toEqual({ status: "unbound" });
+      expect(event.githubClient.rest.repos.getContent).not.toHaveBeenCalled();
+      expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+      expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+      expect(event.options.readWorkQueueLog).toHaveBeenCalledOnce();
+      expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+      expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["work", "tasks", "team work"])("preserves custom tracking/status configuration for bound Issues: %s", async label => {
+    const event = fixture();
+    event.options.issues = { label };
+    event.options.context = { ...context, payload: { ...context.payload, issue: { ...context.payload.issue, labels: [{ name: label }, { name: `${label.replace(/\s+/g, "-")}:needs-attention` }] } } };
+    expect((await main(event.options)).status).toBe("cancelled");
+    expect(event.options.authenticatePublisher).toHaveBeenCalledOnce();
+    expect(event.options.closedIssue).toHaveBeenCalledTimes(2);
+    expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+  });
+
+  it.each([[], undefined, null, [{ name: null }]].map(labels => ({ labels })))("does not reject a bound event with missing label hints: $labels", async ({ labels }) => {
+    const event = fixture();
+    event.options.context = { ...context, payload: { ...context.payload, issue: { ...context.payload.issue, labels } } };
+    expect((await main(event.options)).status).toBe("cancelled");
+    expect(event.options.closedIssue).toHaveBeenCalledTimes(2);
+  });
+
+  it("propagates API quota failures for candidate Issues without publishing or retrying", async () => {
+    const event = fixture();
+    delete event.options.issues;
+    event.githubClient.rest.repos = { getContent: vi.fn().mockRejectedValue(Object.assign(new Error("API rate limit exceeded for installation"), { status: 403 })) };
+    await expect(main(event.options)).rejects.toThrow("API rate limit exceeded");
+    expect(event.githubClient.rest.repos.getContent).toHaveBeenCalledOnce();
+    expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+    expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejects ledger read failures before configuration, authentication or mutation", async () => {
+    const event = fixture();
+    event.options.readWorkQueueLog.mockReset().mockRejectedValue(new Error("ledger_invalid"));
+    await expect(main(event.options)).rejects.toThrow("ledger_invalid");
+    expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+    expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("uses one checked GraphQL read for an unrelated closure and no REST reads (initialized=%s)", async initialized => {
+    const event = fixture();
+    delete event.options.readWorkQueueLog;
+    delete event.options.issues;
+    const text = JSON.stringify(require("./work_queue_test_helpers.cjs").genesis()) + "\n";
+    event.githubClient.graphql = vi.fn(async () => ({
+      repository: {
+        id: "repo-node",
+        nameWithOwner: "owner/repo",
+        ref: initialized ? { target: { oid: "b".repeat(40), tree: { oid: "c".repeat(40), entries: [{ name: "work-queue.jsonl", type: "blob", mode: 33188, oid: "d".repeat(40) }] } } } : null,
+        log: initialized ? { oid: "d".repeat(40), text, byteSize: Buffer.byteLength(text), isTruncated: false } : null,
+        isEmpty: false,
+        defaultBranchRef: { target: { oid: "a".repeat(40) } },
+        legacy0: null,
+        legacy1: null,
+      },
+    }));
+    event.githubClient.rest.repos = { getContent: vi.fn().mockRejectedValue(new Error("API rate limit exceeded for installation")) };
+    expect(await main(event.options)).toEqual({ status: initialized ? "unbound" : "queue_missing" });
+    expect(event.githubClient.graphql).toHaveBeenCalledOnce();
+    expect(event.githubClient.graphql.mock.calls[0][0]).toContain("query CheckedWorkQueue");
+    expect(event.githubClient.rest.repos.getContent).not.toHaveBeenCalled();
+    expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+    expect(event.options.authenticatePublisher).not.toHaveBeenCalled();
+    expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+  });
+
   it("ignores non-closed issue events and is disabled without Issue mirroring", async () => {
     const event = fixture();
     event.options.context = { ...context, payload: { ...context.payload, action: "labeled" } };
@@ -130,6 +210,39 @@ describe("closed backing Issue cancellation", () => {
     await expect(closedIssue(githubClient, context, resource, { label: "work" })).rejects.toThrow();
   });
 
+  it.each([
+    { state: "OPEN", labels: ["work", "work:queued"] },
+    { state: "CLOSED", labels: ["tasks", "tasks:queued"] },
+    { state: "CLOSED", labels: ["work"] },
+  ])("does not authorize cancellation from event label hints when the fresh Issue is $state with $labels", async ({ state, labels }) => {
+    const event = fixture();
+    delete event.options.closedIssue;
+    event.githubClient.graphql = vi.fn(async () => ({
+      i0: { issue: { databaseId: 34, number: 7, state, repository: { databaseId: 12, nameWithOwner: "owner/repo" }, labels: { nodes: labels.map(name => ({ name })), pageInfo: { hasNextPage: false } } } },
+    }));
+    expect(await main(event.options)).toEqual({ status: "stale" });
+    expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+    expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it.each([{ databaseId: 35 }, { number: 8 }, { repository: { databaseId: 13, nameWithOwner: "owner/repo" } }, { repository: { databaseId: 12, nameWithOwner: "other/repo" } }])(
+    "rejects changed immutable Issue identity using the fresh preflight alone: %j",
+    async changed => {
+      const event = fixture();
+      delete event.options.closedIssue;
+      event.githubClient.graphql = vi.fn(async () => ({
+        i0: {
+          issue: { databaseId: 34, number: 7, state: "CLOSED", repository: { databaseId: 12, nameWithOwner: "owner/repo" }, labels: { nodes: [{ name: "work" }, { name: "work:queued" }], pageInfo: { hasNextPage: false } }, ...changed },
+        },
+      }));
+      await expect(main(event.options)).rejects.toThrow("backing Issue was deleted, transferred, or changed identity");
+      expect(event.githubClient.rest.issues.get).not.toHaveBeenCalled();
+      expect(event.publishWorkQueueRequest).not.toHaveBeenCalled();
+      expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+    }
+  );
+
   it("commits cancellation through the administrator and confirms before commenting", async () => {
     const { options, githubClient, publishWorkQueueRequest } = fixture();
     expect(await main(options)).toMatchObject({ status: "cancelled", publishedNow: true });
@@ -198,7 +311,7 @@ describe("closed backing Issue cancellation", () => {
 
   it("requires exact authenticated repository and event identity", async () => {
     const invalid = fixture();
-    invalid.options.context = { ...context, payload: { ...context.payload, repository: { id: 13, full_name: "owner/repo" } } };
+    invalid.options.authenticatePublisher.mockResolvedValue({ ...trusted, native_run: { repository: { id: 13 } } });
     await expect(main(invalid.options)).rejects.toThrow("repository");
     expect(invalid.publishWorkQueueRequest).not.toHaveBeenCalled();
   });

@@ -2,7 +2,7 @@
 "use strict";
 
 const { canonical, parseStrictJSON, queueError } = require("./work_queue_codec.cjs");
-const { replayTransactions } = require("./work_queue_replay.cjs");
+const { newState } = require("./work_queue_replay.cjs");
 const { validateBranch, replayVerifiedQueueLog } = require("./work_queue_store.cjs");
 
 const MAX_BYTES = 80 * 1024 * 1024;
@@ -59,7 +59,7 @@ async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queu
   if (repository.ref === null) {
     if (repository.isEmpty !== true && !repository.defaultBranchRef?.target?.oid) throw queueError("repository_unavailable", "cannot establish contents access before treating a queue as absent");
     if (branch === "work-queue" && (repository.legacy0 || repository.legacy1)) throw queueError("unsupported_protocol", "a legacy queue cannot be implicitly adopted");
-    return { sha: null, treeSha: null, transactions: [], state: replayTransactions([]), branch, logPath: "work-queue.jsonl", repositoryId: repository.id, journal: new Map() };
+    return { sha: null, treeSha: null, transactions: [], state: newState(), branch, logPath: "work-queue.jsonl", repositoryId: repository.id, journal: new Map() };
   }
   const commit = repository.ref?.target;
   if (!commit?.oid || !commit.tree?.oid || !Array.isArray(commit.tree.entries)) throw queueError("ledger_invalid", "checked transport requires an initialized queue");

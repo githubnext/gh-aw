@@ -247,6 +247,10 @@ Issue `subject` triggers trusted cancellation only when its fresh
 closed state, tracking and status labels, repository identity, and unique
 immutable Work identity are verified. Dependency-only Issues do not qualify;
 ambiguous matches are left untouched.
+The handler first reads the checked ledger and ignores Issues without an exact
+Work binding before fetching configuration or authenticating the native run.
+Event labels never authorize cancellation; fresh label checks still apply,
+including when label projection races with closure.
 The administrator records `WorkCancellation` for nonterminal Work. For Work
 already completed or cancelled by another request, the handler does not
 rewrite the outcome. After verifying a terminal ledger commit, it posts an
