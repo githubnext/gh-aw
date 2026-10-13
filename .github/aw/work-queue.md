@@ -19,8 +19,7 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 
 Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
 revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty; the first producer submit atomically
-creates compiled Policy and Work. Reads and dispatch alone never do.
+An absent branch is uninitialized/empty.
 Reject malformed or unsupported existing logs.
 
 ## Configure deployment
