@@ -7,6 +7,8 @@ sidebar:
 
 The `gh aw mcp-server` command exposes GitHub Agentic Workflows CLI commands as MCP tools, allowing chat systems and workflows to manage agentic workflows programmatically.
 
+Tool options are selected through named MCP parameters, not CLI flags embedded in workflow names, workflow specifications, or run IDs/URLs. Positional values beginning with `-` return an invalid-parameters error before the command executes. For a local workflow file whose name begins with `-`, use a relative path such as `./-workflow.md`.
+
 Start the server:
 
 ```bash wrap
