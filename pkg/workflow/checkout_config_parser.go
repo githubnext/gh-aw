@@ -364,6 +364,9 @@ func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
 		if cfg.Current || cfg.Wiki {
 			return errors.New("runtime repository-list checkout does not support current: true or wiki: true")
 		}
+		if cfg.LFS {
+			return errors.New("runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs")
+		}
 		for _, app := range []*GitHubAppConfig{cfg.GitHubApp, cfg.SafeOutputGitHubApp} {
 			if app != nil && (app.Owner == "" || len(app.Repositories) == 0) {
 				return errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")

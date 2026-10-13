@@ -36,6 +36,7 @@ describe("runtime repository checkout", () => {
       GH_AW_DYNAMIC_TOKEN: "secret-token",
       GH_AW_DYNAMIC_CHECKOUT_ACTION: `actions/checkout@${"a".repeat(40)}`,
       GH_AW_DYNAMIC_SUBMODULES: "false",
+      GH_AW_DYNAMIC_LFS: "false",
       GH_AW_DYNAMIC_PERSIST: "false",
       GH_AW_DYNAMIC_FETCH_COUNT: "0",
       GH_AW_DYNAMIC_SPARSE: "",
@@ -68,6 +69,7 @@ describe("runtime repository checkout", () => {
     expect(action.runs.steps[0].uses).toBe(`actions/checkout@${"a".repeat(40)}`);
     expect(action.runs.steps[0].with.repository).toBe("org/a");
     expect(action.runs.steps[0].with["persist-credentials"]).toBe("${{ env.GH_AW_DYNAMIC_PERSIST }}");
+    expect(action.runs.steps.every(step => step.with.lfs === false)).toBe(true);
     expect(JSON.stringify(action)).not.toContain("secret-token");
     expect(JSON.stringify(entries)).not.toContain("secret-token");
   });
@@ -179,6 +181,20 @@ describe("runtime repository checkout", () => {
   it("blocks submodule checkout in public hosts", async () => {
     vi.stubEnv("GH_AW_DYNAMIC_SUBMODULES", "recursive");
     await expect(prepare(runtime)).rejects.toThrow("cannot enable submodules");
+  });
+
+  it.each(["public", "private", "internal"])("rejects LFS before authenticated reads in a %s host, with or without sparse checkout", async visibility => {
+    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", visibility) });
+    vi.stubEnv("GH_AW_DYNAMIC_LFS", "true");
+    for (const sparse of ["", "assets"]) {
+      vi.stubEnv("GH_AW_DYNAMIC_SPARSE", sparse);
+      await expect(prepare(runtime)).rejects.toThrow("LFS endpoints can bypass allowed-repos");
+      expect(runtime.core.setOutput).toHaveBeenLastCalledWith("checkout_error", expect.stringContaining("LFS endpoints can bypass allowed-repos"));
+      expect(runtime.github.request).not.toHaveBeenCalled();
+      expect(runtime.getOctokit).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+      expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+    }
   });
 
   it.each(["../outside", "/absolute", ".git/targets", ".gh-aw/targets", "${{ inputs.path }}"])("rejects unsafe path prefixes: %s", async prefix => {

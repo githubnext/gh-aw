@@ -105,6 +105,31 @@ func TestCompileRuntimeCheckoutRejectsInvalidImportedAllowlist(t *testing.T) {
 	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
 }
 
+func TestRuntimeCheckoutRejectsLFS(t *testing.T) {
+	for _, repository := range []string{"${{ inputs.repos }}", "org/a\norg/b", "org/a"} {
+		_, err := checkoutConfigFromMap(map[string]any{
+			"repo": repository, "path": "targets", "allowed-repos": "org/*", "lfs": true,
+		})
+		require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
+		_, err = NewCompiler().CompileToYAML(&WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{{
+				Repository: repository, Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, LFS: true,
+			}},
+		}, filepath.Join(t.TempDir(), "worker.md"))
+		require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
+	}
+	_, err := checkoutConfigFromMap(map[string]any{"repository": "org/a", "lfs": true})
+	require.NoError(t, err, "static checkout LFS must remain supported")
+	dir := t.TempDir()
+	file := filepath.Join(dir, "worker.md")
+	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  lfs: true\n---\nProcess selected repositories.\n"
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
+	require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "LFS endpoints can bypass allowed-repos")
+	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
+	_, err = NewCompiler().ParseWorkflowString(content, file)
+	require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
+}
+
 func TestRuntimeCheckoutFailureOutputs(t *testing.T) {
 	configs := []*CheckoutConfig{
 		{Repository: "org/static", Path: "static"},

@@ -114,6 +114,9 @@ the workflow's failure-reporting settings, including safe-output checkout failur
 If the workflow repository is public, non-public targets MUST be rejected,
 regardless of the checkout credential's access. Missing or unverifiable visibility
 MUST fail closed. Public-host runtime checkouts MUST reject enabled submodules.
+Runtime lists MUST reject `lfs: true` at compilation and runtime regardless of
+host visibility, because repository-controlled LFS endpoints can bypass the
+repository allowlist. Generated dynamic checkout actions MUST disable LFS.
 Existing target directories and symlinked path ancestors MUST be rejected.
 
 Runtime lists MUST NOT support `current: true` or `wiki: true`. GitHub App auth

@@ -23726,7 +23726,9 @@ checkout:
   # Format 2: boolean
   submodules: true
 
-  # Whether to download Git LFS objects. Defaults to false.
+  # Whether to download Git LFS objects. Defaults to false. Runtime repository-list
+  # checkouts with allowed-repos reject lfs: true because repository-controlled LFS
+  # endpoints can bypass the allowlist.
   # (optional)
   lfs: true
 
