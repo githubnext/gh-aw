@@ -191,3 +191,78 @@ func preprocessExpiresField(configData map[string]any, debugLog *logger.Logger) 
 	}
 	return expiresDisabled
 }
+
+// extractTargetFromMap extracts a target string or numeric value from a config map and converts it to a string.
+// Supports string, int, int64, uint64, and float64 representations.
+func extractTargetFromMap(m map[string]any, debugLog *logger.Logger) string {
+	if m == nil {
+		return ""
+	}
+	if val, exists := m["target"]; exists && val != nil {
+		switch v := val.(type) {
+		case string:
+			if debugLog != nil {
+				debugLog.Printf("Parsed target string: %s", v)
+			}
+			return v
+		case int:
+			res := strconv.Itoa(v)
+			if debugLog != nil {
+				debugLog.Printf("Converted target int to string: %s", res)
+			}
+			return res
+		case int64:
+			res := strconv.FormatInt(v, 10)
+			if debugLog != nil {
+				debugLog.Printf("Converted target int64 to string: %s", res)
+			}
+			return res
+		case uint64:
+			res := strconv.FormatUint(v, 10)
+			if debugLog != nil {
+				debugLog.Printf("Converted target uint64 to string: %s", res)
+			}
+			return res
+		case float64:
+			res := strconv.Itoa(int(v))
+			if debugLog != nil {
+				debugLog.Printf("Converted target float64 to string: %s", res)
+			}
+			return res
+		}
+	}
+	return ""
+}
+
+// preprocessTargetFieldAsString converts a numeric target field to its string representation
+// before YAML unmarshaling.
+// This allows target to accept numeric values (e.g. 123) in addition to string values (e.g. "123", "triggering", "*").
+func preprocessTargetFieldAsString(configData map[string]any, debugLog *logger.Logger) {
+	if configData == nil {
+		return
+	}
+	if val, exists := configData["target"]; exists && val != nil {
+		switch v := val.(type) {
+		case int:
+			configData["target"] = strconv.Itoa(v)
+			if debugLog != nil {
+				debugLog.Printf("Converted target int to string before unmarshaling: %d", v)
+			}
+		case int64:
+			configData["target"] = strconv.FormatInt(v, 10)
+			if debugLog != nil {
+				debugLog.Printf("Converted target int64 to string before unmarshaling: %d", v)
+			}
+		case uint64:
+			configData["target"] = strconv.FormatUint(v, 10)
+			if debugLog != nil {
+				debugLog.Printf("Converted target uint64 to string before unmarshaling: %d", v)
+			}
+		case float64:
+			configData["target"] = strconv.Itoa(int(v))
+			if debugLog != nil {
+				debugLog.Printf("Converted target float64 to string before unmarshaling: %v", v)
+			}
+		}
+	}
+}

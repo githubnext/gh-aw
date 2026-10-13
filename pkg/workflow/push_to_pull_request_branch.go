@@ -101,10 +101,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse target (optional, similar to add-comment)
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					pushToBranchConfig.Target = targetStr
-				}
+			if targetStr := extractTargetFromMap(configMap, pushToPullRequestBranchLog); targetStr != "" {
+				pushToBranchConfig.Target = targetStr
 			}
 
 			// Parse if-no-changes (optional, defaults to "warn")

@@ -325,7 +325,7 @@ function buildWorkflowsScopeSkip(context, coreLogger) {
  */
 async function main(config = {}) {
   // Extract configuration from config parameter
-  const target = config.target || "triggering";
+  const target = config.target !== undefined && config.target !== null && config.target !== "" ? String(config.target) : "triggering";
   const titlePrefix = config.title_prefix || "";
   const rawRequiredLabels = config.required_labels ?? config.labels;
   const envLabels = rawRequiredLabels ? (Array.isArray(rawRequiredLabels) ? rawRequiredLabels : rawRequiredLabels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
@@ -608,15 +608,17 @@ async function main(config = {}) {
       }
 
       if (!pullNumber) {
+        const suppliedTarget = message.pull_request_number ?? message.pullRequestNumber ?? message.target ?? message.pr_number ?? message.pull_number ?? message.item_number ?? message.pr;
+        const targetHint = suppliedTarget !== undefined && suppliedTarget !== null && suppliedTarget !== "" ? ` Safe output message specified target "${suppliedTarget}", but workflow configuration uses target "triggering".` : "";
         return {
           success: false,
-          error:
-            "push-to-pull-request-branch with target \"triggering\" requires pull request context, which is unavailable for scheduled runs. Configure safe-outputs.push-to-pull-request-branch with target: '*' and supply pull_request_number in the safe output message to select a pull request.",
+          error: `push-to-pull-request-branch with target "triggering" requires pull request context, which is unavailable for scheduled runs.${targetHint} Configure safe-outputs.push-to-pull-request-branch with target: '*' and supply pull_request_number in the safe output message to select a pull request.`,
         };
       }
     } else if (target === "*") {
-      if (message.pull_request_number) {
-        pullNumber = parseInt(message.pull_request_number, 10);
+      const explicitPull = message.pull_request_number ?? message.pullRequestNumber ?? message.target ?? message.pr_number ?? message.pull_number ?? message.item_number ?? message.pr;
+      if (explicitPull !== undefined && explicitPull !== null && explicitPull !== "") {
+        pullNumber = parseInt(String(explicitPull), 10);
       }
     } else {
       pullNumber = parseInt(target, 10);

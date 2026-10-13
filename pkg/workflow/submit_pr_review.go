@@ -40,10 +40,8 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 
 		// Parse target config (target, target-repo, allowed-repos)
 		// Uses parseTargetRepoWithValidation to disallow wildcard "*" for target-repo
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				config.Target = targetStr
-			}
+		if targetStr := extractTargetFromMap(configMap, submitPRReviewLog); targetStr != "" {
+			config.Target = targetStr
 		}
 
 		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)

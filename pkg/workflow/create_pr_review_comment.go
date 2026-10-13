@@ -40,10 +40,8 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 		}
 
 		// Parse target
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				prReviewCommentsConfig.Target = targetStr
-			}
+		if targetStr := extractTargetFromMap(configMap, createPRReviewCommentLog); targetStr != "" {
+			prReviewCommentsConfig.Target = targetStr
 		}
 
 		// Parse target-repo using shared helper with validation

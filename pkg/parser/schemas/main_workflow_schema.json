@@ -8355,7 +8355,7 @@
                   ]
                 },
                 "target": {
-                  "type": "string",
+                  "type": ["string", "integer"],
                   "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
                 },
                 "target-repo": {
@@ -10980,7 +10980,7 @@
                   "description": "Base branch of the target repository for incremental patch computation. Defaults to the local checkout branch or the repository default branch."
                 },
                 "target": {
-                  "type": "string",
+                  "type": ["string", "integer"],
                   "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
                 },
                 "required-title-prefix": {
