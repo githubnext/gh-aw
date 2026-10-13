@@ -135,7 +135,7 @@ describe("push_to_pull_request_branch bundle integration", () => {
     expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe(revertedChange ? "deny" : "allow");
   });
 
-  it("detects protected changes made and restored only in agent merge commits", async () => {
+  it.each([false, true])("detects protected changes made and restored only in agent merge commits (octopus: %s)", async octopus => {
     const repo = createRepo("push-pr-merge-history-protection-");
     tempDirs.push(repo);
     const git = args => execGit(args, { cwd: repo });
@@ -153,23 +153,41 @@ describe("push_to_pull_request_branch bundle integration", () => {
     git(["add", "."]);
     git(["commit", "-m", "trusted base work"]);
     const trustedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+    if (octopus) {
+      git(["checkout", "-b", "first-side", oldHead]);
+      writeRepoFile(repo, "first-side.txt", "first side\n");
+      git(["add", "."]);
+      git(["commit", "-m", "first side"]);
+    }
     git(["checkout", "feature"]);
-    git(["merge", "--no-ff", "--no-commit", "main"]);
+    git(["merge", "--no-ff", "--no-commit", "main", ...(octopus ? ["first-side"] : [])]);
     writeRepoFile(repo, "package.json", '{"agent":true}\n');
     git(["commit", "-am", "merge-only protected change"]);
     git(["checkout", "-b", "side"]);
     writeRepoFile(repo, "side.txt", "side work\n");
     git(["add", "."]);
     git(["commit", "-m", "side work"]);
+    if (octopus) {
+      git(["checkout", "-b", "second-side", "feature"]);
+      writeRepoFile(repo, "second-side.txt", "second side\n");
+      git(["add", "."]);
+      git(["commit", "-m", "second side"]);
+    }
     git(["checkout", "feature"]);
-    git(["merge", "--no-ff", "--no-commit", "side"]);
+    git(["merge", "--no-ff", "--no-commit", "side", ...(octopus ? ["second-side"] : [])]);
     writeRepoFile(repo, "package.json", "{}\n");
     git(["commit", "-am", "merge-only protected restoration"]);
 
     const exec = createExecApi(repo);
     const { ref, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
     const files = await getBundlePreApplyFiles(exec, {}, ref, "HEAD", conflictedFiles);
-    expect(files).toEqual(["side.txt"]);
+    expect(files.sort()).toEqual(octopus ? ["first-side.txt", "second-side.txt", "side.txt"] : ["side.txt"]);
+    const octopusCommits = git(["rev-list", "--min-parents=3", "HEAD", "--not", oldHead, trustedBase]).stdout.trim();
+    if (octopus) {
+      expect(octopusCommits.split("\n")).toHaveLength(2);
+      return;
+    }
+    expect(octopusCommits).toBe("");
     const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
     expect(historyFiles).toContain("package.json");
     expect(historyFiles).not.toContain("upstream.txt");

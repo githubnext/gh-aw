@@ -1192,6 +1192,10 @@ async function main(config = {}) {
           {
             let bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
             if (validationBaseRef !== rangeBaseRef) {
+              const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
+              if (octopus.stdout.trim()) {
+                return { success: false, error: "Cannot validate agent-created octopus merge commits in the bundle. Use two-parent merges instead." };
+              }
               // Preserve protection for agent commits that change then revert a
               // file, without attributing trusted base-branch commits to the agent.
               const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);

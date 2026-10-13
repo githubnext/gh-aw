@@ -2233,7 +2233,8 @@ index 0000000..abc1234
       ["agent modification of a protected file", protectedPatch, 16, "package.json", "protected files", false],
       ["oversized unchanged-side binary resolution", "", 2048, "", "Changed content size", true],
       ["reverted protected-file change", "small patch\n", 16, "merge-agent.txt", "bundle modifies protected files", false, "package.json"],
-    ])("validates %s independently of merged base changes", async (_name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "") => {
+      ["agent-created octopus merge", "small patch\n", 16, "merge-agent.txt", "octopus merge", false, "", true],
+    ])("validates %s independently of merged base changes", async (_name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "", octopusMerge = false) => {
       const branch = "merge-size-validation";
       const trustedBase = "b".repeat(40);
       const validationTree = "a".repeat(40);
@@ -2251,6 +2252,7 @@ index 0000000..abc1234
         if (args[0] === "diff" && args[1] === "--binary") return { exitCode: 0, stdout: agentPatch, stderr: "" };
         if (args[0] === "diff" && args[1] === "--name-only") return { exitCode: 0, stdout: changedFile ? changedFile + "\0" : "", stderr: "" };
         if (args[0] === "log" && args[1] === "--format=") return { exitCode: 0, stdout: historyFile ? historyFile + "\0" : "", stderr: "" };
+        if (args[0] === "rev-list" && args[1] === "--min-parents=3") return { exitCode: 0, stdout: octopusMerge ? "c".repeat(40) + "\n" : "", stderr: "" };
         return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
       });
       const pushModule = require("./push_signed_commits.cjs");
