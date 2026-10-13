@@ -269,7 +269,9 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     ),
   ];
   const completionEvidence = buildCompletionEvidence(rootDir);
-  const observedCompletionEvidence = completionEvidence.filter(line => !line.endsWith(": not recorded") && !line.includes("unknown (not recorded)") && !line.includes("unknown (registration evidence not recorded)"));
+  const observedCompletionEvidence = completionEvidence.filter(
+    line => !line.endsWith(": not recorded") && !line.includes("unknown (not recorded)") && !line.includes("unknown (registration evidence not recorded)") && !line.startsWith("Safe-output persistence: empty (0 records,")
+  );
   const summary =
     failureCause === "missing_terminal_safe_output"
       ? [

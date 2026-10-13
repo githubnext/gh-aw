@@ -39,6 +39,13 @@ describe("empty output outcome", () => {
     expect(details).not.toContain("Retry attempts observed: 0");
   });
 
+  it("does not treat an empty persistence file as safe-output telemetry", () => {
+    fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), "");
+    const { details } = buildEmptyOutputOutcome([], rootDir);
+    expect(details).toContain("Safe-output telemetry: not recorded");
+    expect(details).not.toContain("Safe-output persistence: empty");
+  });
+
   it("prioritizes the observed evidence from a successful run with no terminal output", () => {
     writeEvents([
       { type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 0 } },
