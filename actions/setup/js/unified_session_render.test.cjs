@@ -864,6 +864,25 @@ describe("unified session publication views", () => {
     expect(fs.readFileSync(summary, "utf8")).toBe(existing);
   });
 
+  it("does not publish a stale or incomplete session when assembly fails before the atomic write completes", async () => {
+    const summaryPath = path.join(directory, "summary.md");
+    const sessionPath = path.join(directory, "usage", "aw_session.jsonl");
+    process.env.GITHUB_STEP_SUMMARY = summaryPath;
+    fs.writeFileSync(summaryPath, "Earlier summary\n");
+    fs.mkdirSync(path.dirname(sessionPath));
+    fs.writeFileSync(sessionPath, trace.map(record => JSON.stringify(record)).join("\n") + "\n");
+    fs.writeFileSync(path.join(directory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "new answer" } }) + "\n");
+    vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw new Error("atomic write failed");
+    });
+
+    await expect(main({ rootDir: directory })).rejects.toThrow("atomic write failed");
+    expect(fs.readFileSync(summaryPath, "utf8")).toBe("Earlier summary\n");
+    expect(fs.existsSync(sessionPath)).toBe(false);
+    expect(fs.existsSync(`${sessionPath}.tmp`)).toBe(false);
+    expect(global.core.info).not.toHaveBeenCalled();
+  });
+
   it("reports publication I/O failures while retaining the valid unified artifact", async () => {
     const source = path.join(directory, "aw_session.jsonl");
     fs.writeFileSync(source, JSON.stringify(header) + "\n");
