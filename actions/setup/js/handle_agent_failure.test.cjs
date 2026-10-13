@@ -6577,6 +6577,8 @@ describe("handle_agent_failure", () => {
     let promptsDir;
 
     beforeEach(() => {
+      vi.stubEnv("GITHUB_RUN_ID", "12345");
+      vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
       vi.resetModules();
       for (const key of Object.keys(process.env)) {
         if (key.startsWith("GH_AW_")) {
@@ -6601,6 +6603,7 @@ describe("handle_agent_failure", () => {
     });
 
     afterEach(() => {
+      vi.unstubAllEnvs();
       delete process.env.RUNNER_TEMP;
       delete process.env.GH_AW_WORKFLOW_NAME;
       delete process.env.GH_AW_WORKFLOW_ID;

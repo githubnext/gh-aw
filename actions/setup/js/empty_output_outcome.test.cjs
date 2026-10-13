@@ -12,6 +12,8 @@ describe("empty output outcome", () => {
   const writeEvents = events => fs.writeFileSync(path.join(rootDir, "agent-session.jsonl"), events.map(JSON.stringify).join("\n"));
 
   beforeEach(() => {
+    vi.stubEnv("GITHUB_RUN_ID", "38401428490");
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "empty-output-outcome-"));
     vi.stubEnv("RUNNER_TEMP", rootDir);
     global.core = { info: vi.fn(), debug: vi.fn(), warning: vi.fn() };

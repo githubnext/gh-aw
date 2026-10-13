@@ -26,6 +26,8 @@ const incompleteOutput = JSON.stringify({
 describe("collect_ndjson_output.cjs", () => {
   let mockCore, collectScript, legacyPatchSpy, diagnosticRoot, outcomeSpy;
   (beforeEach(() => {
+    vi.stubEnv("GITHUB_RUN_ID", "38401428490");
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     diagnosticRoot = fs.mkdtempSync(path.join(os.tmpdir(), "collect-ndjson-diagnostics-"));
     outcomeSpy = vi.spyOn(emptyOutputOutcome, "buildEmptyOutputOutcome").mockImplementation(errors => buildEmptyOutputOutcome(errors, diagnosticRoot));
     fs.rmSync("/tmp/gh-aw/mcp-cli-audit", { recursive: true, force: true });
@@ -167,6 +169,7 @@ describe("collect_ndjson_output.cjs", () => {
       ));
   }),
     afterEach(() => {
+      vi.unstubAllEnvs();
       outcomeSpy.mockRestore();
       fs.rmSync(diagnosticRoot, { recursive: true, force: true });
       legacyPatchSpy.mockRestore();
