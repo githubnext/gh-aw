@@ -135,12 +135,14 @@ async function dispatchTag(githubClient, destination) {
   try {
     response = await githubClient.rest.git.getRef(parameters);
   } catch (error) {
-    if (!error || typeof error !== "object" || !("status" in error) || error.status !== 404) throw error;
+    const failure = error && typeof error === "object" ? /** @type {{status?: unknown}} */ error : undefined;
+    if (failure?.status !== 404) throw error;
     try {
       await githubClient.rest.git.createRef({ ...parameters, ref, sha });
     } catch (creationError) {
       // A concurrent creator may have won; never overwrite an existing tag.
-      if (!creationError || typeof creationError !== "object" || !("status" in creationError) || creationError.status !== 422) throw creationError;
+      const failure = creationError && typeof creationError === "object" ? /** @type {{status?: unknown, response?: {status?: unknown, data?: {message?: unknown}}}} */ creationError : undefined;
+      if (failure?.status !== 422 || failure.response?.status !== 422 || failure.response.data?.message !== "Reference already exists") throw creationError;
       log.failure("dispatch.tag.create_conflict", creationError, true);
     }
     response = await githubClient.rest.git.getRef(parameters);
@@ -153,7 +155,23 @@ async function dispatchTag(githubClient, destination) {
 async function postQueueDispatch(githubClient, destination, inputs) {
   log.debug("dispatch.post.start");
   const [owner, repo] = destination.repository.split("/");
-  const ref = await dispatchTag(githubClient, destination);
+  let ref;
+  try {
+    ref = await dispatchTag(githubClient, destination);
+  } catch (cause) {
+    const failure = cause && typeof cause === "object" ? /** @type {{message?: unknown, status?: unknown, response?: {status?: unknown, headers?: Record<string, unknown>}}} */ cause : undefined;
+    const code = failure?.message === "work_queue_dispatch_tag_mismatch" ? "work_queue_dispatch_tag_mismatch" : "work_queue_dispatch_tag_preparation_failed";
+    /** @type {Error & {code?: string, status?: number, provider_rejection?: {status: number, request_id: string}}} */
+    const error = new Error(code);
+    error.code = code;
+    const status = failure?.status;
+    const requestId = failure?.response?.headers?.["x-github-request-id"];
+    if (Number.isInteger(status) && failure?.response?.status === status && typeof requestId === "string" && requestId) {
+      error.status = status;
+      error.provider_rejection = { status, request_id: requestId };
+    }
+    throw error;
+  }
   const response = await dispatchWorkflow(githubClient, {
     owner,
     repo,

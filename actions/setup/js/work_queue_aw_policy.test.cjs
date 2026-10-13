@@ -283,7 +283,7 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     const profile = fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile;
     const client = fixture.githubClient;
     const validator = createDispatchCredentialValidator(client, { kind: "authenticated" });
-    const proof = await validator({ profile });
+    const proof = await validator({ profile, repository: REPOSITORY });
     expect(proof.principal).toBe("22");
     expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
     expect(isDispatchCredentialProof({ principal: "22", kind: "authenticated" }, client, profile)).toBe(false);
@@ -297,16 +297,43 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     const token = "test-only-selected-token";
     const client = {
       auth: vi.fn().mockResolvedValue({ type: "token", token }),
-      rest: { users: { getByUsername: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot", login: "github-actions[bot]" } }) } },
+      rest: {
+        users: { getByUsername: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot", login: "github-actions[bot]" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, permissions: { push: true } } }) },
+      },
     };
     const validator = createDispatchCredentialValidator(client, { kind: "github_token" }, token);
-    const proof = await validator({ profile });
+    const proof = await validator({ profile, repository: REPOSITORY });
     expect(proof.principal).toBe("22");
     expect(client.auth).toHaveBeenCalledWith({ type: "token" });
     expect(client.rest.users.getByUsername).toHaveBeenCalledWith(expect.objectContaining({ username: "github-actions[bot]" }));
     expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
     client.auth.mockResolvedValue({ type: "token", token: "different-client-token" });
-    await expect(validator({ profile })).rejects.toThrow(/client_mismatch/);
+    await expect(validator({ profile, repository: REPOSITORY })).rejects.toThrow(/client_mismatch/);
+  });
+
+  it("requires contents write from the actual dispatch credential", async () => {
+    const client = {
+      rest: {
+        users: { getAuthenticated: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot" } }) },
+        repos: { get: vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, permissions: { push: false } } }) },
+      },
+    };
+    const validator = createDispatchCredentialValidator(client, { kind: "authenticated" });
+    await expect(validator({ profile: {}, repository: REPOSITORY })).rejects.toThrow(/contents_write_required/);
+    expect(client.rest.users.getAuthenticated).not.toHaveBeenCalled();
+  });
+
+  it("checks dispatch write permission before publishing the launch marker", async () => {
+    const { fixture, options, post } = setupAW();
+    fixture.githubClient.rest.repos.get = vi.fn().mockResolvedValue({
+      status: 200,
+      data: { full_name: REPOSITORY, id: 7, permissions: { push: false } },
+    });
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_required/);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).state).toBe("reserved");
+    expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => operation.kind === "Dispatch" && operation.state === "started")).toBe(false);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("launches only selected caller-approved routes in a Policy shared by independent pools", async () => {

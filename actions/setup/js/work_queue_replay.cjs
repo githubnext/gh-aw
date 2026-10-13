@@ -625,6 +625,7 @@ function applyLifecycle(state, operation, commit) {
       } else if (operation.state === "rejected") {
         if (!operation.evidence || operation.run || operation.sender) throw queueError("evidence_invalid", "rejection requires positive nonlaunch evidence");
         assertEvidence(state, dispatch, operation.evidence, commit.at, "nonlaunch");
+        if (operation.reason !== undefined && operation.reason !== operation.evidence.receipt) throw queueError("evidence_invalid", "rejection reason must retain its nonlaunch receipt");
       } else {
         if (!["started", "uncertain", "unresolved"].includes(dispatch.state) || operation.run || operation.sender || !operation.reason) throw queueError("dispatch_invalid", "uncertainty cannot revoke a binding or authorize a retry");
         if (operation.state === "unresolved") {

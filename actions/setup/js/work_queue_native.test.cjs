@@ -243,7 +243,7 @@ describe("authenticated native queue runs", () => {
       .fn()
       .mockRejectedValueOnce({ status: 404 })
       .mockResolvedValue({ status: 200, data: { ref: tag, object: { type: "commit", sha: ref } } });
-    const createRef = vi.fn().mockRejectedValue({ status: 422 });
+    const createRef = vi.fn().mockRejectedValue({ status: 422, response: { status: 422, data: { message: "Reference already exists" } } });
     const post = vi.fn().mockResolvedValue({ status: 200, data: { workflow_run_id: run.id, run_url: `https://api.github.com/repos/owner/repo/actions/runs/${run.id}`, html_url: `https://github.com/owner/repo/actions/runs/${run.id}` } });
     await postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {});
     expect(createRef).toHaveBeenCalledTimes(1);
@@ -269,9 +269,18 @@ describe("authenticated native queue runs", () => {
     const getRef = vi.fn().mockRejectedValue({ status });
     const createRef = vi.fn();
     const post = vi.fn();
-    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toEqual({ status });
+    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toMatchObject({ code: "work_queue_dispatch_tag_preparation_failed" });
     expect(getRef).toHaveBeenCalledTimes(1);
     expect(createRef).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("does not mistake an unrelated 422 for an existing-tag race", async () => {
+    const getRef = vi.fn().mockRejectedValueOnce({ status: 404 });
+    const createRef = vi.fn().mockRejectedValue({ status: 422, response: { status: 422, data: { message: "Validation Failed" } } });
+    const post = vi.fn();
+    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toMatchObject({ code: "work_queue_dispatch_tag_preparation_failed" });
+    expect(getRef).toHaveBeenCalledTimes(1);
     expect(post).not.toHaveBeenCalled();
   });
 
