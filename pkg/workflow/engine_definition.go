@@ -30,7 +30,6 @@ package workflow
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -358,6 +357,14 @@ type EngineCatalog struct {
 	registry    *EngineRegistry
 }
 
+type unknownEngineError struct {
+	message string
+}
+
+func (e *unknownEngineError) Error() string {
+	return e.message
+}
+
 // ResolvedEngineTarget is the result of resolving an engine ID through the catalog.
 // It combines the EngineDefinition, the caller-supplied EngineConfig, and the resolved
 // CodingAgentEngine runtime adapter.
@@ -619,7 +626,7 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 		return &ResolvedEngineTarget{Definition: def, Config: config, Runtime: runtime}, nil
 	}
 
-	// Fall back to runtime-ID prefix lookup for backward compat (e.g. "codex-experimental")
+	// Fall back to runtime-ID prefix lookup for backward compat (e.g. "codex-experimental").
 	runtime, err := c.registry.GetEngineByPrefix(id)
 	if err == nil {
 		engineCatalogLog.Printf("Engine %q resolved via runtime-ID prefix fallback to %q", id, runtime.GetID())
@@ -638,14 +645,15 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 	suggestions := parser.FindClosestMatches(id, validEngines, 1)
 	enginesStr := strings.Join(validEngines, ", ")
 
-	errMsg := fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nExample:\nengine: copilot\n\nSee: %s",
+	errMsg := fmt.Sprintf("unknown engine %q. Valid engines are: %s.\n\nExample:\nengine: copilot\n\nSee: %s",
 		id,
 		enginesStr,
 		constants.DocsEnginesURL)
 
 	if len(suggestions) > 0 {
-		errMsg = fmt.Sprintf("invalid engine: %s. Valid engines are: %s.\n\nDid you mean: %s?\n\nExample:\nengine: copilot\n\nSee: %s",
+		errMsg = fmt.Sprintf("unknown engine %q; did you mean %q? Valid engines are: %s.\n\nExample:\nengine: %s\n\nSee: %s",
 			id,
+			suggestions[0],
 			enginesStr,
 			suggestions[0],
 			constants.DocsEnginesURL)
@@ -656,5 +664,5 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 			id, importPath)
 	}
 
-	return nil, errors.New(errMsg)
+	return nil, &unknownEngineError{message: errMsg}
 }

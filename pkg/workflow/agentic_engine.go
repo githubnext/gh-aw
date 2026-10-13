@@ -780,13 +780,17 @@ func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
 // This is useful for backward compatibility with strings like "codex-experimental"
 func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {
 	agenticEngineLog.Printf("Looking up engine by prefix: %s", prefix)
+	if engine, ok := r.engines[prefix]; ok {
+		return engine, nil
+	}
+
 	type engineCandidate struct {
 		id     string
 		engine CodingAgentEngine
 	}
 	var candidates []engineCandidate
 	for id, engine := range r.engines {
-		if strings.HasPrefix(prefix, id) {
+		if strings.HasPrefix(prefix, id+"-") || strings.HasPrefix(prefix, id+"_") {
 			candidates = append(candidates, engineCandidate{id, engine})
 		}
 	}

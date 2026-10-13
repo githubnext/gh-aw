@@ -137,6 +137,7 @@ func TestNativeSettingsDiscoveryFailsClosed(t *testing.T) {
 			mock.sources = map[string]string{"ordinary": "---\non: workflow_dispatch\ntools:\n  work-queue: {}\n---\nOrdinary"}
 		}, "no approved AW worker"},
 		{"unverified default ref", func(mock *queueAPI) { mock.defaultRef = "refs/heads/other" }, "not immutable"},
+		{"mutable default revision", func(mock *queueAPI) { mock.defaultRevision = strings.Repeat("0", 40) }, "not immutable"},
 		{"inaccessible settings", func(mock *queueAPI) { mock.settingsStatus = http.StatusForbidden }, "work_queue"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
