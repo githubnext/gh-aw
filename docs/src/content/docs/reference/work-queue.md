@@ -275,7 +275,9 @@ never authorizes closure.
 
 ### Synchronization and recovery
 
-Queue reads recover the known deployment-aliasing checkpoint defect from a
+Both Go operator and JavaScript runtime queue reads recover the known
+deployment-aliasing checkpoint defect, including when validating older checkpoints
+in Git history, from a
 verified, unchanged checkpoint in the direct Git parent. Recovery accepts only deployment
 state exactly explained by the retained, valid transactions; other corruption
 still fails validation. Reads do not write to Git. The next authorized checked
