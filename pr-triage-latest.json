@@ -1,44 +1,27 @@
 {
-  "run_date": "2026-10-13T12:40:12Z",
-  "run_id": "38398762420",
+  "run_date": "2026-10-13T18:33:46Z",
+  "run_id": "38447452938",
   "source": "pr-triage-agent",
-  "eligible_total": 4,
-  "cooldown_skipped": 23,
+  "eligible_total": 1,
+  "cooldown_skipped": 10,
   "category_counts": {
-    "bug": 2,
-    "test": 1,
-    "feature": 1
+    "bug": 1
   },
   "risk_counts": {
-    "medium": 4
+    "medium": 1
   },
   "priority_counts": {
-    "high": 2,
-    "medium": 1,
-    "low": 1
+    "medium": 1
   },
   "action_counts": {
     "auto_merge": 0,
-    "fast_track": 2,
-    "batch_review": 1,
-    "defer": 1,
+    "fast_track": 1,
+    "batch_review": 0,
+    "defer": 0,
     "close": 0
   },
   "batches": [],
   "selected_candidates": [
-    {
-      "number": 68080,
-      "title": "Fail compilation for model-routed workflows that don't use GitHub Copilot inference",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 78,
-      "score_breakdown": {
-        "impact": 38,
-        "urgency": 23,
-        "quality": 17
-      },
-      "action": "fast_track"
-    },
     {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
@@ -51,46 +34,9 @@
         "quality": 17
       },
       "action": "fast_track"
-    },
-    {
-      "number": 68062,
-      "title": "Add routed smoke for AWF AI-credit steering notices (T1\u2013T4)",
-      "category": "test",
-      "risk": "medium",
-      "priority_score": 62,
-      "score_breakdown": {
-        "impact": 28,
-        "urgency": 18,
-        "quality": 16
-      },
-      "action": "batch_review"
-    },
-    {
-      "number": 68315,
-      "title": "Implementing long-running agentic work across multiple runs",
-      "category": "feature",
-      "risk": "medium",
-      "priority_score": 46,
-      "score_breakdown": {
-        "impact": 20,
-        "urgency": 10,
-        "quality": 16
-      },
-      "action": "defer"
     }
   ],
   "prs": [
-    {
-      "number": 68080,
-      "title": "Fail compilation for model-routed workflows that don't use GitHub Copilot inference",
-      "state": "open",
-      "user": "Copilot",
-      "draft": false,
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 78,
-      "action": "fast_track"
-    },
     {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
@@ -101,28 +47,6 @@
       "risk": "medium",
       "priority_score": 79,
       "action": "fast_track"
-    },
-    {
-      "number": 68062,
-      "title": "Add routed smoke for AWF AI-credit steering notices (T1\u2013T4)",
-      "state": "open",
-      "user": "Copilot",
-      "draft": false,
-      "category": "test",
-      "risk": "medium",
-      "priority_score": 62,
-      "action": "batch_review"
-    },
-    {
-      "number": 68315,
-      "title": "Implementing long-running agentic work across multiple runs",
-      "state": "open",
-      "user": "Copilot",
-      "draft": true,
-      "category": "feature",
-      "risk": "medium",
-      "priority_score": 46,
-      "action": "defer"
     }
   ]
 }
