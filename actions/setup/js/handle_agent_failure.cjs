@@ -1859,7 +1859,7 @@ async function getFailedAgentDiagnostics() {
  */
 function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", engineFailureContext, items = [] }) {
   const infrastructureMessages = items.filter(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
-  const isGenericFailure = failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || infrastructureMessages.length > 0;
+  const isGenericFailure = failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || failureCategories.includes("agent_startup_failure") || infrastructureMessages.length > 0;
   const hasModelEndpointMismatch = failureCategories.includes("model_endpoint_mismatch");
   if (!isGenericFailure && !hasModelEndpointMismatch) {
     return "";
@@ -4530,7 +4530,10 @@ async function main() {
 
     const agentOutputItems = reportItems;
     const needsFailureDiagnostics =
-      failureCategories.includes("agent_failure") || failureCategories.includes("engine_driver_failure") || agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
+      failureCategories.includes("agent_failure") ||
+      failureCategories.includes("engine_driver_failure") ||
+      failureCategories.includes("agent_startup_failure") ||
+      agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
     const failureDiagnostics = needsFailureDiagnostics || hasModelEndpointMismatch ? await getFailedAgentDiagnostics() : { failingStep: "" };
 
     // Check if parent issue creation is enabled (defaults to false)

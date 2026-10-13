@@ -282,6 +282,16 @@ describe("collect_ndjson_output.cjs", () => {
         fs.unlinkSync(exitPath);
       }
     }),
+    it("preserves a pre-agent startup failure as collector-owned metadata", async () => {
+      const executionPath = path.join(diagnosticRoot, "agent_execution.json");
+      fs.writeFileSync(executionPath, JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+      delete process.env.GH_AW_SAFE_OUTPUTS;
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
+      expect(output.items[0]).toMatchObject({ type: "report_incomplete", reason: "agent_startup_failure", failureCause: "agent_startup_failure" });
+      expect(output.collectorEmptyOutputCause).toBe("agent_startup_failure");
+      expect(output.collectorFailureCause).toBe("agent_startup_failure");
+    }),
     it("should validate and parse valid JSONL content", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "add_comment", "body": "Test comment"}';

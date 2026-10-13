@@ -46,6 +46,64 @@ describe("empty output outcome", () => {
     expect(details).not.toContain("Safe-output persistence: empty");
   });
 
+  it.each(["agent_execution.json", "usage/agent/execution.json"])("classifies recorded pre-agent startup failure from %s", relativePath => {
+    const file = path.join(rootDir, relativePath);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome).toMatchObject({ reason: "agent_startup_failure", failureCause: "agent_startup_failure" });
+    expect(outcome.details).toContain("Agent execution state: not_started");
+    expect(outcome.details).toContain("Inspect the failed startup step and gateway/setup logs");
+    expect(outcome.details).not.toContain("inspect the agent artifact");
+    expect(outcome.details).not.toContain("Agent finished");
+    expect(outcome.details).not.toContain("Driver exit code");
+    expect(outcome.details).not.toContain("Token budget");
+  });
+
+  it.each([{ version: 2 }, { component: "detection" }, { state: "started" }, { state: "completed" }, { run_id: "38401428490" }, { run_attempt: 0 }])(
+    "does not infer a startup failure from invalid or started execution evidence %j",
+    override => {
+      fs.writeFileSync(path.join(rootDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started", ...override }));
+      expect(buildEmptyOutputOutcome([], rootDir).reason).toBe("missing_terminal_safe_output");
+    }
+  );
+
+  it.each([
+    ["GITHUB_RUN_ID", "38386214820"],
+    ["GITHUB_RUN_ATTEMPT", "2"],
+  ])("rejects startup evidence from a different %s", (name, value) => {
+    vi.stubEnv(name, value);
+    fs.writeFileSync(path.join(rootDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+    expect(buildEmptyOutputOutcome([], rootDir).reason).toBe("missing_terminal_safe_output");
+  });
+
+  it("does not override observed agent execution with a stale not_started marker", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+    writeEvents([{ type: "assistant.message", data: { content: "observed answer" } }]);
+    expect(buildEmptyOutputOutcome([], rootDir).reason).toBe("missing_terminal_safe_output");
+    fs.unlinkSync(path.join(rootDir, "agent-session.jsonl"));
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    expect(buildEmptyOutputOutcome([], rootDir).reason).toBe("engine_driver_failure");
+  });
+
+  it("does not trust an agent-authored not_started execution event", () => {
+    writeEvents([{ type: "execution.result", provenance: { component: "execution", phase: "agent" }, data: { version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" } }]);
+    expect(buildEmptyOutputOutcome([], rootDir).reason).toBe("missing_terminal_safe_output");
+  });
+
+  it.each(["malformed", "symlink"])("does not classify %s startup evidence", kind => {
+    const file = path.join(rootDir, "agent_execution.json");
+    if (kind === "malformed") fs.writeFileSync(file, "{");
+    else {
+      const target = path.join(rootDir, "private-execution.json");
+      fs.writeFileSync(target, JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+      fs.symlinkSync(target, file);
+    }
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.reason).toBe("missing_terminal_safe_output");
+    expect(outcome.details).toContain("Agent execution state could not be read.");
+  });
+
   it("prioritizes the observed evidence from a successful run with no terminal output", () => {
     writeEvents([
       { type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 0 } },

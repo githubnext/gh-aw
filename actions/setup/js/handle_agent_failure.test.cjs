@@ -539,6 +539,25 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("The runtime did not record a specific cause.");
     });
 
+    it("includes the first failing startup step for a recorded not_started agent", async () => {
+      mockFailedStepLog("private startup error");
+      global.github.paginate.mockResolvedValue([
+        {
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Start MCP gateway", conclusion: "failure" },
+            { name: "Run agent", conclusion: "skipped" },
+          ],
+        },
+      ]);
+      const diagnostics = await getFailedAgentDiagnostics();
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure", "report_incomplete"], engineFailureContext: "" });
+      expect(rendered).toContain("Failing step:** `Start MCP gateway`");
+      expect(rendered).not.toContain("private startup error");
+      expect(global.github.request).not.toHaveBeenCalled();
+    });
+
     it("uses dependency results as the job fallback when the jobs API returns nothing", async () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue([]),
@@ -788,6 +807,7 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
       ["engine_driver_failure", "[aw] Test Workflow engine driver failed before emitting a terminal safe output"],
       ["safeoutputs_cli_error", "[aw] Test Workflow failed to invoke safeoutputs CLI"],
       ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
@@ -797,6 +817,7 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
       ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
@@ -6612,15 +6633,22 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "failed before agent execution started"],
       ["engine_driver_failure", "engine driver failed before emitting a terminal safe output"],
       ["safeoutputs_cli_error", "failed to invoke safeoutputs CLI"],
     ])("creates a distinct failure issue for %s", async (reason, titleSuffix) => {
       fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason }], collectorEmptyOutputCause: reason }));
+      if (reason === "agent_startup_failure") {
+        fs.writeFileSync(path.join(tmpDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 12345, run_attempt: 1, state: "not_started" }));
+        fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
+      }
       const createIssueMock = vi.fn(async () => {
         throw new Error("stop after capturing issue");
       });
       global.github = {
+        paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [{ name: "Start MCP Gateway", conclusion: "failure" }] }]),
         rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
           search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
           issues: { create: createIssueMock },
           pulls: { get: vi.fn() },
@@ -6633,9 +6661,16 @@ describe("handle_agent_failure", () => {
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain(reason);
       expect(categories).not.toContain("agent_failure");
+      if (reason === "agent_startup_failure") {
+        const body = createIssueMock.mock.calls[0][0].body;
+        expect(body).toContain("Agent execution state: not_started");
+        expect(body).toContain("Failing step:** `Start MCP Gateway`");
+        expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
+        expect(body).not.toContain("copilot-requests:write");
+      }
     });
 
-    it.each(["engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"])("does not trust agent-authored %s as collector evidence", async reason => {
+    it.each(["agent_startup_failure", "engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"])("does not trust agent-authored %s as collector evidence", async reason => {
       fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason }] }));
       const createIssueMock = vi.fn(async () => {
         throw new Error("stop after capturing issue");
@@ -7453,7 +7488,7 @@ describe("handle_agent_failure", () => {
       expect(categories).toContain("report_incomplete");
     });
 
-    it.each(["engine_driver_failure", "safeoutputs_cli_error", "missing_terminal_safe_output", "invalid_safe_outputs"])("keeps %s distinct for failure issue deduplication", emptyOutputCause => {
+    it.each(["agent_startup_failure", "engine_driver_failure", "safeoutputs_cli_error", "missing_terminal_safe_output", "invalid_safe_outputs"])("keeps %s distinct for failure issue deduplication", emptyOutputCause => {
       const categories = buildFailureMatchCategories({ agentConclusion: "failure", hasReportIncomplete: true, emptyOutputCause });
       expect(categories).toContain(emptyOutputCause);
       expect(categories).not.toContain("agent_failure");

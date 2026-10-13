@@ -11,12 +11,14 @@ const { lstatGuard } = require("./symlink_guard.cjs");
 
 // Keep cause titles and the category allow-list in sync; schema and docs list these causes too.
 const EMPTY_OUTPUT_CAUSES = Object.freeze({
+  agent_startup_failure: "failed before agent execution started",
   engine_driver_failure: "engine driver failed before emitting a terminal safe output",
   safeoutputs_cli_error: "failed to invoke safeoutputs CLI",
   invalid_safe_outputs: "produced no valid safe outputs",
   missing_terminal_safe_output: "finished without a terminal safe output",
 });
 const EMPTY_OUTPUT_FAILURE_CAUSES = Object.freeze({
+  agent_startup_failure: "failed before agent execution started",
   engine_outage: "experienced an engine outage",
   request_rejection: "had a request rejected",
   prompt_exhaustion: "reported incomplete result",
@@ -236,6 +238,36 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
       permissionDenials += data.permissionDenials.length;
     }
   }
+  let agentNotStarted = false;
+  for (const relativePath of ["agent_execution.json", "usage/agent/execution.json"]) {
+    const evidence = readCompletionEvidence(rootDir, relativePath);
+    if (evidence.status === "not recorded") continue;
+    if (evidence.status === "recorded") {
+      try {
+        const execution = JSON.parse(evidence.content);
+        const runId = process.env.GITHUB_RUN_ID || events.find(event => event.type === "workflow.info" && event.provenance.component === "workflow")?.data.runId;
+        const runAttempt = process.env.GITHUB_RUN_ATTEMPT;
+        agentNotStarted =
+          execution?.version === 1 &&
+          execution.component === "agent" &&
+          execution.state === "not_started" &&
+          Number.isSafeInteger(execution.run_id) &&
+          execution.run_id > 0 &&
+          Number.isSafeInteger(execution.run_attempt) &&
+          execution.run_attempt > 0 &&
+          (runId === undefined || String(execution.run_id) === String(runId)) &&
+          (runAttempt === undefined || String(execution.run_attempt) === runAttempt) &&
+          driverExitCode === undefined &&
+          !events.some(event => event.provenance.component === "agent");
+      } catch {
+        diagnostics.add("Agent execution state could not be read.");
+      }
+    } else {
+      diagnostics.add("Agent execution state could not be read.");
+    }
+    break;
+  }
+  if (agentNotStarted) reason = "agent_startup_failure";
   const safeStdio = stdio
     .split("\n")
     .map(line => {
@@ -256,7 +288,17 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   // Crash categories can be inferred from exit codes alone; they do not establish an outage.
   const isEngineOutage = executionCategories.some(category => ["agentic_engine_timeout", "capi_server_error"].includes(category)) || errorCodes.some(code => code >= 500);
   // Missing completion and nonzero driver exits are observed outcomes, not evidence of budget exhaustion or an outage.
-  const failureCause = isPromptExhaustion ? "prompt_exhaustion" : isRequestRejection ? "request_rejection" : isEngineOutage ? "engine_outage" : reason === "missing_terminal_safe_output" ? "missing_terminal_safe_output" : "unknown";
+  const failureCause = agentNotStarted
+    ? "agent_startup_failure"
+    : isPromptExhaustion
+      ? "prompt_exhaustion"
+      : isRequestRejection
+        ? "request_rejection"
+        : isEngineOutage
+          ? "engine_outage"
+          : reason === "missing_terminal_safe_output"
+            ? "missing_terminal_safe_output"
+            : "unknown";
   const retryEvents = events.filter(event => event.type === "claude.api_retry" || (event.type === "system" && event.data.subtype === "api_retry"));
   const harnessRetryLines = stdio.split(/\r?\n/).filter(line => /^\[(?:copilot|claude|codex)-harness\].*\bretrying\b/i.test(line));
   const harnessRetryCount = harnessRetryLines.length;
@@ -272,8 +314,13 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const observedCompletionEvidence = completionEvidence.filter(
     line => !line.endsWith(": not recorded") && !line.includes("unknown (not recorded)") && !line.includes("unknown (registration evidence not recorded)") && !line.startsWith("Safe-output persistence: empty (0 records,")
   );
-  const summary =
-    failureCause === "missing_terminal_safe_output"
+  const summary = agentNotStarted
+    ? [
+        `Failure classification: ${failureCause}`,
+        "Agent execution state: not_started",
+        "The runtime recorded that agent execution never started. Inspect the failed startup step and gateway/setup logs in the linked run; missing safe outputs are downstream, not evidence that the agent omitted a terminal output.",
+      ]
+    : failureCause === "missing_terminal_safe_output"
       ? [
           `Failure classification: ${failureCause}`,
           ...(driverExitCode !== undefined ? [`Driver exit code: ${driverExitCode}`] : []),
@@ -294,7 +341,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
           ...completionEvidence,
         ];
   if (failureCause === "missing_terminal_safe_output" && !observedCompletionEvidence.length) summary.splice(-1, 0, "Safe-output telemetry: not recorded");
-  if (failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
+  if (!agentNotStarted && failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
   if (errorCodes.length) diagnostics.add(`Engine HTTP error codes: ${[...new Set(errorCodes)].join(", ")}`);
   if (permissionDenials) diagnostics.add(`Permission denials observed: ${permissionDenials}`);
   if (toolDenialLimitExceeded) diagnostics.add("Tool denial limit status: exceeded");
@@ -303,7 +350,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   } else if (reason === "engine_driver_failure") {
     diagnostics.add("Last engine error type: unknown");
   }
-  if (retryCount || failureCause !== "missing_terminal_safe_output") diagnostics.add(`Retry attempts observed: ${retryCount}${retryStatusCodes.length ? ` (HTTP ${retryStatusCodes.join(", HTTP ")})` : ""}`);
+  if (!agentNotStarted && (retryCount || failureCause !== "missing_terminal_safe_output")) diagnostics.add(`Retry attempts observed: ${retryCount}${retryStatusCodes.length ? ` (HTTP ${retryStatusCodes.join(", HTTP ")})` : ""}`);
   const details = [...summary, ...diagnostics].slice(0, 20).join("\n");
   const sanitized = redactAndBoundDiagnostics(details, { secrets, maskedValues });
   return {

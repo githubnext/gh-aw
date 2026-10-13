@@ -1759,6 +1759,7 @@ safe-outputs:
 | `timed_out` | Agent execution exceeded the timeout limit |
 | `missing_safe_outputs` | Agent succeeded but produced no safe outputs |
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
+| `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
 | `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
@@ -1776,6 +1777,8 @@ safe-outputs:
 | `assignment_errors` | Failures assigning issues or reviewers |
 
 When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+
+An observed `not_started` agent execution marker is classified as `agent_startup_failure`, not agent omission. Failure reports identify the failing startup step when available and direct investigation to setup and gateway logs. Missing, unreadable, invalid, or mismatched run evidence does not establish a startup failure; observed agent execution takes precedence over a stale marker.
 
 Without a more specific runtime failure, the failure classification is `missing_terminal_safe_output`, not an inferred engine outage or budget exhaustion. Incompletion descriptions contain only inferred runtime status and validated error codes: driver exit status, last tool status, failed-tool counts, token and LLM-invocation exhaustion signals, and safe-output tool registration. Registration prefers a valid setup cache, falling back to the archived gateway snapshot when the cache is missing, unreadable, or invalid; neither proves continued availability. A recorded gateway zero-tools flag overrides registration evidence as unavailable; an unreadable flag makes availability unknown. CLI attempt counts and gateway request counts are reported separately because one invocation can appear in both. Persistence reports whether the output file is missing, empty, nonempty, or unreadable, with record and malformed-record counts; it does not establish validation or publication.
 
