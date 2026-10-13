@@ -142,6 +142,12 @@ func containsPostStepSecretEnv(env any) bool {
 				return true
 			}
 		}
+	case map[any]any:
+		for _, value := range values {
+			if text, ok := value.(string); ok && containsPostStepSecret(text) {
+				return true
+			}
+		}
 	case map[string]string:
 		for _, value := range values {
 			if containsPostStepSecret(value) {

@@ -35,10 +35,6 @@ func getPostStepsSafeOutputsGuidedErrorCodemod() Codemod {
 // ApplyWithContext. When filePath is non-empty, effective post-steps are resolved from imports
 // so that violations introduced via shared imports are also caught.
 func applyPostStepsSafeOutputsCheck(content string, frontmatter map[string]any, filePath string) (string, bool, error) {
-	if isFrontmatterStrictFalse(frontmatter) {
-		return content, false, nil
-	}
-
 	allPostSteps, err := resolveEffectivePostSteps(content, frontmatter, filePath)
 	if err != nil {
 		postStepsSafeOutputsCodemodLog.Printf("Failed to resolve effective post-steps: %v", err)

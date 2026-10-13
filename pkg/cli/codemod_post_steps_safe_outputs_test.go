@@ -110,7 +110,7 @@ post-steps:
 			},
 		},
 		{
-			name: "strict: false ignores safe outputs access in post-steps",
+			name: "strict: false still detects safe outputs access in post-steps",
 			content: `---
 on: workflow_dispatch
 strict: false
@@ -129,7 +129,10 @@ post-steps:
 					},
 				},
 			},
-			wantErr: false,
+			wantErr: true,
+			errContains: []string{
+				`post-steps step 1 ("Check outputs") accesses the safe outputs output file directly`,
+			},
 		},
 		{
 			name: "benign post-step is a no-op",

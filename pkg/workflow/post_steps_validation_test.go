@@ -108,6 +108,13 @@ func TestValidatePostStepsSafeOutputsRejectsSecretEnv(t *testing.T) {
 	require.ErrorContains(t, validatePostStepsSafeOutputs(steps), "secrets are not allowed in post-steps")
 }
 
+func TestValidatePostStepsSafeOutputsRejectsSecretEnvWithGenericYAMLMaps(t *testing.T) {
+	steps := []any{map[any]any{
+		"env": map[any]any{"TOKEN": "${{ secrets.API_TOKEN }}"},
+	}}
+	require.ErrorContains(t, validatePostStepsSafeOutputs(steps), "secrets are not allowed in post-steps")
+}
+
 func TestValidatePostStepsSafeOutputsScriptInput(t *testing.T) {
 	steps := []any{map[string]any{
 		"name": "Create issue", "uses": "actions/github-script@v7",
