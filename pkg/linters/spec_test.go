@@ -36,6 +36,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/generatedyamlheredoc"
 	"github.com/github/gh-aw/pkg/linters/globwalkignorederror"
 	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
+	"github.com/github/gh-aw/pkg/linters/goroutineresourceleak"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
@@ -146,6 +147,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"generatedyamlheredoc", generatedyamlheredoc.Analyzer},
 		{"globwalkignorederror", globwalkignorederror.Analyzer},
 		{"goroutinemissingrecover", goroutinemissingrecover.Analyzer},
+		{"goroutineresourceleak", goroutineresourceleak.Analyzer},
 		{"hardcodedfilepath", hardcodedfilepath.Analyzer},
 		{"httpnoctx", httpnoctx.Analyzer},
 		{"httprespbodyclose", httprespbodyclose.Analyzer},

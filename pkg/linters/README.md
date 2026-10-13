@@ -164,6 +164,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `generatedyamlheredoc` | Custom `go/analysis` analyzer that flags shell heredocs embedded in generated workflow YAML |
 | `globwalkignorederror` | Custom `go/analysis` analyzer that flags `filepath.Glob` and `os.ReadDir` calls where the error return is discarded with `_` |
 | `goroutinemissingrecover` | Custom `go/analysis` analyzer that flags goroutines started via a function literal that do not install a top-level defer/recover guard |
+| `goroutineresourceleak` | Custom `go/analysis` analyzer that reports goroutines that acquire resources (contexts, locks, channels) without guaranteed cleanup or synchronization |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
 | `httprespbodyclose` | Custom `go/analysis` analyzer that flags HTTP response bodies that are not closed (or not deferred) |

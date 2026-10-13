@@ -32,6 +32,7 @@ var notYetEnforced = map[string]string{
 	"errormessage":                "dedicated lint-error-messages CI job is intentionally advisory (continue-on-error per #54800)",
 	"excessivefuncparams":         "existing production violations need remediation before enforcement; nolint suppression already works",
 	"fprintferrorunchecked":       "existing production violations need remediation before enforcement; nolint suppression already works",
+	"goroutineresourceleak":       "new goroutine resource analysis needs an enforcement-readiness audit before CI enables it",
 	"hardcodedfilepath":           "requires an enforcement audit after the same-package constant fix (#52428)",
 	"largefunc":                   "existing production violations need remediation before enforcement; nolint suppression already works",
 	"lenstringzero":               "requires an enforcement audit after the diagnostic-message fix (#54717)",

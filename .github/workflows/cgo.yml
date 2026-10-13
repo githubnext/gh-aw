@@ -2733,9 +2733,9 @@ jobs:
         GH_REPO: ${{ github.repository }}
         CACHE_KEY: checkout-cgo-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       run: |
-        cache_id=$(gh cache list --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
+        cache_id=$(gh cache list --repo "$GITHUB_REPOSITORY" --key "$CACHE_KEY" --ref "$GITHUB_REF" --limit 1 --json id,key --jq '.[] | select(.key == env.CACHE_KEY) | .id')
         if [ -n "$cache_id" ]; then
-          gh cache delete "$cache_id"
+          gh cache delete "$cache_id" --repo "$GITHUB_REPOSITORY"
         fi
     - name: Summarize job and step durations
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
