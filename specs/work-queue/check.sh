@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|IssueProjection|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, IssueProjection, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
         exit 1
         ;;
 esac
@@ -127,6 +127,12 @@ run_model IssuePRStaysOpen "" Invariant 0 IssueProjection
 run_model IssueBrokenUnowned AdmissionAuthority Invariant 12 IssueProjection
 run_model IssueBrokenPayloadClose ClosureAuthority Invariant 12 IssueProjection
 run_model IssueBrokenRetry SingleCreation Invariant 12 IssueProjection
+run_model IssueClosureAvailable "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureActive "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureCompleted "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureCancelled "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureUnbound "" Invariant 0 IssueClosureCancellation
+run_model IssueClosureStaleLabels "" Invariant 0 IssueClosureCancellation
 run_model BootstrapEmpty "" Invariant 0 QueueBootstrap
 run_model BootstrapInitialized "" Invariant 0 QueueBootstrap
 run_model BootstrapSameBranch "" Invariant 0 QueueBootstrap
