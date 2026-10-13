@@ -256,6 +256,41 @@ describe("continue_workflow_ledger", () => {
       await expect(ledger.readChain(github, REPO, "my-workflow-100")).rejects.toThrow(/not valid JSON/);
       github.rest.repos.getContent = async () => ({ data: { content: Buffer.from(JSON.stringify({ version: 1, chain_id: "other" })).toString("base64"), encoding: "base64" } });
       await expect(ledger.readChain(github, REPO, "my-workflow-100")).rejects.toThrow(/does not match/);
+      github.rest.repos.getContent = async () => ({ data: { content: Buffer.from("null").toString("base64"), encoding: "base64" } });
+      await expect(ledger.readChain(github, REPO, "my-workflow-100")).rejects.toThrow(/not an object/);
+    });
+
+    it("persists the dispatch cursor without overwriting a concurrent scan", async () => {
+      const { github, store } = createLedgerFake();
+      await ledger.mutateChain(github, REPO, "my-workflow-100", current => ledger.startChain(current, startInput()), "Start");
+      const initial = await ledger.readLedgerHead(github, REPO, ledger.LEDGER_BRANCH);
+      expect(await ledger.readDispatchCursorAt(github, REPO, initial.sha)).toBeNull();
+      await ledger.advanceDispatchCursor(github, REPO, null, "my-workflow-100");
+      expect((await ledger.advanceDispatchCursor(github, REPO, null, "other-200")).changed).toBe(false);
+      expect(store.readFile(ledger.LEDGER_BRANCH, "dispatch-cursor.json").after_chain_id).toBe("my-workflow-100");
+      expect((await ledger.advanceDispatchCursor(github, REPO, "my-workflow-100", "other-200")).changed).toBe(true);
+      expect((await ledger.readChain(github, REPO, "my-workflow-100")).status).toBe("active");
+    });
+
+    it("does not rewind the dispatch cursor after a compare-and-swap conflict", async () => {
+      let raced = false;
+      const fake = createLedgerFake({
+        onBeforeUpdateRef: async () => {
+          if (raced) return;
+          raced = true;
+          await ledger.advanceDispatchCursor(fake.github, REPO, null, "winner-200");
+        },
+      });
+      await ledger.mutateChain(fake.github, REPO, "my-workflow-100", current => ledger.startChain(current, startInput()), "Start");
+      expect((await ledger.advanceDispatchCursor(fake.github, REPO, null, "loser-100")).changed).toBe(false);
+      expect(fake.store.readFile(ledger.LEDGER_BRANCH, "dispatch-cursor.json").after_chain_id).toBe("winner-200");
+    });
+
+    it("fails explicitly when GitHub truncates the chain inventory", async () => {
+      const { github } = createLedgerFake();
+      await ledger.mutateChain(github, REPO, "my-workflow-100", current => ledger.startChain(current, startInput()), "Start");
+      github.rest.git.getTree = async () => ({ data: { tree: [], truncated: true } });
+      await expect(ledger.listChainIds(github, REPO)).rejects.toThrow(/ledger tree is truncated/);
     });
   });
 });

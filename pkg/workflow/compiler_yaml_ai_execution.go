@@ -436,9 +436,6 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// Add step to checkout PR branch if the event is pull_request
 	c.generatePRReadyForReviewCheckout(yaml, data)
 
-	// Resume the stable work branch of a continue-workflow chain
-	c.generateContinueWorkflowCheckout(yaml, data)
-
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {

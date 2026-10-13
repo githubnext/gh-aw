@@ -145,3 +145,38 @@ func TestContinueWorkflowCheckoutUsesRootCheckoutToken(t *testing.T) {
 	assert.Contains(t, yaml.String(), "github-token: ${{ secrets.CHECKOUT_TOKEN }}")
 	assert.NotContains(t, yaml.String(), "github-token: ${{ secrets.GITHUB_TOKEN }}")
 }
+
+func TestContinueWorkflowStagingIsIndependentOfPullRequest(t *testing.T) {
+	tests := []struct {
+		name       string
+		global     string
+		continueAs string
+		expected   any
+		checkout   bool
+	}{
+		{"unstaged continuation with staged PR", "", "", nil, true},
+		{"global staged", "true", "", nil, false},
+		{"global staged cannot be overridden", "true", "false", false, false},
+		{"explicit staged", "", "true", true, false},
+		{"expression", "", "${{ inputs.preview }}", "${{ inputs.preview }}", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := continuationTestData().SafeOutputs
+			config.CreatePullRequests.Staged = templatableBoolPtr("true")
+			if tt.global != "" {
+				config.Staged = templatableBoolPtr(tt.global)
+			}
+			if tt.continueAs != "" {
+				config.ContinueWorkflow.Staged = templatableBoolPtr(tt.continueAs)
+			}
+			handler := buildContinueWorkflowHandlerConfig(config)
+			if tt.expected == nil {
+				assert.NotContains(t, handler, "staged")
+			} else {
+				assert.Equal(t, tt.expected, handler["staged"])
+			}
+			assert.Equal(t, tt.checkout, usesPatchesAndCheckouts(config))
+		})
+	}
+}

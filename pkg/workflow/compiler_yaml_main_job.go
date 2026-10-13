@@ -14,6 +14,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if err != nil {
 		return err
 	}
+	if needsCheckout {
+		c.generateContinueWorkflowCheckout(yaml, data)
+	}
 	if err := c.generateLedgerProjectionStep(yaml, data); err != nil {
 		return err
 	}
@@ -40,7 +43,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// can reuse the pre-computed value instead of re-running the expensive map+sort
 	// operation inside each engine's domain helper.  The result is stored on WorkflowData
 	// and is also used later by generateOutputCollectionStep.
-	_, _ = c.computeAllowedDomainsForSanitization(data)
+	c.computeAllowedDomainsForSanitization(data)
 
 	// Phase 4: Agent execution and immediate post-agent steps
 	artifactPaths, logFileFull, err := c.generateAgentRunSteps(yaml, data, engine, needsGitConfig)

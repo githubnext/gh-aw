@@ -10,7 +10,7 @@ global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn(),
 global.context = { repo: { owner: "o", repo: "r" } };
 
 const ledger = require("./continue_workflow_ledger.cjs");
-const { MAX_CHAINS_PER_RUN, chainScanWindow, main, buildAwContext } = require("./dispatch_continue_workflow.cjs");
+const { MAX_CHAINS_PER_RUN, main, buildAwContext } = require("./dispatch_continue_workflow.cjs");
 const { createLedgerFake } = require("./continue_workflow.test_helpers.cjs");
 
 const REPO = { owner: "o", repo: "r" };
@@ -18,13 +18,14 @@ const NOW = "2026-01-01T00:00:00.000Z";
 const CHAIN_ID = "my-workflow-100";
 
 async function seedQueuedChain(github, overrides = {}) {
+  const chainId = overrides.chainId || CHAIN_ID;
   await ledger.mutateChain(
     github,
     REPO,
-    CHAIN_ID,
+    chainId,
     current => {
       const started = ledger.startChain(current, {
-        chainId: CHAIN_ID,
+        chainId,
         runId: "100",
         workflowId: "my-workflow",
         workflowFile: "my-workflow.lock.yml",
@@ -48,15 +49,6 @@ describe("dispatch_continue_workflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     summary.addRaw.mockReturnValue(summary);
-  });
-
-  it("bounds chain scans and rotates through a deterministic run-number cursor", () => {
-    const ids = Array.from({ length: MAX_CHAINS_PER_RUN * 3 }, (_, index) => `chain-${index}`);
-    expect(chainScanWindow(ids, 1)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
-    expect(chainScanWindow(ids, 2)).toEqual(ids.slice(MAX_CHAINS_PER_RUN, MAX_CHAINS_PER_RUN * 2));
-    expect(chainScanWindow(ids, 3)).toEqual(ids.slice(MAX_CHAINS_PER_RUN * 2));
-    expect(chainScanWindow(ids, 4)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
-    expect(chainScanWindow(ids, 0)).toEqual(ids.slice(0, MAX_CHAINS_PER_RUN));
   });
 
   it("does nothing when no ledger exists", async () => {
@@ -133,6 +125,46 @@ describe("dispatch_continue_workflow", () => {
     const report = await main({ githubClient: github, now: () => NOW, newDispatchId: () => "dispatch-0001" });
     expect(report.dispatched).toEqual([]);
     expect(store.refs.get(ledger.LEDGER_BRANCH)).toBe(head);
+  });
+
+  it("bounds historical reads and resumes later pages without starving queued chains", async () => {
+    const { github, store } = createLedgerFake();
+    for (let index = 0; index < 120; index++) {
+      const chainId = `history-${String(index).padStart(3, "0")}`;
+      await seedQueuedChain(github, { chainId });
+      await ledger.mutateChain(github, REPO, chainId, current => ledger.failChain(current, { reason: "settled", now: NOW }), "Settle");
+    }
+    await seedQueuedChain(github, { chainId: "z-queued" });
+    const snapshots = vi.spyOn(ledger, "readChainAt");
+    const contents = vi.spyOn(github.rest.repos, "getContent");
+    for (let pass = 0; pass < 3; pass++) {
+      snapshots.mockClear();
+      contents.mockClear();
+      await main({ githubClient: github, now: () => NOW, newDispatchId: () => "dispatch-0001" });
+      expect(snapshots).toHaveBeenCalledTimes(MAX_CHAINS_PER_RUN);
+      expect(contents.mock.calls.filter(([params]) => params.path.startsWith("chains/")).length).toBeLessThanOrEqual(52);
+    }
+    expect(store.calls.createWorkflowDispatch).toHaveLength(1);
+    expect(JSON.parse(store.calls.createWorkflowDispatch[0].inputs.aw_context).continuation.chain_id).toBe("z-queued");
+    expect(store.readFile(ledger.LEDGER_BRANCH, "dispatch-cursor.json").after_chain_id).toBe("history-028");
+    snapshots.mockRestore();
+    contents.mockRestore();
+  });
+
+  it("counts running chains against the scan budget, even when no dispatch is claimed", async () => {
+    const { github } = createLedgerFake();
+    for (let index = 0; index < 55; index++) {
+      const chainId = `running-${String(index).padStart(3, "0")}`;
+      await seedQueuedChain(github, { chainId });
+      await ledger.mutateChain(github, REPO, chainId, current => ledger.claimDispatch(current, { dispatchId: "dispatch-0001", now: NOW }), "Claim");
+    }
+    const snapshots = vi.spyOn(ledger, "readChainAt");
+    const report = await main({ githubClient: github, now: () => NOW });
+    expect(snapshots).toHaveBeenCalledTimes(50);
+    expect(report.dispatched).toEqual([]);
+    const head = await ledger.readLedgerHead(github, REPO, ledger.LEDGER_BRANCH);
+    expect(await ledger.readDispatchCursorAt(github, REPO, head.sha)).toBe("running-049");
+    snapshots.mockRestore();
   });
 
   it("reports chains that cannot be processed", async () => {

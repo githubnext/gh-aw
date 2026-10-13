@@ -180,6 +180,18 @@ Result. The handoff does not itself persist code or authorize a PR write.
 End-to-end integration of code checkpoints and final `create_pull_request` or
 `push_to_pull_request_branch` delivery with this helper is still under development.
 
+The earlier experimental `safe-outputs.continue-workflow` scaffold is separate
+from the queue helper. Its resume checkout runs before runtime and project setup,
+including after workspace-root checkouts in custom steps, using command-scoped
+checkout credentials. Continuation staging is independent of the final PR's
+`staged` setting; global staged mode still applies to both.
+
+The standalone maintenance dispatcher inspects at most 50 chain snapshots per
+run and persists a compare-and-swap cursor to visit later chains. Retry recovery
+requires the exact unsigned commit, or a verified signed replay of every commit,
+tree, message, and parent link rooted at the recorded base. Matching file trees
+alone do not authorize recovery.
+
 ## Pull Request Updates (`update-pull-request:`)
 
 Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `replace` (default), `append`, `prepend`, or `replace-island` (updates a run-specific section delimited by HTML comments).

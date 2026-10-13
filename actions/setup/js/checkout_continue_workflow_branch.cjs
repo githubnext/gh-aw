@@ -63,14 +63,15 @@ async function main() {
     const checkoutToken = core.getInput("github-token");
     if (!checkoutToken) throw new Error(`${ERR_VALIDATION}: continuation checkout requires the root checkout token`);
     const gitAuthEnv = buildGitAuthEnv(checkoutToken, core.setSecret);
+    const gitOptions = { env: { ...process.env, ...gitAuthEnv }, silent: true };
     core.info(`Fetching continuation branch ${branch}`);
-    await exec.exec("git", ["fetch", "--no-tags", ...depthArgs, "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`], { env: { ...process.env, ...gitAuthEnv } });
+    await exec.exec("git", ["fetch", "--no-tags", ...depthArgs, "origin", `+refs/heads/${branch}:refs/remotes/origin/${branch}`], gitOptions);
     const { stdout } = await exec.getExecOutput("git", ["rev-parse", `refs/remotes/origin/${branch}^{commit}`], { silent: true });
     const fetched = stdout.trim();
     if (fetched !== baseSha) {
       throw new Error(`${ERR_VALIDATION}: continuation branch ${branch} is at ${fetched}, expected ${baseSha}; refusing to resume from an unexpected state`);
     }
-    await exec.exec("git", ["checkout", "-B", branch, baseSha]);
+    await exec.exec("git", ["checkout", "-B", branch, baseSha], gitOptions);
 
     const continuationContext = {
       chain_id: chain.chain_id,

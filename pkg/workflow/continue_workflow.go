@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -194,9 +195,9 @@ func buildContinueWorkflowHandlerConfig(cfg *SafeOutputsConfig) map[string]any {
 	}
 	c := cfg.ContinueWorkflow
 	config := newCreatePullRequestHandlerConfigBuilder(cfg, cfg.CreatePullRequests).Build()
+	delete(config, "staged")
 	config["max"] = 1
 	config["max_hops"] = c.EffectiveMaxHops()
-	delete(config, "staged")
 	if token := resolveHandlerGitHubToken(c.GitHubApp, "continue-workflow", c.GitHubToken); token != "" {
 		config["github-token"] = token
 	}
@@ -217,15 +218,20 @@ func (c *Compiler) generateContinueWorkflowCheckout(yaml *strings.Builder, data 
 		return
 	}
 	continueWorkflowLog.Print("Generating continue-workflow checkout step")
-	yaml.WriteString("      - name: Checkout continuation branch\n")
-	yaml.WriteString("        id: checkout-continuation\n")
-	RenderConditionAsIf(yaml, BuildEventTypeEquals("workflow_dispatch"), "          ")
-	yaml.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
 	checkoutToken := resolveGitHubToken("")
 	if override := checkoutManager.GetDefaultCheckoutOverride(); override != nil {
 		checkoutToken = resolveCheckoutTokenExpression(override, checkoutManager.defaultCheckoutIndex(override), true)
 	}
+	yaml.WriteString(c.continueWorkflowCheckoutStep(data, checkoutToken, "checkout-continuation"))
+}
+
+func (c *Compiler) continueWorkflowCheckoutStep(data *WorkflowData, checkoutToken, stepID string) string {
+	var yaml strings.Builder
+	yaml.WriteString("      - name: Checkout continuation branch\n")
+	yaml.WriteString("        id: " + stepID + "\n")
+	RenderConditionAsIf(&yaml, BuildEventTypeEquals("workflow_dispatch"), "          ")
+	yaml.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          github-token: " + checkoutToken + "\n")
 	yaml.WriteString("          script: |\n")
@@ -233,4 +239,48 @@ func (c *Compiler) generateContinueWorkflowCheckout(yaml *strings.Builder, data 
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/checkout_continue_workflow_branch.cjs');\n")
 	yaml.WriteString("            await main();\n")
+	return yaml.String()
+}
+
+func (c *Compiler) continueWorkflowCustomCheckoutSteps(data *WorkflowData) (map[int]GitHubActionStep, error) {
+	if !hasContinueWorkflow(data) || !canResumeContinuation(data) {
+		return nil, nil
+	}
+	var document struct {
+		Steps []struct {
+			Uses string `yaml:"uses"`
+			With struct {
+				Path  string `yaml:"path"`
+				Token string `yaml:"token"`
+			} `yaml:"with"`
+		} `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(data.CustomSteps), &document); err != nil {
+		return nil, fmt.Errorf("cannot insert continuation checkout in custom steps: %w", err)
+	}
+	insertions := make(map[int]GitHubActionStep)
+	for index, step := range document.Steps {
+		if !isCheckoutActionReference(step.Uses) || normalizeCurrentCheckoutPatchPath(step.With.Path) != "" {
+			continue
+		}
+		rendered := c.continueWorkflowCheckoutStep(data, resolveGitHubToken(step.With.Token), "checkout-continuation-"+strconv.Itoa(index))
+		insertions[index] = strings.Split(strings.TrimSuffix(rendered, "\n"), "\n")
+	}
+	if len(insertions) == 0 {
+		return nil, errors.New("safe-outputs.continue-workflow requires a workspace-root checkout in custom steps")
+	}
+	return insertions, nil
+}
+
+func firstContinuationCheckoutIndex(insertions map[int]GitHubActionStep, fallback int) int {
+	first := -1
+	for index := range insertions {
+		if first == -1 || index < first {
+			first = index
+		}
+	}
+	if first == -1 {
+		return fallback
+	}
+	return first
 }

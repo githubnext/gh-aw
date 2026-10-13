@@ -61,10 +61,14 @@ describe("checkout_continue_workflow_branch", () => {
     vi.clearAllMocks();
     global.context.runId = 101;
     global.context.payload = {};
+    global.core.getInput.mockReturnValue("checkout-token");
     writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
     vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
 
   it("skips runs that are not continuation hops", async () => {
     mockExec();
@@ -82,14 +86,18 @@ describe("checkout_continue_workflow_branch", () => {
     mockExec();
     await main();
     expect(global.core.setFailed).not.toHaveBeenCalled();
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", WORK_BRANCH, HEAD]);
-    const fetchCall = global.exec.exec.mock.calls.find(([, args]) => args[0] === "fetch");
-    expect(fetchCall[2].env).toMatchObject({
-      GIT_CONFIG_COUNT: "1",
-      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
-      GIT_CONFIG_VALUE_0: expect.stringMatching(/^Authorization: basic /),
-    });
-    expect(global.core.setSecret).toHaveBeenCalledWith(expect.any(String));
+    const auth = {
+      env: expect.objectContaining({
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: `http.${(process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "")}/.extraheader`,
+        GIT_CONFIG_VALUE_0: `Authorization: basic ${Buffer.from("x-access-token:checkout-token").toString("base64")}`,
+      }),
+      silent: true,
+    };
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--no-tags", "origin", `+refs/heads/${WORK_BRANCH}:refs/remotes/origin/${WORK_BRANCH}`], auth);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", WORK_BRANCH, HEAD], auth);
+    expect(global.core.setSecret).toHaveBeenCalledWith(Buffer.from("x-access-token:checkout-token").toString("base64"));
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["config"]), expect.anything());
     const [file, content] = writeSpy.mock.calls[0];
     expect(file).toBe(CONTEXT_FILE);
     expect(JSON.parse(content)).toMatchObject({
@@ -103,6 +111,18 @@ describe("checkout_continue_workflow_branch", () => {
       plan_file: "plan.md",
       history: [{ hop: 0, outcome: "continued", next_steps: "tests" }],
     });
+  });
+
+  it("fails explicitly rather than attempting an unauthenticated fetch", async () => {
+    const { github } = createLedgerFake();
+    await seed(github);
+    global.github = github;
+    global.context.payload = payload();
+    global.core.getInput.mockReturnValue("");
+    mockExec();
+    await main();
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("requires the root checkout token"));
+    expect(global.exec.exec).not.toHaveBeenCalled();
   });
 
   it("refuses to resume when the work branch moved", async () => {

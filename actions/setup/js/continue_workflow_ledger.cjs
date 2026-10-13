@@ -25,6 +25,7 @@ const MAX_DISPATCH_ATTEMPTS = 3;
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const MAX_CAS_ATTEMPTS = 5;
 const MAX_TEXT_LENGTH = 2000;
+const DISPATCH_CURSOR_PATH = "dispatch-cursor.json";
 const CHAIN_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const DISPATCH_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
@@ -402,19 +403,32 @@ async function readLedgerHead(githubClient, { owner, repo }, branch) {
  * @param {any} githubClient
  * @param {{owner: string, repo: string}} repoRef
  * @param {string} commitSha
- * @param {string} chainId
+ * @param {string} path
  */
-async function readChainAt(githubClient, { owner, repo }, commitSha, chainId) {
+async function readLedgerDocumentAt(githubClient, { owner, repo }, commitSha, path) {
   try {
-    const { data } = await githubClient.rest.repos.getContent({ owner, repo, path: chainPath(chainId), ref: commitSha });
-    if (!data || Array.isArray(data) || typeof data.content !== "string") fail("ledger_invalid", `continuation chain ${chainId} is not a file`);
+    const { data } = await githubClient.rest.repos.getContent({ owner, repo, path, ref: commitSha });
+    if (!data || Array.isArray(data) || typeof data.content !== "string") fail("ledger_invalid", `continuation ledger document ${path} is not a file`);
     const text = Buffer.from(data.content, data.encoding === "base64" ? "base64" : "utf8").toString("utf8");
-    return validateChain(JSON.parse(text), chainId);
+    const document = JSON.parse(text);
+    if (!document || typeof document !== "object" || Array.isArray(document)) fail("ledger_invalid", `continuation ledger document ${path} is not an object`);
+    return document;
   } catch (error) {
     if (httpStatus(error) === 404) return null;
-    if (error instanceof SyntaxError) fail("ledger_invalid", `continuation chain ${chainId} is not valid JSON`);
+    if (error instanceof SyntaxError) fail("ledger_invalid", `continuation ledger document ${path} is not valid JSON`);
     throw error;
   }
+}
+
+/**
+ * @param {any} githubClient
+ * @param {{owner: string, repo: string}} repoRef
+ * @param {string} commitSha
+ * @param {string} chainId
+ */
+async function readChainAt(githubClient, repoRef, commitSha, chainId) {
+  const document = await readLedgerDocumentAt(githubClient, repoRef, commitSha, chainPath(chainId));
+  return document === null ? null : validateChain(document, chainId);
 }
 
 /**
@@ -439,25 +453,45 @@ async function readChain(githubClient, options, chainId) {
  * @returns {Promise<{chain: any, changed: boolean}>}
  */
 async function mutateChain(githubClient, options, chainId, transition, message) {
+  const result = await mutateLedgerDocument(
+    githubClient,
+    options,
+    chainPath(chainId),
+    current => {
+      const next = transition(current === null ? null : validateChain(current, chainId));
+      if (next.changed) validateChain(next.chain, chainId);
+      return { document: next.chain, changed: next.changed };
+    },
+    `${message} (${chainId})`
+  );
+  return { chain: result.document, changed: result.changed };
+}
+
+/**
+ * @param {any} githubClient
+ * @param {{owner: string, repo: string, branch?: string, maxAttempts?: number}} options
+ * @param {string} path
+ * @param {(current: any) => {document: any, changed: boolean}} transition
+ * @param {string} message
+ */
+async function mutateLedgerDocument(githubClient, options, path, transition, message) {
   const { owner, repo } = options;
   const branch = options.branch || LEDGER_BRANCH;
-  const path = chainPath(chainId);
   const maxAttempts = options.maxAttempts || MAX_CAS_ATTEMPTS;
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const head = await readLedgerHead(githubClient, { owner, repo }, branch);
-    const current = head ? await readChainAt(githubClient, { owner, repo }, head.sha, chainId) : null;
+    const current = head ? await readLedgerDocumentAt(githubClient, { owner, repo }, head.sha, path) : null;
     const result = transition(current);
     if (!result.changed) return result;
-    validateChain(result.chain, chainId);
     try {
-      const content = `${JSON.stringify(result.chain, null, 2)}\n`;
+      const content = `${JSON.stringify(result.document, null, 2)}\n`;
       const blob = await githubClient.rest.git.createBlob({ owner, repo, content, encoding: "utf-8" });
       const tree = await githubClient.rest.git.createTree({ owner, repo, ...(head ? { base_tree: head.treeSha } : {}), tree: [{ path, mode: "100644", type: "blob", sha: blob.data.sha }] });
-      const commit = await githubClient.rest.git.createCommit({ owner, repo, message: `${message} (${chainId})`, tree: tree.data.sha, parents: head ? [head.sha] : [] });
+      const commit = await githubClient.rest.git.createCommit({ owner, repo, message, tree: tree.data.sha, parents: head ? [head.sha] : [] });
       if (head) await githubClient.rest.git.updateRef({ owner, repo, ref: `heads/${branch}`, sha: commit.data.sha, force: false });
       else await githubClient.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: commit.data.sha });
-      core.info(`Continuation ledger updated: ${message} (${chainId})`);
+      core.info(`Continuation ledger updated: ${message}`);
       return result;
     } catch (error) {
       lastError = error;
@@ -469,16 +503,58 @@ async function mutateChain(githubClient, options, chainId, transition, message) 
   throw new Error(`${ERR_API}: continuation ledger write did not converge after ${maxAttempts} attempt(s): ${getErrorMessage(lastError)}`);
 }
 
+/** @param {any} document @returns {string|null} */
+function dispatchCursor(document) {
+  if (document === null) return null;
+  if (!document || document.version !== LEDGER_VERSION || !isValidChainId(document.after_chain_id)) {
+    fail("ledger_invalid", "continuation dispatch cursor is invalid");
+  }
+  return document.after_chain_id;
+}
+
+/**
+ * @param {any} githubClient
+ * @param {{owner: string, repo: string}} repoRef
+ * @param {string} commitSha
+ */
+async function readDispatchCursorAt(githubClient, repoRef, commitSha) {
+  return dispatchCursor(await readLedgerDocumentAt(githubClient, repoRef, commitSha, DISPATCH_CURSOR_PATH));
+}
+
+/**
+ * Advances only the cursor this maintenance run read; an overlapping run cannot rewind it.
+ * @param {any} githubClient
+ * @param {{owner: string, repo: string}} repoRef
+ * @param {string|null} expected
+ * @param {string} next
+ */
+async function advanceDispatchCursor(githubClient, repoRef, expected, next) {
+  if (!isValidChainId(next) || (expected !== null && !isValidChainId(expected))) fail("invalid_cursor", "continuation dispatch cursor must name a valid chain");
+  return mutateLedgerDocument(
+    githubClient,
+    repoRef,
+    DISPATCH_CURSOR_PATH,
+    current => {
+      const previous = dispatchCursor(current);
+      if (previous !== expected || previous === next) return { document: current, changed: false };
+      return { document: { version: LEDGER_VERSION, after_chain_id: next }, changed: true };
+    },
+    "Advance continuation dispatch cursor"
+  );
+}
+
 /**
  * Lists all chain ids recorded on the ledger branch.
  * @param {any} githubClient
  * @param {{owner: string, repo: string, branch?: string}} options
+ * @param {{sha: string, treeSha: string}} [snapshot]
  * @returns {Promise<string[]>}
  */
-async function listChainIds(githubClient, options) {
-  const head = await readLedgerHead(githubClient, options, options.branch || LEDGER_BRANCH);
+async function listChainIds(githubClient, options, snapshot) {
+  const head = snapshot || (await readLedgerHead(githubClient, options, options.branch || LEDGER_BRANCH));
   if (!head) return [];
   const { data } = await githubClient.rest.git.getTree({ owner: options.owner, repo: options.repo, tree_sha: head.treeSha, recursive: "true" });
+  if (data.truncated) throw new Error(`${ERR_API}: continuation ledger tree is truncated; refusing to skip undiscovered chains`);
   return (data.tree || [])
     .map(/** @param {any} entry */ entry => (entry.type === "blob" && typeof entry.path === "string" ? /^chains\/([^/]+)\.json$/.exec(entry.path)?.[1] : undefined))
     .filter(/** @param {any} id */ id => isValidChainId(id));
@@ -514,4 +590,6 @@ module.exports = {
   readChain,
   mutateChain,
   listChainIds,
+  readDispatchCursorAt,
+  advanceDispatchCursor,
 };

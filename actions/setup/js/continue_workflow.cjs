@@ -158,11 +158,36 @@ async function readRemoteHead(githubClient, branch) {
 
 /**
  * @param {any} githubClient
- * @param {string} commitSha
+ * @param {string} expectedBase
+ * @param {string} headSha
+ * @param {string} remoteHead
+ * @param {boolean} signedCommits
  */
-async function readRemoteTree(githubClient, commitSha) {
-  const { data } = await githubClient.rest.git.getCommit({ ...repoRef(), commit_sha: commitSha });
-  return data?.tree?.sha || null;
+async function isVerifiedContinuationReplay(githubClient, expectedBase, headSha, remoteHead, signedCommits) {
+  if (!signedCommits) return remoteHead === headSha;
+  const { stdout } = await git(["rev-list", "--reverse", "--parents", `${expectedBase}..${headSha}`]);
+  const commits = stdout
+    .trim()
+    .split("\n")
+    .map(line => line.split(" "));
+  let remoteSha = remoteHead;
+  for (let index = commits.length - 1; index >= 0; index--) {
+    const [localSha, parent, ...otherParents] = commits[index];
+    const expectedParent = index === 0 ? expectedBase : commits[index - 1][0];
+    if (!ledger.isSha(localSha) || parent !== expectedParent || otherParents.length !== 0) return false;
+    const { data } = await githubClient.rest.git.getCommit({ ...repoRef(), commit_sha: remoteSha });
+    if (data?.sha !== remoteSha || data.parents?.length !== 1 || !ledger.isSha(data.parents[0].sha)) return false;
+    if (data.verification?.verified !== true || data.verification.reason !== "valid") return false;
+    const { stdout: tree } = await git(["rev-parse", `${localSha}^{tree}`]);
+    if (data.tree?.sha !== tree.trim()) return false;
+    const { stdout: message } = await git(["log", "-1", "--format=%B", localSha]);
+    const [headline, ...bodyLines] = message.trim().split("\n");
+    const body = bodyLines.join("\n").trim();
+    const replayedMessage = headline + (body ? `\n\n${body}` : "");
+    if (typeof data.message !== "string" || data.message.trim() !== replayedMessage) return false;
+    remoteSha = data.parents[0].sha;
+  }
+  return remoteSha === expectedBase;
 }
 
 /**
@@ -197,8 +222,8 @@ async function checkContinuationPolicy(baseSha, headSha, config) {
  * The bundle is applied locally, the commits must descend from the expected base recorded in
  * the ledger, trusted policy is applied to base..head, and the branch is advanced only if it
  * still points at the expected base (signed commits: expectedHeadOid; unsigned: non-forced
- * fast-forward push). A retry after a successful push is accepted only when the remote tree
- * already equals the local tree.
+ * fast-forward push). A retry requires the exact unsigned commit or a verified signed replay
+ * of the same commits, trees, messages and parent chain rooted at the expected base.
  *
  * @param {{bundlePath: string, agentBranch: string, workBranch: string, baseBranch: string, expectedBase: string, isInitial: boolean, config: any, githubClient: any}} options
  * @returns {Promise<{headSha: string, protectedFiles: string[], protectedAction: string|null, alreadyPersisted: boolean}>}
@@ -215,19 +240,18 @@ async function persistContinuationHop(options) {
   if (ancestry.exitCode !== 0) throw new Error(`${ERR_VALIDATION}: continuation commits do not build on the work branch head ${expectedBase}`);
   const policy = await checkContinuationPolicy(expectedBase, headSha, config);
 
+  const signedCommits = config.signed_commits !== false;
   const remoteHead = await readRemoteHead(githubClient, workBranch);
   const expectedRemote = isInitial ? null : expectedBase;
   if (remoteHead !== expectedRemote) {
-    const localTree = (await git(["rev-parse", `${headSha}^{tree}`])).stdout.trim();
-    if (remoteHead && (await readRemoteTree(githubClient, remoteHead)) === localTree) {
-      core.info(`Work branch ${workBranch} already contains this hop (${remoteHead}); treating as already persisted`);
+    if (remoteHead && (await isVerifiedContinuationReplay(githubClient, expectedBase, headSha, remoteHead, signedCommits))) {
+      core.info(`Work branch ${workBranch} already contains this verified hop (${remoteHead}); treating as already persisted`);
       return { headSha: remoteHead, ...policy, alreadyPersisted: true };
     }
     throw new Error(`${ERR_VALIDATION}: work branch ${workBranch} moved unexpectedly (expected ${expectedRemote || "no branch"}, found ${remoteHead || "no branch"}); the branch was preserved`);
   }
 
-  const signedCommits = config.signed_commits !== false;
-  await pushSignedCommits({
+  const pushedHead = await pushSignedCommits({
     githubClient,
     ...repoRef(),
     branch: workBranch,
@@ -240,6 +264,7 @@ async function persistContinuationHop(options) {
   });
   const persistedHead = await readRemoteHead(githubClient, workBranch);
   if (!persistedHead || !ledger.isSha(persistedHead)) throw new Error(`${ERR_API}: work branch ${workBranch} could not be resolved after push`);
+  if (persistedHead !== pushedHead) throw new Error(`${ERR_VALIDATION}: work branch ${workBranch} moved after push (expected ${pushedHead}, found ${persistedHead}); the branch was preserved`);
   core.info(`Persisted continuation commits to ${workBranch} at ${persistedHead}`);
   return { headSha: persistedHead, ...policy, alreadyPersisted: false };
 }

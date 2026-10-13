@@ -273,15 +273,35 @@ describe("persistContinuationHop (real git)", () => {
   }
 
   // Remote branch reads go to the bare origin; everything else to the ledger fake.
-  function githubFor() {
+  function githubFor(verified = false) {
     const { github } = createLedgerFake();
     github.rest.git.getRef = async ({ ref }) => {
       const result = git(originDir, ["rev-parse", "--verify", "-q", `refs/${ref}^{commit}`], true);
       if (result.status !== 0) throw Object.assign(new Error("Not Found"), { status: 404 });
       return { data: { object: { sha: result.stdout.trim() } } };
     };
-    github.rest.git.getCommit = async ({ commit_sha }) => ({ data: { tree: { sha: git(originDir, ["rev-parse", `${commit_sha}^{tree}`]).stdout.trim() } } });
+    github.rest.git.getCommit = async ({ commit_sha }) => ({
+      data: {
+        sha: commit_sha,
+        tree: { sha: git(originDir, ["rev-parse", `${commit_sha}^{tree}`]).stdout.trim() },
+        parents: git(originDir, ["rev-list", "--parents", "-1", commit_sha])
+          .stdout.trim()
+          .split(" ")
+          .slice(1)
+          .map(sha => ({ sha })),
+        message: git(originDir, ["log", "-1", "--format=%B", commit_sha]).stdout.trim(),
+        verification: { verified, reason: verified ? "valid" : "unsigned" },
+      },
+    });
     return github;
+  }
+
+  function replayCommit(localSha, parent, message = git(agentDir, ["log", "-1", "--format=%B", localSha]).stdout.trim()) {
+    return git(agentDir, ["-c", "user.name=Replay", "-c", "user.email=replay@example.com", "commit-tree", `${localSha}^{tree}`, ...(parent ? ["-p", parent] : []), "-m", message]).stdout.trim();
+  }
+
+  function pushReplay(sha) {
+    git(agentDir, ["push", "-q", "--force", "origin", `${sha}:refs/heads/${WORK_BRANCH}`]);
   }
 
   function execIn(cwd) {
@@ -352,6 +372,73 @@ describe("persistContinuationHop (real git)", () => {
     git(agentDir, ["checkout", "-q", "agent"]);
     commitFile(agentDir, "plan.md", "# Plan\n- step 2\n", "hop 1");
     await expect(persist({ bundlePath: bundle("hop1", "agent", hop0), expectedBase: hop0, isInitial: false })).rejects.toThrow(/moved unexpectedly/);
+  });
+
+  it("rejects an unsigned same-tree commit that is not the original delivery", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const hop = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
+    const replacement = replayCommit(hop, baseSha);
+    pushReplay(replacement);
+    await expect(persist({ bundlePath: bundle("retry", "agent", baseSha), expectedBase: baseSha, isInitial: true })).rejects.toThrow(/moved unexpectedly/);
+    expect(git(originDir, ["rev-parse", WORK_BRANCH]).stdout.trim()).toBe(replacement);
+  });
+
+  it("recovers a verified signed replay of every commit rooted at the expected base", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const first = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0\n\nDetailed handoff");
+    const second = commitFile(agentDir, "plan.md", "# Plan\n- step 2\n", "hop 1");
+    const signedFirst = replayCommit(first, baseSha);
+    const signedSecond = replayCommit(second, signedFirst);
+    pushReplay(signedSecond);
+    const result = await persist({ bundlePath: bundle("signed-retry", "agent", baseSha), expectedBase: baseSha, isInitial: true, config: { signed_commits: true }, githubClient: githubFor(true) });
+    expect(result).toMatchObject({ headSha: signedSecond, alreadyPersisted: true });
+  });
+
+  it("rejects a signed same-tree replay with unrelated parentage", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const hop = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
+    const foreignBase = replayCommit(baseSha, null);
+    const foreignHead = replayCommit(hop, foreignBase);
+    pushReplay(foreignHead);
+    await expect(persist({ bundlePath: bundle("foreign-retry", "agent", baseSha), expectedBase: baseSha, isInitial: true, config: { signed_commits: true }, githubClient: githubFor(true) })).rejects.toThrow(/moved unexpectedly/);
+    expect(git(originDir, ["rev-parse", WORK_BRANCH]).stdout.trim()).toBe(foreignHead);
+  });
+
+  it("rejects an unsigned intermediate commit even when the replay head is verified", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const first = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
+    const second = commitFile(agentDir, "plan.md", "# Plan\n- step 2\n", "hop 1");
+    const unsignedFirst = replayCommit(first, baseSha);
+    const signedSecond = replayCommit(second, unsignedFirst);
+    pushReplay(signedSecond);
+    const github = githubFor(true);
+    const getCommit = github.rest.git.getCommit;
+    github.rest.git.getCommit = async params => {
+      const response = await getCommit(params);
+      if (params.commit_sha === unsignedFirst) response.data.verification = { verified: false, reason: "unsigned" };
+      return response;
+    };
+    await expect(persist({ bundlePath: bundle("unsigned-retry", "agent", baseSha), expectedBase: baseSha, isInitial: true, config: { signed_commits: true }, githubClient: github })).rejects.toThrow(/moved unexpectedly/);
+  });
+
+  it("rejects a signed same-tree commit with a different message", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const hop = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
+    pushReplay(replayCommit(hop, baseSha, "unrelated commit"));
+    await expect(persist({ bundlePath: bundle("message-retry", "agent", baseSha), expectedBase: baseSha, isInitial: true, config: { signed_commits: true }, githubClient: githubFor(true) })).rejects.toThrow(/moved unexpectedly/);
+  });
+
+  it("does not record a branch that moved between push and readback", async () => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const hop = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
+    const github = githubFor();
+    const getRef = github.rest.git.getRef;
+    let reads = 0;
+    github.rest.git.getRef = async params => {
+      if (++reads === 2) pushReplay(replayCommit(hop, baseSha, "changed after push"));
+      return getRef(params);
+    };
+    await expect(persist({ bundlePath: bundle("raced-push", "agent", baseSha), expectedBase: baseSha, isInitial: true, githubClient: github })).rejects.toThrow(/moved after push/);
   });
 
   it("rejects commits that do not build on the recorded head", async () => {
