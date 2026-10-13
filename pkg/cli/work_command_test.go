@@ -185,7 +185,7 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 				"display_title": "native worker " + assignment.DispatchID,
 			}
 		case r.Method == http.MethodGet && path == "git/ref/heads/"+workqueue.DefaultBranch:
-			response = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": strconv.Itoa(head)}}
+			response = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": fmt.Sprintf("%040x", head)}}
 		case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
 			response = map[string]any{"tree": map[string]string{"sha": "tree"}}
 		case r.Method == http.MethodGet && path == "git/trees/tree":
@@ -202,7 +202,7 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 			pending = body.Tree[0].Content
 			response = map[string]string{"sha": "tree"}
 		case r.Method == http.MethodPost && path == "git/commits":
-			response = map[string]string{"sha": strconv.Itoa(head + 1)}
+			response = map[string]string{"sha": fmt.Sprintf("%040x", head+1)}
 		case r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
 			writes++
 			head++
@@ -556,7 +556,17 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	}
 	admin = true
 	invalidGitSHA = true
-	reject("", "checkpoint_invalid", "compact")
+	cmd := NewWorkCommand()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--repo", remote, "--json", "compact"})
+	err = cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "invalid queue branch reference") {
+		t.Fatalf("invalid queue branch SHA was not rejected: %v", err)
+	}
+	if log != before {
+		t.Fatal("invalid queue branch SHA changed queue authority")
+	}
 	if apiWrites != writes {
 		t.Fatal("invalid prior Git SHA attempted a remote mutation")
 	}
