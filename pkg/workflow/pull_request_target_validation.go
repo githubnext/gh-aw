@@ -17,6 +17,9 @@
 //     - In strict mode: return a hard error (extremely insecure).
 //     - In non-strict mode: emit a warning.
 //
+//  3. With on.roles containing all or read: reject in strict mode and warn in
+//     non-strict mode, regardless of checkout or trigger risk acknowledgment.
+//
 // # References
 //
 // See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/
@@ -101,6 +104,23 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	}
 
 	effectiveStrictMode := c.effectiveStrictMode(workflowData.RawFrontmatter)
+	for _, role := range workflowData.Roles {
+		if role != "all" && role != "read" {
+			continue
+		}
+		message := "pull_request_target with on.roles containing 'all' or 'read' is a dangerous combination.\n" +
+			"Untrusted contributors can trigger the agent job with access to repository secrets,\n" +
+			"including engine credentials and custom secrets, even when checkout is disabled.\n" +
+			"Use pull_request instead, or restrict on.roles to trusted repository roles\n" +
+			"(for example, [admin, maintainer, write]).\n" +
+			"on.pull_request_target.acknowledge-risk does not bypass this restriction."
+		if effectiveStrictMode {
+			return formatCompilerError(markdownPath, "error", message, nil)
+		}
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+		c.IncrementWarningCount()
+		break
+	}
 	var acknowledged bool
 	var allowedCheckouts []any
 	if on, ok := workflowData.RawFrontmatter["on"].(map[string]any); ok {
