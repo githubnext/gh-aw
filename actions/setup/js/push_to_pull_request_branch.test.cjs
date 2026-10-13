@@ -431,17 +431,17 @@ index 0000000..abc1234
   describe("GitHub Actions context scenarios", () => {
     const targetAliases = ["pull_request_number", "pullRequestNumber", "target", "pr_number", "pull_number", "item_number", "pr"];
 
-    it("should resolve a numeric config target to the configured PR", async () => {
+    it.each([456, "456", "#456"])("should resolve config target %s to the configured PR", async target => {
       const branch = "numeric-config-target";
       createPatchFile(branch);
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
-      const handler = await module.main({ target: 456 });
+      const handler = await module.main({ target });
       const result = await handler({ branch, pull_request_number: 789 }, {});
 
       expect(result.success).toBe(true);
-      expect(mockCore.info).toHaveBeenCalledWith("Target: 456");
+      expect(mockCore.info).toHaveBeenCalledWith(`Target: ${target}`);
       expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
@@ -449,7 +449,7 @@ index 0000000..abc1234
       });
     });
 
-    it.each(targetAliases.flatMap(alias => [456, "456"].map(value => [alias, value])))("should resolve wildcard target from %s=%s", async (alias, value) => {
+    it.each(targetAliases.flatMap(alias => [456, "456", "#456"].map(value => [alias, value])))("should resolve wildcard target from %s=%s", async (alias, value) => {
       mockContext.eventName = "schedule";
       delete mockContext.payload.pull_request;
       const branch = `wildcard-target-${alias}`;
@@ -468,17 +468,32 @@ index 0000000..abc1234
       });
     });
 
-    it.each(targetAliases.flatMap(alias => [undefined, null, "", "not-a-number", 0].map(value => [alias, value])))("should reject missing or invalid wildcard target from %s=%s", async (alias, value) => {
-      const branch = `invalid-wildcard-target-${alias}`;
+    it.each([0, -456, 456.5, "#0", "#0123", "#456.5", "##456", "#triggering", "456oops", "#456oops", Number.MAX_SAFE_INTEGER + 1])("should reject malformed config target %s", async target => {
+      const branch = "invalid-config-target";
       createPatchFile(branch);
 
       const module = await loadModule();
-      const handler = await module.main({ target: "*" });
-      const result = await handler({ branch, [alias]: value }, {});
+      const handler = await module.main({ target });
+      const result = await handler({ branch }, {});
 
-      expect(result).toEqual({ success: false, error: "Pull request number is required but not found" });
+      expect(result).toEqual({ success: false, error: 'Invalid target configuration: must be "triggering", "*", or a valid pull request number' });
       expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
     });
+
+    it.each(targetAliases.flatMap(alias => [undefined, null, "", "not-a-number", 0, -456, 456.5, "#0", "#0123", "#456.5", "##456", "456oops", "#456oops", Number.MAX_SAFE_INTEGER + 1].map(value => [alias, value])))(
+      "should reject missing or invalid wildcard target from %s=%s",
+      async (alias, value) => {
+        const branch = `invalid-wildcard-target-${alias}`;
+        createPatchFile(branch);
+
+        const module = await loadModule();
+        const handler = await module.main({ target: "*" });
+        const result = await handler({ branch, [alias]: value }, {});
+
+        expect(result).toEqual({ success: false, error: "Pull request number is required but not found" });
+        expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+      }
+    );
 
     it.each(targetAliases)("should diagnose supplied %s when triggering context is unavailable", async alias => {
       mockContext.eventName = "schedule";

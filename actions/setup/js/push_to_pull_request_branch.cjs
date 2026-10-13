@@ -102,8 +102,12 @@ function parsePositiveInteger(value) {
   if (typeof value !== "string" && typeof value !== "number") {
     return null;
   }
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  const text = String(value);
+  if (!/^#?[1-9]\d*$/.test(text)) {
+    return null;
+  }
+  const parsed = Number(text.replace(/^#/, ""));
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 /**
@@ -587,8 +591,8 @@ async function main(config = {}) {
 
     // Validate target configuration
     if (target !== "*" && target !== "triggering") {
-      const pullNumber = parseInt(target, 10);
-      if (Number.isNaN(pullNumber)) {
+      const pullNumber = parsePositiveInteger(target);
+      if (pullNumber === null) {
         return { success: false, error: 'Invalid target configuration: must be "triggering", "*", or a valid pull request number' };
       }
     }
@@ -618,10 +622,10 @@ async function main(config = {}) {
     } else if (target === "*") {
       const explicitPull = message.pull_request_number ?? message.pullRequestNumber ?? message.target ?? message.pr_number ?? message.pull_number ?? message.item_number ?? message.pr;
       if (explicitPull !== undefined && explicitPull !== null && explicitPull !== "") {
-        pullNumber = parseInt(String(explicitPull), 10);
+        pullNumber = parsePositiveInteger(explicitPull);
       }
     } else {
-      pullNumber = parseInt(target, 10);
+      pullNumber = parsePositiveInteger(target);
     }
 
     let branchName;

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // preprocessBoolFieldAsString converts the value of a boolean config field
@@ -192,6 +193,14 @@ func preprocessExpiresField(configData map[string]any, debugLog *logger.Logger) 
 	return expiresDisabled
 }
 
+func normalizeTargetString(target string) string {
+	number := strings.TrimPrefix(target, "#")
+	if stringutil.IsPositiveInteger(number) {
+		return number
+	}
+	return target
+}
+
 // extractTargetFromMap extracts a target string or numeric value from a config map and converts it to a string.
 // Supports string, int, int64, uint64, and float64 representations.
 func extractTargetFromMap(m map[string]any, debugLog *logger.Logger) string {
@@ -201,6 +210,7 @@ func extractTargetFromMap(m map[string]any, debugLog *logger.Logger) string {
 	if val, exists := m["target"]; exists && val != nil {
 		switch v := val.(type) {
 		case string:
+			v = normalizeTargetString(v)
 			if debugLog != nil {
 				debugLog.Printf("Parsed target string: %s", v)
 			}
@@ -234,15 +244,17 @@ func extractTargetFromMap(m map[string]any, debugLog *logger.Logger) string {
 	return ""
 }
 
-// preprocessTargetFieldAsString converts a numeric target field to its string representation
+// preprocessTargetFieldAsString normalizes a numeric or hash-prefixed target to its string representation
 // before YAML unmarshaling.
-// This allows target to accept numeric values (e.g. 123) in addition to string values (e.g. "123", "triggering", "*").
+// This allows target to accept 123, "123", and "#123" as well as "triggering" and "*".
 func preprocessTargetFieldAsString(configData map[string]any, debugLog *logger.Logger) {
 	if configData == nil {
 		return
 	}
 	if val, exists := configData["target"]; exists && val != nil {
 		switch v := val.(type) {
+		case string:
+			configData["target"] = normalizeTargetString(v)
 		case int:
 			configData["target"] = strconv.Itoa(v)
 			if debugLog != nil {

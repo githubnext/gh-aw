@@ -33,6 +33,7 @@ func TestSafeOutputsNumericTargetCompilation(t *testing.T) {
 	}{
 		{name: "integer", yaml: "123", expected: "123"},
 		{name: "quoted integer", yaml: `"123"`, expected: "123"},
+		{name: "hash integer", yaml: `"#123"`, expected: "123"},
 		{name: "triggering", yaml: "triggering", expected: "triggering"},
 		{name: "wildcard", yaml: `"*"`, expected: "*"},
 		{name: "fractional", yaml: "123.5"},
@@ -103,5 +104,18 @@ strict: false
 				})
 			}
 		})
+	}
+}
+
+func TestNormalizeTargetString(t *testing.T) {
+	for _, target := range []string{"123", "#123"} {
+		require.Equal(t, "123", normalizeTargetString(target))
+	}
+	for _, target := range []string{"", "triggering", "*", "${{ inputs.pr_number }}"} {
+		require.Equal(t, target, normalizeTargetString(target))
+	}
+	for _, target := range []string{"#0", "#0123", "#123.5", "#triggering", "##123", "#123oops"} {
+		require.Equal(t, target, normalizeTargetString(target))
+		require.Error(t, validateTargetValue("push-to-pull-request-branch", normalizeTargetString(target)))
 	}
 }
