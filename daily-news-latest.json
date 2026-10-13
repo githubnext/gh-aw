@@ -1,52 +1,30 @@
 {
-  "date": "2026-10-12",
-  "window_start": "2026-09-13",
-  "window_end": "2026-10-12",
+  "date": "2026-10-13",
+  "window_start": "2026-09-14",
+  "window_end": "2026-10-13",
   "open_issues_count": 100,
   "closed_issues_sampled": 100,
-  "open_prs_count": 13,
+  "open_prs_count": 8,
   "merged_prs_sampled": 50,
   "closed_prs_sampled": 30,
   "commits_sampled": 100,
   "discussions_count": 50,
   "releases_count": 30,
-  "changesets_count": 770,
-  "issues_opened_30d": 190,
+  "changesets_count": 778,
+  "issues_opened_30d": 199,
   "issues_closed_30d": 100,
-  "prs_opened_30d": 92,
+  "prs_opened_30d": 87,
   "prs_merged_30d": 50,
   "commits_30d": 100,
   "unique_commit_authors_sample": 4,
   "top_commit_authors": [
-    [
-      "Peli de Halleux",
-      53
-    ],
-    [
-      "Copilot",
-      31
-    ],
-    [
-      "github-actions[bot]",
-      14
-    ],
-    [
-      "Landon Cox",
-      2
-    ]
+    ["Peli de Halleux", 45],
+    ["Copilot", 37],
+    ["github-actions[bot]", 14],
+    ["Landon Cox", 4]
   ],
-  "highlight_issue_numbers": [
-    66703,
-    67906,
-    47396,
-    67826
-  ],
-  "highlight_pr_numbers": [
-    67811,
-    67910,
-    67807,
-    67884,
-    67915
-  ],
-  "latest_release": "v0.91.8"
+  "cascade_suspected_open": 33,
+  "latest_release": "v0.91.10",
+  "highlight_issue_numbers": [68368, 68355, 66894, 68027, 68042, 68171],
+  "highlight_pr_numbers": [68348, 68133, 68181, 68322, 68096, 68315]
 }
