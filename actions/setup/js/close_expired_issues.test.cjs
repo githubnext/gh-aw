@@ -67,6 +67,34 @@ describe("close_expired_issues", () => {
   });
 
   describe("main - expired issue", () => {
+    it("should close an expired no-op tracker without a workflow ID marker", async () => {
+      const module = await import("./close_expired_issues.cjs");
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issues: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: "issue_noop",
+                number: 68027,
+                title: "[aw] No-Op Runs",
+                url: "https://github.com/testowner/testrepo/issues/68027",
+                body: "<!-- gh-aw-noop-runs -->\n\n> - [x] expires <!-- gh-aw-expires: 2020-01-20T09:20:00.000Z --> on Jan 20, 2020, 9:20 AM UTC",
+                createdAt: "2020-01-19T09:20:00.000Z",
+              },
+            ],
+          },
+        },
+      });
+      mockGithub.rest.issues.createComment.mockResolvedValueOnce({ data: { id: 1 } });
+      mockGithub.rest.issues.update.mockResolvedValueOnce({ data: { state: "closed" } });
+
+      await module.main();
+
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 68027, body: expect.stringContaining("automatically closed because it expired") }));
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 68027, state: "closed" }));
+    });
+
     it("should close an expired issue", async () => {
       const module = await import("./close_expired_issues.cjs");
 
