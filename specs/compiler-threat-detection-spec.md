@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.50
+**Version**: 1.0.51
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.51` | Unreleased | Simplifies candidate CTR-033/034 and requires artifact resolution from the actual extracted layout, including nested ZIP entries. Active rules and lock-file schema remain unchanged. |
 | `1.0.50` | Unreleased | Defines candidate CTR-033 and CTR-034 for artifact-bound validation and publication credential isolation. No active rule, implemented protection, or lock-file schema change is claimed; promotion requires implementation, tests, and deployment evidence. |
 | `1.0.49` | Unreleased | Adds CTR-032; safe-output publishing jobs supply step-level check-run identity, and runtime publishers replace forged execution-provenance markers with trusted metadata. |
 | `1.0.48` | Unreleased | Audit-only; same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
@@ -136,42 +137,38 @@ Removing a rule dependency MUST deprecate—not delete—the catalog and mapping
 
 ### 5.5 Candidate Artifact Integrity Requirements
 
-The following rules are candidates, not additions to the active catalog in Section 5.1. Their requirement keywords define the conditions for promotion under Section 5.3. Configuration field names, contract serialization, and diagnostics MUST be finalized with implementation; this section does not introduce usable workflow configuration.
+These candidates are not active rules or usable workflow configuration. Their requirements define promotion criteria under Section 5.3.
 
-| Candidate | Threat and trigger | Required compiler action on promotion | Reserved diagnostic ID |
-|---|---|---|---|
-| CTR-033 Artifact Validation and Publication Binding | An artifact-consuming safe-output publisher relies on a configured deterministic validation gate, but generated dependencies, transport selection, or approval handoff permit a different or unapproved artifact to be published. | Reject bypassable gate wiring or safely rewrite it to require successful trusted validation and a bound artifact contract. Missing required approval, incompatible transport declarations, and approval artifacts configured as optional MUST NOT permit publication. | `CTR-033` |
-| CTR-034 Publication Credential Isolation | Generated artifact import, application, or semantic validation exposes publication credentials or executes agent-modified code in a credentialed publisher. | Reject unsafe credential placement or safely split validation from publication. Publication credentials MUST be available only in the approved publication boundary, never to the agent or semantic validator. | `CTR-034` |
+| Candidate / diagnostic ID | Trigger | Required compiler action on promotion |
+|---|---|---|
+| CTR-033 Artifact Validation and Publication Binding | A configured validation gate can be bypassed, or validation and publication can consume different artifacts. | Require successful trusted validation and a shared artifact identity; reject missing approval or incompatible transport contracts. |
+| CTR-034 Publication Credential Isolation | Artifact import, application, or semantic validation exposes publication credentials or executes agent-modified code in a credentialed publisher. | Isolate validation from publication credentials and prevent execution of agent-modified code in the publisher. |
 
 #### 5.5.1 Compiler and Static Enforcement
 
-On promotion, the compiler MUST generate an explicit, fail-closed dependency on every required validation gate. A skipped, failed, cancelled, or missing gate MUST block publication. Neither `always()`, `continue-on-error`, nor a permissive publishing condition may bypass that requirement. Optional telemetry and unrelated artifact downloads are not validation gates and MUST NOT be rejected merely because they tolerate failure.
+On promotion, generated publication MUST require successful completion of every configured validation gate. Skipped, failed, cancelled, or missing validation MUST block publication, regardless of `always()`, `continue-on-error`, or publishing conditions. Optional telemetry and unrelated downloads may still tolerate failure.
 
-The generated approval handoff MUST identify a versioned artifact contract and an explicit transport type. The compiler MUST reject incompatible gate/publisher contracts rather than silently downgrade to unbound filename lookup. Required validator code and policy MUST come from an approved revision outside the agent-writable workspace; an agent-authored approval marker or manifest MUST NOT authorize publication.
+Generated downloads MUST use isolated staging directories and pass their actual extraction roots to a shared resolver. The configured download `path` is a destination directory, not a payload filename: ZIP contents and download options may produce files directly under it or in nested directories. Generated validators and publishers MUST consume the same resolved artifact identity, not independently reconstruct paths from the destination, archive name, repository spelling, or branch.
 
-Source conformance checks MUST cover every artifact-consuming publishing handler. They MUST detect raw-message artifact resolution, independent security-critical path derivation, and direct application outside the verified-artifact interface. Structural call-site enforcement MUST use analysis capable of checking the relevant syntax and call relationships; text matching alone MUST NOT be represented as proof of validation dominance. Utility exemptions MUST NOT exempt artifact authorization.
+The compiler MUST reject incompatible validator/publisher contracts. Validator code and policy MUST come from an approved revision outside the agent-writable workspace. Source conformance checks MUST cover every artifact-consuming publisher and detect independent path derivation or application bypassing the shared verified-artifact interface; text matching alone MUST NOT be claimed to prove that boundary.
 
-An implementation MUST diagnose statically visible combinations of untrusted-input filtering bypass, broad transport write/tool permissions, and artifact publication lacking a trusted binding contract. Strict security contexts MUST reject an unreviewed combination once the candidate is promoted; other contexts MUST produce an actionable security diagnostic. Input sanitization or probabilistic threat detection MUST NOT be presented as a substitute for deterministic artifact binding.
+Publication credentials MUST NOT be exposed to the agent or semantic validator, including through job-level permissions, persisted checkout credentials, or earlier steps. A dependency edge or delayed token minting alone is insufficient.
 
-Generated jobs MUST isolate validation from write-credential exposure. A `needs` edge or delayed token minting is insufficient if job-level credentials, checkout persistence, or an earlier step already exposes publication authority. Changes MUST preserve the authorization and credential requirements of the exact target checkout.
+Input sanitization, probabilistic threat detection, path allowlists, and commit signing MUST NOT be treated as substitutes for deterministic artifact approval.
 
 #### 5.5.2 Associated Runtime Promotion Criteria
 
-Promotion requires the following runtime controls alongside compiler enforcement:
+The compiler cannot inspect runtime ZIP contents or prove an external validator's semantics. Promotion therefore also requires these runtime controls:
 
 | Requirement | Required behavior |
 |---|---|
-| Canonical identity | Validate and qualify the repository before artifact resolution. Producer, validator, and consumer MUST share one identity contract covering repository, branch, base commit, operation/run identity, and claim scope where applicable. Sanitization collisions MUST NOT create authorization aliases. |
-| Unambiguous transport | Select one explicit patch or bundle transport. Ambiguous candidates, conflicting transport types, missing artifacts, and unexpected sibling transports MUST fail closed. A legacy importer may accept a uniquely identifiable candidate only by sealing it into the same contract before validation; first-existing-file fallback MUST NOT authorize publication. |
-| Sealed import | Import bounded regular-file bytes into trusted storage inaccessible to the agent, rejecting traversal, unsafe archive entries, symlink substitution, and unexpected hard links. Compute the digest over the exact imported bytes using safe open/read semantics, not an existence-check followed by reopening an agent-writable path. Equivalent-privilege processes MUST NOT remain able to replace approved artifacts. |
-| Actual-result validation | Apply the sealed artifact to the bound base in an isolated checkout without publication credentials, hooks, or repository-controlled execution. Validate the complete resulting diff, retaining file, size, count, rename, deletion, binary, mode, symlink, and submodule protections. A configured narrow semantic policy MUST validate the resulting changes and deny unsupported syntax, parse failure, or incomplete evidence. |
-| Trusted approval | Only the trusted validator may issue approval. Bind it to artifact digest and size, transport, target, branch, base and resulting tree IDs, operation/run/claim identity, validator version, and policy digest. Cross-job approval MUST authenticate its trusted issuer and audience; agent-supplied hashes or signatures alone are insufficient. |
-| Exact publication | Publish the approved tree directly where possible. Reapplication MUST use the same sealed bytes and match the approved resulting tree before remote mutation. Retries MUST NOT re-resolve filenames; changed bytes, target, base, policy, claim, or resulting tree require fresh validation. Authorized idempotent retries MUST remain bound to the same approved operation. |
-| Visible denial | Invalid identity, ambiguity, untrusted approval, digest/tree mismatch, policy denial, and unauthorized replay MUST produce structured failures and zero remote mutations. Diagnostics MUST NOT include raw prompts, artifact contents, or credentials. |
+| Resolve once | Validate and qualify the repository first. Resolve one explicit transport from the actual extracted files within the operation's staging root, supporting legitimate nested layouts. Record the resolved relative path and artifact identity once for both validator and publisher. Duplicate matches, conflicting transports, and missing artifacts MUST fail closed; neither a fixed expected path nor the first recursive match is authoritative. |
+| Confine extraction and preserve bytes | Archive extraction MUST reject traversal, absolute paths, links escaping staging, and entry collisions or overwrites. Import bounded regular-file bytes into storage inaccessible to the agent and bind approval to their digest; validation MUST NOT reopen a replaceable agent-writable path. |
+| Validate the result | Apply the imported bytes to the authorized base without publication credentials or repository-controlled execution. Check the complete resulting diff against existing file/size/count protections and any configured semantic policy. Incomplete evidence or validator failure MUST deny approval. |
+| Publish only approval | Trusted approval MUST bind the artifact digest and transport to the authorized repository, branch, base, resulting tree, operation/run/claim scope, and policy version. The publisher MUST use the same bytes and approved tree, including bundle and signed-commit paths. Agent-authored manifests or checksums alone MUST NOT authorize publication. Changed inputs require fresh validation; retries MUST NOT select another file. |
+| Fail closed | Ambiguity, unsafe extraction, missing approval, identity/digest/tree mismatch, or policy denial MUST cause a structured failure and zero remote mutations. Diagnostics MUST NOT include artifact contents or credentials. |
 
-Signed-commit and bundle paths MUST enforce the same approval invariant as patch paths. Existing post-apply file protections MUST remain in force. A rollback that removes binding MUST disable protected automatic publication rather than restore fail-open selection.
-
-Downstream builds and tests SHOULD run as untrusted code on isolated, least-privilege infrastructure without sensitive publication or service credentials. Bot authorship, internal branch placement, commit signing, and draft status MUST NOT be claimed as evidence of that isolation. The compiler MUST NOT claim to verify credential exposure or code execution in externally managed pipelines.
+Existing post-apply protections MUST remain in force. External CI credential and execution isolation remains outside compiler conformance; bot authorship and draft status do not establish that isolation.
 
 ## 6. Daily Optimizer Protocol
 
@@ -244,10 +241,10 @@ These are integration targets, not evidence that candidate enforcement is implem
 
 | Candidate | Compiler and static targets | Associated runtime targets | Coverage targets |
 |---|---|---|---|
-| CTR-033 | `pkg/workflow/safe_outputs_needs_validation.go`, `safe_outputs_config_types.go`, configuration validation/serialization, and `compiler_safe_outputs_job.go` dependency, condition, import, and handler generation; `scripts/check-safe-outputs-conformance.sh` and its fixtures | `actions/setup/js/resolve_transport_paths.cjs`, `repo_helpers.cjs`, `safe_outputs_handlers.cjs`, `generate_git_patch.cjs`, `git_patch_utils.cjs`, `work_queue_claim_scope.cjs`; shared sealed-import/approval interface; `create_pull_request.cjs`, `push_to_pull_request_branch.cjs`, `manifest_file_helpers.cjs`, and `push_signed_commits.cjs` | Compiler configuration/job/step tests; `resolve_transport_paths.test.cjs`, `repo_helpers.test.cjs`, patch/path/claim tests, PR patch/bundle/parity tests, signed-push tests, and new sealed-import/approval tests |
+| CTR-033 | `pkg/workflow/safe_outputs_needs_validation.go`, safe-output configuration validation, and `compiler_safe_outputs_job.go` download/dependency/condition generation; `scripts/check-safe-outputs-conformance.sh` | Shared resolver/import boundary in `actions/setup/js/resolve_transport_paths.cjs`; repository, producer, patch/claim, PR publication, manifest, and signed-push helpers | Compiler job/step tests; transport/path/claim tests; new extracted-layout and verified-publication integration tests |
 | CTR-034 | `pkg/workflow/compiler_safe_outputs_job.go`, `compiler_safe_outputs_steps.go`, generated checkout/token environment and App-token minting, and relevant permission validation | Trusted validator/publisher boundary and the same patch, bundle, existing-branch, and signed-push publication consumers as CTR-033 | Generated credential-placement and fail-closed condition tests; hermetic validator/publisher isolation and zero-remote-mutation tests |
 
-Workflow-owned semantic validators MUST integrate through the trusted artifact contract rather than reconstruct transport paths. Their specific policies and external CI configuration remain outside this compiler specification; the safe-output and security architecture specifications MUST record the corresponding runtime contract when these candidates are promoted.
+Workflow-owned validators MUST consume the shared resolved artifact rather than rebuild filenames. Promotion MUST record the runtime contract in the safe-output and security architecture specifications.
 
 ## 8. Compliance Testing
 
@@ -309,8 +306,8 @@ The following test IDs are reserved for candidates and are not active conformanc
 
 | Reserved test ID | Candidate | Required coverage before promotion |
 |---|---|---|
-| T-CTR-048 | CTR-033 | Generated gates block skipped/failed/missing validation and optional approval; incompatible contracts are rejected. Runtime tests cover repository aliases, sanitizer collisions, dual artifacts, patch/bundle conflicts, claim scope, post-validation replacement, unsafe filesystem import, forged approvals, wrong base/run/policy, and changed resulting trees. All denied cases assert zero branch writes and PR creations. Legitimate single/multi-repository, bundle, signed-commit, and idempotent-retry paths retain intended behavior. |
-| T-CTR-049 | CTR-034 | Generated agent and semantic-validation boundaries receive no publication credentials, including job-level or persisted checkout credentials. Token placement follows trusted approval; no agent-modified code executes in the credentialed publisher. Failed approval prevents credentialed remote mutation across all artifact-consuming publication paths. |
+| T-CTR-048 | CTR-033 | Test root-level and nested ZIP layouts, download options that change nesting, duplicate basenames across directories, traversal/absolute paths, links, and entry collisions. Also cover repository aliases, claim scope, competing transports, replacement after validation, forged approval, failed/skipped gates, and changed base/policy/tree. Denials produce zero branch writes or PR creations; legitimate layouts and publication paths pass. |
+| T-CTR-049 | CTR-034 | Agent and semantic-validation steps receive no publication credentials, including job-level or persisted checkout credentials. Failed approval prevents remote mutation; agent-modified code does not execute in the credentialed publisher. |
 
 Tests MUST use hermetic temporary repositories and mocked remote APIs; they MUST NOT trigger production workflows or execute supplied incident payloads. Static-rule fixtures MUST include unsafe and safe cases, and every enumerated publishing consumer MUST have integration coverage. Candidate documentation alone MUST NOT be counted as passing runtime or compiler enforcement.
 

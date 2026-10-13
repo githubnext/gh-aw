@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.51 | Simplified candidate CTR-033/034. Clarified that download destinations do not determine payload locations: validators and publishers share one resolution of the actual extracted layout, with nested-layout support and fail-closed handling of duplicate matches, unsafe entries, and collisions. Added corresponding ZIP-layout promotion coverage; active rules remain unchanged. |
 | 1.0.50 | Added candidate CTR-033 and CTR-034 requirements for canonical artifact identity, fail-closed deterministic-validation wiring, sealed import and exact-tree approval/publication, and publication credential isolation. Added candidate implementation targets and reserved promotion tests T-CTR-048–049. Active rule catalogs and conformance guarantees remain unchanged pending implementation, tests, and deployment evidence. |
 | 1.0.49 | Added CTR-032 for step-scoped safe-output publishing identity, replacement of forged execution-provenance comments, and fail-closed runtime metadata validation. |
 | 1.0.48 | Audit-only clarification that same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
