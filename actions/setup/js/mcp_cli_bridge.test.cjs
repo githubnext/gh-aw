@@ -3,6 +3,7 @@ import fs from "fs";
 import http from "http";
 import os from "os";
 import path from "path";
+import { spawnSync } from "child_process";
 
 import {
   ensureSafeOutputsTools,
@@ -951,6 +952,24 @@ describe("mcp_cli_bridge.cjs", () => {
   });
 
   describe("stdin JSON reads", () => {
+    it("reads a large Unicode Markdown file body from a real pipe without JSON-building tools", () => {
+      const body = '# Report\n\nQuotes: "hello"; backslash: \\; Unicode: café 🚀\n'.repeat(40000).trim();
+      const script = `
+        const { readStdinSync, parseToolArgs } = require(${JSON.stringify(require.resolve("./mcp_cli_bridge.cjs"))});
+        const result = parseToolArgs(["--item_number", "42", "--body", "."], { item_number: { type: "integer" }, body: { type: "string" } }, readStdinSync(true));
+        process.stdout.write(JSON.stringify(result.args));
+      `;
+      const result = spawnSync(process.execPath, ["-e", script], { input: body, encoding: "utf8", env: { ...process.env, PATH: "" }, maxBuffer: 8 * 1024 * 1024, timeout: 10000 });
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ item_number: 42, body });
+
+      const prompt = fs.readFileSync(path.join(__dirname, "../md/mcp_cli_tools_with_safeoutputs_prompt.md"), "utf8");
+      expect(prompt).toContain("safeoutputs add_comment --item_number 42 --body . < /tmp/gh-aw/body.md");
+      expect(prompt).toContain("command -v safeoutputs");
+      expect(prompt).toContain("command -v jq");
+      expect(prompt).not.toContain("jq -Rs");
+    });
+
     it("treats an empty implicit pipe as no input", () => {
       const readSyncSpy = vi.spyOn(fs, "readSync").mockImplementation(() => {
         throw Object.assign(new Error("resource temporarily unavailable"), { code: "EAGAIN" });

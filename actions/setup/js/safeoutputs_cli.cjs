@@ -14,10 +14,32 @@
 
 const childProcess = require("child_process");
 const fs = require("fs");
+const path = require("path");
 const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
 const SAFEOUTPUTS_CLI_TIMEOUT_MS = getSetupTimeoutMs("safeoutputsCli");
+
+/**
+ * Verify advertised CLI transport in the agent environment without emitting a write.
+ * @param {string | null} prompt
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+function preflightSafeOutputsCLI(prompt, env = process.env) {
+  const cliSection = prompt?.match(/<mcp-clis>([\s\S]*?)<\/mcp-clis>/)?.[1] || "";
+  if (!/\bsafeoutputs\b/.test(cliSection)) return;
+
+  // Restore the read-only mount when sudo or the sandbox discarded host PATH additions.
+  if (env.RUNNER_TEMP) {
+    const binDir = path.join(env.RUNNER_TEMP, "gh-aw", "mcp-cli", "bin");
+    env.PATH = `${binDir}${path.delimiter}${env.PATH || ""}`;
+  }
+  try {
+    childProcess.execFileSync(env.GH_AW_SAFEOUTPUTS_CLI || "safeoutputs", ["--help"], { env, stdio: "ignore", timeout: SAFEOUTPUTS_CLI_TIMEOUT_MS });
+  } catch (error) {
+    throw new Error(`${ERR_SYSTEM}: safeoutputs CLI is unavailable in the agent environment. Check the Mount MCP servers as CLIs step and the read-only RUNNER_TEMP/gh-aw mount before retrying.`, { cause: error });
+  }
+}
 
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
@@ -350,6 +372,7 @@ function defaultLog(message) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    preflightSafeOutputsCLI,
     runSafeOutputsCLI,
     buildMissingToolAlternatives,
     emitMissingToolPermissionIssue,

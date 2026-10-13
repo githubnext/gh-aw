@@ -2,6 +2,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { spawnSync as spawnProcessSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
@@ -132,6 +133,41 @@ function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}
 }
 
 describe("codex_harness.cjs", () => {
+  describe("safeoutputs CLI preflight", () => {
+    const prompt = "<mcp-clis>\n`safeoutputs --help`\n</mcp-clis>";
+
+    it("fails before spawning Codex or retrying when advertised CLI transport is missing", () => {
+      const { result, calls } = runHarnessFixture("process.exit(0);", { prompt, env: { PATH: "", GH_AW_SAFEOUTPUTS_CLI: "" } });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("safeoutputs CLI is unavailable in the agent environment");
+      expect(result.stderr).not.toContain("retry 1/");
+      expect(calls).toEqual([]);
+    });
+
+    it("does not require a CLI for native MCP-only prompts", () => {
+      const { result, calls } = runHarnessFixture("process.exit(0);", { prompt: "<safe-output-tools>safeoutputs</safe-output-tools>", env: { PATH: "" } });
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
+
+    it("recovers mounted wrappers absent from PATH without jq, Python, or apply_patch", () => {
+      const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), "codex-cli-preflight-"));
+      const binDir = path.join(runnerTemp, "gh-aw", "mcp-cli", "bin");
+      fs.mkdirSync(binDir, { recursive: true });
+      fs.writeFileSync(path.join(binDir, "safeoutputs"), `#!${process.execPath}\nprocess.exit(process.argv[2] === "--help" ? 0 : 7);\n`, { mode: 0o700 });
+      try {
+        const { result, calls } = runHarnessFixture('process.exit(process.env.PATH.startsWith(process.env.RUNNER_TEMP + "/gh-aw/mcp-cli/bin") ? 0 : 8);', {
+          prompt,
+          env: { RUNNER_TEMP: runnerTemp, PATH: "", GH_AW_SAFEOUTPUTS_CLI: "" },
+        });
+        expect(result.status).toBe(0);
+        expect(calls).toHaveLength(1);
+      } finally {
+        fs.rmSync(runnerTemp, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe("AWF model routing", () => {
     const reflectData = {
       endpoints: [{ provider: "github", configured: true, models: ["gpt-5.6-sol"] }],

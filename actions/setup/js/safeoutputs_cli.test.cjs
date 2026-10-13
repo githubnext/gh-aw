@@ -1,13 +1,72 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const {
+  preflightSafeOutputsCLI,
+  runSafeOutputsCLI,
+  buildMissingToolAlternatives,
+  emitMissingToolPermissionIssue,
+  emitInfrastructureIncomplete,
+  hasExpectedSafeOutputs,
+  hasTerminalSafeOutput,
+  hasNoopInSafeOutputs,
+} = require("./safeoutputs_cli.cjs");
 
 describe("safeoutputs_cli.cjs", () => {
+  describe("preflightSafeOutputsCLI", () => {
+    const prompt = "<mcp-clis>\n`safeoutputs --help`\n</mcp-clis>";
+
+    it.each([undefined, "", "<safe-output-tools>safeoutputs</safe-output-tools>", "<mcp-clis>mcpscripts</mcp-clis>\nsafeoutputs"])("skips prompts without advertised safeoutputs CLI transport (%j)", prompt => {
+      const execSpy = vi.spyOn(require("child_process"), "execFileSync");
+      try {
+        preflightSafeOutputsCLI(prompt, { PATH: "" });
+        expect(execSpy).not.toHaveBeenCalled();
+      } finally {
+        execSpy.mockRestore();
+      }
+    });
+
+    it("restores the mounted wrapper PATH and checks only help without a write", () => {
+      const execSpy = vi.spyOn(require("child_process"), "execFileSync").mockReturnValue("");
+      const env = { RUNNER_TEMP: "/runner/temp", PATH: "/usr/bin" };
+      try {
+        preflightSafeOutputsCLI(prompt, env);
+        expect(env.PATH).toBe(`/runner/temp/gh-aw/mcp-cli/bin${path.delimiter}/usr/bin`);
+        expect(execSpy).toHaveBeenCalledExactlyOnceWith("safeoutputs", ["--help"], expect.objectContaining({ env, stdio: "ignore", timeout: expect.any(Number) }));
+      } finally {
+        execSpy.mockRestore();
+      }
+    });
+
+    it("honors an explicit CLI override without requiring RUNNER_TEMP", () => {
+      const execSpy = vi.spyOn(require("child_process"), "execFileSync").mockReturnValue("");
+      const env = { GH_AW_SAFEOUTPUTS_CLI: "/custom/safeoutputs", PATH: "/usr/bin" };
+      try {
+        preflightSafeOutputsCLI(prompt, env);
+        expect(env.PATH).toBe("/usr/bin");
+        expect(execSpy.mock.calls[0][0]).toBe("/custom/safeoutputs");
+      } finally {
+        execSpy.mockRestore();
+      }
+    });
+
+    it.each(["ENOENT", "EACCES", "ETIMEDOUT"])("reports an actionable infrastructure error without logging CLI output (%s)", code => {
+      const execSpy = vi.spyOn(require("child_process"), "execFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("private CLI output"), { code });
+      });
+      try {
+        expect(() => preflightSafeOutputsCLI(prompt, { PATH: "" })).toThrow("Check the Mount MCP servers as CLIs step");
+        expect(() => preflightSafeOutputsCLI(prompt, { PATH: "" })).not.toThrow("private CLI output");
+      } finally {
+        execSpy.mockRestore();
+      }
+    });
+  });
+
   describe("runSafeOutputsCLI", () => {
     it("throws when an argument key contains invalid characters", () => {
       process.env.GH_AW_SAFEOUTPUTS_CLI = "true"; // 'true' exits 0, accepts any args
