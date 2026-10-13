@@ -32,13 +32,14 @@ hash_file() {
 }
 
 capture_sources() {
-    for model in WorkQueue FairWorkQueue ClaimScopedWorker QueueService QueueLifecycle QueueBootstrap WorkerEvolution; do
+    for model in WorkQueue FairWorkQueue ClaimScopedWorker QueueService QueueLifecycle DispatchReservationRecovery QueueBootstrap WorkerEvolution; do
         hash_file "$SPEC_DIR/$model.tla"
     done
     for config in WorkQueue FairBatch FairDAGGitHub ClaimScopeMixed ServiceDynamic LifecyclePacked \
                   CompetingClaimsWitness RecoveryWitness ExternalEffectWitness WeakOrderingWitness \
                   PartialCompletionWitness MixedClaimDAGWitness LifecycleMixedDAGWitness \
                   LifecycleActivationWitness LifecycleConflictWitness \
+                  ReservationRecovery ReservationSiblingWitness ReservationRetryWitness ReservationRaceWitness \
                   BootstrapEmpty BootstrapTrustedAWWitness WorkerEvolution \
                   EvolutionCompatibleWitness EvolutionPinWitness \
                   EvolutionIncompatibleWitness EvolutionUnavailableWitness \
@@ -60,6 +61,7 @@ for entry in "WorkQueue WorkQueue simulation" \
              "ClaimScopedWorker ClaimScopeMixed ClaimScopeMixed" \
              "QueueService ServiceDynamic ServiceDynamic" \
              "QueueLifecycle LifecyclePacked LifecyclePacked" \
+             "DispatchReservationRecovery ReservationRecovery ReservationRecovery" \
              "QueueBootstrap BootstrapEmpty BootstrapEmpty" \
              "WorkerEvolution WorkerEvolution WorkerEvolution"; do
     read -r model config prefix <<<"$entry"
@@ -103,6 +105,9 @@ for entry in "FairWorkQueue PartialCompletionWitness" \
              "QueueLifecycle LifecycleMixedDAGWitness" \
              "QueueLifecycle LifecycleActivationWitness" \
              "QueueLifecycle LifecycleConflictWitness" \
+             "DispatchReservationRecovery ReservationSiblingWitness" \
+             "DispatchReservationRecovery ReservationRetryWitness" \
+             "DispatchReservationRecovery ReservationRaceWitness" \
              "QueueBootstrap BootstrapTrustedAWWitness" \
              "WorkerEvolution EvolutionCompatibleWitness" \
              "WorkerEvolution EvolutionPinWitness" \
@@ -123,7 +128,7 @@ if ! cmp -s "$RESULTS_DIR/sources-before.sha256" "$RESULTS_DIR/sources-after.sha
 fi
 
 echo "Historical simulation traces (at most $TRACE_DEPTH states, $TRACE_COUNT traces): $RESULTS_DIR/simulation_*"
-echo "Current abstraction traces: $RESULTS_DIR/{FairBatch,FairDAGGitHub,ClaimScopeMixed,ServiceDynamic,LifecyclePacked,BootstrapEmpty,WorkerEvolution}_*"
+echo "Current abstraction traces: $RESULTS_DIR/{FairBatch,FairDAGGitHub,ClaimScopeMixed,ServiceDynamic,LifecyclePacked,ReservationRecovery,BootstrapEmpty,WorkerEvolution}_*"
 echo "Textual counterexample reports: $RESULTS_DIR/*Witness.log"
 echo "Current guarded witness reports: $RESULTS_DIR/current-witnesses/*Witness.log"
 echo "Source/tool hashes and execution settings: $RESULTS_DIR"

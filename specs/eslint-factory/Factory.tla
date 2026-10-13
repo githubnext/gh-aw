@@ -44,6 +44,8 @@ AssignmentProjection == IF Eligible = {} THEN {}
 \* Two equal-priority, dependency-ready Works; queue arbitration is abstracted.
 \* One protected prefix request; project only its first compatible assignment.
 \* Other profile groups/native dispatches are outside this worker activation.
+\* DispatchReservationRecovery in ../work-queue separately models the full
+\* three-profile cohort's never-started reservations after dispatcher exit.
 Dispatch ==
   /\ ~requested /\ queueBranch /\ (Installed \/ Fault = "policy")
   /\ original' = AssignmentProjection /\ birth' = AssignmentProjection /\ requested' = TRUE

@@ -67,6 +67,23 @@ class ModelRunnerTests(unittest.TestCase):
         accepted = self.run_model("EvolutionCompletionWitness", "Invariant NoFrozenCompletion is violated", 12)
         self.assertEqual(accepted.returncode, 0, accepted.stderr)
 
+    def test_reservation_recovery_configs_require_exact_verdicts(self):
+        model = "DispatchReservationRecovery"
+        accepted = self.run_model("ReservationRecovery", "Model checking completed. No error", model=model)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        for config, invariant in (("BrokenReservationEvidence", "PrelaunchEvidence"),
+                                  ("BrokenReservationCAS", "StartFence"),
+                                  ("BrokenReservationRefund", "NoRefund"),
+                                  ("BrokenReservationResend", "OneSender"),
+                                  ("ReservationSiblingWitness", "NoSiblingRecovery"),
+                                  ("ReservationRetryWitness", "NoRetryRecovery"),
+                                  ("ReservationRaceWitness", "NoPrelaunchRace")):
+            with self.subTest(config=config):
+                result = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                rejected = self.run_model(config, "Invariant Safety is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+
     def test_unmatched_config_cannot_report_success(self):
         result = self.run_model("missing-config", "Model checking completed. No error")
         self.assertNotEqual(result.returncode, 0)
@@ -94,7 +111,8 @@ class ModelRunnerTests(unittest.TestCase):
 
     def test_all_new_configs_are_registered_with_real_invariants(self):
         runner = (SPEC / "check.sh").read_text()
-        for model, pattern in (("WorkerEvolution", r"(?:WorkerEvolution|BrokenEvolution|Evolution).*\.cfg"),
+        for model, pattern in (("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
+                               ("WorkerEvolution", r"(?:WorkerEvolution|BrokenEvolution|Evolution).*\.cfg"),
                                ("WorkerDeploymentBoundary", r"(?:WorkerDeploymentBoundary|BrokenBoundary|Boundary).*\.cfg"),
                                ("QueueBootstrap", r"(?:BrokenBootstrapHost|BrokenBootstrapEnrollment|BootstrapTrustedAW).*\.cfg")):
             source = (SPEC / f"{model}.tla").read_text()

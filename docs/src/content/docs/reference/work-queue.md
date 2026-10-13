@@ -489,6 +489,14 @@ separately. If delivery is uncertain after Completion, effects are not rerun.
 Verification within configured bounds produces Result or DeliveryFailure, an
 explicit terminal delivery failure.
 
+Bounded reconciliation also checks never-started reservations. When the exact
+originating run attempt is authenticated and terminal, a fresh ledger check
+must still show `reserved` with no sender or native run. Trusted prelaunch
+cancellation then releases capacity and makes unfinished Work eligible under
+the installed retry policy. Active origins, unavailable evidence, and any
+durable start marker retain their reservations; cancellation never resends a
+possibly started launch.
+
 ### Diagnostic artifacts
 
 Audit exports for each Claim contain executed operations, temporary-ID
