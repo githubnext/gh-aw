@@ -690,6 +690,7 @@ func TestBuildLabeledApplySafeOutputsCondition(t *testing.T) {
 	if !strings.Contains(rendered, "github.event_name == 'issues'") {
 		t.Errorf("Condition should include issues event, got: %s", rendered)
 	}
+
 	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
 		t.Errorf("Condition must not include pull_request event (issues-only), got: %s", rendered)
 	}
