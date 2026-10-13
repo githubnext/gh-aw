@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -128,16 +129,23 @@ func TestLogsMultiTargetCancelsSiblingsWhenSharedCountLimitReached(t *testing.T)
 	const simulatedInFlightDuration = 5 * time.Second
 	const maxAcceptableCancelLatency = 1 * time.Second
 
-	limitReached := make(chan struct{})
+	siblingsStarted := make(chan struct{}, 2)
 	elapsed := make(chan time.Duration, 2)
 
 	collectWorkflowLogsForTarget = func(ctx context.Context, opts LogsDownloadOptions) (workflowLogsResult, error) {
-		require.NoError(t, os.MkdirAll(opts.OutputDir, 0o755))
 		if opts.WorkflowName == "first" {
-			// Immediately consume the only slot in the shared budget, then let
-			// the other targets know the limit has now been hit.
+			// Both siblings must be in flight before cancellation; otherwise
+			// the collector correctly skips them without producing latency reports.
+			for range 2 {
+				select {
+				case <-siblingsStarted:
+				case <-ctx.Done():
+					return workflowLogsResult{}, ctx.Err()
+				case <-time.After(simulatedInFlightDuration):
+					return workflowLogsResult{}, errors.New("timed out waiting for sibling targets to start")
+				}
+			}
 			require.True(t, opts.countLimit.tryAdd())
-			close(limitReached)
 			return workflowLogsResult{}, nil
 		}
 
@@ -145,8 +153,8 @@ func TestLogsMultiTargetCancelsSiblingsWhenSharedCountLimitReached(t *testing.T)
 		// over-fetched batch) at the moment a sibling exhausts the shared
 		// budget. It should be interrupted well before simulatedInFlightDuration
 		// elapses instead of running to completion.
-		<-limitReached
 		start := time.Now()
+		siblingsStarted <- struct{}{}
 		select {
 		case <-ctx.Done():
 		case <-time.After(simulatedInFlightDuration):
@@ -162,9 +170,9 @@ func TestLogsMultiTargetCancelsSiblingsWhenSharedCountLimitReached(t *testing.T)
 		SummaryFile:    "",
 		SuppressRender: true,
 	}, []logsWorkflowTarget{
-		{workflowName: "first", repoOverride: "org/repo-a"},
 		{workflowName: "second", repoOverride: "org/repo-b"},
 		{workflowName: "third", repoOverride: "org/repo-c"},
+		{workflowName: "first", repoOverride: "org/repo-a"},
 	}, nil)
 	require.NoError(t, err)
 
@@ -173,8 +181,8 @@ func TestLogsMultiTargetCancelsSiblingsWhenSharedCountLimitReached(t *testing.T)
 		case d := <-elapsed:
 			assert.Less(t, d, maxAcceptableCancelLatency,
 				"sibling target should be canceled promptly once the shared --count budget is exhausted, not run to completion")
-		case <-time.After(simulatedInFlightDuration + maxAcceptableCancelLatency):
-			t.Fatal("timed out waiting for sibling target to report its elapsed cancellation latency")
+		default:
+			t.Fatal("sibling target did not report its elapsed cancellation latency")
 		}
 	}
 }
