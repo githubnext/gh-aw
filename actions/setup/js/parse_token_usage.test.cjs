@@ -381,6 +381,160 @@ describe("parse_token_usage", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "rejected");
     });
 
+    describe("proxy failure after a routed selection", () => {
+      const goldenDir = path.join(__dirname, "../../../pkg/cli/testdata/model_routing_golden");
+      const routingLogPath = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
+
+      /** @param {string} fixture */
+      function readFixtureRoutingRecords(fixture) {
+        return originalReadFileSync(path.join(goldenDir, fixture, routingLogPath), "utf8")
+          .split("\n")
+          .filter(line => line.trim())
+          .map(line => JSON.parse(line));
+      }
+
+      /** @param {string} fixture */
+      function readFixtureAdvisory(fixture) {
+        return JSON.parse(originalReadFileSync(path.join(goldenDir, fixture, "agent/awf-routing-outcome.json"), "utf8"));
+      }
+
+      /**
+       * @param {{engine?: string, records: any[], advisory?: any, mirrors?: string[]}} options
+       */
+      function setupRoutingRun({ engine = "copilot", records, advisory, mirrors = [] }) {
+        process.env.GH_AW_TMP_DIR = tmpDir;
+        process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
+        process.env.GH_AW_ENGINE_ID = engine;
+        process.env.GH_AW_ENGINE_MODEL = "auto";
+        fs.writeFileSync(path.join(tmpDir, "aw_info.json"), JSON.stringify({ model: "auto" }));
+        const content = records.map(record => JSON.stringify(record)).join("\n") + "\n";
+        for (const relativePath of [routingLogPath, ...mirrors]) {
+          const routingPath = path.join(tmpDir, relativePath);
+          fs.mkdirSync(path.dirname(routingPath), { recursive: true });
+          fs.writeFileSync(routingPath, content);
+        }
+        if (advisory) {
+          fs.mkdirSync(path.join(tmpDir, "agent"), { recursive: true });
+          fs.writeFileSync(path.join(tmpDir, "agent/awf-routing-outcome.json"), JSON.stringify(advisory));
+        }
+      }
+
+      function readRecordedRouting() {
+        const info = JSON.parse(originalReadFileSync(path.join(tmpDir, "aw_info.json"), "utf8")).model_routing;
+        const agentInfo = JSON.parse(originalReadFileSync(path.join(tmpDir, "agent/aw_info.json"), "utf8")).model_routing;
+        expect(agentInfo).toEqual(info);
+        return info;
+      }
+
+      const budgetFailedRouting = {
+        status: "failed",
+        source: "awf-routing",
+        failure_code: "ai_credits_limit_exceeded",
+        wire_model: "gpt-5.6-sol",
+        model: "github-copilot/gpt-5.6-sol",
+        effort: "medium",
+        endpoint: "/responses",
+        mode: "economy",
+        provider: "copilot",
+        selected_id: "choice-0004",
+        router_version: "0.1.3",
+      };
+
+      test("keeps the routed selection when the AI-credit budget fails after selection", async () => {
+        setupRoutingRun({ records: readFixtureRoutingRecords("copilot-budget-exhausted-steering"), advisory: readFixtureAdvisory("copilot-budget-exhausted-steering") });
+
+        await main();
+
+        const routing = readRecordedRouting();
+        expect(routing).toMatchObject(budgetFailedRouting);
+        expect(JSON.stringify(routing)).not.toContain("harness_selection_mismatch");
+        expect(JSON.stringify(routing)).not.toContain("Harness routing outcome did not match the proxy selection");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
+      });
+
+      test("keeps the routed selection when mirrored proxy logs repeat the failure", async () => {
+        setupRoutingRun({
+          records: readFixtureRoutingRecords("copilot-budget-exhausted-steering"),
+          advisory: readFixtureAdvisory("copilot-budget-exhausted-steering"),
+          mirrors: ["sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl", "sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl"],
+        });
+
+        await main();
+
+        expect(readRecordedRouting()).toMatchObject(budgetFailedRouting);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
+      });
+
+      test("still rejects a harness outcome whose wire model differs from the proxy selection", async () => {
+        const records = readFixtureRoutingRecords("copilot-budget-exhausted-steering").filter(record => record.stage !== "failure");
+        setupRoutingRun({ records, advisory: { ...readFixtureAdvisory("copilot-budget-exhausted-steering"), wire_model: "gpt-5.6-luna" } });
+
+        await main();
+
+        expect(readRecordedRouting()).toMatchObject({
+          status: "rejected",
+          failure_code: "harness_selection_mismatch",
+          detail: "Harness routing outcome did not match the proxy selection",
+        });
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "rejected");
+      });
+
+      test("keeps pre-agent routing failures without a selection unchanged", async () => {
+        const fixtureFailure = readFixtureRoutingRecords("copilot-budget-exhausted-steering").find(record => record.stage === "failure");
+        const records = [{ ...fixtureFailure, code: "no_route" }];
+        setupRoutingRun({ records });
+
+        await main();
+
+        const routing = readRecordedRouting();
+        expect(routing).toMatchObject({ status: "failed", failure_code: "no_route" });
+        for (const key of ["model", "wire_model", "effort", "endpoint", "mode"]) {
+          expect(routing).not.toHaveProperty(key);
+        }
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
+
+        mockCore.setOutput.mockClear();
+        setupRoutingRun({ records, advisory: readFixtureAdvisory("copilot-budget-exhausted-steering") });
+
+        await main();
+
+        expect(readRecordedRouting()).toMatchObject({ status: "rejected", failure_code: "harness_selection_mismatch" });
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "rejected");
+      });
+
+      test("keeps the selection and takes the failure code when no harness outcome exists", async () => {
+        setupRoutingRun({ records: readFixtureRoutingRecords("copilot-budget-exhausted-steering") });
+
+        await main();
+
+        expect(readRecordedRouting()).toMatchObject(budgetFailedRouting);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
+      });
+
+      test("keeps the codex routed selection when the provider becomes unavailable", async () => {
+        const records = readFixtureRoutingRecords("codex-routed-provider-unavailable");
+        const selection = records.find(record => record.stage === "selection");
+        setupRoutingRun({ engine: "codex", records });
+
+        await main();
+
+        expect(readRecordedRouting()).toMatchObject({
+          status: "failed",
+          source: "awf-routing",
+          failure_code: "provider_unavailable",
+          wire_model: "gpt-5.6-luna",
+          model: selection.selected_model,
+          effort: "high",
+          endpoint: "/responses",
+          mode: selection.mode,
+          provider: "copilot",
+          selected_id: selection.selected_id,
+          router_version: selection.router.version,
+        });
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "failed");
+      });
+    });
+
     test("skips summary when token usage file does not exist", async () => {
       await main();
 
