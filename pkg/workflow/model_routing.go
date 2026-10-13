@@ -37,6 +37,9 @@ func resolveModelRoutingAllowedModels(routing *CopilotModelRoutingConfig) ([]str
 	if routing == nil {
 		return nil, nil
 	}
+	if routing.AllowedModels == nil {
+		return nil, nil
+	}
 	if len(routing.AllowedModels) == 0 {
 		return nil, errors.New("engine.model-routing.allowed-models must contain at least one Copilot model")
 	}
@@ -93,56 +96,62 @@ func validModelRoutingCandidate(model string) bool {
 	return routingModelNamePattern.MatchString(withoutExpressions)
 }
 
-// subAgentRequestModels extends request policy without changing router candidates.
-func subAgentRequestModels(data *WorkflowData, candidates, allowed, blocked []string) ([]string, []string) {
-	result := append([]string(nil), candidates...)
-	seen := make(map[string]struct{}, len(result))
-	for _, candidate := range result {
-		seen[candidate] = struct{}{}
+// modelRoutingCandidatesExcludedByPolicy lists the literal candidates that models.allowed or models.blocked removes.
+func modelRoutingCandidatesExcludedByPolicy(candidates, allowed, blocked []string) []string {
+	var excluded []string
+	for _, candidate := range candidates {
+		if containsExpression(candidate) {
+			continue
+		}
+		model := strings.TrimPrefix(candidate, "github-copilot/")
+		if (len(allowed) > 0 && !matchesModelPolicy(model, candidate, allowed)) || matchesModelPolicy(model, candidate, blocked) {
+			excluded = append(excluded, model)
+		}
+	}
+	return excluded
+}
+
+// subAgentModelPolicyWarnings reports declared sub-agent models that AWF will reject
+// because models.allowed or models.blocked excludes every model they resolve to.
+func subAgentModelPolicyWarnings(data *WorkflowData, allowed, blocked []string) []string {
+	if len(allowed) == 0 && len(blocked) == 0 {
+		return nil
 	}
 	var warnings []string
 	for _, agent := range data.SubAgentModels {
-		patterns := expandSubagentModelPatterns(agent.Model, data, "github-copilot")
-		admitted := false
-		for _, pattern := range patterns {
-			if len(allowed) > 0 && strings.ContainsAny(pattern, "*[") {
-				for _, rule := range allowed {
-					if strings.ContainsAny(rule, "*[") {
-						continue
-					}
-					qualified := rule
-					if !strings.Contains(rule, "/") {
-						qualified = "github-copilot/" + rule
-					}
-					if matched, _ := path.Match(pattern, qualified); matched {
-						if !matchesModelPolicy(rule, qualified, blocked) {
-							admitted = true
-							if _, ok := seen[qualified]; !ok {
-								result = append(result, qualified)
-								seen[qualified] = struct{}{}
-							}
-						}
-					}
-				}
-			}
-			model := strings.TrimPrefix(pattern, "github-copilot/")
-			if len(allowed) > 0 && !matchesModelPolicy(model, pattern, allowed) {
-				continue
-			}
-			if matchesModelPolicy(model, pattern, blocked) {
-				continue
-			}
-			admitted = true
-			if _, ok := seen[pattern]; !ok {
-				result = append(result, pattern)
-				seen[pattern] = struct{}{}
-			}
-		}
-		if !admitted {
-			warnings = append(warnings, fmt.Sprintf("sub-agent %q model %q cannot be admitted by models.allowed or models.blocked (or resolves to no models)", agent.Name, agent.Model))
+		if !subAgentModelAllowedByPolicy(agent.Model, data, allowed, blocked) {
+			warnings = append(warnings, fmt.Sprintf("sub-agent %q model %q is outside models.allowed or models.blocked (or resolves to no models); AWF will reject its requests", agent.Name, agent.Model))
 		}
 	}
-	return result, warnings
+	return warnings
+}
+
+func subAgentModelAllowedByPolicy(request string, data *WorkflowData, allowed, blocked []string) bool {
+	for _, pattern := range expandSubagentModelPatterns(request, data, "github-copilot") {
+		if len(allowed) > 0 && strings.ContainsAny(pattern, "*[") {
+			for _, rule := range allowed {
+				if strings.ContainsAny(rule, "*[") {
+					continue
+				}
+				qualified := rule
+				if !strings.Contains(rule, "/") {
+					qualified = "github-copilot/" + rule
+				}
+				if matched, _ := path.Match(pattern, qualified); matched && !matchesModelPolicy(rule, qualified, blocked) {
+					return true
+				}
+			}
+		}
+		model := strings.TrimPrefix(pattern, "github-copilot/")
+		if len(allowed) > 0 && !matchesModelPolicy(model, pattern, allowed) {
+			continue
+		}
+		if matchesModelPolicy(model, pattern, blocked) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func expandModelPatterns(request string, aliases map[string][]string, defaultProvider string) []string {
@@ -185,6 +194,15 @@ func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {
 		return
 	}
 	c.warnRoutedModelOverrides(data)
+	allowed, blocked := resolveModelPolicyForAWFConfig(data)
+	if candidates, err := resolveModelRoutingAllowedModels(data.EngineConfig.ModelRouting); err == nil {
+		excluded := modelRoutingCandidatesExcludedByPolicy(candidates, allowed, blocked)
+		if len(excluded) > 0 && len(excluded) < len(candidates) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
+				"engine.model-routing.allowed-models entries excluded by models.allowed or models.blocked will not be selected: "+strings.Join(excluded, ", ")))
+			c.IncrementWarningCount()
+		}
+	}
 	if len(data.SubAgentModels) == 0 {
 		return
 	}
@@ -201,7 +219,7 @@ func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {
 	firewall := getFirewallConfig(data)
 	if !awfVersionAtLeast(firewall, constants.AWFRoutingCandidateModelsMinVersion) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
-			fmt.Sprintf("sub-agent models are limited to engine.model-routing.allowed-models with AWF %s; use AWF %s or newer to admit separately declared models",
+			fmt.Sprintf("sub-agent models are limited to engine.model-routing.allowed-models with AWF %s; use AWF %s or newer to apply models.allowed and models.blocked instead",
 				getAWFImageTag(firewall), constants.AWFRoutingCandidateModelsMinVersion)))
 		c.IncrementWarningCount()
 		return
@@ -211,17 +229,7 @@ func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {
 			"sub-agent model routing requires an AWF apiProxy image with routing.candidateModels support (v0.28.33+); the configured image is older or its version is unknown. Pin a compatible image in sandbox.agent.images."))
 		c.IncrementWarningCount()
 	}
-	candidates, err := resolveModelRoutingAllowedModels(data.EngineConfig.ModelRouting)
-	if err != nil {
-		return
-	}
-	allowed, blocked := resolveModelPolicyForAWFConfig(data)
-	candidates, err = intersectModelRoutingPolicy(candidates, allowed, blocked)
-	if err != nil {
-		return
-	}
-	_, warnings := subAgentRequestModels(data, candidates, allowed, blocked)
-	for _, warning := range warnings {
+	for _, warning := range subAgentModelPolicyWarnings(data, allowed, blocked) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning))
 		c.IncrementWarningCount()
 	}
@@ -281,17 +289,32 @@ func modelRoutingEngineSupportsModel(engineName, candidate string) bool {
 		candidate = model
 	}
 	candidate = strings.TrimPrefix(candidate, "copilot/")
-	lowerModel := strings.ToLower(candidate)
-	switch strings.ToLower(engineName) {
+	engineName = strings.ToLower(engineName)
+	switch engineName {
 	case "copilot", "pi":
 		return true
-	case "claude":
-		return strings.HasPrefix(lowerModel, "claude-")
-	case "codex":
-		return strings.HasPrefix(lowerModel, "gpt-")
+	case "claude", "codex":
+		return strings.HasPrefix(strings.ToLower(candidate), modelRoutingEngineFamilyPrefixes[engineName])
 	default:
 		return false
 	}
+}
+
+// modelRoutingEngineFamilyPrefixes holds the model families that engines with a
+// family-specific wire API (Claude's Messages API, Codex's Responses API) can call.
+var modelRoutingEngineFamilyPrefixes = map[string]string{
+	"claude": "claude-",
+	"codex":  "gpt-",
+}
+
+// modelRoutingDefaultCandidates returns the router candidates used when
+// engine.model-routing.allowed-models is omitted: the engine's model family for
+// Claude and Codex, and none (the policy-filtered catalogue) for Copilot and pi.
+func modelRoutingDefaultCandidates(engineName string) []string {
+	if prefix, ok := modelRoutingEngineFamilyPrefixes[strings.ToLower(engineName)]; ok {
+		return []string{"github-copilot/" + prefix + "*"}
+	}
+	return nil
 }
 
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
@@ -387,9 +410,16 @@ func validateModelRouting(workflowData *WorkflowData, engineName string) error {
 			return NewValidationError("engine.model-routing.allowed-models", candidate, "incompatible model-routing candidate", message)
 		}
 	}
-	allowed, blocked := resolveModelPolicyForAWFConfig(workflowData)
-	if _, err := intersectModelRoutingPolicy(candidates, allowed, blocked); err != nil {
-		return NewValidationError("engine.model-routing.allowed-models", strings.Join(routing.AllowedModels, ", "), "model-routing candidates violate model policy", err.Error())
+	if len(candidates) == 0 && !apiProxySupportsRoutingCandidateModels(workflowData) {
+		return NewValidationError("engine.model-routing.allowed-models", "", "missing model-routing candidates",
+			fmt.Sprintf("AWF versions before %s, or an apiProxy image without routing.candidateModels support, route only over engine.model-routing.allowed-models. List the candidate models, or use AWF %s or newer.",
+				constants.AWFRoutingCandidateModelsMinVersion, constants.AWFRoutingCandidateModelsMinVersion))
+	}
+	if len(candidates) > 0 {
+		allowed, blocked := resolveModelPolicyForAWFConfig(workflowData)
+		if _, err := intersectModelRoutingPolicy(candidates, allowed, blocked); err != nil {
+			return NewValidationError("engine.model-routing.allowed-models", strings.Join(routing.AllowedModels, ", "), "model-routing candidates violate model policy", err.Error())
+		}
 	}
 	firewallConfig := getFirewallConfig(workflowData)
 	version := getAWFImageTag(firewallConfig)

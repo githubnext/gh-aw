@@ -43,8 +43,9 @@ func TestBuildAWFConfigJSON_ModelRouting(t *testing.T) {
 	require.Equal(t, true, config["experimental"].(map[string]any)["modelRouting"])
 
 	apiProxy := config["apiProxy"].(map[string]any)
-	require.Equal(t, []any{"github-copilot/claude-haiku-4.5", "github-copilot/gpt-5.4-mini"}, apiProxy["allowedModels"])
+	require.NotContains(t, apiProxy, "allowedModels")
 	routing := apiProxy["routing"].(map[string]any)
+	require.Equal(t, []any{"github-copilot/claude-haiku-4.5", "github-copilot/gpt-5.4-mini"}, routing["candidateModels"])
 	require.Equal(t, map[string]any{"goal": "cost", "mode": "balanced"}, routing["objective"])
 	require.Equal(t, map[string]any{"conversationFile": modelRoutingConversationFile}, routing["task"])
 
