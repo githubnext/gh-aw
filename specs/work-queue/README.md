@@ -1073,6 +1073,19 @@ require their named counterexamples. The model abstracts exact identity matching
 as booleans and does not prove queue replay, native API semantics, coordination
 implementation, creation-receipt authenticity, runtime refinement, or liveness.
 
+[`IssueClosureCancellation.tla`](IssueClosureCancellation.tla) separately
+models closure of an exact Issue subject or immutable backing-Issue binding
+with fresh queue labels as intent, trusted terminal
+WorkCancellation, and an idempotent comment reporting the resulting ledger
+state. Its available/active/completed/cancelled configurations cover a running
+worker that is not automatically stopped, Completion winning the race,
+duplicate closure reports, already-terminal Work, and dependency-only or
+stale-label Issues that cannot create a cancellation intent. `Result` requires a
+separate completed-Work verification action; closure never creates one.
+Run `TLC_MODEL_FILTER=IssueClosureCancellation` for these bounded safety
+checks. Exact relationship/label validation, authentic CAS writes, API comments, termination
+evidence, and eventual processing remain implementation obligations.
+
 ### Daily evidence collection
 
 [`daily-work-queue-formal-verification.md`](../../.github/workflows/daily-work-queue-formal-verification.md)
