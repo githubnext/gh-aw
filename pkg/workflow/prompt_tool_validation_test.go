@@ -28,6 +28,7 @@ func TestPromptToolRequirements(t *testing.T) {
 		{"inline", "- Run `some-custom-command --verify`.", []promptToolRequirement{{command: "some-custom-command --verify"}}},
 		{"unquoted stem", "Run gh issue list.", []promptToolRequirement{{command: "gh issue list"}}},
 		{"unquoted option", "Run jq --version.", []promptToolRequirement{{command: "jq --version"}}},
+		{"named MCP tool", "Run the `status` tool of the `gh-aw` MCP server to verify configuration.", []promptToolRequirement{{server: "agenticworkflows", tool: "status", nativeMCP: true}}},
 		{"qualified", "Call `mcp__github__issue_read`.", []promptToolRequirement{{server: "github", tool: "issue_read", nativeMCP: true}}},
 		{"multiple qualified", "Call mcp__github__findings and mcp__github__summary.", []promptToolRequirement{{server: "github", tool: "findings", nativeMCP: true}, {server: "github", tool: "summary", nativeMCP: true}}},
 		{"server", "Use the tool github(issue_read).", []promptToolRequirement{{server: "github", tool: "issue_read", nativeMCP: true}}},
@@ -160,6 +161,7 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 		{"CLI abstract tool", "engine: copilot\ntools:\n  cli-proxy: true\n  bash: [echo]\n", "Use issue_read.", 0},
 		{"CLI shell grant", "engine: copilot\ntools:\n  cli-proxy: true\n  bash: [echo]\n", "Run `github issue_read`.", 0},
 		{"native MCP retained", "engine: copilot\ntools:\n  cli-proxy: false\n  bash: [echo]\n", "Call mcp__github__issue_read.", 0},
+		{"named MCP status tool", "engine: copilot\npermissions:\n  actions: read\ntools:\n  cli-proxy: true\n  bash: [echo]\n  agentic-workflows: true\n", "Run the `status` tool of the `gh-aw` MCP server to verify configuration.", 1},
 		{"SDK exact denial", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git status\"]\n", "Run `git status --short`.", 1},
 		{"SDK normalized exact denial", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git branch *\"]\n", "Run `git branch --show-current`.", 1},
 		{"SDK colon prefix", "engine:\n  id: copilot\n  copilot-sdk: true\ntools:\n  bash: [\"git status:*\"]\n", "Run `git status --short`.", 0},
@@ -196,6 +198,12 @@ func TestPromptToolCompilerIntegration(t *testing.T) {
 			if tt.name == "CLI native mismatch" {
 				require.Contains(t, output, "use the github CLI instead")
 				require.Contains(t, output, "disable tools.cli-proxy")
+			}
+			if tt.name == "named MCP status tool" {
+				require.Contains(t, output, "mcp__agenticworkflows__status")
+				require.Contains(t, output, "native MCP access is excluded by tools.cli-proxy")
+				require.NotContains(t, output, "shell(status)")
+				require.NotContains(t, output, "tools.bash")
 			}
 			if tt.want > 0 && (strings.HasPrefix(tt.name, "codex GitHub") || tt.name == "codex copilot model") {
 				require.Contains(t, output, "native shell is disabled for GitHub-backed Codex")
