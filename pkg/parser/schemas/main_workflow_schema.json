@@ -12787,6 +12787,11 @@
                   "properties": {
                     "base-revision": { "type": "string", "pattern": "^([a-f0-9]{40}|[a-f0-9]{64})$" },
                     "branch-prefix": { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$" },
+                    "checkpoint-output": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,127}$",
+                      "description": "For continuation Work, use exactly one git_commit checkpoint from this output in the predecessor's verified Result as the immutable base. Initial Work uses base-revision."
+                    },
                     "pull-request": { "type": "boolean" },
                     "base-branch": { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$" }
                   },

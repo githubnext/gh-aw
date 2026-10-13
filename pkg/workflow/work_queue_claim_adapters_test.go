@@ -47,6 +47,7 @@ func TestWorkQueueClaimAdapterParsingPreservesTypedFields(t *testing.T) {
 			"git-tree": map[string]any{
 				"base-revision": strings.Repeat("a", 40), "branch-prefix": "claims",
 				"pull-request": true, "base-branch": "main",
+				"checkpoint-output": "checkpoint",
 			},
 		},
 	})
@@ -56,7 +57,7 @@ func TestWorkQueueClaimAdapterParsingPreservesTypedFields(t *testing.T) {
 			Mode: "prepared", EffectType: "git_tree", TargetRepo: "owner/repo",
 			FieldMap: map[string]string{"files": "files"}, Expected: map[string]any{"title": "Prepared change"},
 			GitTree: &WorkQueueGitTree{
-				BaseRevision: strings.Repeat("a", 40), BranchPrefix: "claims", PullRequest: true, BaseBranch: "main",
+				BaseRevision: strings.Repeat("a", 40), BranchPrefix: "claims", PullRequest: true, BaseBranch: "main", CheckpointOutput: "checkpoint",
 			},
 		},
 	}, adapters)
@@ -179,12 +180,14 @@ func TestWorkQueueDeclaredGitTreeAdapterAndPermissions(t *testing.T) {
 			"git-tree": map[string]any{
 				"base-revision": strings.Repeat("a", 40), "branch-prefix": "automation/code",
 				"pull-request": true, "base-branch": "main",
+				"checkpoint-output": "checkpoint",
 			},
 		}},
 	}})
 	data := &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{"worker": true}}, SafeOutputs: config}
 	require.NoError(t, validateWorkQueueConfiguration(data))
 	require.Equal(t, strings.Repeat("a", 40), config.ClaimAdapters["code"].GitTree.BaseRevision)
+	require.Equal(t, "checkpoint", config.ClaimAdapters["code"].GitTree.CheckpointOutput)
 	adapterOnly := &SafeOutputsConfig{ClaimAdapters: config.ClaimAdapters}
 	permissions := computePermissionsForSafeOutputs(adapterOnly, false)
 	level, _ := permissions.Get(PermissionContents)
@@ -199,6 +202,15 @@ func TestWorkQueueDeclaredGitTreeAdapterAndPermissions(t *testing.T) {
 	require.NotContains(t, compiler.jobManager.jobs[names[0]].Permissions, "write")
 	require.Contains(t, strings.Join(compiler.jobManager.jobs[names[0]].Steps, ""), "git_tree")
 	adapter := config.ClaimAdapters["code"]
+	for _, name := range []string{"", "code", "checkpoint_1", strings.Repeat("a", 128)} {
+		adapter.GitTree.CheckpointOutput = name
+		require.NoError(t, validateWorkQueueConfiguration(data))
+	}
+	for _, name := range []string{"Code", "checkpoint-output", "../code", strings.Repeat("a", 129)} {
+		adapter.GitTree.CheckpointOutput = name
+		require.ErrorContains(t, validateWorkQueueConfiguration(data), "checkpoint-output")
+	}
+	adapter.GitTree.CheckpointOutput = "checkpoint"
 	adapter.GitTree.BaseRevision = "main"
 	require.ErrorContains(t, validateWorkQueueConfiguration(data), "immutable base revision")
 	adapter.GitTree.BaseRevision = strings.Repeat("a", 40)

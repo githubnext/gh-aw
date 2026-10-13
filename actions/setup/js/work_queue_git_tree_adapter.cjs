@@ -5,11 +5,12 @@ const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 
 const crypto = require("crypto");
 const path = require("path");
-const { canonical, closed, digest, utf8Compare } = require("./work_queue_codec.cjs");
+const { canonical, closed, digest, identity: validateIdentity, integer, utf8Compare } = require("./work_queue_codec.cjs");
 const {
   assertClaimAuthorized,
   currentClaimHandle,
   claimIdentity,
+  currentClaimAssignment,
   assertClaimIdentity,
   receiptMatchesClaim,
   claimArtifactPath,
@@ -25,17 +26,53 @@ const privateReceipts = new WeakMap();
 const REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 
 function validateGitTreeAdapter(adapter) {
-  closed(adapter["git-tree"], ["base-revision", "branch-prefix"], ["pull-request", "base-branch"], "trusted code adapter");
+  closed(adapter["git-tree"], ["base-revision", "branch-prefix"], ["pull-request", "base-branch", "checkpoint-output"], "trusted code adapter");
   const config = adapter["git-tree"];
   if (!REVISION.test(config["base-revision"]) || typeof config["branch-prefix"] !== "string" || !/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(config["branch-prefix"]) || config["branch-prefix"].length > 128)
     throw new Error(`${SAFE_OUTPUT_E001}: Trusted code adapter requires an immutable base revision and fixed branch namespace`);
   if (config["pull-request"] !== undefined && typeof config["pull-request"] !== "boolean") throw new Error("Trusted code adapter pull-request must be boolean");
+  if (config["checkpoint-output"] !== undefined && (typeof config["checkpoint-output"] !== "string" || !/^[a-z][a-z0-9_]{0,127}$/.test(config["checkpoint-output"])))
+    throw new Error("Trusted code adapter checkpoint-output requires a fixed output name");
   if (config["pull-request"] === true && (typeof config["base-branch"] !== "string" || !/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(config["base-branch"]) || config["base-branch"].length > 128))
     throw new Error("Trusted code adapter pull request requires a fixed base branch");
   const fields = new Set([...Object.keys(adapter["field-map"] || {}), ...Object.keys(adapter.expected || {})]);
   if (!fields.has("files") || [...fields].some(field => !["files", ...(config["pull-request"] ? ["title", "body"] : [])].includes(field)) || (config["pull-request"] && !fields.has("title")))
     throw new Error("Trusted code adapter requires complete declared file and pull request fields");
   return adapter;
+}
+
+function continuationCheckpoint(adapter, member) {
+  const outputName = adapter["git-tree"]["checkpoint-output"];
+  if (outputName === undefined || !Object.hasOwn(member.work, "work_queue_continuation")) return null;
+  const continuation = member.work.work_queue_continuation;
+  closed(continuation, ["root_work_id", "previous_work_id", "hop", "handoff"], [], "Work continuation");
+  validateIdentity(continuation.root_work_id, "continuation root Work");
+  validateIdentity(continuation.previous_work_id, "continuation predecessor Work");
+  integer(continuation.hop, 1, 10, "continuation hop");
+  const references = member.result_refs.filter(reference => reference.work_id === continuation.previous_work_id);
+  if (references.length !== 1) throw new Error("Code continuation requires its predecessor's verified Result");
+  const descriptor = references[0].descriptor;
+  if (descriptor.version !== 1 || !Array.isArray(descriptor.outputs) || descriptor.outputs.some(output => !output || typeof output !== "object" || Array.isArray(output)))
+    throw new Error("Code continuation requires a supported verified Result descriptor");
+  const outputs = descriptor.outputs.filter(output => output.type === outputName);
+  if (outputs.length !== 1) throw new Error("Code continuation requires exactly one declared checkpoint output");
+  const { resource, evidence } = outputs[0];
+  const prefix = `heads/${adapter["git-tree"]["branch-prefix"]}/claims/`;
+  if (
+    resource?.kind !== "git_commit" ||
+    resource.repository !== adapter["target-repo"] ||
+    !REVISION.test(resource.id) ||
+    typeof resource.ref !== "string" ||
+    !resource.ref.startsWith(prefix) ||
+    !/^[a-f0-9]{64}$/.test(resource.ref.slice(prefix.length)) ||
+    evidence?.source !== "independent_git_tree_readback" ||
+    evidence.commit !== resource.id ||
+    !REVISION.test(evidence.tree) ||
+    !REVISION.test(evidence.parent)
+  ) {
+    throw new Error("Code continuation checkpoint lacks exact repository, branch, commit and tree evidence");
+  }
+  return { revision: resource.id, tree: evidence.tree, parent: evidence.parent };
 }
 
 function treeLeaves(data, sha) {
@@ -125,6 +162,8 @@ function nativeId(value) {
 function createGitTreeEffectHandler(adapter, suppliedClient) {
   adapter = validateGitTreeAdapter(structuredClone(adapter));
   const identity = claimIdentity(currentClaimHandle());
+  const member = currentClaimAssignment()?.claims.find(claim => claim.handle === identity.claim_handle);
+  if (!member) throw new Error("Code adapter requires its original assigned Claim");
   const github = wrapClaimEffectClient(suppliedClient, { claim_handle: identity.claim_handle });
   const config = adapter["git-tree"];
   const repository = adapter["target-repo"];
@@ -137,9 +176,12 @@ function createGitTreeEffectHandler(adapter, suppliedClient) {
     await assertClaimAuthorized(message, { requireCompletion: !stagedMode });
     if (stagedMode) return { success: true, staged: true, claim_handle: identity.claim_handle };
     if (attempted) throw new Error("Code adapter allows only one immutable delivery per Claim");
+    const checkpoint = continuationCheckpoint(adapter, member);
+    const baseRevision = checkpoint?.revision || config["base-revision"];
     const declaredFields = require("./work_queue_declared_verification.cjs").adapterEffectFields(adapter, message);
-    const { data: base } = await github.rest.git.getCommit({ owner, repo, commit_sha: config["base-revision"] });
-    if (base?.sha !== config["base-revision"] || !REVISION.test(base.tree?.sha)) throw new Error("Code adapter base commit does not match its trusted immutable revision");
+    const { data: base } = await github.rest.git.getCommit({ owner, repo, commit_sha: baseRevision });
+    if (base?.sha !== baseRevision || !REVISION.test(base.tree?.sha) || (checkpoint && (base.tree.sha !== checkpoint.tree || base.parents?.length !== 1 || base.parents[0].sha !== checkpoint.parent)))
+      throw new Error("Code adapter base commit does not match its trusted immutable revision or verified checkpoint");
     const { data: original } = await github.rest.git.getTree({ owner, repo, tree_sha: base.tree.sha, recursive: "1" });
     const baseLeaves = treeLeaves(original, base.tree.sha);
     const files = normalizeFiles(message.files, baseLeaves);
@@ -164,7 +206,7 @@ function createGitTreeEffectHandler(adapter, suppliedClient) {
           continue;
         }
         const response = await github.rest.git.createBlob({ owner, repo, encoding: "base64", content: Buffer.from(file.content).toString("base64") });
-        const sha = blobIdentity(file.content, config["base-revision"]);
+        const sha = blobIdentity(file.content, baseRevision);
         if (response.data?.sha !== sha) throw new Error("Native code blob differs from its exact prepared content");
         const entry = { path: file.path, mode: file.mode, type: "blob", sha };
         expected.set(file.path, entry);

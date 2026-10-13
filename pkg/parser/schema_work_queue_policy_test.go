@@ -156,6 +156,16 @@ func TestWorkQueueClaimAdapterSchema(t *testing.T) {
 		"git-tree":  map[string]any{"base-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "branch-prefix": "automation/code", "pull-request": true, "base-branch": "main"},
 	}
 	require.NoError(t, validate(code))
+	checkpoint := code["git-tree"].(map[string]any)
+	for _, name := range []string{"code", "checkpoint_1", strings.Repeat("a", 128)} {
+		checkpoint["checkpoint-output"] = name
+		require.NoError(t, validate(code))
+	}
+	for _, name := range []any{"", "Code", "../code", "checkpoint-output", strings.Repeat("a", 129), nil, 1} {
+		checkpoint["checkpoint-output"] = name
+		require.Error(t, validate(code))
+	}
+	delete(checkpoint, "checkpoint-output")
 	code["git-tree"] = map[string]any{"base-revision": "main", "branch-prefix": "automation/code"}
 	require.Error(t, validate(code))
 	code["git-tree"] = map[string]any{"base-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "branch-prefix": "automation/code", "pull-request": true}
