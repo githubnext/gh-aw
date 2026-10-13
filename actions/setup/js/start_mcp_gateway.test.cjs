@@ -33,8 +33,20 @@ import {
   retryGatewayStartup,
   httpGet,
 } from "./start_mcp_gateway.cjs";
+import { writeMcpConfiguration } from "./mcp_configuration.cjs";
 
 describe("start_mcp_gateway logging", () => {
+  it("records only a sanitized configuration snapshot before launching the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).toContain("writeMcpConfiguration(logDir, configObj)");
+    expect(source.indexOf("writeMcpConfiguration(logDir, configObj)")).toBeLessThan(source.indexOf('core.info("Starting gateway container...")'));
+    expect(source.indexOf("writeMcpConfiguration(logDir, configObj)")).toBeLessThan(source.indexOf("const optionalServerNames = extractOptionalServerNames(configObj)"));
+    expect(source).not.toContain("core.info(mcpConfig)");
+    expect(source).not.toContain("core.error(parseMessage)");
+    expect(source).not.toContain("parseContext.lineText");
+    expect(source).not.toContain('core.error("Configuration content:")');
+  });
+
   it("reads piped configuration as a Buffer before decoding UTF-8", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain('fs.readFileSync(0).toString("utf8")');
@@ -795,6 +807,19 @@ describe("start_mcp_gateway normalizeSinkVisibilityEncoding", () => {
 });
 
 describe("start_mcp_gateway extractOptionalServerNames", () => {
+  it("writes explicit required settings before extracting them for gateway startup", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-mcp-required-"));
+    try {
+      const configObj = { mcpServers: { optional: { type: "http", required: false } } };
+      writeMcpConfiguration(directory, configObj);
+      expect(extractOptionalServerNames(configObj)).toEqual(["optional"]);
+      const snapshot = JSON.parse(fs.readFileSync(path.join(directory, "configuration.jsonl"), "utf8"));
+      expect(snapshot.data.servers).toEqual([{ serverName: "optional", transport: "http", required: false }]);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("collects servers declared with required: false and strips the flag from every server", () => {
     const configObj = {
       mcpServers: {

@@ -18,6 +18,7 @@ const { logGraphQLError, fetchAllRepoLabels } = require("./github_api_helpers.cj
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 const { getBodyFooterMessage } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 
 /** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
 const DISCUSSION_GRAPHQL_HINTS = {
@@ -157,6 +158,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     if (bodyFooter) {
       updateData.body = updateData.body.trimEnd() + "\n\n" + bodyFooter.trimEnd();
     }
+    updateData.body = appendExecutionProvenance(updateData.body, workflowName, runUrl);
   }
   const hasLabelsUpdate = updateData.labels !== undefined;
 

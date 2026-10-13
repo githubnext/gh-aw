@@ -16,6 +16,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { COMMENT_MEMORY_TAG, COMMENT_MEMORY_MAX_SCAN_PAGES, COMMENT_MEMORY_CODE_FENCE, buildCodeFenceOpener } = require("./comment_memory_helpers.cjs");
 const { getBodyFooterMessage } = require("./messages_footer.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 // Require provenance marker to avoid accidentally updating user-authored comments
 // that happen to contain a matching comment-memory tag.
 const MANAGED_COMMENT_PROVENANCE_MARKER = "<!-- gh-aw-agentic-workflow:";
@@ -211,17 +212,21 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       }) || undefined;
 
-    const managedBody = buildManagedMemoryBody(message.body || "", memoryID, {
-      includeFooter,
-      runUrl,
+    const managedBody = appendExecutionProvenance(
+      buildManagedMemoryBody(message.body || "", memoryID, {
+        includeFooter,
+        runUrl,
+        workflowName,
+        workflowSource,
+        workflowSourceURL,
+        historyUrl,
+        triggeringIssueNumber,
+        triggeringPRNumber,
+        bodyFooter: config.body_footer,
+      }),
       workflowName,
-      workflowSource,
-      workflowSourceURL,
-      historyUrl,
-      triggeringIssueNumber,
-      triggeringPRNumber,
-      bodyFooter: config.body_footer,
-    });
+      runUrl
+    );
     try {
       enforceCommentLimits(managedBody);
     } catch (error) {
