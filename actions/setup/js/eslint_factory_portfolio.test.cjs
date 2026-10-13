@@ -172,6 +172,8 @@ describe("ESLint factory producer and dispatcher", () => {
     const fixture = queueFixture({ granted: false, workerPrincipal: "12" });
     const fake = fakeGitHub();
     const runs = new Map();
+    const tags = new Map();
+    const tagCreations = [];
     const posts = [];
     const failures = [];
     const compiled = fs.readFileSync(new URL("../../../.github/workflows/eslint-factory-dispatcher.lock.yml", import.meta.url), "utf8");
@@ -183,12 +185,26 @@ describe("ESLint factory producer and dispatcher", () => {
     const policy = JSON.parse(readWorkQueuePolicyConfig(environment).replaceAll("${{ github.repository }}", REPOSITORY).replaceAll("${{ github.sha }}", REF));
     fake.githubClient.rest.repos.get = async () => ({
       status: 200,
-      data: { full_name: REPOSITORY, id: 7, default_branch: "main", size: 1 },
+      data: { full_name: REPOSITORY, id: 7, default_branch: "main", size: 1, permissions: { push: true } },
     });
     const getRef = fake.githubClient.rest.git.getRef;
     fake.githubClient.rest.git.getRef = async parameters => {
+      if (parameters.ref.startsWith("tags/")) {
+        const sha = tags.get(parameters.ref);
+        if (!sha) throw Object.assign(new Error("Not found"), { status: 404 });
+        return { status: 200, data: { ref: `refs/${parameters.ref}`, object: { type: "commit", sha } } };
+      }
       const response = await getRef(parameters);
       return { ...response, data: { ...response.data, ref: `refs/${parameters.ref}` } };
+    };
+    const createRef = fake.githubClient.rest.git.createRef;
+    fake.githubClient.rest.git.createRef = async parameters => {
+      if (!parameters.ref.startsWith("refs/tags/")) return createRef(parameters);
+      expect(parameters.ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
+      expect(parameters.sha).toBe(REF);
+      tagCreations.push(parameters);
+      tags.set(parameters.ref.slice("refs/".length), parameters.sha);
+      return { status: 201, data: {} };
     };
     fake.githubClient.rest.users = fixture.githubClient.rest.users;
     fake.githubClient.rest.users.getByUsername = async ({ username }) => {
@@ -212,7 +228,7 @@ describe("ESLint factory producer and dispatcher", () => {
       const assignment = JSON.parse(parameters.inputs.work_queue_assignment);
       const state = replayTransactions(fake.log());
       expect(state.dispatches.get(assignment.dispatch_id).state).toBe("started");
-      expect(parameters.ref).toBe(REF);
+      expect(parameters.ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
       expect(assignment.claims).toHaveLength(1);
       expect(parameters.workflow_id).toBe(`${assignment.worker_profile}.lock.yml`);
       const id = String(42 + posts.length);
@@ -260,6 +276,7 @@ describe("ESLint factory producer and dispatcher", () => {
       expect(result.success, JSON.stringify({ result, failures })).toBe(true);
       expect(result.receipts.map(receipt => receipt.status)).toEqual(["durable", "durable"]);
       expect(posts).toHaveLength(3);
+      expect(tagCreations).toHaveLength(1);
       expect(new Set(posts.map(post => post.workflow_id))).toEqual(new Set(ESLINT_WORKERS.map(profile => `${profile}.lock.yml`)));
       const state = replayTransactions(fake.log());
       expect(new Set(fileReads)).toEqual(new Set(workerFiles));
@@ -272,6 +289,7 @@ describe("ESLint factory producer and dispatcher", () => {
       expect((await processControls(controls)).success).toBe(true);
       expect(fileReads).toEqual(readsBeforeReplay);
       expect(posts).toHaveLength(3);
+      expect(tagCreations).toHaveLength(1);
       expect(replayTransactions(fake.log()).works.size).toBe(3);
       expect(failures).toEqual([]);
     } finally {
