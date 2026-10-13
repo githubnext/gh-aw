@@ -113,6 +113,7 @@ function queueFixture(options = {}) {
     rest: {
       users: { getAuthenticated: async () => ({ status: 200, data: { id: workerPrincipal, type: "Bot" } }) },
       repos: { get: async () => ({ status: 200, data: { full_name: REPOSITORY, id: 7 } }) },
+      git: { getRef: async ({ ref = "" } = {}) => ({ status: 200, data: { ref: `refs/${ref}`, object: { type: "commit", sha: ref.slice(ref.lastIndexOf("/") + 1) } } }) },
       actions: { getWorkflowRun: async ({ run_id }) => ({ status: 200, data: nativeRun(run_id === "42" ? workerContext : dispatcherContext) }) },
     },
   };

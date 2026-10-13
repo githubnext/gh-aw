@@ -207,7 +207,7 @@ async function launchAssignment(options, supplied) {
   const { assignment, dispatch, profile } = validateStoredAssignment(latest.projection, supplied, { allowReleased: true });
   log.debug("launch.assignment.checked", { claims: assignment.claims.length, released: dispatch.released, reserved: dispatch.state === "reserved", staged: isStagedMode(options) || isStagedMode(options.config) });
   if (isStagedMode(options) || isStagedMode(options.config)) return { state: "staged_preview", released: false, dispatched: false };
-  if (dispatch.released) return { state: "released", released: true, dispatched: false };
+  if (dispatch.released) return { state: dispatch.state === "rejected" ? "rejected" : "released", released: true, dispatched: false };
   if (dispatch.state !== "reserved") return { ...(await reconcileDispatch({ ...options, assignment })), dispatched: false };
   immutableRef(profile.ref);
   if (latest.projection.policy.authorization === "aw") {
@@ -247,14 +247,14 @@ async function launchAssignment(options, supplied) {
     returned = await postQueueDispatch(options.dispatchClient || options.githubClient, destination, { work_queue_assignment: canonical(assignment) });
     log.debug("launch.post.complete");
   } catch (error) {
-    log.failure("launch.post.failed", error);
+    log.failure("launch.post.failed", error, true);
     const checkedAt = options.now ?? Date.now();
     const receipt = rejectionReceipt(error, destination);
     if (receipt) {
       log.debug("launch.post.definitive_rejection");
       const evidence = lifecycleEvidence(assignment, profile, sender.repository, "nonlaunch", "github_api", checkedAt, { receipt, principal: credential.principal });
       await publishOperations(options, trustedContext, ["reject", assignment.dispatch_id, receipt], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "rejected", evidence }]);
-      return { ...(await releaseAssignment(options, assignment, evidence)), dispatched: true };
+      return { ...(await releaseAssignment(options, assignment, evidence)), state: "rejected", dispatched: false };
     }
     try {
       await publishOperations(options, trustedContext, ["uncertain", assignment.dispatch_id], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "uncertain", reason: "post_response_unconfirmed" }]);
@@ -473,7 +473,15 @@ async function dispatchQueueIntent(options) {
   const launches = [];
   for (const assignment of groups) launches.push({ dispatch_id: assignment.dispatch_id, ...(await launchAssignment(configured, assignment)) });
   log.debug("intent.dispatch.complete", { assignments: groups.length, launches: launches.length });
-  return { success: true, status: groups.length ? "durable" : "no_grant", request_id: request.id, reason: published.reason, dispatches: groups.length, launches, control: controlReceiptForRequest(published.state, request.id) };
+  return {
+    success: !launches.some(launch => launch.state === "rejected"),
+    status: groups.length ? "durable" : "no_grant",
+    request_id: request.id,
+    reason: published.reason,
+    dispatches: groups.length,
+    launches,
+    control: controlReceiptForRequest(published.state, request.id),
+  };
 }
 
 async function processWorkQueueIntents(options) {
@@ -608,17 +616,25 @@ async function main(options = {}) {
   }
   const durable = result.receipts.filter(receipt => receipt.status === "durable").length;
   const blocked = result.receipts.filter(receipt => receipt.status === "blocked").length;
-  const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "staged_preview"].includes(launch.state)).length, 0);
-  const recoveryRequired = blocked > 0 || unresolved > 0;
-  log.debug("controls.complete", { durable, blocked, unresolved, recovery_required: recoveryRequired });
+  const rejected = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => launch.state === "rejected").length, 0);
+  const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "rejected", "staged_preview"].includes(launch.state)).length, 0);
+  const recoveryRequired = blocked > 0 || unresolved > 0 || rejected > 0;
+  log.diagnostic("controls.complete", { durable, blocked, rejected, unresolved, recovery_required: recoveryRequired });
   const status = recoveryRequired ? "recovery_required" : "ok";
-  const summary = ["## Work queue controls", "", `Status: **${recoveryRequired ? "Recovery required" : "Complete"}**`, "", `- Durable requests: ${durable}`, `- Blocked intents: ${blocked}`, `- Unresolved launches: ${unresolved}`].join(
-    "\n"
-  );
+  const summary = [
+    "## Work queue controls",
+    "",
+    `Status: **${recoveryRequired ? "Recovery required" : "Complete"}**`,
+    "",
+    `- Durable requests: ${durable}`,
+    `- Blocked intents: ${blocked}`,
+    `- Rejected launches: ${rejected}`,
+    `- Unresolved launches: ${unresolved}`,
+  ].join("\n");
   result = { ...result, status, success: !recoveryRequired, summary };
   coreApi.setOutput("work_queue_requests", JSON.stringify(result));
   coreApi.setOutput("work_queue_controls_status", status);
-  coreApi.info(`Work queue controls: ${durable} durable requests; ${blocked} blocked intents; ${unresolved} unresolved launches`);
+  coreApi.info(`Work queue controls: ${durable} durable requests; ${blocked} blocked intents; ${rejected} rejected launches; ${unresolved} unresolved launches`);
   if (coreApi.summary?.addRaw && coreApi.summary?.write) {
     coreApi.summary.addRaw(summary);
     await coreApi.summary.write();

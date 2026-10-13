@@ -30,24 +30,44 @@ function createWorkQueueLogger(component) {
   const namespace = `work-queue:${component}`;
   const logger = createLogger(namespace);
   /** @param {string} event @param {Record<string, unknown>} [fields] */
-  function debug(event, fields = {}) {
-    if (!debugEnabled(namespace)) return;
+  function diagnostic(event, fields = {}) {
     const metadata = Object.entries(fields).filter(([, value]) => typeof value === "boolean" || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0));
     logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`)].join(" "));
   }
-  /** @param {string} event @param {unknown} error */
-  function failure(event, error) {
+  /** @param {string} event @param {Record<string, unknown>} [fields] */
+  function debug(event, fields = {}) {
     if (!debugEnabled(namespace)) return;
-    // Do not use debugError: API errors may contain request bodies and tokens.
-    let status;
-    try {
-      status = error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, "status")?.value : undefined;
-    } catch {
-      // Proxied or revoked errors can throw during descriptor inspection.
-    }
-    debug(event, { failed: true, ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}) });
+    diagnostic(event, fields);
   }
-  return { debug, failure };
+  /** @param {unknown} value @param {string} key */
+  function ownValue(value, key) {
+    try {
+      return value && typeof value === "object" ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  /** @param {string} event @param {unknown} error @param {boolean} [always] */
+  function failure(event, error, always = false) {
+    if (!always && !debugEnabled(namespace)) return;
+    // Do not use debugError: API errors may contain request bodies and tokens.
+    const response = ownValue(error, "response");
+    const status = ownValue(error, "status") ?? ownValue(response, "status");
+    const message = ownValue(ownValue(response, "data"), "message");
+    const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
+    diagnostic(event, {
+      failed: true,
+      ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}),
+      ...(status === 422
+        ? {
+            ref_not_found: boundedMessage.startsWith("No ref found for:"),
+            unexpected_inputs: boundedMessage.startsWith("Unexpected inputs provided:"),
+            dispatch_trigger_missing: boundedMessage === "Workflow does not have 'workflow_dispatch' trigger",
+          }
+        : {}),
+    });
+  }
+  return { debug, diagnostic, failure };
 }
 
 module.exports = { createWorkQueueLogger, debugEnabled };
