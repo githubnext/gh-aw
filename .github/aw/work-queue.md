@@ -19,8 +19,7 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 
 Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
 revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty.
-Reject malformed or unsupported existing logs.
+Absent branches are empty; reject malformed/unsupported logs.
 
 ## Configure deployment
 
@@ -33,19 +32,19 @@ tools:
     worker: true
 ```
 
-Dispatchers need `tools.work-queue: true`, a worker allowlist and bounded
+Dispatchers need `tools.work-queue: true`, worker allowlists and bounded
 `dispatch-workflow.max`. AW supplies approved routes and credentials and
 binds the actual immutable native run to each Claim; moving `target-ref` is ignored.
 
-Optional `aw.json` `work_queue` configures scheduling and Issue settings
+`aw.json` `work_queue` configures scheduling and Issue settings
 (concurrency, pending limit, retries, pools, fairness, optional label and title
 prefix). Defaults: weighted-priority, one pool, concurrency 16, pending 4,096,
 singleton assignments, three attempts, 30-second backoff.
-First submit automatically installs compiled Policy and Work.
+First submit installs compiled Policy and Work.
 Standalone seeding is unsupported; AW and Actions authorize the trusted submission.
 Economic Policy updates require quiescence and explicit
 `policy --from-config --epoch EPOCH`; config edits never rewrite active state.
-Compatible deployments evolve future execution without draining.
+Compatible deployments evolve without draining.
 Never expose queue-write credentials to
 agents/snapshot MCP. Repository access rules are GitHub's responsibility, not
 queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-work-queue.md).
@@ -55,8 +54,8 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
 `work:<status>` labels. Optional `label` customizes the tracking and status-label
 prefixes; `title_prefix` defaults to `[work queue]`. Titles and summaries show
-12-character Work IDs; the Issue body includes the full ID. No per-workflow
-override or enrollment is needed. Protected AW hooks alone project their
+12-character Work IDs; bodies include full IDs. No per-workflow
+override/enrollment. Protected AW hooks alone project their
 admissions/original Claims. Immutable `backing_issue` binds one Work per Issue.
 Agents never write mirrors; human edits never establish Result. Pre-existing
 Issues require exact installed `backing_issues` grants. Only trusted
@@ -64,19 +63,19 @@ admission-time `completion_policy` permits closure, never payload. Keep uncertai
 writes pending; never recreate or globally repair. Upgrade closed-schema readers
 first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
-Mirroring enables compiler-generated `.github/workflows/agentic-workqueue.yml`
-for Issue lifecycle events outside agentic workflows; disabling mirroring removes it.
+Mirroring generates `.github/workflows/agentic-workqueue.yml`
+for Issue lifecycle events; disabling removes it.
 
 ## Plan and dispatch
 
-- Read the immutable snapshot; predictions may be stale and cannot override
+- Read immutable snapshots; stale predictions cannot override
   Policy. Submit bounded, secret-free plans within scheduling limits.
 - Request a pool prefix with `work_queue_dispatch_next` (`pool`, `max_claims`,
   `max_dispatches`). Never choose winners/targets or use scalar dispatch.
 - Trusted processing refreshes the ledger and commits a compatible fair prefix.
   CAS losers discard tentative choices/charges and recompute.
 
-ESLint, daily-report and conformance agents explain staged plans only.
+ESLint/daily-report/conformance agents explain staged plans only.
 Trusted controls validate the batch; empty dispatcher intents fail.
 Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 
@@ -85,16 +84,16 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 - Process only the assignment's original Claims and stored plans. Scope every
   safe output and finish intent to one original Claim.
 - Omit `claim_handle` only for an originally single-Claim assignment.
-  Multi-Claim assignments require it on every message even after other members
+  Multi-Claim assignments require it on every message even after others
   close. Reject malformed, null, foreign or conflicting selectors.
 - Finish each member with `work_queue_claim_finish`, using
   `outcome: "completed"` or `"cancelled"`. Missing finish authorizes no effects;
   valid siblings settle independently.
-- Default to one Claim; batch only compatible Work with reusable setup. A native
+- Default to one Claim; batch compatible Work with reusable setup. A native
   batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before
   scoped effects and Result only after independently verified delivery.
-- For a worker's effect beyond the built-in safe outputs, declare
+- For effects beyond built-in safe outputs, declare
   `safe-outputs.claim-adapters` (see
   [safe-outputs-runtime.md](safe-outputs-runtime.md)); the adapter binds one
   effect-type to an independently verified result, never to job success alone.
@@ -135,4 +134,4 @@ delete a queue to retry admission.
 - Executable models, fixtures and bounded verification:
   [formal reference](../../specs/work-queue/README.md).
 
-Tests do not prove Result or live deployment.
+Tests prove neither Result nor live deployment.
