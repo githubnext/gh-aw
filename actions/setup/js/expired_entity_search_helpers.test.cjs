@@ -160,6 +160,40 @@ describe("searchEntitiesWithExpiration", () => {
     expect(result.stats.totalScanned).toBe(2);
   });
 
+  it("should find no-op tracker issues with expiration markers, but not similarly named issues or other entity types", async () => {
+    const tracker = {
+      id: "issue-noop",
+      number: 3,
+      title: "[aw] No-Op Runs",
+      url: "https://github.com/test-owner/test-repo/issues/3",
+      body: "<!-- gh-aw-noop-runs -->\n\n> - [x] expires <!-- gh-aw-expires: 2026-12-31T23:59:59Z --> on Dec 31, 2026, 11:59 PM UTC",
+      createdAt: "2026-01-01T00:00:00Z",
+    };
+    const unrelated = { ...tracker, id: "issue-other", number: 4, body: tracker.body.replace("<!-- gh-aw-noop-runs -->", "gh-aw-noop-runs") };
+    mockGithub = {
+      graphql: vi.fn().mockResolvedValue({
+        repository: {
+          issues: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [tracker, unrelated] },
+          pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [tracker] },
+        },
+      }),
+    };
+
+    const issues = await searchEntitiesWithExpiration(mockGithub, owner, repo, {
+      entityType: "issues",
+      graphqlField: "issues",
+      resultKey: "issues",
+    });
+    const pullRequests = await searchEntitiesWithExpiration(mockGithub, owner, repo, {
+      entityType: "pull requests",
+      graphqlField: "pullRequests",
+      resultKey: "pullRequests",
+    });
+
+    expect(issues.items).toEqual([tracker]);
+    expect(pullRequests.items).toEqual([]);
+  });
+
   it("should filter out entities without expiration markers", async () => {
     const withExpiration = {
       id: "issue-1",
