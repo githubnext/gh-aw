@@ -347,7 +347,7 @@ func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T
 	}
 }
 
-func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
+func TestDailyFormalSpecVerifierDefinesConfiguredSafeOutputContract(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
@@ -365,14 +365,24 @@ func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
 		t.Fatal("Expected daily-formal-spec-verifier workflow to require a single final create_issue safe output")
 	}
 
-	noShellGuidance := "Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments."
-	if !strings.Contains(workflow, noShellGuidance) {
-		t.Fatal("Expected daily-formal-spec-verifier workflow to forbid bash/CLI safe-output invocation")
+	for _, expected := range []string{
+		"cli-proxy: true",
+		"direct safe-output MCP tools are not exposed",
+		"printf '%s' '<JSON>' | safeoutputs create_issue .",
+		`printf '%s' '{"reason":"<concrete blocker>"}' | safeoutputs report_incomplete .`,
+		"Do not redirect it to a file.",
+	} {
+		if !strings.Contains(workflow, expected) {
+			t.Fatalf("Expected daily-formal-spec-verifier workflow to support configured CLI transport with %q", expected)
+		}
+	}
+	if strings.Contains(workflow, "Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI") {
+		t.Fatal("Workflow must not forbid its configured safe-output transport")
 	}
 
-	reportIncompleteGuidance := "If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`."
+	reportIncompleteGuidance := "If the quality checks below cannot be met, emit `report_incomplete` through the same transport instead of `create_issue`."
 	if !strings.Contains(workflow, reportIncompleteGuidance) {
-		t.Fatal("Expected daily-formal-spec-verifier workflow to require direct report_incomplete fallback")
+		t.Fatal("Expected daily-formal-spec-verifier workflow to require report_incomplete fallback through the configured transport")
 	}
 
 	terminalSafeOutputGuidance := "**Before finishing, confirm you called exactly one terminal safe output:** `create_issue`, `report_incomplete`, or `noop`."
@@ -447,23 +457,47 @@ func TestLayoutSpecMaintainerHasToolBudgetAwareness(t *testing.T) {
 	}
 }
 
-func TestDailyAgentOfTheDayBlogWriterHasGitDenialMitigationAllowlist(t *testing.T) {
+func TestBlogWorkflowsPrepareCommittedSafeOutputBranches(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		t.Fatalf("Failed to find repo root: %v", err)
 	}
 
-	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-agent-of-the-day-blog-writer.md")
-	content, err := os.ReadFile(workflowFile)
-	if err != nil {
-		t.Fatalf("Failed to read workflow file: %v", err)
-	}
-
-	workflow := string(content)
-	// The workflow uses bash: ["*"] to allow all bash commands (including git),
-	// which covers the git denial mitigation pattern without needing an explicit allowlist.
-	if !strings.Contains(workflow, `bash: ["*"]`) {
-		t.Fatalf("Expected Daily Agent of the Day Blog Writer workflow to allow all bash commands via bash: [\"*\"]")
+	for _, name := range []string{"daily-agent-of-the-day-blog-writer", "daily-ecosystem-explorer"} {
+		t.Run(name, func(t *testing.T) {
+			content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", name+".md"))
+			if err != nil {
+				t.Fatalf("Failed to read workflow file: %v", err)
+			}
+			workflow := string(content)
+			for _, expected := range []string{
+				`bash: ["*"]`,
+				"cli-proxy: true",
+				"`create_pull_request` packages committed changes",
+				"`git checkout -b ",
+				"${{ github.run_id }}`",
+				"`git add -- <blog-post-path>`",
+				"`git diff --cached --name-only`",
+				"`git commit -m ",
+				"`branch` equal to the verified local feature branch",
+				"If preparation fails or unrelated staged files exist, emit `report_incomplete`",
+				"Do not run `git push`, `git pull`, `git fetch`, any `git remote *`",
+			} {
+				if !strings.Contains(workflow, expected) {
+					t.Errorf("Expected local-only publication preparation contract %q", expected)
+				}
+			}
+			for _, forbidden := range []string{
+				"Do not stage, commit, or switch branches yourself",
+				"Do not run git write commands yourself",
+				"Do not run `git add`, `git commit`, `git checkout`",
+				"It will package the edited docs files into the PR for you",
+			} {
+				if strings.Contains(workflow, forbidden) {
+					t.Errorf("Workflow contradicts committed-branch safe-output contract with %q", forbidden)
+				}
+			}
+		})
 	}
 }
 

@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { executionEnv, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+
+useExecutionProvenanceFixture();
 
 const require = createRequire(import.meta.url);
 const publicApi = require("./index.cjs");
@@ -23,6 +26,8 @@ describe("custom safe-output issue API", () => {
       if (key.startsWith("GH_AW_")) delete process.env[key];
     }
     Object.assign(process.env, {
+      GH_AW_JOB_CHECK_RUN_ID: executionEnv.GH_AW_JOB_CHECK_RUN_ID,
+      GITHUB_REPOSITORY: "owner/repo",
       GH_AW_PROMPTS_DIR: fileURLToPath(new URL("../md/", import.meta.url)),
       GH_AW_WORKFLOW_NAME: "Custom Finding",
       GH_AW_WORKFLOW_ID: "custom-finding",
@@ -109,6 +114,7 @@ describe("custom safe-output issue API", () => {
 
   it("keeps cross-repository attribution on the original enterprise workflow run", async () => {
     context.serverUrl = "https://github.example.com";
+    process.env.GITHUB_SERVER_URL = context.serverUrl;
     await createIssue({ owner: "other", repo: "target", title: "Finding", body: "Details" });
     const request = github.rest.issues.create.mock.calls[0][0];
     expect(request).toMatchObject({ owner: "other", repo: "target" });

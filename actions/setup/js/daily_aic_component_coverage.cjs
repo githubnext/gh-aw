@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
+const { API_READ_OPERATIONS } = require("./daily_aic_api_budget.cjs");
 
 // These are the compiler-owned jobs and collect_usage_artifact_files.sh paths.
 // Raw firewall accounting is preferred to the overlapping engine summary.
@@ -27,17 +28,21 @@ function componentKey(job) {
 
 async function loadBillableJobs({ github, budget }, owner, repo, run) {
   const components = new Map();
+  const jobsByComponent = new Map();
   let complete = false;
   for (let page = 1; page <= 10; page++) {
-    const response = await budget.request(() =>
-      github.rest.actions.listJobsForWorkflowRun({
-        owner,
-        repo,
-        run_id: run.id,
-        filter: "all",
-        per_page: 100,
-        page,
-      })
+    const response = await budget.request(
+      () =>
+        github.rest.actions.listJobsForWorkflowRun({
+          owner,
+          repo,
+          run_id: run.id,
+          filter: "all",
+          per_page: 100,
+          page,
+        }),
+      true,
+      API_READ_OPERATIONS.RUN_JOBS
     );
     const jobs = response.data.jobs;
     if (!Array.isArray(jobs)) throw new Error("Incomplete daily AIC job metadata");
@@ -47,11 +52,12 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
       if (!Number.isSafeInteger(job.run_attempt) || job.run_attempt < 1 || job.run_attempt > run.run_attempt || job.status !== "completed" || !job.conclusion) {
         throw new Error("Incomplete daily AIC component attempt metadata");
       }
+      if (!jobsByComponent.has(name)) jobsByComponent.set(name, []);
+      jobsByComponent.get(name).push(job);
       const prior = components.get(name);
-      if (prior && job.run_attempt === prior.run_attempt && job.id !== prior.id) {
-        throw new Error("Ambiguous daily AIC component jobs");
-      }
-      if (!prior || (prior.conclusion === "skipped" && job.conclusion !== "skipped") || (job.conclusion !== "skipped" && job.run_attempt > prior.run_attempt) || (prior.conclusion === "skipped" && job.run_attempt > prior.run_attempt)) {
+      const notStarted = job.conclusion === "skipped" || provesJobExecutionNotStarted(job);
+      const priorNotStarted = prior && (prior.conclusion === "skipped" || provesJobExecutionNotStarted(prior));
+      if (!prior || (priorNotStarted && !notStarted) || (notStarted === priorNotStarted && job.run_attempt > prior.run_attempt)) {
         components.set(name, job);
       }
     }
@@ -62,7 +68,27 @@ async function loadBillableJobs({ github, budget }, owner, repo, run) {
   }
   // A complete empty job list proves the run ended before any billable job existed.
   if (!complete || (components.size > 0 && !components.has("agent"))) throw new Error("Cannot prove complete billable-component coverage");
-  return components;
+  const priorJobs = new Map();
+  for (const [name, selected] of components) {
+    const selectedAttemptJobs = jobsByComponent.get(name).filter(job => job.run_attempt === selected.run_attempt);
+    if (new Set(selectedAttemptJobs.map(job => job.id)).size > 1) {
+      throw new Error("Ambiguous daily AIC component jobs");
+    }
+    if (selected.conclusion === "cancelled") {
+      priorJobs.set(
+        name,
+        jobsByComponent
+          .get(name)
+          .filter(job => job.conclusion !== "skipped" && job.run_attempt < selected.run_attempt)
+          .sort((a, b) => b.run_attempt - a.run_attempt)
+      );
+    }
+  }
+  return { components, priorJobs };
+}
+
+function allBillableJobsNotStarted(components) {
+  return [...components.values()].every(job => job.conclusion === "skipped" || provesJobExecutionNotStarted(job));
 }
 
 function allBillableJobsSkipped(components) {
@@ -121,9 +147,10 @@ function logComponentAIC(runId, name, job, aic, reason, details = {}) {
 /**
  * @param {{ artifactInspected: boolean, preHarnessFailure: boolean, sampleReplay: boolean } | null} legacyAgentEvidence
  */
-function sumCoveredComponents(directory, components, artifactCreatedAt, artifacts, usageArtifactName, attempt, runId, legacyAgentEvidence = null) {
+function sumCoveredComponents(directory, components, artifactCreatedAt, artifacts, usageArtifactName, attempt, runId, legacyAgentEvidence = null, priorJobs = new Map()) {
   let total = 0;
-  for (const [name, job] of components) {
+  for (const [name, selectedJob] of components) {
+    let job = selectedJob;
     if (job.conclusion === "skipped") {
       logComponentAIC(runId, name, job, 0, "job_skipped");
       continue;
@@ -146,7 +173,32 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
       const producer = artifacts.find(artifact => artifact.name === producerName);
       const produced = producer?.createdAt?.getTime();
       if (!producer?.id || producer.expired || !Number.isFinite(produced) || produced < started || produced >= completed + 1000) {
-        throw new Error(`Cannot verify the ${name} producer artifact for its job attempt`);
+        const earlier = priorJobs.get(name) || [];
+        const prior = earlier[0];
+        const priorStarted = Date.parse(prior?.started_at);
+        const priorCompleted = Date.parse(prior?.completed_at);
+        if (job.conclusion === "cancelled" && prior && earlier.some(item => item.run_attempt === prior.run_attempt && item.id !== prior.id)) {
+          throw new Error("Ambiguous daily AIC component jobs");
+        }
+        if (
+          job.conclusion !== "cancelled" ||
+          !prior ||
+          !producer?.id ||
+          producer.expired ||
+          !Number.isFinite(produced) ||
+          !Number.isFinite(priorStarted) ||
+          !Number.isFinite(priorCompleted) ||
+          priorStarted > priorCompleted ||
+          produced < priorStarted ||
+          produced >= priorCompleted + 1000 ||
+          produced >= started
+        ) {
+          throw new Error(`Cannot verify the ${name} producer artifact for its job attempt`);
+        }
+        core.warning(
+          `[daily-workflow-aic] Cancelled ${name} job ${job.id} in run ${runId} has no verifiable producer artifact; counting carried-forward usage from attempt ${prior.run_attempt}. Usage from the cancelled attempt may be unaccounted for.`
+        );
+        job = prior;
       }
     }
     const candidates = COMPONENT_FILES[name].map(parts => path.join(directory, ...parts));
@@ -230,4 +282,4 @@ function sumCoveredComponents(directory, components, artifactCreatedAt, artifact
   return total;
 }
 
-module.exports = { loadBillableJobs, allBillableJobsSkipped, sumCoveredComponents };
+module.exports = { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents };

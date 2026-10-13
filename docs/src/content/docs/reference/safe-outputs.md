@@ -257,7 +257,7 @@ safe-outputs:
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for comprehensive documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
 
 > [!TIP]
-> Use `footer: false` to omit the AI-generated footer while preserving workflow-id markers for searchability. See [Footer Control](/gh-aw/reference/footers/) for details.
+> Use `footer: false` to omit the visible AI-generated footer while preserving workflow grouping markers and machine-readable execution provenance. See [Footer Control](/gh-aw/reference/footers/) for details.
 
 #### `create_issue` tool field schema (`fields`)
 

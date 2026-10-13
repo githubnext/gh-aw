@@ -7,7 +7,7 @@ sidebar:
 
 # AI Credits Specification
 
-**Version**: 1.5.0<br />
+**Version**: 1.5.1<br />
 **Status**: Draft  
 **Publication Date**: 2026-10-12<br />
 **Editor**: GitHub Agentic Workflows Team  
@@ -457,6 +457,7 @@ A conforming implementation MUST enforce the following at compile time:
 | T-AIC-DG-023 | Workflow-history 404 uses repository-history fallback, not zero usage or an incomplete total | §9.9, §9.13 |
 | T-AIC-DG-024 | Estimated credits are reported separately and equality with the threshold is exceeded | §9.14 |
 | T-AIC-DG-025 | Repo-memory trust, timestamp filtering, duplicate selection, and permissive read behavior match the separate backend contract | §9.15 |
+| T-AIC-DG-026 | A cancelled rerun without a verified producer carries usage only from the unique latest earlier executed job with a verified producer; missing accounting, ambiguous prior jobs, and other outcomes fail closed | §9.11 |
 
 ### 9.8 Guardrail Bypass Conditions
 
@@ -520,7 +521,9 @@ Individually resolved observations are persisted even if a later historical read
 
 The runtime MUST list billable jobs with all attempts, validate completed job metadata, and independently account for Agent, Detection, and Evaluations. It normalizes display names to component IDs, rejects ambiguous same-attempt jobs, and retains the relevant executed job when a failed-only rerun preserves a successful earlier attempt. A complete empty job list or a list containing only skipped billable jobs proves zero for the run without an artifact read.
 
-Otherwise, the runtime selects the latest matching `usage` or invocation-prefixed `*-usage` artifact. Missing identity, expiry, missing creation time, or incomplete component coverage is unresolved accounting, not zero. An aggregate artifact MUST cover each executed component's start/end timestamps. On reruns, the original component producer artifact MUST also exist, be unexpired, and have a creation time from the job start through strictly before its completion plus one second. Repacking old data with a new aggregate timestamp MUST NOT establish coverage.
+Otherwise, the runtime selects the latest matching `usage` or invocation-prefixed `*-usage` artifact. Missing identity, expiry, missing creation time, or incomplete component coverage is unresolved accounting, not zero. An aggregate artifact MUST cover each executed component's start/end timestamps. On reruns, unless the cancelled-attempt exception below applies, the original component producer artifact MUST also exist, be unexpired, and have a creation time from the job start through strictly before its completion plus one second. Repacking old data with a new aggregate timestamp MUST NOT establish coverage.
+
+If the selected latest component job is `cancelled` and its attempt has no verifiable producer artifact, the runtime MAY count carried-forward usage only when the latest earlier executed job for that component is unambiguous and has a verifiable, unexpired producer artifact created within that job's start/completion bounds, and the selected aggregate accounting completely covers that attempt. The runtime MUST warn that usage from the cancelled attempt may be unaccounted for. Missing accounting, ambiguous jobs on the latest earlier attempt, or an unverifiable producer for that attempt remains unresolved accounting; it MUST NOT be treated as zero or carried forward from an arbitrary older job. This fallback MUST NOT apply to any outcome other than `cancelled`. A verified producer for the selected attempt takes precedence and does not require older attempts to be unambiguous.
 
 Within each component, select the first non-empty accounting file in this order:
 
@@ -569,6 +572,8 @@ Eligible HTTP 5xx and recognized network/timeout failures MUST use at most three
 Permission failures, HTTP 429, rate-limited 403 responses, explicit `Retry-After`, and the API reserve circuit breaker MUST stop without retrying or estimating through the restriction. The reserve is 100 remaining requests by default. Observe GitHub business responses, including rejected responses and artifact redirect requests, before retry/fallback decisions. Signed-storage responses do not count as GitHub API quota observations and MUST NOT receive the GitHub authorization header.
 
 Retry-deadline reporting MUST honor explicit `Retry-After` and relevant quota-reset deadlines. Ordinary 5xx responses carrying a non-exhausted `x-ratelimit-reset` MUST NOT produce a "must not retry before" message based on that header alone. Diagnostics MUST omit credentials, signed URLs, response bodies, and arbitrary error payloads from new retry/cache-decision logs.
+
+Retry, recovery, and stop diagnostics identify the read using a fixed operation label: `current_run`, `workflow_history`, `repository_history`, `run_jobs`, `artifact_list`, `artifact_redirect`, or `artifact_download` (`unknown` for unlabeled callers). Terminal read failures retain bounded attempt counts, HTTP status when available, and a fixed stop reason. Guardrail failure outputs use this metadata instead of the API error payload, including through artifact transport wrappers, and state that accounting remains unverified and agent startup is blocked. Attribution does not change retry limits, quota restrictions, artifact validation, or accounting decisions.
 
 ### 9.14 Aggregation and Outputs
 
@@ -745,6 +750,11 @@ This specification MUST be revalidated when any of the following occurs:
 
 <a id="change-log"></a>
 ## Change Log
+
+### Version 1.5.1 (2026-10-12)
+
+- **Updated**: Section 9.11 and compliance test T-AIC-DG-026 specify the verified prior-attempt fallback for cancelled reruns and its fail-closed boundaries.
+- **Added**: A bounded TLA+ model for cancelled-rerun producer verification and carried-forward accounting.
 
 ### Version 1.5.0 (2026-10-12)
 

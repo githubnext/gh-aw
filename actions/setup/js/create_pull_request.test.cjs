@@ -5,6 +5,9 @@ import { fileURLToPath } from "url";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { expectExecutionProvenance, useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+
+useExecutionProvenanceFixture();
 
 const require = createRequire(import.meta.url);
 const promptsSourceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md");
@@ -1364,6 +1367,7 @@ index 0000000..abc1234
     expect(result.fallback_used).toBe(true);
 
     const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
+    expectExecutionProvenance(fallbackIssueBody);
     const tempRefMatch = fallbackIssueBody.match(/temp_ref='(refs\/bundles\/create-pr-autoloop-perf-comparison-[a-f0-9]{8})'/);
     if (!tempRefMatch?.[1]) {
       throw new Error("expected fallback bundle temp ref");
@@ -1414,6 +1418,7 @@ index 0000000..abc1234
     expect(result.fallback_used).toBe(true);
 
     const fallbackIssueBody = global.github.rest.issues.create.mock.calls[0][0].body;
+    expectExecutionProvenance(fallbackIssueBody);
     expect(fallbackIssueBody).toContain("**Original error:** push rejected");
     expect(fallbackIssueBody).toContain("git am --3way");
     expect(fallbackIssueBody).not.toContain("git update-ref");
@@ -4305,6 +4310,9 @@ describe("create_pull_request - rate-limit retry", () => {
       expect(result.issue_number).toBe(99);
       // Fallback issue: 1 rate-limited attempt + 1 successful retry = 2 calls
       expect(global.github.rest.issues.create).toHaveBeenCalledTimes(2);
+      for (const [request] of global.github.rest.issues.create.mock.calls) {
+        expectExecutionProvenance(request.body);
+      }
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("create fallback issue"));
     } finally {
       vi.useRealTimers();
@@ -4337,6 +4345,9 @@ describe("create_pull_request - rate-limit retry", () => {
     expect(secondCall.body).toContain("user1");
     expect(secondCall.body).toContain("user2");
     expect(secondCall.body).toContain("could not be set");
+    for (const [request] of global.github.rest.issues.create.mock.calls) {
+      expectExecutionProvenance(request.body);
+    }
   });
 });
 
@@ -4459,6 +4470,12 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     const secondCall = global.github.rest.issues.create.mock.calls[1][0];
     expect(secondCall.owner).toBe("workflow-owner");
     expect(secondCall.repo).toBe("workflow-repo");
+    for (const [request] of global.github.rest.issues.create.mock.calls) {
+      expectExecutionProvenance(request.body, {
+        repository: "workflow-owner/workflow-repo",
+        run_url: "https://github.com/workflow-owner/workflow-repo/actions/runs/12345",
+      });
+    }
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Issues are disabled"));
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("workflow-owner/workflow-repo"));
   });
@@ -4483,6 +4500,12 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     const secondCall = global.github.rest.issues.create.mock.calls[1][0];
     expect(secondCall.owner).toBe("failure-owner");
     expect(secondCall.repo).toBe("failure-repo");
+    for (const [request] of global.github.rest.issues.create.mock.calls) {
+      expectExecutionProvenance(request.body, {
+        repository: "workflow-owner/workflow-repo",
+        run_url: "https://github.com/workflow-owner/workflow-repo/actions/runs/12345",
+      });
+    }
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("failure-owner/failure-repo"));
   });
 
@@ -4536,6 +4559,12 @@ describe("create_pull_request - fallback issue issues-disabled (410)", () => {
     expect(thirdCall.owner).toBe("workflow-owner");
     expect(thirdCall.repo).toBe("workflow-repo");
     expect(thirdCall.assignees).toBeUndefined();
+    for (const [request] of global.github.rest.issues.create.mock.calls) {
+      expectExecutionProvenance(request.body, {
+        repository: "workflow-owner/workflow-repo",
+        run_url: "https://github.com/workflow-owner/workflow-repo/actions/runs/12345",
+      });
+    }
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("assignee error"));
   });
 
@@ -4828,31 +4857,40 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   }
 
   it("should create a fallback issue when E003 fires and fallback_as_issue is true (default)", async () => {
-    const patchPath = canonicalPatchPath("data/refresh");
-    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+    const patchPath = getPatchPathForBranch("data/refresh");
+    const runtimeFs = require("fs");
+    const originalExistsSync = runtimeFs.existsSync.bind(runtimeFs);
+    const originalReadFileSync = runtimeFs.readFileSync.bind(runtimeFs);
+    const existsSpy = vi.spyOn(runtimeFs, "existsSync").mockImplementation(file => String(file) === patchPath || originalExistsSync(file));
+    const readSpy = vi.spyOn(runtimeFs, "readFileSync").mockImplementation((file, ...args) => (String(file) === patchPath ? buildOversizedPatch(101) : originalReadFileSync(file, ...args)));
+    try {
+      const { main } = require("./create_pull_request.cjs");
+      const handler = await main({});
+      const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
-    const { main } = require("./create_pull_request.cjs");
-    const handler = await main({});
-    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+      expect(result.issue_number).toBe(55);
 
-    expect(result.success).toBe(true);
-    expect(result.fallback_used).toBe(true);
-    expect(result.issue_number).toBe(55);
+      // A fallback issue should have been created
+      expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+      const issueCall = global.github.rest.issues.create.mock.calls[0][0];
 
-    // A fallback issue should have been created
-    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+      // The body should contain the E003 error message and the actionable fix
+      expect(issueCall.body).toContain("E003");
+      expectExecutionProvenance(issueCall.body);
+      expect(issueCall.body).toContain("max-patch-files");
 
-    // The body should contain the E003 error message and the actionable fix
-    expect(issueCall.body).toContain("E003");
-    expect(issueCall.body).toContain("max-patch-files");
+      // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
+      expect(issueCall.body).toContain("max-patch-files: 101");
+      expect(issueCall.body).not.toContain("max-patch-files: 200");
 
-    // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
-    expect(issueCall.body).toContain("max-patch-files: 101");
-    expect(issueCall.body).not.toContain("max-patch-files: 200");
-
-    // PR creation should NOT have been attempted
-    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+      // PR creation should NOT have been attempted
+      expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+    } finally {
+      existsSpy.mockRestore();
+      readSpy.mockRestore();
+    }
   });
 
   it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {
