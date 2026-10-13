@@ -254,10 +254,6 @@ func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) f
 		default:
 		}
 
-		if err := validateMCPPositionalArgs("workflow_name", args.WorkflowName); err != nil {
-			return nil, nil, err
-		}
-
 		if args.Firewall && args.NoFirewall {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
 		}
@@ -333,9 +329,6 @@ func buildLogsEmptyResult(cause error) (*mcp.CallToolResult, any, error) {
 func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, int) {
 	// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
 	cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
-	if args.WorkflowName != "" {
-		cmdArgs = append(cmdArgs, args.WorkflowName)
-	}
 	effectiveCount := effectiveMCPLogsToolCount(args.Count)
 	cmdArgs = append(cmdArgs, "-c", strconv.Itoa(effectiveCount))
 	cmdArgs = appendLogsFilterArgs(cmdArgs, args)
@@ -351,6 +344,10 @@ func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, in
 
 	// Always use --json mode in MCP server
 	cmdArgs = append(cmdArgs, "--json")
+	if args.WorkflowName != "" {
+		// Workflow display names are literal positionals, including flag-shaped names.
+		cmdArgs = append(cmdArgs, "--", args.WorkflowName)
+	}
 
 	return cmdArgs, effectiveCount, timeoutValue
 }

@@ -8,17 +8,19 @@
 
 ### Context
 
-`gh aw mcp-server` exposes CLI commands (`add`, `update`, `fix`, `compile`, `mcp-inspect`, `logs`, `audit`, `audit diff`) as MCP tools. Each handler builds an `exec.Cmd` argument vector by appending client-supplied positional values — workflow names, workflow specifications, run IDs, and run URLs — directly onto a fixed command prefix. Because Go's flag/Cobra parsing treats any argument beginning with `-` as an option, a client could smuggle options such as `--force`, `--disable-security-scanner`, `--create-pull-request`, `--repo=owner/private`, or `--write` through a positional parameter and change command behaviour beyond what the tool schema declares. The tool schemas already expose every supported option as a named parameter, so flag-shaped positionals have no legitimate use. The constraint is that validation must happen *before* the subprocess is launched, and must not break valid inputs such as workflow specs, run URLs with fragments, or local files whose names begin with `-`.
+`gh aw mcp-server` exposes CLI commands (`add`, `update`, `fix`, `compile`, `mcp-inspect`, `logs`, `audit`, `audit diff`) as MCP tools. Each handler builds an `exec.Cmd` argument vector by appending client-supplied positional values — workflow names, workflow specifications, run IDs, and run URLs — directly onto a fixed command prefix. Because Go's flag/Cobra parsing treats any argument beginning with `-` as an option, a client could smuggle options such as `--force`, `--disable-security-scanner`, `--create-pull-request`, `--repo=owner/private`, or `--write` through a positional parameter and change command behaviour beyond what the tool schema declares. The tool schemas already expose every supported option as a named parameter. However, workflow display names accepted by `logs` are free-form and can legitimately begin with `-`. The constraint is that command options must remain server-controlled without breaking valid workflow display names, workflow specs, run URLs with fragments, or local files whose names begin with `-`.
 
 ### Decision
 
-We will treat named MCP parameters as the only supported way to select command options, and reject any positional value beginning with `-` before constructing or launching the CLI subprocess. A single shared helper, `validateMCPPositionalArgs(field string, values ...string)` in `pkg/cli/mcp_positional_args.go`, returns a `jsonrpc.CodeInvalidParams` MCP error naming the offending field, and is called from every handler that forwards positionals (`workflows`, `workflow_file`, `workflow_name`, `run_ids_or_urls`, and the normalized `run_id` / `run_id_or_url` aliases, plus `base_run_id` / `compare_run_ids`). The primary driver is security: a deny-by-prefix check is simple, auditable, and fails closed. Users who genuinely need a leading-dash local filename can pass an explicit relative path such as `./-workflow.md`, which is documented in `docs/src/content/docs/reference/gh-aw-as-mcp-server.md`.
+Named MCP parameters are the only supported way to select command options. A single shared helper, `validateMCPPositionalArgs(field string, values ...string)` in `pkg/cli/mcp_positional_args.go`, rejects values beginning with `-` before launching the subprocess and returns a `jsonrpc.CodeInvalidParams` error naming the offending field. It protects `workflows`, `workflow_file`, `run_ids_or_urls`, the normalized `run_id` / `run_id_or_url` aliases, and `base_run_id` / `compare_run_ids`. Users who need a leading-dash local filename can pass an explicit relative path such as `./-workflow.md`.
+
+For `logs`, preserve the free-form workflow display name unchanged. Construct all supported and server-controlled options first, then append `--` followed by the workflow name. This prevents the CLI parser from interpreting the name as an option while preserving names such as `-nightly`. Existing workflow-existence validation remains in place.
 
 ### Alternatives Considered
 
 #### Alternative 1: Insert a `--` end-of-options separator before positionals
 
-Appending `--` to each command vector before the positional arguments would make the underlying CLI parser treat every following value as a positional, neutralising flag injection without rejecting any input. It was considered because it preserves maximal input flexibility and requires no per-handler validation. It was rejected because correctness then depends on every current and future subcommand (including nested ones such as `audit diff` and `mcp inspect`) honouring `--` consistently, and because a value that merely *looks* like a flag is still almost certainly a client bug or an attack; failing loudly with `CodeInvalidParams` gives better diagnostics than silently passing `--force` through as a workflow name.
+Appending `--` before positional arguments makes the CLI parser treat every following value as a positional. This approach is selected for `logs` because dash-prefixed workflow display names have no path-style escape hatch. Applying it universally would also require moving every server-controlled trailing option before the separator, including compile's manifest baseline and audit's timeout. The other tools retain early rejection to provide explicit invalid-parameters errors with minimal command-construction changes.
 
 #### Alternative 2: Per-parameter allow-list validation (regex for workflow specs, run IDs, and URLs)
 
@@ -32,21 +34,22 @@ A single choke point wrapping subprocess creation could scan the whole argument 
 
 #### Positive
 
-- Flag injection through MCP positional parameters is blocked for all eight affected tools, including the normalized `audit` aliases, and the subprocess is never launched for a rejected request.
-- Errors are returned as `jsonrpc.CodeInvalidParams` with the offending field name, so MCP clients get actionable diagnostics instead of surprising CLI behaviour.
+- Flag injection through MCP positional parameters is blocked for all eight affected tools, including the normalized `audit` aliases. Rejected requests never launch a subprocess; `logs` passes display names only after an end-of-options boundary.
+- Rejection errors are returned as `jsonrpc.CodeInvalidParams` with the offending field name, so MCP clients get actionable diagnostics instead of surprising CLI behaviour.
+- Dash-prefixed workflow display names remain usable through `logs` without changing the name.
 - The rule is one small function, so adding a new MCP tool that forwards positionals is a one-line call rather than a bespoke validation design.
 
 #### Negative
 
-- Enforcement is opt-in per call site: a future handler that forwards positionals without calling `validateMCPPositionalArgs` silently reopens the hole. Nothing in the type system or tests enforces the call for new tools.
+- Enforcement is opt-in per call site: a future handler must validate its positionals or place them after an end-of-options separator. Nothing in the type system enforces this for new tools.
 - Legitimate values that begin with `-` — most notably a local workflow file literally named `-workflow.md` — are rejected and must be rewritten as `./-workflow.md`, a behavioural break for any existing client relying on the bare form.
 - The check is purely prefix-based, so it offers no protection against other positional-based abuse (path traversal, unexpected repository references) that does not start with `-`.
 
 #### Neutral
 
-- Supported named options and the existing command-construction logic are unchanged; only a pre-flight guard is added.
+- Supported named options are unchanged. The `logs` command places all options before its positional boundary; other command construction remains unchanged.
 - The reference documentation (`gh-aw-as-mcp-server.md`) now states the named-parameters-only contract and the `./` escape hatch.
-- Regression coverage lives in `pkg/cli/mcp_positional_args_test.go` using in-memory MCP sessions with a counting `execCmd` factory, asserting both rejection (no subprocess) and preservation of valid inputs.
+- Shared-validator and handler regression tests assert rejection before subprocess execution and preservation of valid inputs. Logs-specific tests verify that dash-prefixed display names remain positional while server-controlled options retain their values.
 
 ---
 
