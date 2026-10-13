@@ -146,6 +146,10 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	if err := c.validateThreatDetectionMaxContextRebuild(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	workflowPermissions, err := c.validatePermissions(workflowData, markdownPath)
 	if err != nil {
 		return err

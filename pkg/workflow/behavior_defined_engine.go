@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ const (
 )
 
 var behaviorDefinedEngineLog = logger.New("workflow:behavior_defined_engine")
+var contextRebuildEnvVarPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // BehaviorDefinedEngine is a declarative CodingAgentEngine built from an engine
 // definition's behaviors block.
@@ -42,6 +44,14 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 		return nil, fmt.Errorf("engine definition %q is missing behaviors", def.ID)
 	}
 	capabilities := def.Behaviors.Capabilities.ToRuntimeCapabilities()
+	execution := def.Behaviors.Execution
+	if capabilities.MaxContextRebuild {
+		if execution == nil || !contextRebuildEnvVarPattern.MatchString(execution.MaxContextRebuildEnvVar) {
+			return nil, fmt.Errorf("engine definition %q enables max-context-rebuild without a valid environment variable. Set behaviors.execution.max-context-rebuild-env-var to an environment variable name. Example: max-context-rebuild-env-var: GH_AW_MAX_CONTEXT_REBUILD", def.ID)
+		}
+	} else if execution != nil && execution.MaxContextRebuildEnvVar != "" {
+		return nil, fmt.Errorf("engine definition %q maps max-context-rebuild without enabling the capability. Set behaviors.capabilities.max-context-rebuild: true", def.ID)
+	}
 	capabilities.MCP = true
 	// Declaring a plugins behavior block is what enables Agent Plugins for the engine:
 	// without it the compiler has no way to make plugins visible to the CLI.
@@ -94,6 +104,14 @@ func (e *BehaviorDefinedEngine) GetModelEnvVarName() string {
 		return ""
 	}
 	return behavior.Execution.ModelEnvVarName
+}
+
+func (e *BehaviorDefinedEngine) GetMaxContextRebuildEnvVarName() string {
+	behavior := e.behavior()
+	if behavior == nil || behavior.Execution == nil || !e.GetCapabilities().MaxContextRebuild {
+		return ""
+	}
+	return behavior.Execution.MaxContextRebuildEnvVar
 }
 
 func (e *BehaviorDefinedEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
@@ -616,6 +634,7 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 	applyTraceContextEnvToMap(env)
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineMaxContextRebuildEnv(env, workflowData, e)
 	applyEngineCwdEnv(env, workflowData)
 	applyEngineVersionEnv(env, workflowData)
 	applyEngineAndAgentEnv(env, workflowData, behaviorDefinedEngineLog)

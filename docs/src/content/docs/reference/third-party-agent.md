@@ -146,6 +146,21 @@ imports:
   - shared/opencode.md
 ```
 
+## Enable context-rebuild limiting
+
+If the engine runtime or harness enforces a context-rebuild factor limit, declare the capability and the environment variable it reads:
+
+```yaml wrap
+engine:
+  behaviors:
+    capabilities:
+      max-context-rebuild: true
+    execution:
+      max-context-rebuild-env-var: REBUILD_FACTOR_LIMIT
+```
+
+Workflow authors can then set `engine.max-context-rebuild: 50`. The compiler injects that factor into `REBUILD_FACTOR_LIMIT`; omission leaves the runtime's default unchanged, and `engine.env` can override the mapped value. Declaring support requires a valid environment variable name. The runtime is responsible for measuring and enforcing the limit; the compiler does not add a circuit breaker to the engine. Engines without the capability reject the workflow setting.
+
 ## Declare a threat detection engine
 
 Threat detection only runs on the built-in engines, so a workflow that uses a third-party engine and declares safe outputs runs detection on `copilot` by default and the compiler warns about it. Add `detection-engine` to the engine definition to ship a working default (`copilot`, `claude`, or `codex`):

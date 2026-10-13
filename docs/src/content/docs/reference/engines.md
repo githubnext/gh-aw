@@ -181,6 +181,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `max-turns` (top-level AWF invocation cap; `max-runs` deprecated) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | `engine.max-turns` (deprecated nested alias) | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `engine.max-context-rebuild` (context-rebuild factor limit) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `tools.web-fetch` | SDK custom tool only | ✅ | ✅ | ✅ | ✅ | Native profile; disabling rejected |
 | `tools.web-search` | via MCP only | ✅ (native) | ✅ (native, opt-in) | via MCP | ❌ | Native profile; disabling rejected |
 | `engine.agent` (native custom-agent selection) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |

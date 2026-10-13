@@ -2759,6 +2759,12 @@ engine:
   # (optional)
   max-continuations: 1
 
+  # Maximum context-rebuild factor for engines that support this limit. Passed
+  # through the engine's context-rebuild environment variable. Codex defaults to 25
+  # and also requires at least 1,000,000 cumulative input tokens before stopping.
+  # (optional)
+  max-context-rebuild: 1
+
   # Agent job concurrency configuration. Defaults to single job per engine across
   # all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions
   # concurrency syntax.
@@ -3285,6 +3291,11 @@ engine:
       # (optional)
       max-turns: true
 
+      # Whether the engine enforces engine.max-context-rebuild. Requires
+      # execution.max-context-rebuild-env-var.
+      # (optional)
+      max-context-rebuild: true
+
       # (optional)
       web-search: true
 
@@ -3415,6 +3426,12 @@ engine:
 
       # (optional)
       model-env-var: "example-value"
+
+      # Environment variable that receives engine.max-context-rebuild when the
+      # capability is enabled. The engine runtime is responsible for enforcing the
+      # factor limit.
+      # (optional)
+      max-context-rebuild-env-var: "example-value"
 
       # (optional)
       model-env-provider-prefix: "example-value"
@@ -21344,6 +21361,12 @@ safe-outputs:
       # (optional)
       max-continuations: 1
 
+      # Maximum context-rebuild factor for engines that support this limit. Passed
+      # through the engine's context-rebuild environment variable. Codex defaults to 25
+      # and also requires at least 1,000,000 cumulative input tokens before stopping.
+      # (optional)
+      max-context-rebuild: 1
+
       # Agent job concurrency configuration. Defaults to single job per engine across
       # all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions
       # concurrency syntax.
@@ -21870,6 +21893,11 @@ safe-outputs:
           # (optional)
           max-turns: true
 
+          # Whether the engine enforces engine.max-context-rebuild. Requires
+          # execution.max-context-rebuild-env-var.
+          # (optional)
+          max-context-rebuild: true
+
           # (optional)
           web-search: true
 
@@ -22000,6 +22028,12 @@ safe-outputs:
 
           # (optional)
           model-env-var: "example-value"
+
+          # Environment variable that receives engine.max-context-rebuild when the
+          # capability is enabled. The engine runtime is responsible for enforcing the
+          # factor limit.
+          # (optional)
+          max-context-rebuild-env-var: "example-value"
 
           # (optional)
           model-env-provider-prefix: "example-value"

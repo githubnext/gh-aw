@@ -781,7 +781,7 @@ async function readWorkingSetFromTokenUsage(paths = TOKEN_USAGE_PATHS) {
 /**
  * @param {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null} workingSet
  * @param {{ maxRebuildFactor: number, minCumulativeInputTokens: number }} config
- * @returns {{ terminate: boolean, reason: string }}
+ * @returns {{ terminate: boolean, reason: string, event?: import("./types/agent_session").AgentExecutionEvent }}
  */
 function evaluateContextRebuildCircuitBreaker(workingSet, config) {
   if (!workingSet || typeof workingSet !== "object") {
@@ -798,6 +798,7 @@ function evaluateContextRebuildCircuitBreaker(workingSet, config) {
   return {
     terminate: true,
     reason: `context-rebuild circuit breaker tripped: rebuild_factor=${rebuildFactor.toFixed(2)} cumulative_input_tokens=${Math.round(cumulativeInputTokens)} thresholds=${config.maxRebuildFactor}/${config.minCumulativeInputTokens}`,
+    event: { type: "agent.execution", data: { categories: ["context_rebuild_limit_exceeded"], errorCodes: [], errorTypes: [] } },
   };
 }
 
@@ -809,7 +810,7 @@ function evaluateContextRebuildCircuitBreaker(workingSet, config) {
  * @param {ReturnType<typeof calculateWorkingSetFromJSONL>["workingSet"] | null} workingSet
  * @param {{ maxRebuildFactor: number, minCumulativeInputTokens: number }} config
  * @param {{ safeOutputsPath?: string, safeOutputsByteOffset?: number, logger?: (msg: string) => void }=} options
- * @returns {{ terminate: boolean, reason: string }}
+ * @returns {{ terminate: boolean, reason: string, event?: import("./types/agent_session").AgentExecutionEvent }}
  */
 function evaluateContextRebuildCircuitBreakerForAttempt(workingSet, config, options) {
   const decision = evaluateContextRebuildCircuitBreaker(workingSet, config);

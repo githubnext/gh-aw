@@ -260,6 +260,7 @@ func cloneThreatDetectionEngineConfig(engineID string, source *EngineConfig) *En
 		cloned.Driver = ""
 		cloned.InlineDriver = nil
 		cloned.Extensions = nil
+		cloned.MaxContextRebuild = 0
 	}
 	return &cloned
 }

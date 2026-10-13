@@ -120,6 +120,9 @@ type EngineCapabilities struct {
 	// MaxTurns reports whether the engine supports the max-turns feature.
 	MaxTurns bool
 
+	// MaxContextRebuild reports whether the engine enforces a context-rebuild factor limit.
+	MaxContextRebuild bool
+
 	// ContextWindow reports whether the engine supports the context-window feature.
 	ContextWindow bool
 
@@ -311,6 +314,13 @@ type ModelEnvVarProvider interface {
 	GetModelEnvVarName() string
 }
 
+// ContextRebuildEnvVarProvider maps the context-rebuild limit to the engine's runtime.
+type ContextRebuildEnvVarProvider interface {
+	// GetMaxContextRebuildEnvVarName returns the runtime environment variable,
+	// or an empty string when context-rebuild limiting is unsupported.
+	GetMaxContextRebuildEnvVarName() string
+}
+
 // InferenceProviderResolver is implemented by engines that support selecting
 // different inference providers at runtime (for example engine.provider).
 // This interface is intentionally separate from CodingAgentEngine so provider
@@ -407,6 +417,7 @@ type CodingAgentEngine interface {
 	LogParser
 	SecurityProvider
 	ModelEnvVarProvider
+	ContextRebuildEnvVarProvider
 	ConfigRenderer
 }
 
@@ -464,6 +475,10 @@ func (e *BaseEngine) GetDefaultDetectionModel() string {
 // Engines whose CLI natively supports a model env var (e.g. COPILOT_MODEL, ANTHROPIC_MODEL)
 // should override this to return that variable name.
 func (e *BaseEngine) GetModelEnvVarName() string {
+	return ""
+}
+
+func (e *BaseEngine) GetMaxContextRebuildEnvVarName() string {
 	return ""
 }
 

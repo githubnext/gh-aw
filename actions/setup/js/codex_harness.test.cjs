@@ -52,6 +52,8 @@ const {
   resolveCodexModelRouting,
 } = require("./codex_harness.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
+const { parseCodexLog } = require("./parse_codex_log.cjs");
+const { serializeSessionArtifact } = require("./session_artifact.cjs");
 
 const agentTempDir = fs.mkdtempSync(path.join(process.cwd(), "codex-harness-tests-"));
 afterAll(() => fs.rmSync(agentTempDir, { recursive: true, force: true }));
@@ -696,7 +698,10 @@ fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
 
     it("trips when rebuild_factor is exactly at the threshold", () => {
       const config = { maxRebuildFactor: 4, minCumulativeInputTokens: 1000 };
-      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 4, cumulative_input_tokens: 2000 }, config).terminate).toBe(true);
+      expect(evaluateContextRebuildCircuitBreaker({ rebuild_factor: 4, cumulative_input_tokens: 1000 }, config)).toMatchObject({
+        terminate: true,
+        event: { type: "agent.execution", data: { categories: ["context_rebuild_limit_exceeded"], errorCodes: [], errorTypes: [] } },
+      });
     });
 
     it("does not trip after a terminal safe-output was produced in the current attempt", () => {
@@ -711,6 +716,7 @@ fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
           { safeOutputsPath, safeOutputsByteOffset: 0, logger: msg => logs.push(msg) }
         );
         expect(decision.terminate).toBe(false);
+        expect(decision.event).toBeUndefined();
         expect(logs.some(line => line.includes("allowing Codex to exit normally"))).toBe(true);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -1811,6 +1817,11 @@ setInterval(() => {}, 1000);`,
         expect(result.stderr).toContain("runtime guard requested termination");
         expect(result.stderr).toContain("normalizing exit code to 1");
         expect(result.stderr).toContain("not retrying (circuit breaker)");
+        const execution = { type: "agent.execution", data: { categories: ["context_rebuild_limit_exceeded"], errorCodes: [], errorTypes: [] } };
+        expect(result.stdout).toContain(JSON.stringify(execution));
+        const session = parseCodexLog(result.stdout).logEntries;
+        expect(session.filter(event => event.type === "agent.execution")).toEqual([execution]);
+        expect(serializeSessionArtifact(session)).toContain(JSON.stringify(execution));
         const items = fs
           .readFileSync(safeOutputsPath, "utf8")
           .trim()
@@ -1880,6 +1891,7 @@ setInterval(() => {}, 1000);`,
         expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
         expect(result.stderr).not.toContain("not retrying (circuit breaker)");
         expect(result.stderr).not.toContain("report_incomplete emitted via safeoutputs CLI");
+        expect(result.stdout).not.toContain("context_rebuild_limit_exceeded");
       } finally {
         if (previousTokenUsage === null) {
           fs.rmSync(tokenUsagePath, { force: true });

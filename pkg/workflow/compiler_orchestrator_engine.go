@@ -715,6 +715,9 @@ func (c *Compiler) runPostEngineValidations(
 	if err := validateMaxToolCallsConfig(engineConfig, agenticEngine); err != nil {
 		return err
 	}
+	if err := validateMaxContextRebuildConfig(engineConfig, agenticEngine); err != nil {
+		return err
+	}
 	return c.withEffectiveStrictMode(frontmatter, func() error {
 		orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
 		if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {

@@ -132,6 +132,7 @@ type ModelSelection struct {
 type EngineCapabilitiesDefinition struct {
 	ToolsAllowlist       bool `yaml:"tools-allowlist,omitempty"`
 	MaxTurns             bool `yaml:"max-turns,omitempty"`
+	MaxContextRebuild    bool `yaml:"max-context-rebuild,omitempty"`
 	WebSearch            bool `yaml:"web-search,omitempty"`
 	MaxContinuations     bool `yaml:"max-continuations,omitempty"`
 	NativeAgentFile      bool `yaml:"native-agent-file,omitempty"`
@@ -146,6 +147,7 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 	return EngineCapabilities{
 		ToolsAllowlist:       d.ToolsAllowlist,
 		MaxTurns:             d.MaxTurns,
+		MaxContextRebuild:    d.MaxContextRebuild,
 		WebSearch:            d.WebSearch,
 		MaxContinuations:     d.MaxContinuations,
 		NativeAgentFile:      d.NativeAgentFile,
@@ -220,16 +222,17 @@ type EngineConfigFileDefinition struct {
 // EngineExecutionDefinition describes the common CLI execution pattern used by
 // behavior-defined engines.
 type EngineExecutionDefinition struct {
-	CommandName            string   `yaml:"command-name,omitempty"`
-	Args                   []string `yaml:"args,omitempty"`
-	StepName               string   `yaml:"step-name,omitempty"`
-	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
-	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
-	ModelFlag              string   `yaml:"model-flag,omitempty"`
-	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
-	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
-	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
-	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
+	CommandName             string   `yaml:"command-name,omitempty"`
+	Args                    []string `yaml:"args,omitempty"`
+	StepName                string   `yaml:"step-name,omitempty"`
+	ModelEnvVarName         string   `yaml:"model-env-var,omitempty"`
+	MaxContextRebuildEnvVar string   `yaml:"max-context-rebuild-env-var,omitempty"`
+	ModelEnvProviderPrefix  string   `yaml:"model-env-provider-prefix,omitempty"`
+	ModelFlag               string   `yaml:"model-flag,omitempty"`
+	MCPConfigEnvVar         string   `yaml:"mcp-config-env-var,omitempty"`
+	MCPConfigFlag           string   `yaml:"mcp-config-flag,omitempty"`
+	WriteTimestamp          bool     `yaml:"write-timestamp,omitempty"`
+	ProviderEnvMode         string   `yaml:"provider-env-mode,omitempty"`
 	// Env holds additional static environment variables to inject into the
 	// execution step.  Values are rendered verbatim and are not filtered
 	// through the secrets allowlist, so they must not contain secret values.

@@ -49,6 +49,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,6 +139,39 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 		agentValidationLog.Printf("Validating max-turns support: engine=%s", engine.GetID())
 	}
 	return validateCapabilitySupport("max-turns", hasMaxTurns, engine.GetCapabilities().MaxTurns, engine.GetID())
+}
+
+func validateMaxContextRebuildConfig(config *EngineConfig, engine CodingAgentEngine) error {
+	if config == nil || config.MaxContextRebuild == 0 {
+		return nil
+	}
+	if err := validateCapabilitySupport("max-context-rebuild", true, engine.GetCapabilities().MaxContextRebuild, engine.GetID()); err != nil {
+		return NewValidationError("engine.max-context-rebuild", fmt.Sprintf("%g", config.MaxContextRebuild), err.Error(),
+			"Remove engine.max-context-rebuild or select an engine that supports it. Example:\nengine:\n  id: codex\n  max-context-rebuild: 50")
+	}
+	if math.IsNaN(config.MaxContextRebuild) || math.IsInf(config.MaxContextRebuild, 0) || config.MaxContextRebuild < 1 {
+		return NewValidationError("engine.max-context-rebuild", fmt.Sprintf("%g", config.MaxContextRebuild), "expected a finite factor greater than or equal to 1",
+			"Use a numeric factor. Example:\nengine:\n  id: codex\n  max-context-rebuild: 50")
+	}
+	return nil
+}
+
+func (c *Compiler) validateThreatDetectionMaxContextRebuild(data *WorkflowData) error {
+	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil || data.SafeOutputs.ThreatDetection.EngineConfig == nil {
+		return nil
+	}
+	config := data.SafeOutputs.ThreatDetection.EngineConfig
+	if config.MaxContextRebuild == 0 {
+		return nil
+	}
+	engine, err := c.getAgenticEngine(c.getThreatDetectionEngineID(data))
+	if err != nil {
+		return err
+	}
+	if err := validateMaxContextRebuildConfig(config, engine); err != nil {
+		return fmt.Errorf("safe-outputs.threat-detection: %w", err)
+	}
+	return nil
 }
 
 // emitContextWindowSupportWarning warns when the resolved engine configuration,

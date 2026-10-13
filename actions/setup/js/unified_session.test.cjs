@@ -1206,11 +1206,16 @@ describe("Unified conclusion session", () => {
     expect(published.some(event => event.type === "session.collection_warning")).toBe(false);
   });
 
-  it("retains a structured Codex transport-wedge execution event in the unified session", () => {
-    const execution = { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [] } };
-    write("agent-stdio.log", [JSON.stringify({ type: "thread.started", thread_id: "thread" }), JSON.stringify(execution)].join("\n"));
-    const events = writeUnifiedSession({ rootDir: root, engine: "codex" });
-    expect(events.filter(event => event.type === "agent.execution")).toMatchObject([{ data: execution.data, provenance: { component: "execution", phase: "agent", path: "agent-stdio.log" } }]);
+  it.each(["transport_wedge", "context_rebuild_limit_exceeded"])("retains a structured Codex %s execution event from stdio or the canonical session", category => {
+    const execution = { type: "agent.execution", data: { categories: [category], errorCodes: [], errorTypes: [] } };
+    const content = [JSON.stringify({ type: "thread.started", thread_id: "thread" }), JSON.stringify(execution)].join("\n");
+    write("agent-stdio.log", content);
+    for (const canonicalPresent of [false, true]) {
+      if (canonicalPresent) write("agent-session.jsonl", parseEngineSession(content, "codex"));
+      const events = writeUnifiedSession({ rootDir: root, engine: "codex" });
+      expect(events.filter(event => event.type === "agent.execution")).toMatchObject([{ data: execution.data, provenance: { component: "execution", phase: "agent", path: canonicalPresent ? "agent-session.jsonl" : "agent-stdio.log" } }]);
+      expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toContain(JSON.stringify(execution.data));
+    }
   });
 
   it("preserves model-routing records as dedicated unified-session events", () => {

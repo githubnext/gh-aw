@@ -111,7 +111,7 @@ For shell environment filtering, use either `[shell_environment_policy.filters]`
 
 The Codex harness enables a context-rebuild circuit breaker by default to limit excessive repeated input processing, such as runaway context-rebuilding loops. It stops a run when **both** `rebuild_factor >= 25` and `cumulative_input_tokens >= 1,000,000`. The factor is cumulative input tokens divided by the largest single request's input tokens, calculated from token-usage records. It is not a count of actual context resets or compactions: a long run making steady progress can also cross the threshold. After this attempt emits `noop`, any non-diagnostic task output, or a `missing_data` or `report_incomplete` diagnostic, the breaker allows Codex to finish; `missing_tool` does not exempt the run. A separate post-result watchdog handles slow shutdown.
 
-Configure these harness controls through `engine.env`, not through Codex's TOML configuration:
+Set `engine.max-context-rebuild` to a numeric factor greater than or equal to `1` (including fractional values). The compiler passes it through `GH_AW_CODEX_MAX_REBUILD_FACTOR`; omission preserves the default of `25`. Engines without this capability reject the setting. This is a harness control, not a Codex TOML setting. Advanced controls remain available through `engine.env`, which takes precedence over the dedicated setting:
 
 | Environment variable | Default | Behavior |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ Configure these harness controls through `engine.env`, not through Codex's TOML 
 | `GH_AW_CODEX_REBUILD_GUARD_POLL_MS` | `15000` | Check interval in milliseconds; positive values round down and are clamped to a minimum of `1000`. |
 | `GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS` | `5000` | Grace period after SIGTERM before SIGKILL, in milliseconds; positive values round down and are clamped to a minimum of `250`. |
 
-Missing or invalid numeric values use the defaults. A guard stop is not retried. It emits `report_incomplete` with `reason: infrastructure_error`; its `details` start with `Codex run stopped by a runtime guard.` and include the measured factor, cumulative input, and thresholds for this breaker. Dashboards can use these details to distinguish a guard cutoff from a process crash.
+Missing or invalid environment overrides use the defaults; invalid frontmatter values are rejected at compile time. A guard stop is not retried. It emits `report_incomplete` with `reason: infrastructure_error`; its `details` start with `Codex run stopped by a runtime guard.` and include the measured factor, cumulative input, and thresholds for this breaker. The harness also emits a structured `agent.execution` event with category `context_rebuild_limit_exceeded`, retained in `agent-session.jsonl` and the unified `usage/aw_session.jsonl`. Dashboards can use this category to distinguish a guard cutoff from a process crash.
 
 ### Tuning for long runs that make progress
 
@@ -130,11 +130,10 @@ Use successful runs of the same workload to establish a baseline and set the fac
 ```yaml wrap
 engine:
   id: codex
-  env:
-    GH_AW_CODEX_MAX_REBUILD_FACTOR: "50"
+  max-context-rebuild: 50
 ```
 
-Recompile and commit the generated workflow after changing `engine.env`. To disable this breaker instead, set `GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false"`. Raising or disabling the limit permits more input processing and potentially higher cost; retain a workflow timeout and an appropriate [`max-ai-credits` budget](/gh-aw/reference/frontmatter/).
+Recompile and commit the generated workflow after changing the setting. To disable this breaker instead, set `engine.env.GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false"`. Raising or disabling the limit permits more input processing and potentially higher cost; retain a workflow timeout and an appropriate [`max-ai-credits` budget](/gh-aw/reference/frontmatter/).
 
 Inspect per-request `input_tokens` in the `agent` artifact's `token-usage.jsonl` alongside tool activity in `agent-stdio.log` or `agent-session.jsonl`. Steadily growing or plateauing input with new edits, test results, or completed subtasks is consistent with useful progress. Repeated equivalent tool calls, repeated failed approaches, or repeated context drops and regrowth without new results warrant investigation. Input growth between consecutive requests alone cannot prove a loop or progress; the breaker does not evaluate these signals, and a high factor alone does not establish a runaway loop.
 

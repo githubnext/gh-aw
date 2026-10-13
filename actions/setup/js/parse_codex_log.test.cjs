@@ -830,8 +830,8 @@ ERROR: This user's access to o4-mini has been temporarily limited`;
       expect(isCodexJsonlFormat("thinking\nsome thinking\ntool github.x({})".split("\n"))).toBe(false);
     });
 
-    it("preserves structured runtime-guard execution events", () => {
-      const event = { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [] } };
+    it.each(["transport_wedge", "context_rebuild_limit_exceeded"])("preserves structured runtime-guard execution events for %s", category => {
+      const event = { type: "agent.execution", data: { categories: [category], errorCodes: [], errorTypes: [] } };
       expect(parseCodexLog(JSON.stringify(event)).logEntries).toContainEqual(event);
     });
 

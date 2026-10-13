@@ -53,14 +53,15 @@ func NewCodexEngine() *CodexEngine {
 			experimental:     false,
 			ghSkillAgentName: "codex",
 			capabilities: EngineCapabilities{
-				ToolsAllowlist:   true,
-				MCP:              true,
-				MaxTurns:         true,  // AWF max-turns is supported for Codex runs
-				MaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
-				WebSearch:        true,  // Codex has built-in web-search support
-				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-				BashDisable:      true,  // Codex can fully refuse shell execution via `-c features.shell_tool=false`, though it cannot enforce a per-command allowlist
-				Plugins:          true,  // Codex CLI loads Agent Plugins through a generated local marketplace and "codex plugin add"
+				ToolsAllowlist:    true,
+				MCP:               true,
+				MaxTurns:          true, // AWF max-turns is supported for Codex runs
+				MaxContextRebuild: true,
+				MaxContinuations:  false, // Codex does not support --max-autopilot-continues-style continuation mode
+				WebSearch:         true,  // Codex has built-in web-search support
+				NativeAgentFile:   false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BashDisable:       true,  // Codex can fully refuse shell execution via `-c features.shell_tool=false`, though it cannot enforce a per-command allowlist
+				Plugins:           true,  // Codex CLI loads Agent Plugins through a generated local marketplace and "codex plugin add"
 			},
 			dedicatedLLMGatewayPort: constants.CodexLLMGatewayPort,
 		},
@@ -72,6 +73,10 @@ func NewCodexEngine() *CodexEngine {
 // is done via the --model flag in the shell command.
 func (e *CodexEngine) GetModelEnvVarName() string {
 	return ""
+}
+
+func (e *CodexEngine) GetMaxContextRebuildEnvVarName() string {
+	return "GH_AW_CODEX_MAX_REBUILD_FACTOR"
 }
 
 // ResolveLLMProvider returns the effective provider for Codex inference.
@@ -499,6 +504,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 	}
 	applyOptionalEngineToolTimeouts(env, workflowData)
 	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineMaxContextRebuildEnv(env, workflowData, e)
 	applyEngineHarnessRetryEnv(env, workflowData)
 	applyCodexModelEnv(env, workflowData, modelConfigured, modelEnvVar)
 	applyEngineCwdEnv(env, workflowData)

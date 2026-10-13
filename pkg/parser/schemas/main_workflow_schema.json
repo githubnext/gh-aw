@@ -15244,6 +15244,12 @@
               "minimum": 1,
               "description": "Maximum number of continuations for multi-run autopilot mode. Default is 1 (single run, no autopilot). Values greater than 1 enable --autopilot mode for the copilot engine with --max-autopilot-continues set to this value. Note: Only supported by the copilot engine."
             },
+            "max-context-rebuild": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Maximum context-rebuild factor for engines that support this limit. Passed through the engine's context-rebuild environment variable. Codex defaults to 25 and also requires at least 1,000,000 cumulative input tokens before stopping.",
+              "examples": [25, 50, 29.5]
+            },
             "concurrency": {
               "oneOf": [
                 {
@@ -15849,6 +15855,10 @@
                     "max-turns": {
                       "type": "boolean"
                     },
+                    "max-context-rebuild": {
+                      "type": "boolean",
+                      "description": "Whether the engine enforces engine.max-context-rebuild. Requires execution.max-context-rebuild-env-var."
+                    },
                     "web-search": {
                       "type": "boolean"
                     },
@@ -16006,6 +16016,12 @@
                     },
                     "model-env-var": {
                       "type": "string"
+                    },
+                    "max-context-rebuild-env-var": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                      "examples": ["REBUILD_FACTOR_LIMIT"],
+                      "description": "Environment variable that receives engine.max-context-rebuild when the capability is enabled. The engine runtime is responsible for enforcing the factor limit."
                     },
                     "model-env-provider-prefix": {
                       "type": "string"

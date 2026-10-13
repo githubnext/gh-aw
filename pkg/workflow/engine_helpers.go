@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
@@ -144,6 +145,13 @@ func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
 		return
 	}
 	env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+}
+
+func applyEngineMaxContextRebuildEnv(env map[string]string, workflowData *WorkflowData, engine CodingAgentEngine) {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.MaxContextRebuild == 0 {
+		return
+	}
+	env[engine.GetMaxContextRebuildEnvVarName()] = strconv.FormatFloat(workflowData.EngineConfig.MaxContextRebuild, 'f', -1, 64)
 }
 
 // applyEngineHarnessRetryEnv injects GH_AW_HARNESS_* environment variables from

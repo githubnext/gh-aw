@@ -48,6 +48,7 @@ type EngineConfig struct {
 	Version            string
 	LLMProvider        LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
 	ContextWindow      int         // Model context window metadata for engines that need explicit model catalog entries
+	MaxContextRebuild  float64     // Maximum context-rebuild factor; zero leaves the engine's default unchanged
 	PermissionMode     string
 	MaxTurns           string
 	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
@@ -452,6 +453,11 @@ func applyReferencedEngineFields(config *EngineConfig, engineObj map[string]any,
 	applyEngineProviderFields(config, engineObj)
 	applyEnginePermissionMode(config, engineObj)
 	applyEngineContextWindowField(config, engineObj)
+	if factor, ok := engineObj["max-context-rebuild"].(uint64); ok {
+		config.MaxContextRebuild = float64(factor)
+	} else {
+		config.MaxContextRebuild = typeutil.ConvertToFloat(engineObj["max-context-rebuild"])
+	}
 	applyEngineModelRoutingField(config, engineObj)
 	if models, ok := engineObj["fallback-models"].([]any); ok {
 		for _, model := range models {
