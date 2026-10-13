@@ -72,6 +72,16 @@ jobs:
               rm -f /tmp/gh-aw/agent/pr-diff.full /tmp/gh-aw/agent/pr-diff.err
               exit 1
             fi
+            # The files endpoint is live, so do not label a newer diff with the event SHA.
+            if ! CURRENT_HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json headRefOid --jq '.headRefOid'); then
+              echo "::error::Failed to verify the current head for PR #${PR_NUMBER}" >&2
+              exit 1
+            fi
+            if [ "$CURRENT_HEAD_SHA" != "$PR_HEAD_SHA" ]; then
+              echo "::error::PR #${PR_NUMBER} head changed while fetching files; refusing to cache data for head ${PR_HEAD_SHA}" >&2
+              exit 1
+            fi
             jq 'add // []' /tmp/gh-aw/agent/pr-diff.full > /tmp/gh-aw/agent/pr-files.raw.tmp
             jq '[.[] | {path: .filename, additions, deletions}]' \
               /tmp/gh-aw/agent/pr-files.raw.tmp > /tmp/gh-aw/agent/pr-files.json.tmp

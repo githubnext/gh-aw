@@ -70,7 +70,11 @@ case "$*" in
     ;;
   "pr view "*)
     if [[ "$*" == *"--json headRefOid --jq"* ]]; then
-      jq -r '.pull_request.head.sha' "$GITHUB_EVENT_PATH"
+      if [ "$FAIL_HEAD" = 1 ]; then
+        echo 'gh: API rate limit exceeded for installation (HTTP 403)' >&2
+        exit 1
+      fi
+      printf '%s\n' "$LIVE_HEAD_SHA"
     else
       [[ "$*" != *",files"* ]]
       jq '.pull_request | {number, title, body, headRefName: .head.ref,
@@ -89,6 +93,7 @@ export PATH="$TEST_DIR/bin:$PATH"
 export PR_NUMBER=42 PR_HEAD_SHA=head-42 GITHUB_REPOSITORY=owner/repo PR_DIFF_MAX_LINES=3000
 export EXPR_GITHUB_REPOSITORY=owner/repo
 export GITHUB_EVENT_PATH="$TEST_DIR/event.json" FAIL_FILES=0 FAIL_COMMENTS=0
+export LIVE_HEAD_SHA=head-42 FAIL_HEAD=0
 # Do not expose ambient GitHub credentials to the fixture.
 unset GH_TOKEN GITHUB_TOKEN
 
@@ -122,7 +127,7 @@ run_consumer() {
 }
 
 run_prefetch
-test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 2
+test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 3
 jq -e '.number == 42 and .title == "Current title" and .headRefOid == "head-42" and
   .headRefName == "feature" and .changedFiles == 5 and (.files | length) == 5 and
   .files[3] == {path:"src/renamed.txt",additions:1,deletions:1}' "$TEST_DIR/agent/pr-meta.json" >/dev/null
@@ -138,8 +143,8 @@ fi
 test "$(cat "$TEST_DIR/agent/pr-data-head-sha.txt")" = head-42
 cp "$TEST_DIR/agent/pr-diff.patch" "$TEST_DIR/expected.patch"
 
-# A warm diff survives files-endpoint quota exhaustion without re-reading it.
-export FAIL_FILES=1
+# A warm diff survives files/head endpoint quota exhaustion without re-reading them.
+export FAIL_FILES=1 FAIL_HEAD=1
 jq '.pull_request.title = "Updated title" | .pull_request.body = "Updated body"' "$GITHUB_EVENT_PATH" > "$TEST_DIR/event.tmp"
 mv "$TEST_DIR/event.tmp" "$GITHUB_EVENT_PATH"
 jq '.[1][0].body = "Fresh comment"' "$TEST_DIR/comments.json" > "$TEST_DIR/comments.tmp"
@@ -151,6 +156,7 @@ cmp "$TEST_DIR/expected.patch" "$TEST_DIR/agent/pr-diff.patch"
 jq -e '.title == "Updated title" and .body == "Updated body"' "$TEST_DIR/agent/pr-meta.json" >/dev/null
 jq -e '.[1].body == "Fresh comment"' "$TEST_DIR/agent/pr-review-comments.json" >/dev/null
 cp "$TEST_DIR/agent/pr-meta.json" "$TEST_DIR/expected-meta.json"
+export FAIL_HEAD=0
 
 # A reviewer restoring an older revision refreshes mutable metadata itself.
 jq '.title = "Stale title" | .body = "Stale body"' "$TEST_DIR/expected-meta.json" > "$TEST_DIR/agent/pr-meta.json"
@@ -217,6 +223,24 @@ for invalid_cache in stale wrong-pr wrong-meta-head malformed incomplete; do
   fi
   grep -q '::error::Failed to fetch files for PR #42' "$TEST_DIR/output"
 done
+
+# A live files read must not be cached under an outdated event head.
+export FAIL_FILES=0 LIVE_HEAD_SHA=newer-head
+rm -f "$TEST_DIR/agent/pr-data-head-sha.txt"
+if run_prefetch; then
+  echo 'Prefetch accepted files from a newer live head' >&2
+  exit 1
+fi
+grep -q '::error::PR #42 head changed while fetching files' "$TEST_DIR/output"
+test ! -e "$TEST_DIR/agent/pr-data-head-sha.txt"
+export LIVE_HEAD_SHA=head-42 FAIL_HEAD=1
+if run_prefetch; then
+  echo 'Prefetch ignored a failed live head verification' >&2
+  exit 1
+fi
+grep -q '::error::Failed to verify the current head for PR #42' "$TEST_DIR/output"
+test ! -e "$TEST_DIR/agent/pr-data-head-sha.txt"
+export FAIL_HEAD=0
 
 # A successful refetch repairs invalid metadata for the next prefix restore.
 export FAIL_FILES=0
