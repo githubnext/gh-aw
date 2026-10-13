@@ -71,7 +71,7 @@ function createWorkQueueContinuationTool(snapshot, options = {}) {
   return {
     name: "work_queue_continue",
     description:
-      "Stage one dependent child Work for an original Claim, preserving its task, effect contract, resource scope and worker profile. Supply a bounded handoff; publish checkpoint effects and finish the current Claim separately. The child waits for the predecessor's independently verified Result. This stages a work_queue_submit control, not a workflow dispatch.",
+      "Experimental: stage one dependent child Work for an original Claim, preserving its task, effect contract, resource scope and worker profile. Supply a bounded handoff; publish checkpoint effects and finish the current Claim separately. The child waits for the predecessor's independently verified Result. This stages a work_queue_submit control, not a workflow dispatch.",
     inputSchema: {
       type: "object",
       properties: { claim_handle: { type: "string", minLength: 1, maxLength: 256 }, handoff: { type: "string", minLength: 1, maxLength: MAX_HANDOFF_BYTES } },

@@ -568,6 +568,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: workflowData.RepoMemoryConfig != nil && slices.ContainsFunc(workflowData.RepoMemoryConfig.Memories, func(memory RepoMemoryEntry) bool { return memory.Ledger != nil }), message: "Using experimental feature: repo-memory ledger"},
 		{enabled: hasContinualExperiment(workflowData.ExperimentConfigs), message: "Using experimental feature: continual experiments"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.Steer, message: "Using experimental feature: safe-outputs steer"},
+		{enabled: isWorkQueueWorker(workflowData) || hasContinueWorkflow(workflowData), message: "Using experimental feature: cross-run continuation"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

@@ -389,6 +389,10 @@ When `<mcp-clis>` lists the runtime wrapper, the invocation is
 
 ### Continuing a task across runs
 
+**Experimental:** Cross-run continuation and verified checkpoint reuse are under
+development; their configuration and behavior may change. Queue workers expose
+`work_queue_continue`, so enabling a worker emits an experimental-feature notice.
+
 `work_queue_continue` stages a `work_queue_submit` intent for a new Work item,
 not another Claim on the same Work. The child depends on the current Work and
 retains its task payload, effect contract, resource scope, subject, and worker

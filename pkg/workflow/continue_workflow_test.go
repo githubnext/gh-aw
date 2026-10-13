@@ -3,12 +3,54 @@
 package workflow
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestContinueWorkflowExperimentalWarning(t *testing.T) {
+	const warning = "Using experimental feature: cross-run continuation"
+	tests := []struct {
+		name    string
+		data    *WorkflowData
+		enabled bool
+	}{
+		{"ordinary workflow", &WorkflowData{}, false},
+		{"queue observer", &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{}}}, false},
+		{"queue dispatcher", &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{"worker": false}}}, false},
+		{"queue worker", &WorkflowData{Tools: map[string]any{"work-queue": map[string]any{"worker": true}}}, true},
+		{"standalone continuation", continuationTestData(), true},
+		{"both paths", &WorkflowData{
+			Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
+			SafeOutputs: &SafeOutputsConfig{ContinueWorkflow: &ContinueWorkflowConfig{}},
+		}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, batch := range []bool{false, true} {
+				compiler := NewCompiler()
+				compiler.SetBatchMode(batch)
+				var output bytes.Buffer
+				compiler.emitExperimentalFeatureWarningsTo(tt.data, &output)
+				expected := 0
+				if tt.enabled {
+					expected = 1
+				}
+				assert.Equal(t, expected, compiler.GetWarningCount())
+				assert.Equal(t, expected, compiler.GetExperimentalWarningCount())
+				if batch {
+					assert.Empty(t, output.String())
+					assert.Equal(t, expected, compiler.GetExperimentalFeatureUsage()[warning])
+				} else {
+					assert.Equal(t, tt.enabled, strings.Contains(output.String(), warning))
+				}
+			}
+		})
+	}
+}
 
 func TestContinueWorkflowConfig(t *testing.T) {
 	tests := []struct {

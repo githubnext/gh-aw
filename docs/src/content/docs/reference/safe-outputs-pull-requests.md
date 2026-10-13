@@ -172,6 +172,9 @@ When `head-repo` is set, the preferred model is an ephemeral upstream-based bran
 
 ## Continuing tasks across runs
 
+**Experimental:** Cross-run continuation and checkpoint chaining are under
+development; their configuration and behavior may change.
+
 Use the [work-queue continuation helper](/gh-aw/reference/work-queue/#continuing-a-task-across-runs)
 to stage a dependent child Work item. It preserves the task's declared effect
 contract and resource scope; the child waits for the predecessor's verified

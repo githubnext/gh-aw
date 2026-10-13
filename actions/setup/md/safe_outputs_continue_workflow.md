@@ -1,4 +1,4 @@
-**Continuing Long-Running Work Across Runs**
+**Continuing Long-Running Work Across Runs (Experimental)**
 
 This workflow can hand unfinished work to a fresh run with the `continue_workflow` tool. All runs of one task share a single work branch and finish with one pull request.
 
