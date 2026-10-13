@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"f9032e8188e5960f5a391b2da52888a50751ad2d2c7f252acd7b97d7a45eaf96","body_hash":"c805ccd25917cdfd375847fea1df4becfcf14fad183c794f7c0894ad01954180","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.296"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"},{"image":"ghcr.io/githubnext/gh-aw-router:0.1.3@sha256:c934c8c9f77ee6b2ed9e07c21dbd896faa4ccd63b4206518f05da0bcebb4a553"}],"has_pull_request":true,"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"46c78ee160b4953c98324c6a5aa6ea59a496b772b5d75e6f6f508b006c207bac","body_hash":"c805ccd25917cdfd375847fea1df4becfcf14fad183c794f7c0894ad01954180","strict":true,"agent_id":"claude","engine_versions":{"claude":"2.1.296"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.51@sha256:5e295ce715c4d925c6365831150d2c45261126330ecab41b26257c28b69ce525"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.51@sha256:9e21310c8fe1b3e3ae9c10b75f87b1fd246891af71c8fa252a68bcff262d347d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.51@sha256:3bdad39b69c1c3680b5f1de4b5584d4274b8de6f4bb88f22457bf57562fec983"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"},{"image":"ghcr.io/githubnext/gh-aw-router:0.1.3@sha256:c934c8c9f77ee6b2ed9e07c21dbd896faa4ccd63b4206518f05da0bcebb4a553"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -57,130 +57,6 @@ name: "Smoke Claude Routed"
 on:
   # bots: # Bots processed as bot check in pre-activation job
   # - Copilot # Bots processed as bot check in pre-activation job
-  pull_request:
-    paths:
-      - .github/workflows/smoke-*-routed*.md
-      - .github/workflows/smoke-*-routed*.lock.yml
-      - .github/workflows/shared/reporting.md
-      - .github/workflows/shared/smoke-test-brevity.md
-      - pkg/workflow/model_routing.go
-      - pkg/workflow/awf_config.go
-      - pkg/workflow/awf_config_build.go
-      - pkg/workflow/compiler_orchestrator_engine.go
-      - pkg/workflow/copilot_engine_execution.go
-      - pkg/workflow/engine.go
-      - pkg/workflow/engine_fallback_models.go
-      - pkg/workflow/engine_validation.go
-      - pkg/workflow/pi_engine.go
-      - pkg/workflow/pi_engine_config.go
-      - pkg/workflow/sandbox_agent_images.go
-      - pkg/workflow/threat_detection_helpers.go
-      - pkg/workflow/safe_outputs_env.go
-      - pkg/workflow/compiler_yaml_artifacts.go
-      - pkg/workflow/notify_comment.go
-      - pkg/workflow/evals_steps.go
-      - pkg/workflow/data/engines/*.md
-      - pkg/workflow/data/model_aliases.json
-      - pkg/cli/data/models.json
-      - pkg/constants/version_constants.go
-      - pkg/constants/constants.go
-      - pkg/workflow/data/action_pins.json
-      - pkg/actionpins/data/action_pins.json
-      - .github/aw/actions-lock.json
-      - actions/setup/js/copilot_harness.cjs
-      - actions/setup/js/claude_harness.cjs
-      - actions/setup/js/codex_harness.cjs
-      - actions/setup/js/harness_*.cjs
-      - actions/setup/js/awf_model_routing.cjs
-      - actions/setup/js/copilot_routing_effort.cjs
-      - actions/setup/js/copilot_wire_api.cjs
-      - actions/setup/js/copilot_sdk_*.cjs
-      - actions/setup/js/pi_*.cjs
-      - actions/setup/js/model_aliases.cjs
-      - actions/setup/js/resolve_model_alias.cjs
-      - actions/setup/js/model_attribution.cjs
-      - actions/setup/js/model_costs.cjs
-      - actions/setup/js/model_fallback.cjs
-      - actions/setup/js/steering_helpers.cjs
-      - actions/setup/js/generate_aw_info.cjs
-      - actions/setup/sh/install_copilot_cli.sh
-      - actions/setup/sh/install_awf_binary.sh
-      - actions/setup/js/smoke_model_routing_assertions.cjs
-      - actions/setup/js/unified_session*.cjs
-      - actions/setup/js/copilot_session.cjs
-      - actions/setup/js/claude_session.cjs
-      - actions/setup/js/codex_session.cjs
-      - actions/setup/js/agent_session.cjs
-      - actions/setup/js/session_artifact.cjs
-      - actions/setup/js/parse_token_usage.cjs
-      - actions/setup/js/awf_reflect*.cjs
-      - "!**/*.test.cjs"
-      - "!**/*_test.go"
-    types:
-      - opened
-      - synchronize
-      - reopened
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/smoke-*-routed*.md
-      - .github/workflows/smoke-*-routed*.lock.yml
-      - .github/workflows/shared/reporting.md
-      - .github/workflows/shared/smoke-test-brevity.md
-      - pkg/workflow/model_routing.go
-      - pkg/workflow/awf_config.go
-      - pkg/workflow/awf_config_build.go
-      - pkg/workflow/compiler_orchestrator_engine.go
-      - pkg/workflow/copilot_engine_execution.go
-      - pkg/workflow/engine.go
-      - pkg/workflow/engine_fallback_models.go
-      - pkg/workflow/engine_validation.go
-      - pkg/workflow/pi_engine.go
-      - pkg/workflow/pi_engine_config.go
-      - pkg/workflow/sandbox_agent_images.go
-      - pkg/workflow/threat_detection_helpers.go
-      - pkg/workflow/safe_outputs_env.go
-      - pkg/workflow/compiler_yaml_artifacts.go
-      - pkg/workflow/notify_comment.go
-      - pkg/workflow/evals_steps.go
-      - pkg/workflow/data/engines/*.md
-      - pkg/workflow/data/model_aliases.json
-      - pkg/cli/data/models.json
-      - pkg/constants/version_constants.go
-      - pkg/constants/constants.go
-      - pkg/workflow/data/action_pins.json
-      - pkg/actionpins/data/action_pins.json
-      - .github/aw/actions-lock.json
-      - actions/setup/js/copilot_harness.cjs
-      - actions/setup/js/claude_harness.cjs
-      - actions/setup/js/codex_harness.cjs
-      - actions/setup/js/harness_*.cjs
-      - actions/setup/js/awf_model_routing.cjs
-      - actions/setup/js/copilot_routing_effort.cjs
-      - actions/setup/js/copilot_wire_api.cjs
-      - actions/setup/js/copilot_sdk_*.cjs
-      - actions/setup/js/pi_*.cjs
-      - actions/setup/js/model_aliases.cjs
-      - actions/setup/js/resolve_model_alias.cjs
-      - actions/setup/js/model_attribution.cjs
-      - actions/setup/js/model_costs.cjs
-      - actions/setup/js/model_fallback.cjs
-      - actions/setup/js/steering_helpers.cjs
-      - actions/setup/js/generate_aw_info.cjs
-      - actions/setup/sh/install_copilot_cli.sh
-      - actions/setup/sh/install_awf_binary.sh
-      - actions/setup/js/smoke_model_routing_assertions.cjs
-      - actions/setup/js/unified_session*.cjs
-      - actions/setup/js/copilot_session.cjs
-      - actions/setup/js/claude_session.cjs
-      - actions/setup/js/codex_session.cjs
-      - actions/setup/js/agent_session.cjs
-      - actions/setup/js/session_artifact.cjs
-      - actions/setup/js/parse_token_usage.cjs
-      - actions/setup/js/awf_reflect*.cjs
-      - "!**/*.test.cjs"
-      - "!**/*_test.go"
   schedule:
     - cron: "0 0 */2 * *"
   workflow_dispatch:
@@ -218,25 +94,20 @@ jobs:
     name: activation
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') &&
-      (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke-routing') ||
-      !(fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'pull_request')) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.stack == null ||
-      github.event.pull_request.stack.position == github.event.pull_request.stack.size))
+      needs.pre_activation.outputs.activated == 'true' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') &&
+      (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke-routing' || fromJSON(github.event.inputs.aw_context ||
+      '{}').trigger_label == 'smoke') || !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request'))
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
       actions: read
       contents: read
       issues: write
-      pull-requests: write
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
-      body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
       comment_repo: ""
       daily_ai_credits_estimated: ${{ steps.daily-ai-credits-workflow-guardrail.outputs.daily_ai_credits_estimated || '' }}
@@ -254,8 +125,6 @@ jobs:
       setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
-      text: ${{ steps.sanitized.outputs.text }}
-      title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -388,7 +257,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment') && github.event.pull_request != null && github.event.pull_request.base.sha || github.sha }}
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           sparse-checkout: |
             .github
@@ -421,25 +289,11 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'check_workflow_timestamp_api.cjs'));
             await main();
-      - name: Compute current body text
-        id: sanitized
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_AW_ALLOWED_BOTS: "copilot-swe-agent,Copilot,copilot,@app/copilot-swe-agent"
-          GH_AW_ALLOWED_DOMAINS: "api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'compute_text.cjs'));
-            await main();
       - name: Remove trigger label
         id: remove_trigger_label
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_LABEL_NAMES: "[\"smoke-routing\"]"
+          GH_AW_LABEL_NAMES: "[\"smoke-routing\",\"smoke\"]"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1303,7 +1157,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_LABEL_COMMANDS: "[\"smoke-routing\"]"
+          GH_AW_LABEL_COMMANDS: "[\"smoke-routing\",\"smoke\"]"
         with:
           script: |
             const path = require('path');
@@ -2153,11 +2007,9 @@ jobs:
   pre_activation:
     name: pre_activation
     if: >
-      (((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') && (fromJSON(github.event.inputs.aw_context ||
-      '{}').trigger_label == 'smoke-routing') || !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')) &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.stack == null ||
-      github.event.pull_request.stack.position == github.event.pull_request.stack.size)
+      (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') && (fromJSON(github.event.inputs.aw_context ||
+      '{}').trigger_label == 'smoke-routing' || fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke') ||
+      !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')
     runs-on: ubuntu-slim
     # Permissions for the pre_activation job (workflow permissions default to none).
     permissions:
@@ -2233,8 +2085,7 @@ jobs:
       GH_AW_ENGINE_ID: "claude"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_ENGINE_MODEL_EFFORT: ${{ needs.agent.outputs.model_effort }}
-      GH_AW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      GH_AW_LABEL_COMMANDS: "[\"smoke-routing\"]"
+      GH_AW_LABEL_COMMANDS: "[\"smoke-routing\",\"smoke\"]"
       GH_AW_MODEL_ROUTING_STATUS: ${{ needs.agent.outputs.model_routing_status }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}

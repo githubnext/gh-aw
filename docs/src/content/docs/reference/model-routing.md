@@ -141,12 +141,17 @@ All six candidates are covered by the routing tables of router 0.1.3.
 
 ### Tested reference workflows
 
-These smoke workflows run every 2 days with `mode: economy`. They check main-agent request models against the candidate models and use the unified session and AWF's api-proxy `token-usage.jsonl` as model/endpoint evidence, including a successful request on a supported or declared endpoint:
+These smoke workflows run every 2 days, with `mode: economy` unless noted. They check main-agent request models against the candidate models and use the unified session and AWF's api-proxy `token-usage.jsonl` as model/endpoint evidence, including a successful request on a supported or declared endpoint:
 
 - [`smoke-copilot-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed.md): Copilot CLI mode, routing over three models (`gpt-5.4-mini`, `gpt-5.6-luna`, `claude-haiku-4.5`) with no sub-agents.
 - [`smoke-claude-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-claude-routed.md): Claude Code with `model-provider: github`, routing over `claude-sonnet-5` with no sub-agents. AWF selects `/chat/completions`; the main agent must use `/v1/messages`.
 - [`smoke-copilot-sdk-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed.md): Copilot SDK mode, routing over `gpt-5.6-luna` with a `claude-haiku-4.5` sub-agent.
 - [`smoke-pi-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-pi-routed.md): pi, routing over `gpt-5.6-luna` with `claude-haiku-4.5` (`/v1/messages`) and `gpt-5.4-mini` (`/responses`) sub-agents.
+- [`smoke-copilot-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed-claude.md): Copilot CLI mode with `mode: auto`, routing over `claude-sonnet-5` with no sub-agents. The main agent must use `/chat/completions`.
+- [`smoke-pi-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-pi-routed-claude.md): pi with `mode: robust`, routing over `claude-sonnet-5` with no sub-agents. The main agent must use `/v1/messages`.
+- [`smoke-copilot-sdk-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed-claude.md): Copilot SDK mode, routing over `claude-haiku-4.5` (`/chat/completions`, no reasoning effort) with a `gpt-5.4-mini` sub-agent (`/responses`).
+
+The three Claude smokes also check the selection record: the requested mode matches the workflow's `mode`, the recommended profile is `economy`, `balanced` or `robust`, and the selected effort is one the selected model supports (or none when it supports no efforts). The recommended profile and effort vary between runs, so they are only logged.
 
 The SDK and pi smokes route over a single model only to keep their checks deterministic: they attribute traffic to sub-agents by model, so sub-agent models must not appear in `allowed-models`. This is not a recommendation for real workflows.
 
