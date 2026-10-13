@@ -29,6 +29,13 @@ an explicitly no-write assignment can still complete without resource effects.
 The finite model's no-write scenario remains an abstraction, not proof of the
 daily producer's cancellation or live reservation release.
 
+The separate [reservation recovery model](../work-queue/README.md#abandoned-dispatcher-reservation-recovery)
+covers the full three-profile cohort after dispatcher exit. It checks
+terminal-origin evidence, a prepared recovery/start-marker race, no resend or
+service refund, and independent recovery of never-started siblings while miner
+remains bound. `Factory.tla` does not model these queue-wide transitions or
+change its original assignment authority.
+
 ## Checked properties
 
 The safety configurations check types, immutable original membership, homogeneous batches, compiled Policy availability, branch creation with first admission, unambiguous original Claim selection, Completion before writes, independent readback before Result, per-Claim result cardinality, warning-only exit-zero behavior, explicit admission and assignment size. With only two Works, `BoundedAssignment <= 3` is a finite-universe bound, not validation of the full three-slot dispatcher budget. `Spec` permits stuttering; deadlock checking is disabled for terminal or stalled workers. No fairness assumption or temporal progress property is checked.
