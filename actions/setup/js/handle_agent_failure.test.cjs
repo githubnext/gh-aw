@@ -472,6 +472,18 @@ describe("handle_agent_failure", () => {
       await expect(getFailedAgentDiagnostics()).resolves.toEqual({ failingStep: "", attributionUnavailable: "The Actions jobs API returned no agent job." });
     });
 
+    it("distinguishes a confirmed zero-job run from unavailable metadata", async () => {
+      global.github = { paginate: vi.fn().mockResolvedValue([]), rest: { actions: { listJobsForWorkflowRun: vi.fn() } } };
+      await expect(getFailedAgentDiagnostics()).resolves.toMatchObject({ hasNoJobs: true });
+      expect(global.core.warning).not.toHaveBeenCalled();
+    });
+
+    it("does not treat invalid job metadata as a zero-job run", async () => {
+      global.github = { paginate: vi.fn().mockResolvedValue(null), rest: { actions: { listJobsForWorkflowRun: vi.fn() } } };
+      await expect(getFailedAgentDiagnostics()).resolves.toEqual({ failingStep: "", attributionUnavailable: "The Actions jobs API returned invalid job metadata." });
+      expect(global.core.warning).toHaveBeenCalledWith("The Actions jobs API returned invalid job metadata.");
+    });
+
     it("explains when the agent job has no failed steps", async () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue([{ name: "agent", conclusion: "failure", steps: [{ name: "Run agent", conclusion: "success" }] }]),
@@ -1428,7 +1440,7 @@ describe("handle_agent_failure", () => {
           pulls: { get: vi.fn() },
           actions: { listJobsForWorkflowRun: vi.fn() },
         },
-        paginate: vi.fn(async () => []),
+        paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [] }]),
         graphql: vi.fn(),
       };
       try {
@@ -1797,7 +1809,7 @@ describe("handle_agent_failure", () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue(
           missingJobs
-            ? []
+            ? [{ name: "activation", conclusion: "failure", steps: [] }]
             : [
                 {
                   id: 456,
@@ -1844,7 +1856,7 @@ describe("handle_agent_failure", () => {
       expect(body).not.toContain("infrastructure_error");
       if (missingJobs) {
         expect(body).toContain("**Failing step:** Unavailable");
-        expect(body).toContain("The Actions jobs API returned no jobs for this run.");
+        expect(body).toContain("The Actions jobs API returned no agent job.");
         expect(body).toContain("**Agent job conclusion:** `failure` (from workflow dependency results)");
         expect(global.github.request).not.toHaveBeenCalled();
       } else {
@@ -6668,6 +6680,51 @@ describe("handle_agent_failure", () => {
         expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
         expect(body).not.toContain("copilot-requests:write");
       }
+    });
+
+    it.each(["generic", "collector", "agent-reported"])("does not create or update any failure issue for a confirmed zero-job run with %s evidence", async evidence => {
+      process.env.GH_AW_GROUP_REPORTS = "true";
+      const items = evidence === "generic" ? [] : [{ type: "report_incomplete", reason: evidence === "collector" ? "agent_startup_failure" : "infrastructure_error" }];
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items, ...(evidence === "collector" ? { collectorEmptyOutputCause: "agent_startup_failure", collectorFailureCause: "agent_startup_failure" } : {}) }));
+      const create = vi.fn();
+      const createComment = vi.fn();
+      const update = vi.fn();
+      const search = vi.fn().mockResolvedValue({ data: { total_count: 0, items: [] } });
+      global.github = {
+        paginate: vi.fn().mockResolvedValue([]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: search },
+          issues: { create, createComment, update },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).not.toHaveBeenCalled();
+      expect(createComment).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(search).not.toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("is:issue") }));
+      expect(global.core.info).toHaveBeenCalledWith("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
+    });
+
+    it.each(["denied", "invalid", "activation-only"])("does not suppress failure reporting for %s job metadata", async evidence => {
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [] }));
+      const create = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        paginate:
+          evidence === "denied" ? vi.fn().mockRejectedValue(Object.assign(new Error("denied"), { status: 403 })) : vi.fn().mockResolvedValue(evidence === "invalid" ? null : [{ name: "activation", conclusion: "failure", steps: [] }]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).toHaveBeenCalledOnce();
+      expect(global.core.info).not.toHaveBeenCalledWith("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
     });
 
     it.each(["agent_startup_failure", "engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"])("does not trust agent-authored %s as collector evidence", async reason => {

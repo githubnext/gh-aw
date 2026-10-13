@@ -1803,7 +1803,7 @@ function buildReportIncompleteContext(items, { collectorEmptyOutputCause, rootDi
 
 /**
  * Find the failed agent step using Actions metadata only, never agent-generated log text.
- * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string}>}
+ * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string, hasNoJobs?: boolean}>}
  */
 async function getFailedAgentDiagnostics() {
   let jobs;
@@ -1823,11 +1823,19 @@ async function getFailedAgentDiagnostics() {
     return { failingStep: "", attributionUnavailable: reason };
   }
 
+  if (!Array.isArray(jobs)) {
+    const reason = "The Actions jobs API returned invalid job metadata.";
+    core.warning(reason);
+    return { failingStep: "", attributionUnavailable: reason };
+  }
+  if (jobs.length === 0) {
+    return { failingStep: "", hasNoJobs: true, attributionUnavailable: "The Actions jobs API returned no jobs for this run." };
+  }
   const agentJob = jobs.find(job => job.name === "agent");
   if (!agentJob) {
     return {
       failingStep: "",
-      attributionUnavailable: jobs.length === 0 ? "The Actions jobs API returned no jobs for this run." : "The Actions jobs API returned no agent job.",
+      attributionUnavailable: "The Actions jobs API returned no agent job.",
     };
   }
   const agentConclusion = ALLOWED_AGENT_CONCLUSIONS.has(agentJob.conclusion) ? agentJob.conclusion : "";
@@ -4534,7 +4542,11 @@ async function main() {
       failureCategories.includes("engine_driver_failure") ||
       failureCategories.includes("agent_startup_failure") ||
       agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
-    const failureDiagnostics = needsFailureDiagnostics || hasModelEndpointMismatch ? await getFailedAgentDiagnostics() : { failingStep: "" };
+    const failureDiagnostics = await getFailedAgentDiagnostics();
+    if (failureDiagnostics.hasNoJobs) {
+      core.info("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
+      return;
+    }
 
     // Check if parent issue creation is enabled (defaults to false)
     const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
