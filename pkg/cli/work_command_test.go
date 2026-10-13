@@ -556,13 +556,12 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	}
 	admin = true
 	invalidGitSHA = true
-	cmd := NewWorkCommand()
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	cmd.SetArgs([]string{"--repo", remote, "--json", "compact"})
-	err = cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "invalid queue branch reference") {
-		t.Fatalf("invalid queue branch SHA was not rejected: %v", err)
+	invalidRefCommand := NewWorkCommand()
+	invalidRefCommand.SetOut(io.Discard)
+	invalidRefCommand.SetErr(io.Discard)
+	invalidRefCommand.SetArgs([]string{"--repo", remote, "--json", "compact"})
+	if err := invalidRefCommand.Execute(); err == nil || !strings.Contains(err.Error(), "invalid queue branch reference") {
+		t.Fatalf("invalid queue branch reference was accepted: %v", err)
 	}
 	if log != before {
 		t.Fatal("invalid queue branch SHA changed queue authority")
