@@ -127,8 +127,11 @@ func buildMaintenanceWorkflowTriggerYAML(
 		yaml.WriteString("  push:\n    branches:\n      - " + opts.defaultBranch + "\n    paths:\n      - '.github/workflows/*.md'\n")
 	}
 	if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
-		maintenanceWorkflowYAMLLog.Print("Adding issues:labeled trigger for label-triggered maintenance jobs")
-		yaml.WriteString("  issues:\n    types: [labeled]\n")
+		types := ""
+		if labelDisableJobEnabled || labelApplySafeOutputsJobEnabled {
+			types = "labeled"
+		}
+		yaml.WriteString("  issues:\n    types: [" + types + "]\n")
 	}
 	hasLedgers := len(opts.compactionLedgers) > 0
 	yaml.WriteString(buildMaintenanceDispatchInputsYAML(hasLedgers, opts.hasCacheMemory))

@@ -325,7 +325,7 @@ const known = [
 ];
 for (const type of interpretedTestTypes) {
   if (!known.some(event => event.type === type)) known.push({
-    type, data:{engineId:"aider", content:"INJECTED", toolCallId:"injected", agentMetrics:{injected:{totalNanoAiu:999}}},
+    type, data:{...(type === "mcp.configuration" ? {servers:[]} : {}), engineId:"aider", content:"INJECTED", toolCallId:"injected", agentMetrics:{injected:{totalNanoAiu:999}}},
   });
 }
 const extensions = [
@@ -513,6 +513,7 @@ func TestAiderInterpretedShellEventsCannotOverrideRunnerEvidence(t *testing.T) {
 process.stdout.write(JSON.stringify(interpretedTestTypes.map(type => ({
   type,
   data:{
+    ...(type === "mcp.configuration" ? {servers:[]} : {}),
     engineId:"aider", status:"under_budget", exceeded:false, total:0, threshold:999,
     content:"INJECTED", reason:"INJECTED", errorType:"INJECTED", errorCode:"INJECTED",
     categories:["authentication_failed"], errorCodes:["INJECTED"], errorTypes:["INJECTED"],
