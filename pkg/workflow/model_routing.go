@@ -317,44 +317,75 @@ func modelRoutingDefaultCandidates(engineName string) []string {
 	return nil
 }
 
-func modelRoutingDefaultCandidatesExcludedByPolicy(engineName string, allowed, blocked []string) bool {
+// modelRoutingDefaultCandidatesPolicyError reports when models.allowed or models.blocked leaves
+// no model in the Claude or Codex family that the router uses when allowed-models is omitted.
+func modelRoutingDefaultCandidatesPolicyError(engineName string, allowed, blocked []string) error {
 	prefix, ok := modelRoutingEngineFamilyPrefixes[strings.ToLower(engineName)]
 	if !ok {
-		return false
+		return nil
 	}
-	if len(allowed) > 0 && !modelPolicyAllowsModelFamily(allowed, prefix) {
-		return true
-	}
-	return modelPolicyBlocksModelFamily(blocked, prefix)
-}
-
-func modelPolicyAllowsModelFamily(rules []string, familyPrefix string) bool {
-	for _, rule := range rules {
-		rule = strings.TrimPrefix(rule, "github-copilot/")
-		if strings.HasPrefix(rule, familyPrefix) {
-			return true
-		}
-		for _, suffix := range []string{"x", "sonnet", "opus"} {
-			if matched, _ := path.Match(rule, familyPrefix+suffix); matched {
-				return true
-			}
+	err := fmt.Errorf("all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy (allowed-models is omitted, so the %s engine uses its model family, %s*)", strings.ToLower(engineName), prefix)
+	for _, rule := range blocked {
+		if modelPolicyRuleCoversFamily(rule, prefix) {
+			return err
 		}
 	}
-	return false
-}
-
-func modelPolicyBlocksModelFamily(rules []string, familyPrefix string) bool {
-	for _, rule := range rules {
-		rule = strings.TrimPrefix(rule, "github-copilot/")
-		firstWildcard := strings.IndexAny(rule, "*?[")
-		if firstWildcard < 0 || !strings.HasPrefix(familyPrefix, rule[:firstWildcard]) {
+	if len(allowed) == 0 {
+		return nil
+	}
+	for _, rule := range allowed {
+		if !modelPolicyRuleMayMatchFamily(rule, prefix) {
 			continue
 		}
-		if strings.Trim(rule[firstWildcard:], "*") == "" {
-			return true
+		if !strings.ContainsAny(rule, "*?[\\") {
+			provider, model := splitModelPolicyRule(rule)
+			qualified := rule
+			if provider == "" {
+				qualified = "github-copilot/" + model
+			}
+			if matchesModelPolicy(model, qualified, blocked) {
+				continue
+			}
 		}
+		return nil
 	}
-	return false
+	return err
+}
+
+func splitModelPolicyRule(rule string) (string, string) {
+	if i := strings.LastIndex(rule, "/"); i >= 0 {
+		return rule[:i], rule[i+1:]
+	}
+	return "", rule
+}
+
+func modelPolicyRuleProviderMatchesCopilot(provider string) bool {
+	if provider == "" {
+		return true
+	}
+	matched, _ := path.Match(provider, "github-copilot")
+	return matched
+}
+
+// modelPolicyRuleMayMatchFamily reports whether rule can match a model whose name starts with prefix.
+func modelPolicyRuleMayMatchFamily(rule, prefix string) bool {
+	_, model := splitModelPolicyRule(rule)
+	model = strings.ToLower(model)
+	if i := strings.IndexAny(model, "*?[\\"); i >= 0 {
+		head := model[:i]
+		return strings.HasPrefix(prefix, head) || strings.HasPrefix(head, prefix)
+	}
+	return strings.HasPrefix(model, prefix)
+}
+
+// modelPolicyRuleCoversFamily reports whether rule matches every model whose name starts with prefix.
+func modelPolicyRuleCoversFamily(rule, prefix string) bool {
+	provider, model := splitModelPolicyRule(rule)
+	if !modelPolicyRuleProviderMatchesCopilot(provider) {
+		return false
+	}
+	head, ok := strings.CutSuffix(model, "*")
+	return ok && !strings.ContainsAny(head, "*?[\\") && strings.HasPrefix(prefix, head)
 }
 
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
@@ -455,11 +486,13 @@ func validateModelRouting(workflowData *WorkflowData, engineName string) error {
 			fmt.Sprintf("AWF versions before %s, or an apiProxy image without routing.candidateModels support, route only over engine.model-routing.allowed-models. List the candidate models, or use AWF %s or newer.",
 				constants.AWFRoutingCandidateModelsMinVersion, constants.AWFRoutingCandidateModelsMinVersion))
 	}
+	allowed, blocked := resolveModelPolicyForAWFConfig(workflowData)
 	if len(candidates) > 0 {
-		allowed, blocked := resolveModelPolicyForAWFConfig(workflowData)
 		if _, err := intersectModelRoutingPolicy(candidates, allowed, blocked); err != nil {
 			return NewValidationError("engine.model-routing.allowed-models", strings.Join(routing.AllowedModels, ", "), "model-routing candidates violate model policy", err.Error())
 		}
+	} else if err := modelRoutingDefaultCandidatesPolicyError(engineName, allowed, blocked); err != nil {
+		return NewValidationError("engine.model-routing.allowed-models", "", "model-routing candidates violate model policy", err.Error())
 	}
 	firewallConfig := getFirewallConfig(workflowData)
 	version := getAWFImageTag(firewallConfig)

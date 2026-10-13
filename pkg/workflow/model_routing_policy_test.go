@@ -107,21 +107,52 @@ func TestBuildAWFConfigJSON_ModelRoutingPolicyErrors(t *testing.T) {
 		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "copilot", AllowedDomains: "github.com", WorkflowData: data})
 		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
 	})
-	t.Run("allowed policy excludes the default Claude family", func(t *testing.T) {
-		data := routedPolicyWorkflowData("claude", "", []string{"gpt-5.6-sol"}, nil, nil)
-		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "claude", AllowedDomains: "github.com", WorkflowData: data})
-		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
-	})
-	t.Run("blocked policy excludes the default Codex family", func(t *testing.T) {
-		data := routedPolicyWorkflowData("codex", "", nil, []string{"gpt-*"}, nil)
-		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "codex", AllowedDomains: "github.com", WorkflowData: data})
-		require.ErrorContains(t, err, "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
-	})
 	t.Run("expression candidates with a policy", func(t *testing.T) {
 		data := routedPolicyWorkflowData("copilot", "", nil, []string{"gpt-5.4-mini"}, []string{"${{ inputs.model }}"})
 		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "copilot", AllowedDomains: "github.com", WorkflowData: data})
 		require.ErrorContains(t, err, "cannot be checked against models.allowed or models.blocked")
 	})
+	for _, tc := range []struct {
+		name    string
+		engine  string
+		allowed []string
+		blocked []string
+	}{
+		{name: "claude family outside models.allowed", engine: "claude", allowed: []string{"gpt-5.6-sol"}},
+		{name: "codex family outside models.allowed", engine: "codex", allowed: []string{"claude-sonnet-5", "gemini-*"}},
+		{name: "claude allowed models all blocked", engine: "claude", allowed: []string{"claude-sonnet-5", "gpt-5.6-sol"}, blocked: []string{"claude-sonnet-*"}},
+		{name: "claude family blocked", engine: "claude", blocked: []string{"claude-*"}},
+		{name: "codex family blocked", engine: "codex", blocked: []string{"github-copilot/gpt*"}},
+		{name: "codex family blocked by wildcard", engine: "codex", allowed: []string{"gpt-5.6-sol"}, blocked: []string{"*"}},
+	} {
+		t.Run("default family "+tc.name, func(t *testing.T) {
+			data := routedPolicyWorkflowData(tc.engine, "", tc.allowed, tc.blocked, nil)
+			const want = "all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy"
+			_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: tc.engine, AllowedDomains: "github.com", WorkflowData: data})
+			require.ErrorContains(t, err, want)
+			require.ErrorContains(t, err, "the "+tc.engine+" engine uses its model family")
+			require.ErrorContains(t, validateModelRouting(data, tc.engine), want)
+		})
+	}
+	for _, tc := range []struct {
+		name    string
+		engine  string
+		allowed []string
+		blocked []string
+	}{
+		{name: "claude family glob allowed", engine: "claude", allowed: []string{"*sonnet*"}},
+		{name: "codex family glob allowed", engine: "codex", allowed: []string{"*-5.6-*"}},
+		{name: "claude family partly blocked", engine: "claude", blocked: []string{"claude-opus-*", "claude-?"}},
+		{name: "codex model allowed", engine: "codex", allowed: []string{"claude-sonnet-5", "github-copilot/gpt-5.6-sol"}},
+		{name: "copilot is not family limited", engine: "copilot", allowed: []string{"claude-sonnet-5"}, blocked: []string{"gpt-*"}},
+	} {
+		t.Run("default family "+tc.name, func(t *testing.T) {
+			data := routedPolicyWorkflowData(tc.engine, "", tc.allowed, tc.blocked, nil)
+			_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: tc.engine, AllowedDomains: "github.com", WorkflowData: data})
+			require.NoError(t, err)
+			require.NoError(t, validateModelRouting(data, tc.engine))
+		})
+	}
 	t.Run("literal family check still applies", func(t *testing.T) {
 		data := routedPolicyWorkflowData("claude", "", nil, nil, []string{"gpt-5.6-sol"})
 		_, err := BuildAWFConfigJSON(AWFCommandConfig{EngineName: "claude", AllowedDomains: "github.com", WorkflowData: data})
