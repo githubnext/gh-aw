@@ -27,6 +27,12 @@
  *   selected model and a supported endpoint; R4 main-agent requests exist and
  *   use only allowed models
  * - M1 main-agent requests exist and use the expected endpoint (when configured)
+ * - P1 the selection record's requested mode (`objective.mode`) equals the
+ *   configured mode, its recommended profile (`mode`) is economy, balanced or
+ *   robust, and its selected effort is one of the selected model's /reflect
+ *   `supported_reasoning_efforts`, or null when that list is empty (when
+ *   configured). The recommended profile and selected effort are also printed
+ *   as info; they vary between runs and are never pass/fail on their own.
  * - S1 sub-agent ran exactly once; S2 completed without failing; S3 status 200 on
  *   the declared model and endpoint; S4 events carry the declared agent name
  *   (when configured)
@@ -54,17 +60,19 @@ const TOKEN_USAGE_PATHS = ["sandbox/firewall/logs/api-proxy-logs/token-usage.jso
 const REFLECT_PATHS = ["sandbox/firewall/awf-reflect.json", "agent/awf-reflect.json"];
 const CLASSIFIER_PURPOSE = "routing_classification";
 const MAX_OBSERVED = 12;
+const ROUTING_PROFILES = ["economy", "balanced", "robust"];
 
 /**
  * @typedef {{ name: string, model: string, endpoint: string | string[] }} SubAgentExpectation
  * @typedef {{
  *   allowedModels: string[],
  *   mainEndpoint?: string,
+ *   routingMode?: string,
  *   subAgents?: SubAgentExpectation[],
  *   requireDeclaredAgentNames?: boolean,
  *   executionOutcome?: string,
  * }} RoutingExpectations
- * @typedef {{ passes: string[], failures: string[] }} RoutingAssertionResults
+ * @typedef {{ passes: string[], failures: string[], info?: string[] }} RoutingAssertionResults
  */
 
 /**
@@ -178,13 +186,34 @@ function supportedEndpoints(model, selection, reflect) {
 }
 
 /**
+ * Supported reasoning efforts for a model from the AWF `/reflect` routing
+ * metadata, or null when /reflect has no effort list for the model.
+ * @param {string} model
+ * @param {any} reflect
+ * @returns {Set<string> | null}
+ */
+function supportedEfforts(model, reflect) {
+  /** @type {Set<string> | null} */
+  let efforts = null;
+  const reflectEndpoints = Array.isArray(reflect?.endpoints) ? reflect.endpoints : [];
+  for (const endpoint of reflectEndpoints) {
+    for (const entry of Array.isArray(endpoint?.routing_models) ? endpoint.routing_models : []) {
+      if (servedModel(entry?.model_id) !== model || !Array.isArray(entry?.supported_reasoning_efforts)) continue;
+      efforts ??= new Set();
+      for (const value of entry.supported_reasoning_efforts) efforts.add(String(value));
+    }
+  }
+  return efforts;
+}
+
+/**
  * Evaluate model-routing evidence against the smoke expectations.
  * @param {{ events: any[], requests: any[], reflect?: any, expectations: RoutingExpectations }} input
  * @returns {RoutingAssertionResults}
  */
 function evaluateModelRoutingEvidence({ events, requests, reflect = null, expectations }) {
   /** @type {RoutingAssertionResults} */
-  const results = { passes: [], failures: [] };
+  const results = { passes: [], failures: [], info: [] };
   /** @param {string} id @param {string} message */
   const pass = (id, message) => results.passes.push(`PASS ${id} ${message}`);
   /** @param {string} id @param {string} message */
@@ -302,6 +331,34 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
     if (!mainRequests.length) fail("M1", `no main-agent requests to check for ${expected}; observed agent requests: ${describeRequests(agentTraffic)}`);
     else if (wrong.length) fail("M1", `main-agent request(s) not on ${expected}; observed: ${describeRequests(wrong)}`);
     else pass("M1", `all ${mainRequests.length} main-agent request(s) used ${expected}`);
+  }
+
+  // P1: requested mode, recommended profile and selected effort. The
+  // recommendation and effort are not deterministic, so only their validity is checked.
+  const selectedEffort = selection?.selectedEffort;
+  if (selection) results.info?.push(`INFO routing recommended profile=${selection.mode ?? "<none>"} requested mode=${selection.objective?.mode ?? "<none>"} selected effort=${selectedEffort ?? "<none>"}`);
+  if (expectations.routingMode) {
+    const p1Problems = [];
+    if (!selection) {
+      p1Problems.push("no firewall model_routing selection record with a selected model");
+    } else {
+      if (selection.degradedClassification === true) {
+        const classification = events.filter(event => event?.type === "firewall.model_routing" && event.data?.stage === "classification").at(-1)?.data;
+        const classifierRequest = requests.filter(isClassifierRequest).at(-1);
+        const degradedReason = selection.degradedReason ?? "missing";
+        const classifierModel = classification?.classifierModel ?? selection.classifierModel ?? classifierRequest?.model ?? "<missing>";
+        p1Problems.push(`classification degraded: degraded_reason=${degradedReason}; classifier_model=${classifierModel}`);
+      }
+      const requested = selection.objective?.mode;
+      if (requested !== expectations.routingMode) p1Problems.push(`requested mode (objective.mode) is ${requested ?? "missing"}, expected ${expectations.routingMode}`);
+      if (!ROUTING_PROFILES.includes(selection.mode)) p1Problems.push(`recommended profile (mode) is ${selection.mode ?? "missing"}, expected one of ${ROUTING_PROFILES.join(", ")}`);
+      const efforts = supportedEfforts(selectedModel, reflect);
+      if (!efforts) p1Problems.push(`no /reflect supported_reasoning_efforts for ${selectedModel} to check selected effort ${selectedEffort ?? "null"} against`);
+      else if (!efforts.size && selectedEffort !== null) p1Problems.push(`selected effort is ${selectedEffort}, expected null because /reflect lists no supported efforts for ${selectedModel}`);
+      else if (efforts.size && !efforts.has(String(selectedEffort))) p1Problems.push(`selected effort ${selectedEffort ?? "null"} is not among ${selectedModel}'s /reflect supported efforts [${[...efforts].join(", ")}]`);
+    }
+    if (p1Problems.length) fail("P1", p1Problems.join("; "));
+    else pass("P1", `requested mode ${expectations.routingMode}; recommended profile ${selection?.mode} and selected effort ${selectedEffort ?? "null"} are valid for ${selectedModel}`);
   }
 
   for (const [index, { agent, model, started, activity, correlated }] of subAgentEvidence.entries()) {
@@ -439,6 +496,7 @@ function checkModelRoutingEvidence(options) {
 async function main(options) {
   const { core: actionsCore = global.core, ...rest } = options;
   const results = checkModelRoutingEvidence(rest);
+  for (const line of results.info ?? []) actionsCore.info(line);
   for (const line of results.passes) actionsCore.info(line);
   for (const line of results.failures) actionsCore.error(line);
   if (results.failures.length) {
@@ -621,6 +679,7 @@ module.exports = {
   servedModel,
   normalizeEndpoint,
   supportedEndpoints,
+  supportedEfforts,
   evaluateModelRoutingEvidence,
   collectModelRoutingEvidence,
   checkModelRoutingEvidence,
