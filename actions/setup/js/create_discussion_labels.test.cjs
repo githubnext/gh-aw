@@ -1,6 +1,9 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+
+useExecutionProvenanceFixture();
 
 const require = createRequire(import.meta.url);
 const { main: createDiscussionMain } = require("./create_discussion.cjs");

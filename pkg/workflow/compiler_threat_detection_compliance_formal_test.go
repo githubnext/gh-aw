@@ -137,6 +137,30 @@ func TestFormal_RepositoryDispatchAppAuthorizationRule(t *testing.T) {
 	require.Equal(t, "CTR-029", tests["T-CTR-044"])
 }
 
+func TestFormal_CTR032_ExecutionProvenanceSpoofingCoverage(t *testing.T) {
+	rules := formalActiveRules(t)
+	mapping := formalComplianceMap(t)
+	tests := formalCatalogTests(t)
+
+	require.Contains(t, rules, "CTR-032")
+	require.Equal(t, "T-CTR-047", mapping["CTR-032"])
+	require.Equal(t, "CTR-032", tests["T-CTR-047"])
+
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "locate compiler threat conformance tests")
+	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
+	compilerTests, err := os.ReadFile(filepath.Join(repoRoot, "pkg", "workflow", "safe_outputs_job_identity_test.go"))
+	require.NoError(t, err)
+	require.Contains(t, string(compilerTests), "func TestSafeOutputsPublishingJobIdentity")
+	require.Contains(t, string(compilerTests), "func TestSafeOutputsReplayPublishingJobIdentity")
+	require.Contains(t, string(compilerTests), "func TestCustomSafeOutputsPublishingJobIdentity")
+
+	provenanceTests, err := os.ReadFile(filepath.Join(repoRoot, "actions", "setup", "js", "execution_provenance.test.cjs"))
+	require.NoError(t, err)
+	require.Contains(t, string(provenanceTests), "strips variant comment openers")
+	require.Contains(t, string(provenanceTests), "strips nested reserved markers")
+}
+
 func TestFormal_EdgeCase_DuplicateTestIDViolatesBijection(t *testing.T) {
 	mapping := map[string]string{"CTR-001": "T-CTR-001", "CTR-002": "T-CTR-001"}
 	require.False(t, formalHasUniqueTestIDs(mapping))
