@@ -39,6 +39,8 @@ Baseline rule implementation and test-file locations are maintained in [spec §7
 | CTR-030 | T-CTR-045 |
 | CTR-031 | T-CTR-046 |
 | CTR-032 | T-CTR-047 |
+| CTR-033 | T-CTR-048 |
+| CTR-034 | T-CTR-049 |
 
 Note: `CTR-025`–`CTR-030` map to `T-CTR-039` and `T-CTR-041`–`T-CTR-045` because `T-CTR-024` through `T-CTR-038` and `T-CTR-040` were already allocated to Section 6 false-positive and optimizer protocol norms. The shared `T-CTR-*` sequence is intentionally non-sequential with respect to `CTR-*` rule IDs.
 

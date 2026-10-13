@@ -71,6 +71,16 @@ func (c *Compiler) buildPrimarySafeOutputJobs(data *WorkflowData, jobName, markd
 	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string
 	var preparedJobs []string
+	validationJob, err := c.buildArtifactValidationJob(data)
+	if err != nil {
+		return nil, err
+	}
+	if validationJob != nil {
+		if err := c.jobManager.AddJob(validationJob); err != nil {
+			return nil, err
+		}
+		safeOutputJobNames = append(safeOutputJobNames, validationJob.Name)
+	}
 	if isWorkQueueParticipant(data) {
 		c.resolveAllActions(data, markdownPath)
 		var err error

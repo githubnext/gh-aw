@@ -79,6 +79,8 @@ func isReservedSafeOutputsNeedsTarget(jobName string) bool {
 		"push_repo_memory",
 		"update_cache_memory":
 		return true
+	case artifactValidationJobName:
+		return true
 	default:
 		return false
 	}

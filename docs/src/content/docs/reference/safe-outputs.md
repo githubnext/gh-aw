@@ -1941,6 +1941,8 @@ See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-githu
 
 Specifies the deployment environment for all compiler-generated safe-output jobs (`safe_outputs`, `conclusion`, `pre_activation`, custom safe-jobs). This makes environment-scoped secrets accessible in those jobs — for example, GitHub App credentials stored as environment secrets.
 
+The separate `artifact_validation` job does not inherit deployment environments or publisher secrets.
+
 The top-level `environment:` field is automatically propagated to all safe-output jobs. Use `safe-outputs.environment:` to override this independently:
 
 ```yaml wrap
@@ -1952,6 +1954,33 @@ safe-outputs:
 ```
 
 Accepts a plain string or an object with `name` and optional `url`, consistent with the top-level `environment:` syntax.
+
+### Artifact Validation (`artifact-validation:`)
+
+`artifact-validation.steps` declares required policy checks for repository artifacts published by `create-pull-request` or `push-to-pull-request-branch`.
+
+```aw wrap
+safe-outputs:
+  create-pull-request:
+  artifact-validation:
+    steps:
+      - name: Check repository policy
+        run: node .github/scripts/validate-artifact.cjs
+```
+
+The compiler runs these checks in a separate `artifact_validation` job with `contents: read`, a trusted base checkout, and `persist-credentials: false`. The job does not inherit workflow environment variables, `safe-outputs.env`, deployment environments, or publication tokens. Every validator must succeed before the approved artifact is uploaded; publication depends on that job's success and its exact output artifact ID.
+
+The protected profile rejects credential-capable expressions in top-level workflow `env`, which would otherwise also reach the agent. Publication secrets belong in publisher-specific authentication configuration; model credentials remain engine-specific.
+
+Validators read the compiler-provided `GH_AW_AGENT_OUTPUT` and `GH_AW_ARTIFACT_MANIFEST`. Every manifest entry exposes `validationCheckout`, the complete resulting tree to check. Validators must inspect every entry rather than reconstruct patch filenames, validate only the base checkout, or assume a flat ZIP layout.
+
+Each static `run` command executes in the digest-pinned gh-aw Node container on a separate `ubuntu-latest` validation runner. The container has Node.js, Git, and `sh`; its filesystem and trusted checkout/prepared-tree mounts are read-only, networking is disabled, and it has no publication tokens, runner command files, Docker socket, or writable access to the finalizer. Writable temporary storage is confined to the container. Programs requiring additional runtimes or network access are not supported by this initial profile.
+
+The configuration requires a nonempty `steps` array. Supported step fields are `name`, `id`, `run`, `env`, `timeout-minutes`, and `continue-on-error: false`. Steps cannot use Actions, `if`, shell/working-directory overrides, expression interpolation in `run`, or secret/custom-job/input/variable contexts. Non-secret values may be passed through ordinary `env` keys; runtime, Git, Node, Docker, and runner execution-environment overrides are rejected. The protected profile cannot have custom safe-output jobs/scripts/actions or publisher job-level step, environment, condition, or dependency overrides.
+
+The initial protected profile supports the workflow repository and trusted event base only. Updates to a triggering same-repository PR additionally require its trusted head object to be available from the read-only checkout; missing objects or changed remote baselines fail closed. Custom checkout repository/path/ref, cross-repository publication, custom publication base branches, and work-queue profiles fail compilation rather than falling back to an unverified route. Claims, unbound content references, non-triggering PR targets, and unsupported signed file modes are rejected at runtime.
+
+`safe-outputs.steps` is rejected for repository-publishing handlers because it runs after publication credentials become available. Move artifact policy checks to `artifact-validation.steps`; token-minting steps belong in trusted `jobs.safe_outputs.pre-steps` for workflows without the protected profile, not in a validator.
 
 ### Safe Outputs Dependencies (`needs:`)
 

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.51
+**Version**: 1.0.52
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.52` | Unreleased | Implements CTR-033/034 for the explicit artifact-validation profile: checked archive import, sealed resulting-tree approval, isolated validators, and approved-artifact-only publication. Credentialed custom publication steps are rejected; unsupported protected profiles fail closed. |
 | `1.0.51` | Unreleased | Simplifies candidate CTR-033/034 and requires artifact resolution from the actual extracted layout, including nested ZIP entries. Active rules and lock-file schema remain unchanged. |
 | `1.0.50` | Unreleased | Defines candidate CTR-033 and CTR-034 for artifact-bound validation and publication credential isolation. No active rule, implemented protection, or lock-file schema change is claimed; promotion requires implementation, tests, and deployment evidence. |
 | `1.0.49` | Unreleased | Adds CTR-032; safe-output publishing jobs supply step-level check-run identity, and runtime publishers replace forged execution-provenance markers with trusted metadata. |
@@ -122,6 +123,8 @@ Each rule has a stable `CTR-*` ID, threat class, trigger, compiler action, diagn
 - **CTR-030 Activation Checkout Provenance**: For `pull_request`, `pull_request_review`, and `pull_request_review_comment` events, emit an activation sparse checkout pinned to `github.event.pull_request.base.sha`, guarded by event name and pull-request payload presence. Match trigger names exactly so `pull_request_target` does not opt into this rule. Other events retain their existing checkout ref (including the resolved callee SHA for `workflow_call`); cross-repository `workflow_call` checkout remains same-repository-only when activation authentication can fall back to `GITHUB_TOKEN`.
 - **CTR-031 Private-to-Public Flow Opt-Out**: Reject `tools.github.private-to-public-flows` in strict mode in both its blanket and server-list forms; in non-strict mode, emit a security warning because the opt-out can expose private data through public Actions logs or agent-controlled public destinations.
 - **CTR-032 Safe-Output Execution Provenance Spoofing**: Generated built-in, custom, and maintenance safe-output publishers MUST receive `job.check_run_id` only in the publishing step. Before publishing issue, pull request, comment, or discussion bodies, runtime publishers MUST replace supplied `gh-aw-execution` and `gh-aw-agentic-workflow` markers—including nested, variant, and unterminated comment forms—with trusted versioned execution metadata. Missing or invalid provenance metadata MUST fail closed.
+- **CTR-033 Artifact Validation and Publication Binding**: A declared `safe-outputs.artifact-validation` gate MUST run every required validator and publish only its sealed approved artifact ID and digest. Validation and publication MUST share canonical repository/transport identity, immutable bytes, and approved base/resulting-tree binding. Missing, ambiguous, changed, or unsupported evidence MUST fail closed. Section 5.5 defines the protected profile.
+- **CTR-034 Publication Credential Isolation**: Reject credentialed custom `safe-outputs.steps` for repository publication. Protected validators MUST execute in a read-only, non-root, network-disabled container without publication credentials or writable access to trusted runtime/finalizer storage. The publisher MUST NOT execute agent-modified code. Secret, execution-environment, and job overrides that weaken this boundary MUST fail compilation.
 
 ### 5.2 Compiler Response Requirements
 
@@ -135,18 +138,18 @@ When a threat is found, maintainers MUST add its mapping and test if covered, or
 
 Removing a rule dependency MUST deprecate—not delete—the catalog and mapping rows in the same change set. The catalog records the version and reason; mapped tests become `[DEPRECATED]`; the mapping implementation cell is cleared; and the changelog records the retirement. `TestFormal_DeprecationPolicy_SpecArtifactsConform` enforces this policy.
 
-### 5.5 Candidate Artifact Integrity Requirements
+### 5.5 Artifact Integrity Requirements
 
-These candidates are not active rules or usable workflow configuration. Their requirements define promotion criteria under Section 5.3.
+These requirements apply to the explicit `safe-outputs.artifact-validation.steps` profile. Canonical transport resolution also applies to ordinary repository publishers. The compiler cannot infer an arbitrary external validator's semantics: trusted validators remain responsible for checking every manifest entry's complete `validationCheckout`.
 
-| Candidate / diagnostic ID | Trigger | Required compiler action on promotion |
+| Rule / diagnostic ID | Trigger | Required compiler action |
 |---|---|---|
 | CTR-033 Artifact Validation and Publication Binding | A configured validation gate can be bypassed, or validation and publication can consume different artifacts. | Require successful trusted validation and a shared artifact identity; reject missing approval or incompatible transport contracts. |
 | CTR-034 Publication Credential Isolation | Artifact import, application, or semantic validation exposes publication credentials or executes agent-modified code in a credentialed publisher. | Isolate validation from publication credentials and prevent execution of agent-modified code in the publisher. |
 
 #### 5.5.1 Compiler and Static Enforcement
 
-On promotion, generated publication MUST require successful completion of every configured validation gate. Skipped, failed, cancelled, or missing validation MUST block publication, regardless of `always()`, `continue-on-error`, or publishing conditions. Optional telemetry and unrelated downloads may still tolerate failure.
+Generated protected publication MUST require successful completion of every configured validation gate and nonempty trusted artifact-ID and approval-digest outputs. Skipped, failed, cancelled, or missing validation MUST block publication, regardless of `always()`, `continue-on-error`, or publishing conditions. Optional telemetry and unrelated downloads may still tolerate failure.
 
 Generated downloads MUST use isolated staging directories and pass their actual extraction roots to a shared resolver. The configured download `path` is a destination directory, not a payload filename: ZIP contents and download options may produce files directly under it or in nested directories. Generated validators and publishers MUST consume the same resolved artifact identity, not independently reconstruct paths from the destination, archive name, repository spelling, or branch.
 
@@ -154,11 +157,15 @@ The compiler MUST reject incompatible validator/publisher contracts. Validator c
 
 Publication credentials MUST NOT be exposed to the agent or semantic validator, including through job-level permissions, persisted checkout credentials, or earlier steps. A dependency edge or delayed token minting alone is insufficient.
 
+Validators MUST run in an isolated container with read-only trusted policy and prepared-tree mounts, no runner credential files or Docker socket, no network, and no writable access to approval/finalizer storage. Validator output MUST NOT inject runner commands. The initial profile accepts static `run` commands in the pinned Node image, not arbitrary Actions, host shells, or working-directory overrides. It uses a separate Linux validation runner and does not inherit deployment environments, workflow environment values, or publisher environment values.
+
+The initial profile MUST reject custom checkout repository/path/ref, cross-repository or fork publication, custom publication base branches, work-queue/claim profiles, and publisher custom execution or gate overrides. Triggering same-repository PR updates require the trusted event head object; unavailable objects or changed remote baselines MUST deny approval/publication. Unsupported content-reference or signed file-mode profiles MUST fail closed rather than use an unverified fallback.
+
 Input sanitization, probabilistic threat detection, path allowlists, and commit signing MUST NOT be treated as substitutes for deterministic artifact approval.
 
-#### 5.5.2 Associated Runtime Promotion Criteria
+#### 5.5.2 Associated Runtime Requirements
 
-The compiler cannot inspect runtime ZIP contents or prove an external validator's semantics. Promotion therefore also requires these runtime controls:
+The compiler cannot inspect runtime ZIP contents or prove an external validator's semantics. The protected profile therefore requires these runtime controls:
 
 | Requirement | Required behavior |
 |---|---|
@@ -230,21 +237,16 @@ Every active rule MUST map to implementation and test coverage. References are p
 | CTR-030 Activation Checkout Provenance | `pkg/workflow/compiler_activation_job.go` | `pkg/workflow/compiler_activation_job_test.go` |
 | CTR-031 Private-to-Public Flow Opt-Out | `pkg/workflow/strict_mode_private_to_public_flows_validation.go`, `pkg/workflow/compiler_validators.go` | `pkg/workflow/private_to_public_flows_test.go` |
 | CTR-032 Safe-Output Execution Provenance Spoofing | `pkg/workflow/compiler_safe_outputs_steps.go`, custom and maintenance safe-output job builders, `actions/setup/js/execution_provenance.cjs` | `pkg/workflow/safe_outputs_job_identity_test.go`, `actions/setup/js/execution_provenance.test.cjs` |
+| CTR-033 Artifact Validation and Publication Binding | `pkg/workflow/safe_outputs_artifact_validation.go`, `compiler_artifact_validation.go`, `compiler_safe_outputs_job.go`; `actions/setup/js/artifact_archive.cjs`, `artifact_validation.cjs`, `verified_artifact.cjs`, `resolve_transport_paths.cjs`; artifact-consuming PR and signed-push handlers | `pkg/workflow/artifact_validation_test.go`; corresponding runtime `.test.cjs` suites; `scripts/check-safe-outputs-conformance.sh` |
+| CTR-034 Publication Credential Isolation | `pkg/workflow/safe_outputs_artifact_validation.go`, `compiler_artifact_validation.go`, `compiler_safe_outputs_envvars.go`; `actions/setup/js/artifact_validator.cjs` and approved publication consumers | `pkg/workflow/artifact_validation_test.go`, `safe_outputs_step_token_validation_test.go`; `actions/setup/js/artifact_validator.test.cjs`, `verified_artifact.test.cjs` |
 
 ### 7.2 Mapping Audit History
 
 Dated mapping-audit records are maintained in `specs/compiler-threat-detection-changelog.md`. A daily optimizer run MUST append its audit entry to that changelog, not to this specification.
 
-### 7.3 Candidate Implementation Targets
+### 7.3 Artifact Profile Verification
 
-These are integration targets, not evidence that candidate enforcement is implemented. On promotion, concrete implementations and passing tests MUST move into the active mapping and compliance catalogs in the same change set.
-
-| Candidate | Compiler and static targets | Associated runtime targets | Coverage targets |
-|---|---|---|---|
-| CTR-033 | `pkg/workflow/safe_outputs_needs_validation.go`, safe-output configuration validation, and `compiler_safe_outputs_job.go` download/dependency/condition generation; `scripts/check-safe-outputs-conformance.sh` | Shared resolver/import boundary in `actions/setup/js/resolve_transport_paths.cjs`; repository, producer, patch/claim, PR publication, manifest, and signed-push helpers | Compiler job/step tests; transport/path/claim tests; new extracted-layout and verified-publication integration tests |
-| CTR-034 | `pkg/workflow/compiler_safe_outputs_job.go`, `compiler_safe_outputs_steps.go`, generated checkout/token environment and App-token minting, and relevant permission validation | Trusted validator/publisher boundary and the same patch, bundle, existing-branch, and signed-push publication consumers as CTR-033 | Generated credential-placement and fail-closed condition tests; hermetic validator/publisher isolation and zero-remote-mutation tests |
-
-Workflow-owned validators MUST consume the shared resolved artifact rather than rebuild filenames. Promotion MUST record the runtime contract in the safe-output and security architecture specifications.
+Workflow-owned validators MUST consume the shared resolved artifact rather than rebuild filenames. The safe-output and security architecture specifications record the runtime contract. Hermetic compiler/runtime tests are conformance evidence, not evidence of a live production workflow run.
 
 ## 8. Compliance Testing
 
@@ -285,6 +287,8 @@ Each active rule MUST have at least one deterministic test that covers its prima
 | **T-CTR-045** | CTR-030 Activation Checkout Provenance | A workflow with pull-request and/or review triggers generates an activation sparse checkout | Pin supported PR events to the PR base SHA; preserve the existing fallback ref for other events and the same-repo guard when activation auth may use `GITHUB_TOKEN`. | `CTR-030` |
 | **T-CTR-046** | CTR-031 Private-to-Public Flow Opt-Out | A workflow configures `tools.github.private-to-public-flows` as `allow` or a server-ID list | Reject both forms in strict mode; emit a security warning in non-strict mode. | `CTR-031` |
 | **T-CTR-047** | CTR-032 Safe-Output Execution Provenance Spoofing | A built-in, custom, or maintenance publisher emits a body containing forged reserved markers, or the compiler generates a publishing step | Pass the runtime check-run ID only to the publishing step; replace nested, variant, and unterminated supplied reserved markers with trusted execution metadata; fail closed when required metadata is invalid or missing. | `CTR-032` |
+| **T-CTR-048** | CTR-033 Artifact Validation and Publication Binding | A configured artifact gate can be skipped, altered, or consume different bytes/tree from publication | Require mandatory validators, sealed shared resolution and trusted approval outputs; reject ambiguous layouts, digest/base/tree/policy mismatches, and unsupported protected profiles before remote mutation. | `CTR-033` |
+| **T-CTR-049** | CTR-034 Publication Credential Isolation | Credentialed custom publication steps or validator execution can weaken trusted approval | Reject credentialed custom steps, secret/environment/job overrides and unsupported validator forms; execute policy only in the isolated read-only container, without publisher tokens or writable finalizer storage. | `CTR-034` |
 
 The core tests exercise their catalog trigger and assert the expected rejection, warning, rewrite, or runtime-safe output.
 
@@ -300,16 +304,16 @@ Optimizer tests cover suppression validation/auditing/SLA/expiration; degraded A
 
 A test ID that is deprecated under Section 5.4 MUST remain listed in Section 8.1, marked `[DEPRECATED]`, but MUST leave the required conformance gate: `requiredTestIDs()` excludes any row marked `[DEPRECATED]`, so a deprecated rule's test is retained for audit history without being required to pass.
 
-### 8.4 Candidate Promotion Test Requirements
+### 8.4 Artifact Profile Test Requirements
 
-The following test IDs are reserved for candidates and are not active conformance tests. Promotion MUST add concrete tests, stable diagnostics, active catalog/mapping entries, and compliance-map entries together.
+The following coverage complements the active catalog and compliance map. Unsupported profiles MUST be tested as explicit denials, not counted as supported publication paths.
 
-| Reserved test ID | Candidate | Required coverage before promotion |
+| Test ID | Rule | Required coverage |
 |---|---|---|
 | T-CTR-048 | CTR-033 | Test root-level and nested ZIP layouts, download options that change nesting, duplicate basenames across directories, traversal/absolute paths, links, and entry collisions. Also cover repository aliases, claim scope, competing transports, replacement after validation, forged approval, failed/skipped gates, and changed base/policy/tree. Denials produce zero branch writes or PR creations; legitimate layouts and publication paths pass. |
 | T-CTR-049 | CTR-034 | Agent and semantic-validation steps receive no publication credentials, including job-level or persisted checkout credentials. Failed approval prevents remote mutation; agent-modified code does not execute in the credentialed publisher. |
 
-Tests MUST use hermetic temporary repositories and mocked remote APIs; they MUST NOT trigger production workflows or execute supplied incident payloads. Static-rule fixtures MUST include unsafe and safe cases, and every enumerated publishing consumer MUST have integration coverage. Candidate documentation alone MUST NOT be counted as passing runtime or compiler enforcement.
+Tests MUST use hermetic temporary repositories and mocked remote APIs; they MUST NOT trigger production workflows or execute supplied incident payloads. Static-rule fixtures MUST include unsafe and safe cases, and every enumerated publishing consumer MUST have integration coverage. Documentation alone MUST NOT be counted as passing runtime or compiler enforcement.
 
 ## 9. References
 

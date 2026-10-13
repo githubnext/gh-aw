@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.9<br>
+**Version**: 1.30.0<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-12<br>
+**Publication Date**: 2026-10-13<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -1165,6 +1165,20 @@ safe-outputs:
 - Parameter inheritance flows from global to type-specific (type overrides global)
 
 ### 5.2 Global Parameters
+
+#### GP7: artifact-validation
+
+**Syntax**: `artifact-validation: {steps: [<required-run-step>, ...]}`
+
+Repository publishers with this profile MUST use a separate read-only validation job and checked raw archive import. The shared manifest MUST identify each canonical repository/operation, sealed transport digest, authorized base, and complete resulting tree at `entries[].validationCheckout`; validators MUST inspect every entry instead of reconstructing filenames. Root and nested layouts are supported, while ambiguous matches and unsafe archive entries MUST fail closed.
+
+Validator commands MUST run in a non-root, network-disabled, read-only container with only read-only trusted policy and prepared-tree mounts. Publication credentials, runner command files, Docker sockets, and writable finalizer/approval storage MUST NOT enter that container. Untrusted validator output MUST NOT inject GitHub runner commands.
+
+Successful finalization MUST bind approval to the sealed bytes, operation, run/attempt, repository, policy, base, and resulting tree. Publication MUST require the validation job's successful result, exact output artifact ID, and trusted approval digest. Every artifact-consuming patch, bundle, direct, and signed delivery path MUST verify this approval before remote mutation; changed bases or trees MUST NOT silently rebase or choose a different transport.
+
+The initial profile supports static `run` commands in the pinned Node image and trusted same-repository event context only. Unsupported checkout, repository, claim, content-reference, PR-target, and signed-mode profiles MUST be rejected rather than use an unverified fallback. `safe-outputs.steps` MUST be rejected for repository-publishing handlers because those steps execute with publication credentials.
+
+Compiler controls and conformance tests are mapped by CTR-033/034 in the [compiler threat specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md#55-artifact-integrity-requirements).
 
 #### GP1: footer
 
@@ -6119,6 +6133,11 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.30.0** (2026-10-13):
+
+- Specifies the explicit artifact-validation profile, checked ZIP import, shared resulting-tree manifest, isolated validators, and sealed approval-only publication.
+- Rejects credentialed custom repository-publication steps and unsupported protected profiles.
 
 **Version 1.29.9** (2026-10-12):
 

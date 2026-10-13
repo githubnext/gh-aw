@@ -251,6 +251,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Configured %d user-provided steps for safe-outputs", len(stepsList))
 		}
 	}
+	if value, exists := outputMap["artifact-validation"]; exists {
+		config.ArtifactValidation, config.artifactValidationParseError = parseArtifactValidationConfig(value)
+	}
 
 	// Handle id-token permission override ("write" to force-add, "none" to disable auto-detection)
 	if idToken, exists := outputMap["id-token"]; exists {

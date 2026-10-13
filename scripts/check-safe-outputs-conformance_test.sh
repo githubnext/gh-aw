@@ -44,7 +44,75 @@ trap 'rm -f "$OUTPUT"; rm -rf "$FIXTURE_ROOT"' EXIT
     fi
 )
 
-(cd "$REPO_ROOT" && bash "$SCRIPT_DIR/check-safe-outputs-conformance.sh" >"$OUTPUT" 2>&1) || true
+# Global safe-output settings must not be mistaken for registered handlers.
+(
+    cd "$FIXTURE_ROOT"
+    mkdir -p pkg/parser/schemas pkg/workflow
+    cat >pkg/parser/schemas/main_workflow_schema.json <<'JSON'
+{
+  "properties": {
+    "safe-outputs": {
+      "oneOf": [
+        {
+          "properties": {
+            "create-issue": {"$ref": "#/$defs/issue"},
+            "artifact-validation": {"properties": {"steps": {"type": "array"}}}
+          }
+        },
+        {"type": "null"}
+      ]
+    }
+  },
+  "$defs": {
+    "issue": {"allOf": [{"$ref": "#/$defs/base"}, {"properties": {"allowed-files": {"type": "array"}}}]},
+    "base": {"properties": {"max": {"type": "integer"}}}
+  }
+}
+JSON
+    cat >pkg/workflow/config.go <<'GO'
+type SafeOutputsConfig struct {
+    CreateIssues *IssueConfig `yaml:"create-issue"`
+    ArtifactValidation *ArtifactValidationConfig `yaml:"artifact-validation"`
+}
+type IssueConfig struct {
+    BaseConfig `yaml:",inline"`
+    AllowedFiles []string `yaml:"allowed-files"`
+}
+type ArtifactValidationConfig struct {
+    Steps []string `yaml:"steps"`
+    Internal string `yaml:"internal-not-in-handler-schema"`
+}
+GO
+    printf 'Key: "create-issue",\nStructField: "CreateIssues",\n' >pkg/workflow/safe_output_handlers.go
+    log_high() { echo "HIGH: $1"; }
+    log_pass() { echo "PASS: $1"; }
+    eval "$(sed -n '/^check_safe_output_config_schema_coverage() {/,/^check_safe_output_config_schema_coverage$/p' "$SCRIPT_DIR/check-safe-outputs-conformance.sh" | sed '$d')"
+    check_safe_output_config_schema_coverage >"$OUTPUT"
+    if ! grep -q '^PASS: IMP-004:' "$OUTPUT" || grep -q '^HIGH:' "$OUTPUT"; then
+        echo "FAIL: IMP-004 must resolve referenced schemas and ignore global artifact-validation"
+        cat "$OUTPUT"
+        exit 1
+    fi
+    sed -i 's/yaml:"allowed-files"/yaml:"undocumented-field"/' pkg/workflow/config.go
+    check_safe_output_config_schema_coverage >"$OUTPUT"
+    if ! grep -q 'HIGH: IMP-004: Safe output config property is missing from schema: safe-outputs.create-issue.undocumented-field' "$OUTPUT" ||
+        grep -q '^PASS: IMP-004:' "$OUTPUT"; then
+        echo "FAIL: IMP-004 must still detect missing registered handler properties"
+        cat "$OUTPUT"
+        exit 1
+    fi
+)
+
+# Exercise this suite's checks against real sources, without unrelated audit sections.
+(
+    cd "$REPO_ROOT"
+    log_high() { echo "[HIGH] $1"; }
+    log_pass() { echo "[PASS] $1"; }
+    for check in check_cross_repo check_safe_output_config_schema_coverage check_safe_output_target_authorization_coverage; do
+        eval "$(sed -n "/^$check() {/,/^$check\$/p" "$SCRIPT_DIR/check-safe-outputs-conformance.sh" | sed '$d')"
+        "$check"
+    done
+) >"$OUTPUT" 2>&1
 
 if ! grep -q 'SEC-005: All cross-repo handlers validate allowlists' "$OUTPUT" ||
     grep -q '\[HIGH\].*SEC-005:' "$OUTPUT"; then

@@ -436,99 +436,72 @@ check_safe_output_config_schema_coverage() {
 
     echo "Running IMP-004: Safe Output Config Schema Coverage..."
 
-    missing_properties=$(python3 - <<'PY'
-import json
-import re
-from pathlib import Path
-
-schema = json.loads(Path("pkg/parser/schemas/main_workflow_schema.json").read_text())
-structs = {}
-handler_fields = {}
-
-for path in Path("pkg/workflow").glob("*.go"):
-    if path.name.endswith("_test.go"):
-        continue
-    content = path.read_text()
-    for match in re.finditer(r"(?ms)^type\s+(\w+)\s+struct\s*\{(.*?)^\}", content):
-        structs[match.group(1)] = match.group(2)
-
-handlers = Path("pkg/workflow/safe_output_handlers.go").read_text()
-handler_key = None
-for line in handlers.splitlines():
-    key_match = re.search(r'Key:\s*"([^"]+)"', line)
-    if key_match:
-        handler_key = key_match.group(1)
-    field_match = re.search(r'StructField:\s*"([^"]+)"', line)
-    if field_match and handler_key:
-        handler_fields[field_match.group(1)] = handler_key
-
-compiler_populated_fields = {
+    missing_properties=$(node <<'JS'
+const fs = require("node:fs");
+const { isDeepStrictEqual } = require("node:util");
+const read = filename => fs.readFileSync(filename, "utf8");
+const schema = JSON.parse(read("pkg/parser/schemas/main_workflow_schema.json"));
+const structs = new Map();
+const handlerFields = new Map();
+for (const filename of fs.readdirSync("pkg/workflow")) {
+    if (!filename.endsWith(".go") || filename.endsWith("_test.go")) continue;
+    for (const match of read(`pkg/workflow/${filename}`).matchAll(/^type\s+(\w+)\s+struct\s*\{(.*?)^\}/gms))
+        structs.set(match[1], match[2]);
+}
+let handlerKey;
+for (const line of read("pkg/workflow/safe_output_handlers.go").split(/\r?\n/)) {
+    const key = line.match(/Key:\s*"([^"]+)"/);
+    if (key) handlerKey = key[1];
+    const field = line.match(/StructField:\s*"([^"]+)"/);
+    if (field && handlerKey) handlerFields.set(field[1], handlerKey);
+}
+const compilerPopulatedFields = new Set([
     "safe-outputs.call-workflow.workflow_files",
     "safe-outputs.dispatch-workflow.workflow_files",
     "safe-outputs.dispatch-workflow.aw_context_workflows",
     "safe-outputs.dispatch-workflow.work_queue_workflows",
+]);
+const toolConfiguredOutputs = new Set(["comment-memory"]);
+function properties(node) {
+    const result = new Map();
+    const merge = entries => {
+        for (const [name, definition] of entries) {
+            if (result.has(name) && !isDeepStrictEqual(result.get(name), definition))
+                throw new Error(`conflicting schema definitions for property: ${name}`);
+            result.set(name, definition);
+        }
+    };
+    if (node.$ref?.startsWith("#/$defs/")) merge(properties(schema.$defs[node.$ref.slice("#/$defs/".length)]));
+    merge(Object.entries(node.properties || {}));
+    for (const alternative of ["allOf", "anyOf", "oneOf"])
+        for (const child of node[alternative] || []) merge(properties(child));
+    return result;
 }
-
-tool_configured_outputs = {"comment-memory"}
-
-
-def yaml_fields(struct_name):
-    for line in structs.get(struct_name, "").splitlines():
-        match = re.match(r'\s*(.*?)\s+`yaml:"([^"]+)"', line)
-        if not match:
-            continue
-        tag = match.group(2).split(",", 1)[0]
-        if tag == "-":
-            continue
-        yield tag, ",inline" in match.group(2)
-
-
-def properties(node):
-    result = {}
-    ref = node.get("$ref", "")
-    defs_prefix = "#/$defs/"
-    if ref.startswith(defs_prefix):
-        result.update(properties(schema["$defs"][ref[len(defs_prefix):]]))
-    for name, definition in node.get("properties", {}).items():
-        if name in result and result[name] != definition:
-            raise ValueError(f"conflicting schema definitions for property: {name}")
-        result[name] = definition
-    for alternative in ("allOf", "anyOf", "oneOf"):
-        for child in node.get(alternative, []):
-            for name, definition in properties(child).items():
-                if name in result and result[name] != definition:
-                    raise ValueError(f"conflicting schema definitions for property: {name}")
-                result[name] = definition
-    return result
-
-
-missing = []
-
-
-safe_outputs = properties(schema["properties"]["safe-outputs"])
-for line in structs["SafeOutputsConfig"].splitlines():
-    match = re.match(r'\s*(\w+)\s+\*?(\w+)\s+`yaml:"([^"]+)"', line)
-    if not match:
-        continue
-    struct_field, config_type, output_name = match.groups()
-    if struct_field not in handler_fields:
-        continue
-    output_name = output_name.split(",", 1)[0]
-    if output_name in tool_configured_outputs:
-        continue
-    output_schema = safe_outputs.get(output_name)
-    if output_schema is None:
-        missing.append(f"safe-outputs.{output_name}")
-        continue
-
-    output_properties = properties(output_schema)
-    for tag, inline in yaml_fields(config_type):
-        property_path = f"safe-outputs.{output_name}.{tag}"
-        if not inline and property_path not in compiler_populated_fields and tag not in output_properties:
-            missing.append(property_path)
-
-print("\n".join(sorted(set(missing))))
-PY
+const missing = new Set();
+const safeOutputs = properties(schema.properties["safe-outputs"]);
+for (const line of structs.get("SafeOutputsConfig").split(/\r?\n/)) {
+    const match = line.match(/\s*(\w+)\s+\*?(\w+)\s+`yaml:"([^"]+)"/);
+    // Global settings such as artifact-validation are not output handlers.
+    if (!match || !handlerFields.has(match[1])) continue;
+    const outputName = match[3].split(",")[0];
+    if (toolConfiguredOutputs.has(outputName)) continue;
+    const outputSchema = safeOutputs.get(outputName);
+    if (!outputSchema) {
+        missing.add(`safe-outputs.${outputName}`);
+        continue;
+    }
+    const outputProperties = properties(outputSchema);
+    for (const field of (structs.get(match[2]) || "").split(/\r?\n/)) {
+        const tagMatch = field.match(/\s*(.*?)\s+`yaml:"([^"]+)"/);
+        if (!tagMatch) continue;
+        const tag = tagMatch[2].split(",")[0];
+        const propertyPath = `safe-outputs.${outputName}.${tag}`;
+        if (tag !== "-" && !tagMatch[2].includes(",inline") && !compilerPopulatedFields.has(propertyPath) && !outputProperties.has(tag))
+            missing.add(propertyPath);
+    }
+}
+if (missing.size) console.log([...missing].sort().join("\n"));
+JS
 )
 
     if [ -n "$missing_properties" ]; then
@@ -547,107 +520,80 @@ check_safe_output_target_authorization_coverage() {
 
     echo "Running IMP-005: Safe Output Target Authorization Coverage..."
 
-    findings=$(python3 - <<'PY'
-import re
-from pathlib import Path
-
-spec_path = Path("docs/src/content/docs/specs/safe-outputs-specification.md")
-spec = spec_path.read_text()
-
-target_authorized_types = {
-    "add_comment": ("actions/setup/js/add_comment.cjs", "resolveTarget"),
-    "update_issue": ("actions/setup/js/update_issue.cjs", "resolveTarget"),
-    "close_issue": ("actions/setup/js/close_issue.cjs", "resolveTarget"),
-    "add_labels": ("actions/setup/js/add_labels.cjs", "resolveTarget"),
-    "remove_labels": ("actions/setup/js/remove_labels.cjs", "resolveTarget"),
-    "link_sub_issue": ("actions/setup/js/link_sub_issue.cjs", "resolveTarget"),
-    "close_pull_request": ("actions/setup/js/close_pull_request.cjs", "resolveTarget"),
-    "merge_pull_request": ("actions/setup/js/merge_pull_request.cjs", "resolveTarget"),
-    "mark_pull_request_as_ready_for_review": ("actions/setup/js/mark_pull_request_as_ready_for_review.cjs", "resolveTarget"),
-    "resolve_pull_request_review_thread": ("actions/setup/js/resolve_pr_review_thread.cjs", "reviewThreadTargetChecks"),
-    "add_reviewer": ("actions/setup/js/add_reviewer.cjs", "resolveTarget"),
-    "assign_milestone": ("actions/setup/js/assign_milestone.cjs", "resolveTarget"),
-    "assign_to_agent": ("actions/setup/js/assign_to_agent.cjs", "resolveTarget"),
-    "assign_to_user": ("actions/setup/js/assign_to_user.cjs", "resolveTarget"),
-    "unassign_from_user": ("actions/setup/js/unassign_from_user.cjs", "resolveTarget"),
-    "set_issue_type": ("actions/setup/js/set_issue_type.cjs", "resolveTarget"),
-    "set_issue_field": ("actions/setup/js/set_issue_field.cjs", "resolveTarget"),
-    "hide_comment": ("actions/setup/js/hide_comment.cjs", "commentParentTargetChecks"),
+    findings=$(node <<'JS'
+const fs = require("node:fs");
+const read = filename => fs.readFileSync(filename, "utf8");
+const spec = read("docs/src/content/docs/specs/safe-outputs-specification.md");
+const targetAuthorizedTypes = {
+    add_comment: ["add_comment", "resolveTarget"],
+    update_issue: ["update_issue", "resolveTarget"],
+    close_issue: ["close_issue", "resolveTarget"],
+    add_labels: ["add_labels", "resolveTarget"],
+    remove_labels: ["remove_labels", "resolveTarget"],
+    link_sub_issue: ["link_sub_issue", "resolveTarget"],
+    close_pull_request: ["close_pull_request", "resolveTarget"],
+    merge_pull_request: ["merge_pull_request", "resolveTarget"],
+    mark_pull_request_as_ready_for_review: ["mark_pull_request_as_ready_for_review", "resolveTarget"],
+    resolve_pull_request_review_thread: ["resolve_pr_review_thread", "reviewThreadTargetChecks"],
+    add_reviewer: ["add_reviewer", "resolveTarget"],
+    assign_milestone: ["assign_milestone", "resolveTarget"],
+    assign_to_agent: ["assign_to_agent", "resolveTarget"],
+    assign_to_user: ["assign_to_user", "resolveTarget"],
+    unassign_from_user: ["unassign_from_user", "resolveTarget"],
+    set_issue_type: ["set_issue_type", "resolveTarget"],
+    set_issue_field: ["set_issue_field", "resolveTarget"],
+    hide_comment: ["hide_comment", "commentParentTargetChecks"],
+};
+const messages = new Set();
+for (const [type, [handlerName, mode]] of Object.entries(targetAuthorizedTypes)) {
+    const header = `#### Type: ${type}`;
+    const start = spec.indexOf(header);
+    if (start === -1) {
+        messages.add(`missing specification section for ${type}`);
+        continue;
+    }
+    const next = spec.indexOf("\n#### Type: ", start + header.length);
+    const section = spec.slice(start, next === -1 ? undefined : next);
+    if (!section.includes("**Target Authorization**")) {
+        messages.add(`missing Target Authorization section for ${type}`);
+        continue;
+    }
+    const prefix = section.match(/\*\*([A-Z]+)-001\*\*/);
+    if (!prefix) messages.add(`missing numbered target authorization requirements for ${type}`);
+    else for (const suffix of ["001", "002", "003", "004", "005"])
+        if (!section.includes(`**${prefix[1]}-${suffix}**`))
+            messages.add(`missing ${prefix[1]}-${suffix} in ${type} target authorization requirements`);
+    for (const needle of ['target: "triggering"', 'target: "*"'])
+        if (!section.includes(needle)) messages.add(`missing ${needle} semantics in ${type} target authorization requirements`);
+    if (!fs.existsSync(`pkg/workflow/safe_outputs_specification_${type}_test.go`))
+        messages.add(`missing specification regression test for ${type}`);
+    const handlerPath = `actions/setup/js/${handlerName}.cjs`;
+    if (!fs.existsSync(handlerPath)) {
+        messages.add(`missing target-authorized handler ${handlerPath}`);
+        continue;
+    }
+    const text = read(handlerPath);
+    if (mode === "resolveTarget" && !text.includes("resolveTarget"))
+        messages.add(`${handlerPath} does not use resolveTarget for runtime target authorization`);
+    if (mode === "reviewThreadTargetChecks")
+        for (const needle of ["resolveInvocationContext", "threadPRNumber", "triggeringPRNumber"])
+            if (!text.includes(needle)) messages.add(`${handlerPath} missing ${needle} review-thread target boundary check`);
+    if (mode === "commentParentTargetChecks")
+        for (const needle of ["resolvedComment.itemNumber", "resolvedComment.kind", "expectedKind"])
+            if (!text.includes(needle)) messages.add(`${handlerPath} missing ${needle} comment parent target boundary check`);
 }
-
-
-def type_section(type_name):
-    header = f"#### Type: {type_name}"
-    start = spec.find(header)
-    if start == -1:
-        return ""
-    rest = spec[start + len(header):]
-    next_section = rest.find("\n#### Type: ")
-    if next_section == -1:
-        return spec[start:]
-    return spec[start:start + len(header) + next_section]
-
-
-messages = []
-for type_name, (handler_path, enforcement_mode) in target_authorized_types.items():
-    section = type_section(type_name)
-    if not section:
-        messages.append(f"missing specification section for {type_name}")
-        continue
-    if "**Target Authorization**" not in section:
-        messages.append(f"missing Target Authorization section for {type_name}")
-        continue
-
-    prefix_match = re.search(r"\*\*([A-Z]+)-001\*\*", section)
-    if not prefix_match:
-        messages.append(f"missing numbered target authorization requirements for {type_name}")
-    else:
-        prefix = prefix_match.group(1)
-        for suffix in ("001", "002", "003", "004", "005"):
-            if f"**{prefix}-{suffix}**" not in section:
-                messages.append(f"missing {prefix}-{suffix} in {type_name} target authorization requirements")
-
-    for needle in ('target: "triggering"', 'target: "*"'):
-        if needle not in section:
-            messages.append(f"missing {needle} semantics in {type_name} target authorization requirements")
-
-    test_path = Path(f"pkg/workflow/safe_outputs_specification_{type_name}_test.go")
-    if not test_path.exists():
-        messages.append(f"missing specification regression test for {type_name}")
-
-    handler = Path(handler_path)
-    if not handler.exists():
-        messages.append(f"missing target-authorized handler {handler_path}")
-        continue
-    handler_text = handler.read_text()
-    if enforcement_mode == "resolveTarget":
-        if "resolveTarget" not in handler_text:
-            messages.append(f"{handler_path} does not use resolveTarget for runtime target authorization")
-    elif enforcement_mode == "reviewThreadTargetChecks":
-        for needle in ("resolveInvocationContext", "threadPRNumber", "triggeringPRNumber"):
-            if needle not in handler_text:
-                messages.append(f"{handler_path} missing {needle} review-thread target boundary check")
-    elif enforcement_mode == "commentParentTargetChecks":
-        for needle in ("resolvedComment.itemNumber", "resolvedComment.kind", "expectedKind"):
-            if needle not in handler_text:
-                messages.append(f"{handler_path} missing {needle} comment parent target boundary check")
-
-helper = Path("actions/setup/js/safe_output_helpers.cjs").read_text()
-helper_test = Path("actions/setup/js/safe_output_helpers.test.cjs").read_text()
-if "assertTargetAuthorizationInvariant" not in helper:
-    messages.append("safe_output_helpers.cjs missing fail-safe target authorization invariant assertion")
-for needle in (
+if (!read("actions/setup/js/safe_output_helpers.cjs").includes("assertTargetAuthorizationInvariant"))
+    messages.add("safe_output_helpers.cjs missing fail-safe target authorization invariant assertion");
+const helperTest = read("actions/setup/js/safe_output_helpers.test.cjs");
+for (const needle of [
     "should ignore agent-supplied issue numbers for triggering targets",
     "should ignore conflicting agent-supplied issue numbers for fixed targets",
     "should ignore agent-supplied PR numbers for triggering targets",
     "should ignore conflicting agent-supplied PR numbers for fixed targets",
     "ERR_TARGET_AUTHORIZATION",
-):
-    if needle not in helper_test:
-        messages.append(f"safe_output_helpers.test.cjs missing regression coverage: {needle}")
-
-print("\n".join(sorted(set(messages))))
-PY
+]) if (!helperTest.includes(needle)) messages.add(`safe_output_helpers.test.cjs missing regression coverage: ${needle}`);
+if (messages.size) console.log([...messages].sort().join("\n"));
+JS
 )
 
     if [ -n "$findings" ]; then
@@ -1435,16 +1381,14 @@ check_json_schema_draft7() {
 
     # Verify inputSchema is present on all tools (required by JSON Schema Draft 7 pattern)
     local tools_without_schema
-    tools_without_schema=$(python3 -c "
-import json, sys
-try:
-    data = json.load(open('$tools_json'))
-    tools = data if isinstance(data, list) else data.get('tools', [])
-    missing = [t.get('name','?') for t in tools if isinstance(t, dict) and 'inputSchema' not in t]
-    if missing: print(','.join(missing))
-except Exception as e:
-    sys.exit(0)
-" 2>/dev/null)
+    tools_without_schema=$(node - "$tools_json" <<'JS'
+const fs = require("node:fs");
+const data = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const tools = Array.isArray(data) ? data : data.tools || [];
+const missing = tools.filter(tool => tool && typeof tool === "object" && !Array.isArray(tool) && !Object.hasOwn(tool, "inputSchema")).map(tool => tool.name || "?");
+if (missing.length) console.log(missing.join(","));
+JS
+)
     if [ -n "$tools_without_schema" ]; then
         log_medium "INT-001: Tools missing inputSchema in $tools_json: $tools_without_schema"
         failed=1
@@ -2486,6 +2430,62 @@ check_resolve_review_thread_semantics() {
     fi
 }
 check_resolve_review_thread_semantics
+
+# CTR-033/034 runtime wiring inventory. These source checks are regression
+# tripwires, not proof of extraction safety, approval semantics, or job isolation.
+echo "Running CTR-033/034: Verified Artifact Consumer Wiring..."
+check_verified_artifact_consumers() {
+    local failed=0
+    local handler
+    for handler in create_pull_request push_to_pull_request_branch; do
+        local source="actions/setup/js/$handler.cjs"
+        if ! grep -q "resolveTransportPaths" "$source" ||
+           ! grep -q "assertApprovedTree" "$source" ||
+           ! grep -q "protectArtifactGitExecution" "$source"; then
+            log_critical "CTR-033: $handler lacks the shared verified-artifact publication boundary"
+            failed=1
+        fi
+        if grep -qE 'get(Patch|Bundle)PathForBranch|readdirSync' "$source"; then
+            log_critical "CTR-033: $handler independently derives or discovers publication artifacts"
+            failed=1
+        fi
+        local signed_calls signed_boundaries
+        signed_calls=$(grep -c 'pushSignedCommits({' "$source" || true)
+        signed_boundaries=$(grep -c 'artifactApprovalRequired: true' "$source" || true)
+        if [ "$signed_calls" -ne "$signed_boundaries" ]; then
+            log_critical "CTR-033: $handler has a signed/direct push call without artifact approval"
+            failed=1
+        fi
+    done
+    if ! grep -q "assertApprovedTree" actions/setup/js/push_signed_commits.cjs; then
+        log_critical "CTR-033: Signed/direct push helper lacks approval enforcement"
+        failed=1
+    fi
+    if ! grep -q "prepareArtifactValidation" actions/setup/js/artifact_validation.cjs ||
+       ! grep -q "finalizeArtifactValidation" actions/setup/js/artifact_validation.cjs ||
+       ! grep -q "initializeArtifactPublication" actions/setup/js/artifact_validation.cjs ||
+       ! grep -q "runArtifactValidator" actions/setup/js/artifact_validator.cjs ||
+       ! grep -q "hasCheckedArtifactImport" actions/setup/js/artifact_validation.cjs ||
+       ! grep -q 'readApproval()' actions/setup/js/load_agent_output.cjs; then
+        log_critical "CTR-033: First-class validation entry points or protected output loading are missing"
+        failed=1
+    fi
+    for handler in resolve_transport_paths.test.cjs verified_artifact.test.cjs artifact_archive.test.cjs; do
+        if [ ! -f "actions/setup/js/$handler" ]; then
+            log_critical "CTR-033: Missing hermetic runtime regression suite $handler"
+            failed=1
+        fi
+    done
+    if [ "$failed" -eq 0 ]; then
+        log_pass "CTR-033/034: Consumer wiring inventory passes; runtime tests and generated-job isolation must also pass"
+    fi
+    if [ "${GH_AW_CONFORMANCE_RUNTIME_TESTS:-0}" = "1" ]; then
+        if ! (cd actions/setup/js && npm exec --no -- vitest run resolve_transport_paths.test.cjs verified_artifact.test.cjs artifact_archive.test.cjs artifact_validator.test.cjs --no-file-parallelism); then
+            log_critical "CTR-033/034: Hermetic verified-artifact runtime regressions failed"
+        fi
+    fi
+}
+check_verified_artifact_consumers
 
 # Summary
 echo ""

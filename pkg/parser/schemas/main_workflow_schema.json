@@ -13242,6 +13242,21 @@
             ]
           ]
         },
+        "artifact-validation": {
+          "type": "object",
+          "description": "Validate repository-change artifacts in an isolated read-only job before publication. Validators consume the shared resolved artifact manifest rather than reconstructing transport filenames.",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/githubActionsStep"
+              }
+            }
+          },
+          "required": ["steps"],
+          "additionalProperties": false
+        },
         "actions": {
           "type": "object",
           "description": "Custom GitHub Actions to mount as once-callable MCP tools. Each action is resolved at compile time to derive its input schema from action.yml, and a guarded `uses:` step is injected in the safe_outputs job. Action names containing dashes will be automatically normalized to underscores (e.g., 'add-smoked-label' becomes 'add_smoked_label').",

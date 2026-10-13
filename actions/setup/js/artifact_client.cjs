@@ -363,6 +363,22 @@ class DefaultArtifactClient {
     };
   }
 
+  async getArtifactArchiveURL({ artifactId, artifactName }) {
+    const backend = getBackendIdsFromRuntimeToken();
+    const filter = artifactId ? { idFilter: String(artifactId) } : { nameFilter: artifactName };
+    const response = await twirpRequest("ListArtifacts", { ...backend, ...filter });
+    if (!Array.isArray(response.artifacts) || response.artifacts.length !== 1) throw new Error("artifact archive identity is missing or ambiguous");
+    const artifact = response.artifacts[0];
+    const run = artifact.workflowRunBackendId || artifact.workflow_run_backend_id;
+    const job = artifact.workflowJobRunBackendId || artifact.workflow_job_run_backend_id;
+    const id = String(artifact.databaseId || artifact.database_id || "");
+    if (run !== backend.workflowRunBackendId || !job || (artifactId && id !== String(artifactId)) || (artifactName && artifact.name !== artifactName)) throw new Error("artifact archive does not match its trusted run identity");
+    const signed = await twirpRequest("GetSignedArtifactURL", { workflowRunBackendId: run, workflowJobRunBackendId: job, name: artifact.name });
+    const url = signed.signedUrl || signed.signed_url;
+    if (typeof url !== "string" || new URL(url).protocol !== "https:") throw new Error("artifact archive URL is unavailable");
+    return url;
+  }
+
   async downloadArtifact(artifactId, options = {}) {
     const findBy = options.findBy;
     if (!findBy?.token || !findBy?.repositoryOwner || !findBy?.repositoryName) {

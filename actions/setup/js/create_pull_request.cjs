@@ -690,6 +690,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
 
   if (preserveBranchName) {
     const { recreateRef, githubClient, owner, repo } = options;
+    if (recreateRef && process.env.GH_AW_ARTIFACT_APPROVAL_REQUIRED === "true") throw require("./resolve_transport_paths.cjs").artifactError("protected publication cannot recreate an existing remote ref");
     if (!recreateRef) {
       // preserve-branch-name asked us to keep the exact branch name, but
       // recreate-ref is not enabled, so we cannot silently destroy the
@@ -755,6 +756,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
+  require("./verified_artifact.cjs").protectArtifactGitExecution(exec);
   const activationCommentLinks = config._activationCommentLinks ?? [];
   // Extract configuration
   const rawBranchPrefix = config.branch_prefix || "";
@@ -1008,7 +1010,12 @@ async function main(config = {}) {
     // Determine the patch and bundle file paths. The MCP server sets these on
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
-    const transportPaths = resolveTransportPaths(pullRequestItem, defaultTargetRepo);
+    let transportPaths;
+    try {
+      transportPaths = resolveTransportPaths(pullRequestItem, defaultTargetRepo, { allowedRepos, config });
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error), code: error.code || "CTR-033" };
+    }
     const patchFilePath = transportPaths.patchPath;
     core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
 
@@ -1825,6 +1832,7 @@ async function main(config = {}) {
         {
           const forkCwd = process.cwd();
           const runBundlePush = async () => {
+            require("./verified_artifact.cjs").assertApprovedTree({ cwd: forkCwd, baseRef: `origin/${baseBranch}`, repo: itemRepo });
             branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
               recreateRef,
               githubClient: pushGithubClient,
@@ -1848,6 +1856,7 @@ async function main(config = {}) {
               resolvedTemporaryIds,
               currentRepo: itemRepo,
               validationConfig: config,
+              artifactApprovalRequired: true,
             });
           };
           try {
@@ -1863,6 +1872,7 @@ async function main(config = {}) {
               core.info("Could not count new commits - extra empty commit will be skipped");
             }
           } catch (initialPushError) {
+            if (initialPushError.code === "CTR-033") throw initialPushError;
             /** @type {unknown} */
             let pushError = initialPushError;
             let pushRecovered = false;
@@ -1889,6 +1899,7 @@ async function main(config = {}) {
                     resolvedTemporaryIds,
                     currentRepo: itemRepo,
                     validationConfig: config,
+                    artifactApprovalRequired: true,
                   });
                 await runRetryPush();
                 core.info("Changes pushed to branch after bundle rewrite retry");
@@ -1902,6 +1913,7 @@ async function main(config = {}) {
                 }
                 pushRecovered = true;
               } catch (retryPushError) {
+                if (retryPushError.code === "CTR-033") throw retryPushError;
                 pushError = retryPushError;
               }
             }
@@ -2220,6 +2232,7 @@ ${issueSafeFallbackFooter}`;
           {
             const forkCwd = process.cwd();
             const runPatchPush = async () => {
+              require("./verified_artifact.cjs").assertApprovedTree({ cwd: forkCwd, baseRef: `origin/${baseBranch}`, repo: itemRepo });
               branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
                 recreateRef,
                 githubClient: pushGithubClient,
@@ -2243,6 +2256,7 @@ ${issueSafeFallbackFooter}`;
                 resolvedTemporaryIds,
                 currentRepo: itemRepo,
                 validationConfig: config,
+                artifactApprovalRequired: true,
               });
             };
             try {
@@ -2260,6 +2274,7 @@ ${issueSafeFallbackFooter}`;
                 core.info("Could not count new commits - extra empty commit will be skipped");
               }
             } catch (pushError) {
+              if (pushError.code === "CTR-033") throw pushError;
               // Push failed - create fallback issue instead of PR (if fallback is enabled)
               core.error(`Git push failed: ${getErrorMessage(pushError)}`);
 
@@ -2401,6 +2416,7 @@ ${issueSafeFallbackFooter}`;
 
               const forkCwd = process.cwd();
               const runEmptyPush = async () => {
+                require("./verified_artifact.cjs").assertApprovedTree({ cwd: forkCwd, baseRef: `origin/${baseBranch}`, repo: itemRepo });
                 branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
                   recreateRef,
                   githubClient: pushGithubClient,
@@ -2424,6 +2440,7 @@ ${issueSafeFallbackFooter}`;
                   resolvedTemporaryIds,
                   currentRepo: itemRepo,
                   validationConfig: config,
+                  artifactApprovalRequired: true,
                 });
               };
               await runEmptyPush();
@@ -2439,6 +2456,7 @@ ${issueSafeFallbackFooter}`;
                 core.info("Could not count new commits - extra empty commit will be skipped");
               }
             } catch (pushError) {
+              if (pushError.code === "CTR-033") throw pushError;
               const error = `Failed to push empty branch: ${getErrorMessage(pushError)}`;
               core.error(error);
               return {
@@ -2566,6 +2584,7 @@ ${issueSafeFallbackFooter}`;
         if (body.length > MAX_GITHUB_BODY_LENGTH) {
           throw new Error(`Pull request body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
         }
+        require("./verified_artifact.cjs").assertApprovedTree({ cwd: process.cwd(), baseRef: `origin/${baseBranch}`, repo: itemRepo });
         const { data: pullRequest } = await createOrUpdatePullRequest({
           githubClient,
           repoParts,
@@ -2812,6 +2831,7 @@ ${issueSafeFallbackFooter}`;
           head_repo: pushRepo,
         };
       } catch (prError) {
+        if (prError.code === "CTR-033") throw prError;
         const errorMessage = getErrorMessage(prError);
         core.warning(`Failed to create pull request: ${errorMessage}`);
 

@@ -641,6 +641,17 @@ concurrency:
 
 ---
 
+## Artifact Validation Profile Evidence
+
+Version 1.1.3 adds OI-12/13 for the explicit artifact-validation profile. Its targeted evidence is the compiler's `artifact_validation_test.go` and CTR-033/034 formal mappings, plus runtime archive, approval, publication, and isolated-validator tests in `actions/setup/js/`.
+
+These tests cover checked root/nested archive import, canonical alias ambiguity, sealed bytes and resulting trees, mandatory approval/digest wiring, credential exclusion, read-only container mounts, and denial before remote mutation. Unsupported protected profiles are tested as explicit failures. This evidence is hermetic; it does not establish a live Actions transport or production workflow run, or replace the full revalidation policy. Container-engine availability must be recorded separately from mocked runner/transport evidence.
+
+| Test ID | Evidence |
+|---|---|
+| T-OI-008 | `TestFormal_CTR033_ArtifactPublicationBinding`; archive, verified-artifact, and publication runtime suites |
+| T-OI-009 | `TestFormal_CTR034_PublicationCredentialIsolation`; isolated-validator runtime suite |
+
 ## Specification Accuracy Summary
 
 | Section | Requirement | Status | Evidence Location |

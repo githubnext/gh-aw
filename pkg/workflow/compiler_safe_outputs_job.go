@@ -122,6 +122,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		data.SafeOutputs = &SafeOutputsConfig{}
 	}
+	if err := validateArtifactValidation(data); err != nil {
+		return nil, nil, err
+	}
 
 	consolidatedSafeOutputsJobLog.Print("Building consolidated safe outputs job with file mode")
 
@@ -193,7 +196,11 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 	var steps []string
 
 	steps = append(steps, c.buildSafeOutputsSetupSteps(data)...)
-	steps = append(steps, c.buildSafeOutputsDownloadSteps(data, agentArtifactPrefix)...)
+	downloads, err := c.buildSafeOutputsDownloadSteps(data, agentArtifactPrefix)
+	if err != nil {
+		return nil, err
+	}
+	steps = append(steps, downloads...)
 	steps = append(steps, c.buildWorkQueueClaimReconciliationStep(data)...)
 	controls, err := c.buildWorkQueueControlProcessingStep(data)
 	if err != nil {
@@ -252,12 +259,21 @@ func (c *Compiler) buildSafeOutputsSetupSteps(data *WorkflowData) []string {
 
 // buildSafeOutputsDownloadSteps returns the agent output artifact download steps,
 // plus (when applicable) the patch artifact download and shared PR checkout steps.
-func (c *Compiler) buildSafeOutputsDownloadSteps(data *WorkflowData, agentArtifactPrefix string) []string {
+func (c *Compiler) buildSafeOutputsDownloadSteps(data *WorkflowData, agentArtifactPrefix string) ([]string, error) {
 	var steps []string
 
 	// Add artifact download steps after setup.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
+	if hasArtifactValidation(data) {
+		steps = append(steps, c.buildApprovedArtifactDownloadSteps()...)
+		initialization, err := c.buildArtifactPublicationInitializationStep(data)
+		if err != nil {
+			return nil, err
+		}
+		steps = append(steps, initialization...)
+	} else {
+		steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
+	}
 	if isWorkQueueEnabled(data) {
 		steps = append(steps, c.buildWorkQueueSafeOutputDownloadSteps(data, agentArtifactPrefix)...)
 	}
@@ -265,16 +281,18 @@ func (c *Compiler) buildSafeOutputsDownloadSteps(data *WorkflowData, agentArtifa
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled.
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
-		steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
-			DownloadPath: constants.TmpGhAwDirSlash,
-			SetupEnvStep: false,
-			StepName:     "Download patch artifact",
-		}, c.getActionPin)...)
+		if !hasArtifactValidation(data) {
+			steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+				ArtifactName: agentArtifactPrefix + constants.AgentArtifactName.String(),
+				DownloadPath: constants.TmpGhAwDirSlash,
+				SetupEnvStep: false,
+				StepName:     "Download patch artifact",
+			}, c.getActionPin)...)
+		}
 		consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
 		steps = append(steps, c.buildSharedPRCheckoutSteps(data)...)
 	}
-	return steps
+	return steps, nil
 }
 
 func (c *Compiler) buildWorkQueueSafeOutputDownloadSteps(data *WorkflowData, agentArtifactPrefix string) []string {
@@ -977,19 +995,22 @@ func buildSafeOutputsJobCondition(data *WorkflowData, threatDetectionEnabled boo
 			BuildStringLiteral("skipped"),
 		),
 	)
+	var condition ConditionNode = agentNotSkipped
 	if IsConditionalDetection(data.SafeOutputs) {
 		// When detection is expression-controlled, the detection job may be skipped at runtime
 		// (expression evaluated to false). Use always() to prevent safe_outputs from being
 		// skipped due to a skipped dependency, and accept both success and skipped results.
-		return BuildAnd(
+		condition = BuildAnd(
 			BuildAnd(BuildFunctionCall("always"), agentNotSkipped),
 			buildDetectionPassedCondition(),
 		)
+	} else if threatDetectionEnabled {
+		condition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
-	if threatDetectionEnabled {
-		return BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
+	if hasArtifactValidation(data) {
+		condition = BuildAnd(condition, artifactApprovalCondition())
 	}
-	return agentNotSkipped
+	return condition
 }
 
 // buildSafeOutputsJobNeeds returns the ordered list of job names that safe_outputs depends on.
@@ -997,6 +1018,9 @@ func (c *Compiler) buildSafeOutputsJobNeeds(data *WorkflowData, mainJobName stri
 	// safe_outputs depends on agent; when threat detection is enabled it also
 	// depends on the detection job (so that detection_success is available).
 	needs := []string{mainJobName}
+	if hasArtifactValidation(data) {
+		needs = append(needs, artifactValidationJobName)
+	}
 	if threatDetectionEnabled {
 		needs = append(needs, string(constants.DetectionJobName))
 		consolidatedSafeOutputsJobLog.Print("Added detection job dependency to safe_outputs job")

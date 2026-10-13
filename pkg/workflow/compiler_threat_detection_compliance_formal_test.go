@@ -18,7 +18,7 @@ var (
 	formalTestIDPattern = regexp.MustCompile(`^T-CTR-\d{3}$`)
 	formalRuleEntry     = regexp.MustCompile(`(?m)^- \*\*(CTR-\d{3}) `)
 	formalTestEntry     = regexp.MustCompile(`(?m)^\| \*\*(T-CTR-\d{3})\*\* \| (CTR-\d{3}) `)
-	formalMapEntry      = regexp.MustCompile(`(?m)^\| (CTR-\d{3}) \| (T-CTR-\d{3}) \|$`)
+	formalMapEntry      = regexp.MustCompile(`(?m)^\| (CTR-\d{3}) \| (T-CTR-\d{3}) \|\r?$`)
 )
 
 func formalSpecSection(t *testing.T, filename, start, end string) string {
@@ -159,6 +159,27 @@ func TestFormal_CTR032_ExecutionProvenanceSpoofingCoverage(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(provenanceTests), "strips variant comment openers")
 	require.Contains(t, string(provenanceTests), "strips nested reserved markers")
+}
+
+func TestFormal_CTR033_ArtifactPublicationBinding(t *testing.T) {
+	require.Contains(t, formalActiveRules(t), "CTR-033")
+	require.Equal(t, "T-CTR-048", formalComplianceMap(t)["CTR-033"])
+	require.Equal(t, "CTR-033", formalCatalogTests(t)["T-CTR-048"])
+	t.Run("compiled approval boundary", TestArtifactValidationCompilesProtectedWorkflow)
+	t.Run("required validators", TestArtifactValidationRejectsBypassableSteps)
+	t.Run("approved-only publisher", TestArtifactPublicationConsumesOnlyApprovedDownload)
+}
+
+func TestFormal_CTR034_PublicationCredentialIsolation(t *testing.T) {
+	require.Contains(t, formalActiveRules(t), "CTR-034")
+	require.Equal(t, "T-CTR-049", formalComplianceMap(t)["CTR-034"])
+	require.Equal(t, "CTR-034", formalCatalogTests(t)["T-CTR-049"])
+	t.Run("read-only job", TestArtifactValidationJobIsReadOnlyAndFailClosed)
+	t.Run("credentialed legacy steps", TestArtifactValidationRejectsCredentialedLegacyValidators)
+	t.Run("publisher overrides", TestArtifactValidationRejectsJobOverrides)
+	t.Run("custom publication routes", TestArtifactValidationRejectsCustomPublicationRoutes)
+	t.Run("secret-bearing policy", TestArtifactValidationRejectsSecretsInPolicyConfiguration)
+	t.Run("agent credential leakage", TestArtifactValidationRejectsAgentCredentialLeakage)
 }
 
 func TestFormal_EdgeCase_DuplicateTestIDViolatesBijection(t *testing.T) {

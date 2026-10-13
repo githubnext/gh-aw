@@ -19,6 +19,12 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	addJobLevelEngineMetadata(envVars, data)
 	addJobLevelCommandMetadata(envVars, data)
 	c.addJobLevelSafeOutputConfig(envVars, data)
+	if hasArtifactValidation(data) {
+		envVars["GH_AW_ARTIFACT_APPROVAL_REQUIRED"] = `"true"`
+		envVars["GH_AW_ARTIFACT_APPROVAL_ROOT"] = fmt.Sprintf("%q", artifactPublicationRoot)
+		envVars["GH_AW_ARTIFACT_APPROVAL_DIGEST"] = "${{ needs.artifact_validation.outputs.approval_digest }}"
+		envVars["GH_AW_ARTIFACT_POLICY_REF"] = fmt.Sprintf("${{ %s || github.sha }}", pullRequestBaseSHAExpression)
+	}
 	return envVars
 }
 

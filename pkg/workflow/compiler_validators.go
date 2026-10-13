@@ -242,6 +242,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating safe-outputs add-labels item schema and samples", validateFn: func() error { return validateAddLabelsItemSchemaAndSamples(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs remove-labels permissions", validateFn: func() error { return validateRemoveLabelsPermissions(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs needs declarations", validateFn: func() error { return validateSafeOutputsNeeds(workflowData) }},
+		{logMessage: "Validating artifact approval and credential isolation", validateFn: func() error { return validateArtifactValidation(workflowData) }},
 		{logMessage: "Validating on.needs declarations", validateFn: func() error { return c.validateOnNeeds(workflowData) }},
 		{logMessage: "Validating safe-job needs declarations", validateFn: func() error { return validateSafeJobNeeds(workflowData) }},
 		{logMessage: "Validating safe-outputs allowed-labels glob scope", validateFn: func() error { return c.validateSafeOutputsAllowedLabelsGlobScope(workflowData.SafeOutputs) }},

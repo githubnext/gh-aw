@@ -105,6 +105,11 @@ function truncateForLogging(content) {
  * }} Result object with success flag and items array (if successful) or error message
  */
 function loadAgentOutput(options = {}) {
+  if (process.env.GH_AW_ARTIFACT_APPROVAL_REQUIRED === "true") {
+    const approvalRoot = process.env.GH_AW_ARTIFACT_APPROVAL_ROOT;
+    if (approvalRoot) process.env.GH_AW_AGENT_OUTPUT = path.join(approvalRoot, "agent_output.json");
+    require("./verified_artifact.cjs").readApproval();
+  }
   const claimHandle = currentClaimHandle();
   const scope = claimHandle ? null : readClaimScopeContext();
   const queueEnabled = Boolean(scope || claimHandle);

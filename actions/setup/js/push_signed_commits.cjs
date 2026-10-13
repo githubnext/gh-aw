@@ -11,6 +11,8 @@ const { ERR_API, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { backfillCommitObjects } = require("./git_helpers.cjs");
+const { assertApprovedTree, protectArtifactGitExecution } = require("./verified_artifact.cjs");
+const { artifactError } = require("./resolve_transport_paths.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSecrets, redactBuiltInPatterns } = require("./redact_secrets.cjs");
@@ -214,7 +216,7 @@ async function readBlobAsBase64(blobHash, cwd) {
  * @param {string} filePath
  * @returns {string}
  */
-function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, currentRepo, filePath) {
+function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, currentRepo, filePath, protectedArtifactPublication = false) {
   if (!(temporaryIdMap instanceof Map) || temporaryIdMap.size === 0) {
     return base64Content;
   }
@@ -235,6 +237,7 @@ function maybeReplaceTemporaryIdsInBase64Content(base64Content, temporaryIdMap, 
   if (replaced === utf8Text) {
     return base64Content;
   }
+  if (protectedArtifactPublication) throw artifactError("temporary ID substitution changes the approved tree");
 
   core.info(`pushSignedCommits: resolved temporary ID references in file content: ${filePath}`);
   return Buffer.from(replaced, "utf8").toString("base64");
@@ -285,11 +288,19 @@ async function lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken
  * @param {any} [opts.gitAuthEnv]
  * @param {string} [opts.pushRemoteUrl]
  * @param {string} [opts.pushToken]
+ * @param {string} [opts.approvalBaseRef]
+ * @param {string} [opts.currentRepo]
  * @returns {Promise<string>}
  */
-async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken }) {
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, approvalBaseRef, currentRepo }) {
   const pushArgs = pushRemoteUrl ? ["push", pushRemoteUrl, branch] : ["push", "origin", branch];
   const pushOnce = async () => {
+    if (approvalBaseRef && process.env.GH_AW_ARTIFACT_APPROVAL_REQUIRED === "true") {
+      assertApprovedTree({ cwd, baseRef: approvalBaseRef, repo: currentRepo });
+      const remoteHead = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
+      const { stdout: approvedBase } = await getGitExecOutput(["rev-parse", `${approvalBaseRef}^{commit}`], { cwd });
+      if (remoteHead && remoteHead !== approvedBase.trim()) throw artifactError("remote branch base changed after approval");
+    }
     await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: pushRemoteUrl || "origin", branch, cwd, gitAuthEnv });
     const result = await getGitExecOutput(pushArgs, {
       cwd,
@@ -396,6 +407,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
+ * @param {boolean} [opts.artifactApprovalRequired=false] - Enforce the protected artifact contract for patch/bundle publication
  * @param {(context: {cwd: string, branch: string, output: string}) => (boolean|Promise<boolean>)} [opts.resolveRebaseConflict]
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
@@ -415,8 +427,12 @@ async function pushSignedCommits({
   resolvedTemporaryIds,
   currentRepo,
   validationConfig,
+  artifactApprovalRequired = false,
   resolveRebaseConflict,
 }) {
+  if (artifactApprovalRequired) assertApprovedTree({ cwd, baseRef, repo: currentRepo || `${owner}/${repo}` });
+  if (artifactApprovalRequired) protectArtifactGitExecution(exec);
+  const protectedArtifactPublication = artifactApprovalRequired && process.env.GH_AW_ARTIFACT_APPROVAL_REQUIRED === "true";
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
     defaultRepo: effectiveCurrentRepo,
@@ -430,7 +446,7 @@ async function pushSignedCommits({
   if (signedCommits === false) {
     if (requireBaseRefMatch) throw new Error(`${ERR_VALIDATION}: signed commits are required for an atomic ledger transition`);
     core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, approvalBaseRef: artifactApprovalRequired ? baseRef : undefined, currentRepo: effectiveCurrentRepo });
     core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
     return headSha;
   }
@@ -514,6 +530,7 @@ async function pushSignedCommits({
   }
   const firstReplayParentOid = revListEntries[0] && revListEntries[0].fields.length > 1 ? revListEntries[0].fields[1] : undefined;
   const firstGraphqlParentOid = remoteHeadOid || baseRefOid;
+  if (protectedArtifactPublication && firstGraphqlParentOid !== baseRefOid) throw artifactError("remote branch base changed after approval");
   let graphqlParentIsAncestorOfHead = true;
   if (firstGraphqlParentOid) {
     try {
@@ -705,6 +722,7 @@ async function pushSignedCommits({
 
         const paths = line.slice(tabIdx + 1).split("\t");
         const filePath = unquoteCPath(paths[0]);
+        if (protectedArtifactPublication && filePath.includes("\ufffd")) throw artifactError("signed publication requires unambiguous UTF-8 file paths");
 
         if (status === "D") {
           // mode 160000 = gitlink (submodule); GitHub GraphQL createCommitOnBranch does not support submodules
@@ -716,6 +734,7 @@ async function pushSignedCommits({
         } else if (status && status.startsWith("R")) {
           // Rename: source path is deleted, destination path is added
           const renamedPath = unquoteCPath(paths[1]);
+          if (protectedArtifactPublication && renamedPath.includes("\ufffd")) throw artifactError("signed publication requires unambiguous UTF-8 file paths");
           if (!renamedPath) {
             core.warning(`pushSignedCommits: rename entry missing destination path, skipping: ${line}`);
             continue;
@@ -730,13 +749,15 @@ async function pushSignedCommits({
             throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
+            if (protectedArtifactPublication) throw artifactError("signed publication would change approved file modes");
             core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
           const blobContents = await readBlobAsBase64(dstHash, cwd);
-          additions.push({ path: renamedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, renamedPath) });
+          additions.push({ path: renamedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, renamedPath, protectedArtifactPublication) });
         } else if (status && status.startsWith("C")) {
           // Copy: source path is kept (no deletion), only the destination path is added
           const copiedPath = unquoteCPath(paths[1]);
+          if (protectedArtifactPublication && copiedPath.includes("\ufffd")) throw artifactError("signed publication requires unambiguous UTF-8 file paths");
           if (!copiedPath) {
             core.warning(`pushSignedCommits: copy entry missing destination path, skipping: ${line}`);
             continue;
@@ -750,10 +771,11 @@ async function pushSignedCommits({
             throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
+            if (protectedArtifactPublication) throw artifactError("signed publication would change approved file modes");
             core.warning(`pushSignedCommits: executable bit on ${copiedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
           const blobContents = await readBlobAsBase64(dstHash, cwd);
-          additions.push({ path: copiedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, copiedPath) });
+          additions.push({ path: copiedPath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, copiedPath, protectedArtifactPublication) });
         } else {
           // Added or Modified
           if (dstMode === "160000") {
@@ -765,15 +787,17 @@ async function pushSignedCommits({
             throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
+            if (protectedArtifactPublication) throw artifactError("signed publication would change approved file modes");
             core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
           const blobContents = await readBlobAsBase64(dstHash, cwd);
-          additions.push({ path: filePath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, filePath) });
+          additions.push({ path: filePath, contents: maybeReplaceTemporaryIdsInBase64Content(blobContents, temporaryIdMap, effectiveCurrentRepo, filePath, protectedArtifactPublication) });
         }
       }
 
       additionsMap.set(sha, additions);
       deletionsMap.set(sha, deletions);
+      validateSynthesizedFileChanges(additions, deletions, validationConfig);
     }
 
     // All commits passed the mode checks. Replay via GraphQL.
@@ -811,6 +835,7 @@ async function pushSignedCommits({
             throw new Error(`${ERR_API}: Could not resolve OID for new branch ${branch}`);
           }
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
+          if (artifactApprovalRequired) assertApprovedTree({ cwd, baseRef, repo: effectiveCurrentRepo });
           try {
             await githubClient.rest.git.createRef({
               owner,
@@ -840,6 +865,7 @@ async function pushSignedCommits({
         } else {
           core.info(`pushSignedCommits: using remote HEAD OID from ls-remote: ${expectedHeadOid}`);
         }
+        if (protectedArtifactPublication && expectedHeadOid !== baseRefOid) throw artifactError("remote branch base changed after approval");
         if (requireBaseRefMatch && expectedHeadOid !== baseRefOid) {
           throw new Error(`${ERR_API}: ledger branch moved after transition validation`);
         }
@@ -866,6 +892,7 @@ async function pushSignedCommits({
       };
 
       core.info(`pushSignedCommits: calling createCommitOnBranch mutation (expectedHeadOid=${expectedHeadOid})`);
+      if (artifactApprovalRequired) assertApprovedTree({ cwd, baseRef, repo: effectiveCurrentRepo });
       const result = await githubClient.graphql(
         `mutation($input: CreateCommitOnBranchInput!) {
           createCommitOnBranch(input: $input) { commit { oid } }
@@ -882,6 +909,7 @@ async function pushSignedCommits({
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
     return lastOid ?? shas[shas.length - 1];
   } catch (err) {
+    if (err.code === "CTR-033") throw err;
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
         `${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}. ` +
@@ -893,13 +921,14 @@ async function pushSignedCommits({
       );
     }
     if (err instanceof PushSignedCommitsPolicyViolation) {
+      if (protectedArtifactPublication) throw artifactError("signed publication violates approved file policy");
       throw new Error(`${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
       throw new Error(`${ERR_API}: pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
-    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, approvalBaseRef: artifactApprovalRequired ? baseRef : undefined, currentRepo: effectiveCurrentRepo });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }

@@ -328,6 +328,7 @@ function buildWorkflowsScopeSkip(context, coreLogger) {
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
+  require("./verified_artifact.cjs").protectArtifactGitExecution(exec);
   const activationCommentLinks = config._activationCommentLinks ?? [];
   // Extract configuration from config parameter
   const target = config.target !== undefined && config.target !== null && config.target !== "" ? String(config.target) : "triggering";
@@ -423,7 +424,12 @@ async function main(config = {}) {
     // Determine the patch and bundle file paths. The MCP server sets these on
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
-    const transportPaths = resolveTransportPaths(message, defaultTargetRepo);
+    let transportPaths;
+    try {
+      transportPaths = resolveTransportPaths(message, defaultTargetRepo, { allowedRepos, config });
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error), code: error.code || "CTR-033" };
+    }
     const patchFilePath = transportPaths.patchPath;
     core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
 
@@ -1346,6 +1352,7 @@ async function main(config = {}) {
           // a typed, actionable error instead of a bare git exit-1.
           // For fork-backed PRs, push to the head repo remote instead of origin.
           const reviewPushRemote = pushRemoteUrl || "origin";
+          require("./verified_artifact.cjs").assertApprovedTree({ cwd: baseGitOpts.cwd || process.cwd(), baseRef: rangeBaseRef, repo: itemRepo });
           await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: reviewPushRemote, branch: reviewBranchName, cwd: baseGitOpts.cwd, gitAuthEnv });
           const reviewPushOutput = await withGitHubHostToken(
             pushRemoteUrl ? headGitHubToken : "",
@@ -1428,6 +1435,7 @@ async function main(config = {}) {
             pr_url: reviewPR.html_url,
           };
         } catch (reviewError) {
+          if (reviewError.code === "CTR-033") throw reviewError;
           core.error(`Failed to create review PR: ${getErrorMessage(reviewError)}`);
           return { success: false, error: `Failed to create review PR: ${getErrorMessage(reviewError)}` };
         }
@@ -1495,6 +1503,7 @@ async function main(config = {}) {
             resolvedTemporaryIds,
             currentRepo: itemRepo,
             validationConfig: config,
+            artifactApprovalRequired: true,
           })
         );
         if (pushedSha) {
@@ -1503,6 +1512,7 @@ async function main(config = {}) {
         }
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
+        if (pushError.code === "CTR-033") throw pushError;
         const pushErrorMessage = getErrorMessage(pushError);
         core.error(`Failed to push changes: ${pushErrorMessage}`);
 
@@ -1555,6 +1565,7 @@ async function main(config = {}) {
             // Use getExecOutput to capture stderr for 'workflows' scope diagnostics.
             // For fork-backed PRs, push to the head repo remote instead of origin.
             const fallbackPushRemote = pushRemoteUrl || "origin";
+            require("./verified_artifact.cjs").assertApprovedTree({ cwd: baseGitOpts.cwd || process.cwd(), baseRef: rangeBaseRef, repo: itemRepo });
             await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: fallbackPushRemote, branch: fallbackBranchName, cwd: baseGitOpts.cwd, gitAuthEnv });
             const fallbackPushOutput = await withGitHubHostToken(
               pushRemoteUrl ? headGitHubToken : "",
@@ -1620,6 +1631,7 @@ async function main(config = {}) {
               url: fallbackPR.html_url,
             };
           } catch (fallbackError) {
+            if (fallbackError.code === "CTR-033") throw fallbackError;
             const fallbackErrorMessage = getErrorMessage(fallbackError);
             core.error(`Failed to create fallback pull request: ${fallbackErrorMessage}`);
             userMessage = `${userMessage} Fallback pull request creation also failed: ${fallbackErrorMessage}`;

@@ -173,10 +173,7 @@ jobs:
 	assert.NotContains(t, extractJobSection(lockYAML, "conclusion"), "steps.mention_mint.outputs.token")
 }
 
-// TestSameJobStepTokenMintedAfterConsumerFails verifies that safe-outputs.steps, which run
-// after the safe_outputs checkout and git credential steps, are reported as too late for a
-// token consumed by those steps.
-func TestSameJobStepTokenMintedAfterConsumerFails(t *testing.T) {
+func TestSameJobStepTokenMintedInCredentialedCustomStepsRejected(t *testing.T) {
 	workflowFile := writeStepTokenWorkflow(t, "late", `---
 on:
   workflow_dispatch:
@@ -210,8 +207,8 @@ jobs:
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(workflowFile)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "after the first step that consumes the token")
-	assert.Contains(t, err.Error(), "safe_outputs")
+	assert.Contains(t, err.Error(), "CTR-034")
+	assert.Contains(t, err.Error(), "safe-outputs.steps run with publication credentials")
 }
 
 func TestCollectSafeOutputStepTokenIDs(t *testing.T) {

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Agentic Workflows Security Architecture Specification
 
-**Version**: 1.1.2<br>
+**Version**: 1.1.3<br>
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/security-architecture-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -446,6 +446,14 @@ The output isolation layer enforces separation between AI agent operations (read
 - All write operations are validated before execution
 - Write operations execute in separate jobs with isolated permissions
 - Failed validations prevent write operations from executing
+
+### 5.7 Artifact Validation Boundary
+
+**OI-12**: When `safe-outputs.artifact-validation` is configured, repository publication MUST consume only the exact approved artifact ID and trusted approval digest from a successful isolated validation job. Approval MUST bind canonical repository/operation identity, immutable transport and output bytes, trusted policy/run context, authorized base, and resulting tree. Missing, ambiguous, changed, or unsupported evidence MUST deny publication before any remote mutation.
+
+**OI-13**: Semantic validator commands MUST execute in a non-root, network-disabled, read-only container with only read-only trusted-policy and prepared-tree mounts. The container MUST NOT receive publication credentials, runner command files, a Docker socket, or writable access to the trusted runtime/finalizer/approval storage. Validator output MUST NOT inject runner commands. Repository-controlled hooks, filters, or programs MUST NOT execute in the credentialed publisher.
+
+The initial protected profile uses static Node-container `run` commands and trusted same-repository event context. Unsupported profiles fail explicitly. The compiler cannot prove arbitrary policy semantics; trusted validators must inspect every shared manifest entry's complete `validationCheckout`. CTR-033/034 map the compiler, archive/import, validator, approval, and publication conformance evidence.
 
 ---
 
@@ -1123,6 +1131,8 @@ A conforming implementation MUST provide a compliance test suite covering all MU
 - **T-OI-005**: Verify token precedence order
 - **T-OI-006**: Verify token secret expression validation
 - **T-OI-007**: Verify write operation isolation
+- **T-OI-008**: For the artifact-validation profile, verify sealed bytes, approved artifact/digest wiring, and denial before remote mutation (CTR-033 conformance and runtime approval/publication suites).
+- **T-OI-009**: For the artifact-validation profile, verify credential exclusion and read-only validator isolation from finalizer storage (CTR-034 conformance and isolated-validator suite).
 
 #### 12.2.3 Network Isolation Tests
 
@@ -1205,6 +1215,7 @@ GitHub-tool-specific runtime access-control behaviors are tracked in the compani
 |-------------|---------|-------|--------|
 | Input Sanitization | T-IS-001 to T-IS-008 | 1 | Required |
 | Output Isolation | T-OI-001 to T-OI-007 | 1 | Required |
+| Artifact Validation Profile | T-OI-008, T-OI-009 | 1 | Required when configured |
 | Permission Management | T-PM-001 to T-PM-007 | 1 | Required |
 | Compilation-Time Checks | T-CS-001 to T-CS-006 | 1 | Required |
 | Fail-Secure (SG-07) | T-SG07-001, T-SG07-002 | 1 | Required |
@@ -2052,6 +2063,12 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 ---
 
 ## Change Log
+
+### Version 1.1.3 (Artifact Validation Isolation)
+
+**Published**: October 13, 2026
+
+Adds OI-12/13 for explicit artifact-bound approval, isolated semantic validators, and approved-only publication. Hermetic compiler/runtime evidence is mapped by CTR-033/034; this does not claim a live production workflow run or replace the specification's full revalidation policy.
 
 ### Version 1.1.2 (RS-05a Allow-Listed App Review Checkout)
 

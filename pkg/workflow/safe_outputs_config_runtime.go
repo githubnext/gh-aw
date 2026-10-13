@@ -24,11 +24,21 @@ type SafeOutputStepConfig struct {
 	ContinueOnError            bool              // Whether to continue the job even if this step fails (continue-on-error: true)
 }
 
-//nolint:largefunc // Existing handler configuration assembly remains centralized and sequential.
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
+	if err := c.appendHandlerManagerConfigEnvVar(steps, data, false); err != nil {
+		safeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
+	}
+}
+
+func (c *Compiler) addArtifactValidationPolicyEnvVar(steps *[]string, data *WorkflowData) error {
+	return c.appendHandlerManagerConfigEnvVar(steps, data, true)
+}
+
+//nolint:largefunc // Existing handler configuration assembly remains centralized and sequential.
+func (c *Compiler) appendHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData, policyOnly bool) error {
 	if data.SafeOutputs == nil {
 		safeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
-		return
+		return nil
 	}
 
 	safeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
@@ -121,13 +131,21 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 	}
 
+	if policyOnly {
+		for _, value := range config {
+			if handler, ok := value.(map[string]any); ok {
+				delete(handler, "github-token")
+				delete(handler, "head-github-token")
+			}
+		}
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		safeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
 		configJSON, err := marshalSafeOutputsConfig(config)
 		if err != nil {
-			safeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
-			return
+			return fmt.Errorf("marshal safe-output handler configuration: %w", err)
 		}
 		// Escape the JSON for YAML (handle quotes and special chars)
 		configStr := string(configJSON)
@@ -136,6 +154,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	} else {
 		safeOutputsConfigLog.Print("No handlers configured, skipping config env var")
 	}
+	return nil
 }
 
 // buildMentionsHandlerConfig converts a MentionsConfig into the map format used by
