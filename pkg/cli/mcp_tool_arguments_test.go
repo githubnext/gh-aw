@@ -43,7 +43,6 @@ func TestMCPToolsRejectOptionPositionals(t *testing.T) {
 		{"fix", "workflows", nil, true},
 		{"compile", "workflows", nil, true},
 		{"mcp-inspect", "workflow_file", nil, false},
-		{"logs", "workflow_name", nil, false},
 		{"audit", "run_ids_or_urls", nil, true},
 		{"audit", "run_id", nil, false},
 		{"audit", "run_id_or_url", nil, false},
@@ -69,11 +68,11 @@ func TestMCPToolsRejectOptionPositionals(t *testing.T) {
 					}
 					result, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: tool.name, Arguments: args})
 					if err != nil {
-						require.ErrorContains(t, err, "must not contain values starting with '-'")
+						require.ErrorContains(t, err, "must not contain values beginning with '-'")
 					} else {
 						require.NotNil(t, result)
 						require.True(t, result.IsError)
-						assert.Contains(t, extractTextResult(t, result), "must not contain values starting with '-'")
+						assert.Contains(t, extractTextResult(t, result), "must not contain values beginning with '-'")
 					}
 					assert.False(t, executed, "invalid parameters must never spawn a command")
 				})

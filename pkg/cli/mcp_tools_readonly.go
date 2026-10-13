@@ -136,9 +136,10 @@ Returns JSON array with validation results for each workflow:
 		default:
 		}
 
-		if err := validateMCPPositionals("workflows", args.Workflows...); err != nil {
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
 			return nil, nil, err
 		}
+
 		if args.DryRun {
 			var rawArgs map[string]json.RawMessage
 			if err := json.Unmarshal(req.Params.Arguments, &rawArgs); err != nil {
@@ -380,12 +381,12 @@ Returns formatted text output showing:
 		default:
 		}
 
-		// Build command arguments
-		cmdArgs := []string{"mcp", "inspect"}
-
-		if err := validateMCPPositionals("workflow_file", args.WorkflowFile); err != nil {
+		if err := validateMCPPositionalArgs("workflow_file", args.WorkflowFile); err != nil {
 			return nil, nil, err
 		}
+
+		// Build command arguments
+		cmdArgs := []string{"mcp", "inspect"}
 
 		if args.Server != "" {
 			cmdArgs = append(cmdArgs, "--server", args.Server)

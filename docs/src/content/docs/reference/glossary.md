@@ -985,7 +985,7 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 
 ### Model Policy (`models.allowed`, `models.blocked`)
 
-An experimental frontmatter feature that restricts which AI models a workflow may use at runtime. Configured under the `models:` top-level key with two fields: `allowed` (a list of model names or glob patterns the workflow is permitted to use) and `blocked` (a list of patterns unconditionally refused). Both lists are enforced by the AWF proxy via `apiProxy.allowedModels` and `disallowedModels`. Across imports, policies from multiple files are merged as unions. Environment-variable overrides are supported for runtime flexibility.
+An experimental frontmatter feature that restricts which AI models a workflow may use at runtime. Configured under the `models:` top-level key with two fields: `allowed` (a list of model names or glob patterns the workflow is permitted to use) and `blocked` (a list of patterns unconditionally refused). Both lists are enforced by the AWF proxy via `apiProxy.allowedModels` and `disallowedModels`. They are the only request policy, for routed and non-routed workflows alike: with [model routing](/gh-aw/reference/model-routing/), the main agent, built-in agents, and declared sub-agents may use any model the policy allows, and `engine.model-routing.allowed-models` only limits what the router may pick for the main agent. Across imports, policies from multiple files are merged as unions. Environment-variable overrides are supported for runtime flexibility.
 
 ```aw wrap
 models:

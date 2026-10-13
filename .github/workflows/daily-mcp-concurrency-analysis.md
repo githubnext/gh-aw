@@ -78,7 +78,7 @@ mcp-scripts:
       }
 tools:
   bash:
-  - 'git log -1 --format="%ai" --:*'
+  - "git log -30 --format=\"%ai %s\" --name-only -- actions/setup/js/*.cjs"
   cache-memory: true
   ledger:
     concurrency-audits:
@@ -147,7 +147,7 @@ When issues are identified, create detailed issues with specific recommendations
 ### Tool Boundaries
 
 - Use native `glob`, `rg`, and `view` for file discovery, searches, and reads; use Serena for semantic analysis. Use native `apply_patch` or edit tools for cache updates.
-- Bash is only for the standalone `git log` prefix declared above. Run it from the existing workspace directory, without `cd`, command chaining, pipes, redirection, heredocs, or helper scripts. Sort tool names and interpret JSON in your analysis, not with shell pipelines.
+- Bash is only for the exact, bounded `git log` command declared above. Run it from the existing workspace directory, without `cd`, command chaining, pipes, redirection, heredocs, or helper scripts. Sort tool names and interpret JSON in your analysis, not with shell pipelines.
 - These narrow shell grants rely on the configured Copilot engine's shell-filter support. Do not port this shell fallback to an engine without shell filters (such as Codex), or substitute unrestricted shell access. Never execute handler modules; read only verified implementation paths.
 - Discover the exposed safe-output tools and their argument schemas, then call them directly with structured arguments. Do not construct CLI calls, pipe JSON into `safeoutputs`, or write a report file just to publish it.
 - A denied call is not a reason to retry it with different shell syntax. Use the permitted native or MCP equivalent. If required data or tools are unavailable, call `report_incomplete` with the concrete blocker; do not report a clean analysis or successful cache update.
@@ -167,22 +167,24 @@ If this is the first run or cache is empty, start fresh with the complete tool l
 
 Read `pkg/workflow/js/safe_outputs_tools.json` with native `view`. This is the canonical source tool catalog, not the smaller list of safe outputs enabled for this workflow. Extract each entry's `name` and sort the names lexicographically in your analysis; do not run `cat`, `jq`, `sort`, or `tr` pipelines.
 
-Use the actual catalog rather than assuming a fixed tool count.
+Use the actual catalog rather than assuming a fixed tool count. Select only top-level tool names, not nested parameter fields named `name`.
 
 ### Step 3: Select Today's Tool for Analysis
 
 Using a **round-robin scheme with priority for recently modified tools**:
 
 1. Get the list of all tools from Step 2
-2. Resolve implementation paths using native `view` and `rg`:
-   - `actions/setup/js/safe_outputs_tools_loader.cjs` maps agent-facing tool names to MCP handlers.
-   - Follow those handlers in `safe_outputs_handlers.cjs` and their actual imports.
-   - For deferred processing, inspect `HANDLER_MAP` and standalone routing in `actions/setup/js/safe_output_handler_manager.cjs`, then follow the discovered modules and callers.
-   - Confirm each path with native `glob` before reading it. Never assume `actions/setup/js/<tool_name>.cjs` exists; for example, asset handling is split across `safe_outputs_handlers.cjs`, `upload_assets.cjs`, and work-queue-specific routing.
-3. Check git history only for verified implementation paths to see when each tool was last modified. For example, after confirming this routing module exists:
+2. Resolve each candidate's implementation before selecting it:
+   - Read `attachHandlers` in `actions/setup/js/safe_outputs_tools_loader.cjs`, including `handlerMap`, `defaultHandler`, and ledger/dynamic-tool overrides, to map the MCP tool name to its actual handler function.
+   - Locate that function in `actions/setup/js/safe_outputs_handlers.cjs` using native search or Serena, and follow relevant imports.
+   - For downstream safe-output processing, inspect `actions/setup/js/safe_output_handler_manager.cjs` and verify the implementation path with native `glob`.
+   - Do not assume a tool named `<tool_name>` has a file named `<tool_name>.cjs`. For example, `upload_asset` maps to `uploadAssetHandler` in `safe_outputs_handlers.cjs`; its downstream upload job uses `upload_assets.cjs` (plural), and its work-queue adapter uses `work_queue_upload_assets.cjs`.
+   - If a candidate's implementation cannot be resolved, record the discovery gap and select the next resolvable candidate. A missing guessed filename is not a concurrency finding.
+3. Get recent implementation changes with this exact allowed command:
    ```bash
-   git log -1 --format="%ai" -- actions/setup/js/safe_outputs_tools_loader.cjs
+   git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs
    ```
+   Match the returned paths to the verified implementation files without changing the command or adding a pipeline. For handlers sharing a file, the modification time is file-level evidence, not proof that every handler changed. Files absent from this bounded history have unknown modification times; use cache age for their priority.
 4. Sort tools by:
    - Tools never analyzed (highest priority)
    - Tools modified since last analysis
@@ -198,7 +200,9 @@ For the selected tool, perform comprehensive concurrency analysis:
 
 #### 4.1 Locate Implementation File(s)
 
-Use the verified routing from Step 3 to locate the selected tool's MCP handler, deferred handler, and relevant helpers. Use native `glob` and `rg` or Serena; do not synthesize filenames or shell scripts.
+Use the verified handler function and implementation paths from Step 3. Record `TOOL_FILE` as the actual implementation file, not a filename derived from `TOOL_NAME`.
+
+For `upload_asset`, analyze `uploadAssetHandler` and the shared state it closes over in `safe_outputs_handlers.cjs`. Follow the downstream upload script or work-queue adapter only when relevant to that tool's concurrency behavior.
 
 #### 4.2 Read and Understand the Tool
 
@@ -213,8 +217,7 @@ Use Serena to:
 Analyze the tool for these specific concurrency issues:
 
 **A. Global/Module-Level State**
-
-Use native `rg` with pattern `^(let|var) ` scoped to the verified implementation files, then inspect matching state with `view` or Serena.
+Use native `rg` with pattern `^(let|var) ` scoped to the verified implementation files, then inspect matching state with `view` or Serena. Also inspect mutable state captured by handler closures in shared modules.
 
 Look for:
 - Module-level `let` or `var` declarations (mutable)
@@ -340,6 +343,7 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 Call the exposed `create_issue` safe-output tool directly with the title and Markdown body below. Use the discovered schema for its arguments; the template is content, not a shell script.
 
 Use the following template:
+Pass the completed Markdown directly as the `body` argument of `create_issue`.
 
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`
@@ -463,7 +467,7 @@ For CRITICAL or HIGH severity issues, consider creating a Copilot coding agent s
 ```markdown
 Fix the concurrency safety issue in \`${TOOL_NAME}\` tool.
 
-**File**: \`${TOOL_FILE}\` [Verified implementation path]
+**File**: \`${TOOL_FILE}\` (the verified implementation path)
 
 **Issue**: [Brief description from issue]
 

@@ -40,7 +40,7 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) { //nolint:largefu
 		if len(args.Workflows) == 0 {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "missing required parameter: at least one workflow specification is required", nil)
 		}
-		if err := validateMCPPositionals("workflows", args.Workflows...); err != nil {
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
 			return nil, nil, err
 		}
 		if args.Name != "" {
@@ -136,15 +136,14 @@ Returns formatted text output showing:
 		default:
 		}
 
-		if err := validateMCPPositionals("workflows", args.Workflows...); err != nil {
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
 			return nil, nil, err
 		}
+
 		mcpToolsManagementLog.Printf("update tool invoked: workflows=%d, major=%v, force=%v", len(args.Workflows), args.Major, args.Force)
 
-		// Build command arguments
 		cmdArgs := []string{"update"}
 
-		// Add optional flags
 		if args.Major {
 			cmdArgs = append(cmdArgs, "--major")
 		}
@@ -215,9 +214,10 @@ Returns formatted text output showing:
 		default:
 		}
 
-		if err := validateMCPPositionals("workflows", args.Workflows...); err != nil {
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
 			return nil, nil, err
 		}
+
 		mcpToolsManagementLog.Printf("fix tool invoked: workflows=%d, write=%v, list_codemods=%v", len(args.Workflows), args.Write, args.ListCodemods)
 
 		// Build command arguments

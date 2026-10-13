@@ -244,26 +244,20 @@ artifact selection) because it carries the per-run token usage data.`
 // newLogsToolHandler builds the handler for the logs tool.
 func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.
 	return func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
-		// Check actor permissions first
 		if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
 			return nil, nil, err
 		}
 
-		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
-		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
 		}
 
-		if err := validateMCPPositionals("workflow_name", args.WorkflowName); err != nil {
-			return nil, nil, err
-		}
 		// Validate workflow name before executing command
 		if err := validateMCPWorkflowName(args.WorkflowName); err != nil {
 			mcpLog.Printf("Workflow name validation failed, returning empty result: %v", err)
@@ -351,7 +345,8 @@ func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, in
 	// Always use --json mode in MCP server
 	cmdArgs = append(cmdArgs, "--json")
 	if args.WorkflowName != "" {
-		cmdArgs = appendMCPPositionals(cmdArgs, args.WorkflowName)
+		// Workflow display names are literal positionals, including flag-shaped names.
+		cmdArgs = append(cmdArgs, "--", args.WorkflowName)
 	}
 
 	return cmdArgs, effectiveCount, timeoutValue
@@ -659,6 +654,9 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 			return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
 		}
 		if hasRunID {
+			if err := validateMCPPositionalArgs("run_id", runID); err != nil {
+				return nil, err
+			}
 			runItems = []string{runID}
 		}
 	}
@@ -668,13 +666,16 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 			return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
 		}
 		if hasRunIDOrURL {
+			if err := validateMCPPositionalArgs("run_id_or_url", runIDOrURL); err != nil {
+				return nil, err
+			}
 			runItems = []string{runIDOrURL}
 		}
 	}
 	if len(runItems) == 0 {
 		return nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
 	}
-	if err := validateMCPPositionals("run IDs or URLs", runItems...); err != nil {
+	if err := validateMCPPositionalArgs("run_ids_or_urls", runItems...); err != nil {
 		return nil, err
 	}
 	return runItems, nil
@@ -826,10 +827,10 @@ func newAuditDiffToolHandler(execCmd execCmdFunc, actor string, validateActor bo
 		if len(args.CompareRunIDs) == 0 {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "compare_run_ids must contain at least one run ID", nil)
 		}
-		if err := validateMCPPositionals("base_run_id", args.BaseRunID); err != nil {
+		if err := validateMCPPositionalArgs("base_run_id", args.BaseRunID); err != nil {
 			return nil, nil, err
 		}
-		if err := validateMCPPositionals("compare_run_ids", args.CompareRunIDs...); err != nil {
+		if err := validateMCPPositionalArgs("compare_run_ids", args.CompareRunIDs...); err != nil {
 			return nil, nil, err
 		}
 

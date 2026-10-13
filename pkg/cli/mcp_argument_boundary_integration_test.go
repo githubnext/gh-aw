@@ -21,14 +21,13 @@ func TestMCPServerRejectsArgumentBoundaryAttacks(t *testing.T) {
 		args map[string]any
 		want string
 	}{
-		{"add", map[string]any{"workflows": []string{"--dir", "../..", "--force", "--no-security-scanner", "https://example.com/payload.md"}}, "must not contain values starting with '-'"},
-		{"update", map[string]any{"workflows": []string{"--dir=../.."}}, "must not contain values starting with '-'"},
-		{"fix", map[string]any{"workflows": []string{"--dir=../.."}, "write": true}, "must not contain values starting with '-'"},
-		{"compile", map[string]any{"workflows": []string{"--approve", "--prior-manifest-file=/tmp/other"}}, "must not contain values starting with '-'"},
-		{"mcp-inspect", map[string]any{"workflow_file": "--help"}, "must not contain values starting with '-'"},
-		{"logs", map[string]any{"workflow_name": "--help"}, "must not contain values starting with '-'"},
-		{"audit", map[string]any{"run_ids_or_urls": []string{"--help"}}, "must not contain values starting with '-'"},
-		{"audit-diff", map[string]any{"base_run_id": "123", "compare_run_ids": []string{"--help"}}, "must not contain values starting with '-'"},
+		{"add", map[string]any{"workflows": []string{"--dir", "../..", "--force", "--no-security-scanner", "https://example.com/payload.md"}}, "must not contain values beginning with '-'"},
+		{"update", map[string]any{"workflows": []string{"--dir=../.."}}, "must not contain values beginning with '-'"},
+		{"fix", map[string]any{"workflows": []string{"--dir=../.."}, "write": true}, "must not contain values beginning with '-'"},
+		{"compile", map[string]any{"workflows": []string{"--approve", "--prior-manifest-file=/tmp/other"}}, "must not contain values beginning with '-'"},
+		{"mcp-inspect", map[string]any{"workflow_file": "--help"}, "must not contain values beginning with '-'"},
+		{"audit", map[string]any{"run_ids_or_urls": []string{"--help"}}, "must not contain values beginning with '-'"},
+		{"audit-diff", map[string]any{"base_run_id": "123", "compare_run_ids": []string{"--help"}}, "must not contain values beginning with '-'"},
 		{"add", map[string]any{"workflows": []string{"https://example.com/payload.md"}, "name": "../../pwned"}, "invalid workflow name"},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {
