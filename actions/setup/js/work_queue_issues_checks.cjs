@@ -382,6 +382,58 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       assert.match(issue.body, /\.\.\.\n/);
       assert.ok(issue.body.includes("<!-- work-id:"));
     });
+    it("keeps sanitized title and description within their final character limits", async () => {
+      const cases = [
+        {
+          title: "z".repeat(104) + " @alice-bob-longname rest words to go over the limit for sure",
+          description: "z".repeat(4070) + " @alice-bob-longname more description beyond the safe limit",
+        },
+        {
+          title: "```" + "x".repeat(200),
+          description: "```\n" + "x".repeat(5000),
+        },
+      ];
+      for (const payload of cases) {
+        const f = fixture({ backing: false, payload });
+        const m = mock(f);
+        assert.deepEqual((await main(m.options)).pending, []);
+        const issue = m.issues.get("1");
+        const title = issue.title.slice(issue.title.indexOf(" — ") + 3);
+        const description = issue.body.match(/### Work description\n\n([\s\S]*?)\n\n\| At a glance/)[1].trimEnd();
+        assert.ok([...title].length <= 128);
+        assert.ok([...description].length <= 4096);
+      }
+    });
+    it("redacts configured secrets and runtime masks from work details", async () => {
+      const secretName = "WORK_QUEUE_ISSUE_TEST";
+      const secret = "repo-specific-work-queue-secret";
+      const runtimeMask = "runtime-work-queue-mask";
+      const previousNames = process.env.GH_AW_SECRET_NAMES;
+      const previousSecret = process.env[`SECRET_${secretName}`];
+      process.env.GH_AW_SECRET_NAMES = [previousNames, secretName].filter(Boolean).join(",");
+      process.env[`SECRET_${secretName}`] = secret;
+      try {
+        const f = fixture({
+          backing: false,
+          payload: {
+            title: `Investigate ${secret.slice(0, 12)}<!-- removed -->${secret.slice(12)} ${runtimeMask}`,
+            description: `Details include ${secret.slice(0, 12)}<!-- removed -->${secret.slice(12)} and ${runtimeMask}`,
+          },
+        });
+        const m = mock(f);
+        assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [runtimeMask] })).pending, []);
+        const issue = m.issues.get("1");
+        assert.ok(!issue.title.includes(secret));
+        assert.ok(!issue.title.includes(runtimeMask));
+        assert.ok(!issue.body.includes(secret));
+        assert.ok(!issue.body.includes(runtimeMask));
+      } finally {
+        if (previousNames === undefined) delete process.env.GH_AW_SECRET_NAMES;
+        else process.env.GH_AW_SECRET_NAMES = previousNames;
+        if (previousSecret === undefined) delete process.env[`SECRET_${secretName}`];
+        else process.env[`SECRET_${secretName}`] = previousSecret;
+      }
+    });
     it("omits absent or non-string work details without changing the identifier title", async () => {
       const f = fixture({ backing: false, payload: { title: 42, description: { private: true } } });
       const m = mock(f);

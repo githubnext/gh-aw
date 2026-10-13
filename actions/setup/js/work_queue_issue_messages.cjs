@@ -4,26 +4,48 @@
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
 
-function presentationText(value, limit, singleLine = false) {
+function presentationText(value, limit, singleLine = false, maskedValues = []) {
   if (typeof value !== "string") return "";
-  let text = redactBuiltInPatterns(sanitizeContent(value)).content.trim();
+  let text = value.trim();
   if (singleLine) text = text.replace(/\s+/g, " ");
+  const render = candidate => {
+    let rendered = candidate;
+    for (;;) {
+      const sanitized = sanitizeContent(redactDiagnosticText(rendered, { maskedValues }));
+      if (sanitized === rendered) return sanitized;
+      rendered = sanitized;
+    }
+  };
+  const withinLimit = candidate => {
+    const rendered = render(candidate);
+    return [...rendered].length <= limit ? rendered : undefined;
+  };
+  const complete = withinLimit(text);
+  if (complete !== undefined) return complete;
+
   const characters = [...text];
-  text =
-    characters.length > limit
-      ? characters
-          .slice(0, limit - 3)
-          .join("")
-          .trimEnd() + "..."
-      : text;
-  return redactBuiltInPatterns(sanitizeContent(text)).content;
+  let low = 0;
+  let high = characters.length;
+  let result = withinLimit("...");
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = `${characters.slice(0, middle).join("").trimEnd()}...`;
+    const rendered = withinLimit(candidate);
+    if (rendered !== undefined) {
+      result = rendered;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return result;
 }
 
-function issueTitle(work, config) {
+function issueTitle(work, config, maskedValues = []) {
   const base = `${config.title_prefix} ${work.work_id.slice(0, 12)}`;
-  const title = presentationText(work.payload?.title, 128, true);
+  const title = presentationText(work.payload?.title, 128, true, maskedValues);
   return title ? `${base} — ${title}` : base;
 }
 
@@ -57,11 +79,11 @@ function renderWorkQueueMessage(template, values, run) {
   return message.endsWith(footer) ? message : `${message}\n\n${footer}`;
 }
 
-function issueBody(state, work, origin, config, branch) {
+function issueBody(state, work, origin, config, branch, maskedValues = []) {
   const admission = state.workCreators?.get(work.work_id);
   if (!admission) throw new Error("work_queue_admission_provenance_missing");
   const ledgerUrl = `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`;
-  const description = presentationText(work.payload?.description, 4096);
+  const description = presentationText(work.payload?.description, 4096, false, maskedValues);
   return renderWorkQueueMessage(
     "work_queue_issue_body.md",
     {

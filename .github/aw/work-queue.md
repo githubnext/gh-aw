@@ -19,8 +19,8 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 
 Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
 revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty.
-Reject malformed or unsupported existing logs.
+Absent branches are empty.
+Reject malformed/unsupported logs.
 
 ## Configure deployment
 
@@ -64,8 +64,7 @@ admission-time `completion_policy` permits closure, never payload. Keep uncertai
 writes pending; never recreate or globally repair. Upgrade closed-schema readers
 first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
-Mirroring enables compiler-generated `.github/workflows/agentic-workqueue.yml`
-for Issue lifecycle events outside agentic workflows; disabling mirroring removes it.
+Issue hooks run outside workflows only while mirroring is enabled.
 
 ## Plan and dispatch
 
@@ -76,8 +75,8 @@ for Issue lifecycle events outside agentic workflows; disabling mirroring remove
 - Trusted processing refreshes the ledger and commits a compatible fair prefix.
   CAS losers discard tentative choices/charges and recompute.
 
-ESLint, daily-report and conformance agents explain staged plans only.
-Trusted controls validate the batch; empty dispatcher intents fail.
+ESLint, daily-report and conformance agents only explain staged plans.
+Trusted controls validate batches; empty intents fail.
 Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 
 ## Execute original Claims
@@ -121,18 +120,14 @@ delete a queue to retry admission.
 
 ## Load details only when needed
 
-- Operator commands, TUI and diagnostic artifacts:
-  [queue reference](../../docs/src/content/docs/reference/work-queue.md).
-  Cancellation is terminal for Work, not a worker stop; reconcile separately.
-  Build `go build -o ./gh-aw ./cmd/gh-aw`; use
-  `./gh-aw work-queue --repo OWNER/REPO stats --json`. `dispatch-next` grants
-  reservations, never launches; use the authorized dispatcher.
-- Daily report rotation and Claims:
-  [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
+- Operator commands: [queue reference](../../docs/src/content/docs/reference/work-queue.md).
+  Work cancellation does not stop workers; reconcile separately. Build
+  `go build -o ./gh-aw ./cmd/gh-aw`; run
+  `./gh-aw work-queue --repo OWNER/REPO stats --json`. `dispatch-next` reserves,
+  never launches; use the dispatcher.
+- Daily reports and Claims: [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
   and [shared worker instructions](../workflows/shared/daily-report-worker.md).
-- Contracts and implementation boundaries:
-  [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
-- Executable models, fixtures and bounded verification:
-  [formal reference](../../specs/work-queue/README.md).
+- Contracts: [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
+- Models, fixtures and bounded verification: [formal reference](../../specs/work-queue/README.md).
 
-Tests do not prove Result or live deployment.
+Tests don't prove Result or deployment.
