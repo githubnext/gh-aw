@@ -111,6 +111,42 @@ func buildMaintenanceCloseExpiredJobs(opts buildMaintenanceWorkflowYAMLOptions, 
 	return b.String()
 }
 
+func buildMaintenanceCleanupStaleSteeringIssuesJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+	if opts.maintenanceConfig.IsJobDisabled("cleanup-stale-steering-issues") {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`
+  cleanup-stale-steering-issues:
+    name: Cleanup stale steering issues
+    if: ${{ ` + RenderCondition(BuildAnd(
+		buildNotForkCondition(),
+		BuildEventTypeEquals("schedule"),
+	)) + ` }}
+    runs-on: ` + opts.runsOnValue + `
+    # Reading workflow runs and closing issues requires these permissions.
+    permissions:
+      actions: read
+      issues: write
+`)
+	if opts.actionMode == ActionModeDev || opts.actionMode == ActionModeScript {
+		b.WriteString("      contents: read\n")
+	}
+	b.WriteString("    steps:\n")
+	writeMaintenanceConditionalActionsCheckoutStep(&b, opts)
+	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
+	b.WriteString(`      - name: Close stale steering issues
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cleanup_stale_steering_issues.cjs');
+            await main();
+`)
+	return b.String()
+}
+
 func buildMaintenanceCleanupCacheJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
 	if opts.maintenanceConfig.IsJobDisabled("cleanup-cache-memory") {
 		return ""
