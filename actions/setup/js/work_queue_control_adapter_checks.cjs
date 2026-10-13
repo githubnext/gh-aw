@@ -46,16 +46,18 @@ function registerTests({ describe, it }) {
           rest: {
             users: { getByUsername: native, getAuthenticated: native },
             repos: { get: async () => ({ status: 200, data: { full_name: repository, permissions: { push: true } } }) },
+            git: queueFixture().githubClient.rest.git,
           },
         };
         const validate = createDispatchCredentialValidator(client, entry.descriptor, "protected-selected-token");
-        const proof = await validate({ profile: { principal: entry.principal }, repository });
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: entry.principal }), true);
-        assert.equal(isDispatchCredentialProof({ ...proof }, client, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, {}, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: "11" }), false);
-        for (const untrusted of [true, false, "22", JSON.stringify(proof)]) assert.equal(isDispatchCredentialProof(untrusted, client, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: entry.principal, workflow: "foreign" }), false);
+        const profile = { principal: entry.principal, ref: REF };
+        const proof = await validate({ profile, repository });
+        assert.equal(isDispatchCredentialProof(proof, client, profile), true);
+        assert.equal(isDispatchCredentialProof({ ...proof }, client, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, {}, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, client, { ...profile, principal: "11" }), false);
+        for (const untrusted of [true, false, "22", JSON.stringify(proof)]) assert.equal(isDispatchCredentialProof(untrusted, client, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, client, { ...profile, workflow: "foreign" }), false);
         assert.equal(proof.principal, entry.principal);
         assert.notEqual(proof.principal, "11");
         assert.equal(calls.length, 1);

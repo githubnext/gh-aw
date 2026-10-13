@@ -2,18 +2,18 @@
 "use strict";
 
 const { closed, canonical } = require("./work_queue_codec.cjs");
-const { API_VERSION, nativeId } = require("./work_queue_native.cjs");
+const { API_VERSION, nativeId, dispatchTag } = require("./work_queue_native.cjs");
 
 /** @type {WeakMap<object, {client: DispatchClient, profile: string}>} */
 const credentialProofs = new WeakMap();
 
 /**
  * @typedef {{kind: string, app_slug?: string}} DispatchCredential
- * @typedef {{principal: string, kind: string, contents_write: true}} DispatchCredentialProof
+ * @typedef {{principal: string, kind: string, tag_prepared: true}} DispatchCredentialProof
  * @typedef {{status: number, data: {id: unknown, type: string, login?: string}}} IdentityResponse
  * @typedef {{headers: Record<string, string>, request: {retries: number, timeout: number}, username?: string}} IdentityRequest
  * @typedef {{status: number, data: {full_name: string, permissions?: {admin?: boolean, maintain?: boolean, push?: boolean, contents?: string}}}} RepositoryAccessResponse
- * @typedef {{rest?: {users?: {getAuthenticated?: (parameters: IdentityRequest) => Promise<IdentityResponse>, getByUsername?: (parameters: IdentityRequest & {username: string}) => Promise<IdentityResponse>}, repos?: {get?: (parameters: IdentityRequest & {owner: string, repo: string}) => Promise<RepositoryAccessResponse>}}, auth?: (options: {type: "token"}) => Promise<unknown>}} DispatchClient
+ * @typedef {{rest?: {users?: {getAuthenticated?: (parameters: IdentityRequest) => Promise<IdentityResponse>, getByUsername?: (parameters: IdentityRequest & {username: string}) => Promise<IdentityResponse>}, repos?: {get?: (parameters: IdentityRequest & {owner: string, repo: string}) => Promise<RepositoryAccessResponse>}, git?: {getRef?: (parameters: Record<string, unknown>) => Promise<unknown>, createRef?: (parameters: Record<string, unknown>) => Promise<unknown>}}, auth?: (options: {type: "token"}) => Promise<unknown>}} DispatchClient
  */
 /** @param {unknown} value @returns {{readonly kind: string, readonly app_slug?: string}} */
 function normalizeDispatchCredential(value) {
@@ -79,7 +79,9 @@ function createDispatchCredentialValidator(client, supplied, selectedToken) {
     const expected = Object.hasOwn(profile, "principal") ? nativeId(profile.principal, "approved worker principal") : undefined;
     const actual = await resolveDispatchCredentialPrincipal(client, credential);
     if (expected !== undefined && actual !== expected) throw new Error("work_queue_dispatch_credential_principal_mismatch");
-    const proof = Object.freeze({ principal: actual, kind: credential.kind, contents_write: true });
+    // Repository roles do not prove token scope; prepare the required ref before START.
+    await dispatchTag(client, { repository, ref: profile.ref });
+    const proof = Object.freeze({ principal: actual, kind: credential.kind, tag_prepared: true });
     credentialProofs.set(proof, { client, profile: canonical(profile) });
     return proof;
   };
@@ -88,7 +90,7 @@ function createDispatchCredentialValidator(client, supplied, selectedToken) {
 /** @param {unknown} proof @param {DispatchClient} client @param {Record<string, unknown> & {principal?: string}} profile */
 function isDispatchCredentialProof(proof, client, profile) {
   const facts = proof !== null && typeof proof === "object" ? credentialProofs.get(proof) : undefined;
-  return !!facts && proof !== null && typeof proof === "object" && "contents_write" in proof && proof.contents_write === true && facts.client === client && facts.profile === canonical(profile);
+  return !!facts && proof !== null && typeof proof === "object" && "tag_prepared" in proof && proof.tag_prepared === true && facts.client === client && facts.profile === canonical(profile);
 }
 
 module.exports = { normalizeDispatchCredential, resolveDispatchCredentialPrincipal, createDispatchCredentialValidator, isDispatchCredentialProof };

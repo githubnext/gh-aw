@@ -620,9 +620,16 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(post).toHaveBeenCalledTimes(1);
   });
 
-  it("reports unresolved launch receipts as unsuccessful", async () => {
-    const { options, post } = setup({ granted: false, count: 1 });
-    post.mockRejectedValue(new Error("request timed out"));
+  it.each(["post_response_unconfirmed", "binding_unconfirmed"])("reports %s launch receipts as unsuccessful", async reason => {
+    const { fixture, options, post } = setup({ granted: false, count: 1 });
+    if (reason === "post_response_unconfirmed") post.mockRejectedValue(new Error("request timed out"));
+    else {
+      const get = fixture.githubClient.rest.actions.getWorkflowRun;
+      fixture.githubClient.rest.actions.getWorkflowRun = async parameters => {
+        if (parameters.run_id === "42") throw new Error("binding read timed out");
+        return get(parameters);
+      };
+    }
     const result = await dispatchQueueIntent({
       ...options,
       assignment: null,
@@ -630,6 +637,7 @@ describe("native queue launch fencing and conservative recovery", () => {
       message: { type: "work_queue_dispatch_next", intent_id: "unresolved-is-failure", pool: "default", max_claims: 1, max_dispatches: 1 },
     });
     expect(result).toMatchObject({ success: false, launches: [expect.objectContaining({ state: "launch_unresolved" })] });
+    expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: "uncertain", reason, released: false });
     expect(post).toHaveBeenCalledTimes(1);
   });
 
@@ -798,12 +806,16 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(uncertain.post).not.toHaveBeenCalled();
   });
 
-  it("releases a definitive tag setup failure without sending the workflow POST", async () => {
+  it.each(["mismatch", "timeout", "missing_request_id"])("releases a definitive tag setup %s without sending the workflow POST", async failure => {
     const { fixture, options, post } = setup({ count: 1 });
-    fixture.githubClient.rest.git.getRef = vi.fn().mockResolvedValue({
-      status: 200,
-      data: { ref: `refs/tags/gh-aw/work-queue/${fixture.assignment.ref}`, object: { type: "commit", sha: "b".repeat(40) } },
-    });
+    const getRef = fixture.githubClient.rest.git.getRef;
+    fixture.githubClient.rest.git.getRef = vi.fn().mockImplementationOnce(getRef);
+    if (failure === "mismatch")
+      fixture.githubClient.rest.git.getRef.mockResolvedValue({
+        status: 200,
+        data: { ref: `refs/tags/gh-aw/work-queue/${fixture.assignment.ref}`, object: { type: "commit", sha: "b".repeat(40) } },
+      });
+    else fixture.githubClient.rest.git.getRef.mockRejectedValue(failure === "timeout" ? new Error("tag request timed out") : { status: 403, response: { status: 403, headers: {} } });
     expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "rejected", released: true, dispatched: false });
     const marker = fixture.transactions.flatMap(commit => commit.operations).find(operation => operation.kind === "Dispatch" && operation.state === "rejected");
     expect(marker).toMatchObject({ reason: expect.stringMatching(/^tag_prepost:/), evidence: { kind: "nonlaunch", source: "github_api" } });

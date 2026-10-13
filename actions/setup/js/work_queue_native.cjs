@@ -279,6 +279,7 @@ module.exports = {
   fetchNativeRun,
   fetchNativeRunAttempt,
   validateNativeRun,
+  dispatchTag,
   postQueueDispatch,
   authenticatePublisher,
   authenticateIntentPublisher,
