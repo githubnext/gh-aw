@@ -191,10 +191,10 @@ Create exactly one issue using the `create_issue` safe output.
 ### Output Contract (Required)
 
 1. Draft the title and body locally first if needed, but emit exactly one final `create_issue` safe output only after the full payload is complete.
-2. Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments.
-3. Do **not** use `python3`, `node`, `jq`, or any other scripting runtime to construct or validate the issue payload — build the body string inline and emit the safe output directly.
+2. Use the configured safe-output transport. With `cli-proxy`, invoke the `safeoutputs` CLI from `bash`; direct safe-output MCP tools are not exposed. Send a complete JSON object with `title` and `body` on stdin using `printf '%s' '<JSON>' | safeoutputs create_issue .`. JSON-escape the body and shell-quote the payload correctly; do not use shell expansion to construct it. If a direct safe-output tool is actually exposed instead, call it with the same arguments.
+3. Do **not** use `python3`, `node`, `jq`, or any other scripting runtime to construct or validate the issue payload — build the body string inline. Do not redirect it to a file.
 4. Never retry `create_issue` with empty, placeholder, or partial arguments.
-5. If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
+5. If the quality checks below cannot be met, emit `report_incomplete` through the same transport instead of `create_issue`. With `cli-proxy`, use `printf '%s' '{"reason":"<concrete blocker>"}' | safeoutputs report_incomplete .`; never substitute a prose-only failure report.
 
 ### Issue format
 
@@ -265,7 +265,7 @@ Before emitting `create_issue`, verify the body:
 - The generated test file has no obvious syntax errors — **visual review only**: scan for mismatched braces, missing imports, and undefined identifiers. Do **not** run `go build`, `go test`, `go version`, `python3`, `node`, `jq`, or any compiler or runtime to verify.
 - Is at least 1200 characters long.
 
-If these checks cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.
+If these checks cannot be met, emit `report_incomplete` through the configured safe-output transport instead of `create_issue`.
 
 ---
 

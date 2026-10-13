@@ -163,6 +163,8 @@ printf '%s' '{"path":"FILE","line":42,"pull_request_number":123,"body":"COMMENT"
 
 Each comment must contain one visible sentence stating the issue and its impact, then a `<details><summary>💡 …</summary>` block with explanation, fix snippet, and rationale.
 
+Keep publication commands stdout-only: construct JSON inline with `printf '%s'` and pipe it directly to `safeoutputs`. Do not write temporary payload files, use shell redirection or heredocs, or invoke `jq`, `python`, or `node`; they are not authorized by this workflow. JSON-escape content and shell-quote it correctly without shell expansion. Send each safe-output command separately from analysis commands.
+
 **Prioritization** (use your 10-comment budget aggressively):
 1. Correctness, concurrency, and security-adjacent bugs (highest priority, up to 6 comments)
 2. Significant maintainability/testability concerns (medium priority, up to 3 comments)
@@ -184,7 +186,7 @@ Always submit a review before the 15-minute timeout, including when there are ze
 printf '%s' '{"pull_request_number":123,"event":"COMMENT","body":"Review summary"}' | safeoutputs submit_pull_request_review .
 ```
 
-If the CLI is unavailable, keep the denial text and name the exact allowlist entry needed: `tools.bash: - safeoutputs`.
+If a publication command is denied, distinguish an unavailable CLI from unallowed commands or file writes in the pipeline. Correct the command to the stdout-only `printf` pipeline above without widening permissions. If the corrected command still cannot run, emit `report_incomplete` through the available safe-output transport with the concrete blocker; do not call `noop` or claim the review was published.
 
 Set `event` to:
 - `COMMENT` if there are no actionable blocking issues

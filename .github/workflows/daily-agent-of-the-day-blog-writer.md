@@ -81,11 +81,9 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 
 - **There is no `shell` tool.** The command execution tool is named `bash`. Do not call `shell(...)` — it will be denied immediately.
 - **There is no `read` or `view` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` or `view(...)` — they will be denied immediately.
-- Use git in `bash` for read-only inspection only:
-  - `git status`
-  - `git diff -- docs/src/content/docs/**`
-- Do not run git write or branch-management commands yourself (`git checkout`, `git switch`, `git branch`, `git add`, `git commit`, `git reset`, `git rebase`, `git merge`, `git cherry-pick`, `git push`, `git pull`, or any `git remote *`).
-- After editing the blog file, call `create_pull_request` directly. It will package the edited docs files into the PR for you.
+- Use git in `bash` for read-only inspection and the local-only PR preparation in Step 6. `create_pull_request` packages committed changes; it does not create your local branch or commit uncommitted edits.
+- Do not run `git push`, `git pull`, `git fetch`, any `git remote *`, `git reset`, `git rebase`, `git merge`, or `git cherry-pick`. Remote publication belongs to safe outputs, not the agent.
+- With `cli-proxy`, invoke safe outputs through `bash` using the `safeoutputs` CLI and complete JSON on stdin. Do not invent a direct tool when it is not exposed.
 
 #### Hard Requirements
 
@@ -184,7 +182,11 @@ PR body must include:
 - Summary of highlighted workflow and why it was chosen.
 - Links used as evidence (issues/PRs/log/audit references).
 - File path of the created blog post.
-- After verifying only the intended docs files changed, call `create_pull_request` directly. Do not stage, commit, or switch branches yourself.
+- Prepare the PR locally before calling the safe output:
+  1. Inspect `git status --short` and `git branch --show-current`. Create a unique local feature branch with `git checkout -b agent-of-the-day-${{ github.run_id }}` from the current checkout; do not fetch or change the base revision.
+  2. Stage only the exact blog post path with `git add -- <blog-post-path>`, never `git add .` or `git add -A`. Inspect `git diff --cached --name-only` and `git diff --cached -- <blog-post-path>`; the staged changes must contain only the intended text blog post, no binary assets.
+  3. Commit those staged changes locally with `git commit -m "Add Agent of the Day blog post"`. Verify `git status --short` and `git branch --show-current`. If preparation fails or unrelated staged files exist, emit `report_incomplete`; do not reset or include unrelated files.
+  4. Invoke `create_pull_request` exactly once with the real title/body and `branch` equal to the verified local feature branch, using the configured safe-output transport. Do not push.
 
 ### 7) No-action rule
 
@@ -192,7 +194,7 @@ If no trustworthy live evidence can be gathered after checking multiple workflow
 
 ### 8) Mandatory safe-output completion
 
-You **MUST** finish by calling exactly one safe-output tool:
+You **MUST** finish by emitting exactly one terminal safe output through the configured transport:
 
 - `create_pull_request` when you created the blog post and are ready to open the PR.
 - `noop` when no action is needed after valid analysis.

@@ -13,6 +13,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 
 /**
  * Build the AI footer with workflow attribution
@@ -184,7 +185,7 @@ function buildUpdatedBody({ context, currentBody, newContent, operation, include
       serverUrl: context.serverUrl,
     }) || undefined;
 
-  return updateBody({
+  const body = updateBody({
     currentBody,
     newContent,
     operation,
@@ -195,6 +196,7 @@ function buildUpdatedBody({ context, currentBody, newContent, operation, include
     bodyFooter,
     historyUrl,
   });
+  return appendExecutionProvenance(body, workflowName, runUrl);
 }
 
 module.exports = {

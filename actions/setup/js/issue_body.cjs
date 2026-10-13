@@ -8,6 +8,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 
 /**
  * Decorate a trusted issue body with the standard safe-output attribution.
@@ -62,7 +63,7 @@ function formatIssueBody(body, { repo, footer = true, bodyFooter, expiresHours =
   if (closeOlderKey) bodyLines.push(generateCloseKeyMarker(closeOlderKey));
 
   bodyLines.push("");
-  return bodyLines.join("\n").trim();
+  return appendExecutionProvenance(bodyLines.join("\n").trim(), workflowName, runUrl);
 }
 
 module.exports = { formatIssueBody };
