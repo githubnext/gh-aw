@@ -5,6 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { normalizeCloseOlderKey } = require("./generate_footer.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 const { formatIssueBody } = require("./issue_body.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -16,7 +17,7 @@ const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount, linkSubIssue } = require("./sub_issue_helpers.cjs");
-const { closeOlderIssues, searchOlderIssues, addIssueComment } = require("./close_older_issues.cjs");
+const { closeOlderIssues, searchOlderIssues } = require("./close_older_issues.cjs");
 const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -240,7 +241,7 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
           owner,
           repo,
           title: template.title,
-          body: template.body,
+          body: appendExecutionProvenance(template.body, workflowName, ""),
           labels: labels,
         }),
       { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
@@ -1148,7 +1149,12 @@ async function main(config = {}) {
         });
         if (todayIssue) {
           core.info(`Group-by-day: found open issue #${todayIssue.number} created today (${today}) — posting new content as a comment`);
-          const comment = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, todayIssue.number, body);
+          const { data: comment } = await githubClient.rest.issues.createComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: todayIssue.number,
+            body,
+          });
           core.info(`Posted content as comment ${comment.html_url} on issue #${todayIssue.number}`);
           // No issue was created (content was grouped into a comment), so free
           // the reserved slot for subsequent create_issue calls.
@@ -1401,7 +1407,7 @@ async function main(config = {}) {
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: effectiveParentIssueNumber,
-              body: `Created related issue: #${issue.number}`,
+              body: appendExecutionProvenance(`Created related issue: #${issue.number}`, workflowName, runUrl),
             });
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
@@ -1418,6 +1424,7 @@ async function main(config = {}) {
         repo: qualifiedItemRepo,
         number: issue.number,
         url: issue.html_url,
+        body,
         id: issue.id,
         metadata: { node_id: issue.node_id },
         temporaryId: temporaryId,

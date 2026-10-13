@@ -86,6 +86,12 @@ beforeEach(() => {
   process.env.RUNNER_TEMP = root;
   process.env.GITHUB_WORKSPACE = root;
   process.env.GITHUB_REPOSITORY = "owner/repo";
+  process.env.GITHUB_REPOSITORY_ID = "1036865607";
+  process.env.GITHUB_RUN_ID = "42";
+  process.env.GITHUB_RUN_ATTEMPT = "1";
+  process.env.GITHUB_JOB = "safe_outputs";
+  process.env.GH_AW_JOB_CHECK_RUN_ID = "789";
+  process.env.GH_AW_WORKFLOW_ID = "parity-test";
   process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({ noop: {} });
   global.core = Object.fromEntries(["info", "debug", "warning", "error", "notice", "setOutput", "setFailed"].map(key => [key, vi.fn()]));
   global.core.summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) };
@@ -170,7 +176,9 @@ describe("disabled safe-output behavioral parity", () => {
     expect(await manager.main()).toMatchObject({ success: true });
     expect(global.getOctokit).toHaveBeenCalledWith("configured-test-token");
     expect(create).toHaveBeenCalledTimes(1);
-    expect(create.mock.calls[0][0]).toMatchObject({ owner: "owner", repo: "repo", title: "Ordinary issue", body: "Body\nRelated to #42" });
+    expect(create.mock.calls[0][0]).toMatchObject({ owner: "owner", repo: "repo", title: "Ordinary issue" });
+    expect(create.mock.calls[0][0].body).toContain("Body\nRelated to #42");
+    expect(create.mock.calls[0][0].body).toContain("<!-- gh-aw-execution:");
     const entry = JSON.parse(fs.readFileSync(constants.MANIFEST_FILE_PATH, "utf8").trim());
     expect(entry).toMatchObject({ type: "create_issue", number: 19, repo: "owner/repo" });
     expect(entry).not.toHaveProperty("claim_handle");

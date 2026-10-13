@@ -99,6 +99,14 @@ export interface RuntimeObservationData {
   requestId?: JsonValue;
 }
 
+export interface PluginInstallationData {
+  plugin: string;
+  repository: string;
+  ref: string;
+  path: string;
+  status: "installed";
+}
+
 /** AWF API proxy steering event-log observation. */
 export interface FirewallSteeringData extends RuntimeObservationData {
   threshold?: JsonValue;
@@ -200,6 +208,15 @@ export interface McpObservationData {
   status?: JsonValue;
   reason?: JsonValue;
   error?: JsonValue;
+}
+
+export interface McpConfigurationData {
+  servers: {
+    serverName: string;
+    transport?: "stdio" | "http" | "sse" | "streamable-http";
+    required?: boolean;
+    tools?: string[];
+  }[];
 }
 
 export interface FirewallAccessData {
@@ -512,6 +529,7 @@ export interface UnifiedSessionEventDataMap {
   "mcp.guard.blocked": McpObservationData;
   "mcp.tool_call": McpObservationData;
   "mcp.event": RuntimeObservationData & { serverName?: JsonValue };
+  "mcp.configuration": McpConfigurationData;
   "firewall.http_access": FirewallAccessData;
   "firewall.token_usage": UsageReportData;
   "firewall.model_routing": ModelRoutingData;
@@ -532,6 +550,7 @@ export interface UnifiedSessionEventDataMap {
   "detection.result": DetectionResultData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
+  "plugin.installation": PluginInstallationData;
   "github_api.rate_limit": GitHubApiRateLimitData;
   "session.collection_warning": CollectionWarningData;
   "session.collection": CollectionData;

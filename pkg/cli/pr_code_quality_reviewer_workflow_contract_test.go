@@ -34,3 +34,22 @@ func TestPRCodeQualityReviewerWorkflowSubAgentModelContract(t *testing.T) {
 	assert.Contains(t, text, "model: small", "Sub-agent should use the portable small alias")
 	assert.NotContains(t, text, "model: inherited", "Sub-agent should not inherit an unsupported tier-specific model")
 }
+
+func TestPRCodeQualityReviewerWorkflowPublicationContract(t *testing.T) {
+	t.Parallel()
+	repoRoot, err := gitutil.FindGitRoot()
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "pr-code-quality-reviewer.md"))
+	require.NoError(t, err)
+
+	text := string(content)
+	assert.Contains(t, text, "Keep publication commands stdout-only")
+	assert.Contains(t, text, "Do not write temporary payload files, use shell redirection or heredocs")
+	assert.Contains(t, text, "Send each safe-output command separately from analysis commands")
+	assert.Contains(t, text, "without widening permissions")
+	assert.Contains(t, text, "emit `report_incomplete` through the available safe-output transport")
+	assert.Contains(t, text, "do not call `noop` or claim the review was published")
+	assert.Contains(t, text, `| safeoutputs create_pull_request_review_comment .`)
+	assert.Contains(t, text, `| safeoutputs submit_pull_request_review .`)
+	assert.NotContains(t, text, "name the exact allowlist entry needed: `tools.bash: - safeoutputs`")
+}

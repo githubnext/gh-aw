@@ -4,16 +4,24 @@ emoji: "🧭"
 description: Smoke pi model routing with cross-family declared sub-agents and deterministic runner and proxy evidence checks
 on:
   schedule: every 2 days
-  workflow_dispatch:
+  slash_command:
+    name: smoke-pi
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   label_command:
-    name: smoke-routing
+    names: ["smoke-routing", "smoke"]
     events: [pull_request]
+    strategy: decentralized
+  bots: [Copilot]
+  status-comment: false
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 permissions:
   contents: read
   copilot-requests: write
 name: Smoke Pi Routed
 concurrency:
+  group: "smoke-pi-routed-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}"
+  cancel-in-progress: true
   job-discriminator: ${{ github.run_id }}
 strict: true
 engine:

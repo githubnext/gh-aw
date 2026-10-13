@@ -3,7 +3,7 @@
 {status_section}
 {progress_note}
 
-**Work:** `{work_id}` · [Checked Git ledger]({ledger_url})
+**Work:** `{work_id}` (short ID) · [Checked Git ledger]({ledger_url})
 
 {outcome_links}
 {diagnostics}

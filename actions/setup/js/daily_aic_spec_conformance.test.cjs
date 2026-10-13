@@ -183,9 +183,10 @@ describe("daily AIC specification: basic conformance", () => {
   });
 
   it.each([
-    ["recorded", 1, 2, 11, 0],
-    ["estimated", 1, 2, 3, 1],
-    ["recorded", 2, 2, 3, 1],
+    ["recorded", 1, 3, 11, 0],
+    ["estimated", 1, 3, 3, 1],
+    ["recorded", 2, 3, 3, 1],
+    ["recorded", 1, 2, 3, 1],
     [undefined, 1, 1, 3, 1],
   ])("T-AIC-DG-018 cache source=%s attempt=%i coverage=%i", async (source, attempt, coverage, total, inspections) => {
     fs.writeFileSync(

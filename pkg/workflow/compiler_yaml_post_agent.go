@@ -16,6 +16,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	paths = append(paths, agentExecutionEvidencePath, agentExecutionExitCodePath,
 		constants.TmpGhAwDirSlash+"agent-session.jsonl", constants.TmpGhAwDirSlash+"agent-errors.jsonl",
 		constants.TmpGhAwDirSlash+"aw-prompts/user.txt", constants.TmpGhAwDirSlash+"aw-prompts/system.txt")
+	if len(data.Plugins) > 0 {
+		paths = append(paths, pluginInstallationsPath)
+	}
 	if hasSkillInventory(data) {
 		paths = append(paths, constants.TmpGhAwDirSlash+"skill_inventory.json")
 	}

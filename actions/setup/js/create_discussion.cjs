@@ -18,6 +18,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { createExpirationLine, generateFooterWithExpiration, addExpirationToFooter } = require("./ephemerals.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
+const { appendExecutionProvenance } = require("./execution_provenance.cjs");
 const { getBodyFooterMessage } = require("./messages_footer.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
@@ -266,6 +267,7 @@ async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo
         repo: issueResult.repo,
         number: issueResult.number,
         url: issueResult.url,
+        body: issueResult.body,
         fallback: "issue", // Indicate this was a fallback
       };
     } else {
@@ -613,7 +615,7 @@ async function main(config = {}) {
     }
 
     bodyLines.push("");
-    const body = bodyLines.join("\n").trim();
+    const body = appendExecutionProvenance(bodyLines.join("\n").trim(), workflowName, runUrl);
 
     core.info(`Creating discussion in ${qualifiedItemRepo} with title: ${title}`);
 
@@ -731,6 +733,7 @@ async function main(config = {}) {
         repo: qualifiedItemRepo,
         number: discussion.number,
         url: discussion.url,
+        body,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -764,6 +767,7 @@ async function main(config = {}) {
           repo: qualifiedItemRepo,
           number: resolvedDiscussion.number,
           url: resolvedDiscussion.url,
+          body,
         };
       }
 

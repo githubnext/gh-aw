@@ -533,7 +533,8 @@ limit 4,096, singleton assignments and three attempts with 30-second backoff.
 Invalid settings MUST produce property-specific errors. Optional advanced pools
 and fairness MUST remain scheduling, not identity authorization.
 `work_queue.issues` MUST configure projection globally; a boolean selects
-defaults or disables it, and an object MAY supply `label`.
+defaults or disables it, and an object MAY supply the optional `label` and
+`title_prefix` fields.
 Workflow-level `work-queue-policy` and `tools.work-queue.issues` are deprecated;
 conflicting global/local definitions MUST fail.
 Concurrent first submissions MUST use the winning installed Policy and retry
@@ -1153,7 +1154,7 @@ Repository configuration:
     "pending_limit": 30,
     "accounting_weights": {"": 1, "project-a": 2, "project-b": 1},
     "retry": {"max_attempts": 3, "backoff_seconds": 30},
-    "issues": {"label": "work"},
+    "issues": {"label": "work", "title_prefix": "[work queue]"},
     "pools": {"default": {"per_account_limit": 2}}
   }
 }
