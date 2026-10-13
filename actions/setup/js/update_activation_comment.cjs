@@ -14,6 +14,20 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * Record a link message appended to the activation comment and export the
+ * accumulated list as the `activation_comment_links` step output.
+ * @param {any} core - GitHub Actions core
+ * @param {string} linkText - Rendered link message
+ * @param {string[]} links - Accumulator scoped to one safe-output invocation
+ */
+function recordActivationCommentLink(core, linkText, links) {
+  links.push(linkText);
+  if (typeof core.setOutput === "function") {
+    core.setOutput("activation_comment_links", links.join("\n\n"));
+  }
+}
+
+/**
  * Update the activation comment with a link to the created pull request or issue
  * @param {any} github - GitHub REST API instance
  * @param {any} context - GitHub Actions context
@@ -21,8 +35,9 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
  * @param {string} itemUrl - URL of the created item (pull request or issue)
  * @param {number} itemNumber - Number of the item (pull request or issue)
  * @param {string} itemType - Type of item: "pull_request" or "issue" (defaults to "pull_request")
+ * @param {{activationCommentLinks?: string[]}} [options] - Invocation-scoped link accumulator
  */
-async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request", options = {}) {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const invocationContext = resolveInvocationContext(context);
@@ -32,7 +47,9 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
   const linkMessage = `\n\n${cautionSection}${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
-  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {});
+  if (await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {})) {
+    recordActivationCommentLink(core, body, options.activationCommentLinks ?? []);
+  }
 }
 
 /**
@@ -46,6 +63,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
  * @param {string} [options.targetRepo] - Target repo "owner/repo" for fallback comment (cross-repo scenarios)
  * @param {any} [options.targetGithubClient] - Authenticated GitHub client for the target repo (cross-repo scenarios)
+ * @param {string[]} [options.activationCommentLinks] - Invocation-scoped link accumulator
  */
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
@@ -55,8 +73,11 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
-  const message = `\n\n${cautionSection}${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
-  await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
+  const commitMessage = getCommitPushedMessage({ commitSha, shortSha, commitUrl });
+  const message = `\n\n${cautionSection}${commitMessage}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  if (await updateActivationCommentWithMessage(github, context, core, message, "commit", options)) {
+    recordActivationCommentLink(core, commitMessage, options.activationCommentLinks ?? []);
+  }
 }
 
 /**
@@ -70,6 +91,7 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
  * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
  * @param {string} [options.targetRepo] - Target repo "owner/repo" for fallback comment (cross-repo scenarios)
  * @param {any} [options.targetGithubClient] - Authenticated GitHub client for the target repo (cross-repo scenarios)
+ * @returns {Promise<boolean>} true when the existing activation comment was updated in place
  */
 async function updateActivationCommentWithMessage(github, context, core, message, label = "", options = {}) {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -82,7 +104,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
   // Check if activation comments are disabled entirely
   if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
     core.info("activation-comments is disabled: skipping activation comment update");
-    return;
+    return false;
   }
 
   // Parse comment repo (format: "owner/repo") with validation
@@ -109,7 +131,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
         const discussionNumber = context.payload?.discussion?.number;
         if (!discussionNumber) {
           core.warning("Unable to determine discussion number for append-only comment; skipping");
-          return;
+          return false;
         }
 
         const { repository } = await github.graphql(
@@ -127,7 +149,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
         const discussionId = repository?.discussion?.id;
         if (!discussionId) {
           core.warning("Unable to resolve discussion id for append-only comment; skipping");
-          return;
+          return false;
         }
 
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
@@ -153,14 +175,14 @@ async function updateActivationCommentWithMessage(github, context, core, message
         core.info(successMessage);
         if (created?.id) core.info(`Comment ID: ${created.id}`);
         if (created?.url) core.info(`Comment URL: ${created.url}`);
-        return;
+        return false;
       }
 
       // Issues/PRs: determine issue number from event payload and create a new issue comment
       const issueNumber = context.payload?.issue?.number || context.payload?.pull_request?.number;
       if (!issueNumber) {
         core.warning("Unable to determine issue/PR number for append-only comment; skipping");
-        return;
+        return false;
       }
 
       const sanitizedMessage = sanitizeContent(message);
@@ -178,11 +200,11 @@ async function updateActivationCommentWithMessage(github, context, core, message
       core.info(successMessage);
       if (response?.data?.id) core.info(`Comment ID: ${response.data.id}`);
       if (response?.data?.html_url) core.info(`Comment URL: ${response.data.html_url}`);
-      return;
+      return false;
     } catch (error) {
       // Don't fail the workflow if we can't create the comment - just log a warning
       core.warning(`Failed to create append-only comment: ${getErrorMessage(error)}`);
-      return;
+      return false;
     }
   }
 
@@ -228,7 +250,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
     } else {
       core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
     }
-    return;
+    return false;
   }
 
   core.info(`Updating activation comment ${commentId}`);
@@ -254,7 +276,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
 
       if (!currentComment?.node?.body) {
         core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-        return;
+        return false;
       }
       const currentBody = currentComment.node.body;
       const updatedBody = currentBody + message;
@@ -278,6 +300,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
       core.info(successMessage);
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);
+      return true;
     } else {
       // Get current comment body using REST API
       const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
@@ -291,7 +314,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
 
       if (!currentComment?.data?.body) {
         core.warning("Unable to fetch current comment body, comment may have been deleted");
-        return;
+        return false;
       }
       const currentBody = currentComment.data.body;
       const updatedBody = sanitizeContent(currentBody + message);
@@ -311,11 +334,13 @@ async function updateActivationCommentWithMessage(github, context, core, message
       core.info(successMessage);
       core.info(`Comment ID: ${response.data.id}`);
       core.info(`Comment URL: ${response.data.html_url}`);
+      return true;
     }
   } catch (error) {
     // Don't fail the workflow if we can't update the comment - just log a warning
     core.warning(`Failed to update activation comment: ${getErrorMessage(error)}`);
   }
+  return false;
 }
 
 module.exports = {

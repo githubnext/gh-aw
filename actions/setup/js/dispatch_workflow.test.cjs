@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { main } from "./dispatch_workflow.cjs";
+import { dispatchWorkflow } from "./dispatch_workflow_transport.cjs";
 import { withClaimExecution } from "./work_queue_claim_scope.cjs";
 import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
 import { fakeGitHub } from "./work_queue_store_checks.cjs";
@@ -50,6 +51,27 @@ global.github = {
 };
 
 describe("dispatch_workflow handler factory", () => {
+  it("uses the shared transport with queue retries disabled and privacy-preserving diagnostics", async () => {
+    const secret = "private-assignment-token-and-response";
+    const error = { status: 422, response: { data: { message: `Unexpected inputs provided: ${secret} return_run_details` }, headers: { authorization: secret } } };
+    const post = vi.fn().mockRejectedValue(error);
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      await expect(
+        dispatchWorkflow({ rest: { actions: { createWorkflowDispatch: post } } }, { ref: "refs/tags/pinned", inputs: { work_queue_assignment: secret }, return_run_details: true, headers: { authorization: secret } })
+      ).rejects.toBe(error);
+      expect(post).toHaveBeenCalledTimes(1);
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      expect(output).toContain("input_count=1");
+      expect(output).toContain("http_status=422");
+      expect(output).toContain("unexpected_inputs=true");
+      expect(output).not.toContain(secret);
+      expect(output).not.toContain("pinned");
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.GITHUB_REF = "refs/heads/main";
@@ -64,7 +86,7 @@ describe("dispatch_workflow handler factory", () => {
     const previousGithub = global.github;
     const previousContext = global.context;
     for (const kind of ["github_token", "github_app", "authenticated"]) {
-      for (const mode of ["approved", "wrong-principal", "wrong-client", "missing-binding"]) {
+      for (const mode of ["approved", "rejected", "wrong-principal", "wrong-client", "missing-binding"]) {
         if (kind === "authenticated" && mode === "wrong-client") continue;
         const root = temporaryDirectory("direct-dispatch-credential");
         const fixture = queueFixture({ granted: false, count: 1, workerPrincipal: "22" });
@@ -92,6 +114,7 @@ describe("dispatch_workflow handler factory", () => {
         const dispatchClient = {
           auth: async () => ({ type: "token", token: mode === "wrong-client" ? "different-token" : "protected-selected-token" }),
           rest: {
+            git: fixture.githubClient.rest.git,
             repos: publisher.rest.repos,
             users: { getByUsername: identity, getAuthenticated: identity },
             actions: {
@@ -104,6 +127,7 @@ describe("dispatch_workflow handler factory", () => {
                 expect(dispatch.sender.run_attempt).toBe(2);
                 expect(dispatch.sender.principal).toBe("11");
                 expect(native.log().find(commit => commit.request.kind === "dispatch_next").actor.run_attempt).toBe(1);
+                if (mode === "rejected") throw { status: 422, response: { status: 422, headers: { "x-github-request-id": "provider-rejection" } } };
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
               getWorkflowRun: async () => {
@@ -142,7 +166,14 @@ describe("dispatch_workflow handler factory", () => {
           const message = { type: "work_queue_dispatch_next", intent_id: "direct-credential", pool: "default", max_claims: 1, max_dispatches: 1 };
           const handler = await main(config);
           const result = await handler(message, {});
-          if (mode === "approved") {
+          if (mode === "rejected") {
+            expect(result.success).toBe(false);
+            expect(posts).toBe(1);
+            expect([...replayTransactions(native.log()).dispatches.values()][0]).toMatchObject({ state: "rejected", released: true });
+            expect([...replayTransactions(native.log()).claims.values()][0].state).toBe("cancelled");
+            expect((await handler(message, {})).success).toBe(false);
+            expect(posts).toBe(1);
+          } else if (mode === "approved") {
             expect(result.success, JSON.stringify(result)).toBe(true);
             expect(posts).toBe(1);
             const dispatch = [...replayTransactions(native.log()).dispatches.values()][0];

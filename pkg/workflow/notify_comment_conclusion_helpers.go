@@ -548,6 +548,9 @@ func (c *Compiler) buildConclusionScriptEnvVars(data *WorkflowData, mainJobName 
 	if slices.Contains(safeOutputJobNames, string(constants.SafeOutputsJobName)) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_RESULT: ${{ needs.%s.result }}\n", constants.SafeOutputsJobName))
 		notifyCommentLog.Print("Added safe_outputs job result environment variable to conclusion job")
+		if exportsActivationCommentLinks(data) {
+			envVars = append(envVars, fmt.Sprintf("          GH_AW_ACTIVATION_COMMENT_LINKS: ${{ needs.%s.outputs.activation_comment_links }}\n", constants.SafeOutputsJobName))
+		}
 	}
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))

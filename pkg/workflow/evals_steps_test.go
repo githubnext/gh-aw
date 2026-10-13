@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -10,7 +11,36 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
+	"github.com/goccy/go-yaml"
 )
+
+func TestBuildSetupEvalsStepEscapesQuestionData(t *testing.T) {
+	questions := []EvalDefinition{
+		{ID: `id'"\\;$(touch /tmp/pwned)`, Question: "line one\nline two; `echo unsafe`"},
+	}
+	data := &WorkflowData{Evals: &EvalsConfig{Questions: questions}}
+
+	var steps []struct {
+		Env map[string]string `yaml:"env"`
+	}
+	if err := yaml.Unmarshal([]byte(strings.Join(NewCompiler().buildSetupEvalsStep(data), "")), &steps); err != nil {
+		t.Fatalf("generated evals step should be valid YAML: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected one setup step, got %d", len(steps))
+	}
+
+	var decoded []struct {
+		ID       string `json:"id"`
+		Question string `json:"question"`
+	}
+	if err := json.Unmarshal([]byte(steps[0].Env["GH_AW_EVALS_QUESTIONS"]), &decoded); err != nil {
+		t.Fatalf("evals question environment value should be valid JSON: %v", err)
+	}
+	if len(decoded) != 1 || decoded[0].ID != questions[0].ID || decoded[0].Question != questions[0].Question {
+		t.Fatalf("evals question data changed during serialization: got %#v", decoded)
+	}
+}
 
 func TestDailyAICEvalsAccountingTransport(t *testing.T) {
 	compiler := NewCompiler()

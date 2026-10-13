@@ -733,6 +733,10 @@ func addNamedSafeOutputHandlerOutputs(data *WorkflowData, outputs map[string]str
 		outputs["comment_url"] = "${{ steps.process_safe_outputs.outputs.comment_url }}"
 	}
 
+	if exportsActivationCommentLinks(data) {
+		outputs["activation_comment_links"] = "${{ steps.process_safe_outputs.outputs.activation_comment_links }}"
+	}
+
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		outputs["push_commit_sha"] = "${{ steps.process_safe_outputs.outputs.push_commit_sha }}"
 		outputs["push_commit_url"] = "${{ steps.process_safe_outputs.outputs.push_commit_url }}"
@@ -742,6 +746,14 @@ func addNamedSafeOutputHandlerOutputs(data *WorkflowData, outputs map[string]str
 		outputs["call_workflow_name"] = "${{ steps.process_safe_outputs.outputs.call_workflow_name }}"
 		outputs["call_workflow_payload"] = "${{ steps.process_safe_outputs.outputs.call_workflow_payload }}"
 	}
+}
+
+// exportsActivationCommentLinks reports whether the safe_outputs job may append item links
+// (created pull requests, fallback issues, pushed commits) to the activation comment.
+// Those links are exported so the conclusion job can preserve them when it re-renders
+// the activation comment with the final run status.
+func exportsActivationCommentLinks(data *WorkflowData) bool {
+	return data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil)
 }
 
 // buildSafeOutputsJobFromPartsOptions bundles the inputs required by buildSafeOutputsJobFromParts

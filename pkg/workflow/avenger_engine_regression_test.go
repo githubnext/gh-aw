@@ -1,3 +1,5 @@
+//go:build !integration
+
 package workflow
 
 import (
@@ -10,62 +12,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestAvengerUsesBashCapableEngine guards against a regression where Avenger
-// (.github/workflows/avenger.md) silently loses all tool access, not just
-// shell access.
-//
-// Root cause (see github/gh-aw#66817): the Codex engine unconditionally
-// disables features.shell_tool (and code_mode/code_mode_only) whenever
-// engine.model-provider resolves to "github" (see buildNativeConfig in
-// codex_config.go), regardless of whether tools.bash is enabled. Codex has
-// no MCP-routed fallback for bash (see codexNativeServerDefaults), so a
-// workflow combining engine: codex + model-provider: github + tools.bash
-// ends up with bash declared but entirely non-functional at runtime. A real
-// Avenger run (37994092775) confirmed the agent observed zero available
-// tools and exited cleanly after a single turn — a silent capability gap
-// that was previously misclassified as prompt/token exhaustion.
-//
-// Avenger was switched to engine: copilot, which enforces tools.bash
-// natively via --allow-tool shell and has no such GitHub-provider
-// restriction. This test fails loudly if Avenger's engine ever reverts to
-// codex (or any other engine incapable of enforcing bash) while
-// model-provider resolves to github and tools.bash remains enabled.
-func TestAvengerUsesBashCapableEngine(t *testing.T) {
+// These checkout workflows previously lost shell access with GitHub inference
+// (github/gh-aw#66817, #68434, #68431, #68387).
+func TestCheckoutWorkflowsUseBashCapableEngine(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "runtime.Caller failed")
 	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
-	avengerPath := filepath.Join(repoRoot, ".github", "workflows", "avenger.md")
+	for _, name := range []string{"avenger", "daily-go-test-parallelizer", "purelock", "daily-doc-updater"} {
+		t.Run(name, func(t *testing.T) {
+			content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", name+".md"))
+			require.NoError(t, err)
 
-	content, err := os.ReadFile(avengerPath)
-	require.NoError(t, err, "failed to read avenger.md")
+			result, err := parser.ExtractFrontmatterFromContent(string(content))
+			require.NoError(t, err)
 
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	require.NoError(t, err, "failed to parse avenger.md frontmatter")
+			engineMap, ok := result.Frontmatter["engine"].(map[string]any)
+			require.True(t, ok, "engine must be a mapping")
+			engineID, ok := engineMap["id"].(string)
+			require.True(t, ok, "engine.id must be a string")
+			modelProvider, ok := engineMap["model-provider"].(string)
+			require.True(t, ok, "engine.model-provider must be a string")
+			require.Equal(t, "github", modelProvider, "retain GitHub inference")
 
-	engineRaw, ok := result.Frontmatter["engine"]
-	require.True(t, ok, "avenger.md must declare an engine")
-	engineMap, ok := engineRaw.(map[string]any)
-	require.True(t, ok, "avenger.md engine must be a mapping")
+			toolsMap, ok := result.Frontmatter["tools"].(map[string]any)
+			require.True(t, ok, "tools must be a mapping")
+			_, bashDeclared := toolsMap["bash"]
+			require.True(t, bashDeclared, "checkout workflow must declare tools.bash")
+			require.False(t, isBashExplicitlyRefused(toolsMap), "checkout workflow requires shell access")
 
-	engineID, _ := engineMap["id"].(string)
-	modelProvider, _ := engineMap["model-provider"].(string)
+			engine, err := GetGlobalEngineRegistry().GetEngine(engineID)
+			require.NoError(t, err)
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: engineID, LLMProvider: LLMProviderGitHub}}
+			data.Tools = toolsMap
+			require.True(t, promptShellAvailable(data, "cat", "", engine.GetCapabilities()),
+				"checkout workflow requires shell access")
+			if name != "avenger" {
+				require.Equal(t, "codex", engineID, "retain the Codex engine")
+				config, err := NewCodexEngine().buildNativeConfig(data, nil)
+				require.NoError(t, err)
+				features := config.Defaults["features"].(map[string]any)
+				require.Equal(t, true, features["shell_tool"])
+				require.Equal(t, false, features["code_mode"])
+				require.Equal(t, false, features["code_mode_only"])
 
-	toolsRaw, ok := result.Frontmatter["tools"]
-	require.True(t, ok, "avenger.md must declare tools")
-	toolsMap, ok := toolsRaw.(map[string]any)
-	require.True(t, ok, "avenger.md tools must be a mapping")
-
-	bashEnabled := HasBashExplicitRestriction(toolsMap) == false
-	_, bashDeclared := toolsMap["bash"]
-	require.True(t, bashDeclared, "avenger.md must declare tools.bash")
-
-	if modelProvider == "github" && bashEnabled {
-		engine, err := GetGlobalEngineRegistry().GetEngine(engineID)
-		require.NoError(t, err, "unknown engine id %q", engineID)
-		require.True(t, engine.GetCapabilities().BashCommandAllowlist,
-			"avenger.md uses engine %q with model-provider: github and tools.bash enabled, but this engine "+
-				"does not enforce a bash allowlist natively; for engine 'codex' this silently disables "+
-				"features.shell_tool for GitHub-provider inference (see codex_config.go buildNativeConfig), "+
-				"stripping all tool access despite tools.bash being declared (github/gh-aw#66817)", engineID)
+				lock, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", name+".lock.yml"))
+				require.NoError(t, err)
+				compiled := decodeCodexBootstrap(t, string(lock))
+				compiledFeatures := compiled["features"].(map[string]any)
+				require.Equal(t, true, compiledFeatures["shell_tool"])
+				require.Equal(t, false, compiledFeatures["code_mode"])
+				require.Equal(t, false, compiledFeatures["code_mode_only"])
+			}
+		})
 	}
 }

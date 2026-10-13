@@ -16,7 +16,7 @@ func TestMaintenanceWorkflowJobMetadata(t *testing.T) {
 	generated, err := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule: "37 0 * * *", scheduleDesc: "Daily", runsOnValue: "ubuntu-slim",
 		actionMode: ActionModeDev, version: "dev", defaultBranch: "main",
-		hasCacheMemory: true, compactionLedgers: []LedgerConfig{{Name: "events"}},
+		hasCacheMemory: true, hasSteering: true, compactionLedgers: []LedgerConfig{{Name: "events"}},
 		maintenanceConfig: &MaintenanceConfig{LabelTriggers: &labelTriggers},
 	})
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestMaintenanceWorkflowJobMetadata(t *testing.T) {
 	}
 	for _, job := range []string{
 		"close-expired-discussions", "close-expired-issues", "close-expired-pull-requests",
-		"cleanup-cache-memory", "run_operation", "update_pull_request_branches",
+		"cleanup-stale-steering-issues", "cleanup-cache-memory", "run_operation", "update_pull_request_branches",
 		"apply_safe_outputs", "create_labels", "activity_report", "forecast_report",
 		"close_agentic_workflows_issues", "validate_workflows", "compile-workflows",
 		"secret-validation", "ledger_compaction_plan", "ledger_compaction_apply",
@@ -54,6 +54,11 @@ func TestMaintenanceWorkflowJobMetadata(t *testing.T) {
 	} {
 		require.NotEmpty(t, doc.Jobs[job].Name, "job %s needs a readable name", job)
 	}
+	steeringCleanup := generated[strings.Index(generated, "\n  cleanup-stale-steering-issues:"):]
+	require.Contains(t, steeringCleanup, "github.event_name == 'schedule'")
+	require.Contains(t, steeringCleanup, "actions: read")
+	require.Contains(t, steeringCleanup, "issues: write")
+	require.Contains(t, steeringCleanup, "cleanup_stale_steering_issues.cjs")
 }
 
 func TestMaintenanceWorkflowQuotesCompileGitHubToken(t *testing.T) {
