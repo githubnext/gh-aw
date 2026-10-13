@@ -86,7 +86,7 @@ jobs:
                 per_page: 100,
               });
             } catch (error) {
-              if (![403, 429].includes(error.status) || !/rate limit exceeded/i.test(error.message)) throw error;
+              if (error.status !== 429 && (error.status !== 403 || !/rate limit exceeded|exceeded a secondary rate limit/i.test(error.message))) throw error;
               const message = 'Workflow timing is unavailable because the GitHub Actions API rate limit was exceeded. Build and test results are unchanged; see the individual job logs.';
               core.warning(message);
               fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Workflow timing summary\n\n${message}\n`);

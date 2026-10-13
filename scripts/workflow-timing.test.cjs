@@ -74,9 +74,16 @@ for (const workflow of ["cgo", "CWI", "license-check"]) {
     assert.deepEqual(fixture.warnings, []);
   });
 
-  for (const status of [403, 429]) {
-    test(`${workflow}: reports rate-limit ${status} as unavailable timing, not an empty success table`, async t => {
-      const error = Object.assign(new Error("API rate limit exceeded for installation."), { status });
+  for (const [status, message] of [
+    [403, "API rate limit exceeded for installation."],
+    [429, "API rate limit exceeded for installation."],
+    [403, "You have exceeded a secondary rate limit."],
+    [429, "You have exceeded a secondary rate limit."],
+    [429, "Too Many Requests"],
+    [429, ""],
+  ]) {
+    test(`${workflow}: reports rate-limit ${status}: ${message} as unavailable timing, not an empty success table`, async t => {
+      const error = Object.assign(new Error(message), { status });
       const fixture = harness(t, error);
       await fixture.run();
       assert.equal(fixture.calls.length, 1);
@@ -92,9 +99,12 @@ for (const workflow of ["cgo", "CWI", "license-check"]) {
   for (const [status, message] of [
     [401, "Bad credentials"],
     [403, "Resource not accessible by integration"],
+    [403, "Too Many Requests"],
+    [403, ""],
     [404, "Not Found"],
     [500, "Internal Server Error"],
     [500, "API rate limit exceeded"],
+    [500, "You have exceeded a secondary rate limit."],
   ]) {
     test(`${workflow}: propagates non-quota API error ${status}: ${message}`, async t => {
       const error = Object.assign(new Error(message), { status });
