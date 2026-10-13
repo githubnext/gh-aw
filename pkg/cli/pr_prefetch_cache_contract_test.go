@@ -34,11 +34,13 @@ func TestSharedPRDiffDataFetchValidatesHeadSHAForCacheHit(t *testing.T) {
 	assertSubstringsInOrder(t, text, []string{
 		`CACHE_HEAD_SHA=""`,
 		"fetch_review_comments",
-		"# Skip diff and metadata fetch",
+		"# Skip diff fetch",
 	}, "Shared PR prefetch should refresh review comments before checking cached diff data")
 	assert.NotContains(t, text, `-f /tmp/gh-aw/agent/pr-review-comments.json ]; then`, "Review comments should not control diff cache hits")
 	assert.Contains(t, text, "if ! gh api --paginate", "Shared PR prefetch should reject GitHub API failures")
 	assert.Contains(t, text, "Failed to fetch files for PR #${PR_NUMBER}", "Shared PR prefetch should report GitHub API failures")
+	assert.Contains(t, text, ".headRefOid == $sha and .number == $number and (.files | type == \"array\")", "Shared PR prefetch should validate cached PR identity and file metadata")
+	assert.Contains(t, text, "Failed to refresh metadata for PR #${PR_NUMBER}", "Shared PR prefetch should reject mismatched fresh metadata")
 }
 
 func TestPRDataPrefetchRejectsAPIFailuresBeforeSavingCacheData(t *testing.T) {
@@ -85,10 +87,11 @@ func TestTopReviewWorkflowsHaveHeadAwarePRDataCacheKeys(t *testing.T) {
 		content, readErr := os.ReadFile(workflowPath)
 		require.NoError(t, readErr, "Should read %s", workflow)
 		text := string(content)
-		assert.Contains(t, text, "key: pr-prefetch-${{ github.event.pull_request.head.sha || format('{0}-{1}'", "%s should use the PR head SHA for pull_request runs and a unique slash-command key", workflow)
-		assert.Contains(t, text, "github.run_id", "%s should make slash-command cache keys unique so refreshed data can be saved", workflow)
+		assert.Contains(t, text, "key: pr-prefetch-v2-${{ github.event.pull_request.number || github.event.issue.number", "%s should isolate cache data by PR number", workflow)
+		assert.Contains(t, text, "${{ github.event.pull_request.head.sha || 'unknown' }}-${{ github.run_id }}-${{ github.run_attempt }}", "%s should use revisioned head-aware keys so refreshed data can be saved", workflow)
 		assert.Contains(t, text, "item_type == 'pull_request'", "%s should only use aw_context item_number for pull requests", workflow)
-		assert.Contains(t, text, "pr-prefetch-${{ github.event.pull_request.number || github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request'", "%s should restore cache data with a centralized slash-command fallback", workflow)
+		assert.Contains(t, text, "pr-prefetch-v2-${{ github.event.pull_request.number || github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request'", "%s should restore cache data with a centralized slash-command fallback", workflow)
+		assert.Contains(t, text, "${{ github.event.pull_request.head.sha && format('{0}-', github.event.pull_request.head.sha) || '' }}", "%s should restore the current head prefix, or a PR-scoped prefix for slash commands", workflow)
 	}
 
 	mattWorkflowPath := filepath.Join(repoRoot, ".github", "workflows", "mattpocock-skills-reviewer.md")

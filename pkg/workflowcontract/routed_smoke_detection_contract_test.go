@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	compiledAWFAllowedModelsPattern = regexp.MustCompile(`\\"allowedModels\\":\[([^\]]*)\]`)
-	compiledAWFModelPattern         = regexp.MustCompile(`\\"([^"\\]+)\\"`)
-	detectionAllowedModelsPattern   = regexp.MustCompile(`allowedModels:\s*(\[[^\]]*\])`)
-	detectionModelPattern           = regexp.MustCompile(`detectionModel:\s*"([^"]+)"`)
+	compiledAWFCandidateModelsPattern = regexp.MustCompile(`\\"candidateModels\\":\[([^\]]*)\]`)
+	compiledAWFModelPattern           = regexp.MustCompile(`\\"([^"\\]+)\\"`)
+	detectionAllowedModelsPattern     = regexp.MustCompile(`allowedModels:\s*(\[[^\]]*\])`)
+	detectionModelPattern             = regexp.MustCompile(`detectionModel:\s*"([^"]+)"`)
 )
 
 type lockWorkflow struct {
@@ -35,7 +35,7 @@ type lockWorkflow struct {
 // workflow compiles to. The detection job has no runner-written copy of the
 // agent's routing candidates (it overwrites /tmp/gh-aw/awf-config.json with its
 // own config), so the lists stay explicit and this check keeps them in sync with
-// the compiled agent AWF allowedModels and the compiled detection model.
+// the compiled agent AWF routing.candidateModels and the compiled detection model.
 func TestRoutedSmokeDetectionChecksMatchCompiledRouting(t *testing.T) {
 	t.Parallel()
 
@@ -62,14 +62,14 @@ func TestRoutedSmokeDetectionChecksMatchCompiledRouting(t *testing.T) {
 
 			var compiledAllowed []string
 			for _, step := range workflow.Jobs["agent"].Steps {
-				if match := compiledAWFAllowedModelsPattern.FindStringSubmatch(step.Run); match != nil {
+				if match := compiledAWFCandidateModelsPattern.FindStringSubmatch(step.Run); match != nil {
 					for _, model := range compiledAWFModelPattern.FindAllStringSubmatch(match[1], -1) {
 						compiledAllowed = append(compiledAllowed, servedModelName(model[1]))
 					}
 				}
 			}
 			if len(compiledAllowed) == 0 {
-				t.Fatalf("agent job has no compiled AWF allowedModels to check the detection assertions against")
+				t.Fatalf("agent job has no compiled AWF routing.candidateModels to check the detection assertions against")
 			}
 
 			var detectionScript, compiledDetectionModel string

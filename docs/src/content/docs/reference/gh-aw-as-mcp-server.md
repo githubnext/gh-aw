@@ -7,6 +7,8 @@ sidebar:
 
 The `gh aw mcp-server` command exposes GitHub Agentic Workflows CLI commands as MCP tools, allowing chat systems and workflows to manage agentic workflows programmatically.
 
+Tool options are selected through named MCP parameters, not CLI flags embedded in workflow names, workflow specifications, or run IDs/URLs. Except for the `logs` tool's `workflow_name`, positional values beginning with `-` return an invalid-parameters error before the command executes. The `logs` tool passes workflow names unchanged after a CLI `--` boundary, so names such as `-nightly` remain valid and cannot override options. For a local workflow file whose name begins with `-`, use a relative path such as `./-workflow.md`.
+
 Start the server:
 
 ```bash wrap
@@ -122,6 +124,8 @@ The MCP server exposes these workflow-management tools:
 | `add` | Add workflows from remote repositories to `.github/workflows`. | `workflows`, `number`, `name` | Added workflow files. |
 | `update` | Update sourced workflows and check for gh-aw updates. | `workflows`, `major`, `force` | Updated workflow files and version checks. |
 | `fix` | Apply automatic codemod-style fixes. | `workflows`, `write`, `list_codemods` | Dry-run or written fixes. |
+
+Workflow and run positional parameters must not start with `-`; use the tool's named parameters for options. For a local workflow filename beginning with `-`, supply a path prefixed with `./`. The `add` tool's `name` is a filename without an extension, not a path: `/`, `\`, and `..` are rejected. Workflow destinations must remain within the selected workflow directory, including when existing files are symlinks.
 
 > [!NOTE]
 > The `actionlint`, `zizmor`, and `poutine` scanners used by `compile` prefer compatible local binaries on `PATH` (actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6), falling back to Docker otherwise. Docker-based scanners, including `grant`, pull images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.

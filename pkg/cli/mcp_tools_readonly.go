@@ -136,6 +136,10 @@ Returns JSON array with validation results for each workflow:
 		default:
 		}
 
+		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
+			return nil, nil, err
+		}
+
 		if args.DryRun {
 			var rawArgs map[string]json.RawMessage
 			if err := json.Unmarshal(req.Params.Arguments, &rawArgs); err != nil {
@@ -268,13 +272,12 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--yamllint")
 		}
 
-		cmdArgs = append(cmdArgs, args.Workflows...)
-
 		// Pass the pre-cached manifest file when available so the compiler uses
 		// the tamper-proof manifest baseline captured at server startup.
 		if manifestCacheFile != "" {
 			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
 		}
+		cmdArgs = appendMCPPositionals(cmdArgs, args.Workflows...)
 
 		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
@@ -378,12 +381,12 @@ Returns formatted text output showing:
 		default:
 		}
 
+		if err := validateMCPPositionalArgs("workflow_file", args.WorkflowFile); err != nil {
+			return nil, nil, err
+		}
+
 		// Build command arguments
 		cmdArgs := []string{"mcp", "inspect"}
-
-		if args.WorkflowFile != "" {
-			cmdArgs = append(cmdArgs, args.WorkflowFile)
-		}
 
 		if args.Server != "" {
 			cmdArgs = append(cmdArgs, "--server", args.Server)
@@ -395,6 +398,9 @@ Returns formatted text output showing:
 
 		// Always enable secret checking (will be silently ignored if GitHub token is not available)
 		cmdArgs = append(cmdArgs, "--check-secrets")
+		if args.WorkflowFile != "" {
+			cmdArgs = appendMCPPositionals(cmdArgs, args.WorkflowFile)
+		}
 
 		// Execute the CLI command
 		output, err := runMCPExecCombinedOutput(ctx, execCmd, cmdArgs...)

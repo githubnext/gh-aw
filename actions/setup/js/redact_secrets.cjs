@@ -22,6 +22,36 @@ function isErrnoCode(error, ...codes) {
   return error !== null && typeof error === "object" && "code" in error && typeof error.code === "string" && codes.includes(error.code);
 }
 
+const REDACTION_FILE_ERROR_CODES = new Set(["EACCES", "EPERM", "ENOSPC", "ENOENT", "EBUSY", "EIO", "EROFS", "EMFILE", "ENFILE", "EDQUOT", "EISDIR", "ENOTDIR", "EXDEV"]);
+
+/** @typedef {"read" | "redact" | "write" | "replace" | "unlink"} RedactionStage */
+
+/**
+ * Keep diagnostics independent of exception messages and artifact payloads.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function redactionErrorCode(error) {
+  if (error !== null && typeof error === "object") {
+    const code = Object.getOwnPropertyDescriptor(error, "code")?.value;
+    if (typeof code === "string" && REDACTION_FILE_ERROR_CODES.has(code)) return code;
+  }
+  return "unknown";
+}
+
+class RedactionOperationError extends Error {
+  /**
+   * @param {RedactionStage} stage
+   * @param {unknown} error
+   */
+  constructor(stage, error) {
+    const code = redactionErrorCode(error);
+    super(`Secret redaction failed (stage=${stage}, code=${code})`);
+    this.stage = stage;
+    this.code = code;
+  }
+}
+
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
@@ -297,45 +327,71 @@ function redactStepSummaryContent(content) {
  * @param {boolean} changed
  */
 function writeProcessedFile(filePath, content, changed) {
+  /** @type {RedactionStage} */
+  let stage = "write";
   try {
-    if (changed) {
-      fs.writeFileSync(filePath, content, "utf8");
-    } else {
-      fs.accessSync(filePath, fs.constants.W_OK);
+    try {
+      if (changed) {
+        fs.writeFileSync(filePath, content, "utf8");
+      } else {
+        fs.accessSync(filePath, fs.constants.W_OK);
+      }
+      return;
+    } catch (error) {
+      if (!isErrnoCode(error, "EACCES", "EPERM")) {
+        throw error;
+      }
     }
-    return;
-  } catch (error) {
-    if (!isErrnoCode(error, "EACCES", "EPERM")) {
-      throw error;
-    }
-  }
 
-  // Replacing a file needs a writable parent, not ownership of the old inode.
-  // Keep the temporary copy private and on the same filesystem for atomic rename.
-  let temporaryDir;
-  try {
-    temporaryDir = fs.mkdtempSync(path.join(path.dirname(filePath), ".gh-aw-redact-"));
+    // Replacing a file needs a writable parent, not ownership of the old inode.
+    // Keep the temporary copy private and on the same filesystem for atomic rename.
+    let temporaryDir;
+    try {
+      stage = "replace";
+      temporaryDir = fs.mkdtempSync(path.join(path.dirname(filePath), ".gh-aw-redact-"));
+    } catch (error) {
+      if (!isErrnoCode(error, "EACCES", "EPERM")) {
+        throw error;
+      }
+      // Go module caches make both files and parents read-only. The file owner
+      // can still prepare the inode without changing directory permissions.
+      stage = "write";
+      fs.chmodSync(filePath, 0o600);
+      if (changed) {
+        fs.writeFileSync(filePath, content, "utf8");
+      } else {
+        fs.accessSync(filePath, fs.constants.W_OK);
+      }
+      return;
+    }
+    /** @type {RedactionOperationError | undefined} */
+    let operationDiagnostic;
+    try {
+      const replacement = path.join(temporaryDir, "redacted");
+      stage = "write";
+      fs.writeFileSync(replacement, content, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      stage = "replace";
+      fs.renameSync(replacement, filePath);
+      core.warning(`Replaced non-writable file for secret redaction: ${filePath}`);
+    } catch (error) {
+      operationDiagnostic = error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error);
+      throw operationDiagnostic;
+    } finally {
+      try {
+        fs.rmSync(temporaryDir, { recursive: true, force: true });
+      } catch (error) {
+        const cleanupDiagnostic = new RedactionOperationError("unlink", error);
+        if (operationDiagnostic) {
+          throw new AggregateError([operationDiagnostic, cleanupDiagnostic], "Secret redaction failed");
+        }
+        core.warning(`Failed to remove temporary redaction directory: ${cleanupDiagnostic.message}`);
+      }
+    }
   } catch (error) {
-    if (!isErrnoCode(error, "EACCES", "EPERM")) {
+    if (error instanceof AggregateError && error.errors.every(item => item instanceof RedactionOperationError)) {
       throw error;
     }
-    // Go module caches make both files and parents read-only. The file owner
-    // can still prepare the inode without changing directory permissions.
-    fs.chmodSync(filePath, 0o600);
-    if (changed) {
-      fs.writeFileSync(filePath, content, "utf8");
-    } else {
-      fs.accessSync(filePath, fs.constants.W_OK);
-    }
-    return;
-  }
-  try {
-    const replacement = path.join(temporaryDir, "redacted");
-    fs.writeFileSync(replacement, content, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    fs.renameSync(replacement, filePath);
-    core.warning(`Replaced non-writable file for secret redaction: ${filePath}`);
-  } finally {
-    fs.rmSync(temporaryDir, { recursive: true, force: true });
+    throw error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error);
   }
 }
 
@@ -348,8 +404,11 @@ function writeProcessedFile(filePath, content, changed) {
  * @returns {number} Number of redactions made
  */
 function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false) {
+  /** @type {RedactionStage} */
+  let stage = "read";
   try {
     const content = fs.readFileSync(filePath, "utf8");
+    stage = "redact";
     const encodedResult =
       path.extname(filePath).toLowerCase() === ".html"
         ? redactPiSessionHTML(content, text => {
@@ -371,6 +430,7 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
     totalRedactions += customResult.redactionCount;
 
     if (totalRedactions > 0 || prepareForCustomMasking) {
+      stage = "write";
       writeProcessedFile(filePath, redacted, totalRedactions > 0);
     }
     if (totalRedactions > 0) {
@@ -383,15 +443,18 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
       return 0;
     }
     // Uploads can run with always(); do not leave an unsanitized source behind.
+    const diagnostics = error instanceof AggregateError && error.errors.every(item => item instanceof RedactionOperationError) ? error.errors : [error instanceof RedactionOperationError ? error : new RedactionOperationError(stage, error)];
     try {
       fs.unlinkSync(filePath);
     } catch (cleanupError) {
       if (!isErrnoCode(cleanupError, "ENOENT")) {
-        throw new AggregateError([error, cleanupError], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
+        const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
+        diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
+        core.warning(cleanupDiagnostic.message);
+        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
       }
     }
-    const reason = maskedValues.length || path.extname(filePath).toLowerCase() === ".html" ? "secret redaction failed" : getErrorMessage(error);
-    core.warning(`Failed to process file ${filePath}: ${reason}`);
+    diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
     core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed`);
     return 0;
   }

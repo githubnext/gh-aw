@@ -14,6 +14,8 @@ on:
     - 'actions/setup/sh/**'
     - '.github/workflows/ci.yml'
     - '.github/workflows/cgo.yml'
+    - '.github/workflows/CWI.yml'
+    - '.github/workflows/license-check.yml'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
     - '.github/aw/compat.json'
@@ -32,6 +34,8 @@ on:
     - 'actions/setup/sh/**'
     - '.github/workflows/ci.yml'
     - '.github/workflows/cgo.yml'
+    - '.github/workflows/CWI.yml'
+    - '.github/workflows/license-check.yml'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
     - '.github/aw/compat.json'
@@ -64,6 +68,8 @@ jobs:
         fi
     - name: Verify CGO/CJS workflow purity
       run: bash scripts/check-cgo-cjs-workflow-purity.sh
+    - name: Test workflow timing summaries
+      run: node --test scripts/workflow-timing.test.cjs
     - name: Cache repository checkout
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
       with:
@@ -2887,6 +2893,7 @@ jobs:
     - name: Summarize job and step durations
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
       with:
+        retries: 3
         script: |
           const fs = require('fs');
 
@@ -2913,17 +2920,11 @@ jobs:
               per_page: 100,
             });
           } catch (error) {
-            if (error.status === 403 && error.response?.data?.message?.includes('API rate limit exceeded')) {
-              core.warning('GitHub API rate limit exceeded; workflow timing details are unavailable.');
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
-                '## Workflow timing summary',
-                '',
-                'Timing details are unavailable because the GitHub Actions API rate limit was exceeded.',
-                '',
-              ].join('\n'));
-              return;
-            }
-            throw error;
+            if (error.status !== 429 && (error.status !== 403 || !/rate limit exceeded|exceeded a secondary rate limit/i.test(error.message))) throw error;
+            const message = 'Workflow timing is unavailable because the GitHub Actions API rate limit was exceeded. Build and test results are unchanged; see the individual job logs.';
+            core.warning(message);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Workflow timing summary\n\n${message}\n`);
+            return;
           }
 
           const rows = [];

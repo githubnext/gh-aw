@@ -45,14 +45,14 @@ func TestBuildAWFConfigJSON_SubAgentRoutingPolicy(t *testing.T) {
 	setRoutingCandidateModelsProxyImage(data, "0.28.33")
 	proxy = build()
 	require.Equal(t, []any{"github-copilot/gpt-6-sol"}, proxy["routing"].(map[string]any)["candidateModels"])
-	require.Equal(t, []any{"github-copilot/gpt-6-sol", "github-copilot/claude-haiku-4.5", "github-copilot/*haiku*"}, proxy["allowedModels"])
-	_, warnings := subAgentRequestModels(data, []string{"github-copilot/gpt-6-sol"}, nil, data.ModelPolicyBlocked)
-	require.Equal(t, []string{`sub-agent "blocked" model "gpt-5.4-mini" cannot be admitted by models.allowed or models.blocked (or resolves to no models)`}, warnings)
+	require.NotContains(t, proxy, "allowedModels", "candidates and sub-agent models must not become a request allow list")
+	require.Equal(t, []any{"gpt-5.4-mini"}, proxy["disallowedModels"])
+	warnings := subAgentModelPolicyWarnings(data, nil, data.ModelPolicyBlocked)
+	require.Equal(t, []string{`sub-agent "blocked" model "gpt-5.4-mini" is outside models.allowed or models.blocked (or resolves to no models); AWF will reject its requests`}, warnings)
 
-	allowed, warnings := subAgentRequestModels(data, []string{"github-copilot/gpt-6-sol"},
-		[]string{"gpt-6-sol", "claude-haiku-4.5"}, data.ModelPolicyBlocked)
-	require.Equal(t, []string{"github-copilot/gpt-6-sol", "github-copilot/claude-haiku-4.5"}, allowed)
+	warnings = subAgentModelPolicyWarnings(data, []string{"gpt-6-sol", "claude-haiku-4.5"}, data.ModelPolicyBlocked)
 	require.Len(t, warnings, 1)
+	require.Contains(t, warnings[0], `sub-agent "blocked"`)
 
 	setRoutingCandidateModelsProxyImage(data, "0.28.31")
 	proxy = build()
@@ -161,9 +161,8 @@ Work.
 	})
 	require.NoError(t, err)
 	require.Contains(t, configJSON, `"candidateModels":["github-copilot/gpt-6-sol"]`)
-	require.Contains(t, configJSON, `"github-copilot/gpt-5.6-luna"`)
-	require.Contains(t, configJSON, `"github-copilot/claude-sonnet-4.6"`)
-	require.NotContains(t, configJSON, `"github-copilot/gpt-5.4-mini"`)
+	require.NotContains(t, configJSON, `"allowedModels"`)
+	require.Contains(t, configJSON, `"disallowedModels":["gpt-5.4-mini"]`)
 }
 
 func TestModelRoutingCandidateExpressionsAndImportedCandidates(t *testing.T) {

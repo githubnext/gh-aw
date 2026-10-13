@@ -2,7 +2,9 @@
 /// <reference types="@actions/github-script" />
 
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
+const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 const WIP_TITLE_MARKER = "[WIP] ";
 const MAX_ISSUE_TITLE_LENGTH = 256;
@@ -10,13 +12,23 @@ const MAX_STEERING_TITLE_BODY_LENGTH = MAX_ISSUE_TITLE_LENGTH - WIP_TITLE_MARKER
 
 async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || context.workflow || "Agentic workflow";
-  const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
   const coreTitle = sanitizeTitle(`${workflowName}: work in progress`, "", MAX_STEERING_TITLE_BODY_LENGTH);
   const title = `${WIP_TITLE_MARKER}${coreTitle}`;
-  const body = renderTemplateFromFile(getPromptPath("steering_issue_body.md"), {
+  const steeringBody = renderTemplateFromFile(getPromptPath("steering_issue_body.md"), {
     run_url: runUrl,
     workflow_name: workflowName,
   }).trimEnd();
+  const footer = buildGeneratedFooter({
+    workflowName,
+    runUrl,
+    workflowSource: process.env.GH_AW_WORKFLOW_SOURCE || "",
+    workflowSourceURL: process.env.GH_AW_WORKFLOW_SOURCE_URL || "",
+    triggeringIssueNumber: context.payload?.issue?.number,
+    triggeringPRNumber: context.payload?.pull_request?.number,
+    triggeringDiscussionNumber: context.payload?.discussion?.number,
+  });
+  const body = `${steeringBody}\n\n${footer}`;
 
   const { data: issue } = await github.rest.issues.create({
     owner: context.repo.owner,
