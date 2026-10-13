@@ -472,6 +472,18 @@ describe("handle_agent_failure", () => {
       await expect(getFailedAgentDiagnostics()).resolves.toEqual({ failingStep: "", attributionUnavailable: "The Actions jobs API returned no agent job." });
     });
 
+    it("distinguishes a confirmed zero-job run from unavailable metadata", async () => {
+      global.github = { paginate: vi.fn().mockResolvedValue([]), rest: { actions: { listJobsForWorkflowRun: vi.fn() } } };
+      await expect(getFailedAgentDiagnostics()).resolves.toMatchObject({ hasNoJobs: true });
+      expect(global.core.warning).not.toHaveBeenCalled();
+    });
+
+    it("does not treat invalid job metadata as a zero-job run", async () => {
+      global.github = { paginate: vi.fn().mockResolvedValue(null), rest: { actions: { listJobsForWorkflowRun: vi.fn() } } };
+      await expect(getFailedAgentDiagnostics()).resolves.toEqual({ failingStep: "", attributionUnavailable: "The Actions jobs API returned invalid job metadata." });
+      expect(global.core.warning).toHaveBeenCalledWith("The Actions jobs API returned invalid job metadata.");
+    });
+
     it("explains when the agent job has no failed steps", async () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue([{ name: "agent", conclusion: "failure", steps: [{ name: "Run agent", conclusion: "success" }] }]),
@@ -537,6 +549,26 @@ describe("handle_agent_failure", () => {
       expect(rendered).not.toContain("agent-generated root cause");
       expect(rendered).not.toContain("log excerpt");
       expect(rendered).toContain("The runtime did not record a specific cause.");
+    });
+
+    it("includes the first failing startup step for a recorded not_started agent", async () => {
+      mockFailedStepLog("private startup error");
+      global.github.paginate.mockResolvedValue([
+        {
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Start MCP gateway", conclusion: "failure" },
+            { name: "Run agent", conclusion: "skipped" },
+            { name: "Post Run agent", conclusion: "failure" },
+          ],
+        },
+      ]);
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure", "report_incomplete"], engineFailureContext: "" });
+      expect(rendered).toContain("Failing step:** `Start MCP gateway`");
+      expect(rendered).not.toContain("private startup error");
+      expect(global.github.request).not.toHaveBeenCalled();
     });
 
     it("uses dependency results as the job fallback when the jobs API returns nothing", async () => {
@@ -788,6 +820,7 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
       ["engine_driver_failure", "[aw] Test Workflow engine driver failed before emitting a terminal safe output"],
       ["safeoutputs_cli_error", "[aw] Test Workflow failed to invoke safeoutputs CLI"],
       ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
@@ -797,6 +830,7 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
       ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
@@ -1407,7 +1441,7 @@ describe("handle_agent_failure", () => {
           pulls: { get: vi.fn() },
           actions: { listJobsForWorkflowRun: vi.fn() },
         },
-        paginate: vi.fn(async () => []),
+        paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [] }]),
         graphql: vi.fn(),
       };
       try {
@@ -1776,7 +1810,7 @@ describe("handle_agent_failure", () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue(
           missingJobs
-            ? []
+            ? [{ name: "activation", conclusion: "failure", steps: [] }]
             : [
                 {
                   id: 456,
@@ -1823,7 +1857,7 @@ describe("handle_agent_failure", () => {
       expect(body).not.toContain("infrastructure_error");
       if (missingJobs) {
         expect(body).toContain("**Failing step:** Unavailable");
-        expect(body).toContain("The Actions jobs API returned no jobs for this run.");
+        expect(body).toContain("The Actions jobs API returned no agent job.");
         expect(body).toContain("**Agent job conclusion:** `failure` (from workflow dependency results)");
         expect(global.github.request).not.toHaveBeenCalled();
       } else {
@@ -6544,6 +6578,8 @@ describe("handle_agent_failure", () => {
     let promptsDir;
 
     beforeEach(() => {
+      vi.stubEnv("GITHUB_RUN_ID", "12345");
+      vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
       vi.resetModules();
       for (const key of Object.keys(process.env)) {
         if (key.startsWith("GH_AW_")) {
@@ -6568,6 +6604,7 @@ describe("handle_agent_failure", () => {
     });
 
     afterEach(() => {
+      vi.unstubAllEnvs();
       delete process.env.RUNNER_TEMP;
       delete process.env.GH_AW_WORKFLOW_NAME;
       delete process.env.GH_AW_WORKFLOW_ID;
@@ -6612,15 +6649,32 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
+      ["agent_startup_failure", "failed before agent execution started"],
       ["engine_driver_failure", "engine driver failed before emitting a terminal safe output"],
       ["safeoutputs_cli_error", "failed to invoke safeoutputs CLI"],
     ])("creates a distinct failure issue for %s", async (reason, titleSuffix) => {
       fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason }], collectorEmptyOutputCause: reason }));
+      fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
+      if (reason === "agent_startup_failure") {
+        fs.writeFileSync(path.join(tmpDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 12345, run_attempt: 1, state: "not_started" }));
+      }
       const createIssueMock = vi.fn(async () => {
         throw new Error("stop after capturing issue");
       });
       global.github = {
+        paginate: vi.fn(async () => [
+          {
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              { name: "Start MCP Gateway", conclusion: "failure" },
+              { name: "Run agent", conclusion: "skipped" },
+              { name: "Post Run agent", conclusion: "failure" },
+            ],
+          },
+        ]),
         rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
           search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
           issues: { create: createIssueMock },
           pulls: { get: vi.fn() },
@@ -6633,9 +6687,66 @@ describe("handle_agent_failure", () => {
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain(reason);
       expect(categories).not.toContain("agent_failure");
+      if (reason === "agent_startup_failure") {
+        const body = createIssueMock.mock.calls[0][0].body;
+        expect(body).toContain("Agent execution state: not_started");
+        expect(body).toContain("Failing step:** `Start MCP Gateway`");
+        expect(body).not.toContain("Failing step:** `Post Run agent`");
+        expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
+        expect(body).not.toContain("copilot-requests:write");
+      } else if (reason === "engine_driver_failure") {
+        const body = createIssueMock.mock.calls[0][0].body;
+        expect(body).toContain("Failing step:** `Post Run agent`");
+        expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
+      }
     });
 
-    it.each(["engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"])("does not trust agent-authored %s as collector evidence", async reason => {
+    it.each(["generic", "collector", "agent-reported"])("does not create or update any failure issue for a confirmed zero-job run with %s evidence", async evidence => {
+      process.env.GH_AW_GROUP_REPORTS = "true";
+      const items = evidence === "generic" ? [] : [{ type: "report_incomplete", reason: evidence === "collector" ? "agent_startup_failure" : "infrastructure_error" }];
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items, ...(evidence === "collector" ? { collectorEmptyOutputCause: "agent_startup_failure", collectorFailureCause: "agent_startup_failure" } : {}) }));
+      const create = vi.fn();
+      const createComment = vi.fn();
+      const update = vi.fn();
+      const search = vi.fn().mockResolvedValue({ data: { total_count: 0, items: [] } });
+      global.github = {
+        paginate: vi.fn().mockResolvedValue([]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: search },
+          issues: { create, createComment, update },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).not.toHaveBeenCalled();
+      expect(createComment).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(search).not.toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("is:issue") }));
+      expect(global.core.info).toHaveBeenCalledWith("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
+    });
+
+    it.each(["denied", "invalid", "activation-only"])("does not suppress failure reporting for %s job metadata", async evidence => {
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [] }));
+      const create = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        paginate:
+          evidence === "denied" ? vi.fn().mockRejectedValue(Object.assign(new Error("denied"), { status: 403 })) : vi.fn().mockResolvedValue(evidence === "invalid" ? null : [{ name: "activation", conclusion: "failure", steps: [] }]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).toHaveBeenCalledOnce();
+      expect(global.core.info).not.toHaveBeenCalledWith("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
+    });
+
+    it.each(["agent_startup_failure", "engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"])("does not trust agent-authored %s as collector evidence", async reason => {
       fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason }] }));
       const createIssueMock = vi.fn(async () => {
         throw new Error("stop after capturing issue");
@@ -6654,6 +6765,46 @@ describe("handle_agent_failure", () => {
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain("report_incomplete");
       expect(categories).not.toContain(reason);
+    });
+
+    it("keeps last-failed-step diagnostics for an agent-authored startup reason without collector evidence", async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "report_incomplete", reason: "agent_startup_failure" },
+            { type: "report_incomplete", reason: "infrastructure_error" },
+          ],
+        })
+      );
+      fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
+      const create = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        paginate: vi.fn().mockResolvedValue([
+          {
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              { name: "Start MCP Gateway", conclusion: "failure" },
+              { name: "Run agent", conclusion: "skipped" },
+              { name: "Post Run agent", conclusion: "failure" },
+            ],
+          },
+        ]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      const body = create.mock.calls[0][0].body;
+      expect(body).toContain("Failing step:** `Post Run agent`");
+      expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
     });
 
     it("keeps the step failed when failure issue creation fails after a successful agent reports incomplete", async () => {
@@ -7453,7 +7604,7 @@ describe("handle_agent_failure", () => {
       expect(categories).toContain("report_incomplete");
     });
 
-    it.each(["engine_driver_failure", "safeoutputs_cli_error", "missing_terminal_safe_output", "invalid_safe_outputs"])("keeps %s distinct for failure issue deduplication", emptyOutputCause => {
+    it.each(["agent_startup_failure", "engine_driver_failure", "safeoutputs_cli_error", "missing_terminal_safe_output", "invalid_safe_outputs"])("keeps %s distinct for failure issue deduplication", emptyOutputCause => {
       const categories = buildFailureMatchCategories({ agentConclusion: "failure", hasReportIncomplete: true, emptyOutputCause });
       expect(categories).toContain(emptyOutputCause);
       expect(categories).not.toContain("agent_failure");
