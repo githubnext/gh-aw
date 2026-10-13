@@ -520,6 +520,217 @@ describe("smoke_model_routing_assertions", () => {
     });
   });
 
+  // Steering: redacted copies of the agent-phase records from sandbox run
+  // 38174216426 (AWF v0.28.51, gpt-5.6-sol, max-ai-credits 30). The totals
+  // before each notice (24.0052, 27.00336, 29.16304) and the final total
+  // (30.1812) are the run's; per-response values between them are redacted.
+  // Request IDs and token counts are replaced.
+  describe("AI-credit steering (run 38174216426 record shapes)", () => {
+    const SOL = "gpt-5.6-sol";
+    const ROUTING_LOG = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
+    // [ai_credits_this_response, ai_credits_total, steering]
+    const RUN_CREDITS = [
+      [0.06512, 0.06512],
+      [6.81204, 6.87716],
+      [4.10377, 10.98093],
+      [3.88214, 14.86307],
+      [4.95021, 19.81328],
+      [4.19192, 24.0052],
+      [1.40917, 25.41437, { type: "ai_credit", threshold: 80 }],
+      [1.58899, 27.00336],
+      [0.93158, 27.93494, { type: "ai_credit", threshold: 90 }],
+      [0.71262, 28.64756],
+      [0.51548, 29.16304],
+      [1.01816, 30.1812, { type: "ai_credit", threshold: 95 }],
+    ];
+    const tokenRecord = ([thisResponse, total, steering], index) => ({
+      _schema: "token-usage/v0.28.51",
+      timestamp: `2026-10-12T09:${String(10 + index).padStart(2, "0")}:00.000Z`,
+      event: "token_usage",
+      request_id: `run-38174216426-req-${index + 1}`,
+      ...(index === 0 ? { purpose: "routing_classification" } : {}),
+      provider: "copilot",
+      model: SOL,
+      path: "/responses",
+      status: 200,
+      streaming: index !== 0,
+      x_initiator: index === 1 ? "user" : "agent",
+      input_tokens: 1000,
+      output_tokens: 100,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      ai_credits_this_response: thisResponse,
+      ai_credits_total: total,
+      ...(steering ? { steering } : {}),
+    });
+    const sessionUsage = (record, index) => ({
+      type: "firewall.token_usage",
+      timestamp: record.timestamp,
+      data: {
+        provider: record.provider,
+        model: record.model,
+        ...(record.purpose ? { purpose: record.purpose } : {}),
+        path: record.path,
+        requestId: record.request_id,
+        status: record.status,
+        aic: record.ai_credits_this_response,
+        totalAic: record.ai_credits_total,
+        ...(record.steering ? { steering: record.steering } : {}),
+      },
+      provenance: { component: "firewall", phase: "agent", path: TOKEN_USAGE, index },
+    });
+    const budgetFailureRecord = { _schema: "model-routing/v0.28.51", timestamp: "2026-10-12T09:22:00.000Z", event: "model_routing", stage: "failure", phase: "primary", code: "ai_credits_limit_exceeded" };
+    const budgetFailureEvent = {
+      type: "firewall.model_routing",
+      data: { schema: "model-routing/v0.28.51", stage: "failure", code: "ai_credits_limit_exceeded" },
+      provenance: { component: "firewall", phase: "agent", path: ROUTING_LOG, index: 3 },
+    };
+    const copilotSubagent = (agentName, toolCallId) => ({
+      type: "subagent.started",
+      agentId: toolCallId,
+      data: { toolCallId, agentName, agentDisplayName: agentName },
+      provenance: { component: "agent", phase: "agent", path: "sandbox/agent/logs/copilot-session-state/events.jsonl", index: 0 },
+    });
+
+    /** Write steering evidence; `credits` defaults to the run's first 11 records (the agent stopped before 95%). */
+    function steeringFixture({ credits = RUN_CREDITS.slice(0, 11), status = "selected", subagents = [], failure = false, sessionRecords } = {}) {
+      const requests = credits.map(tokenRecord);
+      const session = [workflowInfo(status, SOL), selection(SOL), ...(sessionRecords ?? requests).map(sessionUsage), ...subagents, ...(failure ? [budgetFailureEvent] : [])];
+      write("usage/aw_session.jsonl", session);
+      write(TOKEN_USAGE, requests);
+      write(ROUTING_LOG, [{ _schema: "model-routing/v0.28.51", event: "model_routing", stage: "selection", selected_model: `github-copilot/${SOL}`, wire_model: SOL, endpoint: "/responses" }, ...(failure ? [budgetFailureRecord] : [])]);
+      return requests;
+    }
+    const steeringCheck = (overrides = {}) => check({ engine: "copilot", allowedModels: [SOL], executionOutcome: "success", steering: { maxAiCredits: 30 }, ...overrides });
+    const lineFor = (lines, id) => lines.find(line => line.split(" ")[1] === id);
+
+    it("passes T1–T4 when the main agent received the 80% notice and stopped under budget", () => {
+      steeringFixture();
+      const { passes, failures } = steeringCheck();
+      expect(failures).toEqual([]);
+      expect(checkIds(passes)).toEqual(["E2", "E1", "R1", "R2", "R3", "R4", "T1", "T2", "T3", "T4"]);
+      expect(lineFor(passes, "T1")).toBe("PASS T1 main agent received ai_credit@80 request=run-38174216426-req-7 status=200 total_before=24.0052 total_after=25.41437; session event matches; no sub-agents");
+      expect(lineFor(passes, "T3")).toBe("PASS T3 final ai_credits_total 29.16304 is below the budget 30; no budget rejection; agent execution succeeded");
+      expect(lineFor(passes, "T4")).toBe("PASS T4 all 6 existing check(s) passed");
+    });
+
+    it("reports the real run's failures: sub-agent notices, budget overshoot and rejection", () => {
+      const subagents = [copilotSubagent("task", "call_task"), copilotSubagent("research", "call_research")];
+      steeringFixture({ credits: RUN_CREDITS, status: "rejected", subagents, failure: true });
+      const { passes, failures } = steeringCheck({ executionOutcome: "failure" });
+      expect(checkIds(failures)).toEqual(["E1", "R1", "T1", "T3", "T4"]);
+      expect(lineFor(failures, "T1")).toMatch(
+        /^FAIL T1 2 subagent\.started event\(s\), so a notice may have gone to a sub-agent: subagent\.started\(agentName=task\), subagent\.started\(agentName=research\); observed token-usage notices: ai_credit@80 /
+      );
+      expect(lineFor(passes, "T2")).toMatch(/^PASS T2 3 notice\(s\), each once and at or above its threshold of 30: /);
+      expect(lineFor(failures, "T3")).toBe(
+        "FAIL T3 final ai_credits_total 30.1812 is at or above the budget 30; 1 ai_credits_limit_exceeded failure record(s) in model-routing.jsonl; 1 ai_credits_limit_exceeded firewall.model_routing failure event(s) in the session; agent execution outcome is failure, expected success"
+      );
+      expect(lineFor(failures, "T4")).toBe("FAIL T4 existing check(s) failed: E1, R1");
+    });
+
+    it("fails T1 and T2 when no record carries steering", () => {
+      steeringFixture({ credits: RUN_CREDITS.slice(0, 11).map(([thisResponse, total]) => [thisResponse, total]) });
+      const { failures } = steeringCheck();
+      expect(checkIds(failures)).toEqual(["T1", "T2"]);
+      expect(lineFor(failures, "T1")).toBe("FAIL T1 no ai_credit@80 notice in token-usage.jsonl; observed token-usage notices: none; observed session notices: none");
+      expect(lineFor(failures, "T2")).toBe("FAIL T2 no steering notices to check; observed notices: none");
+    });
+
+    it("fails T1 when the session event's request ID differs from the token-usage record", () => {
+      const requests = RUN_CREDITS.slice(0, 11).map(tokenRecord);
+      requests[6] = { ...requests[6], request_id: "other-request" };
+      steeringFixture({ sessionRecords: requests });
+      const { failures } = steeringCheck();
+      expect(checkIds(failures)).toEqual(["T1"]);
+      expect(failures[0]).toMatch(
+        /^FAIL T1 no session firewall\.token_usage event for notice ai_credit@80 request=run-38174216426-req-7; session notice\(s\) with no matching token-usage\.jsonl record: ai_credit@80 request=other-request; observed token-usage notices: /
+      );
+    });
+
+    it("fails T1 when the session event carries a different notice", () => {
+      const requests = RUN_CREDITS.slice(0, 11).map(tokenRecord);
+      requests[6] = { ...requests[6], steering: { type: "ai_credit", threshold: 90 } };
+      steeringFixture({ sessionRecords: requests });
+      expect(lineFor(steeringCheck().failures, "T1")).toMatch(/^FAIL T1 session event for request=run-38174216426-req-7 carries steering ai_credit@90, expected ai_credit@80;/);
+    });
+
+    it("fails T1 when a session notice shares a request ID but has different steering", () => {
+      const requests = RUN_CREDITS.slice(0, 11).map(tokenRecord);
+      steeringFixture({
+        sessionRecords: [...requests, { ...requests[6], steering: { type: "ai_credit", threshold: 90 } }],
+      });
+      expect(lineFor(steeringCheck().failures, "T1")).toMatch(/^FAIL T1 session notice\(s\) with no matching token-usage\.jsonl record: ai_credit@90 request=run-38174216426-req-7; observed token-usage notices: /);
+    });
+
+    it("fails T1 when the 80% notice was only on a rejected request", () => {
+      const credits = RUN_CREDITS.slice(0, 11);
+      steeringFixture({ credits });
+      const requests = credits.map(tokenRecord);
+      requests[6] = { ...requests[6], status: 403 };
+      write(TOKEN_USAGE, requests);
+      expect(lineFor(steeringCheck().failures, "T1")).toMatch(/^FAIL T1 ai_credit@80 notice only on non-200 response\(s\), so it never reached the model;/);
+    });
+
+    it("fails T2 when a threshold repeats", () => {
+      const credits = RUN_CREDITS.slice(0, 11).map(entry => [...entry]);
+      credits[10][2] = { type: "ai_credit", threshold: 80 };
+      steeringFixture({ credits });
+      const { failures } = steeringCheck();
+      expect(checkIds(failures)).toEqual(["T2"]);
+      expect(failures[0]).toMatch(/^FAIL T2 repeated notice\(s\): ai_credit@80 x2; observed notices: /);
+    });
+
+    it("passes T2 when the 90% notice arrives before the 80% notice", () => {
+      // One response crossed both 80 and 90: AWF sends the higher threshold first.
+      const credits = RUN_CREDITS.slice(0, 11).map(([thisResponse, total]) => [thisResponse, total]);
+      credits[8][2] = { type: "ai_credit", threshold: 90 };
+      credits[9][2] = { type: "ai_credit", threshold: 80 };
+      steeringFixture({ credits });
+      const { passes, failures } = steeringCheck();
+      expect(failures).toEqual([]);
+      expect(lineFor(passes, "T2")).toBe(
+        "PASS T2 2 notice(s), each once and at or above its threshold of 30: ai_credit@90 request=run-38174216426-req-9 status=200 total_before=27.00336 total_after=27.93494, ai_credit@80 request=run-38174216426-req-10 status=200 total_before=27.93494 total_after=28.64756"
+      );
+    });
+
+    it("fails T2 for an early notice and an unknown threshold", () => {
+      const credits = RUN_CREDITS.slice(0, 11).map(entry => [...entry]);
+      credits[5][2] = { type: "ai_credit", threshold: 85 };
+      credits[8][2] = { type: "ai_credit", threshold: 95 };
+      steeringFixture({ credits });
+      const t2 = lineFor(steeringCheck().failures, "T2");
+      expect(t2).toContain("threshold(s) outside [80, 90, 95, 99]: ai_credit@85");
+      expect(t2).toContain("early notice ai_credit@95 request=run-38174216426-req-9 status=200 total_before=27.00336 total_after=27.93494: total before the request is below 95% of 30 (28.5)");
+    });
+
+    it("fails T3 when the final total reaches the budget, as in the real run (30.1812 of 30)", () => {
+      steeringFixture({ credits: RUN_CREDITS });
+      const { failures } = steeringCheck();
+      expect(failures).toEqual(["FAIL T3 final ai_credits_total 30.1812 is at or above the budget 30"]);
+    });
+
+    it("fails T3 when an ai_credits_limit_exceeded failure is recorded", () => {
+      steeringFixture({ failure: true });
+      expect(steeringCheck().failures).toEqual(["FAIL T3 1 ai_credits_limit_exceeded failure record(s) in model-routing.jsonl; 1 ai_credits_limit_exceeded firewall.model_routing failure event(s) in the session"]);
+    });
+
+    it("fails T2 and T3 when the budget is not a positive integer", () => {
+      steeringFixture();
+      const { failures } = steeringCheck({ steering: { maxAiCredits: -1 } });
+      expect(checkIds(failures)).toEqual(["T2", "T3"]);
+      expect(lineFor(failures, "T3")).toBe("FAIL T3 steering.maxAiCredits must be an integer of 1 or more, got -1");
+    });
+
+    it("does not read model-routing.jsonl or add T checks when steering is not configured", () => {
+      steeringFixture({ failure: true });
+      write(ROUTING_LOG, "{not json\n");
+      const { passes, failures } = check({ engine: "copilot", allowedModels: [SOL] });
+      expect(failures).toEqual([]);
+      expect(checkIds(passes)).toEqual(["E2", "R1", "R2", "R3", "R4"]);
+    });
+  });
+
   // Copilot CLI routed to Claude: real records from
   // pkg/cli/testdata/model_routing_golden/legacy-no-session-routing (run 37505153056,
   // Copilot CLI 1.0.90, mode auto, claude-opus-5:xhigh selected). That run predates

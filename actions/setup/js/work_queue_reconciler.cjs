@@ -7,7 +7,7 @@ const { canonical, digest, integer } = require("./work_queue_codec.cjs");
 const { dispatchPrincipal } = require("./work_queue_policy.cjs");
 const { assignmentForDispatch } = require("./work_queue_replay.cjs");
 const { loadQueue, publishOperations, validateStoredAssignment, expectedWorkerRun, bindingForRun } = require("./work_queue_binding.cjs");
-const { API_VERSION, nativeId, hasDispatchToken, authenticatePublisher, fetchNativeRunAttempt, validateNativeRun } = require("./work_queue_native.cjs");
+const { API_VERSION, nativeId, nativeAttempt, hasDispatchToken, authenticatePublisher, fetchNativeRunAttempt, validateNativeRun } = require("./work_queue_native.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 function lifecycleEvidence(assignment, profile, repository, kind, source, checkedAt, details = {}) {
@@ -117,7 +117,25 @@ async function reconcileDispatch(options) {
   const { assignment, dispatch, profile } = validateStoredAssignment(initial.projection, options.assignment, { allowReleased: true });
   log.debug("dispatch.reconcile.checked", { released: dispatch.released, reserved: dispatch.state === "reserved", bound: !!dispatch.run });
   if (dispatch.released) return { state: "released", released: true };
-  if (dispatch.state === "reserved") return { state: "reserved", released: false };
+  if (dispatch.state === "reserved") {
+    const origin = initial.projection.requests.get(dispatch.request_id)?.actor;
+    if (!origin?.workflow || !origin.run_id || !origin.run_attempt) return { state: "reserved", released: false };
+    const repository = `${options.context.repo.owner}/${options.context.repo.repo}`;
+    if (origin.repository.toLowerCase() !== repository.toLowerCase()) throw new Error("work_queue_dispatch_origin_mismatch");
+    const run = await fetchNativeRunAttempt(options.githubClient, repository, origin.run_id, origin.run_attempt);
+    if (
+      nativeId(run.id) !== origin.run_id ||
+      nativeAttempt(run.run_attempt) !== origin.run_attempt ||
+      run.path?.split("@")[0] !== origin.workflow ||
+      nativeId(run.actor?.id) !== origin.principal ||
+      (options.context.payload?.repository?.id !== undefined && nativeId(run.repository.id) !== nativeId(options.context.payload.repository.id))
+    )
+      throw new Error("work_queue_dispatch_origin_mismatch");
+    if (run.status !== "completed" || typeof run.conclusion !== "string" || !run.conclusion) return { state: "reserved", released: false };
+    // The original publisher has ended; a fresh ledger check must still prove
+    // no start marker won the race before trusted prelaunch cancellation.
+    return cancelBeforeLaunch(options);
+  }
   const trustedContext = await authenticatePublisher({ ...options, role: "reconciler" });
   const repository = trustedContext.repository;
   const expected = expectedWorkerRun(assignment, profile, options.context, repository, dispatchPrincipal(dispatch));
@@ -222,7 +240,7 @@ async function cancelBeforeLaunch(options) {
 
 function reconciliationCandidates(projection, pool, limit, runNumber) {
   const candidates = [...projection.dispatches.values()]
-    .filter(dispatch => !dispatch.released && dispatch.state !== "reserved" && (pool === undefined || dispatch.pool === pool))
+    .filter(dispatch => !dispatch.released && (pool === undefined || dispatch.pool === pool))
     .sort((left, right) => {
       const runPriority = Number(!!right.run) - Number(!!left.run);
       if (runPriority !== 0) return runPriority;
@@ -245,7 +263,7 @@ async function reconcileQueue(options) {
   for (const dispatch of candidates) {
     const assignment = assignmentForDispatch(latest.projection, dispatch.dispatch_id);
     try {
-      if (typeof options.verifyEffects === "function") await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
+      if (dispatch.state !== "reserved" && typeof options.verifyEffects === "function") await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
       results.push({ dispatch_id: dispatch.dispatch_id, ...(await reconcileDispatch({ ...options, assignment })) });
     } catch (error) {
       log.failure("queue.reconcile.dispatch_failed", error);

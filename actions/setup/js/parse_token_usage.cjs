@@ -56,7 +56,12 @@ function readJSONIfExists(filePath) {
 function readModelRoutingRecord(ghAwDir) {
   const paths = ["sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl", "sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl", "sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl"];
   /** @type {any|null} */
-  let result = null;
+  let selection = null;
+  /** @type {any|null} */
+  let failureAfterSelection = null;
+  /** @type {any|null} */
+  let lastFailure = null;
+  const seenOutcomeRecords = new Set();
   const requestRecords = [];
   for (const relativePath of paths) {
     let lines;
@@ -65,18 +70,31 @@ function readModelRoutingRecord(ghAwDir) {
     } catch {
       continue;
     }
+    const previousPathRecords = new Set(seenOutcomeRecords);
     for (const line of lines) {
       try {
         const record = JSON.parse(line);
         if (typeof record?._schema !== "string" || !record._schema.startsWith("model-routing/")) continue;
-        if (record.stage === "selection" || record.stage === "failure") result = record;
-        else if (record.stage === "request") requestRecords.push(record);
+        if (record.stage === "selection" || record.stage === "failure") {
+          // Suppress mirrored copies from earlier paths, not repeated records within this log.
+          const key = JSON.stringify(record);
+          if (previousPathRecords.has(key)) continue;
+          seenOutcomeRecords.add(key);
+          if (record.stage === "selection") {
+            selection = record;
+            failureAfterSelection = null;
+          } else {
+            lastFailure = record;
+            if (selection) failureAfterSelection = record;
+          }
+        } else if (record.stage === "request") requestRecords.push(record);
       } catch {
         // Skip incomplete proxy records.
       }
     }
   }
-  return result || requestRecords.length ? { record: result, requestRecords } : null;
+  const result = selection || lastFailure;
+  return result || requestRecords.length ? { record: result, failure: selection ? failureAfterSelection : null, requestRecords } : null;
 }
 
 function getModelRoutingRequestModel(record) {
@@ -101,6 +119,7 @@ function resolveModelRoutingOutcome(env = process.env, ghAwDir = env.GH_AW_TMP_D
   if (env.GH_AW_MODEL_ROUTING_ENABLED !== "true") return null;
   const proxyRecords = readModelRoutingRecord(ghAwDir);
   const record = proxyRecords?.record;
+  const proxyFailure = proxyRecords?.failure;
   const requestRecords = proxyRecords?.requestRecords || [];
   const reflectData = readJSONIfExists(path.join(ghAwDir, "agent", "awf-reflect.json"));
   const advisory = readJSONIfExists(path.join(ghAwDir, "agent", "awf-routing-outcome.json"));
@@ -199,6 +218,10 @@ function resolveModelRoutingOutcome(env = process.env, ghAwDir = env.GH_AW_TMP_D
     } else if (mapped.effort && mapped.effort !== routing.effort) {
       routing.applied_effort = mapped.effort;
     }
+  }
+  if (record?.stage === "selection" && proxyFailure && routing.status === "selected") {
+    // A proxy failure after the selection is a runtime failure of the routed run, not a routing failure.
+    routing = { ...routing, status: "failed", failure_code: proxyFailure.code, detail: proxyFailure.detail };
   }
   return routing;
 }
