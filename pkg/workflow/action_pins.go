@@ -15,7 +15,7 @@ import (
 )
 
 var actionPinsLog = logger.New("workflow:action_pins")
-var pinnedUsesLine = regexp.MustCompile(`(?m)^(?: {8}uses: | {6}- uses: )[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@[a-fA-F0-9]{40}(?:[ \t]*#[ \t]*[^\r\n]*)?$`)
+var pinnedUsesLine = regexp.MustCompile(`(?m)^( {8}uses: | {6}- uses: )(['"]?)([A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@[a-fA-F0-9]{40})(['"]?)([ \t]*#[ \t]*[^\r\n]*)?$`)
 
 // Keep exact mappings distinct from ordinary uses of the same target until prefix rewriting finishes.
 const exactPinMappingMarker = "__gh_aw_exact_pin__"
@@ -180,28 +180,53 @@ func mapPinnedUsesInYAML(content string, mappings, prefixes map[string]string, w
 				}
 			}
 		}
-		if !pinnedUsesLine.MatchString(line) || exactMappedStep {
+		if exactMappedStep {
 			lines[i] = line
 			continue
 		}
-		before, reference, _ := strings.Cut(line, "uses: ")
-		indentation := before + "uses: "
-		repo, version := pinnedUsesRepoAndSourceVersion(reference)
-		if _, ok := mappings[actionpins.FormatCacheKey(repo, version)]; ok {
-			ref, err := actionpins.ResolveActionPin(repo, version, ctx)
-			if err == nil && ref != "" {
-				lines[i] = indentation + ref
-				continue
-			}
-			if err == nil {
-				err = errors.New("mapped target has no resolvable pin")
-			}
-			mappingErr = fmt.Errorf("unable to resolve action pin mapping for %s@%s: %w", repo, version, err)
+		mappedLine, err := mapPinnedUsesLine(line, ctx)
+		if err != nil {
+			mappingErr = err
 			continue
 		}
-		lines[i] = indentation + actionpins.ApplyResolvedActionPinPrefix(repo, reference, ctx)
+		lines[i] = mappedLine
 	}
 	return strings.Join(lines, "\n"), mappingErr
+}
+
+func mapPinnedUsesLine(line string, ctx *actionpins.PinContext) (string, error) {
+	matches := pinnedUsesLine.FindStringSubmatch(line)
+	if len(matches) >= 6 {
+		captures := [6]string(matches)
+		if captures[2] != captures[4] {
+			return line, nil
+		}
+		indentation := captures[1]
+		reference := captures[3] + captures[5]
+		comment := captures[5]
+		repo, version := pinnedUsesRepoAndSourceVersion(reference)
+		if _, ok := ctx.Mappings[actionpins.FormatCacheKey(repo, version)]; ok {
+			ref, err := actionpins.ResolveActionPin(repo, version, ctx)
+			if err != nil || ref == "" {
+				if err == nil {
+					err = errors.New("mapped target has no resolvable pin")
+				}
+				return line, fmt.Errorf("unable to resolve action pin mapping for %s@%s: %w", repo, version, err)
+			}
+			var hasComment bool
+			reference, comment, hasComment = strings.Cut(ref, " # ")
+			if hasComment {
+				comment = " # " + comment
+			}
+		} else {
+			reference = actionpins.ApplyResolvedActionPinPrefix(repo, captures[3], ctx)
+		}
+		if captures[2] != "" {
+			reference = quoteYAMLActionPin(reference)
+		}
+		return indentation + reference + comment, nil
+	}
+	return line, nil
 }
 
 func pinnedUsesRepoAndSourceVersion(reference string) (string, string) {

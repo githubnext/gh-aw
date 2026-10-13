@@ -227,6 +227,53 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_LabelTriggers_ActionMappings(t *testing.T) {
+	pin := getActionPin("actions/github-script")
+	actionRef, version, _ := strings.Cut(pin, " # ")
+	_, sha, _ := strings.Cut(actionRef, "@")
+	for _, tc := range []struct {
+		name     string
+		mappings map[string]string
+		expected string
+	}{
+		{
+			name:     "prefix",
+			expected: "'mirror/actions-github-script@" + sha + "' # " + version,
+		},
+		{
+			name:     "exact mapping takes precedence over prefix",
+			mappings: map[string]string{"actions/github-script@" + version: "internal/github-script@" + sha},
+			expected: "'internal/github-script@" + sha + "'",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			enabled := true
+			require.NoError(t, GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+				WorkflowDataList: []*WorkflowData{{
+					Name:        "test",
+					SafeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{Expires: 48}},
+				}},
+				WorkflowDir: dir,
+				Version:     "v1.0.0",
+				ActionMode:  ActionModeDev,
+				RepoConfig: &RepoConfig{
+					Maintenance:       &MaintenanceConfig{LabelTriggers: &enabled},
+					ActionPins:        tc.mappings,
+					ActionPinPrefixes: map[string]string{"actions/": "mirror/actions-"},
+				},
+			}))
+			content, err := os.ReadFile(filepath.Join(dir, "agentics-maintenance.yml"))
+			require.NoError(t, err)
+			jobs := parseMaintenanceJobs(t, string(content))
+			for _, jobName := range []string{"label_disable_agentic_workflow", "label_apply_safe_outputs"} {
+				require.Contains(t, jobs[jobName], "uses: "+tc.expected)
+				require.NotContains(t, jobs[jobName], "uses: 'actions/github-script@")
+			}
+		})
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
 	workflowDataList := []*WorkflowData{
 		{
