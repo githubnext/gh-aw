@@ -411,6 +411,7 @@ engine:
           "prompt.system", "prompt.user",
           "mcp.rpc.request", "mcp.rpc.response", "mcp.difc.filtered",
           "mcp.guard.blocked", "mcp.tool_call", "mcp.event",
+          "mcp.configuration",
           "firewall.http_access", "firewall.token_usage", "firewall.model_routing",
           "firewall.steering", "firewall.event", "model_routing.outcome",
           "model_endpoint.mismatch",
