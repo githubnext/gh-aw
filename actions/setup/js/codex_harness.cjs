@@ -572,8 +572,9 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
 function hasCodexAzureOIDCProxy(reflectData, env) {
   if (env.GH_AW_CODEX_OIDC_AUTH !== "azure" || env.AWF_REFLECT_ENABLED !== "1" || normalizeReflectProviderName(env.GH_AW_LLM_PROVIDER, "openai") !== "openai") return false;
   const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
-  const endpoint = endpoints.find(endpoint => endpoint?.configured === true && REFLECT_PROVIDER_ALIASES.openai.has(normalizeReflectProviderName(endpoint.provider)));
-  return endpoint?.provider === "openai" && endpoint.auth_type === "github-oidc/azure";
+  const resolved = resolveProviderEndpointFromReflect({ provider: "openai", reflectData, logger: () => {} });
+  const endpoint = endpoints.find(candidate => candidate?.configured === true && candidate.provider === resolved?.endpointProvider);
+  return normalizeReflectProviderName(resolved?.endpointProvider) === "openai" && endpoint?.auth_type === "github-oidc/azure";
 }
 
 /**
@@ -714,15 +715,13 @@ function configureCodexProviderFromReflect(options) {
       const providerSectionPattern = /\[model_providers\.openai-proxy\][\s\S]*?(?=\n\[|$)/;
       const baseLine = `base_url = "${resolved.baseUrl}"`;
       if (!providerSectionPattern.test(tomlContent)) return { env, configured: false };
-      if (providerSectionPattern.test(tomlContent)) {
-        const rewritten = tomlContent.replace(providerSectionPattern, section => {
-          if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
-            return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
-          }
-          return `${section.trimEnd()}\n${baseLine}\n`;
-        });
-        fs.writeFileSync(codexConfigPath, rewritten, "utf8");
-      }
+      const rewritten = tomlContent.replace(providerSectionPattern, section => {
+        if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
+          return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
+        }
+        return `${section.trimEnd()}\n${baseLine}\n`;
+      });
+      fs.writeFileSync(codexConfigPath, rewritten, "utf8");
     }
     return { env, configured: true };
   } catch (error) {

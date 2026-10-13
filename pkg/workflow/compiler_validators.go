@@ -256,7 +256,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating max-daily-ai-credits frontmatter", validateFn: func() error { return validateMaxDailyAICFrontmatter(workflowData) }},
 		{logMessage: "Validating private-to-public-flows string value", validateFn: func() error { return validatePrivateToPublicFlowsStringValue(workflowData) }},
 		{logMessage: "Validating private-to-public-flows server IDs", validateFn: func() error { return validatePrivateToPublicFlowsServerIDs(workflowData) }},
-		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
+		{logMessage: "Validating Azure and GCP WIF engine auth required fields", validateFn: func() error { return validateWIFEngineAuth(workflowData) }},
 		{logMessage: "Validating OTLP workload identity configuration", validateFn: func() error { return validateOTLPWorkloadIdentity(workflowData) }},
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
 		{logMessage: "Validating enclaves configuration", validateFn: func() error { return validateEnclavesConfig(workflowData) }},
@@ -573,17 +573,23 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 			if c.batchMode {
 				c.featureUsage[warning.message]++
 			} else {
-				fmt.Fprintln(writer, console.FormatWarningMessageStderr(warning.message))
+				writeExperimentalFeatureWarning(writer, warning.message)
 			}
 			c.IncrementExperimentalWarningCount()
 		}
 	}
 
 	if shouldWarnSparseInteractionCells(workflowData) {
-		fmt.Fprintln(writer, console.FormatWarningMessageStderr(
+		writeExperimentalFeatureWarning(writer,
 			"experiments: potential sparse interaction cells detected (multiple active experiments with weighted traffic). "+
-				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion."))
+				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion.")
 		c.IncrementWarningCount()
+	}
+}
+
+func writeExperimentalFeatureWarning(writer io.Writer, message string) {
+	if _, err := fmt.Fprintln(writer, console.FormatWarningMessageStderr(message)); err != nil {
+		workflowLog.Printf("Failed to write compiler warning: %v", err)
 	}
 }
 
@@ -709,6 +715,35 @@ func validateGCPWIFEngineAuth(workflowData *WorkflowData) error {
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("engine.auth with provider=gcp requires the following fields: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func validateWIFEngineAuth(workflowData *WorkflowData) error {
+	if err := validateAzureWIFEngineAuth(workflowData); err != nil {
+		return err
+	}
+	return validateGCPWIFEngineAuth(workflowData)
+}
+
+func validateAzureWIFEngineAuth(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
+		return nil
+	}
+	auth := workflowData.EngineConfig.Auth
+	if auth.Type != "github-oidc" || auth.Provider != "azure" {
+		return nil
+	}
+
+	var missing []string
+	if auth.AzureTenantID == "" {
+		missing = append(missing, "azure-tenant-id")
+	}
+	if auth.AzureClientID == "" {
+		missing = append(missing, "azure-client-id")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("engine.auth with provider=azure requires the following fields: %s", strings.Join(missing, ", "))
 	}
 	return nil
 }

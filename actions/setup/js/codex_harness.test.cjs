@@ -202,6 +202,13 @@ describe("codex_harness.cjs", () => {
       expect(result.status).toBe(1);
       expect(calls).toHaveLength(0);
     });
+
+    it("accepts a normalized OpenAI provider alias selected by the resolver", () => {
+      const aliasedEndpoint = { ...endpoint, provider: " OPENAI " };
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [aliasedEndpoint] }, config });
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
   });
   describe("AWF model routing", () => {
     const reflectData = {

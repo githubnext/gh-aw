@@ -110,9 +110,7 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 			"requires_openai_auth": false,
 			"supports_websockets":  false,
 		}
-		if !isCodexAzureOIDC(workflowData) {
-			proxy["env_key"] = "CODEX_API_KEY"
-		}
+		configureCodexProxyAuthentication(proxy, workflowData)
 		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.HostedWeb != nil &&
 			workflowData.NetworkPermissions.HostedWeb.Enabled && e.ResolveLLMProvider(workflowData) == LLMProviderOpenAI {
 			proxy["supports_standalone_web_search"] = true
@@ -140,6 +138,12 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 		}
 	}
 	return config, nil
+}
+
+func configureCodexProxyAuthentication(proxy map[string]any, workflowData *WorkflowData) {
+	if !isCodexAzureOIDC(workflowData) {
+		proxy["env_key"] = "CODEX_API_KEY"
+	}
 }
 
 func codexNativeServerDefaults(workflowData *WorkflowData, mcpTools []string) map[string]any {

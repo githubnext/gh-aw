@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -22,12 +21,12 @@ func TestCodexAzureOIDCAuthentication(t *testing.T) {
 		firewall bool
 		keyless  bool
 	}{
-		{name: "Entra behind AWF", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"}, firewall: true, keyless: true},
+		{name: "Entra behind AWF", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"}, firewall: true, keyless: true},
 		{name: "API key", firewall: true},
-		{name: "Entra without AWF", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"}},
+		{name: "Entra without AWF", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"}},
 		{name: "other OIDC", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "anthropic"}, firewall: true},
 		{name: "other auth", auth: &EngineAuthConfig{Type: "static", Provider: "azure"}, firewall: true},
-		{name: "GitHub inference", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"}, provider: LLMProviderGitHub, firewall: true},
+		{name: "GitHub inference", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"}, provider: LLMProviderGitHub, firewall: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			data := &WorkflowData{
@@ -115,8 +114,13 @@ Inspect the repository and report findings.
 	assert.Contains(t, lock, "AWF_AUTH_AZURE_SCOPE: api://00000000-0000-0000-0000-000000000003/.default")
 	assert.Contains(t, lock, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN")
 	assert.Contains(t, lock, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_URL")
-	// The detector must inherit the same keyless execution policy.
-	assert.GreaterOrEqual(t, strings.Count(lock, "GH_AW_CODEX_OIDC_AUTH: azure"), 2)
+	detectionSection := extractJobSection(lock, "detection")
+	assert.NotEmpty(t, detectionSection)
+	assert.Contains(t, detectionSection, "GH_AW_CODEX_OIDC_AUTH: azure")
+	assert.Contains(t, detectionSection, "http://api-proxy:10000/reflect")
+	assert.Contains(t, detectionSection, "github-oidc/azure")
+	assert.NotContains(t, detectionSection, `env_key = "CODEX_API_KEY"`)
+	assert.NotContains(t, detectionSection, `CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}`)
 }
 
 func TestCodexAzureOIDCFallbackKeepsKeylessProvider(t *testing.T) {
@@ -124,7 +128,7 @@ func TestCodexAzureOIDCFallbackKeepsKeylessProvider(t *testing.T) {
 		Model: "gpt-5.4",
 		EngineConfig: &EngineConfig{
 			ID: "codex", FallbackModels: []string{"openai/gpt-5.3-codex"},
-			Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"},
+			Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"},
 		},
 		NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
 	}
@@ -141,4 +145,38 @@ func TestCodexAzureOIDCFallbackKeepsKeylessProvider(t *testing.T) {
 	assert.NotContains(t, env, "CODEX_API_KEY")
 	assert.NotContains(t, env, "OPENAI_API_KEY")
 	assert.Len(t, buildFallbackProviderValidationSteps(data), 1)
+}
+
+func TestValidateAzureWIFEngineAuth(t *testing.T) {
+	tests := []struct {
+		name        string
+		auth        *EngineAuthConfig
+		wantErr     bool
+		errContains string
+	}{
+		{name: "nil auth", wantErr: false},
+		{name: "other auth type", auth: &EngineAuthConfig{Type: "static", Provider: "azure"}, wantErr: false},
+		{name: "other provider", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "gcp"}, wantErr: false},
+		{name: "complete Azure auth", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"}, wantErr: false},
+		{name: "missing tenant ID", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureClientID: "client"}, wantErr: true, errContains: "azure-tenant-id"},
+		{name: "missing client ID", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant"}, wantErr: true, errContains: "azure-client-id"},
+		{name: "missing both IDs", auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"}, wantErr: true, errContains: "azure-tenant-id, azure-client-id"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflow := &WorkflowData{}
+			if tt.auth != nil {
+				workflow.EngineConfig = &EngineConfig{Auth: tt.auth}
+			}
+			err := validateAzureWIFEngineAuth(workflow)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+				assert.Contains(t, err.Error(), "engine.auth with provider=azure requires the following fields")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
