@@ -128,17 +128,19 @@ func TestCodexStandaloneWebSearchProvider(t *testing.T) {
 	}
 }
 
-func TestCodexGitHubInferenceDisablesUnsupportedExecTool(t *testing.T) {
+func TestCodexGitHubInferenceUsesDirectShellTools(t *testing.T) {
 	for _, test := range []struct {
 		name         string
 		model        string
 		provider     LLMProvider
+		github       bool
 		disableShell bool
 	}{
-		{name: "Copilot provider", model: "copilot/gpt-5.3-codex", disableShell: true},
-		{name: "Copilot code-mode model", model: "copilot/gpt-5.6-sol", disableShell: true},
-		{name: "Copilot model prefix normalization", model: " COPILOT/GPT-5.6-TERRA ", disableShell: true},
-		{name: "Explicit GitHub provider", model: "${{ vars.MODEL }}", provider: LLMProviderGitHub, disableShell: true},
+		{name: "Copilot provider", model: "copilot/gpt-5.3-codex", github: true},
+		{name: "Copilot code-mode model", model: "copilot/gpt-5.6-sol", github: true},
+		{name: "Copilot model prefix normalization", model: " COPILOT/GPT-5.6-TERRA ", github: true},
+		{name: "Explicit GitHub provider", model: "${{ vars.MODEL }}", provider: LLMProviderGitHub, github: true},
+		{name: "GitHub shell disabled", model: "copilot/gpt-5.6-terra", github: true, disableShell: true},
 		{name: "OpenAI provider", model: "gpt-5.3-codex"},
 		{name: "OpenAI code-mode model", model: "openai/gpt-5.6-sol"},
 		{name: "Explicit OpenAI provider", model: "copilot/gpt-5.6-sol", provider: LLMProviderOpenAI},
@@ -148,14 +150,15 @@ func TestCodexGitHubInferenceDisablesUnsupportedExecTool(t *testing.T) {
 				Name:         "provider-tool-config",
 				Model:        test.model,
 				EngineConfig: &EngineConfig{ID: "codex", LLMProvider: test.provider},
+				BashDisabled: test.disableShell,
 			}
 			var output strings.Builder
 			require.NoError(t, renderCodexMCPConfigForTest(t, NewCodexEngine(), &output, map[string]any{}, nil, data))
 
 			config := decodeCodexBootstrap(t, output.String())
 			features := config["features"].(map[string]any)
-			if test.disableShell {
-				assert.Equal(t, false, features["shell_tool"])
+			if test.github {
+				assert.Equal(t, !test.disableShell, features["shell_tool"])
 				assert.Equal(t, false, features["code_mode"])
 				assert.Equal(t, false, features["code_mode_only"])
 				assert.Equal(t, codexHome(data)+"/models.json", config["model_catalog_json"])
@@ -174,7 +177,6 @@ func TestCodexGitHubInferenceDisablesUnsupportedExecTool(t *testing.T) {
 
 func TestCodexGitHubInferenceRejectsExecToolOverride(t *testing.T) {
 	for _, config := range []string{
-		"[features]\nshell_tool = true",
 		"[features]\ncode_mode = true",
 		"[features]\ncode_mode_only = true",
 		"[features.code_mode]\nenabled = true",
@@ -189,6 +191,85 @@ func TestCodexGitHubInferenceRejectsExecToolOverride(t *testing.T) {
 				},
 			}, nil)
 			require.ErrorContains(t, err, "exec custom tool")
+		})
+	}
+}
+
+func TestCodexGitHubInferenceShellOverrides(t *testing.T) {
+	for _, disabled := range []bool{false, true} {
+		for _, enabled := range []bool{false, true} {
+			data := &WorkflowData{
+				Model:        "copilot/gpt-5.6-terra",
+				BashDisabled: disabled,
+				EngineConfig: &EngineConfig{
+					ID:     "codex",
+					Config: fmt.Sprintf("[features]\nshell_tool = %t", enabled),
+				},
+			}
+			config, err := NewCodexEngine().buildNativeConfig(data, nil)
+			if disabled && enabled {
+				require.ErrorContains(t, err, "tools.bash is disabled")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, enabled, config.Overrides["features"].(map[string]any)["shell_tool"])
+			}
+		}
+	}
+}
+
+func TestCodexGitHubShellTransportCompilation(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		bash    string
+		cli     bool
+		enabled bool
+	}{
+		{name: "wildcard CLI transport", bash: `["*"]`, cli: true, enabled: true},
+		{name: "false native MCP transport", bash: "false"},
+		{name: "empty native MCP transport", bash: "[]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			filename := filepath.Join(dir, "shell.md")
+			content := fmt.Sprintf(`---
+on: workflow_dispatch
+strict: false
+permissions:
+  copilot-requests: write
+  contents: read
+engine:
+  id: codex
+  model-provider: github
+model: copilot/gpt-5.6-terra
+tools:
+  bash: %s
+  cli-proxy: %t
+safe-outputs:
+  noop:
+---
+Complete the task.
+`, test.bash, test.cli)
+			require.NoError(t, os.WriteFile(filename, []byte(content), 0600))
+			require.NoError(t, NewCompiler().CompileWorkflow(filename))
+			lock, err := os.ReadFile(filepath.Join(dir, "shell.lock.yml"))
+			require.NoError(t, err)
+			compiled := string(lock)
+			config := decodeCodexBootstrap(t, compiled)
+			features := config["features"].(map[string]any)
+			require.Equal(t, test.enabled, features["shell_tool"])
+			require.Equal(t, false, features["code_mode"])
+			require.Equal(t, false, features["code_mode_only"])
+			require.Contains(t, compiled, "--direct-tools")
+			if test.enabled {
+				require.Contains(t, compiled, `GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'`)
+				require.Contains(t, compiled, "safeoutputs --help")
+				require.NotContains(t, compiled, "-c features.shell_tool=false")
+			} else {
+				require.Contains(t, compiled, "-c features.shell_tool=false")
+				require.NotContains(t, compiled, "safeoutputs --help")
+				require.NotContains(t, compiled, "export GH_AW_MCP_CLI_SERVERS=")
+				require.Contains(t, config["mcp_servers"], "safeoutputs")
+			}
 		})
 	}
 }
