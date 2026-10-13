@@ -247,6 +247,8 @@ func buildMaintenanceApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLOption
 	b.WriteString(`      - name: Apply Safe Outputs
         uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
         env:
+          GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
+          GH_AW_WORKFLOW_ID: "agentics-maintenance"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_RUN_URL: ${{ inputs.run_url }}
         with:
@@ -618,6 +620,8 @@ func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLO
         if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
         env:
+          GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
+          GH_AW_WORKFLOW_ID: "agentics-maintenance"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

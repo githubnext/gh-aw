@@ -2011,6 +2011,54 @@ describe("push_signed_commits integration tests", () => {
   });
 
   describe("stale-base and synthesized payload safety", () => {
+    it("keeps the rebased branch attached when signing fails and git push fallback is enabled", async () => {
+      const branch = "stale-base-delivery";
+      execGit(["checkout", "-b", branch], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "agent.txt"), "agent change\n");
+      execGit(["add", "agent.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Agent change"], { cwd: workDir });
+      const originalTip = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      execGit(["checkout", "main"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "upstream.txt"), "upstream change\n");
+      execGit(["add", "upstream.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Advance base"], { cwd: workDir });
+      execGit(["push", "origin", "main"], { cwd: workDir });
+      const baseTip = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      execGit(["checkout", branch], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient({ failWithError: new Error("Resource not accessible by integration") });
+      githubClient.rest.git.createRef.mockImplementation(async ({ ref, sha }) => {
+        execGit(["update-ref", ref, sha], { cwd: bareDir });
+        return { data: {} };
+      });
+
+      const pushedSha = await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch,
+        baseRef: "origin/main",
+        cwd: workDir,
+        allowGitPushFallback: true,
+      });
+
+      const rebasedTip = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(execGit(["symbolic-ref", "--short", "HEAD"], { cwd: workDir }).stdout.trim()).toBe(branch);
+      expect(execGit(["rev-parse", branch], { cwd: workDir }).stdout.trim()).toBe(rebasedTip);
+      expect(rebasedTip).not.toBe(originalTip);
+      expect(execGit(["rev-parse", "HEAD^"], { cwd: workDir }).stdout.trim()).toBe(baseTip);
+      expect(githubClient.graphql).toHaveBeenCalledOnce();
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", ref: `refs/heads/${branch}`, sha: baseTip });
+
+      const remoteTip = execGit(["rev-parse", `refs/heads/${branch}`], { cwd: bareDir }).stdout.trim();
+      expect(pushedSha).toBe(rebasedTip);
+      expect(remoteTip).toBe(rebasedTip);
+      expect(execGit(["show", `${remoteTip}:agent.txt`], { cwd: bareDir }).stdout).toBe("agent change\n");
+      expect(execGit(["show", `${remoteTip}:upstream.txt`], { cwd: bareDir }).stdout).toBe("upstream change\n");
+    });
+
     it("should fail signed replay when rebasing stale commits onto current base conflicts", async () => {
       // Base branch starts with shared file.
       fs.writeFileSync(path.join(workDir, "shared.txt"), "base\n");

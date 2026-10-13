@@ -2056,6 +2056,7 @@ jobs:
           GH_AW_LINEAR_TOKEN: ${{ secrets.LINEAR_API_KEY }}
           LINEAR_PROJECT_ID: ${{ vars.LINEAR_PROJECT_ID }}
           LINEAR_TEAM_ID: ${{ secrets.LINEAR_TEAM_ID }}
+          GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_MENTIONS_GITHUB_TOKEN: ${{ github.token }}

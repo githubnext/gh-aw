@@ -18,6 +18,7 @@ const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
+const { appendExecutionProvenance, stripExecutionProvenance } = require("./execution_provenance.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { getBodyFooterMessage } = require("./messages_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -453,6 +454,7 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
  * @returns {Promise<{data: any, issueRepoParts: {owner: string, repo: string}}>}
  */
 async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees) {
+  body = appendExecutionProvenance(body, process.env.GH_AW_WORKFLOW_NAME || "Workflow", "");
   if (body.length > MAX_GITHUB_BODY_LENGTH) {
     throw new Error(`Fallback issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
   }
@@ -1649,7 +1651,7 @@ async function main(config = {}) {
       // Snapshot the body content (without footer) for use in protected-files fallback ordering.
       // The protected-files section must appear before the footer (including guard notices such as
       // the integrity-filtering note) so that the footer always comes last in the issue body.
-      const mainBodyContent = bodyLines.join("\n").trim();
+      const mainBodyContent = stripExecutionProvenance(bodyLines.join("\n").trim());
       const issueSafeMainBodyContent = neutralizeClosingKeywordsForIssueBody(mainBodyContent);
 
       // Generate footer using messages template system (respects custom messages.footer config)
@@ -1716,10 +1718,10 @@ async function main(config = {}) {
       bodyLines.push("");
 
       // Prepare the body content
-      const body = bodyLines.join("\n").trim();
+      const body = appendExecutionProvenance(bodyLines.join("\n").trim(), workflowName, runUrl);
       const issueSafeBody = neutralizeClosingKeywordsForIssueBody(body);
       // Footer section (footer + workflow-id marker) used when ordering protected-files notices
-      const footerContent = footerParts.join("\n\n");
+      const footerContent = appendExecutionProvenance(footerParts.join("\n\n"), workflowName, runUrl);
       const issueSafeFooterContent = neutralizeClosingKeywordsForIssueBody(footerContent);
       const hiddenFallbackMetadata = [callerWorkflowId && generateWorkflowCallIdMarker(callerWorkflowId), closeOlderKey && generateCloseKeyMarker(closeOlderKey)].filter(Boolean).join("\n");
       const issueSafeFallbackFooter = [issueSafeFooterContent, hiddenFallbackMetadata].filter(Boolean).join("\n");
