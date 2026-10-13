@@ -167,6 +167,7 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 ### 4. Select tools
 
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
+- When selecting Codex, do not configure a non-empty per-command `tools.bash` allowlist: Codex cannot enforce it. Set `tools.bash: false` to disable shell execution or select an engine that supports command allowlists.
 - For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
 - For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
 - Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
@@ -219,6 +220,7 @@ Rules:
 
 - Default behavior is team-only triggering.
 - For community-facing issue triage or other public entrypoints, recommend `roles: all`.
+- Prefer `pull_request` over `pull_request_target`. Use `pull_request_target` only when base-repository context is necessary; it may have access to secrets and write permissions. Set `checkout: false` unless a trusted checkout is needed, and never check out or execute the pull request's head code. See the [`pull_request_target` checkout guidance](https://github.github.com/gh-aw/reference/checkout/#pull_request_target-checkout).
 
 ### 8. Add cost-aware triage and context flow
 
