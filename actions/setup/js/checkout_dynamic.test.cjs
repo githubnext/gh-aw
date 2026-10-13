@@ -83,6 +83,8 @@ describe("runtime repository checkout", () => {
     vi.stubEnv("GH_AW_DYNAMIC_ALLOWED_REPOS", allow);
     await expect(prepare(runtime)).rejects.toThrow(/allowed-repos/);
     expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringContaining("allowed-repos"));
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
   it("checks exact and wildcard patterns case-insensitively and denies unmatched repositories", async () => {
@@ -103,12 +105,15 @@ describe("runtime repository checkout", () => {
   it.each(["org/a\n../secret", "org/a;echo pwned", "${{ secrets.TOKEN }}", "org/..", "org/a b", "org/a/b"])("rejects malformed repository data without executing it: %s", async value => {
     vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", value);
     await expect(prepare(runtime)).rejects.toThrow(/owner\/repo/);
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringContaining("owner/repo"));
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
   });
 
   it.each(["*", "org/*", "*/a", "org/a*", "org/a?", "org/[ab]", "org/a\norg/*"])("rejects repository wildcards instead of expanding them: %s", async value => {
     vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", value);
     await expect(prepare(runtime)).rejects.toThrow("wildcards are only supported in checkout.allowed-repos");
     expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringContaining("wildcards are only supported in checkout.allowed-repos"));
     expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
@@ -117,6 +122,7 @@ describe("runtime repository checkout", () => {
       data: metadata(`${owner}/${repo}`, repo === "b" ? visibility : "public"),
     }));
     await expect(prepare(runtime)).rejects.toThrow("Public workflows cannot check out non-public repository org/b");
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", "Public workflows cannot check out non-public repository org/b");
     expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
@@ -129,11 +135,32 @@ describe("runtime repository checkout", () => {
   it("fails closed if host or target visibility cannot be verified", async () => {
     runtime.github.request.mockRejectedValue(new Error("secret-token"));
     await expect(prepare(runtime)).rejects.toThrow("Unable to verify workflow repository visibility");
+    expect(runtime.core.setOutput).toHaveBeenLastCalledWith("checkout_error", "Unable to verify workflow repository visibility; runtime checkout refused");
     runtime.github.request.mockResolvedValue({ data: metadata("host/workflows") });
     runtime.getOctokit().request.mockRejectedValue(new Error("secret-token"));
     await expect(prepare(runtime)).rejects.toThrow("Unable to verify runtime checkout repository org/a");
+    expect(runtime.core.setOutput).toHaveBeenLastCalledWith("checkout_error", "Unable to verify runtime checkout repository org/a; checkout refused");
     runtime.getOctokit().request.mockResolvedValue({ data: { full_name: "org/a", default_branch: "main" } });
     await expect(prepare(runtime)).rejects.toThrow("Unable to verify allowlist and metadata");
+    expect(JSON.stringify(runtime.core.setOutput.mock.calls)).not.toContain("secret-token");
+  });
+
+  it("reports unexpected preparation failures without publishing dependency error details or swallowing the error", async () => {
+    const error = new Error("dependency diagnostic containing secret-token");
+    runtime.getOctokit.mockImplementation(() => {
+      throw error;
+    });
+    await expect(prepare(runtime)).rejects.toBe(error);
+    expect(runtime.core.setSecret).toHaveBeenCalledWith("secret-token");
+    expect(runtime.core.setOutput).toHaveBeenCalledExactlyOnceWith("checkout_error", "Runtime checkout preparation failed; inspect the failed step for details");
+  });
+
+  it("reports missing checkout credentials before contacting GitHub", async () => {
+    vi.stubEnv("GH_AW_DYNAMIC_TOKEN", "");
+    await expect(prepare(runtime)).rejects.toThrow("Runtime checkout requires a GitHub token");
+    expect(runtime.core.setOutput).toHaveBeenCalledExactlyOnceWith("checkout_error", "Runtime checkout requires a GitHub token");
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.github.request).not.toHaveBeenCalled();
   });
 
   it("revalidates the canonical repository after redirects", async () => {
@@ -157,6 +184,8 @@ describe("runtime repository checkout", () => {
   it.each(["../outside", "/absolute", ".git/targets", ".gh-aw/targets", "${{ inputs.path }}"])("rejects unsafe path prefixes: %s", async prefix => {
     vi.stubEnv("GH_AW_DYNAMIC_PREFIX", prefix);
     await expect(prepare(runtime)).rejects.toThrow(/path|prefix/);
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringMatching(/path|prefix/));
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
   });
 
   it("rejects symlinked ancestors, including dangling links", async () => {

@@ -6,6 +6,9 @@ const { execFileSync } = require("child_process");
 const { isRepoAllowed } = require("./repo_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
+// Only controlled messages may be propagated to workflow failure issues.
+class CheckoutPreparationError extends Error {}
+
 /**
  * @param {string} value
  * @returns {string[]}
@@ -17,7 +20,7 @@ function parseRepositories(value) {
     .filter(Boolean);
   for (const repo of repos) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*\/[a-zA-Z0-9_.-]+$/.test(repo) || [".", ".."].includes(repo.split("/")[1])) {
-      throw new Error("Runtime checkout repositories must be newline-separated owner/repo slugs; wildcards are only supported in checkout.allowed-repos");
+      throw new CheckoutPreparationError("Runtime checkout repositories must be newline-separated owner/repo slugs; wildcards are only supported in checkout.allowed-repos");
     }
   }
   return [...new Set(repos.map(repo => repo.toLowerCase()))];
@@ -33,11 +36,11 @@ function parseAllowedRepos(value) {
     .map(pattern => pattern.trim().toLowerCase())
     .filter(Boolean);
   if (patterns.length === 0) {
-    throw new Error("Runtime checkout requires a non-empty allowed-repos list");
+    throw new CheckoutPreparationError("Runtime checkout requires a non-empty allowed-repos list");
   }
   for (const pattern of patterns) {
     if (!/^[a-zA-Z0-9*-]+\/[a-zA-Z0-9_.*-]+$/.test(pattern) || /^[*/]+$/.test(pattern)) {
-      throw new Error("checkout.allowed-repos must contain scoped patterns such as owner/repo, owner/*, or */repo; unrestricted wildcards are not allowed");
+      throw new CheckoutPreparationError("checkout.allowed-repos must contain scoped patterns such as owner/repo, owner/*, or */repo; unrestricted wildcards are not allowed");
     }
   }
   return new Set(patterns);
@@ -52,17 +55,17 @@ function parseAllowedRepos(value) {
  */
 function workspacePath(workspace, relative, mustBeAbsent = false) {
   if (!relative || path.isAbsolute(relative) || relative.includes("\\") || relative.includes("${{") || relative.split("/").some(part => part === ".." || part === ".git") || /[\x00-\x1f\x7f]/.test(relative)) {
-    throw new Error("Runtime checkout paths must stay within GITHUB_WORKSPACE");
+    throw new CheckoutPreparationError("Runtime checkout paths must stay within GITHUB_WORKSPACE");
   }
   let root;
   try {
     root = fs.realpathSync(workspace);
   } catch (error) {
-    throw new Error("Unable to resolve the runtime checkout workspace", { cause: error });
+    throw new CheckoutPreparationError("Unable to resolve the runtime checkout workspace", { cause: error });
   }
   const target = path.resolve(root, relative);
   if (target === root || !target.startsWith(root + path.sep)) {
-    throw new Error("Runtime checkout paths must stay within GITHUB_WORKSPACE");
+    throw new CheckoutPreparationError("Runtime checkout paths must stay within GITHUB_WORKSPACE");
   }
   let current = root;
   for (const part of path.relative(root, target).split(path.sep)) {
@@ -75,10 +78,10 @@ function workspacePath(workspace, relative, mustBeAbsent = false) {
       throw error;
     }
     if (!stat.isDirectory() || stat.isSymbolicLink()) {
-      throw new Error("Runtime checkout paths must not contain symlinks or non-directory ancestors");
+      throw new CheckoutPreparationError("Runtime checkout paths must not contain symlinks or non-directory ancestors");
     }
     if (mustBeAbsent && current === target) {
-      throw new Error("Runtime checkout destination already exists; use a different path prefix");
+      throw new CheckoutPreparationError("Runtime checkout destination already exists; use a different path prefix");
     }
   }
   return target;
@@ -86,57 +89,61 @@ function workspacePath(workspace, relative, mustBeAbsent = false) {
 
 function readConfig() {
   const index = process.env.GH_AW_DYNAMIC_CHECKOUT_INDEX || "";
-  if (!/^\d+$/.test(index)) throw new Error("Runtime checkout index must be a non-negative integer");
+  if (!/^\d+$/.test(index)) throw new CheckoutPreparationError("Runtime checkout index must be a non-negative integer");
   const workspace = process.env.GITHUB_WORKSPACE;
   const runnerTemp = process.env.RUNNER_TEMP;
-  if (!workspace || !runnerTemp) throw new Error("GITHUB_WORKSPACE and RUNNER_TEMP are required for runtime checkout");
+  if (!workspace || !runnerTemp) throw new CheckoutPreparationError("GITHUB_WORKSPACE and RUNNER_TEMP are required for runtime checkout");
   const prefix = process.env.GH_AW_DYNAMIC_PREFIX || "";
   workspacePath(workspace, prefix);
-  if (prefix.split("/").includes(".gh-aw")) throw new Error("Runtime checkout prefix must not use the reserved .gh-aw directory");
+  if (prefix.split("/").includes(".gh-aw")) throw new CheckoutPreparationError("Runtime checkout prefix must not use the reserved .gh-aw directory");
   return { index, workspace, runnerTemp, prefix };
 }
 
 /**
- * @param {{ setOutput: (name: string, value: string) => void }} core
- * @param {string} message
- * @returns {never}
+ * @typedef {{ repository: string, path: string, default_branch: string }} DynamicCheckout
+ * @typedef {{ core: { setSecret: (value: string) => void, setOutput: (name: string, value: string) => void }, github: import('@octokit/core').Octokit, getOctokit: (token: string) => import('@octokit/core').Octokit }} CheckoutRuntime
+ * @param {CheckoutRuntime} runtime
  */
-function failCheckout(core, message) {
-  core.setOutput("checkout_error", message);
-  throw new Error(message);
+async function prepare(runtime) {
+  const token = process.env.GH_AW_DYNAMIC_TOKEN || "";
+  if (token) runtime.core.setSecret(token);
+  try {
+    return await prepareCheckouts(runtime, token);
+  } catch (error) {
+    runtime.core.setOutput("checkout_error", error instanceof CheckoutPreparationError ? error.message : "Runtime checkout preparation failed; inspect the failed step for details");
+    throw error;
+  }
 }
 
 /**
- * @typedef {{ repository: string, path: string, default_branch: string }} DynamicCheckout
- * @param {{ core: { setSecret: (value: string) => void, setOutput: (name: string, value: string) => void }, github: import('@octokit/core').Octokit, getOctokit: (token: string) => import('@octokit/core').Octokit }} runtime
+ * @param {CheckoutRuntime} runtime
+ * @param {string} token
  */
-async function prepare({ core, github, getOctokit }) {
+async function prepareCheckouts({ github, getOctokit }, token) {
   const config = readConfig();
   const repos = parseRepositories(process.env.GH_AW_DYNAMIC_REPOSITORIES || "");
   const allowed = parseAllowedRepos(process.env.GH_AW_DYNAMIC_ALLOWED_REPOS || "");
   for (const repository of repos) {
-    if (!isRepoAllowed(repository, allowed)) failCheckout(core, `Runtime checkout repository ${repository} is not permitted by allowed-repos`);
+    if (!isRepoAllowed(repository, allowed)) throw new CheckoutPreparationError(`Runtime checkout repository ${repository} is not permitted by allowed-repos`);
   }
-  const token = process.env.GH_AW_DYNAMIC_TOKEN || "";
-  if (!token) throw new Error("Runtime checkout requires a GitHub token");
-  core.setSecret(token);
+  if (!token) throw new CheckoutPreparationError("Runtime checkout requires a GitHub token");
   const client = getOctokit(token);
   const host = parseRepositories(process.env.GITHUB_REPOSITORY || "");
-  if (host.length !== 1) throw new Error("GITHUB_REPOSITORY must identify the workflow repository");
+  if (host.length !== 1) throw new CheckoutPreparationError("GITHUB_REPOSITORY must identify the workflow repository");
   const [owner, repo] = host[0].split("/");
   let hostData;
   try {
     hostData = (await github.request("GET /repos/{owner}/{repo}", { owner, repo })).data;
   } catch {
-    throw new Error("Unable to verify workflow repository visibility; runtime checkout refused");
+    throw new CheckoutPreparationError("Unable to verify workflow repository visibility; runtime checkout refused");
   }
   if (typeof hostData.private !== "boolean" || !["public", "private", "internal"].includes(hostData.visibility)) {
-    throw new Error("Unable to verify workflow repository visibility; runtime checkout refused");
+    throw new CheckoutPreparationError("Unable to verify workflow repository visibility; runtime checkout refused");
   }
   const isPublic = hostData.visibility === "public" || hostData.private === false;
   const submodules = process.env.GH_AW_DYNAMIC_SUBMODULES || "false";
   if (isPublic && submodules !== "false") {
-    throw new Error("Runtime checkout in public workflows cannot enable submodules because their visibility is not verified");
+    throw new CheckoutPreparationError("Runtime checkout in public workflows cannot enable submodules because their visibility is not verified");
   }
   /** @type {DynamicCheckout[]} */
   const entries = [];
@@ -146,7 +153,7 @@ async function prepare({ core, github, getOctokit }) {
     try {
       data = (await client.request("GET /repos/{owner}/{repo}", { owner: targetOwner, repo: targetRepo })).data;
     } catch {
-      throw new Error(`Unable to verify runtime checkout repository ${repository}; checkout refused`);
+      throw new CheckoutPreparationError(`Unable to verify runtime checkout repository ${repository}; checkout refused`);
     }
     const canonical = parseRepositories(String(data.full_name || ""));
     if (
@@ -157,10 +164,10 @@ async function prepare({ core, github, getOctokit }) {
       typeof data.default_branch !== "string" ||
       !data.default_branch
     ) {
-      failCheckout(core, `Unable to verify allowlist and metadata for runtime checkout repository ${repository}`);
+      throw new CheckoutPreparationError(`Unable to verify allowlist and metadata for runtime checkout repository ${repository}`);
     }
     if (isPublic && (data.private || data.visibility !== "public")) {
-      failCheckout(core, `Public workflows cannot check out non-public repository ${repository}`);
+      throw new CheckoutPreparationError(`Public workflows cannot check out non-public repository ${repository}`);
     }
     if (entries.some(entry => entry.repository === canonical[0])) continue;
     const checkoutPath = path.posix.join(config.prefix, canonical[0]);
@@ -168,7 +175,7 @@ async function prepare({ core, github, getOctokit }) {
     entries.push({ repository: canonical[0], path: checkoutPath, default_branch: data.default_branch });
   }
   const action = process.env.GH_AW_DYNAMIC_CHECKOUT_ACTION || "";
-  if (!/^actions\/checkout@[a-f0-9]{40}$/.test(action)) throw new Error("Runtime checkout requires a SHA-pinned actions/checkout");
+  if (!/^actions\/checkout@[a-f0-9]{40}$/.test(action)) throw new CheckoutPreparationError("Runtime checkout requires a SHA-pinned actions/checkout");
   const actionDir = workspacePath(config.workspace, `.gh-aw/checkouts/${config.index}`, true);
   const steps = entries.map(entry => ({
     uses: action,
@@ -197,14 +204,14 @@ async function prepare({ core, github, getOctokit }) {
       })
     );
   } catch (error) {
-    throw new Error("Unable to write the validated runtime checkout action", { cause: error });
+    throw new CheckoutPreparationError("Unable to write the validated runtime checkout action", { cause: error });
   }
   const planDir = path.join(config.runnerTemp, "gh-aw", "dynamic-checkouts");
   try {
     fs.mkdirSync(planDir, { recursive: true });
     fs.writeFileSync(path.join(planDir, `${config.index}.json`), JSON.stringify(entries));
   } catch (error) {
-    throw new Error("Unable to write the runtime checkout plan", { cause: error });
+    throw new CheckoutPreparationError("Unable to write the runtime checkout plan", { cause: error });
   }
   return entries;
 }
