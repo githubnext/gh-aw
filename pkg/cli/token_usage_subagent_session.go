@@ -18,11 +18,14 @@ type sessionSubagentEvent struct {
 	unifiedDetectionEvent
 	AgentID    string          `json:"agentId"`
 	Timestamp  json.RawMessage `json:"timestamp"`
+	TS         json.RawMessage `json:"ts"`
+	Time       json.RawMessage `json:"time"`
 	Provenance struct {
-		Component     string `json:"component"`
-		Phase         string `json:"phase"`
-		Path          string `json:"path"`
-		TimestampUnit string `json:"timestampUnit"`
+		Component     string          `json:"component"`
+		Phase         string          `json:"phase"`
+		Path          string          `json:"path"`
+		TimestampUnit string          `json:"timestampUnit"`
+		TimestampMs   json.RawMessage `json:"timestampMs"`
 		Native        struct {
 			Path string `json:"path"`
 		} `json:"native"`

@@ -10,6 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/singleflight"
 )
 
 type apiProxySteeringLog struct {
@@ -143,7 +146,54 @@ func extractGatewaySteeringEvents(runDir string) ([]GatewaySteeringEvent, error)
 
 // readUnifiedSteeringLog uses the published session when the raw proxy event log
 // is absent. Never merge the two sources: they describe the same proxy events.
+// Cache successful results, including absent events, across summary and timeline
+// consumers of the same run.
 func readUnifiedSteeringLog(runDir string) (*apiProxySteeringLog, error) {
+	cacheKey := filepath.Clean(runDir)
+	if cached, ok := loadUnifiedSteeringLogCache(cacheKey); ok {
+		return cached.log, nil
+	}
+	result, err, _ := unifiedSteeringLogGroup.Do(cacheKey, func() (any, error) {
+		if cached, ok := loadUnifiedSteeringLogCache(cacheKey); ok {
+			return cached, nil
+		}
+		log, err := parseUnifiedSteeringLog(cacheKey)
+		if err != nil {
+			return nil, err
+		}
+		entry := apiProxySteeringLogCacheEntry{log: log}
+		unifiedSteeringLogCache.Store(cacheKey, entry)
+		return entry, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	entry, ok := result.(apiProxySteeringLogCacheEntry)
+	if !ok {
+		return nil, fmt.Errorf("unexpected unified steering log cache result type %T", result)
+	}
+	return entry.log, nil
+}
+
+var (
+	unifiedSteeringLogCache sync.Map
+	unifiedSteeringLogGroup singleflight.Group
+)
+
+func loadUnifiedSteeringLogCache(cacheKey string) (apiProxySteeringLogCacheEntry, bool) {
+	cached, ok := unifiedSteeringLogCache.Load(cacheKey)
+	if !ok {
+		return apiProxySteeringLogCacheEntry{}, false
+	}
+	entry, ok := cached.(apiProxySteeringLogCacheEntry)
+	if !ok {
+		unifiedSteeringLogCache.Delete(cacheKey)
+		return apiProxySteeringLogCacheEntry{}, false
+	}
+	return entry, true
+}
+
+func parseUnifiedSteeringLog(runDir string) (*apiProxySteeringLog, error) {
 	path, err := findUnifiedSessionPath(runDir)
 	if err != nil || path == "" {
 		return nil, err
@@ -208,11 +258,8 @@ func collectUnifiedSteeringEvent(log *apiProxySteeringLog, event sessionSubagent
 	if data.RequestID == "" {
 		data.RequestID = data.RequestIDCamel
 	}
-	if len(event.Timestamp) > 0 {
-		var timestamp string
-		if err := json.Unmarshal(event.Timestamp, &timestamp); err == nil {
-			data.Timestamp = timestamp
-		}
+	if timestamp := unifiedSteeringTimestamp(event); timestamp != "" {
+		data.Timestamp = timestamp
 	}
 	log.entries = append(log.entries, data.proxyEventsEntry)
 }
