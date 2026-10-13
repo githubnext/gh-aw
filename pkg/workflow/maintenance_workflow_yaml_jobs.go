@@ -68,6 +68,15 @@ func writeMaintenanceAdminPermissionsStep(b *strings.Builder, opts buildMaintena
 `)
 }
 
+func quoteYAMLActionPin(actionPin string) string {
+	actionRef, version, hasVersion := strings.Cut(actionPin, " # ")
+	quotedActionRef := "'" + escapeYAMLSingleQuoted(actionRef) + "'"
+	if hasVersion {
+		return quotedActionRef + " # " + version
+	}
+	return quotedActionRef
+}
+
 func writeMaintenanceCloseExpiredJobYAML(b *strings.Builder, opts buildMaintenanceWorkflowYAMLOptions, setupActionRef, jobName, permissionLine, stepName, scriptName string) {
 	b.WriteString(`  ` + jobName + `:
     name: ` + stepName + `
@@ -583,9 +592,10 @@ func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, s
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
+	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Disable agentic workflow
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        uses: ` + actionPin + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -616,9 +626,10 @@ func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLO
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
+	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Apply safe outputs from referenced run
         if: ${{ steps.check_permissions.outcome == 'success' }}
-        uses: ` + getCachedActionPinFromResolver("actions/github-script", opts.resolver) + `
+        uses: ` + actionPin + `
         env:
           GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}
           GH_AW_WORKFLOW_ID: "agentics-maintenance"

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 const setupNodeV6ExpectedUsesPlaceholder = "__setup_node_v6__"
@@ -2041,6 +2042,39 @@ func TestMapPinnedUsesPreservesExactMappingWithinPrefix(t *testing.T) {
 	}
 	if !strings.Contains(mapped, "uses: actions/setup-node@"+nodeSHA) {
 		t.Fatalf("exact target missing: %s", mapped)
+	}
+}
+
+func TestMapPinnedUsesQuotedScalars(t *testing.T) {
+	const sha = "0123456789012345678901234567890123456789"
+	for _, quote := range []string{"'", `"`} {
+		for _, indentation := range []string{"        uses: ", "      - uses: "} {
+			t.Run(quote+indentation, func(t *testing.T) {
+				input := indentation + quote + "actions/upload-artifact@" + sha + quote + " # v7.0.1 (source v4)\n"
+				mapped, err := mapPinnedUsesInYAML(input, nil,
+					map[string]string{"actions/": "mirror/actions-"}, nil, nil)
+				require.NoError(t, err)
+				require.Equal(t, indentation+"'mirror/actions-upload-artifact@"+sha+"' # v7.0.1 (source v4)\n", mapped)
+
+				mapped, err = mapPinnedUsesInYAML(input,
+					map[string]string{"actions/upload-artifact@v4": "internal/artifacts@" + sha},
+					map[string]string{"actions/": "mirror/actions-"}, nil, nil)
+				require.NoError(t, err)
+				require.Equal(t, indentation+"'internal/artifacts@"+sha+"'\n", mapped)
+
+				input = indentation + quote + "actions/upload-artifact@" + sha + quote + "\t#\tkeep this comment\n"
+				mapped, err = mapPinnedUsesInYAML(input, nil,
+					map[string]string{"actions/": "mirror/actions-"}, nil, nil)
+				require.NoError(t, err)
+				require.Equal(t, indentation+"'mirror/actions-upload-artifact@"+sha+"'\t#\tkeep this comment\n", mapped)
+
+				input = indentation + quote + "actions/upload-artifact@" + sha + quote + "\n"
+				mapped, err = mapPinnedUsesInYAML(input, nil,
+					map[string]string{"actions/": "mirror/actions-"}, nil, nil)
+				require.NoError(t, err)
+				require.Equal(t, indentation+"'mirror/actions-upload-artifact@"+sha+"'\n", mapped)
+			})
+		}
 	}
 }
 
