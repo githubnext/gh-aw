@@ -85,6 +85,12 @@ func TestEngineRegistry(t *testing.T) {
 		_, err := registry.GetEngineByPrefix("nonexistent-prefix")
 		assert.Error(t, err, "GetEngineByPrefix should return an error for a non-matching prefix")
 	})
+
+	t.Run("GetEngineByPrefix rejects a typo extending a builtin ID", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		_, err := registry.GetEngineByPrefix("codexx")
+		assert.Error(t, err, "GetEngineByPrefix should not treat a typo as an engine alias")
+	})
 }
 
 func TestEngineRegistry_Register(t *testing.T) {

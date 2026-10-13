@@ -786,7 +786,7 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 	}
 	var candidates []engineCandidate
 	for id, engine := range r.engines {
-		if strings.HasPrefix(prefix, id) {
+		if strings.HasPrefix(prefix, id+"-") || strings.HasPrefix(prefix, id+"_") {
 			candidates = append(candidates, engineCandidate{id, engine})
 		}
 	}
