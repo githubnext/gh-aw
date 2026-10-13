@@ -88,15 +88,16 @@ async function fetchNativeRun(githubClient, repository, runId) {
   return run;
 }
 
-async function fetchNativeRunAttempt(githubClient, repository, runId) {
+async function fetchNativeRunAttempt(githubClient, repository, runId, attempt = 1) {
   log.debug("run_attempt.fetch.start");
+  const attemptNumber = nativeAttempt(attempt);
   const verified = await fetchNativeRepository(githubClient, repository);
   const [owner, repo] = verified.repository.split("/");
   const response = await githubClient.rest.actions.getWorkflowRunAttempt({
     owner,
     repo,
     run_id: nativeId(runId),
-    attempt_number: 1,
+    attempt_number: attemptNumber,
     headers: { "X-GitHub-Api-Version": API_VERSION },
     request: { retries: 0, timeout: 15000 },
   });

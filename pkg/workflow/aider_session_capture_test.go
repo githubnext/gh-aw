@@ -37,6 +37,9 @@ func runAiderSessionCaptureWithMessage(t *testing.T, scenario string, providerMe
         print(message)
 `), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(codersDir, "base_coder.py"), []byte(`class Coder:
+    def run_shell_commands(self):
+        return ""
+
     def show_send_output(self, completion):
         if completion.choices:
             self.io.assistant_output("  DISPLAY REASONING + REPLY  ")
