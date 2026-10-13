@@ -100,6 +100,7 @@ function normalizeRuntimeEvent(component, record) {
       GUARD_POLICY_BLOCKED: "mcp.guard.blocked",
       tool_call: "mcp.tool_call",
       rpc_call: "mcp.tool_call",
+      "mcp.configuration": "mcp.configuration",
     };
     if (Object.hasOwn(kinds, kind)) type = kinds[kind];
   } else if (component === "firewall") {
@@ -110,7 +111,7 @@ function normalizeRuntimeEvent(component, record) {
   }
   return {
     type,
-    data: structuredClone(record),
+    data: structuredClone(type === "mcp.configuration" ? record.data : record),
     ...(record.timestamp !== undefined ? { timestamp: record.timestamp } : {}),
     ...(record.ts !== undefined ? { ts: record.ts } : {}),
     ...(record.time !== undefined ? { time: record.time } : {}),

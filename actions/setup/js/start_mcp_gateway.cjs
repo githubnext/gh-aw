@@ -41,6 +41,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
+const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -903,12 +904,6 @@ async function main() {
   printTiming(configReadStart, "Configuration read from stdin");
   core.info("");
 
-  // Log configuration for debugging
-  core.info("-------START MCP CONFIG-----------");
-  core.info(mcpConfig);
-  core.info("-------END MCP CONFIG-----------");
-  core.info("");
-
   // -----------------------------------------------------------------------
   // Validate JSON
   // -----------------------------------------------------------------------
@@ -922,21 +917,9 @@ async function main() {
     core.error("");
     core.error("JSON validation error:");
     const parseMessage = getErrorMessage(err);
-    core.error(parseMessage);
     const parseContext = getJSONParseErrorContext(mcpConfig, parseMessage);
     if (parseContext) {
       core.error(`Likely offending location: line ${parseContext.line}, column ${parseContext.column}`);
-      if (parseContext.key) {
-        core.error(`Likely offending key: ${parseContext.key}`);
-      }
-      core.error(`Context line: ${parseContext.lineText}`);
-    }
-    core.error("");
-    core.error("Configuration content:");
-    const lines = mcpConfig.split("\n");
-    core.error(lines.slice(0, 50).join("\n"));
-    if (lines.length > 50) {
-      core.error("... (truncated, showing first 50 lines)");
     }
     core.setFailed("ERROR: Configuration is not valid JSON");
     return;
@@ -968,6 +951,9 @@ async function main() {
 
   applyOTLPIgnoreIfMissing(configObj);
 
+  const logDir = "/tmp/gh-aw/mcp-logs/";
+  writeMcpConfiguration(logDir, configObj);
+
   // Servers declared with `required: false` are best-effort: a failed startup
   // connectivity check for them must not abort the whole gateway.
   const optionalServerNames = extractOptionalServerNames(configObj);
@@ -982,7 +968,6 @@ async function main() {
   // -----------------------------------------------------------------------
   // Start gateway container
   // -----------------------------------------------------------------------
-  const logDir = "/tmp/gh-aw/mcp-logs/";
   const outputPath = path.join(configDir, "gateway-output.json");
   const gatewayStartupMarker = getGatewayStartupMarkerPath();
   clearGatewayStartupMarker(gatewayStartupMarker);
