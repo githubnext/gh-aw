@@ -7,12 +7,16 @@ import unittest
 
 SKILL = Path(__file__).resolve().parents[1]
 ROOT = SKILL.parents[2]
-GUIDES = (ROOT / ".github/aw/debug-agentic-workflow.md", ROOT / "debug.md")
+DEBUG_GUIDE = ROOT / ".github/aw/debug-agentic-workflow.md"
+GUIDES = (ROOT / ".github/aw/debug-model-engine-misconfiguration.md", ROOT / "debug.md")
 FIXTURES = json.loads((SKILL / "tests/fixtures.json").read_text())
 ANCHOR = "#model-and-engine-misconfiguration"
 
 
-def checklist(text):
+def checklist(path):
+    text = path.read_text()
+    if path == GUIDES[0]:
+        return text
     return text.split("## Model and engine misconfiguration\n", 1)[1].split("\n## ", 1)[0]
 
 
@@ -82,7 +86,7 @@ class GuidanceTests(unittest.TestCase):
         self.assertIn("Cannot translate Copilot request feature", case["agent_stdio"])
         for path in GUIDES:
             with self.subTest(path=path):
-                text = checklist(path.read_text())
+                text = checklist(path)
                 positions = [text.index(fix) for fix in case["expected_fixes"]]
                 self.assertEqual(positions, sorted(positions))
                 self.assertLess(positions[-1], text.index(case["last_resort"]))
@@ -98,7 +102,7 @@ class GuidanceTests(unittest.TestCase):
     def test_wire_api_and_artifact_contract(self):
         for path in GUIDES:
             with self.subTest(path=path):
-                text = checklist(path.read_text())
+                text = " ".join(checklist(path).split())
                 precedence = text[text.index("precedence"):] if "precedence" in text else text[text.index("order:"):]
                 positions = [precedence.index(term) for term in (
                     "override", "wire_api", "-utility", "gpt-5+", "CLI default",
@@ -135,7 +139,7 @@ class GuidanceTests(unittest.TestCase):
         case = FIXTURES["misplaced_versions"]
         for path in GUIDES:
             with self.subTest(path=path):
-                text = checklist(path.read_text())
+                text = checklist(path)
                 for failure in case["failures"]:
                     field_start = text.index(f"`{failure['field']}`")
                     boundary = text.find("\n", field_start) if path == GUIDES[0] else text.index("point", field_start)
@@ -165,7 +169,11 @@ class GuidanceTests(unittest.TestCase):
                 ):
                     self.assertIn(symptom, line)
         self.assertTrue((SKILL / "../../aw/debug-agentic-workflow.md").resolve().is_file())
-        full = GUIDES[0].read_text()
+        full = DEBUG_GUIDE.read_text()
+        routing = full.split("## Model and engine misconfiguration\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn(
+            f"[{GUIDES[0].name}]({GUIDES[0].name})", routing
+        )
         for section in ("Collect Existing Evidence", "Identify the First Failing Boundary"):
             content = full.split(f"## {section}\n", 1)[1].split("\n## ", 1)[0]
             self.assertIn(ANCHOR, content)
