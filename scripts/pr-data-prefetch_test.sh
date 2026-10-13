@@ -6,6 +6,29 @@ TEST_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEST_DIR"' EXIT
 mkdir -p "$TEST_DIR/bin" "$TEST_DIR/agent"
 
+# Check the Actions wiring as well as the shell body: a prefix restore must
+# publish a new revision even when the restored entry exists but is invalid.
+restore_step="$(sed -n '/      - name: Restore PR data from cache/,/      - name: Pre-fetch PR diff/p' "$ROOT/.github/workflows/pr-data-prefetch.yml")"
+save_step="$(sed -n '/      - name: Save PR data to cache/,$p' "$ROOT/.github/workflows/pr-data-prefetch.yml")"
+cache_key="pr-prefetch-v2-\${{ github.event.pull_request.number }}-\${{ github.event.pull_request.head.sha }}"
+grep -Fq 'uses: actions/cache/restore@' <<< "$restore_step"
+grep -Fxq "          key: $cache_key" <<< "$restore_step"
+grep -Fxq "            $cache_key-" <<< "$restore_step"
+grep -Fq 'uses: actions/cache/save@' <<< "$save_step"
+grep -Fxq "          key: $cache_key-\${{ github.run_id }}-\${{ github.run_attempt }}" <<< "$save_step"
+test "$(grep -c 'path: /tmp/gh-aw/agent' <<< "$restore_step")" = 1
+test "$(grep -c 'path: /tmp/gh-aw/agent' <<< "$save_step")" = 1
+if grep -q 'if:' <<< "$save_step"; then
+  echo 'Revisioned cache saves must not be skipped on cache hits' >&2
+  exit 1
+fi
+grep -Fq 'bash scripts/pr-data-prefetch_test.sh' "$ROOT/Makefile"
+for workflow in pr-code-quality-reviewer ponytail-reviewer mattpocock-skills-reviewer impeccable-skills-reviewer; do
+  grep -Fq "key: pr-prefetch-v2-\${{ github.event.pull_request.number" "$ROOT/.github/workflows/$workflow.md"
+  grep -Fq "\${{ github.run_id }}-\${{ github.run_attempt }}" "$ROOT/.github/workflows/$workflow.md"
+  grep -Fq 'restore-keys:' "$ROOT/.github/workflows/$workflow.md"
+done
+
 # Execute the workflow's real shell body with isolated files and a fake API.
 awk '
   /^        run: \|$/ { body = 1; next }
@@ -14,6 +37,13 @@ awk '
 ' "$ROOT/.github/workflows/pr-data-prefetch.yml" |
   sed "s|/tmp/gh-aw/agent|$TEST_DIR/agent|g" > "$TEST_DIR/prefetch.sh"
 test -s "$TEST_DIR/prefetch.sh"
+awk '
+  /^    run: \|$/ { body = 1; next }
+  body && /^      / { sub(/^      /, ""); print; next }
+  body { exit }
+' "$ROOT/.github/workflows/shared/pr-diff-data-fetch.md" |
+  sed "s|/tmp/gh-aw/agent|$TEST_DIR/agent|g" > "$TEST_DIR/consumer.sh"
+test -s "$TEST_DIR/consumer.sh"
 
 cat > "$TEST_DIR/bin/gh" <<'MOCK'
 #!/usr/bin/env bash
@@ -38,6 +68,15 @@ case "$*" in
     # gh applies --jq to each page before concatenating the results.
     jq -c '.[][] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' "$TEST_DIR/comments.json"
     ;;
+  "pr view "*)
+    if [[ "$*" == *"--json headRefOid --jq"* ]]; then
+      jq -r '.pull_request.head.sha' "$GITHUB_EVENT_PATH"
+    else
+      [[ "$*" != *",files"* ]]
+      jq '.pull_request | {number, title, body, headRefName: .head.ref,
+        headRefOid: .head.sha, additions, deletions, changedFiles: .changed_files}' "$GITHUB_EVENT_PATH"
+    fi
+    ;;
   *)
     echo "Unexpected API request: $*" >&2
     exit 1
@@ -48,6 +87,7 @@ chmod +x "$TEST_DIR/bin/gh"
 export TEST_DIR
 export PATH="$TEST_DIR/bin:$PATH"
 export PR_NUMBER=42 PR_HEAD_SHA=head-42 GITHUB_REPOSITORY=owner/repo PR_DIFF_MAX_LINES=3000
+export EXPR_GITHUB_REPOSITORY=owner/repo
 export GITHUB_EVENT_PATH="$TEST_DIR/event.json" FAIL_FILES=0 FAIL_COMMENTS=0
 # Do not expose ambient GitHub credentials to the fixture.
 unset GH_TOKEN GITHUB_TOKEN
@@ -75,6 +115,10 @@ jq -n '[[{id:1,path:"src/new.txt",line:2,body:("x" * 220),user:{login:"reviewer"
 run_prefetch() {
   : > "$TEST_DIR/calls"
   bash "$TEST_DIR/prefetch.sh" > "$TEST_DIR/output" 2>&1
+}
+run_consumer() {
+  : > "$TEST_DIR/calls"
+  bash "$TEST_DIR/consumer.sh" > "$TEST_DIR/output" 2>&1
 }
 
 run_prefetch
@@ -108,6 +152,36 @@ jq -e '.title == "Updated title" and .body == "Updated body"' "$TEST_DIR/agent/p
 jq -e '.[1].body == "Fresh comment"' "$TEST_DIR/agent/pr-review-comments.json" >/dev/null
 cp "$TEST_DIR/agent/pr-meta.json" "$TEST_DIR/expected-meta.json"
 
+# A reviewer restoring an older revision refreshes mutable metadata itself.
+jq '.title = "Stale title" | .body = "Stale body"' "$TEST_DIR/expected-meta.json" > "$TEST_DIR/agent/pr-meta.json"
+run_consumer
+test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 1
+jq -e '.number == 42 and .title == "Updated title" and .body == "Updated body" and (.files | length) == 5' \
+  "$TEST_DIR/agent/pr-meta.json" >/dev/null
+cmp "$TEST_DIR/expected.patch" "$TEST_DIR/agent/pr-diff.patch"
+PR_HEAD_SHA="" run_consumer
+test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 3
+jq -e '.title == "Updated title" and .body == "Updated body"' "$TEST_DIR/agent/pr-meta.json" >/dev/null
+
+# Invalid event identities have actionable errors and never publish a marker.
+cp "$GITHUB_EVENT_PATH" "$TEST_DIR/expected-event.json"
+for field in number head.sha; do
+  jq ".pull_request.$field = null" "$TEST_DIR/expected-event.json" > "$GITHUB_EVENT_PATH"
+  if run_prefetch; then
+    echo "Mismatched event unexpectedly succeeded: $field" >&2
+    exit 1
+  fi
+  grep -q '::error::Event payload did not match PR #42 at head head-42' "$TEST_DIR/output"
+  test ! -e "$TEST_DIR/agent/pr-data-head-sha.txt"
+  echo head-42 > "$TEST_DIR/agent/pr-data-head-sha.txt"
+  if run_consumer; then
+    echo "Consumer accepted mismatched event: $field" >&2
+    exit 1
+  fi
+  grep -q '::error::Failed to refresh metadata for PR #42 at head head-42' "$TEST_DIR/output"
+done
+cp "$TEST_DIR/expected-event.json" "$GITHUB_EVENT_PATH"
+
 # Stale, wrong-PR, and incomplete cache entries must not bypass files failures.
 for invalid_cache in stale wrong-pr wrong-meta-head malformed incomplete; do
   echo head-42 > "$TEST_DIR/agent/pr-data-head-sha.txt"
@@ -133,7 +207,25 @@ for invalid_cache in stale wrong-pr wrong-meta-head malformed incomplete; do
   grep -q '::error::Failed to fetch files for PR #42: gh: API rate limit exceeded' "$TEST_DIR/output"
   test ! -e "$TEST_DIR/agent/pr-data-head-sha.txt"
   test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 1
+  echo head-42 > "$TEST_DIR/agent/pr-data-head-sha.txt"
+  if [ "$invalid_cache" = stale ]; then
+    echo stale-head > "$TEST_DIR/agent/pr-data-head-sha.txt"
+  fi
+  if run_consumer; then
+    echo "Consumer accepted invalid cache: $invalid_cache" >&2
+    exit 1
+  fi
+  grep -q '::error::Failed to fetch files for PR #42' "$TEST_DIR/output"
 done
+
+# A successful refetch repairs invalid metadata for the next prefix restore.
+export FAIL_FILES=0
+run_prefetch
+jq -e '.number == 42 and .headRefOid == "head-42" and (.files | length) == 5' \
+  "$TEST_DIR/agent/pr-meta.json" >/dev/null
+export FAIL_FILES=1
+run_prefetch
+test "$(wc -l < "$TEST_DIR/calls" | tr -d ' ')" = 1
 
 # Failed comment pagination must not publish a valid cache or an empty success.
 export FAIL_FILES=0 FAIL_COMMENTS=1

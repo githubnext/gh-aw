@@ -49,10 +49,10 @@ tools:
   github:
     mode: gh-proxy
 cache:
-  key: pr-prefetch-${{ github.event.pull_request.head.sha }}
+  key: pr-prefetch-v2-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
   path: /tmp/gh-aw/agent
   restore-keys:
-    - pr-prefetch-${{ github.event.pull_request.number }}-
+    - pr-prefetch-v2-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}-
 safe-outputs:
   add-comment:
     hide-older-comments: true
