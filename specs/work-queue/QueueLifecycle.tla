@@ -9,6 +9,9 @@ EXTENDS Naturals, Sequences, FiniteSets, TLC
 \* profiles X,Y,X. A one-group budget must stop at b, not skip to c.
 \* Epochs repeat only after full drain; fairness arithmetic is QueueService's
 \* responsibility. No credentials, Git CAS, arbitrary JSON or host are modeled.
+\* Reserved Release abstracts an already-authorized definitive prelaunch
+\* decision. DispatchReservationRecovery refines terminal originating-attempt
+\* evidence, bounded sweeps and the stale-recovery/start-marker race.
 CONSTANTS GroupBudget, EpochBound, Broken
 VARIABLES epoch, admissionPaused, grantsPaused, admitted, assignment,
           markers, sends, phase, binding, terminal, released,

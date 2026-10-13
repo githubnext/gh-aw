@@ -15,7 +15,7 @@ import {
   assertRemediationBackend,
   main as publishQueueControls,
 } from "./work_queue_dispatch.cjs";
-import { cancelBeforeLaunch, cancellationOperations, reconcileDispatch, reconciliationCandidates } from "./work_queue_reconciler.cjs";
+import { cancelBeforeLaunch, cancellationOperations, reconcileDispatch, reconcileQueue, reconciliationCandidates } from "./work_queue_reconciler.cjs";
 import { appendCommit, newRequest, serializeProjection } from "./work_queue_replay.cjs";
 import { assignmentOnly } from "./work_queue_scheduler.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
@@ -90,6 +90,122 @@ function failedFixture(disposition) {
 }
 
 describe("native queue launch fencing and conservative recovery", () => {
+  it.each(["cancelled", "failure", "success"])("reclaims never-started singleton reservations after the exact originating attempt ends with %s", async conclusion => {
+    const { fixture, options, post } = setup({ batch: 1 });
+    const getAttempt = vi.fn().mockImplementation(async parameters => {
+      expect(parameters).toMatchObject({ run_id: "15", attempt_number: 1 });
+      return { status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion } };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = getAttempt;
+    const result = await reconcileQueue({ ...options, pool: "default", verifyEffects: vi.fn() });
+    expect(result.results).toHaveLength(3);
+    expect(result.results.every(result => result.released)).toBe(true);
+    expect([...fixture.state.dispatches.values()].every(dispatch => dispatch.released && dispatch.state === "reserved")).toBe(true);
+    expect([...fixture.state.works.values()].every(work => work.state === "available")).toBe(true);
+    expect([...fixture.state.claims.values()].every(claim => claim.state === "cancelled")).toBe(true);
+    expect(getAttempt).toHaveBeenCalledTimes(3);
+    expect(post).not.toHaveBeenCalled();
+    const before = canonical(fixture.transactions);
+    expect((await reconcileQueue(options)).reconciled).toBe(0);
+    expect(canonical(fixture.transactions)).toBe(before);
+  });
+
+  it("releases an abandoned reservation before the next dispatcher grants and launches retry Work", async () => {
+    const { fixture, options, post } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.retry.backoff_ms = 1) });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => ({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } });
+    const context = { ...fixture.dispatcherContext, runId: "16" };
+    fixture.githubClient.rest.actions.getWorkflowRun = async ({ run_id }) => ({
+      status: 200,
+      data: run_id === "42" ? { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${[...fixture.state.dispatches.values()].at(-1).dispatch_id}` } : fixture.nativeRun(context),
+    });
+    const result = await dispatchQueueIntent({
+      ...options,
+      context,
+      assignment: null,
+      now: fixture.at,
+      remainingDispatches: 1,
+      message: { type: "work_queue_dispatch_next", intent_id: "recover-abandoned", pool: "default", max_claims: 1, max_dispatches: 1 },
+    });
+    expect(result).toMatchObject({ success: true, dispatches: 1, launches: [expect.objectContaining({ state: "bound", run_id: "42" })] });
+    expect([...fixture.state.works.values()][0]).toMatchObject({ state: "claimed", attempts: 2 });
+    expect([...fixture.state.dispatches.values()].map(dispatch => dispatch.released)).toEqual([true, false]);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { status: "in_progress", conclusion: null },
+    { status: "queued", conclusion: null },
+    { status: "completed", conclusion: null },
+  ])("retains a never-started reservation without terminal origin evidence: %j", async override => {
+    const { fixture, options, post } = setup({ count: 1 });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => ({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), ...override } });
+    const before = canonical(fixture.transactions);
+    expect(await reconcileDispatch(options)).toEqual({ state: "reserved", released: false });
+    expect(canonical(fixture.transactions)).toBe(before);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it.each([{ id: "99" }, { run_attempt: 2 }, { path: ".github/workflows/foreign.lock.yml" }, { actor: { id: "99" } }, { repository: { full_name: REPOSITORY, id: 99 } }, { repository: { full_name: "foreign/repo", id: 7 } }])(
+    "does not release on mismatched terminal dispatcher evidence: %j",
+    async override => {
+      const { fixture, options, post } = setup({ count: 1 });
+      fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => ({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled", ...override } });
+      const before = canonical(fixture.transactions);
+      expect(await reconcileQueue(options)).toMatchObject({ results: [{ state: "launch_unresolved", released: false }] });
+      expect(canonical(fixture.transactions)).toBe(before);
+      expect(post).not.toHaveBeenCalled();
+    }
+  );
+
+  it("retains reservations when origin evidence is unavailable and reads the exact later attempt when available", async () => {
+    const { fixture, options, post } = setup({ count: 1, dispatcherRunAttempt: 2 });
+    const getAttempt = vi.fn().mockRejectedValue(Object.assign(new Error("unavailable"), { status: 403 }));
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = getAttempt;
+    const before = canonical(fixture.transactions);
+    expect(await reconcileQueue(options)).toMatchObject({ results: [{ state: "launch_unresolved", released: false }] });
+    expect(canonical(fixture.transactions)).toBe(before);
+    expect(getAttempt.mock.calls[0][0]).toMatchObject({ run_id: "15", attempt_number: 2, request: { retries: 0, timeout: 15000 } });
+    getAttempt.mockResolvedValue({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } });
+    expect(await reconcileDispatch(options)).toMatchObject({ released: true });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the ledger after terminal origin evidence and cannot release a concurrent start marker", async () => {
+    const { fixture, options, post } = setup({ count: 1 });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => {
+      fixture.append("dispatch", { operations: [{ kind: "Dispatch", dispatch_id: fixture.assignment.dispatch_id, state: "started", sender: fixture.dispatcher }] }, fixture.dispatcher);
+      return { status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } };
+    };
+    await expect(reconcileDispatch(options)).rejects.toThrow(/may_have_started/);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "started", released: false });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("rejects prelaunch release publication when a start marker wins after the fresh ledger check", async () => {
+    const { fixture, options, post } = setup({ count: 1 });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => ({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } });
+    const publish = options.publishWorkQueueRequest;
+    options.publishWorkQueueRequest = async args => {
+      if (args.request.kind === "release") fixture.append("dispatch", { operations: [{ kind: "Dispatch", dispatch_id: fixture.assignment.dispatch_id, state: "started", sender: fixture.dispatcher }] }, fixture.dispatcher);
+      return publish(args);
+    };
+    expect(await reconcileQueue(options)).toMatchObject({ results: [{ state: "launch_unresolved", released: false }] });
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "started", released: false });
+    expect([...fixture.state.claims.values()].every(claim => claim.state === "open")).toBe(true);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("includes never-started reservations in bounded, pool-scoped reconciliation", () => {
+    const dispatches = new Map([
+      ["reserved", { dispatch_id: "reserved", pool: "default", state: "reserved", released: false }],
+      ["bound", { dispatch_id: "bound", pool: "default", state: "bound", run: {}, released: false }],
+      ["foreign", { dispatch_id: "foreign", pool: "other", state: "reserved", released: false }],
+      ["released", { dispatch_id: "released", pool: "default", state: "reserved", released: true }],
+    ]);
+    expect(reconciliationCandidates({ dispatches }, "default", 16).map(dispatch => dispatch.dispatch_id)).toEqual(["bound", "reserved"]);
+    expect(reconciliationCandidates({ dispatches }, "default", 1, 1)).toHaveLength(1);
+  });
+
   it("rotates bounded reconciliation sweeps so every outstanding dispatch is revisited", () => {
     const dispatches = new Map(
       Array.from({ length: 17 }, (_, index) => {
