@@ -560,10 +560,11 @@ describe("handle_agent_failure", () => {
           steps: [
             { name: "Start MCP gateway", conclusion: "failure" },
             { name: "Run agent", conclusion: "skipped" },
+            { name: "Post Run agent", conclusion: "failure" },
           ],
         },
       ]);
-      const diagnostics = await getFailedAgentDiagnostics();
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
       const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure", "report_incomplete"], engineFailureContext: "" });
       expect(rendered).toContain("Failing step:** `Start MCP gateway`");
       expect(rendered).not.toContain("private startup error");
@@ -6653,15 +6654,25 @@ describe("handle_agent_failure", () => {
       ["safeoutputs_cli_error", "failed to invoke safeoutputs CLI"],
     ])("creates a distinct failure issue for %s", async (reason, titleSuffix) => {
       fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason }], collectorEmptyOutputCause: reason }));
+      fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
       if (reason === "agent_startup_failure") {
         fs.writeFileSync(path.join(tmpDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 12345, run_attempt: 1, state: "not_started" }));
-        fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
       }
       const createIssueMock = vi.fn(async () => {
         throw new Error("stop after capturing issue");
       });
       global.github = {
-        paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [{ name: "Start MCP Gateway", conclusion: "failure" }] }]),
+        paginate: vi.fn(async () => [
+          {
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              { name: "Start MCP Gateway", conclusion: "failure" },
+              { name: "Run agent", conclusion: "skipped" },
+              { name: "Post Run agent", conclusion: "failure" },
+            ],
+          },
+        ]),
         rest: {
           actions: { listJobsForWorkflowRun: vi.fn() },
           search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
@@ -6680,8 +6691,13 @@ describe("handle_agent_failure", () => {
         const body = createIssueMock.mock.calls[0][0].body;
         expect(body).toContain("Agent execution state: not_started");
         expect(body).toContain("Failing step:** `Start MCP Gateway`");
+        expect(body).not.toContain("Failing step:** `Post Run agent`");
         expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
         expect(body).not.toContain("copilot-requests:write");
+      } else if (reason === "engine_driver_failure") {
+        const body = createIssueMock.mock.calls[0][0].body;
+        expect(body).toContain("Failing step:** `Post Run agent`");
+        expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
       }
     });
 
@@ -6749,6 +6765,46 @@ describe("handle_agent_failure", () => {
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain("report_incomplete");
       expect(categories).not.toContain(reason);
+    });
+
+    it("keeps last-failed-step diagnostics for an agent-authored startup reason without collector evidence", async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "report_incomplete", reason: "agent_startup_failure" },
+            { type: "report_incomplete", reason: "infrastructure_error" },
+          ],
+        })
+      );
+      fs.copyFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), path.join(promptsDir, "agent_failure_issue.md"));
+      const create = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        paginate: vi.fn().mockResolvedValue([
+          {
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              { name: "Start MCP Gateway", conclusion: "failure" },
+              { name: "Run agent", conclusion: "skipped" },
+              { name: "Post Run agent", conclusion: "failure" },
+            ],
+          },
+        ]),
+        rest: {
+          actions: { listJobsForWorkflowRun: vi.fn() },
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create },
+        },
+      };
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      const body = create.mock.calls[0][0].body;
+      expect(body).toContain("Failing step:** `Post Run agent`");
+      expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
     });
 
     it("keeps the step failed when failure issue creation fails after a successful agent reports incomplete", async () => {

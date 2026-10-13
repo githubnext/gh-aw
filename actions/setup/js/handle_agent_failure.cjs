@@ -1803,9 +1803,10 @@ function buildReportIncompleteContext(items, { collectorEmptyOutputCause, rootDi
 
 /**
  * Find the failed agent step using Actions metadata only, never agent-generated log text.
+ * @param {{startupFailure?: boolean}} [options] - Select the first failed step only for a validated collector startup failure.
  * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string, hasNoJobs?: boolean}>}
  */
-async function getFailedAgentDiagnostics() {
+async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
   let jobs;
   try {
     const { owner, repo } = context.repo;
@@ -1845,10 +1846,9 @@ async function getFailedAgentDiagnostics() {
   if (agentConclusion !== "failure" && agentConclusion !== "timed_out") {
     return { failingStep: "", agentConclusion };
   }
-  const failedStep = agentJob.steps
-    ?.slice()
-    .reverse()
-    .find(step => ["failure", "timed_out"].includes(step.conclusion) && typeof step.name === "string");
+  const steps = agentJob.steps?.slice();
+  if (!startupFailure) steps?.reverse();
+  const failedStep = steps?.find(step => ["failure", "timed_out"].includes(step.conclusion) && typeof step.name === "string");
   if (!failedStep) {
     return { failingStep: "", agentConclusion, attributionUnavailable: "The failed agent job had no failed step metadata." };
   }
@@ -4542,7 +4542,7 @@ async function main() {
       failureCategories.includes("engine_driver_failure") ||
       failureCategories.includes("agent_startup_failure") ||
       agentOutputItems.some(item => item?.type === "report_incomplete" && item.reason === "infrastructure_error");
-    const failureDiagnostics = await getFailedAgentDiagnostics();
+    const failureDiagnostics = await getFailedAgentDiagnostics({ startupFailure: emptyOutputCause === "agent_startup_failure" });
     if (failureDiagnostics.hasNoJobs) {
       core.info("Skipping failure reporting: no workflow jobs started; the run may not have been approved.");
       return;

@@ -52,14 +52,28 @@ describe("empty output outcome", () => {
     const file = path.join(rootDir, relativePath);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Authentication failed\n");
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome).toMatchObject({ reason: "agent_startup_failure", failureCause: "agent_startup_failure" });
+    expect(outcome).not.toHaveProperty("engineErrorType");
     expect(outcome.details).toContain("Agent execution state: not_started");
     expect(outcome.details).toContain("Inspect the failed startup step and gateway/setup logs");
     expect(outcome.details).not.toContain("inspect the agent artifact");
     expect(outcome.details).not.toContain("Agent finished");
     expect(outcome.details).not.toContain("Driver exit code");
     expect(outcome.details).not.toContain("Token budget");
+    expect(outcome.details).not.toContain("Engine error:");
+    expect(outcome.details).not.toContain("Last engine error type:");
+    expect(outcome.details).not.toContain("Authentication failed");
+  });
+
+  it("preserves engine error extraction when agent execution invalidates a not_started marker", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution.json"), JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Authentication failed\n");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome).toMatchObject({ reason: "engine_driver_failure", failureCause: "request_rejection", driverExitCode: 1, engineErrorType: "authentication_failed" });
+    expect(outcome.details).toContain("Engine error: Authentication failed");
   });
 
   it.each([{ version: 2 }, { component: "detection" }, { state: "started" }, { state: "completed" }, { run_id: "38401428490" }, { run_attempt: 0 }])(

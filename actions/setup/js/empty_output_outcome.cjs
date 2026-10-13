@@ -279,7 +279,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     })
     .join("\n");
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
-  const engineSummary = agentErrorSummaryText(safeStdio, events, rawSourceEngine);
+  const engineSummary = agentNotStarted ? "" : agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);
   const engineErrorType = engineSummary.match(/\(([a-z][a-z0-9_]*)\)/)?.[1] || "";
   const errorCodes = executionErrorCodes.filter(code => Number.isSafeInteger(code) && code >= 400 && code <= 599);
