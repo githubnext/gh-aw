@@ -19,8 +19,7 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 
 Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
 revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty; the first producer submit atomically
-creates compiled Policy and Work. Reads and dispatch alone never do.
+An absent branch is uninitialized/empty.
 Reject malformed or unsupported existing logs.
 
 ## Configure deployment
@@ -53,18 +52,20 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 
 ## Mirror admitted Work with Issues
 
-`work_queue.issues: true` mirrors admitted Work with `work` and `work:<status>`
-labels. Optional `label` customizes the tracking label; `title_prefix` defaults
-to `[work queue]`. Titles and summaries show 12-character Work IDs; the Issue
-body includes the full ID. No workflow override or enrollment is needed.
-Only protected AW hooks
-project their own admissions/original Claims. Immutable `backing_issue` binds
-one Work per Issue. Agents never write mirrors; human edits never establish
-Result. Pre-existing Issues require exact installed `backing_issues` grants.
-Only trusted admission-time `completion_policy` permits closure, never payload.
-Uncertain writes stay pending, never recreated or globally repaired.
-Upgrade all closed-schema readers first. See the
+`aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
+`work:<status>` labels. Optional `label` customizes the tracking and status-label
+prefixes; `title_prefix` defaults to `[work queue]`. Titles and summaries show
+12-character Work IDs; the Issue body includes the full ID. No per-workflow
+override or enrollment is needed. Protected AW hooks alone project their
+admissions/original Claims. Immutable `backing_issue` binds one Work per Issue.
+Agents never write mirrors; human edits never establish Result. Pre-existing
+Issues require exact installed `backing_issues` grants. Only trusted
+admission-time `completion_policy` permits closure, never payload. Keep uncertain
+writes pending; never recreate or globally repair. Upgrade closed-schema readers
+first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
+Mirroring enables compiler-generated `.github/workflows/agentic-workqueue.yml`
+for Issue lifecycle events outside agentic workflows; disabling mirroring removes it.
 
 ## Plan and dispatch
 
