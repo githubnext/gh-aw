@@ -214,6 +214,9 @@ Show a findings table only when confirmed findings exist. With no confirmed
 findings, say "No confirmed vulnerabilities found" in the result sentence;
 do not render an empty table or a placeholder row. Report validation blockers
 and unresolved coverage separately, without labeling them as vulnerabilities.
+This applies to final replies and task-completion summaries: omit the entire
+findings table when empty, including its header; never put the no-findings
+sentence in a table row.
 
 ### Annotated Markdown Change Overview
 
