@@ -24,12 +24,11 @@ describe("cleanup_stale_steering_issues", () => {
     global.core = mockCore;
     global.context = mockContext;
     mockGithub = {
+      graphql: vi.fn(),
       paginate: vi.fn(),
       rest: {
-        search: {
-          issuesAndPullRequests: vi.fn(),
-        },
         issues: {
+          get: vi.fn(),
           listComments: vi.fn(),
           createComment: vi.fn(),
           update: vi.fn(),
@@ -43,18 +42,27 @@ describe("cleanup_stale_steering_issues", () => {
   });
 
   it("comments on and closes stale steering issues linked to successful runs", async () => {
-    mockGithub.paginate.mockResolvedValueOnce([makeIssue()]).mockResolvedValueOnce([]);
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        issues: {
+          nodes: [{ number: 101, title: "[WIP] Example: work in progress", createdAt: oldCreatedAt }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    });
+    mockGithub.rest.issues.get.mockResolvedValueOnce({ data: { body: makeIssue().body } });
+    mockGithub.paginate.mockResolvedValueOnce([]);
     mockGithub.rest.actions.getWorkflowRun.mockResolvedValue({ data: { status: "completed", conclusion: "success" } });
 
     const { main, CLEANUP_COMMENT } = await import("./cleanup_stale_steering_issues.cjs");
     await main();
 
-    expect(mockGithub.paginate).toHaveBeenCalledWith(mockGithub.rest.search.issuesAndPullRequests, {
-      q: 'repo:testowner/testrepo is:issue is:open in:title "[WIP]"',
-      per_page: 100,
-      sort: "created",
-      order: "asc",
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("issues(first: 100, after: $cursor, states: [OPEN]"), {
+      owner: "testowner",
+      repo: "testrepo",
+      cursor: null,
     });
+    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 101 });
     expect(mockGithub.rest.actions.getWorkflowRun).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -77,15 +85,21 @@ describe("cleanup_stale_steering_issues", () => {
 
   it("does not touch active, failed, malformed, or unrelated issues", async () => {
     const issues = [
-      makeIssue({ number: 1, created_at: new Date().toISOString() }),
-      makeIssue({ number: 2, title: "Unrelated issue" }),
-      makeIssue({ number: 3, body: "No workflow run link" }),
-      makeIssue({ number: 4, body: "https://example.com/owner/repo/actions/runs/12345" }),
-      makeIssue({ number: 5 }),
-      makeIssue({ number: 6 }),
-      makeIssue({ number: 7, pull_request: { url: "https://github.com/testowner/testrepo/pull/7" } }),
+      { number: 2, title: "Unrelated issue", createdAt: oldCreatedAt },
+      { number: 3, title: "[WIP] Missing link", createdAt: oldCreatedAt },
+      { number: 4, title: "[WIP] Invalid link", createdAt: oldCreatedAt },
+      { number: 5, title: "[WIP] Failed run", createdAt: oldCreatedAt },
+      { number: 6, title: "[WIP] Active run", createdAt: oldCreatedAt },
+      { number: 1, title: "[WIP] Active example", createdAt: new Date().toISOString() },
     ];
-    mockGithub.paginate.mockResolvedValueOnce(issues);
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: { issues: { nodes: issues, pageInfo: { hasNextPage: false, endCursor: null } } },
+    });
+    mockGithub.rest.issues.get
+      .mockResolvedValueOnce({ data: { body: "No workflow run link" } })
+      .mockResolvedValueOnce({ data: { body: "https://example.com/owner/repo/actions/runs/12345" } })
+      .mockResolvedValueOnce({ data: { body: makeIssue().body } })
+      .mockResolvedValueOnce({ data: { body: makeIssue().body } });
     mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({ data: { status: "completed", conclusion: "failure" } }).mockResolvedValueOnce({ data: { status: "in_progress", conclusion: null } });
 
     const { main } = await import("./cleanup_stale_steering_issues.cjs");
@@ -97,7 +111,16 @@ describe("cleanup_stale_steering_issues", () => {
   });
 
   it("does not duplicate the cleanup comment when closure needs another attempt", async () => {
-    mockGithub.paginate.mockResolvedValueOnce([makeIssue()]).mockResolvedValueOnce([{ body: "Already handled <!-- gh-aw:stale-steering-issue-cleanup -->" }]);
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        issues: {
+          nodes: [{ number: 101, title: "[WIP] Example: work in progress", createdAt: oldCreatedAt }],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    });
+    mockGithub.rest.issues.get.mockResolvedValueOnce({ data: { body: makeIssue().body } });
+    mockGithub.paginate.mockResolvedValueOnce([{ body: "Already handled <!-- gh-aw:stale-steering-issue-cleanup -->" }]);
     mockGithub.rest.actions.getWorkflowRun.mockResolvedValue({ data: { status: "completed", conclusion: "success" } });
 
     const { main } = await import("./cleanup_stale_steering_issues.cjs");
@@ -105,6 +128,36 @@ describe("cleanup_stale_steering_issues", () => {
 
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("paginates only through issues created before the stale cutoff", async () => {
+    const { getStaleSteeringIssues, STEERING_ISSUE_MAX_AGE_MS } = await import("./cleanup_stale_steering_issues.cjs");
+    const cutoff = Date.now() - STEERING_ISSUE_MAX_AGE_MS;
+    const staleCreatedAt = new Date(cutoff - 60_000).toISOString();
+    const recentCreatedAt = new Date(cutoff + 60_000).toISOString();
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          issues: {
+            nodes: [{ number: 101, title: "[WIP] Stale", createdAt: staleCreatedAt }],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issues: {
+            nodes: [{ number: 102, title: "[WIP] Recent", createdAt: recentCreatedAt }],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-2" },
+          },
+        },
+      });
+
+    const candidates = await getStaleSteeringIssues("testowner", "testrepo", cutoff);
+
+    expect(candidates.map(issue => issue.number)).toEqual([101]);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql.mock.calls[1][1]).toEqual({ owner: "testowner", repo: "testrepo", cursor: "cursor-1" });
   });
 
   it("extracts only run IDs belonging to the current repository", async () => {
