@@ -19,16 +19,8 @@ const workQueueEventWorkflowFilename = "agentic-workqueue.yml"
 // at least one compiled workflow enables Issue mirroring. Otherwise it removes
 // any previously generated handler.
 func GenerateWorkQueueEventWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, repoConfig *RepoConfig) error {
-	enabled := false
-	for _, data := range workflowDataList {
-		if workQueueIssuesConfig(data) != nil {
-			enabled = true
-			break
-		}
-	}
-
 	path := filepath.Join(workflowDir, workQueueEventWorkflowFilename)
-	if !enabled {
+	if !WorkQueueIssueMirroringEnabled(workflowDataList) {
 		workQueueEventWorkflowLog.Print("No work queue Issue events are used; removing generated workflow")
 		if err := removeIfExists(path); err != nil {
 			return fmt.Errorf("failed to remove generated work queue event workflow: %w", err)

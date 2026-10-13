@@ -66,6 +66,17 @@ func workQueueIssuesConfig(data *WorkflowData) *WorkQueueIssuesConfig {
 	return result
 }
 
+// WorkQueueIssueMirroringEnabled reports whether any compiled workflow enables
+// work queue Issue mirroring.
+func WorkQueueIssueMirroringEnabled(workflowDataList []*WorkflowData) bool {
+	for _, data := range workflowDataList {
+		if workQueueIssuesConfig(data) != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func validateWorkQueueIssuesConfig(data *WorkflowData) error {
 	config, ok := data.Tools["work-queue"].(map[string]any)
 	if !ok {
