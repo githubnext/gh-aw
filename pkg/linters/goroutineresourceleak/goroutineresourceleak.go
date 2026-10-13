@@ -4,31 +4,31 @@
 //
 // The linter detects several problematic patterns:
 //
-// 1. Goroutines that create cancellable contexts but don't defer cancel:
-//    go func() {
-//        ctx, cancel := context.WithCancel(parent)
-//        // cancel not deferred — context leak and goroutine leak
-//        use(ctx)
-//    }()
+//  1. Goroutines that create cancellable contexts but don't defer cancel:
+//     go func() {
+//     ctx, cancel := context.WithCancel(parent)
+//     // cancel not deferred — context leak and goroutine leak
+//     use(ctx)
+//     }()
 //
-// 2. Goroutines that acquire mutexes without defer unlock:
-//    go func() {
-//        mu.Lock()
-//        // Unlock not deferred — can deadlock if function panics
-//        use()
-//    }()
+//  2. Goroutines that acquire mutexes without defer unlock:
+//     go func() {
+//     mu.Lock()
+//     // Unlock not deferred — can deadlock if function panics
+//     use()
+//     }()
 //
-// 3. Goroutines creating channels without receiver/draining:
-//    go func() {
-//        ch := make(chan T)
-//        // Channel not drained — sends may block forever
-//    }()
+//  3. Goroutines creating channels without receiver/draining:
+//     go func() {
+//     ch := make(chan T)
+//     // Channel not drained — sends may block forever
+//     }()
 //
-// 4. Goroutines launched in tight loops without WaitGroup:
-//    for i := 0; i < n; i++ {
-//        go doWork(i)
-//        // No synchronization — main may exit before work finishes
-//    }
+//  4. Goroutines launched in tight loops without WaitGroup:
+//     for i := 0; i < n; i++ {
+//     go doWork(i)
+//     // No synchronization — main may exit before work finishes
+//     }
 package goroutineresourceleak
 
 import (
@@ -63,7 +63,11 @@ func run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{(*ast.GoStmt)(nil)}
 	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		checkGoroutineResourceLeak(pass, n.(*ast.GoStmt), noLintIndex, generatedFiles)
+		goStmt, ok := n.(*ast.GoStmt)
+		if !ok {
+			return
+		}
+		checkGoroutineResourceLeak(pass, goStmt, noLintIndex, generatedFiles)
 	})
 }
 
@@ -127,8 +131,7 @@ func checkCancelLeak(
 	}
 
 	// Track cancel variables in the function body to detect if they're deferred.
-	cancelVars := make(map[string]bool) // varName -> isDeferred
-	deferredCancels := make(map[string]bool)
+	deferredCancels := make(map[string]struct{})
 
 	// First pass: identify all deferred cancel calls.
 	for _, stmt := range body.List {
@@ -136,7 +139,7 @@ func checkCancelLeak(
 			callExpr := deferStmt.Call
 			if callExpr != nil {
 				if ident, ok := callExpr.Fun.(*ast.Ident); ok {
-					deferredCancels[ident.Name] = true
+					deferredCancels[ident.Name] = struct{}{}
 				}
 			}
 		}
@@ -152,12 +155,12 @@ func checkCancelLeak(
 
 		// Check if this is a ctx, cancel := context.With* assignment.
 		if len(assignStmt.Lhs) >= 2 {
-			cancelIdent, ok := assignStmt.Lhs[1].(*ast.Ident)
+			cancelIdent, ok := assignStmt.Lhs[1].(*ast.Ident) //nolint:uncheckedsliceindex // len(assignStmt.Lhs) is checked above
 			if !ok || cancelIdent.Name == "_" {
 				continue
 			}
 
-			callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr)
+			callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr) //nolint:uncheckedsliceindex // len(assignStmt.Rhs) is checked above
 			if !ok {
 				continue
 			}
@@ -165,8 +168,7 @@ func checkCancelLeak(
 			if isContextWithCancelCall(pass, callExpr) {
 				// Found context.WithCancel/WithTimeout/WithDeadline assignment.
 				// Check if cancel is deferred.
-				if !deferredCancels[cancelIdent.Name] {
-					cancelVars[cancelIdent.Name] = true
+				if _, deferred := deferredCancels[cancelIdent.Name]; !deferred {
 					return true
 				}
 			}
@@ -188,7 +190,7 @@ func checkMutexLeak(
 	}
 
 	// Track Lock calls and their corresponding Unlock calls.
-	deferredUnlocks := make(map[string]bool)
+	deferredUnlocks := make(map[string]struct{})
 
 	// First pass: find deferred Unlock calls.
 	for _, stmt := range body.List {
@@ -199,7 +201,7 @@ func checkMutexLeak(
 					// Track both Unlock and RUnlock.
 					if selExpr.Sel.Name == "Unlock" || selExpr.Sel.Name == "RUnlock" {
 						if ident, ok := selExpr.X.(*ast.Ident); ok {
-							deferredUnlocks[ident.Name] = true
+							deferredUnlocks[ident.Name] = struct{}{}
 						}
 					}
 				}
@@ -229,7 +231,7 @@ func checkMutexLeak(
 			if ident, ok := selExpr.X.(*ast.Ident); ok {
 				receiverName := ident.Name
 				// Flag if there's no corresponding deferred Unlock or RUnlock.
-				if !deferredUnlocks[receiverName] {
+				if _, deferred := deferredUnlocks[receiverName]; !deferred {
 					return true
 				}
 			}
@@ -250,19 +252,23 @@ func checkChannelLeak(
 		return false
 	}
 
-	// For now, we use a simplified heuristic: if a channel is created
-	// with make(chan T) but we don't see any send, close, or receive operations
-	// on it, it's likely a leak. However, this requires flow analysis.
-	// We'll focus on the most obvious case: channels created but never used.
+	channels := findCreatedChannels(body)
+	usedChannels := findUsedChannels(body)
+	for ch := range channels {
+		if _, used := usedChannels[ch]; !used {
+			return true
+		}
+	}
 
-	// Track all channel creations.
-	channels := make(map[string]bool) // varName -> isCreated
+	return false
+}
 
-	// First pass: find channel creations and usages.
+func findCreatedChannels(body *ast.BlockStmt) map[string]struct{} {
+	channels := make(map[string]struct{})
 	ast.Inspect(body, func(n ast.Node) bool {
 		if assignStmt, ok := n.(*ast.AssignStmt); ok {
 			if len(assignStmt.Rhs) >= 1 {
-				callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr)
+				callExpr, ok := assignStmt.Rhs[0].(*ast.CallExpr) //nolint:uncheckedsliceindex // len(assignStmt.Rhs) is checked above
 				if !ok {
 					return true
 				}
@@ -270,11 +276,11 @@ func checkChannelLeak(
 				// Check for make(chan T) pattern.
 				if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "make" {
 					if len(callExpr.Args) >= 1 {
-						if _, ok := callExpr.Args[0].(*ast.ChanType); ok {
+						if _, ok := callExpr.Args[0].(*ast.ChanType); ok { //nolint:uncheckedsliceindex // len(callExpr.Args) is checked above
 							// This is make(chan T, ...) — a channel creation.
 							for _, lhs := range assignStmt.Lhs {
 								if varIdent, ok := lhs.(*ast.Ident); ok && varIdent.Name != "_" {
-									channels[varIdent.Name] = true
+									channels[varIdent.Name] = struct{}{}
 								}
 							}
 						}
@@ -285,16 +291,16 @@ func checkChannelLeak(
 		return true
 	})
 
-	// Second pass: check if channels are used (sent to, received from, or closed).
-	// If a channel is created but never used in any way, it's likely a leak.
-	// This is a conservative heuristic; we only flag obvious cases.
-	usedChannels := make(map[string]bool)
+	return channels
+}
 
+func findUsedChannels(body *ast.BlockStmt) map[string]struct{} {
+	usedChannels := make(map[string]struct{})
 	ast.Inspect(body, func(n ast.Node) bool {
 		// Look for send operations: ch <- value
 		if sendStmt, ok := n.(*ast.SendStmt); ok {
 			if ident, ok := sendStmt.Chan.(*ast.Ident); ok {
-				usedChannels[ident.Name] = true
+				usedChannels[ident.Name] = struct{}{}
 			}
 		}
 
@@ -302,8 +308,8 @@ func checkChannelLeak(
 		if callExpr, ok := n.(*ast.CallExpr); ok {
 			if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "close" {
 				if len(callExpr.Args) >= 1 {
-					if argIdent, ok := callExpr.Args[0].(*ast.Ident); ok {
-						usedChannels[argIdent.Name] = true
+					if argIdent, ok := callExpr.Args[0].(*ast.Ident); ok { //nolint:uncheckedsliceindex // len(callExpr.Args) is checked above
+						usedChannels[argIdent.Name] = struct{}{}
 					}
 				}
 			}
@@ -312,21 +318,14 @@ func checkChannelLeak(
 		// Look for receive operations: value := <-ch or <-ch
 		if unaryExpr, ok := n.(*ast.UnaryExpr); ok && unaryExpr.Op.String() == "<-" {
 			if ident, ok := unaryExpr.X.(*ast.Ident); ok {
-				usedChannels[ident.Name] = true
+				usedChannels[ident.Name] = struct{}{}
 			}
 		}
 
 		return true
 	})
 
-	// Check if any created channel is not used.
-	for ch := range channels {
-		if !usedChannels[ch] {
-			return true
-		}
-	}
-
-	return false
+	return usedChannels
 }
 
 // isContextWithCancelCall reports whether call is context.WithCancel,
