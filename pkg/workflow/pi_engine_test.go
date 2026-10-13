@@ -200,54 +200,6 @@ func TestPiEngine_GetInstallationSteps_NoCustomCommand(t *testing.T) {
 	assert.NotContains(t, rendered.String(), "NPM_CONFIG_MIN_RELEASE_AGE", "Pi installation should not set the npm release-age cooldown")
 }
 
-func TestPiEngine_GetInstallationSteps_PinsSiblingPackages(t *testing.T) {
-	require.NotEmpty(t, constants.DefaultPiDependencyVersions, "Pi sibling package pins should be defined")
-	for name, version := range constants.DefaultPiDependencyVersions {
-		assert.True(t, strings.HasPrefix(name, "@earendil-works/"), "Pinned package %s should be an @earendil-works package", name)
-		assert.True(t, strings.HasPrefix(string(version), "1.1."), "Pinned package %s should stay on 1.1.x, got %s", name, version)
-	}
-	for _, name := range []string{"chord", "pi-agent-core", "pi-ai", "pi-codemode", "pi-mcp", "pi-telemetry", "pi-tui"} {
-		assert.Contains(t, constants.DefaultPiDependencyVersions, "@earendil-works/"+name, "Pi sibling package %s should be pinned", name)
-	}
-
-	engine := NewPiEngine()
-	steps := engine.GetInstallationSteps(&WorkflowData{
-		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi"},
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor},
-		},
-	})
-	content := strings.Join(flattenSteps(steps), "\n")
-
-	manifest := piInstallManifest(string(constants.DefaultPiVersion))
-	for name, version := range constants.DefaultPiDependencyVersions {
-		assert.Contains(t, manifest, `"`+name+`":"`+string(version)+`"`, "Pi install manifest should override %s", name)
-	}
-	assert.Equal(t, 2, strings.Count(content, "'"+manifest+"' > \"$GH_AW_PI_INSTALL_DIR/package.json\""), "Both the host and microVM Pi installs should write the pinned manifest")
-	assert.Equal(t, 2, strings.Count(content, `npm install --ignore-scripts --prefix "$GH_AW_PI_INSTALL_DIR" @earendil-works/pi-coding-agent@`+string(constants.DefaultPiVersion)), "Pi should be installed into a gh-aw-controlled npm project")
-	assert.NotContains(t, content, "npm install --ignore-scripts -g @earendil-works/pi-coding-agent", "Pi should not be installed globally because npm ignores overrides for global installs")
-	assert.Contains(t, content, `GH_AW_PI_INSTALL_DIR="${RUNNER_TEMP}/gh-aw/pi-cli"`)
-	assert.Contains(t, content, `ln -sf "$GH_AW_PI_INSTALL_DIR/node_modules/.bin/pi" "$(npm prefix -g)/bin/pi"`)
-	assert.Contains(t, content, `GH_AW_PI_INSTALL_DIR="${RUNNER_TEMP}/gh-aw/engine-cli"`)
-	assert.Contains(t, content, `ln -sf "../node_modules/.bin/pi" "$GH_AW_PI_INSTALL_DIR/bin/pi"`)
-	assert.Contains(t, content, `GH_AW_PI_PACKAGE_ROOT="${RUNNER_TEMP}/gh-aw/pi-cli/node_modules/@earendil-works/pi-coding-agent"`)
-}
-
-func TestPiEngine_GetInstallationSteps_CustomVersionSkipsSiblingPins(t *testing.T) {
-	engine := NewPiEngine()
-	steps := engine.GetInstallationSteps(&WorkflowData{
-		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Version: "${{ inputs.pi-version }}"},
-	})
-	content := strings.Join(flattenSteps(steps), "\n")
-
-	assert.Contains(t, content, `printf '%s\n' '{"private":true}' > "$GH_AW_PI_INSTALL_DIR/package.json"`)
-	assert.Contains(t, content, `npm install --ignore-scripts --prefix "$GH_AW_PI_INSTALL_DIR" @earendil-works/pi-coding-agent@"${ENGINE_VERSION}"`)
-	assert.Contains(t, content, "ENGINE_VERSION: ${{ inputs.pi-version }}")
-	assert.NotContains(t, content, `"overrides"`)
-}
-
 func TestPiEngine_GetInstallationSteps_WithCustomCommand(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{

@@ -103,12 +103,7 @@ func TestNVXNpmEngineAssets(t *testing.T) {
 			for _, step := range engine.GetInstallationSteps(data) {
 				installation.WriteString(strings.Join(step, "\n"))
 			}
-			if engine.GetID() == "pi" {
-				assert.Contains(t, installation.String(), `GH_AW_PI_INSTALL_DIR="${RUNNER_TEMP}/gh-aw/engine-cli"`)
-				assert.Contains(t, installation.String(), `npm install --ignore-scripts --prefix "$GH_AW_PI_INSTALL_DIR" @earendil-works/pi-coding-agent@`)
-			} else {
-				assert.Contains(t, installation.String(), `--prefix "${RUNNER_TEMP}/gh-aw/engine-cli"`)
-			}
+			assert.Contains(t, installation.String(), `--prefix "${RUNNER_TEMP}/gh-aw/engine-cli"`)
 			assert.Contains(t, GetMicroVMNpmCLIPathSetup(data), "/gh-aw/engine-cli/bin")
 		})
 	}

@@ -219,83 +219,41 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 			version = workflowData.EngineConfig.Version
 		}
 
-		// Pi is installed into a gh-aw-controlled npm project (instead of a plain
-		// global install) so the root manifest's overrides can pin the sibling
-		// @earendil-works/* packages; npm ignores overrides for `npm install -g`.
-		// The pi executable is then linked into the global npm bin directory.
-		npmSteps := []GitHubActionStep{
-			GenerateNodeJsSetupStep(),
-			piPinnedInstallStep("Install Pi CLI", version, piInstallDir,
-				`ln -sf "$GH_AW_PI_INSTALL_DIR/node_modules/.bin/pi" "$(npm prefix -g)/bin/pi"`),
-		}
+		npmSteps := GenerateNpmInstallSteps(
+			"@earendil-works/pi-coding-agent",
+			version,
+			"Install Pi CLI",
+			"pi",
+			NPMInstallOptions{
+				IncludeNodeSetup:  true,
+				RunInstallScripts: false,
+				CooldownEnabled:   false,
+			},
+		)
 
 		// MicroVM runtimes cannot rely on the globally installed
 		// CLI in the hosted tool cache, so stage a second copy under RUNNER_TEMP.
 		if isCloudHypervisorRuntime(workflowData) || isNVXRuntime(workflowData) {
-			npmSteps = append(npmSteps, piPinnedInstallStep("Install Pi CLI in microVM path", version, piMicroVMInstallDir,
-				`mkdir -p "$GH_AW_PI_INSTALL_DIR/bin"`,
-				`ln -sf "../node_modules/.bin/pi" "$GH_AW_PI_INSTALL_DIR/bin/pi"`))
+			npmSteps = append(npmSteps, GenerateMicroVMNpmCLIInstallStep(
+				"@earendil-works/pi-coding-agent",
+				version,
+				"Install Pi CLI in microVM path",
+				"pi",
+				false,
+				false,
+			))
 		}
 
 		steps = BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 		steps = append(steps, GitHubActionStep{
 			"      - name: Record Pi package location",
 			"        run: |",
-			`          GH_AW_PI_PACKAGE_ROOT="` + piInstallDir + `/node_modules/@earendil-works/pi-coding-agent"`,
+			`          GH_AW_PI_PACKAGE_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"`,
 			`          printf 'GH_AW_PI_PACKAGE_ROOT=%s\n' "$GH_AW_PI_PACKAGE_ROOT" >> "$GITHUB_ENV"`,
 		})
 	}
 
 	return append(steps, e.extensionInstallationSteps(workflowData)...)
-}
-
-// piInstallDir is the gh-aw-controlled npm project directory that hosts the Pi CLI.
-const piInstallDir = "${RUNNER_TEMP}/gh-aw/pi-cli"
-
-// piMicroVMInstallDir is the engine CLI directory staged into microVM runtimes.
-const piMicroVMInstallDir = "${RUNNER_TEMP}/gh-aw/engine-cli"
-
-const piPackageName = "@earendil-works/pi-coding-agent"
-
-// piInstallManifest returns the npm project manifest written before installing Pi.
-// For the default Pi version, its overrides hold every @earendil-works/* dependency
-// at the versions in constants.DefaultPiDependencyVersions so caret ranges cannot
-// pull in an incompatible sibling release.
-func piInstallManifest(version string) string {
-	if version != string(constants.DefaultPiVersion) {
-		return `{"private":true}`
-	}
-	overrides := make([]string, 0, len(constants.DefaultPiDependencyVersions))
-	for _, name := range slices.Sorted(maps.Keys(constants.DefaultPiDependencyVersions)) {
-		overrides = append(overrides, strconv.Quote(name)+":"+strconv.Quote(string(constants.DefaultPiDependencyVersions[name])))
-	}
-	return `{"private":true,"overrides":{` + strings.Join(overrides, ",") + `}}`
-}
-
-// piPinnedInstallStep installs Pi into installDir as an npm project whose manifest
-// pins the sibling @earendil-works/* packages, then runs linkCommands to expose pi.
-func piPinnedInstallStep(stepName, version, installDir string, linkCommands ...string) GitHubActionStep {
-	spec := piPackageName + "@" + version
-	expressionVersion := ExpressionPattern.MatchString(version)
-	if expressionVersion {
-		// Pass expression versions through an env var to prevent shell injection.
-		spec = piPackageName + `@"${ENGINE_VERSION}"`
-	}
-	step := GitHubActionStep{
-		"      - name: " + stepName,
-		"        run: |",
-		`          GH_AW_PI_INSTALL_DIR="` + installDir + `"`,
-		`          mkdir -p "$GH_AW_PI_INSTALL_DIR"`,
-		`          printf '%s\n' '` + piInstallManifest(version) + `' > "$GH_AW_PI_INSTALL_DIR/package.json"`,
-		`          npm install --ignore-scripts --prefix "$GH_AW_PI_INSTALL_DIR" ` + spec,
-	}
-	for _, command := range linkCommands {
-		step = append(step, "          "+command)
-	}
-	if expressionVersion {
-		step = append(step, "        env:", "          ENGINE_VERSION: "+version)
-	}
-	return step
 }
 
 func (e *PiEngine) extensionInstallationSteps(data *WorkflowData) []GitHubActionStep {
