@@ -91,6 +91,20 @@ func TestBranchAuthenticatesCanonicalRepositoryAndRejectsForeignLedger(t *testin
 	}
 }
 
+func TestBranchReadRejectsMutableHeadReferences(t *testing.T) {
+	for _, revision := range []string{"not-a-revision", strings.Repeat("0", 40)} {
+		t.Run(revision, func(t *testing.T) {
+			branch, mock := newQueueAPI(t)
+			branch.Name = DefaultBranch
+			mock.head = revision
+			if _, err := branch.Read(context.Background()); err == nil ||
+				!strings.Contains(err.Error(), "invalid queue branch reference") {
+				t.Fatalf("invalid queue branch reference was accepted: %v", err)
+			}
+		})
+	}
+}
+
 func (transport queueTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	request = request.Clone(request.Context())
 	request.URL.Scheme = "http"

@@ -151,7 +151,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
  * }}
  */
 function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
-  const diagnostics = new Set(["Agent finished without emitting a terminal safe output; task completion could not be confirmed."]);
+  const diagnostics = new Set();
   if (errors.length) diagnostics.add("Safe-output validation status: failed");
   let reason = errors.length ? "invalid_safe_outputs" : "missing_terminal_safe_output";
   let events = [];
@@ -268,19 +268,33 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
       )
     ),
   ];
-  const summary = [
-    `Failure classification: ${failureCause}`,
-    reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
-    `Last tool call status: ${lastToolCallStatus}`,
-    ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
-    `Failed tool calls observed: ${failedToolCalls}`,
-    `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
-    `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
-    ...buildCompletionEvidence(rootDir),
-  ];
-  if (failureCause === "missing_terminal_safe_output") {
-    summary.push("Check the last tool status and safe-output registration, then ensure the workflow emits a terminal safe output. Missing completion alone does not identify an underlying engine or budget failure.");
-  }
+  const completionEvidence = buildCompletionEvidence(rootDir);
+  const observedCompletionEvidence = completionEvidence.filter(
+    line => !line.endsWith(": not recorded") && !line.includes("unknown (not recorded)") && !line.includes("unknown (registration evidence not recorded)") && !line.startsWith("Safe-output persistence: empty (0 records,")
+  );
+  const summary =
+    failureCause === "missing_terminal_safe_output"
+      ? [
+          `Failure classification: ${failureCause}`,
+          ...(driverExitCode !== undefined ? [`Driver exit code: ${driverExitCode}`] : []),
+          ...(lastToolCallStatus !== "not recorded" ? [`Last tool call status: ${lastToolCallStatus}`] : []),
+          ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
+          ...(failedToolCalls ? [`Failed tool calls observed: ${failedToolCalls}`] : []),
+          ...observedCompletionEvidence,
+          "No terminal safe output was recorded. These observations do not establish why the agent omitted it; inspect the agent artifact (agent-session.jsonl and agent-stdio.log) for the final actions, then ensure the workflow emits a terminal safe output.",
+        ]
+      : [
+          `Failure classification: ${failureCause}`,
+          reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+          `Last tool call status: ${lastToolCallStatus}`,
+          ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
+          `Failed tool calls observed: ${failedToolCalls}`,
+          `Token budget state: ${executionCategories.includes("effective_tokens_limit_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
+          `Step budget state (LLM invocations): ${executionCategories.includes("invocation_cap_exceeded") ? "exceeded" : "unknown (no exhaustion signal recorded)"}`,
+          ...completionEvidence,
+        ];
+  if (failureCause === "missing_terminal_safe_output" && !observedCompletionEvidence.length) summary.splice(-1, 0, "Safe-output telemetry: not recorded");
+  if (failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
   if (errorCodes.length) diagnostics.add(`Engine HTTP error codes: ${[...new Set(errorCodes)].join(", ")}`);
   if (permissionDenials) diagnostics.add(`Permission denials observed: ${permissionDenials}`);
   if (toolDenialLimitExceeded) diagnostics.add("Tool denial limit status: exceeded");
@@ -289,7 +303,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   } else if (reason === "engine_driver_failure") {
     diagnostics.add("Last engine error type: unknown");
   }
-  diagnostics.add(`Retry attempts observed: ${retryCount}${retryStatusCodes.length ? ` (HTTP ${retryStatusCodes.join(", HTTP ")})` : ""}`);
+  if (retryCount || failureCause !== "missing_terminal_safe_output") diagnostics.add(`Retry attempts observed: ${retryCount}${retryStatusCodes.length ? ` (HTTP ${retryStatusCodes.join(", HTTP ")})` : ""}`);
   const details = [...summary, ...diagnostics].slice(0, 20).join("\n");
   const sanitized = redactAndBoundDiagnostics(details, { secrets, maskedValues });
   return {

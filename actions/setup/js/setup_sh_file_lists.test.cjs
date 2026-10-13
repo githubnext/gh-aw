@@ -106,6 +106,11 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
     expect(missing).toEqual([]);
   });
 
+  it("deploys the queue workflow-dispatch transport", () => {
+    expect(getDirectLocalRequires("work_queue_native.cjs")).toContain("dispatch_workflow_transport.cjs");
+    expect(mcpScriptsFiles).toContain("dispatch_workflow_transport.cjs");
+  });
+
   it("all listed files exist in js/", () => {
     const missing = mcpScriptsFiles.filter(f => !existsSync(resolve(__dirname, f)));
     expect(missing).toEqual([]);
@@ -117,6 +122,10 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
 });
 
 describe("setup.sh SAFE_OUTPUTS_FILES", () => {
+  it("deploys the queue workflow-dispatch transport", () => {
+    expect(safeOutputsFiles).toContain("dispatch_workflow_transport.cjs");
+  });
+
   it("prepares the isolated work queue finish-intent mount", () => {
     expect(setupShContent).toContain('create_dir "${SAFE_OUTPUTS_DEST}/work-queue"');
   });

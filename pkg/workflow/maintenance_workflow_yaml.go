@@ -31,6 +31,7 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	compactionLedgers   []LedgerConfig
 	hasWorkQueue        bool
 	hasCacheMemory      bool
+	hasSteering         bool
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -50,6 +51,9 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(buildMaintenanceWorkflowHeaderYAML(opts))
 	yaml.WriteString(buildMaintenanceWorkflowTriggerYAML(opts, labelDisableJobEnabled, labelApplySafeOutputsJobEnabled, appliedRunURLDescription, appliedRunURLValue))
 	yaml.WriteString(buildMaintenanceCloseExpiredJobs(opts, setupActionRef))
+	if opts.hasSteering {
+		yaml.WriteString(buildMaintenanceCleanupStaleSteeringIssuesJob(opts, setupActionRef))
+	}
 	if opts.hasCacheMemory {
 		yaml.WriteString(buildMaintenanceCleanupCacheJob(opts, setupActionRef))
 	}
@@ -93,8 +97,9 @@ func buildMaintenanceWorkflowHeaderYAML(opts buildMaintenanceWorkflowYAMLOptions
 It runs scheduled cleanup for expiring safe outputs and supports manual maintenance operations.
 
 This workflow is generated automatically when workflows use expiring safe outputs,
-when workflows declare compaction-enabled ledgers (tools.ledger), or when repository
-maintenance features are enabled in .github/workflows/aw.json.
+when workflows enable steering (safe-outputs.steer), declare compaction-enabled
+ledgers (tools.ledger) or work queues, or when repository maintenance features are
+enabled in .github/workflows/aw.json.
 
 To disable maintenance workflow generation, set in .github/workflows/aw.json:
   {"maintenance": false}
@@ -105,6 +110,9 @@ Agentic maintenance docs:
 	scheduleBasis := "based on minimum expires: " + strconv.Itoa(opts.minExpiresDays) + " days"
 	if opts.minExpiresDays <= 0 {
 		scheduleBasis = "for queue compaction"
+		if opts.hasSteering && !opts.hasWorkQueue && len(opts.compactionLedgers) == 0 {
+			scheduleBasis = "for steering issue cleanup"
+		}
 	}
 	return GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions) + `name: Agentic Maintenance
 

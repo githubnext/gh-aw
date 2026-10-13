@@ -13,6 +13,7 @@ import (
 
 var promptToolImperative = regexp.MustCompile(`(?i)^(?:please\s+|you must\s+|must\s+)?(use|call|run)\s+(?:the\s+)?(?:tool\s+)?(.+)$`)
 var promptQualifiedTool = regexp.MustCompile(`(?:^|[^A-Za-z0-9_])(?:mcp__([A-Za-z0-9_-]+)__([A-Za-z0-9_-]+)|([A-Za-z0-9_-]+)\(([A-Za-z0-9_-]+)\))(?:$|[^A-Za-z0-9_])`)
+var promptMCPToolPhrase = regexp.MustCompile(`(?i)^(?:the\s+)?\x60?([a-z][a-z0-9_-]*)\x60?\s+(?:tool\s+)?(?:of|from)\s+(?:the\s+)?\x60?([a-z][a-z0-9_-]*)\x60?\s+MCP\s+server\b`)
 var promptBareTool = regexp.MustCompile(`^([a-z][a-z0-9_]+)(?:$|[\s\x60.,(])`)
 var promptListPrefix = regexp.MustCompile(`^(?:[-*+]\s+|\d+[.)]\s+)`)
 var promptExecutable = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
@@ -76,10 +77,7 @@ func promptToolWarning(data *WorkflowData, requirement promptToolRequirement) st
 		name = "Read (native reads are unavailable for GitHub-backed Codex)"
 		advice = "replace the native read instruction with an available, explicitly configured MCP tool"
 	}
-	if (requirement.command != "" || requirement.server == "bash") && promptShellDisabledByProvider(data) {
-		name += " (native shell is disabled for GitHub-backed Codex)"
-		advice = "replace the shell instruction with an available, explicitly configured MCP tool"
-	} else if promptToolTransportUnavailable(data, requirement) {
+	if promptToolTransportUnavailable(data, requirement) {
 		advice = fmt.Sprintf("use the %s CLI instead, or disable tools.cli-proxy to retain native MCP access", requirement.server)
 		name = "mcp__" + requirement.server + "__" + requirement.tool + " (native MCP access is excluded by tools.cli-proxy)"
 	}
@@ -187,6 +185,23 @@ func promptInstructionRequirements(line string, knownTools map[string]promptTool
 func promptInvocationRequirements(verb, target string, knownTools map[string]promptToolRequirement) []promptToolRequirement {
 	inline := strings.HasPrefix(target, "`")
 	target = strings.TrimPrefix(target, "`")
+	if strings.EqualFold(verb, "run") {
+		if match := promptMCPToolPhrase.FindStringSubmatch(target); len(match) > 2 {
+			captures := [3]string(match)
+			tool, server := captures[1], captures[2]
+			canonical := strings.ToLower(server)
+			if strings.EqualFold(server, "gh-aw") {
+				server = constants.AgenticWorkflowsMCPServerID.String()
+			} else if builtInToolNames[canonical] || slices.Contains([]string{
+				constants.SafeOutputsMCPServerID.String(),
+				constants.MCPScriptsMCPServerID.String(),
+				constants.AgenticWorkflowsMCPServerID.String(),
+			}, canonical) {
+				server = canonical
+			}
+			return []promptToolRequirement{{server: server, tool: tool, nativeMCP: true}}
+		}
+	}
 	if (strings.EqualFold(verb, "use") || strings.EqualFold(verb, "call")) && promptNativeRead.MatchString(target) {
 		return []promptToolRequirement{{server: "native-read", tool: "Read"}}
 	}
@@ -363,7 +378,7 @@ func promptToolAvailable(data *WorkflowData, requirement promptToolRequirement, 
 	// Framework-generated servers are not necessarily present in the tools map.
 	switch requirement.server {
 	case "native-read":
-		return !promptShellDisabledByProvider(data)
+		return ResolveEngineID(data) != "codex" || NewCodexEngine().ResolveLLMProvider(data) != LLMProviderGitHub
 	case "safeoutputs":
 		return slices.Contains(collectSafeOutputsManifestTools(data.SafeOutputs), requirement.tool)
 	case "mcpscripts":
@@ -401,14 +416,7 @@ func promptToolAvailable(data *WorkflowData, requirement promptToolRequirement, 
 	return true
 }
 
-func promptShellDisabledByProvider(data *WorkflowData) bool {
-	return ResolveEngineID(data) == "codex" && NewCodexEngine().ResolveLLMProvider(data) == LLMProviderGitHub
-}
-
 func promptShellAvailable(data *WorkflowData, command, fullCommand string, capabilities EngineCapabilities) bool {
-	if promptShellDisabledByProvider(data) {
-		return false
-	}
 	if data.BashDisabled || isBashExplicitlyRefused(data.Tools) {
 		return !capabilities.BashDisable && !capabilities.BashCommandAllowlist
 	}

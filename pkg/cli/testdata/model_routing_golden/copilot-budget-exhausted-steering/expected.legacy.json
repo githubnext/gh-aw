@@ -1,0 +1,85 @@
+{
+  "model_routing": {
+    "status": "failed",
+    "failure": {
+      "code": "ai_credits_limit_exceeded"
+    },
+    "selected_model": "github-copilot/gpt-5.6-sol",
+    "selected_effort": "medium",
+    "endpoint": "/responses",
+    "routed_counts": {
+      "as_selected": 11,
+      "deviated": 3
+    },
+    "outcome_counts": {
+      "completed": 11,
+      "rejected": 3
+    },
+    "deviations": [
+      {
+        "requested_model": "gpt-5.6-sol",
+        "requested_effort": "low",
+        "selected_model": "github-copilot/gpt-5.6-sol",
+        "selected_effort": "medium",
+        "deviation": "effort",
+        "count": 3
+      }
+    ],
+    "classifier_cost": {
+      "requests": 1,
+      "input_tokens": 974,
+      "output_tokens": 145,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0.6796
+    },
+    "selected_model_cost": {
+      "requests": 8,
+      "input_tokens": 160904,
+      "output_tokens": 921,
+      "cache_read_tokens": 116736,
+      "cache_write_tokens": 0,
+      "aic": 24.17864
+    },
+    "deviated_traffic_cost": {
+      "requests": 3,
+      "input_tokens": 24444,
+      "output_tokens": 261,
+      "cache_read_tokens": 13824,
+      "cache_write_tokens": 0,
+      "aic": 5.32296
+    },
+    "main_agent_cost": {
+      "requests": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0
+    }
+  },
+  "firewall_token_usage": {
+    "total_input_tokens": 186322,
+    "total_output_tokens": 1327,
+    "total_cache_read_tokens": 130560,
+    "total_cache_write_tokens": 0,
+    "total_requests": 12,
+    "total_duration_ms": 44814,
+    "total_response_bytes": 3354191,
+    "cache_efficiency": 0,
+    "total_aic": 30.1812,
+    "by_model": {
+      "gpt-5.6-sol": {
+        "provider": "copilot",
+        "input_tokens": 186322,
+        "output_tokens": 1327,
+        "cache_read_tokens": 130560,
+        "cache_write_tokens": 0,
+        "requests": 12,
+        "duration_ms": 44814,
+        "response_bytes": 3354191,
+        "aic": 30.1812
+      }
+    }
+  }
+}

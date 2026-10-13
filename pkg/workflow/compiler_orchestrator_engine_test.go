@@ -114,6 +114,46 @@ func TestFrontmatterDeclaresImports(t *testing.T) {
 	}
 }
 
+func TestSetupEngineAndImports_UnknownEngineObjectHasSourceLocation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "unknown-imported-engine")
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	sharedContent := `---
+engine:
+  id: harness-engine
+  display-name: Harness Engine
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    execution:
+      command-name: harness-engine
+      step-name: Execute Harness Engine
+---
+
+# Shared Engine Definition
+`
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "engine.md"), []byte(sharedContent), 0644))
+
+	content := `---
+on: push
+engine: # select the runtime
+  id: codexx
+strict: false
+imports:
+  - shared/engine.md
+---
+
+# Test Workflow
+`
+	frontmatter, err := parser.ExtractFrontmatterFromContent(content)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	_, err = compiler.setupEngineAndImports(frontmatter, filepath.Join(tmpDir, "test.md"), []byte(content), tmpDir)
+	require.Error(t, err)
+	require.ErrorContains(t, err, filepath.Join(tmpDir, "test.md")+":4:3: error:")
+	require.ErrorContains(t, err, `unknown engine "codexx"; did you mean "codex"?`)
+}
+
 // TestSetupEngineAndImports_ValidSetup tests successful engine setup with imports
 func TestSetupEngineAndImports_ValidSetup(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-setup-valid")

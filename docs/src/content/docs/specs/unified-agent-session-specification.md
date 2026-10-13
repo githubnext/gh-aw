@@ -1420,8 +1420,11 @@ one nested scope can select that scope's initialization and accounting explicitl
 
 Actions publishes this view once in a plain-titled `Unified session` disclosure,
 using a fenced CLI-style transcript like the Claude conversation summary rather
-than a Markdown table. Gateway diagnostics do not append a second unified event
-timeline, and the disclosure does not repeat its title as a standalone heading.
+than a Markdown table. Opening the disclosure shows source-local conversations
+with paired tool outcomes; per-source statistics and the full chronological
+timeline remain in separate, collapsed disclosures. Gateway diagnostics do not
+append a second unified event timeline, and the disclosure does not repeat its
+title as a standalone heading.
 
 | Observation | Unified display projection |
 | --- | --- |

@@ -1,0 +1,38 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "auto",
+  "version": "1.0.95",
+  "agent_version": "1.0.95",
+  "workflow_name": "Task",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": false,
+  "run_id": 38174216426,
+  "run_number": 1,
+  "run_attempt": "1",
+  "repository": "example-org/routing-fixture",
+  "ref": "refs/heads/main",
+  "sha": "408321d8118737e955768a6010b9411566f33b8b",
+  "actor": "fixture-user",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": ["defaults", "python"],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.51",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-11T20:56:05.437Z",
+  "requested_model": "auto",
+  "model_routing": {
+    "status": "rejected",
+    "source": "awf-routing",
+    "failure_code": "harness_selection_mismatch",
+    "detail": "Harness routing outcome did not match the proxy selection"
+  }
+}

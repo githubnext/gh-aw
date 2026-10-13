@@ -189,6 +189,24 @@ func TestSpec_PublicAPI_OnceLoader_Reset(t *testing.T) {
 		assert.Equal(t, "value-2", v2, "Reset should force a fresh loader invocation")
 		assert.Equal(t, int32(2), calls.Load(), "loader should be invoked again after Reset")
 	})
+
+	t.Run("documented: Reset clears an overridden result and error", func(t *testing.T) {
+		var loader syncutil.OnceLoader[string]
+		var calls atomic.Int32
+		overrideErr := errors.New("override-err")
+
+		loader.Override("forced", overrideErr)
+		loader.Reset()
+
+		value, err := loader.Get(func() (string, error) {
+			calls.Add(1)
+			return "fresh", nil
+		})
+
+		require.NoError(t, err, "Get after resetting an override should not return the overridden error")
+		assert.Equal(t, "fresh", value, "Reset should clear the overridden result")
+		assert.Equal(t, int32(1), calls.Load(), "Reset should allow the loader to run after Override")
+	})
 }
 
 // TestSpec_ThreadSafety_OnceLoader validates the documented concurrency

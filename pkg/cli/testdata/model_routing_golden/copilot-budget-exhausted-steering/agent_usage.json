@@ -1,0 +1,15 @@
+{
+  "input_tokens": 186322,
+  "output_tokens": 1327,
+  "cache_read_tokens": 130560,
+  "cache_write_tokens": 0,
+  "ambient_context": 974,
+  "ai_credits": 30.1812,
+  "primary_model": "gpt-5.6-sol",
+  "model_routing": {
+    "status": "rejected",
+    "source": "awf-routing",
+    "failure_code": "harness_selection_mismatch",
+    "detail": "Harness routing outcome did not match the proxy selection"
+  }
+}

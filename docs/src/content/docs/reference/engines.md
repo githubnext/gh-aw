@@ -166,6 +166,12 @@ before considering a migration.
 
 Changing engines requires updating `engine:` and may also require different authentication, tools, model names, or network access. Review the setup guide and comparison before switching.
 
+Codex with GitHub Copilot inference uses direct tools with the function-backed
+`exec_command` shell tool. Code-mode tools remain disabled because the
+compatibility adapter does not support the code-mode `exec` custom tool.
+`tools.bash: ["*"]` enables checkout commands and CLI-mounted MCP tools;
+`tools.bash: false` or `tools.bash: []` disables shell execution.
+
 ## Engine Feature Comparison
 
 Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:

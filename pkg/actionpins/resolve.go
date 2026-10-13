@@ -60,9 +60,8 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (result strin
 	mapped := actionRepo != originalRepo || version != originalVersion
 
 	if ctx.GHES && !mapped {
-		if pin, ok := ghesArtifactPins[actionRepo]; ok {
-			actionPinsLog.Printf("GHES mode: using %s@%s", actionRepo, pin.Version)
-			return FormatPinnedActionReference(pin.Repo, pin.SHA, pin.Version), nil
+		if pinnedRef, ok := ResolveGHESActionPin(actionRepo); ok {
+			return pinnedRef, nil
 		}
 	}
 

@@ -182,6 +182,11 @@ func TestSpec_Types_StylesAreRenderableValues(t *testing.T) {
 		{"Header", func() string { return Header.Render("x") }},
 		{"TreeEnumerator", func() string { return TreeEnumerator.Render("x") }},
 		{"TreeNode", func() string { return TreeNode.Render("x") }},
+		{"ScheduleCalendarEmpty", func() string { return ScheduleCalendarEmpty.Render("x") }},
+		{"ScheduleCalendarLow", func() string { return ScheduleCalendarLow.Render("x") }},
+		{"ScheduleCalendarMedium", func() string { return ScheduleCalendarMedium.Render("x") }},
+		{"ScheduleCalendarHigh", func() string { return ScheduleCalendarHigh.Render("x") }},
+		{"ScheduleCalendarCritical", func() string { return ScheduleCalendarCritical.Render("x") }},
 	}
 
 	for _, s := range styleTests {

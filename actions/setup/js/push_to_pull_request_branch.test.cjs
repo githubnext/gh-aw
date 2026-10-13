@@ -219,7 +219,6 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Clear module cache
     delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
     delete require.cache[require.resolve("./staged_preview.cjs")];
-    delete require.cache[require.resolve("./update_activation_comment.cjs")];
     delete require.cache[require.resolve("./extra_empty_commit.cjs")];
   });
 
@@ -360,7 +359,7 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Target: *");
     });
 
-    it("should accept numeric target for specific PR", async () => {
+    it("should accept string target for specific PR", async () => {
       const module = await loadModule();
       const handler = await module.main({ target: "456" });
 
@@ -429,6 +428,104 @@ index 0000000..abc1234
   // ──────────────────────────────────────────────────────
 
   describe("GitHub Actions context scenarios", () => {
+    const targetAliases = ["pull_request_number", "pullRequestNumber", "target", "pr_number", "pull_number", "item_number", "pr"];
+
+    it.each([456, "456", "#456"])("should resolve config target %s to the configured PR", async target => {
+      const branch = "numeric-config-target";
+      createPatchFile(branch);
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ target });
+      const result = await handler({ branch, pull_request_number: 789 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(`Target: ${target}`);
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        pull_number: 456,
+      });
+    });
+
+    it.each(targetAliases.flatMap(alias => [456, "456", "#456"].map(value => [alias, value])))("should resolve wildcard target from %s=%s", async (alias, value) => {
+      mockContext.eventName = "schedule";
+      delete mockContext.payload.pull_request;
+      const branch = `wildcard-target-${alias}`;
+      createPatchFile(branch);
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "*" });
+      const result = await handler({ branch, [alias]: value }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        pull_number: 456,
+      });
+    });
+
+    it.each([0, -456, 456.5, "#0", "#0123", "#456.5", "##456", "#triggering", "456oops", "#456oops", Number.MAX_SAFE_INTEGER + 1])("should reject malformed config target %s", async target => {
+      const branch = "invalid-config-target";
+      createPatchFile(branch);
+
+      const module = await loadModule();
+      const handler = await module.main({ target });
+      const result = await handler({ branch }, {});
+
+      expect(result).toEqual({ success: false, error: 'Invalid target configuration: must be "triggering", "*", or a valid pull request number' });
+      expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    });
+
+    it.each(targetAliases.flatMap(alias => [undefined, null, "", "not-a-number", 0, -456, 456.5, "#0", "#0123", "#456.5", "##456", "456oops", "#456oops", Number.MAX_SAFE_INTEGER + 1].map(value => [alias, value])))(
+      "should reject missing or invalid wildcard target from %s=%s",
+      async (alias, value) => {
+        const branch = `invalid-wildcard-target-${alias}`;
+        createPatchFile(branch);
+
+        const module = await loadModule();
+        const handler = await module.main({ target: "*" });
+        const result = await handler({ branch, [alias]: value }, {});
+
+        expect(result).toEqual({ success: false, error: "Pull request number is required but not found" });
+        expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(targetAliases)("should diagnose supplied %s when triggering context is unavailable", async alias => {
+      mockContext.eventName = "schedule";
+      delete mockContext.payload.pull_request;
+      const branch = `triggering-target-diagnostic-${alias}`;
+      createPatchFile(branch);
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "triggering" });
+      const result = await handler({ branch, [alias]: 456 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Safe output message specified target "456", but workflow configuration uses target "triggering".');
+      expect(result.error).toContain("target: '*'");
+      expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, null, ""])("should omit supplied-target diagnostic for an absent target (%s)", async value => {
+      mockContext.eventName = "schedule";
+      delete mockContext.payload.pull_request;
+      const branch = "triggering-without-supplied-target";
+      createPatchFile(branch);
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "triggering" });
+      const result = await handler({ branch, pull_request_number: value }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("pull request context");
+      expect(result.error).not.toContain("Safe output message specified target");
+      expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    });
+
     it('should handle pull_request event with target "triggering"', async () => {
       mockContext.eventName = "pull_request";
       const patchPath = createPatchFile("should-handle-pull-request-event-with-target-triggering");
@@ -1005,6 +1102,7 @@ index 0000000..abc1234
         expect(result.commit_sha).toBe("remote-head-after");
         expect(result.commit_url).toContain("/commit/remote-head-after");
         expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", {
+          activationCommentLinks: [],
           targetIssueNumber: 123,
           targetRepo: "test-owner/test-repo",
           targetGithubClient: expect.anything(),

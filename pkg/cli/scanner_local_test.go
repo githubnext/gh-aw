@@ -105,6 +105,9 @@ func TestLocalScannerCommandsAndDockerFallback(t *testing.T) {
 	if err != nil || cmd.Path != poutine || cmd.Dir != root || !strings.Contains(strings.Join(args, " "), "analyze_local . --format json --quiet") {
 		t.Fatalf("local poutine command: %v, %v, %v", cmd, args, err)
 	}
+	if want := []string{poutine, "analyze_local", ".", "--format", "json", "--quiet"}; !slices.Equal(cmd.Args, want) {
+		t.Fatalf("local poutine argv = %q, want %q", cmd.Args, want)
+	}
 	if err := os.Remove(poutine); err != nil {
 		t.Fatal(err)
 	}
@@ -114,6 +117,9 @@ func TestLocalScannerCommandsAndDockerFallback(t *testing.T) {
 	t.Setenv("PATH", path)
 	if err != nil || cmd.Path != docker || cmd.Dir != root || !strings.Contains(strings.Join(args, " "), PoutineImage) {
 		t.Fatalf("docker poutine command: %v, %v, %v", cmd, args, err)
+	}
+	if want := []string{docker, "run", "--rm", "-v", root + ":/workdir", "-w", "/workdir", PoutineImage, "analyze_local", ".", "--format", "json", "--quiet"}; !slices.Equal(cmd.Args, want) {
+		t.Fatalf("docker poutine argv = %q, want %q", cmd.Args, want)
 	}
 	installTestScanner(t, dir, "poutine", "poutine 1.1.5")
 	cmd, _, err = buildPoutineCommand(root)
