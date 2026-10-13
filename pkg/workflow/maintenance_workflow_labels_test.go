@@ -180,6 +180,53 @@ func TestGenerateMaintenanceWorkflow_LabelTriggers_ExplicitTrue(t *testing.T) {
 	}
 }
 
+func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
+	actionPin := getCachedActionPinFromResolver("actions/github-script", nil)
+	expectedActionRef, _, _ := strings.Cut(actionPin, " # ")
+	opts := buildMaintenanceWorkflowYAMLOptions{runsOnValue: "ubuntu-latest"}
+	for _, tc := range []struct {
+		name    string
+		jobName string
+		step    string
+		content string
+	}{
+		{
+			name:    "disable workflow",
+			jobName: "label_disable_agentic_workflow",
+			step:    "Disable agentic workflow",
+			content: buildMaintenanceLabelDisableJob(opts, "./actions/setup"),
+		},
+		{
+			name:    "apply safe outputs",
+			jobName: "label_apply_safe_outputs",
+			step:    "Apply safe outputs from referenced run",
+			content: buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Contains(t, tc.content, "uses: '"+expectedActionRef+"' # ")
+			var parsed struct {
+				Jobs map[string]struct {
+					Steps []struct {
+						Name string `yaml:"name"`
+						Uses string `yaml:"uses"`
+					} `yaml:"steps"`
+				} `yaml:"jobs"`
+			}
+			require.NoError(t, yamlv3.Unmarshal([]byte("jobs:\n"+tc.content), &parsed))
+			job, ok := parsed.Jobs[tc.jobName]
+			require.True(t, ok, "expected generated job %q", tc.jobName)
+			for _, step := range job.Steps {
+				if step.Name == tc.step {
+					require.Equal(t, expectedActionRef, step.Uses)
+					return
+				}
+			}
+			t.Fatalf("expected step %q in generated job %q", tc.step, tc.jobName)
+		})
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_DisabledJobs(t *testing.T) {
 	workflowDataList := []*WorkflowData{
 		{
