@@ -214,12 +214,21 @@ jobs:
             };
 
             const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-              per_page: 100,
-            });
+            let jobs;
+            try {
+              jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+                per_page: 100,
+              });
+            } catch (error) {
+              if (error.status !== 429 && (error.status !== 403 || !/rate limit exceeded|exceeded a secondary rate limit/i.test(error.message))) throw error;
+              const message = 'Workflow timing is unavailable because the GitHub Actions API rate limit was exceeded. Build and test results are unchanged; see the individual job logs.';
+              core.warning(message);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Workflow timing summary\n\n${message}\n`);
+              return;
+            }
 
             const rows = [];
             for (const job of jobs) {
