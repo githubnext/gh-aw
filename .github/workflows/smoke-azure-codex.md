@@ -10,7 +10,7 @@ permissions:
   contents: read
   id-token: write
 environment: aoai-model
-model: o4-mini-aw
+model: gpt-5.3-codex
 engine:
   id: codex
   auth:
