@@ -10,7 +10,7 @@ on:
     events: [issues, issue_comment, pull_request, pull_request_comment]
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["smoke-routing", "smoke"]
   bots: [Copilot]
   status-comment: false
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
