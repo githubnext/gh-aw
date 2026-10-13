@@ -649,10 +649,15 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.51 --rootless
       - name: Install Pi CLI
-        run: npm install --ignore-scripts -g @earendil-works/pi-coding-agent@1.1.0
+        run: |
+          GH_AW_PI_INSTALL_DIR="${RUNNER_TEMP}/gh-aw/pi-cli"
+          mkdir -p "$GH_AW_PI_INSTALL_DIR"
+          printf '%s\n' '{"private":true,"overrides":{"@earendil-works/chord":"1.1.0","@earendil-works/pi-agent-core":"1.1.0","@earendil-works/pi-ai":"1.1.0","@earendil-works/pi-codemode":"1.1.0","@earendil-works/pi-mcp":"1.1.0","@earendil-works/pi-telemetry":"1.1.0","@earendil-works/pi-tui":"1.1.0"}}' > "$GH_AW_PI_INSTALL_DIR/package.json"
+          npm install --ignore-scripts --prefix "$GH_AW_PI_INSTALL_DIR" @earendil-works/pi-coding-agent@1.1.0
+          ln -sf "$GH_AW_PI_INSTALL_DIR/node_modules/.bin/pi" "$(npm prefix -g)/bin/pi"
       - name: Record Pi package location
         run: |
-          GH_AW_PI_PACKAGE_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"
+          GH_AW_PI_PACKAGE_ROOT="${RUNNER_TEMP}/gh-aw/pi-cli/node_modules/@earendil-works/pi-coding-agent"
           printf 'GH_AW_PI_PACKAGE_ROOT=%s\n' "$GH_AW_PI_PACKAGE_ROOT" >> "$GITHUB_ENV"
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown

@@ -57,6 +57,21 @@ const AgyDefaultModel = "gemini-3.8-flash-medium"
 // DefaultPiVersion is the default version of the Pi CLI
 const DefaultPiVersion Version = "1.1.0"
 
+// DefaultPiDependencyVersions pins every @earendil-works/* package in the dependency
+// tree of @earendil-works/pi-coding-agent@DefaultPiVersion. Upstream releases these
+// packages together but declares caret ranges between them and ships breaking changes
+// in minor releases, so gh-aw installs Pi with npm overrides that hold the whole set
+// at versions matching DefaultPiVersion. Update these together with DefaultPiVersion.
+var DefaultPiDependencyVersions = map[string]Version{
+	"@earendil-works/chord":         "1.1.0",
+	"@earendil-works/pi-agent-core": "1.1.0",
+	"@earendil-works/pi-ai":         "1.1.0",
+	"@earendil-works/pi-codemode":   "1.1.0",
+	"@earendil-works/pi-mcp":        "1.1.0",
+	"@earendil-works/pi-telemetry":  "1.1.0",
+	"@earendil-works/pi-tui":        "1.1.0",
+}
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 
