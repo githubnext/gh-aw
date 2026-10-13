@@ -61,6 +61,18 @@ Candidate lists from imported workflows using the same engine are merged. Routin
 
 Routing requires the AWF firewall enabled and GitHub Copilot inference. It supports `copilot`, `claude`, `codex`, and `pi`; the compiler rejects other engines, non-Copilot providers, and incompatible literal model candidates. Claude Code uses the native Messages API and Codex uses the Responses API, so their candidate lists are restricted by model family. Expressions in `allowed-models` cannot be checked by the compiler. For non-Copilot engines, AWF's selected endpoint is advisory: Claude and Codex verify through `/reflect` `routing_models.supported_endpoints` that the selected model supports the engine's API, then use that API. Pi resolves its API from the Pi/AWF model catalog and verifies the corresponding endpoint against the same reflected metadata. These checks fail closed when candidate metadata is incomplete or the model does not advertise a compatible endpoint.
 
+The provider must resolve to GitHub Copilot inference. Copilot and pi default to `github`. Claude defaults to Anthropic and Codex to OpenAI, so routed Claude and Codex workflows must set `engine.model-provider: github`. Any other provider, whether a default or set explicitly, fails compilation.
+
+```aw wrap
+engine:
+  id: codex
+  model-provider: github
+  model-routing:
+    goal: cost
+    mode: economy
+    allowed-models: [gpt-5.6-luna]
+```
+
 | AWF version | Capability |
 |---|---|
 | v0.28.29 or later | Task-level routing |
