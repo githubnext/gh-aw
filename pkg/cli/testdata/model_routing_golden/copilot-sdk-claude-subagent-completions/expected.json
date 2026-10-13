@@ -1,0 +1,275 @@
+{
+  "model_routing": {
+    "status": "selected",
+    "selected_model": "github-copilot/gpt-5.6-luna",
+    "selected_effort": "xhigh",
+    "endpoint": "/responses",
+    "effective_endpoint": "/responses",
+    "selected_endpoint": "/responses",
+    "routed_counts": {
+      "as_selected": 5,
+      "deviated": 3
+    },
+    "outcome_counts": {
+      "completed": 8
+    },
+    "deviations": [
+      {
+        "requested_model": "claude-haiku-4.5",
+        "selected_model": "github-copilot/gpt-5.6-luna",
+        "selected_effort": "xhigh",
+        "deviation": "model,effort,endpoint",
+        "count": 3
+      }
+    ],
+    "classifier_cost": {
+      "requests": 1,
+      "input_tokens": 835,
+      "output_tokens": 391,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "aic": 0.06362
+    },
+    "selected_model_cost": {
+      "requests": 5,
+      "input_tokens": 15,
+      "output_tokens": 1091,
+      "cache_read_tokens": 52658,
+      "cache_write_tokens": 35188,
+      "aic": 1.116236
+    },
+    "deviated_traffic_cost": {
+      "requests": 3,
+      "input_tokens": 413,
+      "output_tokens": 473,
+      "cache_read_tokens": 40686,
+      "cache_write_tokens": 24649,
+      "aic": 3.765785
+    },
+    "main_agent_cost": {
+      "requests": 3,
+      "input_tokens": 58321,
+      "output_tokens": 972,
+      "cache_read_tokens": 38283,
+      "cache_write_tokens": 20029,
+      "aic": 0.694111
+    },
+    "subagent_costs": [
+      {
+        "agent_name": "file-summarizer",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requests": 3,
+        "input_tokens": 65748,
+        "output_tokens": 473,
+        "cache_read_tokens": 40686,
+        "cache_write_tokens": 0,
+        "aic": 3.765785
+      },
+      {
+        "agent_name": "quick-checker",
+        "agent_type": "subagent",
+        "instance_count": 1,
+        "completed_count": 1,
+        "effort": "xhigh",
+        "models": ["gpt-5.6-luna"],
+        "requests": 2,
+        "input_tokens": 29540,
+        "output_tokens": 119,
+        "cache_read_tokens": 14375,
+        "cache_write_tokens": 15159,
+        "aic": 0.422125
+      }
+    ]
+  },
+  "firewall_token_usage": {
+    "total_input_tokens": 1263,
+    "total_output_tokens": 1955,
+    "total_cache_read_tokens": 93344,
+    "total_cache_write_tokens": 59837,
+    "total_requests": 9,
+    "total_duration_ms": 35076,
+    "total_response_bytes": 475221,
+    "cache_efficiency": 0,
+    "total_aic": 4.945641,
+    "by_model": {
+      "claude-haiku-4.5": {
+        "provider": "copilot",
+        "input_tokens": 413,
+        "output_tokens": 473,
+        "cache_read_tokens": 40686,
+        "cache_write_tokens": 24649,
+        "requests": 3,
+        "duration_ms": 9694,
+        "response_bytes": 4508,
+        "aic": 3.765785
+      },
+      "gpt-5.6-luna": {
+        "provider": "copilot",
+        "input_tokens": 850,
+        "output_tokens": 1482,
+        "cache_read_tokens": 52658,
+        "cache_write_tokens": 35188,
+        "requests": 6,
+        "duration_ms": 25382,
+        "response_bytes": 470713,
+        "aic": 1.179856
+      }
+    },
+    "subagent_model_requests": [
+      {
+        "agent_name": "file-summarizer",
+        "requested_model": "copilot-completions/claude-haiku-4.5",
+        "resolved_model": "claude-haiku-4.5",
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effective_model": "claude-haiku-4.5"
+      },
+      {
+        "agent_name": "quick-checker",
+        "requested_model": "copilot-responses/gpt-5.6-luna",
+        "resolved_model": "gpt-5.6-luna",
+        "served_models": ["gpt-5.6-luna"],
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "xhigh",
+        "effective_model": "gpt-5.6-luna"
+      }
+    ],
+    "declared_subagent_models": [
+      {
+        "agent_name": "file-summarizer",
+        "requested_model": "claude-haiku-4.5",
+        "resolved_model": "claude-haiku-4.5",
+        "served_models": ["claude-haiku-4.5"],
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effective_model": "claude-haiku-4.5"
+      },
+      {
+        "agent_name": "quick-checker",
+        "requested_model": "small",
+        "served_models": ["gpt-5.6-luna"],
+        "invocation_count": 1,
+        "completed_count": 1,
+        "effort": "xhigh",
+        "reason_code": "REQUESTED_MODEL_NOT_OBSERVED"
+      }
+    ],
+    "subagent_model_actuals": [
+      {
+        "model": "claude-haiku-4.5",
+        "requests": 3,
+        "resolved_model": "claude-haiku-4.5",
+        "input_tokens": 65748,
+        "output_tokens": 473,
+        "cache_read_tokens": 40686,
+        "cache_write_tokens": 0,
+        "aic": 3.765785
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requests": 2,
+        "resolved_model": "gpt-5.6-luna",
+        "served_models": ["gpt-5.6-luna"],
+        "input_tokens": 29540,
+        "output_tokens": 119,
+        "cache_read_tokens": 14375,
+        "cache_write_tokens": 15159,
+        "reasoning_tokens": 28,
+        "aic": 0.422125
+      }
+    ],
+    "agent_usage": [
+      {
+        "agent_name": "file-summarizer",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["copilot-completions/claude-haiku-4.5"],
+        "resolved_models": ["claude-haiku-4.5", "copilot-completions/claude-haiku-4.5"],
+        "requests": 3,
+        "input_tokens": 65748,
+        "output_tokens": 473,
+        "cache_read_tokens": 40686,
+        "cache_write_tokens": 0,
+        "aic": 3.765785,
+        "total_api_duration_ms": 9709,
+        "models": [
+          {
+            "model": "claude-haiku-4.5",
+            "resolved_model": "claude-haiku-4.5",
+            "requests": 3,
+            "input_tokens": 65748,
+            "output_tokens": 473,
+            "cache_read_tokens": 40686,
+            "cache_write_tokens": 0,
+            "aic": 3.765785
+          }
+        ]
+      },
+      {
+        "agent_name": "main",
+        "agent_type": "main",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "served_models": ["gpt-5.6-luna"],
+        "requests": 3,
+        "input_tokens": 58321,
+        "output_tokens": 972,
+        "cache_read_tokens": 38283,
+        "cache_write_tokens": 20029,
+        "reasoning_tokens": 374,
+        "aic": 0.694111,
+        "total_api_duration_ms": 14539,
+        "models": [
+          {
+            "model": "gpt-5.6-luna",
+            "resolved_model": "gpt-5.6-luna",
+            "requests": 3,
+            "input_tokens": 58321,
+            "output_tokens": 972,
+            "cache_read_tokens": 38283,
+            "cache_write_tokens": 20029,
+            "reasoning_tokens": 374,
+            "aic": 0.694111
+          }
+        ]
+      },
+      {
+        "agent_name": "quick-checker",
+        "agent_type": "subagent",
+        "source_engine": "copilot",
+        "instance_count": 1,
+        "completed_count": 1,
+        "requested_models": ["copilot-responses/gpt-5.6-luna"],
+        "resolved_models": ["gpt-5.6-luna"],
+        "served_models": ["gpt-5.6-luna"],
+        "effort": "xhigh",
+        "requests": 2,
+        "input_tokens": 29540,
+        "output_tokens": 119,
+        "cache_read_tokens": 14375,
+        "cache_write_tokens": 15159,
+        "reasoning_tokens": 28,
+        "aic": 0.422125,
+        "total_api_duration_ms": 5682,
+        "models": [
+          {
+            "model": "gpt-5.6-luna",
+            "resolved_model": "gpt-5.6-luna",
+            "requests": 2,
+            "input_tokens": 29540,
+            "output_tokens": 119,
+            "cache_read_tokens": 14375,
+            "cache_write_tokens": 15159,
+            "reasoning_tokens": 28,
+            "aic": 0.422125
+          }
+        ]
+      }
+    ]
+  }
+}
