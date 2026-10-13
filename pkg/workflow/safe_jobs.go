@@ -434,6 +434,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 							typedStep.Env[k] = v
 						}
 					}
+					typedStep.Env["GH_AW_JOB_CHECK_RUN_ID"] = "${{ job.check_run_id }}"
 
 					// Apply action pinning using type-safe version
 					pinnedStep, err := applyActionPinToTypedStep(typedStep, data)

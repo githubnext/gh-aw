@@ -5,6 +5,8 @@ package testutil_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -13,6 +15,23 @@ import (
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+// TestSpec_PublicAPI_RequireGhAwBinary validates that RequireGhAwBinary
+// returns the absolute path to the repository-root binary when it is available,
+// as described in the package README.md. The helper skips this test itself when
+// the binary has not been built.
+func TestSpec_PublicAPI_RequireGhAwBinary(t *testing.T) {
+	binaryPath := testutil.RequireGhAwBinary(t)
+
+	assert.True(t, filepath.IsAbs(binaryPath),
+		"RequireGhAwBinary should return an absolute path")
+	expectedName := "gh-aw"
+	if runtime.GOOS == "windows" {
+		expectedName += ".exe"
+	}
+	assert.Equal(t, expectedName, filepath.Base(binaryPath),
+		"RequireGhAwBinary should return the documented platform-specific binary name")
+}
 
 // TestSpec_PublicAPI_GetTestRunDir_Idempotent validates that GetTestRunDir
 // returns the same path on every call within a process as described in the

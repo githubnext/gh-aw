@@ -19,8 +19,7 @@ For issue-backed WorkQueueOps, see [WorkQueueOps](../../docs/src/content/docs/pa
 
 Trust runtime roles, not snapshots; AW authenticates the native run, workflow and
 revision; reruns cannot inherit attempt 1.
-An absent branch is uninitialized/empty; the first producer submit atomically
-creates compiled Policy and Work. Reads and dispatch alone never do.
+An absent branch is uninitialized/empty.
 Reject malformed or unsupported existing logs.
 
 ## Configure deployment
@@ -38,11 +37,10 @@ Dispatchers need `tools.work-queue: true`, a worker allowlist and bounded
 `dispatch-workflow.max`. AW supplies approved routes and credentials and
 binds the actual immutable native run to each Claim; moving `target-ref` is ignored.
 
-Optional `.github/workflows/aw.json` `work_queue` contains global scheduling and
-Issues/label settings: concurrency, pending limit, retries, pools/fairness and
-`issues` with an optional `label`. Missing settings
-use one default pool, weighted-priority, concurrency 16, pending 4,096,
-singleton assignments and three attempts with 30-second backoff.
+Optional `aw.json` `work_queue` configures scheduling and Issue settings
+(concurrency, pending limit, retries, pools, fairness, optional label and title
+prefix). Defaults: weighted-priority, one pool, concurrency 16, pending 4,096,
+singleton assignments, three attempts, 30-second backoff.
 First submit automatically installs compiled Policy and Work.
 Standalone seeding is unsupported; AW and Actions authorize the trusted submission.
 Economic Policy updates require quiescence and explicit
@@ -55,16 +53,19 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 ## Mirror admitted Work with Issues
 
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
-`work: <status>` labels. An object may customize the tracking label and status
-label prefix with `label`. No per-workflow override or enrollment is needed.
-Only protected AW hooks
-project their own admissions/original Claims. Immutable `backing_issue` binds
-one Work per Issue. Agents never write mirrors; human edits never establish
-Result. Pre-existing Issues require exact installed `backing_issues` grants.
-Only trusted admission-time `completion_policy` permits closure, never payload.
-Uncertain writes stay pending, never recreated or globally repaired.
-Upgrade all closed-schema readers first. See the
+`work:<status>` labels. Optional `label` customizes the tracking and status-label
+prefixes; `title_prefix` defaults to `[work queue]`. Titles and summaries show
+12-character Work IDs; the Issue body includes the full ID. No per-workflow
+override or enrollment is needed. Protected AW hooks alone project their
+admissions/original Claims. Immutable `backing_issue` binds one Work per Issue.
+Agents never write mirrors; human edits never establish Result. Pre-existing
+Issues require exact installed `backing_issues` grants. Only trusted
+admission-time `completion_policy` permits closure, never payload. Keep uncertain
+writes pending; never recreate or globally repair. Upgrade closed-schema readers
+first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
+Mirroring enables compiler-generated `.github/workflows/agentic-workqueue.yml`
+for Issue lifecycle events outside agentic workflows; disabling mirroring removes it.
 
 ## Plan and dispatch
 
@@ -93,6 +94,10 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
   batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before
   scoped effects and Result only after independently verified delivery.
+- For a worker's effect beyond the built-in safe outputs, declare
+  `safe-outputs.claim-adapters` (see
+  [safe-outputs-runtime.md](safe-outputs-runtime.md)); the adapter binds one
+  effect-type to an independently verified result, never to job success alone.
 
 Use `<mcp-clis>` with one JSON argument. `uninitialized` plus null SHA is empty;
 first `work_queue_submit` installs Policy and Work. Submit before dispatch.

@@ -112,6 +112,29 @@ func generateMaintenanceWorkflowWrapper(
 	return nil
 }
 
+func generateWorkQueueEventWorkflowWrapper(ctx context.Context, workflowDataList []*workflow.WorkflowData, workflowsDir string, gitRoot string, strict bool) error {
+	compilePostProcessingLog.Print("Generating work queue event workflow")
+	if !workflow.WorkQueueIssueMirroringEnabled(workflowDataList) {
+		return workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, nil)
+	}
+
+	repoConfig, err := workflow.LoadRepoConfig(gitRoot)
+	if err != nil {
+		if strict {
+			return fmt.Errorf("failed to load repo config for work queue event workflow: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to load repo config for work queue event workflow: %v", err)))
+		repoConfig = nil
+	}
+	if err := workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, repoConfig); err != nil {
+		if strict {
+			return fmt.Errorf("failed to generate work queue event workflow: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to generate work queue event workflow: %v", err)))
+	}
+	return nil
+}
+
 // generateCentralSlashCommandWorkflowWrapper generates a single centralized
 // slash-command trigger workflow for all participating workflows.
 func generateCentralSlashCommandWorkflowWrapper(

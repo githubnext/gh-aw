@@ -50,11 +50,11 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.PersistentFlags().String("repo", "", "GitHub repository owner/repo")
+	cmd.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
 	cmd.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
 	cmd.PersistentFlags().String("storage", "git", "Queue storage (git only)")
 	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
-	cmd.PersistentFlags().Bool("json", false, "Output JSON")
+	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(),
@@ -275,7 +275,7 @@ func workTraceCommand() *cobra.Command {
 	return cmd
 }
 
-func workReadJSON(cmd *cobra.Command) ([]byte, error) {
+func workReadJSON(cmd *cobra.Command) (data []byte, retErr error) {
 	path, _ := cmd.Flags().GetString("file")
 	if path == "" {
 		return nil, errors.New("--file is required")
@@ -290,7 +290,11 @@ func workReadJSON(cmd *cobra.Command) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
+		defer func() {
+			if closeErr := file.Close(); closeErr != nil {
+				retErr = errors.Join(retErr, closeErr)
+			}
+		}()
 		reader = file
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, 4<<20+1))

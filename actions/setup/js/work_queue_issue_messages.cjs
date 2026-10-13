@@ -41,7 +41,8 @@ function issueBody(state, work, origin, config, branch) {
   return renderWorkQueueMessage(
     "work_queue_issue_body.md",
     {
-      work_id: work.work_id,
+      work_id: work.work_id.slice(0, 12),
+      full_work_id: work.work_id,
       admission_run_url: admission.run_id ? runLink(admission) : ledgerUrl,
       admission_link_label: admission.run_id ? "View the admitting run" : "View the admission receipt",
       ledger_url: ledgerUrl,

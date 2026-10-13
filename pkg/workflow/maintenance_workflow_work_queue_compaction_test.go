@@ -48,3 +48,11 @@ func TestMaintenanceGeneratedForWorkQueueOnly(t *testing.T) {
 	assert.Empty(t, jobs["work_queue_compaction_apply"])
 	assert.Empty(t, jobs["ledger_compaction_plan"])
 }
+
+func TestMaintenanceWorkQueueClosureIsHandledElsewhere(t *testing.T) {
+	opts := buildMaintenanceWorkflowYAMLOptions{runsOnValue: "ubuntu-latest", hasWorkQueue: true}
+	trigger := buildMaintenanceWorkflowTriggerYAML(opts, false, false, "", "")
+	assert.NotContains(t, trigger, "issues:")
+	assert.Contains(t, buildMaintenanceWorkflowTriggerYAML(opts, true, false, "", ""), "types: [labeled]")
+	assert.NotContains(t, buildMaintenanceWorkflowTriggerYAML(buildMaintenanceWorkflowYAMLOptions{}, false, false, "", ""), "issues:")
+}

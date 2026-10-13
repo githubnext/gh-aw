@@ -533,7 +533,8 @@ limit 4,096, singleton assignments and three attempts with 30-second backoff.
 Invalid settings MUST produce property-specific errors. Optional advanced pools
 and fairness MUST remain scheduling, not identity authorization.
 `work_queue.issues` MUST configure projection globally; a boolean selects
-defaults or disables it, and an object MAY supply `label`.
+defaults or disables it, and an object MAY supply the optional `label` and
+`title_prefix` fields.
 Workflow-level `work-queue-policy` and `tools.work-queue.issues` are deprecated;
 conflicting global/local definitions MUST fail.
 Concurrent first submissions MUST use the winning installed Policy and retry
@@ -1153,7 +1154,7 @@ Repository configuration:
     "pending_limit": 30,
     "accounting_weights": {"": 1, "project-a": 2, "project-b": 1},
     "retry": {"max_attempts": 3, "backoff_seconds": 30},
-    "issues": {"label": "work"},
+    "issues": {"label": "work", "title_prefix": "[work queue]"},
     "pools": {"default": {"per_account_limit": 2}}
   }
 }
@@ -2005,6 +2006,26 @@ not mean “wait until it is closed.” Dependencies carry explicit conditions;
 subjects identify what the task operates on. Investigating an Issue, preparing
 a fix, or updating a PR is scheduled Work whose effects require that Work's
 Claim; an external resource node alone never grants worker execution or writes.
+
+Closing the exact Issue identified by Work's `subject` or immutable
+`backing_issue` binding is a **cancellation intent**, not evidence that the
+Work succeeded. The trusted closure path MUST verify the exact relationship,
+fresh queue labels, and current ledger prefix, then publish
+`WorkCancellation` for nonterminal Work through the normal authenticated,
+compare-and-set queue writer. Closure MUST NOT publish a `Result`, infer
+Completion, or automatically stop a native worker. An active
+Claim loses future queue authority, but its native reservation remains until
+independent trusted termination/nonlaunch evidence permits `Release`.
+If Completion or an earlier WorkCancellation already won the ledger race,
+the closure path MUST preserve that terminal state without a second
+cancellation or reopened Claim. It MUST leave one idempotent Issue comment
+confirming the **observed ledger outcome** (cancelled or already completed),
+not claiming cancellation succeeded merely because the Issue closed. If the
+ledger write/read cannot be verified, it MUST NOT post a success confirmation;
+retry/reconcile against the current prefix instead. An Issue appearing only
+as a dependency, or lacking the required fresh queue labels, does not trigger
+this cancellation path; dependency Issues retain the separate condition
+semantics below.
 
 If queued Work creates a new Issue/PR, its verified Result supplies the typed
 resource identity. An agentic dispatcher can then admit downstream nodes using

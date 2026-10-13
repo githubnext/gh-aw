@@ -158,15 +158,19 @@ require an already registered exact revision and the same native checks.
 ## Backing Issues
 
 ```json title=".github/workflows/aw.json"
-{"work_queue": {"issues": {"label": "cookie"}}}
+{"work_queue": {"issues": {"label": "cookie", "title_prefix": "[cookie queue]"}}}
 ```
 
-`issues: true` enables projection with the `work` tracking label and a
-`work:<status>` label. An object may override `label` (for example, `cookie`
-produces `cookie:queued`); an empty object uses defaults. Absent or false
-disables the integration. The label prefix must be a nonblank literal of at
-most 33 bytes, leaving room for the longest status suffix within GitHub's
-50-character label limit; unknown keys are rejected.
+`issues: true` enables projection with the `work` tracking label, a
+`work:<status>` label, and Issue titles like `[work queue] abcdef012345`. An object
+may override `label` (for example, `cookie` produces `cookie:queued`) and
+`title_prefix` (for example, `[cookie queue] abcdef012345`); an empty object
+uses defaults. Titles and summaries show the first 12 characters of the Work
+ID, and the Issue body retains the full ID in a machine-readable comment.
+Absent or false disables the integration. The label prefix must be a
+nonblank literal of at most 33 UTF-8 bytes, leaving room for the longest status
+suffix within GitHub's 50-character label limit. The title prefix must be a
+nonblank literal of at most 80 UTF-8 bytes; unknown keys are rejected.
 
 Status labels are created as needed in the target repository with purple
 (`7057FF`). Statuses use lowercase, hyphenated names with no spaces (for
@@ -219,8 +223,21 @@ Each backing Issue has a canonical summary and one historical comment per
 owned Claim, with run, ledger, and verified outcome links. Summaries include
 changing status alongside its label. Completion projects **Verifying**, verified PR delivery **Needs review**,
 and verified non-PR delivery **Done**. Native job failure/cancellation is
-diagnostic, not Work cancellation or Result. Human closure/status changes
-cannot establish either.
+diagnostic, not Work cancellation or Result. A closed backing Issue or exact
+Issue `subject` triggers trusted cancellation only when its fresh
+closed state, tracking and status labels, repository identity, and unique
+immutable Work identity are verified. Dependency-only Issues do not qualify;
+ambiguous matches are left untouched.
+The administrator records `WorkCancellation` for nonterminal Work. For Work
+already completed or cancelled by another request, the handler does not
+rewrite the outcome. After verifying a terminal ledger commit, it posts an
+idempotent comment reporting the observed state without claiming the closure
+caused it. This does not stop an already running worker or establish Result.
+Human status-label changes alone cannot establish cancellation or Result.
+When Work Queue Issue mirroring is enabled, the compiler generates
+`.github/workflows/agentic-workqueue.yml` to handle `issues: closed` and
+`issue_comment: created` events outside agentic workflows; it removes this file
+when Issue mirroring is no longer used.
 
 Generated Issue bodies, summaries, and Claim comments use the packaged
 `actions/setup/md/work_queue_issue_*.md` templates and always include a

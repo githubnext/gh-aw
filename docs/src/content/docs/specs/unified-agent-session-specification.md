@@ -631,6 +631,7 @@ source for opaque fields.
 | `mcp.rpc.request`, `mcp.rpc.response` | MCPG `REQUEST`/`RESPONSE` or `rpc_request`/`rpc_response`, with flat RPC metadata and error code/message. |
 | `mcp.difc.filtered`, `mcp.guard.blocked` | DIFC and guard-policy diagnostics; no inferred successful tool outcome. |
 | `mcp.tool_call`, `mcp.event` | Structured gateway calls or other gateway log messages. |
+| `mcp.configuration` | Sanitized pre-startup inventory from `mcp-logs/configuration.jsonl`, including detection-phase gateways when present. `servers` retains only `serverName`, recognized `transport`, explicit boolean `required`, and string `tools` filters. An empty inventory or tool filter is preserved; absent settings are not inferred. URLs, container images, commands, arguments, environment, headers, credentials, gateway settings, policies, and unknown fields are omitted before persistence. Registered secrets are additionally redacted by the session artifact writer. This records configuration, not successful connections or available tools. |
 | `firewall.http_access` | AWF network audit observations, including operational entries without a host. |
 | `firewall.token_usage`, `firewall.model_routing`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, token/time steering, tracker and other firewall messages. |
 | `safe_output.request`, `safe_output.result`, `safe_output.error` | Requested operation identities, executed item identities, and available errors. Requests are not execution results. |
@@ -642,6 +643,7 @@ source for opaque fields.
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
 | `guardrail.daily_aic` | Activation's daily AI Credits decision (`status`, `exceeded`, and available numeric `total`, `estimated`, `threshold`). Omitted when the guardrail has no decision; an existing event is not duplicated. |
 | `github_api.rate_limit` | Available GitHub API rate-limit JSONL observations retain the recorded source (`response_headers`, `rate_limit_api`, or `retry`), operation, resource, limit, remaining, used, reset, and retry state. `credentialSource` identifies a known GitHub Actions token, PAT, or app token where classified by the client; absent or unknown credential types are not inferred from quota values. Raw credentials and unrecognized fields are excluded. The collector prefers `github_rate_limits.jsonl` over its `usage/` copy to avoid duplicate observations. |
+| `plugin.installation` | Successful plugin installations retain the pinned `plugin` reference, `repository`, `ref`, local checkout `path`, and `status: "installed"`, with the installation timestamp. CLI and directory-based engines record success after installation or staging; Claude records the checked-out directory made available through `--plugin-dir`, and Codex records success after marketplace registration and plugin installation. The collector prefers `plugin-installations.jsonl` over its `usage/` copy. Credentials and unrecognized fields are excluded; absent evidence does not imply an installation. |
 | `session.collection_warning`, `session.collection` | Explicit collection diagnostics and coverage. |
 | `session.format` | Leading collector-owned file-format metadata, distinct from source-native events with the same type. |
 
@@ -1418,8 +1420,11 @@ one nested scope can select that scope's initialization and accounting explicitl
 
 Actions publishes this view once in a plain-titled `Unified session` disclosure,
 using a fenced CLI-style transcript like the Claude conversation summary rather
-than a Markdown table. Gateway diagnostics do not append a second unified event
-timeline, and the disclosure does not repeat its title as a standalone heading.
+than a Markdown table. Opening the disclosure shows source-local conversations
+with paired tool outcomes; per-source statistics and the full chronological
+timeline remain in separate, collapsed disclosures. Gateway diagnostics do not
+append a second unified event timeline, and the disclosure does not repeat its
+title as a standalone heading.
 
 | Observation | Unified display projection |
 | --- | --- |
