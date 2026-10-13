@@ -1194,7 +1194,7 @@ async function main(config = {}) {
             if (validationBaseRef !== rangeBaseRef) {
               // Preserve protection for agent commits that change then revert a
               // file, without attributing trusted base-branch commits to the agent.
-              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "-z", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
+              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
               bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
             }
             if (bundleFiles.length > 0) {

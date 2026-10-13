@@ -130,9 +130,50 @@ describe("push_to_pull_request_branch bundle integration", () => {
     expect(Buffer.byteLength(agentPatch)).toBeLessThan(1024);
     expect(files.reduce((size, file) => size + fs.statSync(path.join(repo, file)).size, 0)).toBeLessThan(1024);
     expect(git(["rev-list", "--count", "--merges", `${oldHead}..HEAD`]).stdout.trim()).toBe("1");
-    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
-    expect([...new Set(historyFiles)].sort()).toEqual(revertedChange ? ["agent.txt", "package.json"] : ["agent.txt"]);
+    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
+    expect([...new Set(historyFiles)].sort()).toEqual(revertedChange ? ["agent.txt", "package.json"] : conflict ? ["agent.txt", "conflict.txt"] : ["agent.txt"]);
     expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe(revertedChange ? "deny" : "allow");
+  });
+
+  it("detects protected changes made and restored only in agent merge commits", async () => {
+    const repo = createRepo("push-pr-merge-history-protection-");
+    tempDirs.push(repo);
+    const git = args => execGit(args, { cwd: repo });
+    writeRepoFile(repo, "package.json", "{}\n");
+    git(["add", "."]);
+    git(["commit", "-m", "base"]);
+    git(["branch", "-M", "main"]);
+    git(["checkout", "-b", "feature"]);
+    writeRepoFile(repo, "existing.txt", "PR work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "existing PR"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "main"]);
+    writeRepoFile(repo, "upstream.txt", "base work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "trusted base work"]);
+    const trustedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "feature"]);
+    git(["merge", "--no-ff", "--no-commit", "main"]);
+    writeRepoFile(repo, "package.json", '{"agent":true}\n');
+    git(["commit", "-am", "merge-only protected change"]);
+    git(["checkout", "-b", "side"]);
+    writeRepoFile(repo, "side.txt", "side work\n");
+    git(["add", "."]);
+    git(["commit", "-m", "side work"]);
+    git(["checkout", "feature"]);
+    git(["merge", "--no-ff", "--no-commit", "side"]);
+    writeRepoFile(repo, "package.json", "{}\n");
+    git(["commit", "-am", "merge-only protected restoration"]);
+
+    const exec = createExecApi(repo);
+    const { ref, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
+    const files = await getBundlePreApplyFiles(exec, {}, ref, "HEAD", conflictedFiles);
+    expect(files).toEqual(["side.txt"]);
+    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
+    expect(historyFiles).toContain("package.json");
+    expect(historyFiles).not.toContain("upstream.txt");
+    expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe("deny");
   });
 
   it.each(["text", "binary", "modify/delete"])("keeps protected %s conflict resolutions in the validation file set", async kind => {

@@ -2269,6 +2269,13 @@ index 0000000..abc1234
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
         }
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
+        if (expectedError === "bundle modifies protected files") {
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith(
+            "git",
+            ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", "remote-head", trustedBase],
+            expect.any(Object)
+          );
+        }
         if (expectedError === "Changed content size") {
           expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "remote-head"], expect.any(Object));
         }
