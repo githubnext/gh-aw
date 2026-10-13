@@ -45,6 +45,8 @@ Any agent-generated release notes or release-description changes must use the `u
 
 ### Interactive mode
 
+When the request already states a goal, keep the interview lightweight: confirm only what is ambiguous and skip questions the request already answers.
+
 When the user has not already stated an automation goal, start with exactly:
 
 > What do you want to automate today?
