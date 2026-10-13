@@ -6,6 +6,8 @@ name: PR Data Prefetch
 # Because this workflow has no AI engine, it completes in ~30-60 s — before the
 # reviewer workflows' activation jobs finish. When the reviewer agent jobs start
 # and restore the pr-prefetch-<sha> cache they get a hit and skip their own fetch.
+# Repeated ready-for-review events restore the same diff and file list. Mutable
+# metadata comes from the event payload; review comments are always refreshed.
 
 on:
   pull_request:
@@ -30,6 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Restore PR data from cache
+        id: pr-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: pr-prefetch-${{ github.event.pull_request.head.sha }}
+          path: /tmp/gh-aw/agent
+
       - name: Pre-fetch PR diff and review comments
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,32 +49,60 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/gh-aw/agent
-          # Filter generated files before assembling the patch; the whole-PR
-          # diff endpoint rejects PRs with more than 300 files.
-          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
-            --jq '.[] | select(.filename | test("(^|/)(generated|dist|build)/|\\.lock\\.yml$|^\\.changeset/[^/]+\\.md$|^\\.github/aw/(github-agentic-workflows\\.md|imports/)|^pkg/cli/templates/(campaign-[^/]*|create-agentic-workflow)\\.md$|^pkg/workflow/(js/[^/]+\\.(js|cjs)|sh/[^/]+\\.sh|\\.github/aw/imports/)|^actions/([^/]+/index\\.js|setup-cli/install\\.(sh|ps1))$|^specs/artifacts\\.md$") | not) | select(.patch != null) | "diff --git a/\(.previous_filename // .filename) b/\(.filename)\n" + (if .status == "added" then "new file mode 100644\n--- /dev/null\n+++ b/\(.filename)\n" elif .status == "removed" then "deleted file mode 100644\n--- a/\(.filename)\n+++ /dev/null\n" else "--- a/\(.previous_filename // .filename)\n+++ b/\(.filename)\n" end) + .patch + "\n"' \
-            > /tmp/gh-aw/agent/pr-diff.full 2> /tmp/gh-aw/agent/pr-diff.err; then
-            echo "::error::Failed to fetch files for PR #${PR_NUMBER}: $(cat /tmp/gh-aw/agent/pr-diff.err)" >&2
-            rm -f /tmp/gh-aw/agent/pr-diff.full /tmp/gh-aw/agent/pr-diff.err
-            exit 1
+          CACHE_HEAD_SHA=""
+          if [ -f /tmp/gh-aw/agent/pr-data-head-sha.txt ]; then
+            CACHE_HEAD_SHA="$(tr -d '\n' < /tmp/gh-aw/agent/pr-data-head-sha.txt)"
           fi
-          head -n "${PR_DIFF_MAX_LINES}" /tmp/gh-aw/agent/pr-diff.full > /tmp/gh-aw/agent/pr-diff.patch
-          rm -f /tmp/gh-aw/agent/pr-diff.full /tmp/gh-aw/agent/pr-diff.err
+          rm -f /tmp/gh-aw/agent/pr-data-head-sha.txt
+          if [ -n "$PR_HEAD_SHA" ] && [ "$PR_HEAD_SHA" = "$CACHE_HEAD_SHA" ] && \
+            [ -f /tmp/gh-aw/agent/pr-diff.patch ] && \
+            jq -e --arg sha "$PR_HEAD_SHA" --argjson number "$PR_NUMBER" \
+              '.headRefOid == $sha and .number == $number and (.files | type == "array")' \
+              /tmp/gh-aw/agent/pr-meta.json >/dev/null 2>&1; then
+            jq '.files' /tmp/gh-aw/agent/pr-meta.json > /tmp/gh-aw/agent/pr-files.json.tmp
+            echo "Cache hit: using pre-fetched PR diff and files for head ${PR_HEAD_SHA}"
+          else
+            # Filter generated files before assembling the patch; the whole-PR
+            # diff endpoint rejects PRs with more than 300 files.
+            if ! gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
+              > /tmp/gh-aw/agent/pr-diff.full 2> /tmp/gh-aw/agent/pr-diff.err; then
+              echo "::error::Failed to fetch files for PR #${PR_NUMBER}: $(cat /tmp/gh-aw/agent/pr-diff.err)" >&2
+              rm -f /tmp/gh-aw/agent/pr-diff.full /tmp/gh-aw/agent/pr-diff.err
+              exit 1
+            fi
+            jq 'add // []' /tmp/gh-aw/agent/pr-diff.full > /tmp/gh-aw/agent/pr-files.raw.tmp
+            jq '[.[] | {path: .filename, additions, deletions}]' \
+              /tmp/gh-aw/agent/pr-files.raw.tmp > /tmp/gh-aw/agent/pr-files.json.tmp
+            jq -r '.[] | select(.filename | test("(^|/)(generated|dist|build)/|\\.lock\\.yml$|^\\.changeset/[^/]+\\.md$|^\\.github/aw/(github-agentic-workflows\\.md|imports/)|^pkg/cli/templates/(campaign-[^/]*|create-agentic-workflow)\\.md$|^pkg/workflow/(js/[^/]+\\.(js|cjs)|sh/[^/]+\\.sh|\\.github/aw/imports/)|^actions/([^/]+/index\\.js|setup-cli/install\\.(sh|ps1))$|^specs/artifacts\\.md$") | not) | select(.patch != null) | "diff --git a/\(.previous_filename // .filename) b/\(.filename)\n" + (if .status == "added" then "new file mode 100644\n--- /dev/null\n+++ b/\(.filename)\n" elif .status == "removed" then "deleted file mode 100644\n--- a/\(.filename)\n+++ /dev/null\n" else "--- a/\(.previous_filename // .filename)\n+++ b/\(.filename)\n" end) + .patch + "\n"' \
+              /tmp/gh-aw/agent/pr-files.raw.tmp > /tmp/gh-aw/agent/pr-diff.full
+            head -n "${PR_DIFF_MAX_LINES}" /tmp/gh-aw/agent/pr-diff.full > /tmp/gh-aw/agent/pr-diff.patch
+            rm -f /tmp/gh-aw/agent/pr-diff.full /tmp/gh-aw/agent/pr-diff.err /tmp/gh-aw/agent/pr-files.raw.tmp
+          fi
           LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-          gh pr view "$PR_NUMBER" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json number,title,body,headRefName,headRefOid,additions,deletions,changedFiles,files \
-            > /tmp/gh-aw/agent/pr-meta.json
-          printf '%s\n' "$PR_HEAD_SHA" > /tmp/gh-aw/agent/pr-data-head-sha.txt
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
+          jq -e --arg sha "$PR_HEAD_SHA" --argjson number "$PR_NUMBER" \
+            --slurpfile files /tmp/gh-aw/agent/pr-files.json.tmp \
+            '.pull_request | select(.number == $number and .head.sha == $sha) |
+              {number, title, body, headRefName: .head.ref, headRefOid: .head.sha,
+               additions, deletions, changedFiles: .changed_files, files: $files[0]}' \
+            "$GITHUB_EVENT_PATH" > /tmp/gh-aw/agent/pr-meta.json.tmp
+          mv /tmp/gh-aw/agent/pr-meta.json.tmp /tmp/gh-aw/agent/pr-meta.json
+          rm -f /tmp/gh-aw/agent/pr-files.json.tmp
+          if ! gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments?per_page=100" \
             --paginate \
             --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
-            2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
-            || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
+            > /tmp/gh-aw/agent/pr-review-comments.full 2> /tmp/gh-aw/agent/pr-review-comments.err; then
+            echo "::error::Failed to fetch review comments for PR #${PR_NUMBER}: $(cat /tmp/gh-aw/agent/pr-review-comments.err)" >&2
+            rm -f /tmp/gh-aw/agent/pr-review-comments.full /tmp/gh-aw/agent/pr-review-comments.err
+            exit 1
+          fi
+          jq -s '.' /tmp/gh-aw/agent/pr-review-comments.full > /tmp/gh-aw/agent/pr-review-comments.json
+          rm -f /tmp/gh-aw/agent/pr-review-comments.full /tmp/gh-aw/agent/pr-review-comments.err
+          printf '%s\n' "$PR_HEAD_SHA" > /tmp/gh-aw/agent/pr-data-head-sha.txt
           COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
           echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
 
       - name: Save PR data to cache
+        if: steps.pr-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: pr-prefetch-${{ github.event.pull_request.head.sha }}
