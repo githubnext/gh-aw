@@ -214,7 +214,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// fast-path checks avoid an unnecessary yaml.Unmarshal.
 	needsSchemaCheck := !c.skipValidation
 	needsAppTokenCheck := strings.Contains(strings.ToLower(yamlContent), "actions/create-github-app-token@")
-	needsWorkflowParse := needsSchemaCheck || requireSelfHostedRunners || needsAppTokenCheck
+	needsEngineCheck := hasAgenticEngineReference(strings.ToLower(yamlContent))
+	needsWorkflowParse := needsSchemaCheck || requireSelfHostedRunners || needsAppTokenCheck || needsEngineCheck
 
 	var parsedWorkflow map[string]any
 	if needsWorkflowParse {
@@ -222,7 +223,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// parsed representation with the template injection validator below.
 		workflowLog.Print("Parsing compiled YAML for validation")
 		if parseErr := yaml.Unmarshal([]byte(yamlContent), &parsedWorkflow); parseErr != nil {
-			if requireSelfHostedRunners || needsAppTokenCheck {
+			if requireSelfHostedRunners || needsAppTokenCheck || needsEngineCheck {
 				reason := "could not inspect compiled workflow"
 				if requireSelfHostedRunners {
 					reason = "self-hosted runner policy could not inspect compiled workflow"
@@ -246,6 +247,10 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		if err := c.validateAppTokenPermissions(parsedWorkflow, c.effectiveStrictMode(workflowData.RawFrontmatter)); err != nil {
 			return "", nil, nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
+	}
+
+	if err := c.validateAgenticEngineSteps(parsedWorkflow, c.effectiveStrictMode(workflowData.RawFrontmatter), markdownPath); err != nil {
+		return "", nil, nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
 	// Validate for template injection vulnerabilities (unsafe expression usage in run: commands).

@@ -7,6 +7,8 @@ sidebar:
 
 Custom steps and jobs let you mix deterministic computation with agentic execution. All custom steps and jobs run **outside the firewall sandbox** with standard GitHub Actions security.
 
+The compiler checks steps outside the `agent` job for recognizable agentic engine installations and invocations, including Copilot CLI, Claude Code, and Codex. These produce an error in strict mode and a warning with `strict: false`, including in safe-output and custom jobs. Configure agentic execution through `engine:` instead of installing or running an engine in another job. The built-in `detection` and `evals` jobs are exempt.
+
 See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for patterns combining computation with AI reasoning.
 
 ## Choosing the Right Step Hook
