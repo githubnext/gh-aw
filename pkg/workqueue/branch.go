@@ -129,6 +129,10 @@ func (b Branch) read(ctx context.Context) ([]QueueCommit, branchSnapshot, error)
 		}
 		return nil, branchSnapshot{}, err
 	}
+	return b.readAt(ctx, head, true, true)
+}
+
+func (b Branch) readAt(ctx context.Context, head string, verify, recover bool) ([]QueueCommit, branchSnapshot, error) {
 	snapshot := branchSnapshot{head: head}
 	var commit struct {
 		Tree struct {
@@ -144,11 +148,19 @@ func (b Branch) read(ctx context.Context) ([]QueueCommit, branchSnapshot, error)
 	}
 	transactions, data, err := b.readLog(ctx, snapshot.tree)
 	snapshot.data = data
+	recovered := false
+	var protocolError *ProtocolError
+	if recover && errors.As(err, &protocolError) && protocolError.Code == "checkpoint_invalid" {
+		transactions, err = b.recoverDeploymentCheckpoint(ctx, head, transactions, err)
+		recovered = err == nil
+	}
 	if err != nil {
 		return nil, snapshot, err
 	}
-	if err := b.verifyCheckpointHistory(ctx, snapshot.head, transactions); err != nil {
-		return nil, snapshot, err
+	if verify && !recovered {
+		if err := b.verifyCheckpointHistory(ctx, snapshot.head, transactions); err != nil {
+			return nil, snapshot, err
+		}
 	}
 	return transactions, snapshot, nil
 }
@@ -158,77 +170,57 @@ func (b Branch) verifyCheckpointHistory(ctx context.Context, head string, commit
 		return queueError("checkpoint_invalid", "checkpoint does not match its Git parent history")
 	}
 	visited := map[string]struct{}{}
-	for len(commits) > 0 && isCheckpoint(commits[0]) {
-		var checkpoint CheckpointOperation
-		if err := json.Unmarshal(commits[0].Operations[0], &checkpoint); err != nil {
+	for {
+		if len(commits) == 0 {
+			return nil
+		}
+		root, err := firstQueueCommit(commits)
+		if err != nil {
+			return err
+		}
+		if !isCheckpoint(root) {
+			return nil
+		}
+		checkpoint, err := decodeCheckpointOperation(root)
+		if err != nil {
 			return invalid()
 		}
-		current := head
-		for {
-			if _, ok := visited[current]; ok {
-				return invalid()
-			}
-			visited[current] = struct{}{}
-			var gitCommit struct {
-				Tree struct {
-					SHA string `json:"sha"`
-				} `json:"tree"`
-				Parents []struct {
-					SHA string `json:"sha"`
-				} `json:"parents"`
-			}
-			if err := b.request(ctx, http.MethodGet, "git/commits/"+current, nil, &gitCommit); err != nil {
-				return err
-			}
-			if len(gitCommit.Parents) != 1 || gitCommit.Parents[0].SHA == "" || gitCommit.Parents[0].SHA == current {
-				return invalid()
-			}
-			parent := gitCommit.Parents[0].SHA
-			var parentCommit struct {
-				Tree struct {
-					SHA string `json:"sha"`
-				} `json:"tree"`
-			}
-			if err := b.request(ctx, http.MethodGet, "git/commits/"+parent, nil, &parentCommit); err != nil {
-				return err
-			}
-			if parentCommit.Tree.SHA == "" {
-				return invalid()
-			}
-			if parentCommit.Tree.SHA == gitCommit.Tree.SHA {
-				current = parent
-				continue
-			}
-			previous, _, err := b.readLog(ctx, parentCommit.Tree.SHA)
-			if err != nil {
-				return err
-			}
-			if len(previous) > 0 && isCheckpoint(previous[0]) && previous[0].ID == commits[0].ID {
-				current = parent
-				continue
-			}
-			data, encodeErr := Serialize(previous)
-			if parent != checkpoint.PriorGitSHA || len(previous) == 0 || encodeErr != nil || hashBytes(data) != checkpoint.HistorySHA256 {
-				return invalid()
-			}
-			ordered, err := causalOrder(previous)
-			if err != nil || ordered[len(ordered)-1].ID != checkpoint.PriorTip {
-				return invalid()
-			}
-			reconstructed, err := CompactCheckpoint(previous, parent, commits[0].Actor, commits[0].At)
-			if err != nil {
-				return invalid()
-			}
-			var expected CheckpointOperation
-			if json.Unmarshal(reconstructed[0].Operations[0], &expected) != nil ||
-				expected.StateSHA256 != checkpoint.StateSHA256 {
-				return invalid()
-			}
-			head, commits = parent, previous
-			break
+		parent, previous, err := b.checkpointHistoryParent(ctx, head, root.ID, visited)
+		if err != nil {
+			return err
 		}
+		data, encodeErr := Serialize(previous)
+		if parent != checkpoint.PriorGitSHA || encodeErr != nil || hashBytes(data) != checkpoint.HistorySHA256 {
+			return invalid()
+		}
+		ordered, err := causalOrder(previous)
+		if err != nil {
+			return invalid()
+		}
+		if len(ordered) == 0 {
+			return invalid()
+		}
+		var tip string
+		for _, commit := range ordered {
+			tip = commit.ID
+		}
+		if tip != checkpoint.PriorTip {
+			return invalid()
+		}
+		reconstructed, err := CompactCheckpoint(previous, parent, root.Actor, root.At)
+		if err != nil {
+			return invalid()
+		}
+		reconstructedRoot, err := firstQueueCommit(reconstructed)
+		if err != nil {
+			return invalid()
+		}
+		expected, err := decodeCheckpointOperation(reconstructedRoot)
+		if err != nil || expected.StateSHA256 != checkpoint.StateSHA256 {
+			return invalid()
+		}
+		head, commits = parent, previous
 	}
-	return nil
 }
 
 func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []byte, error) {
@@ -408,19 +400,30 @@ func extending(previous, current []QueueCommit) bool {
 	if err != nil {
 		return false
 	}
-	if len(newOrder) > 0 && isCheckpoint(newOrder[0]) {
-		var op CheckpointOperation
+	root, err := firstQueueCommit(newOrder)
+	if err != nil || len(oldOrder) == 0 {
+		return false
+	}
+	if isCheckpoint(root) {
+		op, err := decodeCheckpointOperation(root)
 		data, encodeErr := Serialize(oldOrder)
-		if err := json.Unmarshal(newOrder[0].Operations[0], &op); err == nil &&
+		var tip string
+		for _, commit := range oldOrder {
+			tip = commit.ID
+		}
+		if err == nil &&
 			encodeErr == nil && op.HistorySHA256 == hashBytes(data) &&
-			op.PriorTip == oldOrder[len(oldOrder)-1].ID {
-			reconstructed, err := CompactCheckpoint(oldOrder, op.PriorGitSHA, newOrder[0].Actor, newOrder[0].At)
+			op.PriorTip == tip {
+			reconstructed, err := CompactCheckpoint(oldOrder, op.PriorGitSHA, root.Actor, root.At)
 			if err != nil {
 				return false
 			}
-			var expected CheckpointOperation
-			return json.Unmarshal(reconstructed[0].Operations[0], &expected) == nil &&
-				expected.StateSHA256 == op.StateSHA256
+			reconstructedRoot, err := firstQueueCommit(reconstructed)
+			if err != nil {
+				return false
+			}
+			expected, err := decodeCheckpointOperation(reconstructedRoot)
+			return err == nil && expected.StateSHA256 == op.StateSHA256
 		}
 	}
 	if len(newOrder) < len(oldOrder) {

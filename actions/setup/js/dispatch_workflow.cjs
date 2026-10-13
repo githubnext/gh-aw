@@ -18,6 +18,7 @@ const { buildAwContext, resolveWorkQueueRuntime } = require("./aw_context.cjs");
 const { currentClaimHandle } = require("./work_queue_claim_scope.cjs");
 const { createDispatchCredentialValidator } = require("./work_queue_dispatch_credential.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { dispatchWorkflow } = require("./dispatch_workflow_transport.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -362,39 +363,18 @@ async function main(config = {}) {
       // Dispatch the workflow using the resolved file.
       // Request return_run_details for newer GitHub API support; fall back without it
       // for older GitHub Enterprise Server deployments that don't support the parameter.
-      /** @type {{ data: { workflow_run_id?: number } }} */
-      let response;
-      try {
-        response = await githubClient.rest.actions.createWorkflowDispatch({
+      const response = await dispatchWorkflow(
+        githubClient,
+        {
           owner: repo.owner,
           repo: repo.repo,
           workflow_id: workflowFile,
           ref: ref,
           inputs: inputs,
           return_run_details: true,
-        });
-      } catch (dispatchError) {
-        /** @type {any} */
-        const err = dispatchError;
-        const status = err && typeof err === "object" ? err.status : undefined;
-        const dispatchErrMessage = err?.response?.data?.message !== undefined ? String(err.response.data.message) : String(dispatchError);
-
-        const isValidationStatus = status === 400 || status === 422;
-        const mentionsReturnRunDetails = typeof dispatchErrMessage === "string" && dispatchErrMessage.toLowerCase().includes("return_run_details");
-
-        if (isValidationStatus && mentionsReturnRunDetails) {
-          core.info("Workflow dispatch failed due to unsupported 'return_run_details' parameter; retrying without it for GitHub Enterprise compatibility.");
-          response = await githubClient.rest.actions.createWorkflowDispatch({
-            owner: repo.owner,
-            repo: repo.repo,
-            workflow_id: workflowFile,
-            ref: ref,
-            inputs: inputs,
-          });
-        } else {
-          throw err;
-        }
-      }
+        },
+        { allowLegacyFallback: true, coreApi: core }
+      );
       const runId = response && response.data ? response.data.workflow_run_id : undefined;
       if (runId) {
         core.info(`✓ Successfully dispatched workflow: ${workflowFile} (run ID: ${runId})`);

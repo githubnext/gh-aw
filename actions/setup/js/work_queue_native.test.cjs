@@ -210,10 +210,78 @@ describe("authenticated native queue runs", () => {
 
   it("sends one POST with retries disabled and never tries old API fallback", async () => {
     const post = vi.fn().mockRejectedValue(Object.assign(new Error("return_run_details unsupported"), { status: 422 }));
-    await expect(postQueueDispatch({ rest: { actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toThrow();
+    const tag = `refs/tags/gh-aw/work-queue/${ref}`;
+    const getRef = vi.fn().mockResolvedValue({ status: 200, data: { ref: tag, object: { type: "commit", sha: ref } } });
+    await expect(postQueueDispatch({ rest: { git: { getRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toThrow();
     expect(post).toHaveBeenCalledTimes(1);
-    expect(post.mock.calls[0][0]).toMatchObject({ owner: "owner", repo: "repo", workflow_id: "worker.lock.yml", ref, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0 } });
+    expect(post.mock.calls[0][0]).toMatchObject({ owner: "owner", repo: "repo", workflow_id: "worker.lock.yml", ref: tag, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0 } });
     expect(post.mock.calls[0][0]).not.toHaveProperty("return_run_details");
+  });
+
+  it("creates and reads back a named lightweight tag before posting the immutable assignment", async () => {
+    const tag = `refs/tags/gh-aw/work-queue/${ref}`;
+    const verified = { status: 200, data: { ref: tag, object: { type: "commit", sha: ref } } };
+    const getRef = vi.fn().mockRejectedValueOnce({ status: 404 }).mockResolvedValue(verified);
+    const createRef = vi.fn().mockResolvedValue({ status: 201, data: verified.data });
+    const post = vi.fn().mockImplementation(async parameters => {
+      // Model the real API boundary: raw SHAs are not dispatchable refs.
+      expect(parameters.ref).toBe(tag);
+      expect(getRef).toHaveBeenCalledTimes(2);
+      return { status: 200, data: { workflow_run_id: run.id, run_url: `https://api.github.com/repos/owner/repo/actions/runs/${run.id}`, html_url: `https://github.com/owner/repo/actions/runs/${run.id}` } };
+    });
+    const inputs = { work_queue_assignment: "private-assignment" };
+    const result = await postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, inputs);
+    expect(result.run_id).toBe(run.id);
+    expect(createRef).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ owner: "owner", repo: "repo", ref: tag, sha: ref, request: { retries: 0, retryCount: 0, timeout: 15000 } }));
+    expect(post.mock.calls[0][0].inputs).toBe(inputs);
+    expect(getRef.mock.calls[0][0]).toMatchObject({ ref: tag.slice(5), headers: { "X-GitHub-Api-Version": API_VERSION } });
+  });
+
+  it("accepts a concurrently created tag only after an exact read-back, without retrying creation or POST", async () => {
+    const tag = `refs/tags/gh-aw/work-queue/${ref}`;
+    const getRef = vi
+      .fn()
+      .mockRejectedValueOnce({ status: 404 })
+      .mockResolvedValue({ status: 200, data: { ref: tag, object: { type: "commit", sha: ref } } });
+    const createRef = vi.fn().mockRejectedValue({ status: 422, response: { status: 422, data: { message: "Reference already exists" } } });
+    const post = vi.fn().mockResolvedValue({ status: 200, data: { workflow_run_id: run.id, run_url: `https://api.github.com/repos/owner/repo/actions/runs/${run.id}`, html_url: `https://github.com/owner/repo/actions/runs/${run.id}` } });
+    await postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {});
+    expect(createRef).toHaveBeenCalledTimes(1);
+    expect(getRef).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { status: 200, data: { ref: `refs/tags/gh-aw/work-queue/${ref}`, object: { type: "commit", sha: "b".repeat(40) } } },
+    { status: 200, data: { ref: `refs/tags/gh-aw/work-queue/${ref}`, object: { type: "tag", sha: ref } } },
+    { status: 200, data: { ref: "refs/heads/main", object: { type: "commit", sha: ref } } },
+    { status: 403 },
+  ])("never overwrites or dispatches an unverified named ref: %j", async response => {
+    const getRef = vi.fn().mockResolvedValue(response);
+    const createRef = vi.fn();
+    const post = vi.fn();
+    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toThrow(/tag_mismatch/);
+    expect(createRef).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it.each([403, 429, 502])("propagates ref API failures without dispatch or retries: %s", async status => {
+    const getRef = vi.fn().mockRejectedValue({ status });
+    const createRef = vi.fn();
+    const post = vi.fn();
+    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toMatchObject({ code: "work_queue_dispatch_tag_preparation_failed" });
+    expect(getRef).toHaveBeenCalledTimes(1);
+    expect(createRef).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("does not mistake an unrelated 422 for an existing-tag race", async () => {
+    const getRef = vi.fn().mockRejectedValueOnce({ status: 404 });
+    const createRef = vi.fn().mockRejectedValue({ status: 422, response: { status: 422, data: { message: "Validation Failed" } } });
+    const post = vi.fn();
+    await expect(postQueueDispatch({ rest: { git: { getRef, createRef }, actions: { createWorkflowDispatch: post } } }, expected, {})).rejects.toMatchObject({ code: "work_queue_dispatch_tag_preparation_failed" });
+    expect(getRef).toHaveBeenCalledTimes(1);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("reads exact attempt-one terminal evidence without authorizing a later rerun", async () => {

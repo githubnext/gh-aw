@@ -128,7 +128,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
     delete fixture.githubClient.rest.repos.get;
-    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/repository_api_missing/);
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_unavailable/);
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
   });
@@ -560,7 +560,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     const { fixture, post, options } = setup();
     post.mockImplementation(async parameters => {
       expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).state).toBe("started");
-      expect(parameters.ref).toBe(REF);
+      expect(parameters.ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
       expect(parameters.headers).toEqual({ "X-GitHub-Api-Version": "2026-03-10" });
       expect(parameters.request.retries).toBe(0);
       expect(JSON.parse(parameters.inputs.work_queue_assignment)).toEqual(fixture.assignment);
@@ -617,6 +617,27 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(result).toMatchObject({ success: true, status: "durable", dispatches: 1 });
     expect(result.launches[0]).toMatchObject({ dispatch_id: dispatch.dispatch_id, state: "bound", run_id: "42" });
     expect(JSON.parse(post.mock.calls[0][0].inputs.work_queue_assignment)).toMatchObject({ dispatch_id: dispatch.dispatch_id, claims: [{ work: { plan: "stored task 1" } }] });
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["post_response_unconfirmed", "binding_unconfirmed"])("reports %s launch receipts as unsuccessful", async reason => {
+    const { fixture, options, post } = setup({ granted: false, count: 1 });
+    if (reason === "post_response_unconfirmed") post.mockRejectedValue(new Error("request timed out"));
+    else {
+      const get = fixture.githubClient.rest.actions.getWorkflowRun;
+      fixture.githubClient.rest.actions.getWorkflowRun = async parameters => {
+        if (parameters.run_id === "42") throw new Error("binding read timed out");
+        return get(parameters);
+      };
+    }
+    const result = await dispatchQueueIntent({
+      ...options,
+      assignment: null,
+      remainingDispatches: 1,
+      message: { type: "work_queue_dispatch_next", intent_id: "unresolved-is-failure", pool: "default", max_claims: 1, max_dispatches: 1 },
+    });
+    expect(result).toMatchObject({ success: false, launches: [expect.objectContaining({ state: "launch_unresolved" })] });
+    expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: "uncertain", reason, released: false });
     expect(post).toHaveBeenCalledTimes(1);
   });
 
@@ -758,15 +779,49 @@ describe("native queue launch fencing and conservative recovery", () => {
   it("releases positive API rejection once, never equating no discovery with nonlaunch", async () => {
     const rejected = setup();
     rejected.post.mockRejectedValue({ status: 422, response: { status: 422, headers: { "x-github-request-id": "trusted-provider-request" } } });
-    expect((await launchAssignment(rejected.options, rejected.fixture.assignment)).released).toBe(true);
+    let failRelease = true;
+    const publish = rejected.options.publishWorkQueueRequest;
+    rejected.options.publishWorkQueueRequest = async args => {
+      if (failRelease && args.request.kind === "release") {
+        failRelease = false;
+        throw new Error("injected release publication failure");
+      }
+      return publish(args);
+    };
+    await expect(launchAssignment(rejected.options, rejected.fixture.assignment)).rejects.toThrow(/injected release publication failure/);
+    expect(rejected.fixture.state.dispatches.get(rejected.fixture.assignment.dispatch_id)).toMatchObject({
+      state: "rejected",
+      released: false,
+      reason: expect.stringMatching(/^github_rejection:/),
+    });
+    expect(await launchAssignment(rejected.options, rejected.fixture.assignment)).toMatchObject({ state: "rejected", released: true, dispatched: false });
     expect([...rejected.fixture.state.claims.values()].every(claim => claim.state === "cancelled")).toBe(true);
     const before = rejected.fixture.transactions.length;
-    await launchAssignment(rejected.options, rejected.fixture.assignment);
+    expect(await launchAssignment(rejected.options, rejected.fixture.assignment)).toMatchObject({ state: "rejected", released: true, dispatched: false });
     expect(rejected.fixture.transactions).toHaveLength(before);
+    expect(rejected.post).toHaveBeenCalledTimes(1);
     const uncertain = setup({ started: true });
     expect((await reconcileDispatch(uncertain.options)).state).toBe("launch_unresolved");
     expect(uncertain.fixture.state.dispatches.get(uncertain.fixture.assignment.dispatch_id).released).toBe(false);
     expect(uncertain.post).not.toHaveBeenCalled();
+  });
+
+  it.each(["mismatch", "timeout", "missing_request_id"])("releases a definitive tag setup %s without sending the workflow POST", async failure => {
+    const { fixture, options, post } = setup({ count: 1 });
+    const getRef = fixture.githubClient.rest.git.getRef;
+    fixture.githubClient.rest.git.getRef = vi.fn().mockImplementationOnce(getRef);
+    if (failure === "mismatch")
+      fixture.githubClient.rest.git.getRef.mockResolvedValue({
+        status: 200,
+        data: { ref: `refs/tags/gh-aw/work-queue/${fixture.assignment.ref}`, object: { type: "commit", sha: "b".repeat(40) } },
+      });
+    else fixture.githubClient.rest.git.getRef.mockRejectedValue(failure === "timeout" ? new Error("tag request timed out") : { status: 403, response: { status: 403, headers: {} } });
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "rejected", released: true, dispatched: false });
+    const marker = fixture.transactions.flatMap(commit => commit.operations).find(operation => operation.kind === "Dispatch" && operation.state === "rejected");
+    expect(marker).toMatchObject({ reason: expect.stringMatching(/^tag_prepost:/), evidence: { kind: "nonlaunch", source: "github_api" } });
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(true);
+    expect([...fixture.state.claims.values()].every(claim => claim.state === "cancelled")).toBe(true);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("preserves completed siblings and cancels only open members with exact terminal-run proof", async () => {
@@ -1006,7 +1061,7 @@ describe("native queue launch fencing and conservative recovery", () => {
 
   it.each(["missing", "copied", "foreign_client"])("requires private selected-client credential proof before START/POST: %s", async mode => {
     const { fixture, options, post } = setup({ count: 1 });
-    const proof = await options.validateDispatchCredential({ profile: fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile });
+    const proof = await options.validateDispatchCredential({ profile: fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile, repository: REPOSITORY });
     const configured =
       mode === "missing"
         ? { ...options, validateDispatchCredential: undefined }
@@ -1525,9 +1580,9 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
-  it("fails the controls step and summarizes a durable but uncertain launch without retrying the POST", async () => {
+  it.each(["uncertain", "rejected"])("fails the controls step for a %s launch without retrying the POST", async outcome => {
     const { fixture, options, post } = setup({ granted: false, count: 1 });
-    post.mockRejectedValue(new Error("request timed out"));
+    post.mockRejectedValue(outcome === "rejected" ? { status: 422, response: { status: 422, headers: { "x-github-request-id": "trusted-provider-request" } } } : new Error("request timed out"));
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-control-unresolved-"));
     const filename = path.join(directory, "intents.jsonl");
     const core = {
@@ -1541,12 +1596,12 @@ describe("native queue launch fencing and conservative recovery", () => {
       fs.writeFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "uncertain-launch", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
       const result = await publishQueueControls({ ...options, config, intentPath: filename, core });
       expect(result).toMatchObject({ status: "recovery_required", success: false });
-      expect(result.receipts[0]).toMatchObject({ status: "durable", launches: [expect.objectContaining({ state: "launch_unresolved" })] });
+      expect(result.receipts[0]).toMatchObject({ status: "durable", launches: [expect.objectContaining({ state: outcome === "rejected" ? "rejected" : "launch_unresolved" })] });
       expect(core.setOutput).toHaveBeenCalledWith("work_queue_controls_status", "recovery_required");
       expect(core.setFailed).toHaveBeenCalled();
-      expect(core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Unresolved launches: 1"));
+      expect(core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(outcome === "rejected" ? "Rejected launches: 1" : "Unresolved launches: 1"));
       expect(post).toHaveBeenCalledTimes(1);
-      expect(fixture.state.dispatches.values().next().value).toMatchObject({ released: false });
+      expect(fixture.state.dispatches.values().next().value).toMatchObject({ released: outcome === "rejected" });
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

@@ -41,15 +41,23 @@ function registerTests({ describe, it }) {
           calls.push(parameters);
           return { status: 200, data: { id: entry.principal, login: entry.login, type: entry.type } };
         };
-        const client = { auth: async () => ({ type: "token", token: "protected-selected-token" }), rest: { users: { getByUsername: native, getAuthenticated: native } } };
+        const client = {
+          auth: async () => ({ type: "token", token: "protected-selected-token" }),
+          rest: {
+            users: { getByUsername: native, getAuthenticated: native },
+            repos: { get: async () => ({ status: 200, data: { full_name: repository, permissions: { push: true } } }) },
+            git: queueFixture().githubClient.rest.git,
+          },
+        };
         const validate = createDispatchCredentialValidator(client, entry.descriptor, "protected-selected-token");
-        const proof = await validate({ profile: { principal: entry.principal } });
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: entry.principal }), true);
-        assert.equal(isDispatchCredentialProof({ ...proof }, client, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, {}, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: "11" }), false);
-        for (const untrusted of [true, false, "22", JSON.stringify(proof)]) assert.equal(isDispatchCredentialProof(untrusted, client, { principal: entry.principal }), false);
-        assert.equal(isDispatchCredentialProof(proof, client, { principal: entry.principal, workflow: "foreign" }), false);
+        const profile = { principal: entry.principal, ref: REF };
+        const proof = await validate({ profile, repository });
+        assert.equal(isDispatchCredentialProof(proof, client, profile), true);
+        assert.equal(isDispatchCredentialProof({ ...proof }, client, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, {}, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, client, { ...profile, principal: "11" }), false);
+        for (const untrusted of [true, false, "22", JSON.stringify(proof)]) assert.equal(isDispatchCredentialProof(untrusted, client, profile), false);
+        assert.equal(isDispatchCredentialProof(proof, client, { ...profile, workflow: "foreign" }), false);
         assert.equal(proof.principal, entry.principal);
         assert.notEqual(proof.principal, "11");
         assert.equal(calls.length, 1);
@@ -58,7 +66,7 @@ function registerTests({ describe, it }) {
         assert.equal(calls[0].request.timeout, 15000);
         if (entry.descriptor.kind === "authenticated") assert.equal(Object.hasOwn(calls[0], "username"), false);
         else assert.equal(calls[0].username, entry.login);
-        await assert.rejects(validate({ profile: { principal: "11" } }), /credential_principal_mismatch/);
+        await assert.rejects(validate({ profile: { principal: "11" }, repository }), /credential_principal_mismatch/);
       }
     });
 
@@ -122,12 +130,13 @@ function registerTests({ describe, it }) {
         const dispatchClient = {
           auth: async () => ({ type: "token", token: "protected-selected-token" }),
           rest: {
+            git: fixture.githubClient.rest.git,
             users: { getByUsername: identity, getAuthenticated: identity },
             repos: {
               get: async parameters => {
                 assert.equal(parameters.owner, "owner");
                 assert.equal(parameters.repo, "repo");
-                return { status: 200, data: { id: 7, full_name: REPOSITORY } };
+                return { status: 200, data: { id: 7, full_name: REPOSITORY, permissions: { push: true } } };
               },
             },
             actions: {
@@ -138,7 +147,7 @@ function registerTests({ describe, it }) {
                 assert.equal(dispatch.state, "started");
                 assert.equal(dispatch.sender.principal, "11");
                 assert.equal(dispatch.sender.run_attempt, 2);
-                assert.equal(parameters.ref, REF);
+                assert.equal(parameters.ref, `refs/tags/gh-aw/work-queue/${REF}`);
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
               getWorkflowRun: async parameters => {
@@ -215,6 +224,7 @@ function registerTests({ describe, it }) {
           publishWorkQueueRequest: fixture.publishWorkQueueRequest,
           getOctokit: () => ({
             rest: {
+              repos: fixture.githubClient.rest.repos,
               users: {
                 getAuthenticated: async () => {
                   identityReads++;
