@@ -366,6 +366,15 @@ describe("unique agent execution observation", () => {
     expect(collectAgentExecution({ content: warning + "\nunknown model unavailable" }).data.categories).toEqual(["model_not_supported_error"]);
   });
 
+  it("does not classify Codex custom-slug fallback metadata diagnostics as unsupported models", () => {
+    const content = [
+      "WARN codex_models_manager::model_info: Unknown model xiaomi/mimo-v2.6-pro is used. This will use fallback metadata...",
+      "awf-reflect: models fetch returned 404 for http://api-proxy:10000/v1/models",
+      "Model metadata for `xiaomi/mimo-v2.6-pro` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.",
+    ].join("\n");
+    expect(collectAgentExecution({ content })).toBeUndefined();
+  });
+
   it.each(["", "-1", "256", "1.5", "1 trailing", "NaN"])("rejects invalid recorded exit code %s", value => {
     expect(() => parseAgentExitCode(value)).toThrow("Invalid agent execution exit code");
   });
