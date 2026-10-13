@@ -8,9 +8,10 @@ on:
     name: smoke-pi
     strategy: centralized
     events: [issues, issue_comment, pull_request, pull_request_comment]
-  pull_request:
-    types: [labeled]
+  label_command:
     names: ["smoke-routing", "smoke"]
+    events: [pull_request]
+    strategy: decentralized
   bots: [Copilot]
   status-comment: false
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
