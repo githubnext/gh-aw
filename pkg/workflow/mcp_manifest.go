@@ -10,9 +10,13 @@ import (
 )
 
 func workQueueMCPToolNames(data *WorkflowData) []string {
+	role := workQueueRuntimeRole(data)
 	tools := []string{"work_queue_read", "work_queue_explain"}
-	if workQueueRuntimeRole(data) != "observer" {
+	if role != "observer" {
 		tools = append(tools, "work_queue_submit", "work_queue_dispatch_next", "work_queue_claim_finish")
+	}
+	if role == "worker" {
+		tools = append(tools, "work_queue_continue")
 	}
 	return tools
 }

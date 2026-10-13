@@ -85,7 +85,17 @@ describe("checkout_continue_workflow_branch", () => {
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", WORK_BRANCH, HEAD]);
     const [file, content] = writeSpy.mock.calls[0];
     expect(file).toBe(CONTEXT_FILE);
-    expect(JSON.parse(content)).toMatchObject({ chain_id: CHAIN_ID, hop: 1, max_hops: 3, remaining_hops: 2, branch: WORK_BRANCH, base_sha: HEAD, base_branch: "main", plan_file: "plan.md", history: [{ hop: 0, outcome: "continued", next_steps: "tests" }] });
+    expect(JSON.parse(content)).toMatchObject({
+      chain_id: CHAIN_ID,
+      hop: 1,
+      max_hops: 3,
+      remaining_hops: 2,
+      branch: WORK_BRANCH,
+      base_sha: HEAD,
+      base_branch: "main",
+      plan_file: "plan.md",
+      history: [{ hop: 0, outcome: "continued", next_steps: "tests" }],
+    });
   });
 
   it("refuses to resume when the work branch moved", async () => {

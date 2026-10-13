@@ -24,6 +24,7 @@ import "embed"
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/aw_context.cjs js/experiment_helpers.cjs js/finish_work_queue_claim.cjs
 //go:embed js/work_queue_mcp_server.cjs js/work_queue_replay.cjs js/work_queue_intents.cjs
+//go:embed js/work_queue_continuation.cjs
 //go:embed js/work_queue_issue_contract.cjs
 //go:embed js/work_queue_binding.cjs js/work_queue_policy.cjs js/work_queue_store.cjs
 //go:embed js/work_queue_policy_config.cjs

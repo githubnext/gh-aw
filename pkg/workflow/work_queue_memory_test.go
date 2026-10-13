@@ -53,6 +53,7 @@ func TestWorkQueueMemoryValidation(t *testing.T) {
 		{"control", "path", "memory\t.json"}, {"absolute", "path", "/memory.json"},
 		{"mutable-base", "base-revision", "main"}, {"expression", "branch-prefix", "${{ inputs.prefix }}"},
 		{"repository", "target-repo", "${{ github.repository }}"}, {"reserved", "name", "work_queue_read"},
+		{"reserved-continuation", "name", "work_queue_continue"},
 		{"builtin", "name", "create_issue"}, {"maximum", "max-bytes", 262145}, {"zero", "max-bytes", 0},
 		{"null-name", "name", nil}, {"null-limit", "max-bytes", nil},
 		{"root-array-type", "schema", map[string]any{"type": []any{"object"}}},

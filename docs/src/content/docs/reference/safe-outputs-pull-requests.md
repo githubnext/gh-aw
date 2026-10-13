@@ -170,6 +170,16 @@ The `safe_outputs` job always mirrors the agent job's checkout layout. When a `c
 
 When `head-repo` is set, the preferred model is an ephemeral upstream-based branch: the safe output job resolves the upstream base SHA from `target-repo`, creates or refreshes a temporary branch in `head-repo` from that SHA, pushes the agent's commits there, and opens the PR back to the upstream base. Supported synchronization is limited to that configured upstream/head pairing; arbitrary reuse of unrelated fork branches is not supported. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for the matching checkout, allowlist, and fork-credential rules.
 
+## Continuing tasks across runs
+
+Use the [work-queue continuation helper](/gh-aw/reference/work-queue/#continuing-a-task-across-runs)
+to stage a dependent child Work item. It preserves the task's declared effect
+contract and resource scope; the child waits for the predecessor's verified
+Result. The handoff does not itself persist code or authorize a PR write.
+
+End-to-end integration of code checkpoints and final `create_pull_request` or
+`push_to_pull_request_branch` delivery with this helper is still under development.
+
 ## Pull Request Updates (`update-pull-request:`)
 
 Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `replace` (default), `append`, `prepend`, or `replace-island` (updates a run-specific section delimited by HTML comments).

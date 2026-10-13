@@ -1159,6 +1159,28 @@ jobs:
                   }
                 }
               },
+              "continue_workflow": {
+                "defaultMax": 1,
+                "fields": {
+                  "branch": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "next_steps": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 2000
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 2000
+                  }
+                }
+              },
               "create_agent_session": {
                 "defaultMax": 1,
                 "fields": {

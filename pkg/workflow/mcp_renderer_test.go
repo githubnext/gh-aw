@@ -143,6 +143,9 @@ func TestRenderWorkQueueMCPUsesSnapshotAndFinishIntentMounts(t *testing.T) {
 		if !strings.Contains(rendered, constants.WorkQueueFinishIntentMount) || !strings.Contains(rendered, `"work_queue_claim_finish"`) {
 			t.Fatalf("expected the finish tool to use the safe-output intent mount: %s", rendered)
 		}
+		if !strings.Contains(rendered, `"work_queue_continue"`) {
+			t.Fatalf("expected the dependent Work continuation helper: %s", rendered)
+		}
 		if strings.Contains(rendered, "GITHUB_TOKEN") || strings.Contains(rendered, constants.DefaultWorkspaceMount) || strings.Contains(rendered, constants.DefaultTmpGhAwMount) {
 			t.Fatalf("queue MCP must not receive Git credentials or workspace mounts: %s", rendered)
 		}
@@ -179,7 +182,7 @@ func TestRenderWorkQueueObserverMCPIsReadOnly(t *testing.T) {
 			if !strings.Contains(rendered, constants.WorkQueueSnapshotMount) || !strings.Contains(rendered, `"observer"`) {
 				t.Fatalf("observer requires its read-only snapshot and protected role: %s", rendered)
 			}
-			for _, denied := range []string{constants.WorkQueueFinishIntentMount, "work_queue_submit", "work_queue_dispatch_next", "work_queue_claim_finish", "GITHUB_TOKEN", constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount} {
+			for _, denied := range []string{constants.WorkQueueFinishIntentMount, "work_queue_submit", "work_queue_dispatch_next", "work_queue_claim_finish", "work_queue_continue", "GITHUB_TOKEN", constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount} {
 				if strings.Contains(rendered, denied) {
 					t.Fatalf("observer MCP must not expose %s: %s", denied, rendered)
 				}
@@ -208,10 +211,18 @@ func TestWorkQueueMCPIsRegisteredInManifest(t *testing.T) {
 		{Tools: map[string]any{"work-queue": true}, SafeOutputs: &SafeOutputsConfig{DispatchWorkflow: &DispatchWorkflowConfig{Workflows: []string{"worker"}}}},
 	} {
 		servers := collectMCPServersForManifest(participant)
+		expectedTools := 5
+		worker := workQueueRuntimeRole(participant) == "worker"
+		if worker {
+			expectedTools++
+		}
 		found := false
 		for _, server := range servers {
-			if server.Name == "work-queue" && len(server.Tools) == 5 {
+			if server.Name == "work-queue" && len(server.Tools) == expectedTools {
 				found = true
+				if strings.Contains(strings.Join(server.Tools, ","), "work_queue_continue") != worker {
+					t.Fatalf("continuation helper must be worker-only, got %#v", server.Tools)
+				}
 			}
 		}
 		if !found {

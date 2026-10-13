@@ -1406,7 +1406,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     let pinnedSha;
     try {
-      pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+      pinnedSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd })
+        .toString()
+        .trim();
     } catch (error) {
       return toolError(`Branch '${branch}' does not exist locally: ${getErrorMessage(error)}`);
     }
@@ -1444,7 +1446,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     let currentSha;
     try {
-      currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd }).toString().trim();
+      currentSha = execGitSync(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], { cwd: gitCwd })
+        .toString()
+        .trim();
     } catch (error) {
       return toolError(`Failed to verify branch integrity after bundle generation: ${getErrorMessage(error)}`);
     }

@@ -341,12 +341,37 @@ only within its authority; this does not authorize arbitrary resource writes.
 | --- | --- |
 | `work_queue_read`, `work_queue_explain` | Inspect the immutable snapshot. Predictions may be stale; sorting changes only the display order. |
 | `work_queue_submit` | Stage immutable task or graph plans within size and installed scheduling limits. |
+| `work_queue_continue` | Worker-only helper that stages one dependent continuation Work with a bounded handoff. |
 | `work_queue_dispatch_next` | Request the next assignments from a pool, within a specified limit. The scheduler selects the Work and target. |
 | `work_queue_claim_finish` | Stage a `completed` or `cancelled` finish intent for an original Claim. |
 
 When `<mcp-clis>` lists the runtime wrapper, the invocation is
 `work-queue work_queue_read '{}'`. These subcommands are Model Context Protocol
 (MCP) tools available to the agent, not `gh aw work-queue` operator commands.
+
+### Continuing a task across runs
+
+`work_queue_continue` stages a `work_queue_submit` intent for a new Work item,
+not another Claim on the same Work. The child depends on the current Work and
+retains its task payload, effect contract, resource scope, subject, and worker
+profile. Trusted admission inherits the parent's pool, priority, and fairness
+key. The helper accepts `handoff` and, for a multi-Claim assignment,
+`claim_handle`; it does not accept scheduling or target overrides.
+
+The child's `work_queue_continuation` payload records the root Work,
+predecessor Work, hop number, and handoff. The helper permits three continuation
+hops and validates lineage against native worker-created Work records, not
+agent-supplied hop counters. Repeating the same request within a Claim reuses
+the staged intent; changing its handoff fails with a conflict.
+
+Publish checkpoint effects through the current Claim's declared delivery
+contract, then stage `work_queue_claim_finish` with `outcome: "completed"`.
+The contract must permit the `work_queue_submit` control as well as any
+checkpoint effects. A handoff does not itself save repository changes or
+verify a checkpoint. The child stays blocked until independent readback
+verifies every required effect and publishes the predecessor's Result.
+The existing scheduler then selects the child using normal queue policy;
+the helper does not dispatch a workflow or maintain a separate ledger.
 
 ### Claim-scoped effects and delivery
 

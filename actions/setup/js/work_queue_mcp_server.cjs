@@ -12,6 +12,7 @@ const { MAX_PARSE_BYTES, MAX_SNAPSHOT_PARSE_BYTES, closed, identity, integer, pa
 const { normalizeAssignment, normalizeClaimScope } = require("./work_queue_claim_scope.cjs");
 const { readStagedIntents, stageIntent } = require("./work_queue_intents.cjs");
 const { resolveWorkQueueRuntime } = require("./aw_context.cjs");
+const { createWorkQueueContinuationTool } = require("./work_queue_continuation.cjs");
 
 const DEFAULT_SNAPSHOT_PATH = "/tmp/gh-aw/work-queue.snapshot.json";
 const DEFAULT_FINISH_INTENT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "work-queue", "work-queue.finish.jsonl");
@@ -273,9 +274,11 @@ function createWorkQueueSubmitTool(snapshot, options = {}) {
 }
 
 function createWorkQueueTools(snapshot, options = {}) {
+  const role = snapshotRuntimeRole(snapshot);
   /** @type {import("./mcp_server_core.cjs").Tool[]} */
   const tools = [createWorkQueueStateTool(snapshot), createWorkQueueExplainTool(snapshot)];
-  if (snapshotRuntimeRole(snapshot) !== "observer") tools.push(createWorkQueueSubmitTool(snapshot, options), createWorkQueueDispatchTool(snapshot, options), createWorkQueueFinishTool({ ...options, snapshot }));
+  if (role !== "observer") tools.push(createWorkQueueSubmitTool(snapshot, options), createWorkQueueDispatchTool(snapshot, options), createWorkQueueFinishTool({ ...options, snapshot }));
+  if (role === "worker") tools.push(createWorkQueueContinuationTool(snapshot, options));
   return tools;
 }
 

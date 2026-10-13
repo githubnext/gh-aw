@@ -18,8 +18,10 @@ function createLedgerFake(options = {}) {
   const commits = new Map();
   /** @type {Map<string, string>} */
   const refs = new Map();
-  const calls = { updateRef: 0, createRef: 0, createWorkflowDispatch: /** @type {any[]} */ ([]) };
-  let dispatchError = /** @type {any} */ (null);
+  /** @type {{updateRef: number, createRef: number, createWorkflowDispatch: object[]}} */
+  const calls = { updateRef: 0, createRef: 0, createWorkflowDispatch: [] };
+  /** @type {unknown} */
+  let dispatchError = null;
 
   const sha = () => crypto.randomBytes(20).toString("hex");
   const notFound = () => Object.assign(new Error("Not Found"), { status: 404 });
@@ -30,7 +32,8 @@ function createLedgerFake(options = {}) {
     const queue = [to];
     const seen = new Set();
     while (queue.length > 0) {
-      const current = /** @type {string} */ (queue.shift());
+      const current = queue.shift();
+      if (current === undefined) throw new Error("Missing queued commit");
       if (current === from) return true;
       if (seen.has(current)) continue;
       seen.add(current);
@@ -53,9 +56,14 @@ function createLedgerFake(options = {}) {
     readFile(/** @type {string} */ branch, /** @type {string} */ filePath) {
       const head = refs.get(branch);
       if (!head) return null;
-      const tree = trees.get(/** @type {any} */ (commits.get(head)).tree);
+      const commit = commits.get(head);
+      if (!commit) throw notFound();
+      const tree = trees.get(commit.tree);
       const blobSha = tree?.get(filePath);
-      return blobSha ? JSON.parse(/** @type {string} */ (blobs.get(blobSha))) : null;
+      if (!blobSha) return null;
+      const content = blobs.get(blobSha);
+      if (content === undefined) throw notFound();
+      return JSON.parse(content);
     },
   };
 
@@ -117,7 +125,9 @@ function createLedgerFake(options = {}) {
           const commit = commits.get(ref);
           const blobSha = commit ? trees.get(commit.tree)?.get(filePath) : undefined;
           if (!blobSha) throw notFound();
-          return { data: { content: Buffer.from(/** @type {string} */ (blobs.get(blobSha))).toString("base64"), encoding: "base64" } };
+          const content = blobs.get(blobSha);
+          if (content === undefined) throw notFound();
+          return { data: { content: Buffer.from(content).toString("base64"), encoding: "base64" } };
         },
         get: async () => ({ data: { default_branch: "main" } }),
       },

@@ -153,23 +153,31 @@ func lookupWorkflowDispatch(on any) (map[string]any, bool) {
 		if !found {
 			return nil, false
 		}
-		dispatchMap, _ := dispatch.(map[string]any)
+		if dispatch == nil {
+			return nil, true
+		}
+		dispatchMap, ok := dispatch.(map[string]any)
+		if !ok {
+			return nil, false
+		}
 		return dispatchMap, true
 	}
 	return nil, false
 }
 
 func requiredWorkflowDispatchInputs(dispatch map[string]any) []string {
-	inputs, _ := dispatch["inputs"].(map[string]any)
+	inputs, ok := dispatch["inputs"].(map[string]any)
+	if !ok {
+		return nil
+	}
 	var required []string
 	for name, raw := range inputs {
 		input, ok := raw.(map[string]any)
 		if !ok {
 			continue
 		}
-		isRequired, _ := input["required"].(bool)
 		_, hasDefault := input["default"]
-		if isRequired && !hasDefault {
+		if isRequired, ok := input["required"].(bool); ok && isRequired && !hasDefault {
 			required = append(required, name)
 		}
 	}

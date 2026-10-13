@@ -151,7 +151,7 @@ async function readRemoteHead(githubClient, branch) {
     const { data } = await githubClient.rest.git.getRef({ ...repoRef(), ref: `heads/${branch}` });
     return data?.object?.sha || null;
   } catch (error) {
-    if (/** @type {any} */ (error)?.status === 404) return null;
+    if (error instanceof Error && "status" in error && error.status === 404) return null;
     throw error;
   }
 }
@@ -183,9 +183,7 @@ async function checkContinuationPolicy(baseSha, headSha, config) {
   const protection = checkFileProtection(diff, { ...config, protected_files_policy: config.protected_files_policy ?? "request_review" });
   if (protection.action === "deny") {
     const files = protection.files.join(", ");
-    throw new Error(
-      protection.source === "allowlist" ? `${ERR_VALIDATION}: continuation modifies files outside the allowed-files list (${files})` : `${ERR_VALIDATION}: continuation modifies protected files (${files})`
-    );
+    throw new Error(protection.source === "allowlist" ? `${ERR_VALIDATION}: continuation modifies files outside the allowed-files list (${files})` : `${ERR_VALIDATION}: continuation modifies protected files (${files})`);
   }
   if (protection.action === "fallback" || protection.action === "request_review") {
     return { protectedFiles: protection.files, protectedAction: protection.action };
@@ -465,7 +463,13 @@ async function finalizeContinueWorkflow(config, results, githubClient) {
   const pr = prResult?.result;
   try {
     if (pr && pr.number && pr.url && !pr.fallback_used) {
-      await ledger.mutateChain(client, repoRef(), active.chain_id, current => ledger.completeChain(current, { hop: active.hop, runId, headSha: finalHeadSha || undefined, pullRequest: { number: pr.number, url: pr.url }, now: nowIso() }), "Complete continuation chain");
+      await ledger.mutateChain(
+        client,
+        repoRef(),
+        active.chain_id,
+        current => ledger.completeChain(current, { hop: active.hop, runId, headSha: finalHeadSha || undefined, pullRequest: { number: pr.number, url: pr.url }, now: nowIso() }),
+        "Complete continuation chain"
+      );
       core.info(`Continuation chain ${active.chain_id} completed with pull request #${pr.number}`);
       return;
     }
