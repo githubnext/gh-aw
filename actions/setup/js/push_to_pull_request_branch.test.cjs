@@ -2225,6 +2225,88 @@ index 0000000..abc1234
   // ──────────────────────────────────────────────────────
 
   describe("patch size validation", () => {
+    const protectedPatch = "diff --git a/package.json b/package.json\n--- a/package.json\n+++ b/package.json\n@@ -1 +1 @@\n-old\n+new\n";
+    it.each([
+      ["small agent change", "small patch\n", 16, "merge-agent.txt", null, false],
+      ["oversized agent patch", "x".repeat(2048), 16, "merge-agent.txt", "Patch size", false],
+      ["oversized expanded agent content", "small patch\n", 2048, "merge-agent.txt", "Changed content size", false],
+      ["agent modification of a protected file", protectedPatch, 16, "package.json", "protected files", false],
+      ["oversized unchanged-side binary resolution", "", 2048, "", "Changed content size", true],
+      ["reverted protected-file change", "small patch\n", 16, "merge-agent.txt", "bundle modifies protected files", false, "package.json"],
+    ])("validates %s independently of merged base changes", async (_name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "") => {
+      const branch = "merge-size-validation";
+      const trustedBase = "b".repeat(40);
+      const validationTree = "a".repeat(40);
+      createPatchFile(branch, protectedPatch + "x".repeat(4096));
+      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
+      const changedPath = path.join(process.cwd(), "merge-agent.txt");
+      fs.writeFileSync(changedPath, Buffer.alloc(contentSize));
+      const pr = (await mockGithub.rest.pulls.get()).data;
+      pr.base.sha = trustedBase;
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "merge-base") {
+          return { exitCode: args[3] === "remote-head" ? 1 : 0, stdout: "", stderr: "" };
+        }
+        if (args[0] === "merge-tree") return { exitCode: binaryConflict ? 1 : 0, stdout: validationTree + (binaryConflict ? "\0merge-agent.txt\0\0" : "\0"), stderr: "" };
+        if (args[0] === "diff" && args[1] === "--binary") return { exitCode: 0, stdout: agentPatch, stderr: "" };
+        if (args[0] === "diff" && args[1] === "--name-only") return { exitCode: 0, stdout: changedFile ? changedFile + "\0" : "", stderr: "" };
+        if (args[0] === "log" && args[1] === "--format=") return { exitCode: 0, stdout: historyFile ? historyFile + "\0" : "", stderr: "" };
+        return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+      });
+      const pushModule = require("./push_signed_commits.cjs");
+      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
+      try {
+        const module = await loadModule();
+        const handler = await module.main({ max_patch_size: 1, signed_commits: false, protected_files: ["package.json"] });
+        const result = await handler({ branch, diff_size: 0 }, {});
+        if (expectedError) {
+          expect(result.success).toBe(false);
+          expect(result.error).toContain(expectedError);
+          expect(pushSpy).not.toHaveBeenCalled();
+        } else {
+          expect(result.success).toBe(true);
+          expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "remote-head", signedCommits: false }));
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
+        }
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
+        if (expectedError === "Changed content size") {
+          expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "remote-head"], expect.any(Object));
+        }
+      } finally {
+        pushSpy.mockRestore();
+        fs.rmSync(changedPath, { force: true });
+      }
+    });
+
+    it.each([128, "throw"])("retains the PR-head baseline when merge-tree fails (%s)", async failure => {
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "merge-base") return { exitCode: args[3] === "old-head" ? 1 : 0, stdout: "", stderr: "" };
+        if (failure === "throw") throw new Error("missing history");
+        return { exitCode: failure, stdout: "", stderr: "unsupported merge-tree" };
+      });
+      const module = await loadModule();
+      expect(await module.getBundleValidationBase(mockExec, {}, "old-head", "candidate", "trusted-base")).toEqual({ ref: "old-head", conflictedFiles: [] });
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("using PR-head validation"));
+    });
+
+    it("retains the preview size limit when the trusted base fetch fails", async () => {
+      const branch = "merge-base-fetch-fails";
+      createPatchFile(branch, "x".repeat(4096));
+      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
+      const pr = (await mockGithub.rest.pulls.get()).data;
+      pr.base.sha = "b".repeat(40);
+      mockExec.exec.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "fetch" && args[2] === pr.base.sha) throw new Error("base unavailable");
+        return 0;
+      });
+      const module = await loadModule();
+      const handler = await module.main({ max_patch_size: 1, signed_commits: false });
+      const result = await handler({ branch, diff_size: 0 }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Patch size");
+      expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "update-ref" && args[1] === "refs/heads/feature-branch")).toBe(false);
+    });
+
     it("should reject patches exceeding max size", async () => {
       // Create a patch larger than 1KB
       const largePatch = "x".repeat(2 * 1024 * 1024); // 2MB

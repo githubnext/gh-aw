@@ -113,11 +113,47 @@ function parsePositiveInteger(value) {
  * @param {Record<string, unknown>} gitOptions
  * @param {string} rangeBaseRef
  * @param {string} bundleRef
+ * @param {string[]} [conflictedFiles]
  * @returns {Promise<string[]>}
  */
-async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef) {
+async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef, conflictedFiles = []) {
   const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], gitOptions);
-  return bundleDiffResult.stdout.split("\0").filter(Boolean);
+  return [...new Set([...bundleDiffResult.stdout.split("\0").filter(Boolean), ...conflictedFiles])];
+}
+
+/**
+ * Build a validation-only tree including trusted base-branch changes. Conflict
+ * markers remain in the tree. Track conflicted paths too: binary and modify/delete
+ * conflicts may keep one side unchanged without inserting conflict markers.
+ *
+ * @param {{ getExecOutput: Function }} exec
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string} oldHead
+ * @param {string} candidate
+ * @param {string} trustedBase
+ * @returns {Promise<{ ref: string, conflictedFiles: string[] }>}
+ */
+async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, trustedBase) {
+  const fallback = { ref: oldHead, conflictedFiles: [] };
+  if (!trustedBase) return fallback;
+  try {
+    const opts = { ...gitOptions, ignoreReturnCode: true };
+    const oldAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", oldHead, candidate], opts);
+    const baseAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, candidate], opts);
+    const alreadyMerged = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, oldHead], opts);
+    if (oldAncestor.exitCode !== 0 || baseAncestor.exitCode !== 0 || alreadyMerged.exitCode !== 1) return fallback;
+
+    const merge = await exec.getExecOutput("git", ["merge-tree", "--write-tree", "--name-only", "-z", oldHead, trustedBase], opts);
+    const [tree, ...fields] = merge.stdout.split("\0");
+    if ((merge.exitCode === 0 || merge.exitCode === 1) && /^[0-9a-f]{40}$/.test(tree)) {
+      return { ref: tree, conflictedFiles: merge.exitCode === 1 ? fields.slice(0, fields.indexOf("")) : [] };
+    }
+    core.warning("Unable to compute trusted base merge tree; using PR-head validation");
+  } catch {
+    // Missing history or unsupported merge-tree: retain the conservative PR-head baseline.
+    core.warning("Unable to compute trusted base merge tree; using PR-head validation");
+  }
+  return fallback;
 }
 
 async function fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits, logPrefix = "") {
@@ -432,6 +468,7 @@ async function main(config = {}) {
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
     const applyTransport = hasBundleFile ? "bundle" : "patch";
+    const deferBundleValidation = hasBundleFile && !signedCommits && !isStaged;
     core.info(`Apply transport mode: ${applyTransport} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
     if (bundleFilePath && !hasBundleFile) {
       core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
@@ -474,64 +511,75 @@ async function main(config = {}) {
       return { success: false, error: msg };
     }
     const isEmpty = !patchContent || !patchContent.trim();
-    // Validate patch/bundle size against `max_patch_size`.
-    //
-    // Size-check source of truth, in order of preference:
-    // Use the uncompressed patch representation for both transport modes.
-    // Bundle size is compressed and can undercount highly compressible changes.
-    if (!isEmpty) {
-      const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-      const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+    /** @type {{ files: string[] | null }} Protected files found in the patch */
+    const protectedFilesForFallback = { files: null };
+    /** @param {string} patchContent */
+    function validatePatch(patchContent) {
+      // Validate patch/bundle size against `max_patch_size`.
+      //
+      // Size-check source of truth, in order of preference:
+      // Use the uncompressed patch representation for both transport modes.
+      // Bundle size is compressed and can undercount highly compressible changes.
+      if (!isEmpty) {
+        const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+        const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-      let bundleSizeBytes = 0;
-      if (hasBundleFile) {
-        try {
-          bundleSizeBytes = fs.statSync(bundleFilePath).size;
-        } catch (statErr) {
-          core.warning(`Failed to stat bundle file for size check: ${getErrorMessage(statErr)}`);
+        let bundleSizeBytes = 0;
+        if (hasBundleFile) {
+          try {
+            bundleSizeBytes = fs.statSync(bundleFilePath).size;
+          } catch (statErr) {
+            core.warning(`Failed to stat bundle file for size check: ${getErrorMessage(statErr)}`);
+          }
+        }
+        const bundleSizeKb = Math.ceil(bundleSizeBytes / 1024);
+
+        const sizeForCheckBytes = patchSizeBytes;
+        const sizeLabel = "Patch size";
+        const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
+
+        if (hasBundleFile) {
+          core.info(`Bundle file size: ${bundleSizeKb} KB`);
+        } else {
+          core.info(`Patch file size: ${patchSizeKb} KB`);
+        }
+        core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+
+        if (sizeForCheckKb > maxSizeKb) {
+          let msg;
+          msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+          return { success: false, error: msg };
+        }
+
+        core.info("Patch size validation passed");
+      }
+
+      // Check file protection: allowlist (strict) or protected-files policy.
+      // Fallback-to-issue detection is deferred until after PR metadata is resolved below.
+      if (!isEmpty) {
+        const protection = checkFileProtection(patchContent, config);
+        if (protection.action === "deny") {
+          const filesStr = protection.files.join(", ");
+          const msg =
+            protection.source === "allowlist"
+              ? `Cannot push to pull request branch: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
+              : `Cannot push to pull request branch: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+          core.warning(msg);
+          return { success: false, skipped: true, reasonCode: POLICY_FILE_PROTECTION_DENIED_REASON_CODE, error: msg };
+        }
+        if (protection.action === "fallback") {
+          protectedFilesForFallback.files = protection.files;
+          core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
         }
       }
-      const bundleSizeKb = Math.ceil(bundleSizeBytes / 1024);
-
-      const sizeForCheckBytes = patchSizeBytes;
-      const sizeLabel = "Patch size";
-      const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
-
-      if (hasBundleFile) {
-        core.info(`Bundle file size: ${bundleSizeKb} KB`);
-      } else {
-        core.info(`Patch file size: ${patchSizeKb} KB`);
-      }
-      core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-
-      if (sizeForCheckKb > maxSizeKb) {
-        let msg;
-        msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-        return { success: false, error: msg };
-      }
-
-      core.info("Patch size validation passed");
+      return null;
     }
 
-    // Check file protection: allowlist (strict) or protected-files policy.
-    // Fallback-to-issue detection is deferred until after PR metadata is resolved below.
-    /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
-    let protectedFilesForFallback = null;
-    if (!isEmpty) {
-      const protection = checkFileProtection(patchContent, config);
-      if (protection.action === "deny") {
-        const filesStr = protection.files.join(", ");
-        const msg =
-          protection.source === "allowlist"
-            ? `Cannot push to pull request branch: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
-            : `Cannot push to pull request branch: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
-        core.warning(msg);
-        return { success: false, skipped: true, reasonCode: POLICY_FILE_PROTECTION_DENIED_REASON_CODE, error: msg };
-      }
-      if (protection.action === "fallback") {
-        protectedFilesForFallback = protection.files;
-        core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
-      }
+    // Bundle previews include merged base commits. Defer validation until the
+    // fetched bundle can be compared with a trusted, merge-aware baseline.
+    if (!deferBundleValidation) {
+      const validationError = validatePatch(patchContent);
+      if (validationError) return validationError;
     }
 
     if (isEmpty) {
@@ -879,8 +927,8 @@ async function main(config = {}) {
 
     // Deferred protected file protection – fallback-to-issue path.
     // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
-    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
-      return await createProtectedFilesFallbackIssue(protectedFilesForFallback);
+    if (protectedFilesForFallback.files && protectedFilesForFallback.files.length > 0) {
+      return await createProtectedFilesFallbackIssue(protectedFilesForFallback.files);
     }
 
     const hasChanges = !isEmpty;
@@ -979,6 +1027,8 @@ async function main(config = {}) {
     let remoteHeadBeforePatch = "";
     let pushedCommitSha = "";
     let rangeBaseRef = branchRemoteRef;
+    let validationBaseRef = branchRemoteRef;
+    let validationConflictFiles = [];
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
@@ -1031,6 +1081,18 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
+          // Resolve from GitHub metadata and fetch from the target checkout's
+          // origin, never from agent-supplied refs or patch headers.
+          let trustedBase = "";
+          const baseSha = pullRequest.base?.sha;
+          if (!signedCommits && typeof baseSha === "string" && /^[0-9a-f]{40}$/.test(baseSha)) {
+            try {
+              await exec.exec("git", ["fetch", "origin", baseSha], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
+              trustedBase = baseSha;
+            } catch (baseFetchError) {
+              core.warning(`Unable to fetch trusted PR base; using PR-head validation: ${getErrorMessage(baseFetchError)}`);
+            }
+          }
           await ensureFullHistoryForBundle(
             exec,
             {
@@ -1107,6 +1169,20 @@ async function main(config = {}) {
             }
           }
           core.info(`Fetched bundle to ${bundleRef}`);
+          const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
+          validationBaseRef = validationBase.ref;
+          validationConflictFiles = validationBase.conflictedFiles;
+          let validationPatch = patchContent;
+          if (validationBaseRef !== rangeBaseRef) {
+            core.info(`Bundle validation baseline includes trusted base ${trustedBase}: ${validationBaseRef}`);
+            const preview = await exec.getExecOutput("git", ["diff", "--binary", "--no-ext-diff", "--no-textconv", validationBaseRef, bundleRef], baseGitOpts);
+            validationPatch = preview.stdout;
+          }
+          if (deferBundleValidation) {
+            const validationError = validatePatch(validationPatch);
+            if (validationError) return validationError;
+            if (protectedFilesForFallback.files?.length) return await createProtectedFilesFallbackIssue(protectedFilesForFallback.files);
+          }
 
           // SECURITY: Use git's own diff against the fetched bundle ref as the
           // authoritative pre-apply file set for bundle transport. This keeps
@@ -1114,7 +1190,13 @@ async function main(config = {}) {
           // patch artifact under-detects files (for example, merge-resolution
           // content preserved only by the bundle transport).
           {
-            const bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, rangeBaseRef, bundleRef);
+            let bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
+            if (validationBaseRef !== rangeBaseRef) {
+              // Preserve protection for agent commits that change then revert a
+              // file, without attributing trusted base-branch commits to the agent.
+              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "-z", bundleRef, "--not", rangeBaseRef, trustedBase], baseGitOpts);
+              bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
+            }
             if (bundleFiles.length > 0) {
               core.info(`Pre-apply bundle verification: ${bundleFiles.length} file(s) detected from bundle transport`);
               const bundleProtection = checkFileProtectionPostApply(bundleFiles, config);
@@ -1269,6 +1351,7 @@ async function main(config = {}) {
           }
         }
       } // end else (patch path)
+      if (!hasBundleFile) validationBaseRef = rangeBaseRef;
       core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
 
       // POST-APPLY FILE PROTECTION: Verify actual files written match policy.
@@ -1277,8 +1360,8 @@ async function main(config = {}) {
       // (see github/agentic-workflows#539)
       let agentChangedFiles = [];
       {
-        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..HEAD`], baseGitOpts);
-        const actualFiles = diffResult.stdout.split("\0").filter(Boolean);
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${validationBaseRef}..HEAD`], baseGitOpts);
+        const actualFiles = [...new Set([...diffResult.stdout.split("\0").filter(Boolean), ...validationConflictFiles])];
         agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
           core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
@@ -1752,4 +1835,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase };
