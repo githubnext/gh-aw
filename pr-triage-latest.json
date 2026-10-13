@@ -1,91 +1,23 @@
 {
-  "run_date": "2026-10-13T01:07:53Z",
-  "run_id": "38330423151",
+  "run_date": "2026-10-13T06:45:35Z",
+  "run_id": "38358344153",
   "source": "pr-triage-agent",
-  "eligible_total": 5,
-  "cooldown_skipped": 4,
-  "category_counts": {
-    "bug": 2,
-    "feature": 1,
-    "test": 2
-  },
-  "risk_counts": {
-    "medium": 5
-  },
-  "priority_counts": {
-    "high": 2,
-    "medium": 3
-  },
-  "action_counts": {
-    "auto_merge": 0,
-    "fast_track": 2,
-    "batch_review": 3,
-    "defer": 0,
-    "close": 0
-  },
-  "batches": [
-    {
-      "id": "routing-smokes-2026-10-13",
-      "pr_numbers": [68081, 68096, 68062],
-      "category": "test",
-      "risk": "medium",
-      "action": "batch_review"
-    }
-  ],
+  "eligible_total": 4,
+  "cooldown_skipped": 2,
+  "category_counts": {"bug": 2, "test": 2},
+  "risk_counts": {"medium": 4},
+  "priority_counts": {"high": 2, "medium": 2},
+  "action_counts": {"auto_merge": 0, "fast_track": 2, "batch_review": 2, "defer": 0, "close": 0},
+  "batches": [],
   "selected_candidates": [
-    {
-      "number": 68080,
-      "title": "Fail compilation for model-routed workflows that don't use GitHub Copilot inference",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 78,
-      "score_breakdown": {"impact": 38, "urgency": 23, "quality": 17},
-      "action": "fast_track"
-    },
-    {
-      "number": 68081,
-      "title": "[WIP] Add golden fixtures for routed failures and paths with none",
-      "category": "test",
-      "risk": "medium",
-      "priority_score": 50,
-      "score_breakdown": {"impact": 22, "urgency": 12, "quality": 16},
-      "action": "batch_review",
-      "batch_id": "routing-smokes-2026-10-13"
-    },
-    {
-      "number": 68096,
-      "title": "Routed smokes: add Claude-main Copilot CLI, pi and SDK smokes, plus an opt-in mode/effort check",
-      "category": "feature",
-      "risk": "medium",
-      "priority_score": 66,
-      "score_breakdown": {"impact": 30, "urgency": 20, "quality": 16},
-      "action": "batch_review",
-      "batch_id": "routing-smokes-2026-10-13"
-    },
-    {
-      "number": 68062,
-      "title": "Add routed smoke for AWF AI-credit steering notices (T1–T4)",
-      "category": "test",
-      "risk": "medium",
-      "priority_score": 62,
-      "score_breakdown": {"impact": 28, "urgency": 18, "quality": 16},
-      "action": "batch_review",
-      "batch_id": "routing-smokes-2026-10-13"
-    },
-    {
-      "number": 56568,
-      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 79,
-      "score_breakdown": {"impact": 35, "urgency": 27, "quality": 17},
-      "action": "fast_track"
-    }
+    {"number": 68080, "title": "Fail compilation for model-routed workflows that don't use GitHub Copilot inference", "category": "bug", "risk": "medium", "priority_score": 78, "score_breakdown": {"impact": 38, "urgency": 23, "quality": 17}, "action": "fast_track"},
+    {"number": 68081, "title": "Add golden fixtures for routed failures and paths with none", "category": "test", "risk": "medium", "priority_score": 50, "score_breakdown": {"impact": 22, "urgency": 12, "quality": 16}, "action": "batch_review"},
+    {"number": 68062, "title": "Add routed smoke for AWF AI-credit steering notices (T1–T4)", "category": "test", "risk": "medium", "priority_score": 62, "score_breakdown": {"impact": 28, "urgency": 18, "quality": 16}, "action": "batch_review"},
+    {"number": 56568, "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`", "category": "bug", "risk": "medium", "priority_score": 79, "score_breakdown": {"impact": 35, "urgency": 27, "quality": 17}, "action": "fast_track"}
   ],
   "prs": [
     {"number": 68080, "title": "Fail compilation for model-routed workflows that don't use GitHub Copilot inference", "state": "open", "user": "Copilot", "draft": false, "category": "bug", "risk": "medium", "priority_score": 78, "action": "fast_track"},
-    {"number": 68081, "title": "[WIP] Add golden fixtures for routed failures and paths with none", "state": "open", "user": "Copilot", "draft": false, "category": "test", "risk": "medium", "priority_score": 50, "action": "batch_review"},
-    {"number": 68096, "title": "Routed smokes: add Claude-main Copilot CLI, pi and SDK smokes, plus an opt-in mode/effort check", "state": "open", "user": "Copilot", "draft": false, "category": "feature", "risk": "medium", "priority_score": 66, "action": "batch_review"},
+    {"number": 68081, "title": "Add golden fixtures for routed failures and paths with none", "state": "open", "user": "Copilot", "draft": false, "category": "test", "risk": "medium", "priority_score": 50, "action": "batch_review"},
     {"number": 68062, "title": "Add routed smoke for AWF AI-credit steering notices (T1–T4)", "state": "open", "user": "Copilot", "draft": false, "category": "test", "risk": "medium", "priority_score": 62, "action": "batch_review"},
     {"number": 56568, "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`", "state": "open", "user": "Copilot", "draft": false, "category": "bug", "risk": "medium", "priority_score": 79, "action": "fast_track"}
   ]
