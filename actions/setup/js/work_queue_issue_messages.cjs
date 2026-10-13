@@ -8,7 +8,7 @@ const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
 
 function presentationText(value, limit, singleLine = false, maskedValues = []) {
   if (typeof value !== "string") return "";
-  let text = value.trim();
+  let text = redactDiagnosticText(value, { maskedValues }).trim();
   if (singleLine) text = text.replace(/\s+/g, " ");
   const render = candidate => {
     let rendered = candidate;
@@ -22,10 +22,12 @@ function presentationText(value, limit, singleLine = false, maskedValues = []) {
     const rendered = render(candidate);
     return [...rendered].length <= limit ? rendered : undefined;
   };
-  const complete = withinLimit(text);
-  if (complete !== undefined) return complete;
+  const complete = render(text);
+  if ([...complete].length <= limit) return complete;
 
-  const characters = [...text];
+  // Redact the complete value before cutting, so a boundary cannot expose a
+  // credential prefix that no longer matches its exact value or token pattern.
+  const characters = [...complete];
   let low = 0;
   let high = characters.length;
   let result = withinLimit("...");

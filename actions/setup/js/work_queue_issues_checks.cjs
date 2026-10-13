@@ -368,7 +368,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
         },
       });
       const m = mock(f);
-      assert.deepEqual((await main(m.options)).pending, []);
+      assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [] })).pending, []);
       const issue = m.issues.get("1");
       assert.ok(issue.title.startsWith(`[work queue] ${f.nodes[0].work_id.slice(0, 12)} — Investigate`));
       assert.ok(issue.title.endsWith("..."));
@@ -396,7 +396,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       for (const payload of cases) {
         const f = fixture({ backing: false, payload });
         const m = mock(f);
-        assert.deepEqual((await main(m.options)).pending, []);
+        assert.deepEqual((await main({ ...m.options, publicationMaskedValues: [] })).pending, []);
         const issue = m.issues.get("1");
         const title = issue.title.slice(issue.title.indexOf(" — ") + 3);
         const description = issue.body.match(/### Work description\n\n([\s\S]*?)\n\n\| At a glance/)[1].trimEnd();
@@ -433,6 +433,25 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
         if (previousSecret === undefined) delete process.env[`SECRET_${secretName}`];
         else process.env[`SECRET_${secretName}`] = previousSecret;
       }
+    });
+    it("withholds ledger payload details when the conclusion job has no original redaction context", async () => {
+      const secrets = ["repository-specific-private-value", "dynamically-minted-private-value"];
+      const f = fixture({
+        backing: false,
+        payload: { title: `Investigate ${secrets.join(" ")}`, description: `Private details ${secrets.join(" ")}` },
+      });
+      const m = mock(f);
+      const messages = [];
+      assert.deepEqual((await main({ ...m.options, core: { info: message => messages.push(message), warning: message => messages.push(message) } })).pending, []);
+      const issue = m.issues.get("1");
+      assert.equal(issue.title, `[work queue] ${f.nodes[0].work_id.slice(0, 12)}`);
+      assert.ok(!issue.body.includes("Work description"));
+      assert.ok(issue.body.includes(`<!-- work-id: ${f.nodes[0].work_id} -->`));
+      for (const secret of secrets) {
+        assert.ok(!issue.body.includes(secret));
+        assert.ok(!JSON.stringify([...m.comments.values(), ...messages]).includes(secret));
+      }
+      assert.equal(canonical(m.state().works.get(f.nodes[0].work_id).payload), canonical(f.nodes[0].payload));
     });
     it("omits absent or non-string work details without changing the identifier title", async () => {
       const f = fixture({ backing: false, payload: { title: 42, description: { private: true } } });
