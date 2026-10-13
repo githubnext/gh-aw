@@ -55,19 +55,17 @@ queue configuration. See [deployment](../../docs/src/content/docs/guides/deploy-
 ## Mirror admitted Work with Issues
 
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` and
-`work: <status>` labels. An object may customize the tracking label and status
-label prefix with `label`. No per-workflow override or enrollment is needed.
-Only protected AW hooks
-project their own admissions/original Claims. Immutable `backing_issue` binds
-one Work per Issue. Agents never write mirrors; human edits never establish
-Result. Pre-existing Issues require exact installed `backing_issues` grants.
-Only trusted admission-time `completion_policy` permits closure, never payload.
-Uncertain writes stay pending, never recreated or globally repaired.
-Upgrade all closed-schema readers first. See the
+`work: <status>` labels; object `label` customizes tracking/status prefixes. No per-workflow override
+or enrollment. Protected AW hooks alone project their admissions/original Claims.
+Immutable `backing_issue` binds one Work per Issue. Agents never write mirrors;
+human edits never establish Result. Pre-existing Issues require exact installed
+`backing_issues` grants. Only trusted admission-time `completion_policy` permits
+closure, never payload.
+Keep uncertain writes pending; never recreate or globally repair.
+Upgrade closed-schema readers first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
-When Issue mirroring is enabled, the compiler generates
-`.github/workflows/agentic-workqueue.yml` to handle Issue lifecycle events
-outside agentic workflows and removes it when Issue mirroring is disabled.
+Mirroring enables compiler-generated `.github/workflows/agentic-workqueue.yml`
+for Issue lifecycle events outside agentic workflows; disabling mirroring removes it.
 
 ## Plan and dispatch
 
