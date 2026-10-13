@@ -50,6 +50,7 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(buildMaintenanceWorkflowHeaderYAML(opts))
 	yaml.WriteString(buildMaintenanceWorkflowTriggerYAML(opts, labelDisableJobEnabled, labelApplySafeOutputsJobEnabled, appliedRunURLDescription, appliedRunURLValue))
 	yaml.WriteString(buildMaintenanceCloseExpiredJobs(opts, setupActionRef))
+	yaml.WriteString(buildMaintenanceCleanupStaleSteeringIssuesJob(opts, setupActionRef))
 	if opts.hasCacheMemory {
 		yaml.WriteString(buildMaintenanceCleanupCacheJob(opts, setupActionRef))
 	}

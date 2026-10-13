@@ -206,6 +206,39 @@ jobs:
             const { main } = require(path.join(actionsDir, 'close_expired_pull_requests.cjs'));
             await main();
 
+  cleanup-stale-steering-issues:
+    name: Cleanup stale steering issues
+    if: ${{ (!(github.event.repository.fork)) && github.event_name == 'schedule' }}
+    runs-on: ubuntu-slim
+    # Reading workflow runs and closing issues requires these permissions.
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Close stale steering issues
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'cleanup_stale_steering_issues.cjs'));
+            await main();
+
   cleanup-cache-memory:
     name: Cleanup cache memory
     if: ${{ (!(github.event.repository.fork)) && github.event_name != 'push' && (github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'none' || inputs.operation == 'clean_cache_memories') }}
