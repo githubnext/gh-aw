@@ -12,6 +12,7 @@ const { collectAgentExecution, parseAgentExitCode, validateAgentExitCode, isAgen
 const { normalizeEngineLogEntries, normalizeEngineSessionEvents, parseEngineLog } = require("./engine_log_parser.cjs");
 const { sessionTimestamp, orderSessionSources } = require("./unified_session_order.cjs");
 const { normalizeOtelEvents } = require("./unified_session_otel.cjs");
+const { getApiProxyEventName } = require("./steering_helpers.cjs");
 
 const SESSION_FILE_FORMAT_VERSION = 1;
 
@@ -87,7 +88,7 @@ function mergeSessionSources(sources) {
 function normalizeRuntimeEvent(component, record) {
   /** @type {`${string}.${string}`} */
   let type = `${component}.event`;
-  const kind = record.event ?? record.type ?? record.event_name ?? record.eventName;
+  const kind = component === "firewall" ? getApiProxyEventName(record).toLowerCase() : (record.event ?? record.type ?? record.event_name ?? record.eventName);
   if (component === "mcp") {
     /** @type {Record<string, `${string}.${string}`>} */
     const kinds = {
@@ -107,11 +108,11 @@ function normalizeRuntimeEvent(component, record) {
     if (kind === "http_access" || record.decision !== undefined) type = "firewall.http_access";
     else if (kind === "token_usage") type = "firewall.token_usage";
     else if (kind === "model_routing") type = "firewall.model_routing";
-    else if (["ai_credit_steering", "token_steering", "timeout_steering"].includes(kind)) type = "firewall.steering";
+    else if (kind === "steering" || kind.endsWith("_steering")) type = "firewall.steering";
   }
   return {
     type,
-    data: structuredClone(type === "mcp.configuration" ? record.data : record),
+    data: structuredClone(type === "mcp.configuration" ? record.data : type === "firewall.steering" ? { ...record, event: kind } : record),
     ...(record.timestamp !== undefined ? { timestamp: record.timestamp } : {}),
     ...(record.ts !== undefined ? { ts: record.ts } : {}),
     ...(record.time !== undefined ? { time: record.time } : {}),

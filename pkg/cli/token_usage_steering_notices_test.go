@@ -62,6 +62,45 @@ func writeSteeringNoticesRun(t *testing.T, sessionLines []string) string {
 	return runDir
 }
 
+func TestAuditSteeringFromUnifiedSession(t *testing.T) {
+	runDir := writeSteeringNoticesRun(t, []string{
+		steeringNoticesSessionEvent(t, "agent", "req-2", map[string]any{"type": "ai_credit", "threshold": 80}),
+		`{"type":"firewall.steering","timestamp":"2026-10-10T10:00:01Z","data":{"event":"ai_credit_steering","message":"[AWF AI CREDIT WARNING] budget","requestId":"req-2","threshold":80},"provenance":{"component":"firewall","phase":"agent"}}`,
+		`{"type":"firewall.steering","timestamp":"2026-10-10T10:00:02Z","data":{"event":"timeout_steering","message":"[AWF TIME WARNING] time","requestId":"det-1","threshold":90},"provenance":{"component":"firewall","phase":"detection"}}`,
+		`{"type":"firewall.steering","data":{"event":"model_steering","message":"other steering"},"provenance":{"component":"firewall","phase":"agent"}}`,
+		`{"type":"firewall.steering","data":{"event":"token_steering","message":"[AWF TOKEN WARNING] ignored"},"provenance":{"component":"agent","phase":"agent"}}`,
+	})
+	summary, err := analyzeTokenUsage(runDir, false)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	assert.Equal(t, 3, summary.TotalSteeringEvents)
+	assert.Equal(t, map[string]int{"ai_credit_steering": 1, "timeout_steering": 1, "model_steering": 1}, summary.SteeringEventCounts)
+	require.Len(t, summary.SteeringNotices, 1)
+
+	events, err := extractGatewaySteeringEvents(runDir)
+	require.NoError(t, err)
+	assert.Equal(t, []GatewaySteeringEvent{
+		{Type: aiCreditSteeringEventName, Message: "[AWF AI CREDIT WARNING] budget", Timestamp: "2026-10-10T10:00:01Z", RequestID: "req-2", Threshold: 80},
+		{Type: timeoutSteeringEventName, Message: "[AWF TIME WARNING] time", Timestamp: "2026-10-10T10:00:02Z", RequestID: "det-1", Threshold: 90},
+	}, events)
+	audit, _ := buildLocalAuditData(ProcessedRun{
+		Run:                   WorkflowRun{DatabaseID: 7, WorkflowName: "wf", LogsPath: runDir},
+		TokenUsage:            summary,
+		GatewaySteeringEvents: events,
+	}, LogMetrics{}, nil)
+	assert.Equal(t, events, audit.GatewaySteeringEvents)
+	assert.Equal(t, 3, audit.FirewallTokenUsage.TotalSteeringEvents)
+
+	rawRunDir := writeSteeringNoticesRun(t, []string{
+		`{"type":"firewall.steering","data":{"event":"timeout_steering","message":"[AWF TIME WARNING] session"},"provenance":{"component":"firewall","phase":"agent"}}`,
+	})
+	rawPath := filepath.Join(rawRunDir, "sandbox", "firewall", "logs", "api-proxy-logs", "events.jsonl")
+	require.NoError(t, os.WriteFile(rawPath, []byte(`{"event":"token_steering","message":"[AWF TOKEN WARNING] raw"}`+"\n"), 0o644))
+	summary, err = analyzeTokenUsage(rawRunDir, false)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int{"token_steering": 1}, summary.SteeringEventCounts, "raw and unified copies must not be double-counted")
+}
+
 func TestAnalyzeTokenUsageSteeringNotices(t *testing.T) {
 	t.Run("lists notices from unified firewall.token_usage events", func(t *testing.T) {
 		runDir := writeSteeringNoticesRun(t, []string{
