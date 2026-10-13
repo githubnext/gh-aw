@@ -202,7 +202,7 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 			pending = body.Tree[0].Content
 			response = map[string]string{"sha": "tree"}
 		case r.Method == http.MethodPost && path == "git/commits":
-			response = map[string]string{"sha": strconv.Itoa(head + 1)}
+			response = map[string]string{"sha": fmt.Sprintf("%040x", head+1)}
 		case r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
 			writes++
 			head++
@@ -562,6 +562,9 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	invalidRefCommand.SetArgs([]string{"--repo", remote, "--json", "compact"})
 	if err := invalidRefCommand.Execute(); err == nil || !strings.Contains(err.Error(), "invalid queue branch reference") {
 		t.Fatalf("invalid queue branch reference was accepted: %v", err)
+	}
+	if log != before {
+		t.Fatal("invalid queue branch SHA changed queue authority")
 	}
 	if apiWrites != writes {
 		t.Fatal("invalid prior Git SHA attempted a remote mutation")
