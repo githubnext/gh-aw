@@ -7,6 +7,8 @@ For `mcpscripts`, always use the CLI commands above.
 
 For `safeoutputs`, every successful call is a real write-intent declaration - do not use it for probing, auth checks, or placeholder payloads. Use `noop` or `report_incomplete` if not ready to emit the final action.
 
+Before using the examples below, check availability in the agent's shell with `command -v safeoutputs` and `command -v jq`. Runner setup logs do not establish availability inside the sandbox. If `safeoutputs` is missing, call the configured safe-output MCP tools directly only if the engine exposes them. If no supported transport is available, stop and report the missing command in the final response; do not claim the action was emitted or use authenticated GitHub commands as a substitute.
+
 For multiple or complex arguments, pass the JSON object inline as a single quoted argument — the binary comes first, so a malformed command still runs the CLI and reports an error:
 ```bash
 safeoutputs add_comment '{"item_number":42,"body":"### Title\n\nBody."}'
@@ -28,6 +30,18 @@ EOF
 jq -Rs '{title: "My title", body: .}' /tmp/gh-aw/body.md | safeoutputs create_discussion .
 ```
 If a shell command is rejected for containing expansion patterns, do not retry the same command — switch to the heredoc + `jq -Rs` pattern above.
+
+If `jq` is missing, check `command -v node` and use Node.js to serialize the file instead. Do not substitute hand-escaped inline JSON for a large body. After writing `/tmp/gh-aw/body.md` as above:
+```bash
+node - /tmp/gh-aw/body.md <<'JS' > /tmp/gh-aw/payload.json
+const fs = require('node:fs');
+process.stdout.write(JSON.stringify({
+  title: 'My title',
+  body: fs.readFileSync(process.argv[2], 'utf8')
+}));
+JS
+```
+Only if serialization succeeds, submit it with `safeoutputs create_discussion . < /tmp/gh-aw/payload.json`. Adapt the fields to the enabled tool's schema. If neither `jq` nor `node` is available, use a configured direct MCP tool if exposed; otherwise stop and report the missing serializer. Do not retry commands that are not installed.
 
 To inject an entire local file as the `body` field without re-embedding its content in the model context, use `jq -Rs`:
 ```bash

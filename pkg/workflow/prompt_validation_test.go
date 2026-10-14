@@ -3,7 +3,9 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +13,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSafeOutputsCLIPromptChecksToolAvailability(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", mcpCLIToolsWithSafeOutputsPromptFile))
+	require.NoError(t, err)
+	content := string(data)
+
+	for _, command := range []string{"safeoutputs", "jq", "node"} {
+		assert.Contains(t, content, "command -v "+command)
+	}
+	assert.Contains(t, content, "only if the engine exposes them")
+	assert.Contains(t, content, "If no supported transport is available, stop")
+	assert.Contains(t, content, "Only if serialization succeeds")
+	assert.Contains(t, content, "Do not substitute hand-escaped inline JSON for a large body")
+	assert.Contains(t, content, "do not claim the action was emitted")
+}
+
+func TestSafeOutputsCLIPromptNodeFallbackPreservesBody(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", mcpCLIToolsWithSafeOutputsPromptFile))
+	require.NoError(t, err)
+	_, script, found := strings.Cut(string(data), "<<'JS' > /tmp/gh-aw/payload.json\n")
+	require.True(t, found, "prompt should include the Node.js fallback")
+	script, _, found = strings.Cut(script, "\nJS\n")
+	require.True(t, found, "fallback heredoc should be terminated")
+
+	for name, body := range map[string]string{
+		"empty": "",
+		"large": strings.Repeat("Unicode: café 日本語\n\"quotes\" \\\\ ${HOME} `command`\r\n", 200),
+	} {
+		t.Run(name, func(t *testing.T) {
+			bodyPath := filepath.Join(t.TempDir(), "body.md")
+			require.NoError(t, os.WriteFile(bodyPath, []byte(body), 0600))
+			cmd := exec.Command(node, "-", bodyPath)
+			cmd.Stdin = strings.NewReader(script)
+			output, err := cmd.Output()
+			require.NoError(t, err)
+			var payload map[string]string
+			require.NoError(t, json.Unmarshal(output, &payload))
+			assert.Equal(t, map[string]string{"title": "My title", "body": body}, payload)
+		})
+	}
+}
 
 // TestGitHubMCPToolsPromptBoundsCodeScanningAlertQueries verifies that the
 // github_mcp_tools_prompt.md file includes the required guardrail instructing
