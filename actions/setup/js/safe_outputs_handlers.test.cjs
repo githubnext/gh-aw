@@ -2226,6 +2226,63 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it.each(["", "owner/workflow-repo"])("should ignore a non-target push patch workspace with checkout identity '%s'", async checkoutRepo => {
+      const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
+      fs.mkdirSync(path.join(testWorkspaceDir, "source"), { recursive: true });
+      process.env.GITHUB_REPOSITORY = "owner/workflow-repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      const configuredHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_workspace_path: "source",
+          current_checkout_repo: checkoutRepo,
+          base_branch: "main",
+          patch_format: "am",
+        },
+      });
+      let patchPath;
+      try {
+        const result = await configuredHandlers.pushToPullRequestBranchHandler({});
+        expect(result.isError).toBeFalsy();
+        expect(mockServer.debug).not.toHaveBeenCalledWith(expect.stringContaining("Using configured patch_workspace_path for push_to_pull_request_branch"));
+        expect(mockServer.debug).toHaveBeenCalledWith(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`);
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            repo_cwd: targetRepoDir,
+            branch: "feature/test-change",
+          })
+        );
+        patchPath = JSON.parse(result.content[0].text).patch.path;
+        const patch = fs.readFileSync(patchPath, "utf8");
+        expect(patch).toContain("-tracked\n+local-only");
+        expect(patch).not.toContain("new file mode");
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+        if (patchPath) fs.rmSync(patchPath, { force: true });
+      }
+    });
+
+    it("should reject a push when a workflow workspace override cannot supply the missing target checkout", async () => {
+      fs.mkdirSync(path.join(testWorkspaceDir, "source"), { recursive: true });
+      process.env.GITHUB_REPOSITORY = "owner/workflow-repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/missing-repo";
+      const configuredHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_workspace_path: "source",
+          base_branch: "main",
+          patch_format: "am",
+        },
+      });
+      try {
+        const result = await configuredHandlers.pushToPullRequestBranchHandler({});
+        expect(result.isError).toBe(true);
+        expect(JSON.parse(result.content[0].text).error).toContain("Repository 'test-owner/missing-repo' not found in workspace");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
+
     it("should reject push_to_pull_request_branch when branch still equals base_branch after detection", async () => {
       // Simulates the scenario where getBaseBranch() incorrectly resolves to the
       // feature branch itself. Detection cannot recover when getCurrentBranch()
