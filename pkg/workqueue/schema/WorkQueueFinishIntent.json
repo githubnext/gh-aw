@@ -13,6 +13,9 @@
         "claim_handle": {
           "$ref": "#/$defs/Identity"
         },
+        "keep_open": {
+          "type": "boolean"
+        },
         "outcome": {
           "anyOf": [
             {

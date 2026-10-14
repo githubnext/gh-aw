@@ -84,7 +84,7 @@ func (state Projection) completedWorkerScope(actor Actor) (*ClaimState, *WorkSta
 		return nil, nil, queueError("claim_scope_invalid", "original assignment member has no retained Claim")
 	}
 	work := state.Works[claim.WorkID]
-	if work == nil || claim.State != "completed" || work.State != "completed" ||
+	if work == nil || claim.State != "completed" || (work.State != "completed" && !claim.KeepOpen) ||
 		work.ClaimID != claim.ClaimID || work.Barrier == "failed" {
 		return nil, nil, queueError("claim_effects_unauthorized", "this Claim has no verified Completion")
 	}
@@ -218,6 +218,7 @@ func (state Projection) applyCompletion(op Operation, commit QueueCommit) error 
 		ClaimHandle string `json:"claim_handle"`
 		RunID       string `json:"run_id"`
 		RunAttempt  int    `json:"run_attempt"`
+		KeepOpen    bool   `json:"keep_open"`
 	}
 	if err := json.Unmarshal(op, &completion); err != nil {
 		return err
@@ -235,19 +236,30 @@ func (state Projection) applyCompletion(op Operation, commit QueueCommit) error 
 		return err
 	}
 	if params.DispatchID != completion.DispatchID || params.ClaimHandle != completion.ClaimHandle ||
-		params.Outcome != "completed" {
+		params.Outcome != "completed" || params.KeepOpen != completion.KeepOpen {
 		return queueError("request_invalid", "Completion differs from finish intent")
 	}
 	work := state.Works[claim.WorkID]
-	if claim.State == "completed" && work.State == "completed" {
+	if claim.State == "completed" {
+		if claim.KeepOpen != completion.KeepOpen {
+			return queueError("completion_conflict", "keep_open differs from durable Completion")
+		}
 		return nil
 	}
 	if claim.State != "open" || work.State != "claimed" || work.ClaimID != claim.ClaimID {
 		return queueError("ownership_terminal", "only effective open Claim can complete Work")
 	}
 	claim.State = "completed"
+	delete(state.TerminalBarriers, work.WorkID)
 	claim.TerminalCommitID = commit.ID
+	claim.KeepOpen = completion.KeepOpen
+	if claim.KeepOpen {
+		claim.Barrier = "pending"
+	}
 	work.State, work.Barrier, work.CompletionID = "completed", "pending", commit.ID
+	if completion.KeepOpen {
+		work.State = "available"
+	}
 	work.completionAt = commit.At
 	return nil
 }
@@ -348,7 +360,7 @@ func (state Projection) cancelWork(op Operation, commit QueueCommit) error {
 	if work == nil {
 		return queueError("work_missing", "cancellation references missing Work")
 	}
-	if work.State == "completed" {
+	if work.State == "completed" || work.Barrier == "pending" {
 		return queueError("ownership_terminal", "completed Work cannot be cancelled")
 	}
 	if cancellation.ClaimID != "" {
@@ -583,8 +595,15 @@ func (state Projection) settleResult(op Operation, commit QueueCommit, failed bo
 	if err := json.Unmarshal(op, &result); err != nil {
 		return err
 	}
+	if previous := state.TerminalBarriers[result.ClaimID]; previous != nil {
+		if sameJSON(previous, op) {
+			return nil
+		}
+		return queueError("delivery_barrier_conflict", "Result and DeliveryFailure are immutable and exclusive")
+	}
 	work := state.Works[result.WorkID]
-	if work == nil || work.State != "completed" || work.ClaimID != result.ClaimID ||
+	claim := state.Claims[result.ClaimID]
+	if work == nil || claim == nil || claim.State != "completed" || (work.State != "completed" && !claim.KeepOpen) || work.ClaimID != result.ClaimID ||
 		work.CompletionID != result.CompletionID {
 		return queueError("result_invalid", "barrier must reference exact completed ownership")
 	}
@@ -615,6 +634,9 @@ func (state Projection) settleResult(op Operation, commit QueueCommit, failed bo
 			return queueError("evidence_invalid", "failure disposition must match evidence; none requires positive no-effects proof")
 		}
 		work.Barrier, work.Disposition = "failed", result.Disposition
+		if claim.KeepOpen {
+			claim.Barrier = "failed"
+		}
 		return nil
 	}
 	data, err := Canonical(result.Descriptor)
@@ -625,5 +647,11 @@ func (state Projection) settleResult(op Operation, commit QueueCommit, failed bo
 		return queueError("delivery_evidence_required", "Result requires scoped verified delivery receipts")
 	}
 	work.Barrier, work.Result, work.ResultCommitID = "verified", data, commit.ID
+	if claim.KeepOpen {
+		claim.Barrier = "verified"
+		work.ClaimID, work.Barrier, work.CompletionID, work.ResultCommitID = "", "none", "", ""
+		work.Result, work.Disposition, work.completionAt = nil, "", 0
+		work.Attempts, work.RetryNotBefore = 0, 0
+	}
 	return nil
 }

@@ -78,13 +78,15 @@ function readFinishIntent(filename = process.env.GH_AW_WORK_QUEUE_FINISH_INTENT 
       const intent = parseStrictJSON(line);
       closed(intent, ["version", "intent_id", "kind", "parameters"], ["claim_handle"], "finish intent");
       if (intent.version !== 3 || intent.kind !== "finish" || typeof intent.intent_id !== "string" || !intent.intent_id) throw new Error("work_queue_finish_invalid");
-      closed(intent.parameters, ["outcome"], [], "finish parameters");
+      closed(intent.parameters, ["outcome"], ["keep_open"], "finish parameters");
       if (!["completed", "cancelled"].includes(intent.parameters.outcome)) throw new Error("work_queue_finish_invalid");
+      if (Object.hasOwn(intent.parameters, "keep_open") && typeof intent.parameters.keep_open !== "boolean") throw new Error("work_queue_finish_invalid");
+      if (intent.parameters.keep_open === true && intent.parameters.outcome !== "completed") throw new Error("work_queue_finish_invalid");
       const scoped = normalizeClaimScope({ ...intent.parameters, ...(Object.hasOwn(intent, "claim_handle") ? { claim_handle: intent.claim_handle } : {}) }, assignment);
       handle = scoped.claim_handle;
       const previous = intents.get(handle);
-      if (previous && previous.outcome !== scoped.outcome) throw new Error("work_queue_finish_conflict");
-      intents.set(handle, { intent_id: intent.intent_id, outcome: scoped.outcome });
+      if (previous && (previous.outcome !== scoped.outcome || previous.keep_open !== (scoped.keep_open === true))) throw new Error("work_queue_finish_conflict");
+      intents.set(handle, { intent_id: intent.intent_id, outcome: scoped.outcome, keep_open: scoped.keep_open === true });
     } catch {
       errors.push({ line: index + 1, claim_handle: handle, code: handle ? "work_queue_finish_conflict" : "work_queue_finish_scope_invalid" });
     }
@@ -127,6 +129,8 @@ async function authorizeWorkerClaim(options = {}) {
   }
   if (claim?.state === "cancelled") return { ...base, authorized: false, suppressed: true, state: "cancelled" };
   if (options.requireCompletion !== false && claim?.state !== "completed") return { ...base, authorized: false, state: "open" };
+  if (options.requireCompletion !== false && claim?.keep_open && claim.barrier !== "pending")
+    return { ...base, authorized: false, suppressed: claim.barrier === "verified", state: claim.barrier === "verified" ? "result" : "delivery_failed" };
   if (options.requireCompletion !== false && work.barrier !== "pending") {
     if (work.state !== "completed" || work.claim_id !== member.claim_id) throw new Error("work_queue_claim_ownership_invalid");
     return { ...base, authorized: false, suppressed: work.barrier === "verified", state: work.barrier === "verified" ? "result" : "delivery_failed" };
@@ -164,13 +168,14 @@ async function reconcileWorkerClaim(options = {}) {
       const work = latest.projection.works.get(member.work_id);
       const intent = staged.intents.get(member.handle);
       if (claim?.state === "completed") {
-        if (intent?.outcome === "cancelled") throw new Error("work_queue_finish_conflict");
+        if (intent && (intent.outcome === "cancelled" || intent.keep_open !== (claim.keep_open === true))) throw new Error("work_queue_finish_conflict");
+        const barrier = claim.keep_open ? claim.barrier : work.barrier;
         states[member.handle] = {
           claim_handle: member.handle,
           claim_id: member.claim_id,
           work_id: member.work_id,
-          state: work.barrier === "verified" ? "result" : work.barrier === "failed" ? "delivery_failed" : "completed",
-          authorized: work.barrier === "pending",
+          state: barrier === "verified" ? "result" : barrier === "failed" ? "delivery_failed" : "completed",
+          authorized: barrier === "pending",
         };
         continue;
       }
@@ -183,7 +188,7 @@ async function reconcileWorkerClaim(options = {}) {
       queue.validateClaimAuthority(latest.projection, member.claim_id, trustedContext, { requireCompletion: false });
       const outcome = intent?.outcome ?? "cancelled";
       const intentId = intent?.intent_id ?? `wrapup:${digest({ dispatch_id: assignment.dispatch_id, handle: member.handle })}`;
-      const request = requestForIntent(trustedContext, intentId, "finish", { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome });
+      const request = requestForIntent(trustedContext, intentId, "finish", { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome, ...(intent?.keep_open ? { keep_open: true } : {}) });
       await (configured.publishWorkQueueRequest || store.publishWorkQueueRequest)({
         githubClient: configured.queueClient || configured.githubClient,
         owner: configured.context.repo.owner,
@@ -196,7 +201,7 @@ async function reconcileWorkerClaim(options = {}) {
       });
       latest = await loadQueue(configured);
       const verified = latest.projection.claims.get(member.claim_id);
-      if (verified?.state !== outcome) throw new Error("work_queue_finish_not_durable");
+      if (verified?.state !== outcome || (verified.keep_open === true) !== (intent?.keep_open === true)) throw new Error("work_queue_finish_not_durable");
       log.debug("claim.finish.persisted", { completed: outcome === "completed", cancelled: outcome === "cancelled" });
       const authorized = outcome === "completed";
       states[member.handle] = { claim_handle: member.handle, claim_id: member.claim_id, work_id: member.work_id, state: outcome, authorized };
@@ -263,7 +268,12 @@ async function finalizeWorkerResults(options = {}) {
         results[member.handle] = { state: claim?.state === "cancelled" ? "cancelled" : "pending", effects: "unknown" };
         continue;
       }
-      if (work?.state !== "completed" || work.claim_id !== member.claim_id || typeof work.completion_id !== "string") throw new Error("work_queue_claim_ownership_invalid");
+      if (claim.keep_open && claim.barrier !== "pending") {
+        const terminal = latest.projection.terminalBarriers.get(member.claim_id);
+        results[member.handle] = { state: claim.barrier === "verified" ? "result" : "delivery_failed", effects: terminal?.evidence.effects ?? "unknown" };
+        continue;
+      }
+      if ((work?.state !== "completed" && !claim.keep_open) || work.claim_id !== member.claim_id || typeof work.completion_id !== "string") throw new Error("work_queue_claim_ownership_invalid");
       if (work.barrier !== "pending") {
         const effects = work.barrier === "verified" ? latest.projection.terminalBarriers.get(member.work_id)?.evidence.effects : work.disposition;
         results[member.handle] = { state: work.barrier === "verified" ? "result" : "delivery_failed", effects: effects ?? "unknown" };
@@ -323,7 +333,18 @@ async function finalizeWorkerResults(options = {}) {
       validateStoredAssignment(latest.projection, assignment, { allowReleased: true });
       const currentWork = latest.projection.works.get(member.work_id);
       const currentClaim = latest.projection.claims.get(member.claim_id);
-      if (currentClaim?.state !== "completed" || currentClaim.dispatch_id !== assignment.dispatch_id || currentWork?.state !== "completed" || currentWork.claim_id !== member.claim_id || currentWork.completion_id !== work.completion_id)
+      if (currentClaim?.keep_open && currentClaim.barrier !== "pending") {
+        const terminal = latest.projection.terminalBarriers.get(member.claim_id);
+        results[member.handle] = { state: currentClaim.barrier === "verified" ? "result" : "delivery_failed", effects: terminal?.evidence.effects ?? "unknown" };
+        continue;
+      }
+      if (
+        currentClaim?.state !== "completed" ||
+        currentClaim.dispatch_id !== assignment.dispatch_id ||
+        (currentWork?.state !== "completed" && !currentClaim.keep_open) ||
+        currentWork.claim_id !== member.claim_id ||
+        currentWork.completion_id !== work.completion_id
+      )
         throw new Error("work_queue_claim_ownership_changed");
       if (currentWork.barrier !== "pending") {
         const effects = currentWork.barrier === "verified" ? latest.projection.terminalBarriers.get(member.work_id)?.evidence.effects : currentWork.disposition;
@@ -383,7 +404,7 @@ async function finalizeWorkerResults(options = {}) {
         log.debug("delivery.failure.persisted", { attempts, unknown_effects: disposition === "unknown" });
       }
       latest = await loadQueue(configured);
-      if (!["verified", "failed"].includes(latest.projection.works.get(member.work_id)?.barrier)) throw new Error("work_queue_result_not_durable");
+      if (!["verified", "failed"].includes(latest.projection.claims.get(member.claim_id)?.barrier ?? latest.projection.works.get(member.work_id)?.barrier)) throw new Error("work_queue_result_not_durable");
     } catch (error) {
       log.failure("result.verification.unresolved", error);
       results[member.handle] = { state: "pending", effects: "unknown", reason: "verification_unresolved" };

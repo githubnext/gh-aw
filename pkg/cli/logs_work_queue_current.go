@@ -35,6 +35,7 @@ type WorkQueueFinishReceipt struct {
 	IntentID string `json:"intent_id"`
 	Handle   string `json:"claim_handle"`
 	Outcome  string `json:"outcome"`
+	KeepOpen bool   `json:"keep_open,omitempty"`
 }
 
 func readBoundedWorkQueueArtifact(path string, limit int64) ([]byte, error) {
@@ -223,6 +224,9 @@ func currentWorkQueueAssignmentReceipt(state workqueue.Projection, assignment wo
 	for i, member := range receipt.Claims {
 		claim, work := state.Claims[member.ClaimID], state.Works[member.WorkID]
 		receipt.Claims[i].State, receipt.Claims[i].Barrier = claim.State, work.Barrier
+		if claim.KeepOpen {
+			receipt.Claims[i].Barrier = claim.Barrier
+		}
 	}
 	return &receipt, nil
 }
@@ -256,10 +260,11 @@ func readCurrentWorkQueueFinishIntents(path string, snapshot *WorkQueueCurrentSn
 			}
 			continue
 		}
-		if previous, ok := outcomes[intent.Handle]; ok && previous != intent.Outcome {
+		choice := fmt.Sprintf("%s:%t", intent.Outcome, intent.KeepOpen)
+		if previous, ok := outcomes[intent.Handle]; ok && previous != choice {
 			return nil, errors.New("conflicting per-Claim work queue finish intents")
 		}
-		ids[intent.IntentID], outcomes[intent.Handle] = string(canonical), intent.Outcome
+		ids[intent.IntentID], outcomes[intent.Handle] = string(canonical), choice
 		receipts = append(receipts, intent)
 	}
 	return receipts, nil
@@ -272,7 +277,8 @@ func decodeCurrentWorkQueueFinishIntent(line []byte, snapshot *WorkQueueCurrentS
 		Kind       string `json:"kind"`
 		Handle     string `json:"claim_handle"`
 		Parameters struct {
-			Outcome string `json:"outcome"`
+			Outcome  string `json:"outcome"`
+			KeepOpen bool   `json:"keep_open"`
 		} `json:"parameters"`
 	}
 	if err := decodeClosedWorkQueueObject(line, []string{"version", "intent_id", "kind", "parameters"}, []string{"claim_handle"}, &intent); err != nil {
@@ -290,22 +296,35 @@ func decodeCurrentWorkQueueFinishIntent(line []byte, snapshot *WorkQueueCurrentS
 			intent.Handle = claim.Handle
 		}
 	}
-	if err := decodeClosedWorkQueueObject(fields["parameters"], []string{"outcome"}, nil, &intent.Parameters); err != nil {
+	if err := decodeClosedWorkQueueObject(fields["parameters"], []string{"outcome"}, []string{"keep_open"}, &intent.Parameters); err != nil {
 		return WorkQueueFinishReceipt{}, nil, fmt.Errorf("finish parameters line %d: %w", lineNumber, err)
 	}
+	var parameters map[string]json.RawMessage
+	if err := json.Unmarshal(fields["parameters"], &parameters); err != nil {
+		return WorkQueueFinishReceipt{}, nil, err
+	}
+	if keepOpen, present := parameters["keep_open"]; present && string(keepOpen) != "true" && string(keepOpen) != "false" {
+		return WorkQueueFinishReceipt{}, nil, errors.New("keep_open requires a boolean")
+	}
 	if intent.Version != 3 || intent.Kind != "finish" || !validWorkQueueReceiptID(intent.IntentID) ||
-		!validWorkQueueReceiptID(intent.Handle) || !slices.Contains([]string{"completed", "cancelled"}, intent.Parameters.Outcome) {
+		!validWorkQueueReceiptID(intent.Handle) || !slices.Contains([]string{"completed", "cancelled"}, intent.Parameters.Outcome) ||
+		intent.Parameters.KeepOpen && intent.Parameters.Outcome != "completed" {
 		return WorkQueueFinishReceipt{}, nil, fmt.Errorf("invalid current finish intent at line %d", lineNumber)
 	}
 	if snapshot == nil || snapshot.Assignment == nil ||
 		!slices.ContainsFunc(snapshot.Assignment.Claims, func(c WorkQueueClaimReceipt) bool { return c.Handle == intent.Handle }) {
 		return WorkQueueFinishReceipt{}, nil, errors.New("finish intent is foreign to original immutable assignment")
 	}
+	if !intent.Parameters.KeepOpen {
+		delete(parameters, "keep_open")
+		fields["parameters"], _ = json.Marshal(parameters)
+		line, _ = json.Marshal(fields)
+	}
 	canonical, err := workqueue.Canonical(line)
 	if err != nil {
 		return WorkQueueFinishReceipt{}, nil, fmt.Errorf("finish intent line %d: %w", lineNumber, err)
 	}
-	return WorkQueueFinishReceipt{IntentID: intent.IntentID, Handle: intent.Handle, Outcome: intent.Parameters.Outcome}, canonical, nil
+	return WorkQueueFinishReceipt{IntentID: intent.IntentID, Handle: intent.Handle, Outcome: intent.Parameters.Outcome, KeepOpen: intent.Parameters.KeepOpen}, canonical, nil
 }
 
 func validWorkQueueNativeID(value string) bool {

@@ -161,7 +161,7 @@ func checkpointState(ordered []QueueCommit, state Projection, lastAt int64) (che
 		Cancellations: state.Cancellations, CompletionTimes: map[string]int64{}, LastAt: lastAt,
 	}
 	for id, work := range state.Works {
-		if work.State == "completed" {
+		if work.CompletionID != "" {
 			snapshot.CompletionTimes[id] = work.completionAt
 		}
 	}
@@ -513,7 +513,7 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 				return invalid()
 			}
 		}
-		if work.State == "completed" {
+		if work.CompletionID != "" {
 			at, ok := snapshot.CompletionTimes[id]
 			if !ok || at < 0 || at > MaxTimestamp {
 				return invalid()
@@ -521,10 +521,67 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 			work.completionAt = at
 		}
 	}
+	type retainedCompletion struct {
+		Kind        string `json:"kind"`
+		ClaimID     string `json:"claim_id"`
+		DispatchID  string `json:"dispatch_id"`
+		ClaimHandle string `json:"claim_handle"`
+		KeepOpen    bool   `json:"keep_open"`
+	}
+	completions := map[string]retainedCompletion{}
+	completionCommits := map[string]string{}
+	for _, receipt := range snapshot.Requests {
+		for _, event := range receipt.Events {
+			var completion retainedCompletion
+			if json.Unmarshal(event, &completion) != nil {
+				return invalid()
+			}
+			if completion.Kind == "Completion" {
+				parameters, err := canonicalValue(FinishParameters{
+					DispatchID: completion.DispatchID, ClaimHandle: completion.ClaimHandle,
+					Outcome: "completed", KeepOpen: completion.KeepOpen,
+				})
+				fingerprint, fingerprintErr := Fingerprint(receipt.Actor, "finish", parameters)
+				if err != nil || fingerprintErr != nil || receipt.Kind != "finish" || fingerprint != receipt.Fingerprint {
+					return invalid()
+				}
+				completions[completion.ClaimID] = completion
+				completionCommits[completion.ClaimID] = receipt.ID
+			}
+		}
+	}
 	for id, claim := range state.Claims {
 		if claim == nil || claim.ClaimID != id || state.Works[claim.WorkID] == nil ||
 			state.Dispatches[claim.DispatchID] == nil {
 			return invalid()
+		}
+		completion, completionFound := completions[id]
+		if completionFound && (claim.KeepOpen != completion.KeepOpen || claim.TerminalCommitID != completionCommits[id]) {
+			return invalid()
+		}
+		if claim.KeepOpen {
+			if !completionFound || claim.State != "completed" ||
+				!slices.Contains([]string{"pending", "verified", "failed"}, claim.Barrier) {
+				return invalid()
+			}
+			if claim.Barrier == "pending" {
+				work := state.Works[claim.WorkID]
+				if work.ClaimID != id || work.Barrier != "pending" || work.CompletionID != claim.TerminalCommitID {
+					return invalid()
+				}
+			} else {
+				var terminal struct {
+					Kind         string `json:"kind"`
+					ClaimID      string `json:"claim_id"`
+					CompletionID string `json:"completion_id"`
+				}
+				if json.Unmarshal(state.TerminalBarriers[id], &terminal) != nil || terminal.ClaimID != id ||
+					terminal.CompletionID != claim.TerminalCommitID ||
+					(claim.Barrier == "verified" && terminal.Kind != "Result") ||
+					(claim.Barrier == "failed" && terminal.Kind != "DeliveryFailure") {
+					return invalid()
+				}
+			}
 		}
 	}
 	type checkpointStart struct {

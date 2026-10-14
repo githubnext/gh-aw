@@ -88,6 +88,11 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
 - Finish each member with `work_queue_claim_finish`, using
   `outcome: "completed"` or `"cancelled"`. Missing finish authorizes no effects;
   valid siblings settle independently.
+- To finish successfully but retain Work in the queue, use
+  `outcome: "completed", keep_open: true`. It defaults to false and is invalid
+  with cancellation. Preserve both choices on retries. Verified delivery permits
+  another fair Claim, but does not release successors or close the backing Issue.
+  Pending or failed delivery blocks a new Claim; never rerun uncertain effects.
 - Default to one Claim; batch compatible Work with reusable setup. A native
   batch conclusion is not every Work's Result.
 - Treat finish as an intent: trusted processing publishes Completion before

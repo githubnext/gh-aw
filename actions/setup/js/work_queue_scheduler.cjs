@@ -95,6 +95,7 @@ function eligibility(state, work, at, capacitySnapshot) {
   const { poolPolicy } = require("./work_queue_policy.cjs");
   const { dependencyStatus } = require("./work_queue_graph.cjs");
   if (work.state !== "available") return { ready: false, reason: `ownership_${work.state}`, observations: [] };
+  if (["pending", "failed"].includes(work.barrier)) return { ready: false, reason: `delivery_${work.barrier}`, observations: [] };
   const policy = poolPolicy(state, work.pool);
   if (state.grants_paused) return { ready: false, reason: "grants_paused", observations: [] };
   if (state.scheduling_profiles && !state.scheduling_profiles.includes(work.worker_profile)) return { ready: false, reason: "worker_not_approved", observations: [] };

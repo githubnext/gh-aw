@@ -26,7 +26,7 @@ function controlReceiptForRequest(state, requestId) {
   const member = dispatch?.claims.find(claim => claim.handle === commit.actor.claim_handle);
   const work = member && state.works.get(member.work_id);
   const claim = member && state.claims.get(member.claim_id);
-  if (!member || claim?.state !== "completed" || work?.state !== "completed" || work.claim_id !== member.claim_id || !work.completion_id) throw new Error("work_queue_control_receipt_scope_invalid");
+  if (!member || claim?.state !== "completed" || (work?.state !== "completed" && !claim.keep_open) || work.claim_id !== member.claim_id || !work.completion_id) throw new Error("work_queue_control_receipt_scope_invalid");
   return freeze({
     version: 3,
     type: TYPES[commit.request.kind],
@@ -78,7 +78,7 @@ async function readClaimQueueControls(options) {
   if (canonical(dispatch.run) !== canonical(bindingForRun(proof, expected))) throw new Error("run_binding_conflict");
   const claim = latest.projection.claims.get(member.claim_id);
   const work = latest.projection.works.get(member.work_id);
-  if (claim?.state !== "completed" || work?.state !== "completed" || work.claim_id !== member.claim_id || !work.completion_id || work.barrier === "failed") throw new Error("work_queue_control_receipt_scope_invalid");
+  if (claim?.state !== "completed" || (work?.state !== "completed" && !claim.keep_open) || work.claim_id !== member.claim_id || !work.completion_id || work.barrier === "failed") throw new Error("work_queue_control_receipt_scope_invalid");
   const original = { ...dispatch.run, role: "worker", dispatch_id: assignment.dispatch_id, claim_handle: member.handle, authenticated: true, roles: ["worker"], created_at: Date.parse(run.created_at) };
   const controls = claimControlReceipts(latest.projection, assignment, member.handle);
   const inventory = freeze({

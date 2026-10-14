@@ -167,7 +167,7 @@ function renderWorkClaim(payload) {
       const work = JSON.stringify({ id: member.work_id, payload: member.work, result_refs: member.result_refs }).replace(/</g, "\\u003c");
       const claim = JSON.stringify({ dispatch_id: assignment.dispatch_id, id: member.claim_id, work_id: member.work_id, claim_handle: member.handle }).replace(/</g, "\\u003c");
       const handle = JSON.stringify(member.handle).replace(/</g, "\\u003c");
-      return `<work-claim>\n${work}\n${claim}\nWhen the work is complete, call work_queue_claim_finish with outcome "completed" and claim_handle ${handle} to record the finish intent. If you cannot complete the work, call it with outcome "cancelled" and the same claim_handle. Always include this claim_handle on safe outputs and queue-control calls. The claim is only complete after trusted reconciliation verifies it; recording intent alone does not authorize safe outputs.\n</work-claim>\n`;
+      return `<work-claim>\n${work}\n${claim}\nWhen the work is complete, call work_queue_claim_finish with outcome "completed" and claim_handle ${handle} to record the finish intent. Set keep_open: true only with completed to finish this Claim while retaining the Work in the queue and leaving its backing Issue open; the Work can be claimed again only after delivery is verified. keep_open defaults to false. If you cannot complete the work, call it with outcome "cancelled" and the same claim_handle. Always include this claim_handle on safe outputs and queue-control calls. The claim is only complete after trusted reconciliation verifies it; recording intent alone does not authorize safe outputs.\n</work-claim>\n`;
     })
     .join("");
 }

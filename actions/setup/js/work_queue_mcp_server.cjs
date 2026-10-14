@@ -192,7 +192,7 @@ function stageToolIntent(snapshot, kind, parameters, options) {
   if (kind === "finish") {
     const previous = readStagedIntents(outputPath).find(intent => intent.kind === "finish" && intent.claim_handle === claim_handle);
     if (previous) {
-      if (previous.parameters.outcome !== body.outcome) throw new Error("work_queue_finish_conflict");
+      if (previous.parameters.outcome !== body.outcome || (previous.parameters.keep_open === true) !== (body.keep_open === true)) throw new Error("work_queue_finish_conflict");
       log.debug("tool.intent.stage.reused");
       return text({ intent_id: previous.intent_id, status: "staged", claim_handle });
     }
@@ -207,13 +207,16 @@ function createWorkQueueFinishTool(options = {}) {
   const snapshot = options.snapshot;
   return {
     name: "work_queue_claim_finish",
-    description: "Stage an independent completed/cancelled intent for one immutable assigned Claim. Only an originally one-Claim assignment may omit claim_handle. Staging is not durable completion.",
-    inputSchema: { type: "object", properties: { claim_handle: { type: "string", minLength: 1, maxLength: 256 }, outcome: { enum: ["completed", "cancelled"] } }, additionalProperties: false },
+    description:
+      "Stage an independent completed/cancelled intent for one immutable assigned Claim. keep_open defaults to false; true requires completed and retains Work and its open backing Issue after delivery. Only an originally one-Claim assignment may omit claim_handle. Staging is not durable completion.",
+    inputSchema: { type: "object", properties: { claim_handle: { type: "string", minLength: 1, maxLength: 256 }, outcome: { enum: ["completed", "cancelled"] }, keep_open: { type: "boolean", default: false } }, additionalProperties: false },
     handler: args => {
-      closed(args, [], ["claim_handle", "outcome"], "work_queue_claim_finish");
+      closed(args, [], ["claim_handle", "outcome", "keep_open"], "work_queue_claim_finish");
       if (!snapshot?.worker) throw new Error("work_queue_assignment_required");
       const outcome = args.outcome === undefined ? "completed" : args.outcome;
       if (!["completed", "cancelled"].includes(outcome)) throw new TypeError("outcome must be completed or cancelled");
+      if (Object.hasOwn(args, "keep_open") && typeof args.keep_open !== "boolean") throw new TypeError("keep_open must be boolean");
+      if (args.keep_open === true && outcome !== "completed") throw new TypeError("keep_open requires outcome completed");
       return stageToolIntent(snapshot, "finish", { ...args, outcome }, options);
     },
   };

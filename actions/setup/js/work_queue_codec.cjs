@@ -64,6 +64,10 @@ function digest(value) {
 }
 
 function fingerprint(actor, kind, parameters) {
+  if (kind === "finish" && parameters?.keep_open === false) {
+    parameters = { ...parameters };
+    delete parameters.keep_open;
+  }
   return digest({ actor, kind, parameters });
 }
 

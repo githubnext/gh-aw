@@ -311,6 +311,9 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 		`{"outcome":"completed"}`, `null`, strings.Replace(valid, `"h1"`, `"foreign"`, 1),
 		strings.Replace(valid, `"completed"`, `"invalid"`, 1),
 		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","secret":"x"}`, 1),
+		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":null}`, 1),
+		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"cancelled","keep_open":true}`, 1),
+		valid + "\n" + strings.Replace(strings.Replace(valid, `"i"`, `"j"`, 1), `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":true}`, 1),
 		valid + "\n" + strings.Replace(valid, `"completed"`, `"cancelled"`, 1),
 		valid + "\n" + strings.Replace(strings.Replace(valid, `"i"`, `"j"`, 1), `"completed"`, `"cancelled"`, 1),
 		strings.Repeat(valid+"\n", 257),
@@ -327,6 +330,16 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 	receipts, err := readCurrentWorkQueueFinishIntents(path, snapshot)
 	require.NoError(t, err)
 	require.Len(t, receipts, 1)
+	explicitFalse := strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":false}`, 1)
+	require.NoError(t, os.WriteFile(path, []byte(valid+"\n"+explicitFalse+"\n"), 0o600))
+	receipts, err = readCurrentWorkQueueFinishIntents(path, snapshot)
+	require.NoError(t, err)
+	require.Len(t, receipts, 1)
+	retained := strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":true}`, 1)
+	require.NoError(t, os.WriteFile(path, []byte(retained+"\n"), 0o600))
+	receipts, err = readCurrentWorkQueueFinishIntents(path, snapshot)
+	require.NoError(t, err)
+	require.True(t, receipts[0].KeepOpen)
 }
 
 func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {

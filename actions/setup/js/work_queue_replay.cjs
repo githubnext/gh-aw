@@ -51,7 +51,7 @@ const OP_FIELDS = {
     ["subject", "backing_issue", "replacement_of", "logical_contract", "execution_ref"],
   ],
   Claim: [["kind", "work_id", "claim_id", "dispatch_id", "handle", "observations"], []],
-  Completion: [["kind", "work_id", "claim_id", "dispatch_id", "claim_handle", "run_id", "run_attempt"], []],
+  Completion: [["kind", "work_id", "claim_id", "dispatch_id", "claim_handle", "run_id", "run_attempt"], ["keep_open"]],
   Result: [["kind", "work_id", "claim_id", "completion_id", "descriptor", "evidence"], []],
   DeliveryFailure: [["kind", "work_id", "claim_id", "completion_id", "reason", "disposition", "evidence"], []],
   Observation: [
@@ -183,6 +183,7 @@ function validateOperation(operation) {
   if (operation.kind === "Completion") {
     decimal(operation.run_id, "completion run ID");
     if (operation.run_attempt !== 1) throw queueError("run_binding_conflict", "Completion requires original native attempt");
+    if (Object.hasOwn(operation, "keep_open") && typeof operation.keep_open !== "boolean") throw queueError("request_invalid", "keep_open must be boolean");
   }
   if (operation.kind === "ClaimCancellation") integer(operation.retry_not_before, 0, Number.MAX_SAFE_INTEGER, "retry-not-before");
   if (operation.kind === "Control") {
@@ -230,10 +231,12 @@ function validateRequest(request, actor) {
     integer(request.parameters.max_dispatches, 1, 256, "max_dispatches");
     integer(request.parameters.max_bytes, 1, 48 * 1024, "max_bytes");
   } else if (request.kind === "finish") {
-    closed(request.parameters, ["dispatch_id", "claim_handle", "outcome"], [], "finish parameters");
+    closed(request.parameters, ["dispatch_id", "claim_handle", "outcome"], ["keep_open"], "finish parameters");
     identity(request.parameters.dispatch_id, "dispatch ID");
     identity(request.parameters.claim_handle, "Claim handle");
     if (!["completed", "cancelled"].includes(request.parameters.outcome)) throw queueError("request_invalid", "finish outcome must be completed or cancelled");
+    if (Object.hasOwn(request.parameters, "keep_open") && typeof request.parameters.keep_open !== "boolean") throw queueError("request_invalid", "keep_open must be boolean");
+    if (request.parameters.keep_open === true && request.parameters.outcome !== "completed") throw queueError("request_invalid", "keep_open requires outcome completed");
   } else if (request.kind === "checkpoint") {
     closed(request.parameters, ["prior_git_sha", "prior_tip", "history_sha256", "state_sha256"], [], "checkpoint parameters", "checkpoint_invalid");
     if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(request.parameters.prior_git_sha) || !/^[a-f0-9]{64}$/.test(request.parameters.history_sha256) || !/^[a-f0-9]{64}$/.test(request.parameters.state_sha256))
@@ -461,12 +464,18 @@ function applyLifecycle(state, operation, commit) {
         operation.run_attempt !== 1
       )
         throw queueError("claim_scope_invalid", "Completion is outside native Claim scope");
-      work.state = "completed";
+      if ((operation.keep_open === true) !== (commit.request.parameters.keep_open === true)) throw queueError("request_invalid", "Completion differs from finish keep_open intent");
+      work.state = operation.keep_open === true ? "available" : "completed";
+      state.terminalBarriers.delete(work.work_id);
       work.completion_id = commit.id;
       work.completion_at = commit.at;
       work.barrier = "pending";
       claim.state = "completed";
       claim.terminal_commit_id = commit.id;
+      if (operation.keep_open === true) {
+        claim.keep_open = true;
+        claim.barrier = "pending";
+      }
       break;
     }
     case "ClaimCancellation": {
@@ -498,7 +507,7 @@ function applyLifecycle(state, operation, commit) {
       break;
     }
     case "WorkCancellation":
-      if (!work || work.state === "completed") throw queueError("work_terminal", "completed ownership cannot be reopened or cancelled");
+      if (!work || work.state === "completed" || work.barrier === "pending") throw queueError("work_terminal", "completed ownership cannot be reopened or cancelled");
       if (operation.claim_id) {
         const selected = state.claims.get(operation.claim_id);
         if (
@@ -548,7 +557,7 @@ function applyLifecycle(state, operation, commit) {
       break;
     case "Result":
     case "DeliveryFailure": {
-      const previous = state.terminalBarriers.get(operation.work_id);
+      const previous = state.terminalBarriers.get(operation.claim_id) || (state.terminalBarriers.get(operation.work_id)?.claim_id === operation.claim_id ? state.terminalBarriers.get(operation.work_id) : undefined);
       if (previous) {
         if (canonical(previous) !== canonical(operation)) throw queueError("delivery_conflict", "terminal Result/failure descriptor and evidence are immutable");
         break;
@@ -561,6 +570,7 @@ function applyLifecycle(state, operation, commit) {
         work.barrier = "verified";
         work.result = operation.descriptor;
         work.result_commit_id = commit.id;
+        if (claim.keep_open) claim.barrier = "verified";
       } else {
         assertEvidence(state, dispatch, operation.evidence, commit.at, "terminal_run");
         const recovery = poolPolicy(state, work.pool).reconciliation;
@@ -569,8 +579,18 @@ function applyLifecycle(state, operation, commit) {
           throw queueError("evidence_invalid", "none requires positive no-effects proof; missing receipts mean unknown");
         work.barrier = "failed";
         work.disposition = operation.disposition;
+        if (claim.keep_open) claim.barrier = "failed";
       }
       state.terminalBarriers.set(operation.work_id, operation);
+      if (claim.keep_open) {
+        state.terminalBarriers.set(operation.claim_id, operation);
+        if (operation.kind === "Result") {
+          for (const field of ["claim_id", "completion_id", "completion_at", "result", "result_commit_id", "disposition"]) delete work[field];
+          work.barrier = "none";
+          work.attempts = 0;
+          work.retry_not_before = 0;
+        }
+      }
       break;
     }
     case "Dispatch": {
@@ -659,9 +679,13 @@ function finishOperations(state, request, actor, at) {
   if (!member) throw queueError("claim_scope_invalid", "finish selector is not in immutable assignment");
   bindingAuthority(state, member.claim_id, actor);
   const claim = state.claims.get(member.claim_id);
+  if (outcome === "completed" && claim.state === "completed" && (claim.keep_open === true) !== (request.parameters.keep_open === true)) throw queueError("completion_conflict", "keep_open differs from durable Completion");
   if ((outcome === "completed" && claim.state === "completed") || (outcome === "cancelled" && claim.state === "cancelled")) return [];
   const authority = claimAuthority(state, member.claim_id, actor, false);
-  if (outcome === "completed") return [{ kind: "Completion", work_id: member.work_id, claim_id: member.claim_id, dispatch_id, claim_handle, run_id: authority.dispatch.run.run_id, run_attempt: 1 }];
+  if (outcome === "completed")
+    return [
+      { kind: "Completion", work_id: member.work_id, claim_id: member.claim_id, dispatch_id, claim_handle, run_id: authority.dispatch.run.run_id, run_attempt: 1, ...(request.parameters.keep_open === true ? { keep_open: true } : {}) },
+    ];
   const retry = poolPolicy(state, authority.work.pool).retry;
   /** @type {Array<{kind: string, work_id: string, claim_id: string, reason: string, retry_not_before: number} | {kind: string, work_id: string, reason: string}>} */
   const operations = [{ kind: "ClaimCancellation", work_id: member.work_id, claim_id: member.claim_id, reason: "worker_cancelled", retry_not_before: at + retry.backoff_ms }];
@@ -726,6 +750,7 @@ function checkpointSnapshot(state, lastAt) {
           "run",
           "run_id",
           "run_attempt",
+          "keep_open",
           "evidence",
           "trace",
         ];
@@ -756,7 +781,7 @@ function checkpointSnapshot(state, lastAt) {
       }),
     };
   });
-  const completionTimes = Object.fromEntries([...state.works].filter(([, work]) => work.state === "completed").map(([id, work]) => [id, work.completion_at]));
+  const completionTimes = Object.fromEntries([...state.works].filter(([, work]) => work.completion_id).map(([id, work]) => [id, work.completion_at]));
   return {
     ...projection,
     requests: receipts,
@@ -971,7 +996,7 @@ function restoreCheckpointState(checkpoint) {
       !Number.isSafeInteger(work.attempts) ||
       work.attempts < 0 ||
       (work.state === "claimed" && (!work.claim_id || state.claims.get(work.claim_id)?.state !== "open")) ||
-      (work.state === "completed" && !Object.hasOwn(snapshot.completion_times, id))
+      (work.completion_id && !Object.hasOwn(snapshot.completion_times, id))
     )
       throw invalid();
     if (work.state !== "completed" && work.state !== "cancelled") {
@@ -986,7 +1011,30 @@ function restoreCheckpointState(checkpoint) {
         throw invalid();
     }
   }
-  for (const [id, claim] of state.claims) if (claim.claim_id !== id || !state.works.has(claim.work_id) || !state.dispatches.has(claim.dispatch_id)) throw invalid();
+  const completions = new Map();
+  for (const receipt of snapshot.requests)
+    for (const event of receipt.events)
+      if (event.kind === "Completion") {
+        if (Object.hasOwn(event, "keep_open") && typeof event.keep_open !== "boolean") throw invalid();
+        const parameters = { dispatch_id: event.dispatch_id, claim_handle: event.claim_handle, outcome: "completed", ...(event.keep_open === true ? { keep_open: true } : {}) };
+        if (receipt.kind !== "finish" || fingerprint(receipt.actor, "finish", parameters) !== receipt.fingerprint) throw invalid();
+        completions.set(event.claim_id, { event, commit_id: receipt.id });
+      }
+  for (const [id, claim] of state.claims) {
+    if (claim.claim_id !== id || !state.works.has(claim.work_id) || !state.dispatches.has(claim.dispatch_id)) throw invalid();
+    const completion = completions.get(id);
+    if (completion && ((claim.keep_open === true) !== (completion.event.keep_open === true) || claim.terminal_commit_id !== completion.commit_id)) throw invalid();
+    if (claim.keep_open) {
+      if (claim.keep_open !== true || !completion || claim.state !== "completed" || !["pending", "verified", "failed"].includes(claim.barrier)) throw invalid();
+      if (claim.barrier === "pending") {
+        const work = state.works.get(claim.work_id);
+        if (work.claim_id !== id || work.barrier !== "pending" || work.completion_id !== claim.terminal_commit_id) throw invalid();
+      } else {
+        const terminal = state.terminalBarriers.get(id);
+        if (!terminal || terminal.claim_id !== id || terminal.completion_id !== claim.terminal_commit_id || terminal.kind !== (claim.barrier === "verified" ? "Result" : "DeliveryFailure")) throw invalid();
+      }
+    }
+  }
   const checkpointStarts = new Map();
   for (const receipt of snapshot.requests)
     for (const event of receipt.events)
