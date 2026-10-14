@@ -30,6 +30,40 @@ global.core = mockCore;
 const redactScript = fs.readFileSync(path.join(__dirname, "redact_secrets.cjs"), "utf8");
 describe("redact_secrets.cjs", () => {
   let tempDir, ambientPathsSpy;
+  it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("redacts decoded OTLP passwords from artifacts and summaries using %s without setup log masks", async variable => {
+    const { main, redactFilesInDir, redactStepSummaryContent } = require("./redact_secrets.cjs");
+    const passwords = ['synthetic-otlp-"password\\one', "four"];
+    const encoded = passwords.map(password => Buffer.from(`123456:${password}`).toString("base64"));
+    const headers = encoded.map(value => `Authorization=${encodeURIComponent(`Basic ${value}`)}`);
+    vi.stubEnv(variable, variable === "GH_AW_OTLP_ENDPOINTS" ? JSON.stringify(headers.map(header => ({ url: "https://traces.example.com", headers: header }))) : headers.join(","));
+    const dir = path.join(process.env.RUNNER_TEMP, "gh-aw");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "evals.json");
+    const log = path.join(dir, "evals.log");
+    const payload = JSON.stringify({ toolOutput: passwords.join("\n"), header: headers.join(","), credentials: encoded, safe: "123456" });
+    fs.writeFileSync(file, payload);
+    fs.writeFileSync(log, [...passwords, ...encoded, ...headers].join("\n"));
+
+    await main();
+
+    const assertRedacted = text => {
+      const parsed = JSON.parse(text);
+      expect(parsed.safe).toBe("123456");
+      for (const password of passwords) expect(parsed.toolOutput).not.toContain(password);
+      for (const credential of encoded) expect(text).not.toContain(credential);
+      for (const header of headers) expect(text).not.toContain(header);
+    };
+    assertRedacted(fs.readFileSync(file, "utf8"));
+    const logContent = fs.readFileSync(log, "utf8");
+    for (const value of [...passwords, ...encoded, ...headers]) expect(logContent).not.toContain(value);
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+    fs.writeFileSync(file, payload);
+    await redactFilesInDir(dir);
+    assertRedacted(fs.readFileSync(file, "utf8"));
+    assertRedacted(redactStepSummaryContent(payload));
+    expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(passwords[0]);
+  });
   it("redacts decoded Grafana Cloud tokens even without an exact-value secret", () => {
     const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
     const token = "glc_" + Buffer.from(JSON.stringify({ example: "synthetic-test-only" })).toString("base64");
@@ -53,6 +87,7 @@ describe("redact_secrets.cjs", () => {
       mockCore.summary.addRaw && mockCore.summary.addRaw.mockClear(),
       mockCore.summary.write && mockCore.summary.write.mockClear(),
       delete process.env.GH_AW_SECRET_NAMES);
+    for (const variable of ["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"]) vi.stubEnv(variable, "");
   }),
     afterEach(() => {
       ambientPathsSpy.mockRestore();

@@ -12,6 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
+const { getOTLPSecretValues } = require("./actions_secret_masking.cjs");
 
 /**
  * @param {unknown} error
@@ -315,7 +316,7 @@ function redactStepSummaryContent(content) {
     return content;
   }
   try {
-    return redactBuiltInPatterns(content).content;
+    return redactBuiltInPatterns(redactArtifactMaskedValues(content, getOTLPSecretValues())).content;
   } catch (error) {
     core.warning(`Failed to redact step summary content: ${getErrorMessage(error)}`);
     return content;
@@ -515,7 +516,7 @@ async function main({ prepareForCustomMasking = false } = {}) {
     let filesWithRedactions = 0;
     // Collect before built-in/custom redaction or bootstrap removes mask commands.
     // Only sanitized sources cross the job boundary, never the raw mask values.
-    const masks = new Set();
+    const masks = new Set(getOTLPSecretValues());
     for (const file of files.filter(file => path.basename(file) === "agent-stdio.log")) {
       try {
         for (const value of collectAddMaskedValues(fs.readFileSync(file, "utf8"))) masks.add(value);
@@ -575,9 +576,10 @@ async function redactFilesInDir(dir) {
     const files = findFiles(dir, targetExtensions);
     if (files.length === 0) return;
 
+    const maskedValues = getOTLPSecretValues();
     let totalRedactions = 0;
     for (const file of files) {
-      totalRedactions += processFile(file, secretValues);
+      totalRedactions += processFile(file, secretValues, maskedValues);
     }
     if (totalRedactions > 0) {
       core.info(`Grader output redaction: ${totalRedactions} redaction(s) in ${dir}`);

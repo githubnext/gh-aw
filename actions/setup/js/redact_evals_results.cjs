@@ -4,6 +4,8 @@
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { main: redactWorkspaceSecrets, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
+const { getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 
 function getSecretValues() {
   const secretNames = (process.env.GH_AW_SECRET_NAMES || "")
@@ -36,7 +38,7 @@ function verifyRedaction() {
     throw new Error(`Failed to read file ${EVALS_OUTPUT_PATH}: ${String(err)}`, { cause: err });
   }
   const secretValues = getSecretValues();
-  const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount;
+  const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount + (redactArtifactMaskedValues(content, getOTLPSecretValues()) !== content ? 1 : 0);
 
   if (lingeringRedactions > 0) {
     core.setFailed(`Secret redaction verification failed for ${EVALS_OUTPUT_PATH}: ${lingeringRedactions} unredacted value(s) remain`);

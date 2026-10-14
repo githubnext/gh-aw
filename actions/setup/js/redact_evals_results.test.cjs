@@ -25,10 +25,12 @@ describe("redact_evals_results.cjs", () => {
     }
     delete process.env.GH_AW_SECRET_NAMES;
     delete process.env.SECRET_EVALS_SECRET;
+    for (const variable of ["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"]) vi.stubEnv(variable, "");
     module = await import("./redact_evals_results.cjs");
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (fs.existsSync(OUTPUT_PATH)) {
       fs.unlinkSync(OUTPUT_PATH);
     }
@@ -85,5 +87,20 @@ describe("redact_evals_results.cjs", () => {
     module.verifyRedaction();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Secret redaction verification failed"));
+  });
+
+  it("detects decoded and JSON-escaped OTLP credentials, then verifies the sanitized eval output", async () => {
+    const password = 'synthetic-otlp-"password\\tail';
+    const encoded = Buffer.from(`123456:${password}`).toString("base64");
+    vi.stubEnv("GH_AW_OTLP_ENDPOINTS", JSON.stringify([{ url: "https://traces.example.com", headers: `Authorization=Basic ${encoded}` }]));
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify({ question: password }) + "\n", "utf8");
+
+    module.verifyRedaction();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Secret redaction verification failed"));
+    mockCore.setFailed.mockClear();
+    await module.main();
+    expect(JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf8")).question).toBe("***");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });
