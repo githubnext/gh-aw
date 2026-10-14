@@ -109,6 +109,9 @@ Scoped wildcard patterns such as `owner/*` or `*/repo` MAY be used. Unrestricted
 patterns such as `*` or `*/*` MUST be rejected at compile time for literal values
 and at runtime for expression-resolved values.
 An empty selected list MUST NOT select every allowed repository.
+`allowed-repos` expressions MUST be standalone references to trusted repository
+or organization variables. Caller-controlled inputs, step/job outputs, computed
+expressions, and expressions embedded in literal text MUST fail compilation.
 
 `max-repos` MUST be a positive literal integer no greater than 9007199254740991
 and MUST require `allowed-repos`. Each runtime entry MUST default to a limit of
@@ -128,6 +131,9 @@ MUST fail closed. Runtime lists MUST reject enabled submodules at compilation an
 runtime regardless of host visibility, because repository-controlled submodule
 URLs can bypass the repository allowlist. Generated dynamic checkout actions
 MUST disable submodules. Static checkout submodule support MUST remain unchanged.
+Configured follow-up fetches MUST explicitly disable submodule recursion, even
+when local Git configuration enables it. Repository `.gitmodules` content MUST
+remain unchanged; generated checkout/finalization steps MUST NOT initialize it.
 Runtime lists MUST reject `lfs: true` at compilation and runtime regardless of
 host visibility, because repository-controlled LFS endpoints can bypass the
 repository allowlist. Generated dynamic checkout actions MUST disable LFS.
@@ -137,6 +143,11 @@ Runtime lists MUST NOT support `current: true` or `wiki: true`. GitHub App auth
 MUST specify its installation owner and repository scope explicitly. The agent
 and safe_outputs jobs MUST use identical expanded checkout paths, and the
 checkout manifest MUST record each expanded repository and default branch.
+Both jobs MUST build their own manifest after checkout finalization and before
+repository-targeting handlers run, independent of bounded workspace discovery.
+Runtime safe-output checkouts MUST use the effective PR checkout token,
+including global safe-output GitHub App authentication, while preserving
+explicit per-entry credential overrides and their configured fallbacks.
 Before agent execution, finalization MUST explicitly clean and verify the git
 configs of every validated runtime checkout and its submodules, independent of
 workspace discovery depth. Missing or unverifiable configs MUST fail closed.

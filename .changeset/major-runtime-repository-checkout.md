@@ -13,3 +13,5 @@ Runtime repository-list checkouts reject `lfs: true` at compilation and runtime,
 Runtime repository-list checkouts also reject enabled submodules at compilation and runtime for all workflow host visibilities because repository-controlled submodule URLs can bypass the allowlist using the checkout token. Omit `submodules` or set it to `false`; static checkout submodule support is unchanged.
 
 Agent checkout finalization cleans and verifies every expanded repository and submodule config using validated checkout paths, regardless of prefix depth, closing a gap in bounded credential discovery. Missing or unverifiable configs fail closed; safe-output write credentials remain available.
+
+`allowed-repos` expressions must be standalone references to repository or organization variables. Replace caller-controlled or computed policies with literal patterns or `${{ vars.ALLOWED_REPOS }}`; repository-selection expressions remain supported. Safe-output jobs build their own checkout manifests and use the effective PR checkout credentials, including global safe-output GitHub App tokens unless overridden per entry.

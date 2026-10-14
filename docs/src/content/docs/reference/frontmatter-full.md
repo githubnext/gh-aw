@@ -23700,7 +23700,9 @@ checkout:
   repo: "example-value"
 
   # Required allowlist for runtime repository-list expansion. Accepts
-  # newline-separated patterns, an array, or a GitHub Actions expression. Supports
+  # newline-separated patterns, an array, or a standalone GitHub Actions reference
+  # to a repository or organization variable (vars). Caller-controlled inputs,
+  # step/job outputs, and computed or mixed expressions are not accepted. Supports
   # scoped wildcard patterns such as owner/* or */repo, but not unrestricted
   # wildcards such as * or */*. The path is a literal prefix; repositories are
   # placed under prefix/owner/repo.

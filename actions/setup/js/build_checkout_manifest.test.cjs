@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 
 import { getSetupTimeoutMs } from "./child_process_timeouts.cjs";
-import { buildCheckoutManifest, readManifestEntriesFromEnv, resolveDefaultBranch } from "./build_checkout_manifest.cjs";
+import { buildCheckoutManifest, main, readManifestEntriesFromEnv, resolveDefaultBranch } from "./build_checkout_manifest.cjs";
+import { _resetCache as resetCheckoutManifestCache, lookupCheckout } from "./checkout_manifest.cjs";
+import { findGitDirectories, findRepoCheckout } from "./find_repo_checkout.cjs";
 
 function execGit(args, options = {}) {
   const result = spawnSync("git", args, { encoding: "utf8", ...options });
@@ -156,5 +158,45 @@ describe("build_checkout_manifest.cjs", () => {
 
     const fileContents = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     expect(fileContents).toEqual(manifest);
+  });
+
+  it("resolves runtime-plan checkouts beyond the scan depth through the manifest without scanning", async () => {
+    const workspace = createTempDir("checkout-manifest-deep-workspace-");
+    const runnerTemp = createTempDir("checkout-manifest-deep-runner-");
+    tempDirs.push(workspace, runnerTemp);
+    const checkoutPath = "one/two/three/four/five/six/targets/owner/repo";
+    const repoDir = path.join(workspace, checkoutPath);
+    fs.mkdirSync(path.join(repoDir, ".git"), { recursive: true });
+    const planDir = path.join(runnerTemp, "gh-aw", "dynamic-checkouts");
+    fs.mkdirSync(planDir, { recursive: true });
+    fs.writeFileSync(path.join(planDir, "0.json"), JSON.stringify([{ repository: "Owner/Repo", path: checkoutPath, default_branch: "main" }]));
+    setEnv("RUNNER_TEMP", runnerTemp);
+    setEnv("GITHUB_WORKSPACE", workspace);
+    setEnv("GH_AW_CHECKOUT_MANIFEST", undefined);
+    setEnv("GH_AW_CHECKOUT_MANIFEST_COUNT", "0");
+    setEnv("GH_AW_DYNAMIC_CHECKOUT_INDEXES", "0");
+
+    expect(findGitDirectories(workspace)).not.toContain(repoDir);
+    await main();
+    resetCheckoutManifestCache();
+    const scan = vi.spyOn(fs, "readdirSync").mockImplementation(() => {
+      throw new Error("Manifest lookup must not scan the workspace");
+    });
+    try {
+      expect(findRepoCheckout("owner/repo", workspace)).toEqual({
+        success: true,
+        path: repoDir,
+        repoSlug: "owner/repo",
+      });
+      expect(lookupCheckout("owner/repo")).toEqual({
+        repository: "Owner/Repo",
+        path: checkoutPath,
+        default_branch: "main",
+      });
+      expect(scan).not.toHaveBeenCalled();
+    } finally {
+      scan.mockRestore();
+      resetCheckoutManifestCache();
+    }
   });
 });

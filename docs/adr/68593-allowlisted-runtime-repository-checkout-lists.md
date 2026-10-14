@@ -14,6 +14,8 @@ Scheduled agentic workers need to operate over a set of repositories that change
 
 We will support runtime repository lists by accepting a newline-separated set of repository slugs from a GitHub Actions expression in `checkout.repository` (or its new `repo` alias), and we will require that any such expression be paired with a mandatory `allowed-repos` policy and a literal, non-root `path` prefix — with a single exemption for the standalone `${{ github.repository }}` expression, which keeps today's root-checkout behaviour. Selections are validated as a batch before any checkout runs: canonical names are resolved through the API, scoped wildcard patterns (`owner/*`, `*/repo`) filter the batch, unrestricted `*` policies and wildcards inside selectors are rejected, and public workflow repositories may not select private or internal targets — unverifiable metadata fails closed. Each selected repository is expanded to `prefix/owner/repo`, recorded in the shared checkout manifest, and `lfs: true` and enabled submodules are rejected for runtime lists at both compile and run time because repository-controlled endpoints could otherwise exfiltrate the checkout token. Agent finalization cleans and verifies each expanded checkout's git config (and nested submodule configs) using the validated paths rather than bounded filesystem discovery, and checkout preparation failures are propagated into the existing agent-failure-issue reporting path.
 
+The policy may contain literal patterns or standalone references to repository or organization variables. Caller-controlled inputs and computed expressions are not accepted as policy sources: a caller must not be able to authorize its own repository selections. Both the agent and safe-output jobs build manifests from their finalized checkouts, and dynamic safe-output authentication follows the effective PR checkout token while preserving per-entry overrides.
+
 ### Alternatives Considered
 
 #### Alternative 1: Allow runtime repository expressions without a mandatory allowlist
@@ -32,7 +34,7 @@ A flat layout would avoid introducing a mandatory `path` prefix and the associat
 
 #### Positive
 - Scheduled workers can process a changing repository set without recompilation, while the compiled workflow still states the full policy boundary via `allowed-repos`.
-- Repository selection is fail-closed: unresolvable metadata, visibility mismatches, wildcard selectors, and unrestricted policies all stop the job before any token is used.
+- Repository selection is fail-closed: unresolvable metadata, visibility mismatches, wildcard selectors, and unrestricted policies all stop the job before any selected checkout runs.
 - Credential cleanup is driven by validated checkout paths and explicitly verified, closing a deep-prefix bypass that bounded filesystem discovery missed (including with `force-clean-git-credentials: true`).
 - Checkout preparation failures reuse the existing agent-failure-issue reporting, so operators see them without raw dependency diagnostics being published.
 

@@ -197,6 +197,7 @@ async function prepareCheckouts({ github, getOctokit }, token) {
       "fetch-depth": "${{ env.GH_AW_DYNAMIC_FETCH_DEPTH }}",
       "sparse-checkout": "${{ env.GH_AW_DYNAMIC_SPARSE }}",
       filter: process.env.GH_AW_DYNAMIC_SPARSE ? "blob:limit=1073741824" : "",
+      // Do not initialize repository-controlled .gitmodules; later fetches also disable recursion.
       submodules: false,
       lfs: false,
       "persist-credentials": "${{ env.GH_AW_DYNAMIC_PERSIST }}",
@@ -330,7 +331,7 @@ async function finish(options = {}) {
         if (ref === "refs/pulls/open/*") return "+refs/pull/*/head:refs/remotes/origin/pull/*/head";
         return `+refs/heads/${ref}:refs/remotes/origin/${ref}`;
       });
-      run(["fetch", "origin", ...(depth ? [`--depth=${depth}`] : []), ...refspecs], true);
+      run(["fetch", "--no-recurse-submodules", "origin", ...(depth ? [`--depth=${depth}`] : []), ...refspecs], true);
     }
   }
   const actionDir = workspacePath(config.workspace, `.gh-aw/checkouts/${config.index}`);

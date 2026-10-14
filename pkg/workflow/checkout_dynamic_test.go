@@ -360,7 +360,7 @@ func TestRuntimeCheckoutAllowedRepoPatterns(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "must not allow every repository")
 	}
-	for _, value := range []any{"org/*", "*/repo", "org/repo", []any{"org/*", "*/repo"}, "${{ inputs.allowed }}"} {
+	for _, value := range []any{"org/*", "*/repo", "org/repo", []any{"org/*", "*/repo"}, "${{ vars.ALLOWED_REPOS }}"} {
 		_, err := checkoutConfigFromMap(map[string]any{
 			"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": value,
 		})
@@ -378,14 +378,11 @@ on:
       repos:
         type: string
         required: true
-      allowed:
-        type: string
-        required: true
 engine: copilot
 checkout:
   - repository: ${{ inputs.repos }}
     path: targets
-    allowed-repos: ${{ inputs.allowed }}
+    allowed-repos: ${{ vars.ALLOWED_REPOS }}
 safe-outputs:
   noop:
     report-as-issue: false
@@ -396,6 +393,6 @@ Process the selected repositories.
 	lock, err := os.ReadFile(filepath.Join(dir, "worker.lock.yml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(lock), `GH_AW_DYNAMIC_REPOSITORIES: "${{ inputs.repos }}"`)
-	assert.Contains(t, string(lock), `GH_AW_DYNAMIC_ALLOWED_REPOS: "${{ inputs.allowed }}"`)
+	assert.Contains(t, string(lock), `GH_AW_DYNAMIC_ALLOWED_REPOS: "${{ vars.ALLOWED_REPOS }}"`)
 	assert.Contains(t, string(lock), "GH_AW_CHECKOUT_ERROR: ${{ needs.agent.outputs.checkout_error }}")
 }

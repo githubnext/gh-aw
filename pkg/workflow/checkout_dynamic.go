@@ -3,15 +3,22 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const defaultCheckoutMaxRepos = 10
 
+// Only direct configuration-variable references establish trusted policy provenance.
+var checkoutAllowedReposVariablePattern = regexp.MustCompile(`^\$\{\{\s*(?i:vars)(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*'[A-Za-z_][A-Za-z0-9_]*'\s*\])\s*\}\}$`)
+
 func validateCheckoutAllowedRepos(values []string) error {
 	for _, value := range values {
-		if strings.Contains(value, "${{") {
+		if hasExpressionMarker(value) {
+			if !checkoutAllowedReposVariablePattern.MatchString(strings.TrimSpace(value)) {
+				return errors.New("checkout.allowed-repos expressions must be a direct repository or organization variable reference such as ${{ vars.ALLOWED_REPOS }}; use literal scoped patterns or a trusted configuration variable instead of caller-controlled or composite expressions")
+			}
 			continue
 		}
 		for _, pattern := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == '\n' || r == '\r' }) {

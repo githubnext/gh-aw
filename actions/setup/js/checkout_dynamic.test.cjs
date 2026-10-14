@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
-import os from "os";
 import path from "path";
 import { execFileSync } from "child_process";
 import { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath } from "./checkout_dynamic.cjs";
@@ -19,7 +18,7 @@ describe("runtime repository checkout", () => {
   });
 
   beforeEach(() => {
-    temp = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-checkout-"));
+    temp = fs.mkdtempSync(path.join(__dirname, ".gh-aw-checkout-"));
     workspace = path.join(temp, "workspace");
     runnerTemp = path.join(temp, "temp");
     fs.mkdirSync(workspace);
@@ -312,6 +311,7 @@ describe("runtime repository checkout", () => {
       "-C",
       path.join(fs.realpathSync(workspace), "targets/org/a"),
       "fetch",
+      "--no-recurse-submodules",
       "origin",
       "+refs/heads/main:refs/remotes/origin/main",
       "+refs/heads/*:refs/remotes/origin/*",
@@ -462,5 +462,47 @@ describe("runtime repository checkout", () => {
     expect(git(target, ["rev-parse", "origin/feature"])).toBe(git(source, ["rev-parse", "feature"]));
     expect(git(target, ["config", "--local", "--list"])).not.toMatch(/promisor|partialclonefilter|extraheader|secret-token/);
     expect(fs.existsSync(path.join(workspace, ".gh-aw/checkouts/0"))).toBe(false);
+  }, 30000);
+
+  it("never fetches repository-controlled .gitmodules remotes during finalization, even with recursive fetch configured", async () => {
+    vi.stubEnv("GIT_CONFIG_GLOBAL", "/dev/null");
+    vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    const [entry] = await prepare(runtime);
+    const action = JSON.parse(fs.readFileSync(path.join(workspace, ".gh-aw/checkouts/0/action.yml"), "utf8"));
+    expect(action.runs.steps[0].with.submodules).toBe(false);
+    const git = (cwd, args) => execFileSync("git", ["-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const commit = cwd => git(cwd, ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "Fixture"]);
+    const outside = path.join(temp, "non-allowlisted");
+    const source = path.join(temp, "source");
+    for (const dir of [outside, source]) {
+      fs.mkdirSync(dir);
+      git(dir, ["init", "--initial-branch=main"]);
+    }
+    commit(outside);
+    const modules = `[submodule "outside"]\n\tpath = outside\n\turl = file://${outside}\n`;
+    fs.writeFileSync(path.join(source, ".gitmodules"), modules);
+    git(source, ["add", ".gitmodules"]);
+    git(source, ["update-index", "--add", "--cacheinfo", `160000,${git(outside, ["rev-parse", "HEAD"])},outside`]);
+    commit(source);
+    const target = path.join(workspace, entry.path);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    execFileSync("git", ["clone", "--no-recurse-submodules", `file://${source}`, target], { stdio: ["ignore", "pipe", "pipe"] });
+    commit(outside);
+    const outsideHead = git(outside, ["rev-parse", "HEAD"]);
+    git(source, ["checkout", "-b", "feature"]);
+    git(source, ["update-index", "--cacheinfo", `160000,${outsideHead},outside`]);
+    commit(source);
+    git(target, ["config", "fetch.recurseSubmodules", "true"]);
+    vi.stubEnv("GH_AW_DYNAMIC_FETCH_COUNT", "1");
+    vi.stubEnv("GH_AW_DYNAMIC_FETCH_0", "feature");
+    const runGit = vi.fn((args, options) => execFileSync("git", args, options));
+    await finish({ runGit });
+    expect(runGit).toHaveBeenCalledExactlyOnceWith(["-C", fs.realpathSync(target), "fetch", "--no-recurse-submodules", "origin", "--depth=1", "+refs/heads/feature:refs/remotes/origin/feature"], expect.any(Object));
+    expect(git(target, ["rev-parse", "origin/feature"])).toBe(git(source, ["rev-parse", "feature"]));
+    expect(fs.readFileSync(path.join(target, ".gitmodules"), "utf8")).toBe(modules);
+    expect(fs.existsSync(path.join(target, ".git/modules"))).toBe(false);
+    expect(fs.existsSync(path.join(target, "outside/.git"))).toBe(false);
+    expect(() => git(target, ["cat-file", "-e", outsideHead])).toThrow();
   }, 30000);
 });

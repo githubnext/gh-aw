@@ -130,7 +130,11 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 			continue
 		}
 		if len(entry.allowedRepos) > 0 {
-			lines = append(lines, generateDynamicCheckoutSteps(entry, checkoutIndex, cm.keepCredentialsForPush, cm.pushToken, getActionPin)...)
+			pushToken := cm.dynamicPushToken
+			if pushToken == "" {
+				pushToken = cm.pushToken
+			}
+			lines = append(lines, generateDynamicCheckoutSteps(entry, checkoutIndex, cm.keepCredentialsForPush, pushToken, getActionPin)...)
 			continue
 		}
 		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, cm.pushToken, getActionPin)...)
