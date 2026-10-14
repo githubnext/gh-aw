@@ -13,6 +13,9 @@ import { main as snapshotQueue } from "./write_work_queue_snapshot.cjs";
 import { fakeGitHub } from "./work_queue_store_checks.cjs";
 import { queueFixture, DISPATCHER, REF, REPOSITORY } from "./work_queue_lifecycle.test_helpers.cjs";
 import { readWorkQueuePolicyConfig } from "./work_queue_policy_config.cjs";
+import { bindWorkerAssignment } from "./work_queue_binding.cjs";
+import { authorizeWorkerClaim, reconcileWorkerClaim } from "./finish_work_queue_claim.cjs";
+import { reconcileDispatch } from "./work_queue_reconciler.cjs";
 
 const repository = "owner/repo";
 const planOptions = { date: "2026-10-08", repository, repositoryId: "7" };
@@ -166,7 +169,7 @@ describe("ESLint factory producer and dispatcher", () => {
     expect(controls[1]).not.toContain("secrets.GH_AW_GITHUB_TOKEN");
   });
 
-  it("bootstraps an absent queue and launches all three workers with only the Actions token without duplicate launches", async () => {
+  it.each(["completed", "cancelled"])("bootstraps, launches, executes and finishes all three workers (%s) without duplicate launches", async outcome => {
     const directory = path.resolve(`.gh-aw-eslint-dispatch-${randomUUID()}`);
     fs.mkdirSync(directory);
     const fixture = queueFixture({ granted: false, workerPrincipal: "12" });
@@ -291,6 +294,49 @@ describe("ESLint factory producer and dispatcher", () => {
       expect(posts).toHaveLength(3);
       expect(tagCreations).toHaveLength(1);
       expect(replayTransactions(fake.log()).works.size).toBe(3);
+      for (const [index, post] of posts.entries()) {
+        const assignment = JSON.parse(post.inputs.work_queue_assignment);
+        const member = assignment.claims[0];
+        const runId = String(42 + index);
+        const workerContext = {
+          ...fixture.workerContext,
+          runId,
+          payload: { repository: { id: 7 }, inputs: post.inputs },
+        };
+        const finishIntentPath = path.join(directory, `${assignment.worker_profile}.finish.jsonl`);
+        const worker = {
+          ...options,
+          context: workerContext,
+          workflowRef: `${REPOSITORY}/.github/workflows/${assignment.worker_profile}.lock.yml@${REF}`,
+          assignment,
+          logicalContract: policy.pools.default.profiles[assignment.worker_profile].logical_contract,
+          role: "worker",
+          requireAssignment: true,
+          finishIntentPath,
+        };
+        expect((await bindWorkerAssignment(worker)).binding.run_id).toBe(runId);
+        expect(await authorizeWorkerClaim({ ...worker, claim_handle: member.handle, requireCompletion: false })).toMatchObject({ authorized: true, state: "open", work_id: member.work_id });
+        expect(await authorizeWorkerClaim({ ...worker, claim_handle: member.handle })).toMatchObject({ authorized: false, state: "open" });
+        fs.writeFileSync(finishIntentPath, JSON.stringify({ version: 3, kind: "finish", intent_id: `factory-finish:${assignment.worker_profile}`, claim_handle: member.handle, parameters: { outcome } }) + "\n");
+        const finished = await reconcileWorkerClaim(worker);
+        expect(finished.claims[member.handle]).toMatchObject({ state: outcome, authorized: outcome === "completed" });
+        expect(await authorizeWorkerClaim({ ...worker, claim_handle: member.handle })).toMatchObject({ authorized: outcome === "completed", state: outcome });
+        const updates = fake.state.updates;
+        expect((await reconcileWorkerClaim(worker)).claims[member.handle].state).toBe(outcome);
+        expect(fake.state.updates).toBe(updates);
+        expect(posts).toHaveLength(3);
+        const work = replayTransactions(fake.log()).works.get(member.work_id);
+        expect(work.barrier).toBe(outcome === "completed" ? "pending" : "none");
+        expect(
+          fake
+            .log()
+            .flatMap(transaction => transaction.operations)
+            .some(operation => operation.kind === "Result")
+        ).toBe(false);
+        runs.set(runId, { ...runs.get(runId), status: "completed", conclusion: "success" });
+        expect(await reconcileDispatch({ ...options, assignment })).toMatchObject({ released: true });
+      }
+      expect([...replayTransactions(fake.log()).dispatches.values()].every(dispatch => dispatch.released)).toBe(true);
       expect(failures).toEqual([]);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
