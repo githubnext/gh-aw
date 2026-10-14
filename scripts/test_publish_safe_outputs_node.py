@@ -129,9 +129,11 @@ class PublishSafeOutputsNodeTests(unittest.TestCase):
             tags,
             [
                 "${{ env.IMAGE_NAME }}:latest",
-                "${{ env.IMAGE_NAME }}:node-lts-alpine-"
-                "${{ steps.upstream.outputs.short_digest }}-"
-                "${{ github.run_id }}-${{ github.run_attempt }}",
+                (
+                    "${{ env.IMAGE_NAME }}:node-lts-alpine-"
+                    + "${{ steps.upstream.outputs.short_digest }}-"
+                    + "${{ github.run_id }}-${{ github.run_attempt }}"
+                ),
             ],
         )
 
