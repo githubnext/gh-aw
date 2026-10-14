@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-10-14
 metadata:
-  seoDescription: "Architecture Guardian, a gh-aw workflow, scanned five straight weekday runs for oversized files and import cycles, and stayed silent when there was nothing to report."
+  seoDescription: "Architecture Guardian scanned five straight weekday runs for oversized files and import cycles, and stayed silent when there was nothing to report."
   linkedPostText: "Architecture Guardian: the quiet watchdog"
 ---
 
