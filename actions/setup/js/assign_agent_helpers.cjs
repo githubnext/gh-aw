@@ -38,12 +38,16 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
 
 const REASONING_EFFORT_VALUES = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
 
-function resolveReasoningEffort(reasoningEffort) {
+function resolveReasoningEffort(reasoningEffort, model = null) {
   if (reasoningEffort == null) return null;
 
   const normalizedEffort = typeof reasoningEffort === "string" ? reasoningEffort.trim().toLowerCase() : null;
   if (normalizedEffort == null || !REASONING_EFFORT_VALUES.has(normalizedEffort)) {
     core.warning(`Ignoring reasoning-effort: expected one of ${[...REASONING_EFFORT_VALUES].join(", ")}.`);
+    return null;
+  }
+  if (model === "gemini-3.8-flash") {
+    core.warning(`Ignoring reasoning-effort for model '${model}': reasoning effort is not supported. The model default will be used.`);
     return null;
   }
   return normalizedEffort;
@@ -425,7 +429,7 @@ async function assignAgentToIssue(
     if (customInstructions != null) agentAssignment.custom_instructions = customInstructions;
     if (customAgent != null) agentAssignment.custom_agent = customAgent;
     if (model != null) agentAssignment.model = model;
-    const validReasoningEffort = resolveReasoningEffort(reasoningEffort);
+    const validReasoningEffort = resolveReasoningEffort(reasoningEffort, model);
     if (validReasoningEffort != null) agentAssignment.reasoning_effort = validReasoningEffort;
     if (Object.keys(agentAssignment).length > 0) assignParams.agent_assignment = agentAssignment;
     await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);

@@ -470,6 +470,19 @@ describe("assign_to_agent", () => {
     expect(mockCore.summary.addRaw.mock.calls[0][0]).toContain("Reasoning Effort:** high");
   });
 
+  it("should omit unsupported reasoning effort in staged previews", async () => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+    process.env.GH_AW_AGENT_REASONING_EFFORT = "medium";
+    process.env.GH_AW_AGENT_MODEL = "gemini-3.8-flash";
+    setAgentOutput({ items: [{ type: "assign_to_agent", pull_number: 42, agent: "copilot" }], errors: [] });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    expect(mockCore.summary.addRaw.mock.calls[0][0]).toContain("Model:** gemini-3.8-flash");
+    expect(mockCore.summary.addRaw.mock.calls[0][0]).not.toContain("Reasoning Effort:");
+    expect(mockGithub.request).not.toHaveBeenCalled();
+  });
+
   it("should use default agent when not specified", async () => {
     process.env.GH_AW_AGENT_DEFAULT = "copilot";
     setAgentOutput({

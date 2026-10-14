@@ -547,6 +547,33 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledOnce();
     });
 
+    it.each(["none", "minimal", "low", "medium", "high", "xhigh"])("should omit %s reasoning effort for gemini-3.8-flash assignments", async effort => {
+      const mockRequest = vi.fn().mockResolvedValue({ status: 201 });
+      const restClient = { request: mockRequest };
+
+      const result = await assignAgentToIssue("id", "copilot-swe-agent[bot]", [], "copilot", null, "gemini-3.8-flash", "my-agent", "Follow the guidelines.", "main", restClient, taskContext, "otherorg/otherrepo", {}, true, effort);
+
+      expect(result).toBe(true);
+      expect(mockRequest).toHaveBeenCalledWith(
+        "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
+        expect.objectContaining({
+          agent_assignment: {
+            target_repo: "otherorg/otherrepo",
+            base_branch: "main",
+            custom_instructions: "Follow the guidelines.",
+            custom_agent: "my-agent",
+            model: "gemini-3.8-flash",
+          },
+        })
+      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("gemini-3.8-flash"));
+    });
+
+    it("should not warn when reasoning effort is unset for gemini-3.8-flash", () => {
+      expect(resolveReasoningEffort(null, "gemini-3.8-flash")).toBeNull();
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
     it("should forward reasoning effort without enforcing model capabilities", async () => {
       const mockRequest = vi.fn().mockResolvedValue({ status: 201 });
       const restClient = { request: mockRequest };
