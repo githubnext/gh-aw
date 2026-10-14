@@ -6,7 +6,7 @@ const { boundedBytes } = require("./work_queue_limits.cjs");
 const { decimal, poolPolicy, validateRequestRole, validateSubmissionEntitlement, workerContinuationAuthority } = require("./work_queue_policy.cjs");
 const { externalVertex, indexesFor } = require("./work_queue_indexes.cjs");
 const { admissionProfile } = require("./work_queue_deployment.cjs");
-const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 function nodeId(graph_id, node_key) {
   return digest({ graph_id, node_key });

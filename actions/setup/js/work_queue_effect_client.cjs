@@ -5,7 +5,7 @@ const log = require("./work_queue_logging.cjs").createWorkQueueLogger("effects")
 const { assertClaimAuthorized, currentClaimHandle, recordClaimEffect, claimIdentity, assertClaimIdentity, currentClaimResourceEffects } = require("./work_queue_claim_scope.cjs");
 const { canonical, digest, parseStrictJSON } = require("./work_queue_codec.cjs");
 const { canonicalResourceTarget, nativeDecimalIdentity, resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
-const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const READ_METHODS = new Set(["get", "list", "getSarif", "getAnalysis", "getComment", "getCommit", "getRef", "getTree", "getBlob", "getArtifact", "getBranch", "getByUsername", "getWorkflowRun", "getWorkflowRunAttempt"]);
 /** @type {WeakMap<object, {identity: ReturnType<typeof claimIdentity>, options: Record<string, unknown>}>} */

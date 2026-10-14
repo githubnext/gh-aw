@@ -2,6 +2,7 @@
 "use strict";
 
 const { canonical, queueError } = require("./work_queue_codec.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const RESOURCE_FIELDS = new Set(["repository", "kind", "host", "repository_id", "resource_id", "number", "comment_id", "run_id", "ref", "path"]);
 const DECIMAL_FIELDS = new Set(["repository_id", "resource_id", "number", "comment_id", "run_id"]);
@@ -11,14 +12,6 @@ const DECIMAL_FIELDS = new Set(["repository_id", "resource_id", "number", "comme
 
 function scopeError(message) {
   return queueError("claim_scope_invalid", message);
-}
-
-function expectedGitHubHost() {
-  try {
-    return new URL(process.env.GITHUB_SERVER_URL || "https://github.com").hostname;
-  } catch (cause) {
-    throw new Error("Work queue requires a valid GITHUB_SERVER_URL", { cause });
-  }
 }
 
 /**

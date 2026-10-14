@@ -4,7 +4,7 @@
 const { queueError } = require("./work_queue_codec.cjs");
 const { nativeId } = require("./work_queue_native.cjs");
 const { withRetry } = require("./error_recovery.cjs");
-const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const MAX_PROJECTION_TARGETS = 25;
 const MAX_PROJECTION_MUTATIONS = 50;

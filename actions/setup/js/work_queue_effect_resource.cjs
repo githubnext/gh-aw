@@ -1,7 +1,8 @@
 // @ts-check
 "use strict";
 
-const { expectedGitHubHost, validateEffectResource } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
+const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
 
 const DECIMALS = new Set(["repository_id", "resource_id", "number", "comment_id", "run_id"]);
 const FIELDS = new Set(["repository", "kind", "host", ...DECIMALS, "ref", "path"]);

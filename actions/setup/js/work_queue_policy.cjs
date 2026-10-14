@@ -4,7 +4,7 @@
 const { canonical, closed, identity, integer, queueError } = require("./work_queue_codec.cjs");
 const { DEFAULT_LIMITS, validateLimits } = require("./work_queue_limits.cjs");
 const { tickScale } = require("./work_queue_scheduler.cjs");
-const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const ROLES = new Set(["administrator", "producer", "dispatcher", "worker", "reconciler", "projector"]);
 const ROLE_KINDS = {
