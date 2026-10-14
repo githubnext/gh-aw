@@ -17563,17 +17563,6 @@ safe-outputs:
     samples:
       {}
 
-    # All of these labels must be present on the target item for this operation to
-    # proceed
-    # (optional)
-    required-labels: []
-      # Array of strings
-
-    # The target item's title must start with this prefix for this operation to
-    # proceed
-    # (optional)
-    required-title-prefix: "example-value"
-
   # Enable AI agents to set or clear the type of GitHub issues. Use an empty string
   # to clear the current type.
   # (optional)

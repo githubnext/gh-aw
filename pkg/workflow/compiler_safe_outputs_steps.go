@@ -178,7 +178,7 @@ func (c *Compiler) addAppTokenMintingSteps(data *WorkflowData) []string {
 		if handlerApp == nil || handler.PermissionBuilder == nil {
 			continue
 		}
-		handlerPermissions := handler.PermissionBuilder(data.SafeOutputs)
+		handlerPermissions := computeSafeOutputHandlerPermissions(data.SafeOutputs, handler)
 		if handlerPermissions == nil {
 			continue
 		}
