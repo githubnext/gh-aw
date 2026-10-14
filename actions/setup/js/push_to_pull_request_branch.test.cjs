@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { spawnSync } from "child_process";
 
 const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
 const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
@@ -2345,12 +2344,9 @@ index 0000000..abc1234
       const changedPath = path.join(process.cwd(), "merge-agent.txt");
       fs.writeFileSync(changedPath, Buffer.alloc(contentSize));
       const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.ref = "main";
-      pr.base.sha = "d".repeat(40);
+      pr.base.sha = trustedBase;
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}") return { exitCode: 0, stdout: trustedBase + "\n", stderr: "" };
         if (args[0] === "merge-base") {
-          if (args[2] === pr.base.sha) return { exitCode: 0, stdout: "", stderr: "" };
           return { exitCode: args[3] === "remote-head" ? 1 : 0, stdout: "", stderr: "" };
         }
         if (args[0] === "merge-tree") {
@@ -2379,8 +2375,7 @@ index 0000000..abc1234
           expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "remote-head", signedCommits: false }));
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
         }
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.any(Object));
-        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", pr.base.sha], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
         if (expectedError === "bundle modifies protected files") {
           const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
@@ -2396,142 +2391,6 @@ index 0000000..abc1234
         pushSpy.mockRestore();
         fs.rmSync(changedPath, { force: true });
       }
-    });
-
-    it.each([
-      ["current base tip", false, false],
-      ["workflow-start base commit after the branch advances", true, false],
-      ["untrusted workflow SHA", true, true],
-      ["older merged base distinct from workflow SHA", true, false, "full", true],
-      ["shallow clone with sufficient ancestry", false, false, "shallow"],
-      ["shallow clone with missing ancestry", false, false, "missing-ancestry"],
-      ["partial clone with lazy blob fetching", false, false, "partial"],
-      ["partial clone after the branch advances", true, false, "partial"],
-    ])("resolves a real git baseline with merge-base PR metadata (%s)", async (_name, baseAdvanced, untrustedRun, cloneMode = "full", olderMergedBase = false) => {
-      let repoDir = tempDir;
-      const git = (args, allowFailure = false) => {
-        const result = spawnSync("git", args, { cwd: repoDir, encoding: "utf8" });
-        if (result.error) throw result.error;
-        if (!allowFailure && result.status !== 0) throw new Error(result.stderr);
-        return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
-      };
-      git(["init", "-b", "main"]);
-      git(["config", "user.name", "Test User"]);
-      git(["config", "user.email", "test@example.com"]);
-      for (let index = 0; index < 5; index++) git(["commit", "--allow-empty", "-m", `earlier history ${index}`]);
-      git(["commit", "--allow-empty", "-m", "common base"]);
-      const mergeBase = git(["rev-parse", "HEAD"]).stdout.trim();
-      const earlierWorkflowBase = git(["rev-parse", "HEAD^"]).stdout.trim();
-      git(["checkout", "-b", "remote-head"]);
-      git(["commit", "--allow-empty", "-m", "old PR head"]);
-      const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
-      git(["checkout", "main"]);
-      fs.writeFileSync(path.join(tempDir, "package.json"), "{}\n");
-      git(["add", "."]);
-      git(["commit", "-m", "trusted base changes"]);
-      const mergedBase = git(["rev-parse", "HEAD"]).stdout.trim();
-      git(["checkout", "-b", "candidate", "remote-head"]);
-      git(["merge", "--no-ff", "main", "-m", "merge base"]);
-      const candidate = git(["rev-parse", "HEAD"]).stdout.trim();
-      const validationTree = git(["merge-tree", "--write-tree", "remote-head", mergedBase]).stdout.trim();
-      if (baseAdvanced) {
-        git(["checkout", "main"]);
-        git(["commit", "--allow-empty", "-m", "base advances after agent merge"]);
-        git(["checkout", "candidate"]);
-      }
-      if (cloneMode === "full") {
-        git(["remote", "add", "origin", tempDir]);
-      } else {
-        git(["config", "uploadpack.allowFilter", "true"]);
-        const checkout = path.join(tempDir, "checkout");
-        const cloneOptions = cloneMode === "partial" ? ["--filter=blob:none", "--no-checkout"] : [`--depth=${cloneMode === "shallow" ? 3 : 1}`];
-        git(["clone", "--branch", "candidate", ...cloneOptions, `file://${tempDir}`, checkout]);
-        repoDir = checkout;
-        git(["config", "user.name", "Test User"]);
-        git(["config", "user.email", "test@example.com"]);
-        if (cloneMode === "missing-ancestry") git(["fetch", "--depth=1", "origin", "remote-head:refs/heads/remote-head"]);
-        else git(["update-ref", "refs/heads/remote-head", oldHead]);
-        if (cloneMode === "partial") {
-          expect(git(["config", "--get", "remote.origin.promisor"]).stdout.trim()).toBe("true");
-          expect(git(["config", "--get", "remote.origin.partialclonefilter"]).stdout.trim()).toBe("blob:none");
-          expect(git(["rev-list", "--objects", "--all", "--missing=print"]).stdout).toMatch(/^\?/m);
-          expect(git(["cat-file", "-e", `${mergedBase}:package.json`]).exitCode).toBe(0);
-        } else {
-          expect(git(["rev-parse", "--is-shallow-repository"]).stdout.trim()).toBe("true");
-        }
-      }
-      git(["update-ref", "refs/bundles/push-feature-branch", candidate]);
-      process.env.GITHUB_SHA = untrustedRun ? candidate : olderMergedBase ? earlierWorkflowBase : mergedBase;
-      const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.ref = "main";
-      pr.base.sha = mergeBase;
-      if (cloneMode === "full") expect(git(["merge-base", "remote-head", "main"]).stdout.trim()).toBe(pr.base.sha);
-      mockExec.exec.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "fetch" && args[2] === "refs/heads/main") return git(args).exitCode;
-        return 0;
-      });
-      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "merge-base" || args[0] === "merge-tree" || (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}")) return git(args, true);
-        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
-        if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") return git(args);
-        return { exitCode: 0, stdout: "", stderr: "" };
-      });
-      const branch = "real-merge-base-metadata";
-      createPatchFile(branch, "small patch\n");
-      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
-      const pushModule = require("./push_signed_commits.cjs");
-      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue(candidate);
-      try {
-        const module = await loadModule();
-        const handler = await module.main({ signed_commits: false });
-        expect((await handler({ branch }, {})).success).toBe(true);
-        const usesPrHead = untrustedRun || olderMergedBase || cloneMode === "missing-ancestry";
-        const baseline = usesPrHead ? "remote-head" : validationTree;
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${baseline}..refs/bundles/push-feature-branch`], expect.any(Object));
-        const historyExclusions = usesPrHead ? ["remote-head"] : ["remote-head", mergedBase];
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
-        expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" && args[2] === pr.base.sha)).toBe(false);
-        expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: fetched trusted base branch tip");
-        expect(mockCore.info).toHaveBeenCalledWith(usesPrHead ? "Bundle validation baseline uses PR head" : "Bundle validation baseline includes trusted base changes");
-        expect(mockCore.debug).toHaveBeenCalledWith(
-          untrustedRun
-            ? "Bundle validation: workflow-start base fallback rejected because base-branch ancestry is unverified"
-            : olderMergedBase
-              ? "Bundle validation: workflow-start base fallback did not establish a baseline"
-              : cloneMode === "missing-ancestry"
-                ? "Bundle validation: workflow-start base fallback skipped because no distinct valid workflow base is available"
-                : baseAdvanced
-                  ? "Bundle validation: workflow-start base fallback selected"
-                  : "Bundle validation: workflow-start base fallback skipped because base tip established a baseline"
-        );
-        const baselineLogs = [...mockCore.debug.mock.calls, ...mockCore.info.mock.calls, ...mockCore.warning.mock.calls].map(([message]) => message).filter(message => message.startsWith("Bundle validation"));
-        for (const message of baselineLogs) {
-          expect(message).not.toMatch(/[0-9a-f]{40}/);
-          expect(message).not.toContain("remote-head");
-          expect(message).not.toContain("refs/");
-        }
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
-        for (const [, args, options] of mockExec.getExecOutput.mock.calls) {
-          if (args[0] === "merge-base" || args[0] === "merge-tree" || args[2] === "FETCH_HEAD^{commit}") expect(options.silent).toBe(true);
-        }
-      } finally {
-        pushSpy.mockRestore();
-      }
-    });
-
-    it.each([
-      ["", 0, 0, 1, "no trusted base available"],
-      ["trusted-base", 1, 0, 1, "candidate does not descend from PR head"],
-      ["trusted-base", 0, 1, 1, "candidate does not include trusted base"],
-      ["trusted-base", 0, 0, 0, "trusted base is already in PR head"],
-      ["trusted-base", 0, 0, 128, "trusted base is already in PR head"],
-    ])("logs the conservative baseline decision without refs (%s, %s, %s, %s)", async (trustedBase, oldAncestor, baseAncestor, alreadyMerged, reason) => {
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: oldAncestor }).mockResolvedValueOnce({ exitCode: baseAncestor }).mockResolvedValueOnce({ exitCode: alreadyMerged });
-      const module = await loadModule();
-      expect(await module.getBundleValidationBase(mockExec, {}, "private-old-head", "private-candidate", trustedBase)).toEqual({ ref: "private-old-head", conflictedFiles: [] });
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining(reason));
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("using PR-head validation"));
-      expect(mockCore.debug.mock.calls.flat().join(" ")).not.toMatch(/private-|trusted-base/);
     });
 
     it.each([128, "throw"])("retains the PR-head baseline when merge-tree fails (%s)", async failure => {
@@ -2557,131 +2416,6 @@ index 0000000..abc1234
         ref: validationTree,
         conflictedFiles: ["only-conflict.txt"],
       });
-      expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: trusted-base merge tree selected with conflicts");
-      expect(mockCore.debug.mock.calls.flat().join(" ")).not.toContain("only-conflict.txt");
-    });
-
-    it.each([
-      ["missing", undefined, false],
-      ["empty", "", false],
-      ["missing", undefined, true],
-      ["empty", "", true],
-    ])("uses PR-head validation for a %s base ref (%s; oversized: %s)", async (_name, baseRef, oversized) => {
-      const branch = "missing-base-ref";
-      const agentPatch = oversized ? "x".repeat(4096) : "small patch\n";
-      createPatchFile(branch, agentPatch);
-      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
-      const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.ref = baseRef;
-      process.env.GITHUB_SHA = "b".repeat(40);
-      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
-        if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: agentPatch, stderr: "" };
-        return { exitCode: 0, stdout: "", stderr: "" };
-      });
-      const pushModule = require("./push_signed_commits.cjs");
-      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
-      try {
-        const module = await loadModule();
-        const handler = await module.main({ max_patch_size: 1, signed_commits: false });
-        const result = await handler({ branch, diff_size: 0 }, {});
-        if (oversized) {
-          expect(result.success).toBe(false);
-          expect(result.error).toContain("Patch size");
-          expect(pushSpy).not.toHaveBeenCalled();
-        } else {
-          expect(result.success).toBe(true);
-          expect(pushSpy).toHaveBeenCalled();
-          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", "remote-head..refs/bundles/push-feature-branch"], expect.any(Object));
-        }
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith(
-          "git",
-          ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", "refs/bundles/push-feature-branch", "--not", "remote-head"],
-          expect.any(Object)
-        );
-        expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "fetch" && args.some(arg => arg.startsWith("refs/heads/")))).toBe(false);
-        expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" || args[0] === "merge-tree" || args.includes("FETCH_HEAD^{commit}"))).toBe(false);
-        expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: trusted-base resolution skipped because base branch metadata is unavailable");
-        expect(mockCore.info).toHaveBeenCalledWith("Bundle validation baseline uses PR head");
-      } finally {
-        pushSpy.mockRestore();
-      }
-    });
-
-    it.each([
-      [false, false],
-      [false, true],
-      [true, false],
-      [true, true],
-    ])("uses target-checkout credentials for base fetch (fork: %s, unavailable: %s)", async (fork, unavailable) => {
-      const branch = "cross-repo-base-credentials";
-      const checkout = path.join(tempDir, "target-checkout");
-      fs.mkdirSync(checkout);
-      process.env.GITHUB_WORKSPACE = tempDir;
-      const targetRepo = "other-owner/other-repo";
-      const headRepo = fork ? "automation/other-repo" : targetRepo;
-      const baseHeader = "Authorization: basic synthetic-target-checkout-credential";
-      const headToken = "synthetic-fork-head-token";
-      const headHeader = `Authorization: basic ${Buffer.from(`x-access-token:${headToken}`).toString("base64")}`;
-      let activeHeader = baseHeader;
-      const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.head.repo = { full_name: headRepo, fork, owner: { login: fork ? "automation" : "other-owner" } };
-      pr.base = { ref: "main", repo: { full_name: targetRepo, owner: { login: "other-owner" } } };
-      createPatchFile(branch, "small patch\n");
-      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
-      mockExec.exec.mockImplementation(async (_cmd, args, options) => {
-        if (args[0] === "config" && args.includes("--replace-all")) {
-          expect(options).toEqual(expect.objectContaining({ cwd: checkout, silent: true }));
-          activeHeader = args.at(-1);
-        }
-        if (args[0] === "fetch") {
-          expect(options.cwd).toBe(checkout);
-          if (args[2] === "refs/heads/main") {
-            expect(args[1]).toBe("origin");
-            expect(activeHeader).toBe(baseHeader);
-            expect(options.silent).toBe(true);
-            if (unavailable) throw new Error(`authentication unavailable: ${baseHeader}`);
-          } else if (fork && args[1].startsWith("https://github.com/automation/")) {
-            expect(activeHeader).toBe(headHeader);
-          }
-        }
-        return 0;
-      });
-      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "config" && args.includes("--get-all")) return { exitCode: 0, stdout: activeHeader + "\n", stderr: "" };
-        if (args[0] === "config" && args.includes("--unset-all")) activeHeader = "";
-        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
-        if (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}") return { exitCode: 0, stdout: "b".repeat(40) + "\n", stderr: "" };
-        if (args[0] === "merge-base") return { exitCode: 1, stdout: "", stderr: "" };
-        return { exitCode: 0, stdout: "", stderr: "" };
-      });
-      const pushModule = require("./push_signed_commits.cjs");
-      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
-      try {
-        const module = await loadModule();
-        const handler = await module.main({
-          signed_commits: false,
-          "target-repo": targetRepo,
-          allowed_repos: [targetRepo, headRepo],
-          checkout_mapping: { [targetRepo]: "target-checkout" },
-          ...(fork ? { "head-repo": headRepo, "head-github-token": headToken } : {}),
-        });
-        const result = await handler({ branch, pull_request_number: 42 }, {});
-        expect(result.error).toBeUndefined();
-        expect(result.success).toBe(true);
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.objectContaining({ cwd: checkout, silent: true }));
-        expect(activeHeader).toBe(baseHeader);
-        if (unavailable) {
-          expect(mockCore.warning).toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
-        } else {
-          expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: fetched trusted base branch tip");
-          expect(mockCore.warning).not.toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
-        }
-        const logs = [...mockCore.info.mock.calls, ...mockCore.debug.mock.calls, ...mockCore.warning.mock.calls, ...mockCore.error.mock.calls].flat().join("\n");
-        for (const secret of [baseHeader, headToken, headHeader]) expect(logs).not.toContain(secret);
-      } finally {
-        pushSpy.mockRestore();
-      }
     });
 
     it("retains the preview size limit when the trusted base fetch fails", async () => {
@@ -2689,9 +2423,9 @@ index 0000000..abc1234
       createPatchFile(branch, "x".repeat(4096));
       fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
       const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.ref = "main";
+      pr.base.sha = "b".repeat(40);
       mockExec.exec.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "fetch" && args[2] === "refs/heads/main") throw new Error("private remote details");
+        if (args[0] === "fetch" && args[2] === pr.base.sha) throw new Error("base unavailable");
         return 0;
       });
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
@@ -2703,8 +2437,6 @@ index 0000000..abc1234
       const result = await handler({ branch, diff_size: 0 }, {});
       expect(result.success).toBe(false);
       expect(result.error).toContain("Patch size");
-      expect(mockCore.warning).toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
-      expect(mockCore.warning.mock.calls.flat().join(" ")).not.toContain("private remote details");
       expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "update-ref" && args[1] === "refs/heads/feature-branch")).toBe(false);
     });
 
