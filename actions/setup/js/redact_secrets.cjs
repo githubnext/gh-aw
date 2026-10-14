@@ -148,6 +148,9 @@ const BUILT_IN_PATTERNS = [
 
   // Linear tokens
   { name: "Linear API Key", pattern: /lin_api_[0-9A-Za-z]{40}/g },
+
+  // Grafana Cloud tokens may be decoded from a stored Basic-auth header.
+  { name: "Grafana Cloud API Token", pattern: /glc_[0-9A-Za-z+/=_-]{20,}/g },
 ];
 
 /**
