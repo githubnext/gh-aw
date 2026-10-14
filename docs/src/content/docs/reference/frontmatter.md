@@ -223,7 +223,7 @@ See [Harness Retry and Post-result Watchdog Policy](/gh-aw/reference/engines/#ha
 
 ### Model Routing (`engine.model-routing:`)
 
-Enables experimental per-run model and reasoning-effort selection for Copilot with the AWF firewall. Requires `goal` (`cost` or `cost-speed`) and `mode` (`economy`, `balanced`, `robust`, or `auto`). The optional `allowed-models` list limits the router's candidates for the main agent; it is not a request policy, which is set by [`models.allowed` and `models.blocked`](/gh-aw/reference/glossary/#model-policy-modelsallowed-modelsblocked). Overrides the fixed `engine.model` and effort settings. See [Model Routing](/gh-aw/reference/model-routing/) for value meanings, requirements, sub-agent constraints, known limitations, and logs.
+Enables experimental per-run model and reasoning-effort selection for the Copilot, Claude, Codex, and pi engines when they use GitHub Copilot inference, with the AWF firewall. Requires `goal` (`cost` or `cost-speed`) and `mode` (`economy`, `balanced`, `robust`, or `auto`). The optional `allowed-models` list takes exact model names and limits the router's candidates for the main agent; it is not a request policy. Put patterns such as `gpt-*` in [`models.allowed` or `models.blocked`](/gh-aw/reference/glossary/#model-policy-modelsallowed-modelsblocked) instead. Overrides the fixed `engine.model` and effort settings. See [Model Routing](/gh-aw/reference/model-routing/) for value meanings, requirements, sub-agent constraints, known limitations, and logs.
 
 ### Engine Driver (`engine.driver:`)
 

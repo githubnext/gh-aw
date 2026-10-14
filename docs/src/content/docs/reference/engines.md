@@ -24,7 +24,7 @@ Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copi
 
 Gemini remains selectable and emits an informational deprecation notice after effective engine resolution, including imports and CLI overrides. The notice does not count as a warning or affect strict-mode success. Evaluate experimental Agy for compatible API-key workflows; retain Gemini for Google WIF or unsupported capabilities. See [migration guidance](/gh-aw/engines/agy/#evaluating-a-gemini-api-key-workflow).
 
-Copilot also supports experimental per-run model and reasoning-effort selection through `engine.model-routing`. See [Model Routing](/gh-aw/reference/model-routing/) for configuration, requirements, known limitations, and troubleshooting.
+The Copilot, Claude, Codex, and pi engines also support experimental per-run model and reasoning-effort selection through `engine.model-routing`, when they use GitHub Copilot inference. See [Model Routing](/gh-aw/reference/model-routing/) for configuration, requirements, known limitations, and troubleshooting.
 
 ## Configuration conformance workflows
 

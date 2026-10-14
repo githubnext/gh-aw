@@ -159,7 +159,7 @@ allPassed &= assertContains(output, "report-failed-jobs:", "Safe outputs example
 // Test 12: Model routing descriptions explain values and link to the guide
 const unwrappedOutput = output.replace(/\n\s*#\s*/g, " ");
 allPassed &= assertContains(unwrappedOutput, "https://github.github.com/gh-aw/reference/model-routing/", "Model routing should link to its guide");
-allPassed &= assertContains(unwrappedOutput, "cost-speed also weighs execution time", "Model routing goal should explain cost-speed");
+allPassed &= assertContains(unwrappedOutput, "cost-speed prefers the fastest model and effort that meet it", "Model routing goal should explain cost-speed");
 allPassed &= assertContains(unwrappedOutput, "auto lets the classifier recommend one of these profiles per task", "Model routing mode should explain auto");
 allPassed &= assertContains(unwrappedOutput, "economy, balanced, and robust set increasing quality bars", "Model routing mode should explain the quality profiles");
 allPassed &= assertContains(unwrappedOutput, "Required Copilot models the router may select and the routed task may call", "Model routing candidates should explain selection and request policy");
