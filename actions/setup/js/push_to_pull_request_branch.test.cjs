@@ -2402,9 +2402,15 @@ index 0000000..abc1234
       ["current base tip", false, false],
       ["workflow-start base commit after the branch advances", true, false],
       ["untrusted workflow SHA", true, true],
-    ])("resolves a real git baseline with merge-base PR metadata (%s)", async (_name, baseAdvanced, untrustedRun) => {
+      ["older merged base distinct from workflow SHA", true, false, "full", true],
+      ["shallow clone with sufficient ancestry", false, false, "shallow"],
+      ["shallow clone with missing ancestry", false, false, "missing-ancestry"],
+      ["partial clone with lazy blob fetching", false, false, "partial"],
+      ["partial clone after the branch advances", true, false, "partial"],
+    ])("resolves a real git baseline with merge-base PR metadata (%s)", async (_name, baseAdvanced, untrustedRun, cloneMode = "full", olderMergedBase = false) => {
+      let repoDir = tempDir;
       const git = (args, allowFailure = false) => {
-        const result = spawnSync("git", args, { cwd: tempDir, encoding: "utf8" });
+        const result = spawnSync("git", args, { cwd: repoDir, encoding: "utf8" });
         if (result.error) throw result.error;
         if (!allowFailure && result.status !== 0) throw new Error(result.stderr);
         return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -2412,10 +2418,13 @@ index 0000000..abc1234
       git(["init", "-b", "main"]);
       git(["config", "user.name", "Test User"]);
       git(["config", "user.email", "test@example.com"]);
+      for (let index = 0; index < 5; index++) git(["commit", "--allow-empty", "-m", `earlier history ${index}`]);
       git(["commit", "--allow-empty", "-m", "common base"]);
       const mergeBase = git(["rev-parse", "HEAD"]).stdout.trim();
+      const earlierWorkflowBase = git(["rev-parse", "HEAD^"]).stdout.trim();
       git(["checkout", "-b", "remote-head"]);
       git(["commit", "--allow-empty", "-m", "old PR head"]);
+      const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
       git(["checkout", "main"]);
       fs.writeFileSync(path.join(tempDir, "package.json"), "{}\n");
       git(["add", "."]);
@@ -2424,18 +2433,39 @@ index 0000000..abc1234
       git(["checkout", "-b", "candidate", "remote-head"]);
       git(["merge", "--no-ff", "main", "-m", "merge base"]);
       const candidate = git(["rev-parse", "HEAD"]).stdout.trim();
-      git(["update-ref", "refs/bundles/push-feature-branch", candidate]);
+      const validationTree = git(["merge-tree", "--write-tree", "remote-head", mergedBase]).stdout.trim();
       if (baseAdvanced) {
         git(["checkout", "main"]);
         git(["commit", "--allow-empty", "-m", "base advances after agent merge"]);
         git(["checkout", "candidate"]);
       }
-      git(["remote", "add", "origin", tempDir]);
-      process.env.GITHUB_SHA = untrustedRun ? candidate : mergedBase;
+      if (cloneMode === "full") {
+        git(["remote", "add", "origin", tempDir]);
+      } else {
+        git(["config", "uploadpack.allowFilter", "true"]);
+        const checkout = path.join(tempDir, "checkout");
+        const cloneOptions = cloneMode === "partial" ? ["--filter=blob:none", "--no-checkout"] : [`--depth=${cloneMode === "shallow" ? 3 : 1}`];
+        git(["clone", "--branch", "candidate", ...cloneOptions, `file://${tempDir}`, checkout]);
+        repoDir = checkout;
+        git(["config", "user.name", "Test User"]);
+        git(["config", "user.email", "test@example.com"]);
+        if (cloneMode === "missing-ancestry") git(["fetch", "--depth=1", "origin", "remote-head:refs/heads/remote-head"]);
+        else git(["update-ref", "refs/heads/remote-head", oldHead]);
+        if (cloneMode === "partial") {
+          expect(git(["config", "--get", "remote.origin.promisor"]).stdout.trim()).toBe("true");
+          expect(git(["config", "--get", "remote.origin.partialclonefilter"]).stdout.trim()).toBe("blob:none");
+          expect(git(["rev-list", "--objects", "--all", "--missing=print"]).stdout).toMatch(/^\?/m);
+          expect(git(["cat-file", "-e", `${mergedBase}:package.json`]).exitCode).toBe(0);
+        } else {
+          expect(git(["rev-parse", "--is-shallow-repository"]).stdout.trim()).toBe("true");
+        }
+      }
+      git(["update-ref", "refs/bundles/push-feature-branch", candidate]);
+      process.env.GITHUB_SHA = untrustedRun ? candidate : olderMergedBase ? earlierWorkflowBase : mergedBase;
       const pr = (await mockGithub.rest.pulls.get()).data;
       pr.base.ref = "main";
       pr.base.sha = mergeBase;
-      expect(git(["merge-base", "remote-head", "main"]).stdout.trim()).toBe(pr.base.sha);
+      if (cloneMode === "full") expect(git(["merge-base", "remote-head", "main"]).stdout.trim()).toBe(pr.base.sha);
       mockExec.exec.mockImplementation(async (_cmd, args) => {
         if (args[0] === "fetch" && args[2] === "refs/heads/main") return git(args).exitCode;
         return 0;
@@ -2443,6 +2473,7 @@ index 0000000..abc1234
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
         if (args[0] === "merge-base" || args[0] === "merge-tree" || (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}")) return git(args, true);
         if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+        if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") return git(args);
         return { exitCode: 0, stdout: "", stderr: "" };
       });
       const branch = "real-merge-base-metadata";
@@ -2454,20 +2485,24 @@ index 0000000..abc1234
         const module = await loadModule();
         const handler = await module.main({ signed_commits: false });
         expect((await handler({ branch }, {})).success).toBe(true);
-        const validationTree = git(["merge-tree", "--write-tree", "remote-head", mergedBase]).stdout.trim();
-        const baseline = untrustedRun ? "remote-head" : validationTree;
+        const usesPrHead = untrustedRun || olderMergedBase || cloneMode === "missing-ancestry";
+        const baseline = usesPrHead ? "remote-head" : validationTree;
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${baseline}..refs/bundles/push-feature-branch`], expect.any(Object));
-        const historyExclusions = untrustedRun ? ["remote-head"] : ["remote-head", mergedBase];
+        const historyExclusions = usesPrHead ? ["remote-head"] : ["remote-head", mergedBase];
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
         expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" && args[2] === pr.base.sha)).toBe(false);
         expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: fetched trusted base branch tip");
-        expect(mockCore.info).toHaveBeenCalledWith(untrustedRun ? "Bundle validation baseline uses PR head" : "Bundle validation baseline includes trusted base changes");
+        expect(mockCore.info).toHaveBeenCalledWith(usesPrHead ? "Bundle validation baseline uses PR head" : "Bundle validation baseline includes trusted base changes");
         expect(mockCore.debug).toHaveBeenCalledWith(
           untrustedRun
             ? "Bundle validation: workflow-start base fallback rejected because base-branch ancestry is unverified"
-            : baseAdvanced
-              ? "Bundle validation: workflow-start base fallback selected"
-              : "Bundle validation: workflow-start base fallback skipped because base tip established a baseline"
+            : olderMergedBase
+              ? "Bundle validation: workflow-start base fallback did not establish a baseline"
+              : cloneMode === "missing-ancestry"
+                ? "Bundle validation: workflow-start base fallback skipped because no distinct valid workflow base is available"
+                : baseAdvanced
+                  ? "Bundle validation: workflow-start base fallback selected"
+                  : "Bundle validation: workflow-start base fallback skipped because base tip established a baseline"
         );
         const baselineLogs = [...mockCore.debug.mock.calls, ...mockCore.info.mock.calls, ...mockCore.warning.mock.calls].map(([message]) => message).filter(message => message.startsWith("Bundle validation"));
         for (const message of baselineLogs) {
@@ -2568,6 +2603,82 @@ index 0000000..abc1234
         expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" || args[0] === "merge-tree" || args.includes("FETCH_HEAD^{commit}"))).toBe(false);
         expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: trusted-base resolution skipped because base branch metadata is unavailable");
         expect(mockCore.info).toHaveBeenCalledWith("Bundle validation baseline uses PR head");
+      } finally {
+        pushSpy.mockRestore();
+      }
+    });
+
+    it.each([
+      [false, false],
+      [false, true],
+      [true, false],
+      [true, true],
+    ])("uses target-checkout credentials for base fetch (fork: %s, unavailable: %s)", async (fork, unavailable) => {
+      const branch = "cross-repo-base-credentials";
+      const checkout = path.join(tempDir, "target-checkout");
+      fs.mkdirSync(checkout);
+      process.env.GITHUB_WORKSPACE = tempDir;
+      const targetRepo = "other-owner/other-repo";
+      const headRepo = fork ? "automation/other-repo" : targetRepo;
+      const baseHeader = "Authorization: basic synthetic-target-checkout-credential";
+      const headToken = "synthetic-fork-head-token";
+      const headHeader = `Authorization: basic ${Buffer.from(`x-access-token:${headToken}`).toString("base64")}`;
+      let activeHeader = baseHeader;
+      const pr = (await mockGithub.rest.pulls.get()).data;
+      pr.head.repo = { full_name: headRepo, fork, owner: { login: fork ? "automation" : "other-owner" } };
+      pr.base = { ref: "main", repo: { full_name: targetRepo, owner: { login: "other-owner" } } };
+      createPatchFile(branch, "small patch\n");
+      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
+      mockExec.exec.mockImplementation(async (_cmd, args, options) => {
+        if (args[0] === "config" && args.includes("--replace-all")) {
+          expect(options).toEqual(expect.objectContaining({ cwd: checkout, silent: true }));
+          activeHeader = args.at(-1);
+        }
+        if (args[0] === "fetch") {
+          expect(options.cwd).toBe(checkout);
+          if (args[2] === "refs/heads/main") {
+            expect(args[1]).toBe("origin");
+            expect(activeHeader).toBe(baseHeader);
+            expect(options.silent).toBe(true);
+            if (unavailable) throw new Error(`authentication unavailable: ${baseHeader}`);
+          } else if (fork && args[1].startsWith("https://github.com/automation/")) {
+            expect(activeHeader).toBe(headHeader);
+          }
+        }
+        return 0;
+      });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "config" && args.includes("--get-all")) return { exitCode: 0, stdout: activeHeader + "\n", stderr: "" };
+        if (args[0] === "config" && args.includes("--unset-all")) activeHeader = "";
+        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+        if (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}") return { exitCode: 0, stdout: "b".repeat(40) + "\n", stderr: "" };
+        if (args[0] === "merge-base") return { exitCode: 1, stdout: "", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      const pushModule = require("./push_signed_commits.cjs");
+      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
+      try {
+        const module = await loadModule();
+        const handler = await module.main({
+          signed_commits: false,
+          "target-repo": targetRepo,
+          allowed_repos: [targetRepo, headRepo],
+          checkout_mapping: { [targetRepo]: "target-checkout" },
+          ...(fork ? { "head-repo": headRepo, "head-github-token": headToken } : {}),
+        });
+        const result = await handler({ branch, pull_request_number: 42 }, {});
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.objectContaining({ cwd: checkout, silent: true }));
+        expect(activeHeader).toBe(baseHeader);
+        if (unavailable) {
+          expect(mockCore.warning).toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
+        } else {
+          expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: fetched trusted base branch tip");
+          expect(mockCore.warning).not.toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
+        }
+        const logs = [...mockCore.info.mock.calls, ...mockCore.debug.mock.calls, ...mockCore.warning.mock.calls, ...mockCore.error.mock.calls].flat().join("\n");
+        for (const secret of [baseHeader, headToken, headHeader]) expect(logs).not.toContain(secret);
       } finally {
         pushSpy.mockRestore();
       }
