@@ -444,10 +444,10 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// Generate the step with all environment variables. Prompt text and expression
 	// values are passed as environment data and never interpolated into JavaScript.
 	yaml.WriteString("      - name: Create prompt with built-in context\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions\n")
-	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr)
+	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
 	}
@@ -456,7 +456,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// Add all environment variables in sorted order for consistency
 	envKeys := sliceutil.SortedKeys(allEnvVars)
 	for _, key := range envKeys {
-		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
+		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key]) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	}
 	for _, key := range sliceutil.SortedKeys(renderContent) {
 		writeYAMLEnv(yaml, "          ", key, renderContent[key])
