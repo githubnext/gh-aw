@@ -8,6 +8,10 @@ const { normalizeAgentSession, createSessionEvent, accumulateSessionUsage, isTok
 const { isDeepStrictEqual } = require("node:util");
 const { getMessageRefusal } = require("./provider_refusal.cjs");
 
+// Observed SDK runtime envelope (rte: true) in https://github.com/github/gh-aw/actions/runs/38513316902.
+// Keep this exact text load-bearing; verify runtime evidence before changing it for an SDK release.
+const COPILOT_CONTENT_FILTER_MESSAGE = "The model returned no content because the response was blocked by content filtering.";
+
 const COPILOT_CONVERSATION_EVENT_TYPES = new Set([
   "assistant.message",
   "assistant.message_delta",
@@ -60,7 +64,7 @@ function copilotSessionContext(event) {
  * @returns {import("./types/agent_session").AssistantRefusalData | undefined}
  */
 function getCopilotMessageRefusal(data) {
-  if (data?.rte === true && data.content === "The model returned no content because the response was blocked by content filtering.") {
+  if (data?.rte === true && data.content === COPILOT_CONTENT_FILTER_MESSAGE) {
     return { reason: "content_filter", content: data.content };
   }
   return getMessageRefusal(data, typeof data?.finishReason === "string" ? data.finishReason : undefined);
@@ -109,6 +113,7 @@ function normalizeCopilotSession(entries) {
     if (context.parentToolUseId !== undefined && sessionContext(event).parentToolUseId === undefined) event.data.parentToolUseId = context.parentToolUseId;
     if (event.type !== "assistant.message") continue;
     const refusal = getCopilotMessageRefusal(event.data);
+    // Canonical refusals retain nested scope; consumers must check scope before attributing a refusal to the main session.
     if (refusal) source[index] = createSessionEvent(event, "assistant.refusal", refusal);
   }
   /** @type {SessionEvent[]} */
@@ -401,4 +406,4 @@ function copilotUsage(data) {
   return usage;
 }
 
-module.exports = { hasCopilotConversation, hasMalformedJsonl, copilotSessionContext, getCopilotMessageRefusal, deduplicateCopilotFallback, normalizeCopilotSession };
+module.exports = { COPILOT_CONTENT_FILTER_MESSAGE, hasCopilotConversation, hasMalformedJsonl, copilotSessionContext, getCopilotMessageRefusal, deduplicateCopilotFallback, normalizeCopilotSession };

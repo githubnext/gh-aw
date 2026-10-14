@@ -74,6 +74,10 @@ const DENIAL_GUARD_FORCE_EXIT_MS_DEFAULT = 15 * 1000;
 // Override via the GH_AW_SDK_IDLE_MS environment variable.
 const SDK_POST_COMPLETION_IDLE_MS_DEFAULT = 30 * 1000;
 
+function contentFilterError() {
+  return Object.assign(new Error("Copilot model response blocked by content filtering; task completion could not be confirmed."), { code: "content_filter" });
+}
+
 /**
  * Extract the prompt text from a resolved args array.
  * Looks for the first occurrence of "-p <value>" or "--prompt <value>".
@@ -522,7 +526,7 @@ async function runWithCopilotSDK({
       contentFiltered = true;
       if (!assistantEvents.some(event => isDeepStrictEqual(event, result))) writeEvent("assistant.message", result.data, result.timestamp, result);
     }
-    if (contentFiltered) throw Object.assign(new Error("Copilot model response blocked by content filtering; task completion could not be confirmed."), { code: "content_filter" });
+    if (contentFiltered) throw contentFilterError();
 
     // sendAndWait returns the last assistant.message event; capture its content
     // as a fallback in case the on() handler missed it.
@@ -543,9 +547,7 @@ async function runWithCopilotSDK({
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const failure =
-      catastrophicToolDenialsError ??
-      (contentFiltered ? Object.assign(new Error("Copilot model response blocked by content filtering; task completion could not be confirmed."), { code: "content_filter" }) : err instanceof Error ? err : new Error(String(err)));
+    const failure = catastrophicToolDenialsError ?? (contentFiltered ? contentFilterError() : err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
 
     // When the post-completion idle watchdog force-disconnected the session, the

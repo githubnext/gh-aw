@@ -6,9 +6,9 @@ import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const native = require("./fixtures/copilot_ci_audit.cjs");
-const { normalizeCopilotSession, hasCopilotConversation, copilotSessionContext, deduplicateCopilotFallback } = require("./copilot_session.cjs");
+const { COPILOT_CONTENT_FILTER_MESSAGE, normalizeCopilotSession, hasCopilotConversation, copilotSessionContext, deduplicateCopilotFallback } = require("./copilot_session.cjs");
 const { parseCopilotLog } = require("./parse_copilot_log.cjs");
-const { projectSessionResult, sessionContext, sessionToolSuccess } = require("./agent_session.cjs");
+const { projectSessionResult, sessionContext, sessionToolSuccess, isNestedSessionEvent } = require("./agent_session.cjs");
 const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
 const { collectUnifiedSession } = require("./unified_session.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
@@ -270,19 +270,43 @@ describe("Copilot scoped partial and snapshot evidence (synthetic)", () => {
   });
 
   it("maps the observed SDK runtime content-filter message without mistaking a quote for a refusal", () => {
+    // Independent runtime text from https://github.com/github/gh-aw/actions/runs/38513316902.
+    // Do not derive this fixture from the production constant: SDK wording changes need verified evidence.
     const content = "The model returned no content because the response was blocked by content filtering.";
+    expect(COPILOT_CONTENT_FILTER_MESSAGE).toBe(content);
     const records = [
       { type: "assistant.message", id: "filtered", data: { content, rte: true, apiCallId: "filtered", toolRequests: [] } },
       { type: "assistant.usage", data: { apiCallId: "filtered", finishReason: "content_filter", outputTokens: 0 } },
       { type: "assistant.message", id: "quoted", data: { content } },
+      { type: "assistant.message", id: "not-runtime", data: { content, rte: false } },
+      { type: "assistant.message", id: "unverified-suffix", data: { content: `${content} Please try again.`, rte: true } },
       { type: "assistant.message", id: "other-runtime-error", data: { content: "Some other runtime error.", rte: true } },
     ];
     const original = structuredClone(records);
     const events = normalizeCopilotSession(records);
     expect(events.filter(event => event.type === "assistant.refusal")).toMatchObject([{ id: "filtered", data: { reason: "content_filter", content, rte: true } }]);
-    expect(events.filter(event => event.type === "assistant.message").map(event => event.id)).toEqual(["quoted", "other-runtime-error"]);
+    expect(events.filter(event => event.type === "assistant.message").map(event => event.id)).toEqual(["quoted", "not-runtime", "unverified-suffix", "other-runtime-error"]);
     expect(records).toEqual(original);
     expect(normalizeCopilotSession(JSON.parse(JSON.stringify(events)))).toEqual(JSON.parse(JSON.stringify(events)));
+  });
+
+  it.each([{ agentId: "child" }, { parentToolCallId: "launch" }, { data: { parentToolCallId: "launch" } }])("preserves nested runtime refusal scope through persisted normalization (%j)", scope => {
+    const record = {
+      type: "assistant.message",
+      id: "child-filtered",
+      ...scope,
+      data: { ...scope.data, content: "The model returned no content because the response was blocked by content filtering.", rte: true },
+    };
+    const original = structuredClone(record);
+    const events = normalizeCopilotSession([record]);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ id: "child-filtered", type: "assistant.refusal", data: { reason: "content_filter", rte: true } });
+    expect(sessionContext(events[0])).toEqual(copilotSessionContext(record));
+    expect(isNestedSessionEvent(events[0])).toBe(true);
+    expect(events.filter(event => event.type === "assistant.refusal" && !isNestedSessionEvent(event))).toEqual([]);
+    const persisted = JSON.parse(JSON.stringify(events));
+    expect(normalizeCopilotSession(persisted)).toEqual(persisted);
+    expect(record).toEqual(original);
   });
 
   it("retains reasoning fragments and scopes message snapshots to the same child and session", () => {

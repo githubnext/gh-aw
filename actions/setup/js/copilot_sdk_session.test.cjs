@@ -80,7 +80,16 @@ describe("copilot_sdk_session runtime configuration", () => {
       .split("\n")
       .map(JSON.parse);
     expect(captured.filter(event => event.type === "assistant.message" && event.data.rte)).toEqual([filteredMessage]);
-    expect(captured).toContainEqual(expect.objectContaining({ type: "session.error", data: expect.objectContaining({ errorType: "sdk_driver", code: "content_filter" }) }));
+    expect(captured).toContainEqual(
+      expect.objectContaining({
+        type: "session.error",
+        data: expect.objectContaining({
+          errorType: "sdk_driver",
+          message: "Copilot model response blocked by content filtering; task completion could not be confirmed.",
+          code: "content_filter",
+        }),
+      })
+    );
     expect(normalizeCopilotSession(captured).find(event => event.type === "assistant.refusal").data.reason).toBe("content_filter");
     expect(logger.mock.calls.flat().some(message => message.includes("treating as completed"))).toBe(false);
     expect(disconnect).toHaveBeenCalledTimes(1);
