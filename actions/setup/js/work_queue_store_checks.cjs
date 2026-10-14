@@ -302,8 +302,11 @@ function registerTests({ describe, it }) {
           const terminal = evidence(state, state.dispatches.get(dispatchId), "terminal_run", 50, { run_id: "202", run_attempt: 1, status: "completed", conclusion: "success" });
           fake.install([...log, operationCommit(log, "fresh-release", "release", [{ kind: "Release", dispatch_id: dispatchId, evidence: terminal }], reconciler, 50)]);
         } else if (change === "rewind") fake.install(log.slice(0, 1));
-        else if (change === "missing-log") fake.state.missingLog = true;
-        else fake.state.truncated = true;
+        else {
+          fake.install(log);
+          if (change === "missing-log") fake.state.missingLog = true;
+          else fake.state.truncated = true;
+        }
         await assert.rejects(authorize(target), change === "release" ? /claim_ineffective/ : /ledger_invalid/, change);
         assert.equal(fake.state.updates, 0);
       }
