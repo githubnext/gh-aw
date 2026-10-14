@@ -2,12 +2,15 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import { performance } from "node:perf_hooks";
+import { createRequire } from "node:module";
 import { canonical } from "./work_queue_codec.cjs";
 import { prepareCheckpoint, replayTransactionLog } from "./work_queue_replay.cjs";
 import { readWorkQueueLog } from "./work_queue_store.cjs";
 import { fakeGitHub } from "./work_queue_store_checks.cjs";
 import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
 
+const require = createRequire(import.meta.url);
+const { registerStaticQueueAuthentication } = require("./work_queue_auth_cache.cjs");
 const MAX_REPLAY_MS = 250;
 
 function representativeLedger() {
@@ -62,9 +65,12 @@ describe("work queue live-sized performance budgets", () => {
     replayBudget(fs.readFileSync(filename, "utf8"));
   });
 
-  it("bounds warm ledger reads to fresh repository/ref probes despite a long checkpoint ancestry", async () => {
+  it("bounds static-auth warm ledger reads to fresh repository/ref probes despite a long checkpoint ancestry", async () => {
     const { queue, contents } = representativeLedger();
     const fake = fakeGitHub(queue.transactions);
+    const token = "static-performance-token";
+    Object.assign(fake.githubClient, { auth: async () => ({ type: "token", token }) });
+    registerStaticQueueAuthentication(fake.githubClient, token);
     const git = fake.githubClient.rest.git;
     const history = fake.refs.get("work-queue");
     const prior = "c".repeat(40);

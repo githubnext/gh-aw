@@ -11,6 +11,7 @@ const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
 const { verifyWorkerRoute, verifyWorkerRoutes } = require("./work_queue_provisioning.cjs");
 const { serializeDeployments } = require("./work_queue_deployment.cjs");
 const { writeWorkQueueUpdateSummary } = require("./work_queue_summary_renderer.cjs");
+const { queueAuthenticationScope } = require("./work_queue_auth_cache.cjs");
 const {
   appendCommit,
   causalChain,
@@ -34,9 +35,9 @@ const WORK_QUEUE_LOG_PATH = "work-queue.jsonl";
 const LEGACY_BRANCHES = ["dispatch-coordinator", "gh-aw-work-queue"];
 const LEGACY_LOGS = ["dispatch-work-coordinator.jsonl"];
 const DEFAULT_MAX_RETRIES = 5;
-/** @type {WeakMap<object, Set<string>>} */
+/** @type {WeakMap<object, {scope: object, proofs: Set<string>}>} */
 const verifiedCheckpointHistory = new WeakMap();
-/** @type {WeakMap<object, {repository: string, sha: string, treeSha: string, contents: string}>} */
+/** @type {WeakMap<object, {scope: object, repository: string, sha: string, treeSha: string, contents: string}>} */
 const verifiedQueueContents = new WeakMap();
 
 /** @typedef {{githubClient: Parameters<typeof verifyRepository>[0], owner: string, repo: string, branch?: string, core?: import("./work_queue_summary_renderer.cjs").SummaryCore & {info(message: string): void}}} QueueReadOptions */
@@ -133,13 +134,16 @@ async function readWorkQueueLog({ githubClient, owner, repo, branch = WORK_QUEUE
 
 async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = true) {
   const { githubClient, branch, repository, coreApi } = options;
-  const cached = verifiedQueueContents.get(githubClient);
+  const scope = await queueAuthenticationScope(githubClient);
+  const previous = verifiedQueueContents.get(githubClient);
+  if (!scope || previous?.scope !== scope) verifiedQueueContents.delete(githubClient);
+  const cached = scope && previous?.scope === scope ? previous : undefined;
   const immutable = cached && cached.repository === repository.full_name.toLowerCase() && cached.sha === sha ? cached : await readQueueContentsAtSHA(options, sha);
   const { treeSha, contents } = immutable;
   const { state, checkpointRecovered } = await replayVerifiedQueueLog(options, sha, contents, verify, recover);
   const transactions = state.transactions;
   const bytes = Buffer.byteLength(contents, "utf8");
-  if (verify && bytes <= 4 * 1024 * 1024) verifiedQueueContents.set(githubClient, { repository: repository.full_name.toLowerCase(), sha, treeSha, contents });
+  if (verify && scope && bytes <= 4 * 1024 * 1024 && (await queueAuthenticationScope(githubClient)) === scope) verifiedQueueContents.set(githubClient, { scope, repository: repository.full_name.toLowerCase(), sha, treeSha, contents });
   coreApi?.info(`Work queue: validated ${transactions.length} causal commits`);
   log.debug("ledger.read.complete", { bytes, transactions: transactions.length, works: state.works.size, claims: state.claims.size });
   return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH, ...(checkpointRecovered ? { checkpointRecovered: true } : {}) };
@@ -220,18 +224,17 @@ async function verifyCheckpointGitHistory(options, head, root) {
   const { githubClient, owner, repo } = options;
   const invalid = () => queueError("checkpoint_invalid", "checkpoint does not match its Git parent history");
   const visited = new Set();
-  let verified = verifiedCheckpointHistory.get(githubClient);
-  if (!verified) {
-    verified = new Set();
-    verifiedCheckpointHistory.set(githubClient, verified);
-  }
+  const scope = await queueAuthenticationScope(githubClient);
+  const cached = verifiedCheckpointHistory.get(githubClient);
+  if (!scope || cached?.scope !== scope) verifiedCheckpointHistory.delete(githubClient);
+  const verified = scope && cached?.scope === scope ? cached.proofs : new Set();
   const pending = new Set();
   verification: while (root?.operations?.[0]?.kind === "Checkpoint") {
     const checkpoint = root.operations[0];
     const checkpointDigest = digest(root);
     let current = head;
     for (;;) {
-      // Cache only successful immutable ancestry proofs, never refs or mutable projections.
+      // Reuse immutable proofs only within a registered, unchanged static authentication.
       const proof = `${owner.toLowerCase()}/${repo.toLowerCase()}:${current}:${checkpointDigest}`;
       if (verified.has(proof)) break verification;
       pending.add(proof);
@@ -261,6 +264,7 @@ async function verifyCheckpointGitHistory(options, head, root) {
       break;
     }
   }
+  if (!scope || (await queueAuthenticationScope(githubClient)) !== scope) return;
   for (const proof of pending) {
     verified.add(proof);
     if (verified.size > 128) {
@@ -268,6 +272,7 @@ async function verifyCheckpointGitHistory(options, head, root) {
       if (oldest !== undefined) verified.delete(oldest);
     }
   }
+  verifiedCheckpointHistory.set(githubClient, { scope, proofs: verified });
 }
 
 function stableRequestResult(current, request, actor) {

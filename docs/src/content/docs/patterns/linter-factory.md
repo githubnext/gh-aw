@@ -107,8 +107,9 @@ go build -o ./gh-aw ./cmd/gh-aw
 yet been provisioned; the producer safe-output path treats it as empty and
 creates the branch only when it atomically commits its first Policy and Work.
 The agent's `work_queue_read` snapshot reports
-`queue_state: "uninitialized"`. Continue with the trusted producer plan and
-`work_queue_submit`; do not claim a successful empty-queue `noop`. Missing
+`queue_state: "uninitialized"`. Read and explain the already staged trusted
+producer plan; do not call `work_queue_submit` or `work_queue_dispatch_next`
+again or claim a successful empty-queue `noop`. Missing
 compiler Policy, invalid scheduling settings, or a denied Git read still block
 publication. Do not bypass GitHub access denials.
 
@@ -134,20 +135,26 @@ overall success recommendation.
 
 If trusted control processing times out before launching every worker, inspect
 the time between `Work queue: validated ... causal commits` messages. Repeated
-checkpoint ancestry reads can exhaust the dispatcher budget. The runtime reuses
-successful immutable ancestry proofs within one client and repository, while
-refreshing the branch ref and replaying a detached projection on every read.
-It also retains one verified immutable ledger text up to 4 MiB per client,
-avoiding repeated commit/tree/blob reads for an unchanged head. It never caches
-mutable queue state or failed verification. Canonical key sorting avoids
+checkpoint ancestry reads can exhaust the dispatcher budget. For explicitly
+registered string-token clients constructed by `setupGlobals` through
+`global.getOctokit(token)` without `authStrategy`, the runtime reuses successful
+immutable ancestry proofs within one client and repository while authentication
+remains unchanged. It also retains one verified immutable ledger text up to
+4 MiB per client, avoiding repeated commit/tree/blob reads for an unchanged head.
+Injected github-script clients and unknown, dynamic, or custom-strategy clients
+fetch Git contents and verify ancestry on every read. Every client refreshes
+repository metadata and the branch ref and replays a detached projection on every
+read. The runtime never caches mutable queue state or failed verification.
+Canonical key sorting avoids
 UTF-8 buffer allocations when native string ordering is equivalent, retaining
 byte comparison for surrogate-containing keys. A native terminal
 run releases its reservation only after exact reconciliation; a completed Claim
 still needs independently verified output delivery before its Result settles.
 Do not redispatch uncertain effects or delete the ledger to recover capacity.
 
-The queue performance suite enforces warm API-call and replay budgets against a
-representative checkpoint. To include an already captured live ledger without
+The queue performance suite enforces a two-probe warm-read budget for registered,
+unchanged string-token clients and replay budgets against a representative
+checkpoint. To include an already captured live ledger without
 network calls or queue mutations:
 
 ```bash
