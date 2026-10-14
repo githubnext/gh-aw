@@ -5361,6 +5361,17 @@
             {
               "type": "null",
               "description": "Enable agentic-workflows tool with default settings (same as true)"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allow-write-tools": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Explicitly enable add, update, fix, and compile for trusted clients and workflow sources. Actor validation remains required; dry-run compilation also writes lock files."
+                }
+              }
             }
           ],
           "examples": [true, null]

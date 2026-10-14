@@ -420,7 +420,7 @@ engine:
           "assistant.message", "assistant.message_delta", "assistant.message_update",
           "assistant.reasoning", "assistant.reasoning_delta", "assistant.refusal",
           "skill.inventory", "skill.conflict", "skill.invoked", "skill.context_delivered_ref",
-          "assistant.usage", "assistant.turn_end", "model.call_failure",
+          "assistant.usage", "assistant.turn_end", "model.call_failure", "model.inventory",
           "tool.execution_start", "tool.execution_update", "tool.execution_complete",
           "session.result", "session.error", "agent.execution",
           "detection.result", "session.format",
