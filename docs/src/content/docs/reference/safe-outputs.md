@@ -658,6 +658,7 @@ Links issues as sub-issues using GitHub's parent-child issue relationships. Supp
 ```yaml wrap
 safe-outputs:
   link-sub-issue:
+    target: "*"                         # use the agent's explicit parent
     parent-required-labels: [epic]        # parent must have these labels
     parent-title-prefix: "[Epic]"         # parent must match prefix
     sub-required-labels: [task]           # sub must have these labels
@@ -669,6 +670,8 @@ safe-outputs:
 ```
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
+
+`target` selects the parent: `"triggering"` (the default) uses the triggering issue, a fixed issue number uses that parent, and `"*"` uses the agent's `parent_issue_number`, including a temporary ID for a newly created parent. Triggering and fixed targets ignore the agent's parent selection. Scheduled and `workflow_dispatch` runs without issue context must configure `"*"` or a fixed parent; the default fails even if the agent supplies `parent_issue_number`.
 
 ### Set Issue Type (`set-issue-type:`)
 
