@@ -630,7 +630,7 @@ jobs:
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '30' }}
       - name: Run stale-repos
         id: stale-repos
-        uses: github/stale-repos@cd662591ad9d5d8967f84431eb94a45f828c1db3 # v9.0.19
+        uses: github/stale-repos@07243c72d78533a27c0e37a93bfa87275fca4aa1 # v9.1.1
         env:
           ADDITIONAL_METRICS: release,pr
           EXEMPT_TOPICS: keep,template
