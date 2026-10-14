@@ -71,6 +71,7 @@ describe("fair DAG queue lifecycle summaries", () => {
     expect(summary).toContain("| ClaimCancellation | 1 |");
     expect(summary).not.toContain("stored task");
     expect(summary).not.toContain(fixture.assignment.claims[0].work_id);
+    expect(summary).toMatch(/<\/details>\n\n\n$/);
   });
 
   it("labels started/unbound reservations as unresolved, never stopped or empty", () => {
@@ -90,6 +91,8 @@ describe("fair DAG queue lifecycle summaries", () => {
     expect(addRaw).toHaveBeenCalledWith(expect.stringContaining("1 new checked commits"));
     expect(addRaw).toHaveBeenCalledWith(expect.stringContaining("Work nodes"));
     expect(addRaw).toHaveBeenCalledWith(expect.stringContaining(fixture.assignment.claims[0].work_id.slice(0, 12)));
+    expect(addRaw.mock.calls[0][0]).toContain("</details>\n\n\n<details>");
+    expect(addRaw.mock.calls[0][0]).toMatch(/<\/details>\n\n\n$/);
   });
 
   it("reports ledger validation failure without inventing a successful state", async () => {
@@ -109,5 +112,6 @@ describe("fair DAG queue lifecycle summaries", () => {
     ).rejects.toThrow(/summarize/);
     expect(addRaw).toHaveBeenCalledWith(expect.stringContaining("no successful queue state is inferred"));
     expect(addRaw.mock.calls[0][0]).not.toContain("private data");
+    expect(addRaw.mock.calls[0][0]).toMatch(/<\/details>\n\n\n$/);
   });
 });

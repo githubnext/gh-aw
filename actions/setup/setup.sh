@@ -273,6 +273,7 @@ MCP_SCRIPTS_FILES=(
   "handler_auth.cjs"
   "invocation_context_helpers.cjs"
   "markdown_code_region_balancer.cjs"
+  "messages_core.cjs"
   "pi_session_redaction.cjs"
   "otlp_header_helpers.cjs"
   "redact_secrets.cjs"

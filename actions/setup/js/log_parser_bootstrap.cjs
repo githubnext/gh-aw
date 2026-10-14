@@ -12,6 +12,7 @@ const { writeSessionArtifact } = require("./session_artifact.cjs");
 const { collectCodexJSONRecords } = require("./codex_log_framing.cjs");
 const { collectAgentExecution, parseAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { hasCopilotConversation, hasMalformedJsonl, deduplicateCopilotFallback } = require("./copilot_session.cjs");
+const { isUnifiedSessionTrace } = require("./unified_session_render.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -532,11 +533,12 @@ async function runLogParser(options) {
           parserName,
         });
 
-        // Wrap the agent log in a details/summary section (open by default)
-        const wrappedAgentLog = wrapAgentLogInSection(copilotCliStyleMarkdown, {
-          parserName,
-          open: true,
-        });
+        const wrappedAgentLog = isUnifiedSessionTrace(publicationEntries)
+          ? copilotCliStyleMarkdown
+          : wrapAgentLogInSection(copilotCliStyleMarkdown, {
+              parserName,
+              open: true,
+            });
 
         // Add safe outputs preview to step summary
         let fullMarkdown = wrappedAgentLog;

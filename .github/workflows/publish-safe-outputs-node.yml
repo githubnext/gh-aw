@@ -162,6 +162,7 @@ jobs:
           EXISTING_DOCKERFILE_HASH: ${{ steps.published.outputs.dockerfile_hash }}
           IMAGE_EXISTS: ${{ steps.published.outputs.image_exists }}
           IN_COOLDOWN: ${{ steps.upstream.outputs.in_cooldown }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -175,7 +176,12 @@ jobs:
           echo "--- Evaluating conditions ---"
 
           should_push=false
+          force_refresh=false
           reason="No changes detected"
+
+          if [ "$TRIGGER_EVENT" = "schedule" ] || [ "$TRIGGER_EVENT" = "workflow_dispatch" ]; then
+            force_refresh=true
+          fi
 
           if [ "$IN_COOLDOWN" = "true" ] && { [ "$IMAGE_EXISTS" != "true" ] || [ "$EXISTING_BASE_DIGEST" != "$CURRENT_BASE_DIGEST" ]; }; then
             reason="node:lts-alpine is still within the ${COOLDOWN_DAYS}-day cooldown window"
@@ -188,12 +194,16 @@ jobs:
           elif [ "$EXISTING_DOCKERFILE_HASH" != "$CURRENT_DOCKERFILE_HASH" ]; then
             should_push=true
             reason="Container Dockerfile changed"
+          elif [ "$force_refresh" = "true" ]; then
+            should_push=true
+            reason="Refresh runtime packages on scheduled or manual publish"
           fi
 
           echo "Decision: should_push=${should_push}"
           echo "Reason: ${reason}"
 
           echo "should_push=$should_push" >> "$GITHUB_OUTPUT"
+          echo "force_refresh=$force_refresh" >> "$GITHUB_OUTPUT"
           echo "reason=$reason" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
@@ -213,6 +223,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           pull: true
           push: true
+          # Scheduled/manual refreshes pick up apk/npm fixes even with unchanged inputs.
+          no-cache: ${{ steps.decision.outputs.force_refresh == 'true' }}
           build-args: |
             NODE_IMAGE=${{ steps.upstream.outputs.base_image }}
             NODE_IMAGE_DIGEST=${{ steps.upstream.outputs.digest }}
@@ -220,7 +232,7 @@ jobs:
             DOCKERFILE_HASH=${{ steps.source.outputs.hash }}
           tags: |
             ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:node-lts-alpine-${{ steps.upstream.outputs.short_digest }}
+            ${{ env.IMAGE_NAME }}:node-lts-alpine-${{ steps.upstream.outputs.short_digest }}-${{ github.run_id }}-${{ github.run_attempt }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=Node LTS Alpine with git for the local safe-outputs MCP runtime

@@ -213,6 +213,43 @@ function parseRepoSlug(repoSlug) {
 }
 
 /**
+ * Get the repository that owns the current workflow checkout.
+ * @returns {string}
+ */
+function getWorkflowRepoSlug() {
+  const githubRepo = (process.env.GITHUB_REPOSITORY || "").trim();
+  if (githubRepo) {
+    return githubRepo;
+  }
+  if (typeof context !== "undefined" && context.repo?.owner && context.repo?.repo) {
+    return `${context.repo.owner}/${context.repo.repo}`;
+  }
+  return "";
+}
+
+/**
+ * Check whether a resolved target differs from the workflow repository.
+ * @param {string} targetRepo - Resolved target repository slug
+ * @returns {boolean}
+ */
+function isSideRepoTarget(targetRepo) {
+  const workflowRepo = getWorkflowRepoSlug();
+  return !workflowRepo || targetRepo.trim().toLowerCase() !== workflowRepo.toLowerCase();
+}
+
+/**
+ * Check whether a configured patch workspace belongs to the resolved target.
+ * An omitted checkout identity describes the workflow checkout.
+ * @param {string} targetRepo - Resolved target repository slug
+ * @param {string} checkoutRepo - Repository identity for the configured workspace, if provided
+ * @returns {boolean}
+ */
+function patchWorkspaceTargetsRepo(targetRepo, checkoutRepo) {
+  const workspaceRepo = (checkoutRepo || getWorkflowRepoSlug()).trim().toLowerCase();
+  return Boolean(workspaceRepo) && workspaceRepo === targetRepo.trim().toLowerCase();
+}
+
+/**
  * Resolve target repository configuration from handler config
  * Combines parsing of allowed-repos and resolution of default target repo
  * @param {HandlerRepoConfig | import('./types/handler-factory').HandlerConfig} config - Handler configuration object
@@ -374,6 +411,9 @@ module.exports = {
   validateRepo,
   validateTargetRepo,
   parseRepoSlug,
+  getWorkflowRepoSlug,
+  isSideRepoTarget,
+  patchWorkspaceTargetsRepo,
   resolveTargetRepoConfig,
   resolveAndValidateRepo,
   resolveExecutionOwnerRepo,

@@ -162,20 +162,35 @@ function registerTests({ describe, it }) {
         fixture.githubClient.rest.actions.createWorkflowDispatch = async () => {
           throw new Error("publisher credential must not dispatch");
         };
+        const publisherClient = { ...fixture.githubClient };
+        let queueReads = 0;
+        let queueWrites = 0;
         try {
           const intentPath = path.join(root, "intents.jsonl");
           fs.writeFileSync(intentPath, `${JSON.stringify({ version: 3, intent_id: "launch-credential", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
           const result = await main({
             assignment: null,
-            env: { GH_AW_GITHUB_TOKEN_SOURCE: entry.credentialSource },
+            env: { GH_AW_GITHUB_TOKEN_SOURCE: entry.credentialSource, GH_AW_WORK_QUEUE_TOKEN: "protected-publisher-token" },
             intentPath,
             githubClient: fixture.githubClient,
             context: fixture.dispatcherContext,
             workflowRef: `${REPOSITORY}/${DISPATCHER}@${REF}`,
             intentOrigin: fixture.dispatcher,
-            readWorkQueueLog: fixture.readWorkQueueLog,
-            publishWorkQueueRequest: fixture.publishWorkQueueRequest,
+            readWorkQueueLog: async parameters => {
+              assert.equal(parameters.githubClient, publisherClient);
+              queueReads++;
+              return fixture.readWorkQueueLog();
+            },
+            publishWorkQueueRequest: async parameters => {
+              assert.equal(parameters.githubClient, publisherClient);
+              queueWrites++;
+              return fixture.publishWorkQueueRequest(parameters);
+            },
             getOctokit: (token, options) => {
+              if (token === "protected-publisher-token") {
+                assert.deepEqual(options, { credentialSource: entry.credentialSource });
+                return publisherClient;
+              }
               assert.equal(token, "protected-selected-token");
               assert.deepEqual(options, entry.credentialSource === "unknown" ? undefined : { credentialSource: entry.credentialSource });
               return dispatchClient;
@@ -189,6 +204,8 @@ function registerTests({ describe, it }) {
           assert.equal(posts, 1);
           assert.equal(workerReads, 1);
           assert.equal(identityReads, 1);
+          assert.ok(queueReads > 0);
+          assert.ok(queueWrites > 0);
           const dispatch = [...fixture.state.dispatches.values()][0];
           assert.equal(dispatch.state, "bound");
           assert.equal(dispatch.run.principal, entry.principal);
@@ -270,7 +287,7 @@ function registerTests({ describe, it }) {
         fs.writeFileSync(intentPath, `${JSON.stringify({ version: 3, intent_id: "credential-preview", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
         const options = {
           assignment: null,
-          env: {},
+          env: { GH_AW_WORK_QUEUE_TOKEN: "protected-publisher-token" },
           intentPath,
           githubClient: fixture.githubClient,
           dispatchClient: fixture.githubClient,
@@ -298,10 +315,13 @@ function registerTests({ describe, it }) {
         for (const credential of [null, { kind: "unsupported" }, { kind: "github_app" }]) {
           await assert.rejects(main({ ...options, config: { ...options.config, "github-token": "protected-selected-token", work_queue_dispatch_credential: credential } }), /dispatch_(credential_kind_invalid|app_metadata_missing)/);
         }
+        for (const token of ["", "publisher\ninjection", "x".repeat(16385)]) {
+          await assert.rejects(main({ ...options, env: { GH_AW_WORK_QUEUE_TOKEN: token }, config: { ...options.config, work_queue_dispatch_credential: { kind: "github_token" } } }), /publisher_credential_token_invalid/);
+        }
         assert.equal(reads, 0, "invalid protected metadata must fail before queue or dependency reads");
         assert.equal(credentialCalls, 0, "invalid protected metadata must fail before client construction");
         assert.equal(writes, 0);
-        const result = await main({ ...options, staged: true, config: { ...options.config, "github-token": "", work_queue_dispatch_credential: { kind: "agent-spoof" } } });
+        const result = await main({ ...options, env: { GH_AW_WORK_QUEUE_TOKEN: "" }, staged: true, config: { ...options.config, "github-token": "", work_queue_dispatch_credential: { kind: "agent-spoof" } } });
         assert.equal(result.receipts[0].status, "staged_preview", JSON.stringify(result));
         assert.equal(credentialCalls, 0);
         assert.equal(writes, 0);
@@ -799,6 +819,7 @@ async function verifyCompiledDispatchIdentity(input) {
       },
     };
     fixture.githubClient.hook = { before() {} };
+    const publisherClient = { ...fixture.githubClient, auth: async () => ({ type: "token", token: "protected-publisher-token" }) };
     fixture.githubClient.rest.actions.createWorkflowDispatch = async () => {
       throw new Error("The ledger publisher credential must not launch workers");
     };
@@ -851,10 +872,16 @@ async function verifyCompiledDispatchIdentity(input) {
             main: async options => {
               result = await main({
                 ...options,
-                env: {},
+                env: { GH_AW_WORK_QUEUE_TOKEN: "protected-publisher-token" },
                 workflowRef: dispatcherWorkflowRef,
-                readWorkQueueLog: fixture.readWorkQueueLog,
-                publishWorkQueueRequest: fixture.publishWorkQueueRequest,
+                readWorkQueueLog: async parameters => {
+                  assert.equal(parameters.githubClient.auth, publisherClient.auth);
+                  return fixture.readWorkQueueLog();
+                },
+                publishWorkQueueRequest: async parameters => {
+                  assert.equal(parameters.githubClient.auth, publisherClient.auth);
+                  return fixture.publishWorkQueueRequest(parameters);
+                },
                 now: fixture.at,
                 sleepFn: async () => {},
               });
@@ -865,6 +892,7 @@ async function verifyCompiledDispatchIdentity(input) {
         throw new Error(`Unexpected compiled runtime module: ${module}`);
       };
       const getOctokit = token => {
+        if (token === "protected-publisher-token") return publisherClient;
         assert.equal(token, "protected-selected-token");
         return dispatchClient;
       };
