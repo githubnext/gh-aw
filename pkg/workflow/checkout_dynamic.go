@@ -100,6 +100,7 @@ func buildDynamicCheckoutEnvironment(entry *resolvedCheckout, index int, keepCre
 	// Expressions remain data in environment variables, never executable script text.
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_ALLOWED_REPOS", strings.Join(entry.allowedRepos, "\n"))
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_MAX_REPOS", strconv.Itoa(entry.maxRepos))
+	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", strconv.FormatBool(entry.allowPrivateRepos))
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_PREFIX", entry.key.path)
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_REF", entry.ref)
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_FETCH_DEPTH", strconv.Itoa(depth))

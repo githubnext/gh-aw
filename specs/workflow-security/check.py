@@ -67,6 +67,8 @@ RUNTIME_CHECKOUT_MUTATIONS = {
     "repository-limit": "BoundedSelection",
     "canonical-allowlist": "CanonicalRepositoriesAllowed",
     "visibility": "VisibilityIsolation",
+    "private-opt-in": "PrivateRepositoryOptIn",
+    "private-opt-in-bypasses-host": "VisibilityIsolation",
     "path-bypass": "ValidatedPathsSafe",
     "partial-preflight": "BatchValidatedBeforeCheckout",
     "recursive-fetch": "NoSecondaryReads",
@@ -85,6 +87,7 @@ RUNTIME_CHECKOUT_WITNESSES = {
     "failure": "NoKnownCheckoutFailure",
     "hosting-exception": "NoHostingException",
     "private-host": "NoPrivateHostCheckout",
+    "internal-host": "NoInternalHostCheckout",
 }
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",

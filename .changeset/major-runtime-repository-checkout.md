@@ -6,6 +6,8 @@ Add runtime repository-list checkouts for scheduled workers, with the `repo` ali
 
 Runtime checkout entries default to a maximum of 10 unique selected repositories. Set `max-repos` to a positive literal integer to change the cap. Oversized lists fail before metadata requests or checkout instead of being truncated; merged entries retain the smallest effective limit.
 
+Runtime lists allow only public targets by default. Set the literal boolean `allow-private-repos: true` to permit allowlisted private/internal targets from a private/internal hosting repository. Public hosts always reject non-public targets, even with this opt-in enabled. The flag requires `allowed-repos`; every merged entry must explicitly opt in. Ordinary static checkout behavior is unchanged.
+
 **Breaking change:** GitHub Actions expressions in `checkout.repository` or `checkout.repo` now require `allowed-repos`, even for one repository, except for the standalone `${{ github.repository }}` expression. Add an explicit allowlist and a literal, non-root `path` prefix for other expressions; each repository is checked out under `prefix/owner/repo`. To keep a checkout of the workflow repository at the workspace root, omit `repository` or use `${{ github.repository }}` without an allowlist. Repository selectors cannot contain wildcards; only scoped allowlist patterns support them. Rejected selections fail the job and are reported through the existing agent failure issue settings.
 
 Runtime repository-list checkouts reject `lfs: true` at compilation and runtime, including in private workflows, because repository-controlled LFS endpoints can bypass the repository allowlist. Disable LFS for runtime lists; static checkout LFS support is unchanged.

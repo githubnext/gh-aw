@@ -16592,6 +16592,11 @@
           ],
           "description": "Required allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or a whole GitHub Actions expression directly referencing a repository or organization configuration variable (e.g. ${{ vars.ALLOWED_REPOS }} or ${{ vars['ALLOWED_REPOS'] }}). Caller-controlled contexts, dynamic indexing, and composite or mixed expressions are rejected. Supports scoped wildcard patterns such as owner/* or */repo, but not unrestricted wildcards such as * or */*. The path is a literal prefix; repositories are placed under prefix/owner/repo."
         },
+        "allow-private-repos": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow private or internal targets in a runtime repository list only when the hosting workflow repository is private or internal. Requires allowed-repos and a literal boolean. Defaults to false. Public hosting repositories always reject non-public targets, even when true. Every merged entry must explicitly opt in."
+        },
         "max-repos": {
           "type": "integer",
           "minimum": 1,

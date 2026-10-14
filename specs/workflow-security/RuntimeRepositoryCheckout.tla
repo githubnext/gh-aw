@@ -4,7 +4,8 @@ EXTENDS Naturals, FiniteSets, Sequences, TLC
 CONSTANT Fault
 ASSUME Fault \in {"none", "untrusted-policy", "missing-allowlist",
                  "selector-wildcard", "unrestricted-policy", "raw-allowlist",
-                 "repository-limit", "canonical-allowlist", "visibility", "path-bypass",
+                 "repository-limit", "canonical-allowlist", "visibility",
+                 "private-opt-in", "private-opt-in-bypasses-host", "path-bypass",
                  "partial-preflight", "recursive-fetch", "cleanup-fail-open",
                  "manifest-omitted", "fallback-token", "neighbor-token",
                  "write-credentials-stripped", "write-allowlist",
@@ -26,7 +27,7 @@ BaseInput ==
      allowed |-> {"org/a", "org/b"}, unrestricted |-> FALSE,
      values |-> <<"org/a">>, limit |-> 10, limitSyntaxValid |-> TRUE,
      prefix |-> "targets", prefixValid |-> TRUE, pathsSafe |-> TRUE,
-     hostVisibility |-> "public",
+     hostVisibility |-> "public", allowPrivateRepos |-> FALSE,
      visibility |-> [r \in Repos |-> "public"],
      metadataVerified |-> TRUE, redirect |-> None,
      lfs |-> FALSE, submodules |-> FALSE, appScopeExplicit |-> TRUE,
@@ -34,6 +35,7 @@ BaseInput ==
      writeAllowed |-> {"org/a"}]
 
 Inputs == {BaseInput,
+    [BaseInput EXCEPT !.allowPrivateRepos = TRUE],
     [BaseInput EXCEPT !.policySource = "variable"],
     [BaseInput EXCEPT !.policySource = "caller"],
     [BaseInput EXCEPT !.policySource = "composite"],
@@ -60,10 +62,17 @@ Inputs == {BaseInput,
     [BaseInput EXCEPT !.visibility["org/a"] = "unknown"],
     [BaseInput EXCEPT !.values = <<"org/a", "org/b">>,
                      !.visibility["org/b"] = "private"],
+    [BaseInput EXCEPT !.values = <<"org/a", "org/b">>,
+                     !.visibility["org/b"] = "private", !.allowPrivateRepos = TRUE],
     [BaseInput EXCEPT !.visibility["org/a"] = "internal"],
+    [BaseInput EXCEPT !.visibility["org/a"] = "internal", !.allowPrivateRepos = TRUE],
     [BaseInput EXCEPT !.hostVisibility = "private",
                      !.values = <<"org/b">>, !.visibility["org/b"] = "private"],
+    [BaseInput EXCEPT !.hostVisibility = "private", !.allowPrivateRepos = TRUE,
+                     !.values = <<"org/b">>, !.visibility["org/b"] = "private"],
     [BaseInput EXCEPT !.hostVisibility = "internal",
+                     !.visibility["org/a"] = "internal"],
+    [BaseInput EXCEPT !.hostVisibility = "internal", !.allowPrivateRepos = TRUE,
                      !.visibility["org/a"] = "internal"],
     [BaseInput EXCEPT !.prefixValid = FALSE],
     [BaseInput EXCEPT !.pathsSafe = FALSE],
@@ -117,11 +126,15 @@ ObservedToken(job, entry, fallback) ==
     THEN "other-entry-app"
     ELSE ExpectedToken(job, entry, fallback)
 
-VisibilityAllowed(i) ==
+VisibilityKnown(i) ==
     /\ i.hostVisibility \in {"public", "private", "internal"}
+    /\ \A r \in CanonicalRepos(i): i.visibility[r] \in {"public", "private", "internal"}
+VisibilityAllowed(i) ==
+    /\ VisibilityKnown(i)
     /\ \A r \in CanonicalRepos(i):
-        /\ i.visibility[r] \in {"public", "private", "internal"}
-        /\ (i.hostVisibility = "public" => i.visibility[r] = "public")
+        i.hostVisibility = "public" => i.visibility[r] = "public"
+PrivateRepositoriesAllowed(i) ==
+    i.allowPrivateRepos \/ \A r \in CanonicalRepos(i): i.visibility[r] = "public"
 PreflightAllowed(i) ==
     /\ Selected(i) \subseteq Repos
     /\ (~i.unrestricted \/ Fault = "unrestricted-policy")
@@ -131,7 +144,9 @@ PreflightAllowed(i) ==
 MetadataAllowed(i) ==
     /\ i.metadataVerified /\ (i.pathsSafe \/ Fault = "path-bypass")
     /\ (CanonicalRepos(i) \subseteq i.allowed \/ Fault = "canonical-allowlist")
-    /\ (VisibilityAllowed(i) \/ Fault = "visibility")
+    /\ (VisibilityAllowed(i) \/ Fault = "visibility" \/
+        (Fault = "private-opt-in-bypasses-host" /\ i.allowPrivateRepos /\ VisibilityKnown(i)))
+    /\ (PrivateRepositoriesAllowed(i) \/ Fault = "private-opt-in")
 
 VARIABLE s
 vars == <<s>>
@@ -242,6 +257,7 @@ BatchValidatedBeforeCheckout ==
 ValidatedPathsSafe == s.validated # {} => s.input.prefixValid /\ s.input.pathsSafe
 CanonicalRepositoriesAllowed == s.validated \subseteq s.input.allowed
 VisibilityIsolation == s.validated # {} => VisibilityAllowed(s.input) /\ s.input.metadataVerified
+PrivateRepositoryOptIn == s.validated # {} => PrivateRepositoriesAllowed(s.input)
 EntryAuthentication ==
     s.metadataRead => s.token = ExpectedToken(s.job, s.entry, s.fallback)
 NoSecondaryReads == ~s.indirectReads
@@ -266,5 +282,9 @@ NoKnownCheckoutFailure == ~s.failureIssue
 NoHostingException ==
     ~(s.phase = "static" /\ s.input.selector = "hosting" /\ s.input.policySource = "missing")
 NoPrivateHostCheckout ==
-    ~(s.input.hostVisibility = "private" /\ "org/b" \in s.checkouts)
+    ~(s.input.hostVisibility = "private" /\ s.input.allowPrivateRepos
+      /\ s.input.visibility["org/b"] = "private" /\ "org/b" \in s.checkouts)
+NoInternalHostCheckout ==
+    ~(s.input.hostVisibility = "internal" /\ s.input.allowPrivateRepos
+      /\ s.input.visibility["org/a"] = "internal" /\ "org/a" \in s.checkouts)
 =============================================================================

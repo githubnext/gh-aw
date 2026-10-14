@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.10<br>
+**Version**: 1.29.11<br>
 **Status**: Working Draft<br>
 **Publication Date**: 2026-10-14<br>
 **Editor**: GitHub Agentic Workflows Team<br>
@@ -5245,7 +5245,9 @@ Repository-selection expressions in `repository` or its `repo` alias MUST requir
 
 **Requirement RCR9: Complete, Bounded Preflight**
 
-Selected newline-separated slugs MUST be deduplicated case-insensitively. Each entry MUST enforce its positive literal `max-repos` limit, defaulting to 10, before metadata requests or checkout generation; oversized lists MUST fail in full rather than truncate. An empty selection MUST NOT expand to the allowed set. The entire selected batch MUST pass allowlist, canonical-name, metadata, visibility, and path checks before any selected checkout begins. Canonical names returned by GitHub MUST be revalidated against the policy. Public hosting repositories MUST NOT check out private or internal targets, regardless of token access or `private-to-public-flows` settings. Unverifiable host or target metadata MUST fail closed.
+Selected newline-separated slugs MUST be deduplicated case-insensitively. Each entry MUST enforce its positive literal `max-repos` limit, defaulting to 10, before metadata requests or checkout generation; oversized lists MUST fail in full rather than truncate. An empty selection MUST NOT expand to the allowed set. The entire selected batch MUST pass allowlist, canonical-name, metadata, visibility, and path checks before any selected checkout begins. Canonical names returned by GitHub MUST be revalidated against the policy.
+
+Runtime entries MUST reject private/internal targets by default. The literal boolean `allow-private-repos: true` MAY enable them only when the hosting repository is private/internal; the flag MUST require `allowed-repos`, and malformed runtime values MUST fail before authenticated reads. Agent and safe-output jobs MUST enforce the same flag. Merged entries MUST use logical AND with omitted values treated as false, so imports cannot opt a main entry into private access. Public hosting repositories MUST NOT check out private or internal targets, even with this flag enabled, regardless of token access or `private-to-public-flows` settings. Unverifiable host or target metadata MUST fail closed.
 
 **Requirement RCR10: Job-Local Finalized Manifests**
 
@@ -6159,6 +6161,11 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.11** (2026-10-14):
+
+- **Specified**: Explicit runtime `allow-private-repos` opt-in, default-deny private/internal selection, conservative merged policy, and the unconditional public-host prohibition across both checkout jobs.
+- **Added**: Bounded TLA+ opt-in invariant, opt-in/public-host negative controls, and private/internal-host reachability witnesses.
 
 **Version 1.29.10** (2026-10-14):
 

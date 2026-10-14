@@ -118,7 +118,8 @@ covered by the original model.
 Finite input classes include trusted literal/configuration-variable policies,
 caller/composite policies, missing policies, scoped matching sets and unrestricted
 policies, explicit/wildcard selectors, empty and case-duplicate lists, canonical
-redirects, unverifiable metadata, public/private/internal hosts and targets,
+redirects, unverifiable metadata, public/private/internal hosts and targets with
+and without explicit private-repository opt-in,
 invalid prefixes, unsafe target paths, LFS/submodule settings, and staged mode.
 The bounded lists use three repositories and limits 1, 2, and the production
 default 10. Token classes distinguish entry PAT/read-App/write-App overrides,
@@ -131,17 +132,17 @@ is the current job's GitHub token, whose grants differ between job kinds.
 | Predicates | Contract / implementation connection |
 |---|---|
 | `MandatoryAllowlist`, `PolicyProvenance`, `ExplicitSelector`, `ScopedPolicy` | RCR8; [`validateCheckoutAllowedRepos`](../../pkg/workflow/checkout_dynamic.go), [`parseAllowedRepos`](../../actions/setup/js/checkout_dynamic.cjs), and compiler policy regressions. |
-| `SelectedRepositoriesAllowed`, `BoundedSelection`, `BatchValidatedBeforeCheckout`, `ValidatedPathsSafe`, `CanonicalRepositoriesAllowed`, `VisibilityIsolation` | RCR9; [`prepareCheckouts`](../../actions/setup/js/checkout_dynamic.cjs) validates the complete batch before creating the checkout action. |
+| `SelectedRepositoriesAllowed`, `BoundedSelection`, `BatchValidatedBeforeCheckout`, `ValidatedPathsSafe`, `CanonicalRepositoriesAllowed`, `VisibilityIsolation`, `PrivateRepositoryOptIn` | RCR9; [`prepareCheckouts`](../../actions/setup/js/checkout_dynamic.cjs) validates the complete batch, requires explicit opt-in for non-public targets, and never permits them on public hosts. |
 | `EntryAuthentication` | RCR11; [`dynamicCheckoutToken`](../../pkg/workflow/checkout_dynamic.go) and [`prepareSharedPRCheckout`](../../pkg/workflow/compiler_safe_outputs_steps.go) preserve explicit entry credentials and resolve the shared fallback independently of neighboring Apps. |
 | `NoSecondaryReads` | RCR12; generated actions disable LFS/submodules and [`finish`](../../actions/setup/js/checkout_dynamic.cjs) explicitly disables recursive submodule fetching. |
 | `AgentCredentialsCleared`, `PrivilegedCredentialsRetained` | RCR13; agent finalization cleans/verifies actual Git configurations before engine execution; privileged finalization retains write authentication. |
 | `ManifestPrecedesConsumers`, `SafeOutputAuthorization` | RCR6/RCR10; job-local manifest generation follows finalization, and checkout authorization never expands a handler's write allowlist. |
 | `StagedIsolation`, `CheckoutFailureReported` | RCR14/RCR15; preview mode omits checkout dependencies, and known checkout failures remain reportable even without recorded agent jobs. |
 
-The existing checker runs this model, its 19 deliberate guard mutations, and
-five reachability witnesses alongside `CompiledWorkflow`. Witnesses establish
+The existing checker runs this model, its 21 deliberate guard mutations, and
+six reachability witnesses alongside `CompiledWorkflow`. Witnesses establish
 that runtime checkout, deep-prefix handler lookup, known failure reporting,
-the standalone hosting-repository exception, and private-host checkout are
+the standalone hosting-repository exception, and opted-in private/internal-host checkouts are
 reachable; the safety properties therefore do not pass by rejecting everything.
 The mutations are hypothetical broken guards, not confirmed product bugs.
 

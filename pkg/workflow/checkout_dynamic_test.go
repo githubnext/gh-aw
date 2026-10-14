@@ -275,6 +275,7 @@ func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_REPOSITORIES: "${{ inputs.repos }}"`)
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*"`)
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_MAX_REPOS: "10"`)
+	assert.Contains(t, steps, `GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS: "false"`)
 	assert.Contains(t, steps, "GH_AW_DYNAMIC_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "false"`)
 	assert.Contains(t, steps, "await finish({ cleanCredentials: true });")
@@ -317,6 +318,7 @@ checkout:
     path: targets
     allowed-repos: ["org/*"]
     max-repos: 3
+    allow-private-repos: true
 safe-outputs:
   create-pull-request:
     target-repo: "*"
@@ -334,6 +336,7 @@ Process each selected repository under targets.
 	assert.Contains(t, yaml, "checkout_dynamic.cjs")
 	assert.Equal(t, 2, strings.Count(yaml, "uses: ./.gh-aw/checkouts/0"), "agent and safe_outputs must share checkout layout")
 	assert.Equal(t, 6, strings.Count(yaml, `GH_AW_DYNAMIC_MAX_REPOS: "3"`), "preparation, checkout and finalization in both jobs must share the cap")
+	assert.Equal(t, 6, strings.Count(yaml, `GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS: "true"`), "agent and safe_outputs must enforce the same private-repository policy")
 	assert.NotContains(t, yaml, "repository: ${{ vars.WORKER_REPOS }}")
 	assert.Equal(t, 2, strings.Count(yaml, "checkout_error: ${{ steps.checkout-validate-0.outputs.checkout_error }}"))
 	assert.Contains(t, yaml, "GH_AW_CHECKOUT_ERROR: ${{ needs.agent.outputs.checkout_error || needs.safe_outputs.outputs.checkout_error }}")

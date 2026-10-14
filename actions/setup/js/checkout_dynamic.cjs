@@ -123,6 +123,10 @@ async function prepareCheckouts({ github, getOctokit }, token) {
   const config = readConfig();
   const repos = parseRepositories(process.env.GH_AW_DYNAMIC_REPOSITORIES || "");
   const allowed = parseAllowedRepos(process.env.GH_AW_DYNAMIC_ALLOWED_REPOS || "");
+  const allowPrivateRepos = process.env.GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS ?? "false";
+  if (!["false", "true"].includes(allowPrivateRepos)) {
+    throw new CheckoutPreparationError("checkout.allow-private-repos must be a literal boolean; use true or false");
+  }
   const maxReposValue = process.env.GH_AW_DYNAMIC_MAX_REPOS ?? "10";
   const maxRepos = Number(maxReposValue);
   if (!/^[1-9]\d*$/.test(maxReposValue) || !Number.isSafeInteger(maxRepos)) {
@@ -178,6 +182,9 @@ async function prepareCheckouts({ github, getOctokit }, token) {
     }
     if (isPublic && (data.private || data.visibility !== "public")) {
       throw new CheckoutPreparationError(`Public workflows cannot check out non-public repository ${repository}`);
+    }
+    if (allowPrivateRepos !== "true" && (data.private || data.visibility !== "public")) {
+      throw new CheckoutPreparationError(`Runtime checkout of non-public repository ${repository} requires checkout.allow-private-repos: true`);
     }
     if (entries.some(entry => entry.repository === canonical[0])) continue;
     const checkoutPath = path.posix.join(config.prefix, canonical[0]);

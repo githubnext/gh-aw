@@ -23700,12 +23700,13 @@ checkout:
   repo: "example-value"
 
   # Required allowlist for runtime repository-list expansion. Accepts
-  # newline-separated patterns, an array, or a standalone GitHub Actions reference
-  # to a repository or organization variable (vars). Caller-controlled inputs,
-  # step/job outputs, and computed or mixed expressions are not accepted. Supports
-  # scoped wildcard patterns such as owner/* or */repo, but not unrestricted
-  # wildcards such as * or */*. The path is a literal prefix; repositories are
-  # placed under prefix/owner/repo.
+  # newline-separated patterns, an array, or a whole GitHub Actions expression
+  # directly referencing a repository or organization configuration variable (e.g.
+  # ${{ vars.ALLOWED_REPOS }} or ${{ vars['ALLOWED_REPOS'] }}). Caller-controlled
+  # contexts, dynamic indexing, and composite or mixed expressions are rejected.
+  # Supports scoped wildcard patterns such as owner/* or */repo, but not
+  # unrestricted wildcards such as * or */*. The path is a literal prefix;
+  # repositories are placed under prefix/owner/repo.
   # (optional)
   # Accepted formats:
 
@@ -23715,6 +23716,13 @@ checkout:
   # Format 2: array
   allowed-repos: []
     # Array items: string
+
+  # Allow private or internal targets in a runtime repository list only when the
+  # hosting workflow repository is private or internal. Requires allowed-repos and a
+  # literal boolean. Defaults to false. Public hosting repositories always reject
+  # non-public targets, even when true. Every merged entry must explicitly opt in.
+  # (optional)
+  allow-private-repos: true
 
   # Maximum number of unique repositories per runtime checkout entry. Requires
   # allowed-repos. Defaults to 10. Oversized lists fail before metadata requests or

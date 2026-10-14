@@ -9,6 +9,23 @@ import (
 	"testing"
 )
 
+func TestValidateMainWorkflowFrontmatter_CheckoutAllowPrivateRepos(t *testing.T) {
+	for _, value := range []any{true, false, nil, "true", 1, "${{ vars.ALLOW_PRIVATE_REPOS }}"} {
+		checkout := map[string]any{
+			"repo": "${{ vars.REPOS }}", "path": "targets", "allowed-repos": "org/*", "allow-private-repos": value,
+		}
+		for _, config := range []any{checkout, []any{checkout}} {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on": "workflow_dispatch", "engine": "copilot", "checkout": config,
+			}, "workflow.md")
+			_, valid := value.(bool)
+			if (err == nil) != valid {
+				t.Fatalf("allow-private-repos=%v: validation error = %v, valid %t", value, err, valid)
+			}
+		}
+	}
+}
+
 func TestValidateMainWorkflowFrontmatter_CheckoutMaxRepos(t *testing.T) {
 	for _, tt := range []struct {
 		name    string

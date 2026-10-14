@@ -1288,11 +1288,19 @@ describe("handle_agent_failure", () => {
       }
     });
 
-    it.each(["failure", "success"])("reports runtime checkout rejection despite empty jobs metadata when the agent conclusion is %s", async conclusion => {
+    it.each(
+      ["failure", "success"].flatMap(conclusion =>
+        [
+          "Runtime checkout repository org/b is not permitted by allowed-repos",
+          "Runtime checkout of non-public repository org/b requires checkout.allow-private-repos: true",
+          "Public workflows cannot check out non-public repository org/b",
+        ].map(message => [conclusion, message])
+      )
+    )("reports runtime checkout rejection despite empty jobs metadata with conclusion %s: %s", async (conclusion, message) => {
       const output = path.join(tmpDir, "output.json");
       fs.writeFileSync(output, JSON.stringify({ items: [{ type: "noop", message: "Done" }] }));
       vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
-      vi.stubEnv("GH_AW_CHECKOUT_ERROR", "Runtime checkout repository org/b is not permitted by allowed-repos");
+      vi.stubEnv("GH_AW_CHECKOUT_ERROR", message);
       vi.stubEnv("GH_AW_AGENT_CONCLUSION", conclusion);
       vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
       vi.stubEnv("GH_AW_UNIFIED_SESSION", "");
@@ -1313,7 +1321,7 @@ describe("handle_agent_failure", () => {
         expect(create).toHaveBeenCalledOnce();
         const body = create.mock.calls[0][0].body;
         expect(body).toContain("### Runtime Checkout Rejected");
-        expect(body).toContain("org/b is not permitted by allowed-repos");
+        expect(body).toContain(message);
         expect(body).toContain("failure_categories: agent_failure");
         expect(global.core.setFailed).not.toHaveBeenCalled();
       } finally {

@@ -33,6 +33,7 @@ describe("runtime repository checkout", () => {
       GH_AW_DYNAMIC_REPOSITORIES: "org/a\r\norg/b\n",
       GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*",
       GH_AW_DYNAMIC_MAX_REPOS: "10",
+      GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS: "false",
       GH_AW_DYNAMIC_TOKEN: "secret-token",
       GH_AW_DYNAMIC_CHECKOUT_ACTION: `actions/checkout@${"a".repeat(40)}`,
       GH_AW_DYNAMIC_SUBMODULES: "false",
@@ -159,22 +160,58 @@ describe("runtime repository checkout", () => {
     expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
-  it.each(["private", "internal"])("blocks %s repositories in a public host before creating any checkout action", async visibility => {
+  it.each(
+    ["false", "true"].flatMap(persist => ["public", "private", "internal"].flatMap(host => ["public", "private", "internal"].flatMap(target => [undefined, "false", "true"].map(allowPrivate => [persist, host, target, allowPrivate]))))
+  )("enforces visibility with persist=%s, host=%s, target=%s, allow-private-repos=%s", async (persist, host, target, allowPrivate) => {
+    vi.stubEnv("GH_AW_DYNAMIC_PERSIST", persist);
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", allowPrivate);
+    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", host) });
     runtime.getOctokit().request.mockImplementation(async (_route, { owner, repo }) => ({
-      data: metadata(`${owner}/${repo}`, repo === "b" ? visibility : "public"),
+      data: metadata(`${owner}/${repo}`, repo === "b" ? target : "public"),
     }));
-    await expect(prepare(runtime)).rejects.toThrow("Public workflows cannot check out non-public repository org/b");
-    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", "Public workflows cannot check out non-public repository org/b");
+    if (target === "public" || (host !== "public" && allowPrivate === "true")) {
+      expect(await prepare(runtime)).toHaveLength(2);
+      expect(runtime.getOctokit).toHaveBeenCalledWith("secret-token");
+    } else {
+      const message = host === "public" ? "Public workflows cannot check out non-public repository org/b" : "Runtime checkout of non-public repository org/b requires checkout.allow-private-repos: true";
+      await expect(prepare(runtime)).rejects.toThrow(message);
+      expect(runtime.core.setOutput).toHaveBeenCalledExactlyOnceWith("checkout_error", message);
+      expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+      expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+    }
+  });
+
+  it.each(["", "TRUE", "1", "null", " false ", "${{ vars.ALLOW_PRIVATE_REPOS }}", "secret-token"])("rejects malformed allow-private-repos before authenticated reads: %s", async value => {
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", value);
+    await expect(prepare(runtime)).rejects.toThrow("checkout.allow-private-repos must be a literal boolean");
+    expect(runtime.core.setOutput).toHaveBeenCalledExactlyOnceWith("checkout_error", "checkout.allow-private-repos must be a literal boolean; use true or false");
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.github.request).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+    expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+  });
+
+  it.each([
+    { private: true, visibility: "public" },
+    { private: false, visibility: "private" },
+    { private: false, visibility: "internal" },
+  ])("treats contradictory host visibility conservatively even with private opt-in: %j", async host => {
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", "true");
+    runtime.github.request.mockResolvedValue({ data: { ...metadata("host/workflows"), ...host } });
+    runtime.getOctokit().request.mockResolvedValue({ data: metadata("org/a", "private") });
+    await expect(prepare(runtime)).rejects.toThrow("Public workflows cannot check out non-public repository org/a");
     expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
-  it("allows private repositories in private hosts with the entry's own token", async () => {
-    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", "private") });
-    runtime.getOctokit().request.mockResolvedValue({ data: metadata("org/a", "private") });
-    expect(await prepare(runtime)).toHaveLength(1);
+  it.each(["false", "true"])("treats private metadata as non-public regardless of the visibility label, with opt-in %s", async allowPrivate => {
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", allowPrivate);
+    runtime.getOctokit().request.mockResolvedValue({ data: { ...metadata("org/a"), private: true } });
+    await expect(prepare(runtime)).rejects.toThrow("Public workflows cannot check out non-public repository org/a");
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
-  it("fails closed if host or target visibility cannot be verified", async () => {
+  it.each(["false", "true"])("fails closed if host or target visibility cannot be verified, with opt-in %s", async allowPrivate => {
+    vi.stubEnv("GH_AW_DYNAMIC_ALLOW_PRIVATE_REPOS", allowPrivate);
     runtime.github.request.mockRejectedValue(new Error("secret-token"));
     await expect(prepare(runtime)).rejects.toThrow("Unable to verify workflow repository visibility");
     expect(runtime.core.setOutput).toHaveBeenLastCalledWith("checkout_error", "Unable to verify workflow repository visibility; runtime checkout refused");

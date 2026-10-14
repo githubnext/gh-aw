@@ -7,9 +7,9 @@ sidebar:
 
 # Checkout Behavior Specification
 
-**Version**: 1.3.1<br>
+**Version**: 1.3.2<br>
 **Status**: Working Draft  
-**Publication Date**: 2026-10-03<br>
+**Publication Date**: 2026-10-14<br>
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [checkout-behavior-specification](/gh-aw/specs/checkout-behavior-specification/)  
 **Latest Published Version**: This document
@@ -82,7 +82,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### 3.1 Checkout Entry Parsing
 
 `checkout:` MUST accept either a single object or an array of objects.  
-Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `token`), `github-app` (or deprecated alias `app`), `safe-outputs-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
+Each entry MAY define: `repository` (or `repo`), `allowed-repos`, `max-repos`, `allow-private-repos`, `ref`, `path`, `github-token` (or legacy `token`), `github-app` (or deprecated alias `app`), `safe-outputs-github-app`, `fetch-depth`, `fetch`, `sparse-checkout`, `submodules`, `lfs`, `current`, `wiki`, and `force-clean-git-credentials`.
 
 `github-token` and `github-app` MUST be mutually exclusive per entry.
 
@@ -125,8 +125,15 @@ allowlist and GitHub API metadata. Redirected canonical names MUST be checked
 again. A disallowed repository MUST fail the checkout job before creating any
 selected checkout and MUST be included in the agent failure issue according to
 the workflow's failure-reporting settings, including safe-output checkout failures.
-If the workflow repository is public, non-public targets MUST be rejected,
-regardless of the checkout credential's access. Missing or unverifiable visibility
+Runtime lists MUST reject private/internal targets by default. An entry MAY
+explicitly opt in with the literal boolean `allow-private-repos: true`, which
+MUST require `allowed-repos`. Expressions and non-boolean values MUST fail
+compilation; malformed runtime flag values MUST fail before authenticated reads.
+The opt-in MUST permit non-public targets only on private/internal hosts.
+If the workflow repository is public, non-public targets MUST be rejected even
+when the flag is true, regardless of the checkout credential's access.
+Agent and safe_outputs jobs MUST enforce the same policy. Ordinary static
+checkout behavior MUST remain unchanged. Missing or unverifiable visibility
 MUST fail closed. Runtime lists MUST reject enabled submodules at compilation and
 runtime regardless of host visibility, because repository-controlled submodule
 URLs can bypass the repository allowlist. Generated dynamic checkout actions
@@ -162,6 +169,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - auth (`github-token` vs `github-app`): first auth wins
 - runtime `allowed-repos`: first entry wins; later entries MUST NOT broaden the allowlist
 - runtime `max-repos`: smallest effective limit wins, including the default for omitted values
+- runtime `allow-private-repos`: logical AND; every merged entry MUST explicitly set `true`, with omitted values treated as `false`
 - safe_outputs auth (`safe-outputs-github-app`): first non-empty wins
 - sparse patterns: union
 - fetch refs: union
@@ -366,6 +374,7 @@ When `GH_AW_TARGET_REPO_SLUG` is set but equals `GITHUB_REPOSITORY`, the impleme
 - **T-CHK-016**: Workspace git-scan fallback reads `remote.origin.url` with a per-invocation `safe.directory` override (process environment unchanged), and ignores scanned repositories whose remote host is neither `GITHUB_SERVER_URL`'s host nor `github.com`
 - **T-CHK-017**: Activation sparse checkout pins supported pull-request events to the base SHA, retains non-PR and `workflow_call` fallback refs, excludes `pull_request_target`, and preserves the same-repo guard for optional App token fallback
 - **T-CHK-018**: Checkout-time and final cleanup fail closed on helper failure or residual credentials, including included config files; successful verified cleanup and the no-checkout case remain usable
+- **T-CHK-019**: Runtime private/internal targets require literal per-entry opt-in and a non-public host; public hosts reject them even with opt-in, merged entries cannot broaden access, and denials reach agent failure issues
 
 ### 7.2 Compliance Checklist
 
@@ -384,6 +393,7 @@ When `GH_AW_TARGET_REPO_SLUG` is set but equals `GITHUB_REPOSITORY`, the impleme
 | Workspace git-scan fallback trust scoping and host constraint | T-CHK-016 | C2 | Required |
 | Activation checkout ref and fallback provenance | T-CHK-017 | C1 | Required |
 | Verified fail-closed credential cleanup | T-CHK-018 | C1/C2 | Required |
+| Explicit private checkout opt-in and public-host isolation | T-CHK-019 | C1/C2 | Required |
 
 ### 7.3 Safeguards
 
@@ -427,6 +437,12 @@ The following MUST-level norms govern credential and token safety during checkou
 ---
 
 ## 9. Change Log
+
+### Version 1.3.2 (Working Draft)
+
+- Required explicit `allow-private-repos` opt-in for runtime private/internal
+  targets, conservative merged policy, and unconditional public-host rejection;
+  added T-CHK-019 for both checkout jobs and trusted failure reporting.
 
 ### Version 1.3.1 (Working Draft)
 
