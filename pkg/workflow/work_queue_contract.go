@@ -13,10 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-func workQueueLogicalContract(path string) (string, error) {
-	return workQueueLogicalContractWithCache(path, parser.NewImportCache(filepath.Dir(path)))
-}
-
 func workQueueLogicalContractWithCache(path string, cache *parser.ImportCache) (string, error) {
 	content, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
