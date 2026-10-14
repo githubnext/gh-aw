@@ -2019,9 +2019,16 @@
           }
         },
         "agentic-workflows": {
-          "type": "boolean|null",
+          "type": "boolean|null|object",
           "desc": "GitHub Agentic Workflows MCP server for workflow introspection and analysis.",
-          "leaf": true
+          "children": {
+            "allow-write-tools": {
+              "type": "boolean",
+              "desc": "Explicitly enable add, update, fix, and compile for trusted clients and workflow sources.",
+              "enum": [true, false],
+              "leaf": true
+            }
+          }
         },
         "cache-memory": {
           "type": "boolean|null|object|array",

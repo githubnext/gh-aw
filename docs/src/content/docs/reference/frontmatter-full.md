@@ -4431,6 +4431,14 @@ tools:
   # Format 2: Enable agentic-workflows tool with default settings (same as true)
   agentic-workflows: null
 
+  # Format 3: object
+  agentic-workflows:
+    # Explicitly enable add, update, fix, and compile for trusted clients and workflow
+    # sources. Actor validation remains required; dry-run compilation also writes lock
+    # files.
+    # (optional)
+    allow-write-tools: true
+
   # Read the immutable version-3 activation snapshot. Nonworkers without approved
   # dispatch targets are read-only observers; workers and approved dispatchers may
   # stage scoped queue intents. The installed ledger Policy is authoritative. Only

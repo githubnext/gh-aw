@@ -558,6 +558,11 @@ func parseAgenticWorkflowsTool(val any) *AgenticWorkflowsToolConfig {
 		config.Enabled = boolVal
 	} else if val == nil {
 		config.Enabled = true // nil means enabled
+	} else if configMap, ok := val.(map[string]any); ok {
+		config.Enabled = true
+		if allowWriteTools, ok := configMap["allow-write-tools"].(bool); ok {
+			config.AllowWriteTools = allowWriteTools
+		}
 	}
 
 	return config

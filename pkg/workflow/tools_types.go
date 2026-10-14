@@ -236,6 +236,9 @@ func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing co
 	}
 	if t.AgenticWorkflows != nil {
 		result["agentic-workflows"] = t.AgenticWorkflows.Enabled
+		if t.AgenticWorkflows.Enabled && t.AgenticWorkflows.AllowWriteTools {
+			result["agentic-workflows"] = map[string]any{"allow-write-tools": true}
+		}
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
@@ -488,8 +491,8 @@ type EditToolConfig struct {
 
 // AgenticWorkflowsToolConfig represents the configuration for the agentic-workflows tool
 type AgenticWorkflowsToolConfig struct {
-	// Can be boolean or nil
-	Enabled bool `yaml:"-"`
+	Enabled         bool `yaml:"-"`
+	AllowWriteTools bool `yaml:"allow-write-tools,omitempty"`
 }
 
 // CacheMemoryToolConfig represents the configuration for cache-memory
