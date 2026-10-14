@@ -248,6 +248,7 @@ func TestTrialTargetRepoReachesSafeOutputsMCPServer(t *testing.T) {
 	assert.Contains(t, output, "GH_AW_TARGET_REPO_SLUG: owner/side-repo")
 	assert.Contains(t, output, "-e GH_AW_TARGET_REPO_SLUG")
 	assert.Contains(t, output, `"GH_AW_TARGET_REPO_SLUG": "\${GH_AW_TARGET_REPO_SLUG}"`)
+	assert.Contains(t, output, `export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"`)
 }
 
 func TestCollectMCPEnvironmentVariables_DynamicDelegationWithoutPrimaryGitHubUsesDestinationVisibility(t *testing.T) {
