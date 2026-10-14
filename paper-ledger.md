@@ -362,3 +362,179 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Relevant**: Yes
 - **Opportunity**: Provide typed hypothesis-testing workflows with reproducible evidence.
 - **Area**: Workflow patterns
+
+### [ChunkAct: Action Chunking for Agentic Robotics](https://arxiv.org/abs/2610.18874v1)
+- **ID**: 2610.18874v1
+- **Published**: 2026-10-13
+- **Categories**: cs.RO, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add declarative atomic action chunks that execute routine tool sequences locally and return control on failure or completion.
+- **Area**: runtime and token efficiency
+
+### [Tev: Scaling Long-Horizon Agentic Environments with Dense Progress Rewards](https://arxiv.org/abs/2610.18868v1)
+- **ID**: 2610.18868v1
+- **Published**: 2026-10-13
+- **Categories**: cs.CL, cs.AI, cs.CV
+- **Relevant**: Yes
+- **Opportunity**: Expose verifiable workflow checkpoints and progressive rewards for long-horizon evaluation, retry, and regression testing.
+- **Area**: verification and evaluation
+
+### [DoubtLess: Training-Free Contrastive Decoding for Efficient Reasoning](https://arxiv.org/abs/2610.18862v1)
+- **ID**: 2610.18862v1
+- **Published**: 2026-10-13
+- **Categories**: cs.CL, cs.AI, cs.LG
+- **Relevant**: No
+
+### [AesCode: Aesthetic Code Generation with Decoupled Cross-Modal Rewards](https://arxiv.org/abs/2610.18860v1)
+- **ID**: 2610.18860v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Hybrid Reasoning Agents](https://arxiv.org/abs/2610.18861v1)
+- **ID**: 2610.18861v1
+- **Published**: 2026-10-13
+- **Categories**: cs.CL, cs.AI, cs.LG
+- **Relevant**: No
+
+### [RoboSimStudio: An Interactive Toolkit for Rapid Real2Sim of Robot Manipulation Tasks](https://arxiv.org/abs/2610.18835v1)
+- **ID**: 2610.18835v1
+- **Published**: 2026-10-13
+- **Categories**: cs.RO, cs.AI, cs.GR
+- **Relevant**: No
+
+### [Self-Evolving Agent Harness](https://arxiv.org/abs/2610.18813v1)
+- **ID**: 2610.18813v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Introduce governed harness updates with isolated proposals, independent validation, regression budgets, and admission records.
+- **Area**: workflow evolution and verification
+
+### [Optimizing Team Behavior via Extremum-seeking Control in Multi-agent Reinforcement Learning](https://arxiv.org/abs/2610.18808v1)
+- **ID**: 2610.18808v1
+- **Published**: 2026-10-13
+- **Categories**: cs.MA, cs.AI, cs.RO
+- **Relevant**: No
+
+### [SkillScaffold: Scaffolding Agentic Reinforcement Learning with Policy-Adaptive Skill Credit Assignment and Selective Injection](https://arxiv.org/abs/2610.18807v1)
+- **ID**: 2610.18807v1
+- **Published**: 2026-10-13
+- **Categories**: cs.LG, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Track skill utility by task and engine, injecting only high-value skill fragments within a token budget.
+- **Area**: skills and token efficiency
+
+### [SEAR: Self-Evolving Agentic Robotics](https://arxiv.org/abs/2610.18792v1)
+- **ID**: 2610.18792v1
+- **Published**: 2026-10-13
+- **Categories**: cs.RO, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add repeated-attempt controls and transfer tiers to memory and skill evaluations.
+- **Area**: memory evaluation
+
+### [Pack Light, CarryOn: Building Object-Oriented Context for Long-Horizon Agents](https://arxiv.org/abs/2610.18784v1)
+- **ID**: 2610.18784v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Represent continuation as typed progress objects, execution context, and a bounded live tail.
+- **Area**: context runtime and token efficiency
+
+### [BLADE: Auditing Information Use for Failure Attribution in LLM Multi-Agent Systems](https://arxiv.org/abs/2610.18780v1)
+- **ID**: 2610.18780v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Record source-to-decision handoffs and evidence-use judgments for multi-agent failure localization.
+- **Area**: sub-agent observability
+
+### [Beyond the Verdict: Agentic Code Judging with Verifiable Feedback](https://arxiv.org/abs/2610.18760v1)
+- **ID**: 2610.18760v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Request deterministic counterexample generators and attach reproducible failures to verification results.
+- **Area**: verification and evaluation
+
+### [Knowing the User Is Not Knowing What We Established: Grounding Awareness in Personal Agents](https://arxiv.org/abs/2610.18684v1)
+- **ID**: 2610.18684v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.HC, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Add provenance and acceptance state to memory so remembered proposals cannot authorize safe outputs.
+- **Area**: memory and authorization
+
+### [ProAS: A Progress-Aware Advantage Shaping Framework for Multi-Turn Agentic Reinforcement Learning](https://arxiv.org/abs/2610.18683v1)
+- **ID**: 2610.18683v1
+- **Published**: 2026-10-13
+- **Categories**: cs.LG, cs.AI
+- **Relevant**: No
+
+### [Falsification-proof non-market allocation mechanisms](https://arxiv.org/abs/2610.18625v1)
+- **ID**: 2610.18625v1
+- **Published**: 2026-10-13
+- **Categories**: econ.TH, cs.AI, cs.GT
+- **Relevant**: No
+
+### [Two Routes to Interoceptive Prioritisation: Dissociating Likelihood Precision and Preference Reweighting in Active Inference](https://arxiv.org/abs/2610.18617v1)
+- **ID**: 2610.18617v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, q-bio.NC
+- **Relevant**: No
+
+### [Knowledge Graphs as Files: An Agent Harness Where Tool Creation and Tool Use Co-Evolve](https://arxiv.org/abs/2610.18616v1)
+- **ID**: 2610.18616v1
+- **Published**: 2026-10-13
+- **Categories**: cs.CL, cs.AI, cs.IR
+- **Relevant**: Yes
+- **Opportunity**: Support sandboxed ephemeral query helpers that return bounded evidence with provenance.
+- **Area**: tooling and context efficiency
+
+### [Can an Agent Learn to Predict Its Own Failure? Outcome-Grounded Confidence Calibration in LLM Agents](https://arxiv.org/abs/2610.18614v1)
+- **ID**: 2610.18614v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Capture calibrated per-step confidence against eventual outcomes to govern retries and handoffs.
+- **Area**: runtime reliability
+
+### [AgentStripes: An Evidence-Graded Maturity Model for AI Agents](https://arxiv.org/abs/2610.18603v1)
+- **ID**: 2610.18603v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.CY, eess.SY
+- **Relevant**: Yes
+- **Opportunity**: Define evidence-backed workflow maturity reports with mandatory safety and proof gates.
+- **Area**: audit and assurance
+
+### [Auditing Future-Memory Use in Point-in-Time Language Agents](https://arxiv.org/abs/2610.18602v1)
+- **ID**: 2610.18602v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Autonomous Cyber Operations Gym for Training and Evaluating AI Models for Defence](https://arxiv.org/abs/2610.18594v1)
+- **ID**: 2610.18594v1
+- **Published**: 2026-10-13
+- **Categories**: cs.CR, cs.LG
+- **Relevant**: No
+
+### [Compare to Correct: Pairwise-Guided Logit Adjustment for LLM Test-Time Scaling](https://arxiv.org/abs/2610.18583v1)
+- **ID**: 2610.18583v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Reading Right, Acting Wrong: Diagnosing Decision Failures of System One Models in Agent Loops](https://arxiv.org/abs/2610.18579v1)
+- **ID**: 2610.18579v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add factual state probes to classify context-reading versus action-selection failures.
+- **Area**: evaluation and observability
+
+### [LLM Agents for Automated Post-Training via Structured Recipe Optimization](https://arxiv.org/abs/2610.18572v1)
+- **ID**: 2610.18572v1
+- **Published**: 2026-10-13
+- **Categories**: cs.AI, cs.LG
+- **Relevant**: No

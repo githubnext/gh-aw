@@ -1189,6 +1189,181 @@
       "published": "2026-10-09",
       "relevant": true,
       "analyzed_at": "2026-10-12-09-12-27"
+    },
+    {
+      "id": "2610.18874v1",
+      "title": "ChunkAct: Action Chunking for Agentic Robotics",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18868v1",
+      "title": "Tev: Scaling Long-Horizon Agentic Environments with Dense Progress Rewards",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18862v1",
+      "title": "DoubtLess: Training-Free Contrastive Decoding for Efficient Reasoning",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18860v1",
+      "title": "AesCode: Aesthetic Code Generation with Decoupled Cross-Modal Rewards",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18861v1",
+      "title": "Hybrid Reasoning Agents",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18835v1",
+      "title": "RoboSimStudio: An Interactive Toolkit for Rapid Real2Sim of Robot Manipulation Tasks",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18813v1",
+      "title": "Self-Evolving Agent Harness",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18808v1",
+      "title": "Optimizing Team Behavior via Extremum-seeking Control in Multi-agent Reinforcement Learning",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18807v1",
+      "title": "SkillScaffold: Scaffolding Agentic Reinforcement Learning with Policy-Adaptive Skill Credit Assignment and Selective Injection",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18792v1",
+      "title": "SEAR: Self-Evolving Agentic Robotics",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18784v1",
+      "title": "Pack Light, CarryOn: Building Object-Oriented Context for Long-Horizon Agents",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18780v1",
+      "title": "BLADE: Auditing Information Use for Failure Attribution in LLM Multi-Agent Systems",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18760v1",
+      "title": "Beyond the Verdict: Agentic Code Judging with Verifiable Feedback",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18684v1",
+      "title": "Knowing the User Is Not Knowing What We Established: Grounding Awareness in Personal Agents",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18683v1",
+      "title": "ProAS: A Progress-Aware Advantage Shaping Framework for Multi-Turn Agentic Reinforcement Learning",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18625v1",
+      "title": "Falsification-proof non-market allocation mechanisms",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18617v1",
+      "title": "Two Routes to Interoceptive Prioritisation: Dissociating Likelihood Precision and Preference Reweighting in Active Inference",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18616v1",
+      "title": "Knowledge Graphs as Files: An Agent Harness Where Tool Creation and Tool Use Co-Evolve",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18614v1",
+      "title": "Can an Agent Learn to Predict Its Own Failure? Outcome-Grounded Confidence Calibration in LLM Agents",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18603v1",
+      "title": "AgentStripes: An Evidence-Graded Maturity Model for AI Agents",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18602v1",
+      "title": "Auditing Future-Memory Use in Point-in-Time Language Agents",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18594v1",
+      "title": "Autonomous Cyber Operations Gym for Training and Evaluating AI Models for Defence",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18583v1",
+      "title": "Compare to Correct: Pairwise-Guided Logit Adjustment for LLM Test-Time Scaling",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18579v1",
+      "title": "Reading Right, Acting Wrong: Diagnosing Decision Failures of System One Models in Agent Loops",
+      "published": "2026-10-13",
+      "relevant": true,
+      "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.18572v1",
+      "title": "LLM Agents for Automated Post-Training via Structured Recipe Optimization",
+      "published": "2026-10-13",
+      "relevant": false,
+      "analyzed_at": "2026-10-14-08-45-15"
     }
   ]
 }
