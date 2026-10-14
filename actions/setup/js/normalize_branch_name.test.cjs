@@ -97,6 +97,13 @@ describe("normalizeBranchName", () => {
     expect(normalizeBranchName("feature/my-branch")).toBe("feature/my-branch");
   });
 
+  it.each(["-", "---", " --- ", "!@#$%^&*()"])("does not turn an empty normalized branch %s into a salted branch", async branch => {
+    const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName(branch)).toBe("");
+    expect(normalizeBranchName(branch, "abc123")).toBe("");
+  });
+
   it("should truncate to 128 chars before appending salt", async () => {
     const { normalizeBranchName } = await import("./normalize_branch_name.cjs");
 

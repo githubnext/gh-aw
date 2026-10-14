@@ -1025,6 +1025,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    if (!normalizeBranchName(entry.branch)) {
+      return buildIntentErrorResponse("Invalid branch name: provide a name containing more than dashes.");
+    }
     const intentValidationError = validateCreatePullRequestIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
@@ -1466,6 +1469,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    if (!normalizeBranchName(entry.branch)) {
+      return buildIntentErrorResponse("Invalid branch name: provide a name containing more than dashes.");
+    }
     const intentValidationError = validatePushToPullRequestBranchIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);

@@ -26,6 +26,14 @@ function write(kind, repo = undefined) {
 }
 
 describe("resolveTransportPaths", () => {
+  it.each(["-", "---", " --- "])("rejects dash-only branch %s in both patch and bundle paths", branch => {
+    for (const repo of [undefined, "owner/repo"]) {
+      expect(() => resolveTransportPaths({ branch }, repo)).toThrow("Invalid branch name");
+      expect(() => (repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch))).toThrow("Invalid branch name");
+      expect(() => (repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch))).toThrow("Invalid branch name");
+    }
+  });
+
   it("returns undefined values when message has no branch or no files exist", () => {
     expect(resolveTransportPaths({}, "owner/repo")).toEqual({ patchPath: undefined, bundlePath: undefined });
     expect(resolveTransportPaths({ branch }, "owner/repo")).toEqual({ patchPath: undefined, bundlePath: undefined });

@@ -1598,6 +1598,22 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
+    it.each(["-", "---", " --- "])("rejects dash-only branch %s even when empty PRs are allowed", async branch => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: { allow_empty: true, base_branch: "main" },
+      });
+
+      const result = await handlers.createPullRequestHandler({
+        branch,
+        title: "Reject invalid branch",
+        body: "Do not publish from a dash-only branch.",
+      });
+
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toContain("Invalid branch name");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should validate the resolved current branch before recording a PR intent", async () => {
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: {
@@ -2151,6 +2167,17 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.error).not.toContain("requires repo");
       expect(responseData.error).not.toContain("requires pull_request_number");
+    });
+
+    it.each(["-", "---", " --- "])("rejects dash-only push branch %s before recording an intent", async branch => {
+      const result = await handlers.pushToPullRequestBranchHandler({
+        branch,
+        message: "Apply requested changes.",
+      });
+
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toContain("Invalid branch name");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
     it("should reject obvious exploratory test payloads before recording a PR branch update intent", async () => {

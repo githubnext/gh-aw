@@ -166,7 +166,9 @@ The bounded model assumes snapshot privacy, collision-free byte classes,
 trusted transformations and exact registered-cleanup dispatch. It does not
 model arbitrary same-user filesystem races, Git parsing, App API semantics,
 unbounded retries, credential selection, or the full structured logging
-payload. Those remain implementation obligations covered by
+payload. Publication is atomic in this abstraction; post-await checks before
+auto-merge, older-PR closure, or coding-agent assignment and exact-HEAD rewrite
+rollback remain implementation obligations covered by
 `transport_integrity.test.cjs`, `transport_integrity_handlers.test.cjs`,
 `transport_integrity_git.test.cjs`, `error_recovery.test.cjs`, and
 `create_or_update_pull_request.test.cjs` under `actions/setup/js/`.
