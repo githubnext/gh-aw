@@ -34,7 +34,7 @@ func mustWorkQueueOperation(t testing.TB, value any) workqueue.Operation {
 
 func TestWorkCommandClosedOperatorSurfaces(t *testing.T) {
 	command := NewWorkCommand()
-	for _, required := range []string{"compact", "trace", "explain", "state", "inspect", "cancel-claim", "reprioritize", "tui"} {
+	for _, required := range []string{"compact", "trace", "explain", "state", "inspect", "cancel-claim", "reprioritize", "tui", "dispatch"} {
 		found := false
 		for _, subcommand := range command.Commands() {
 			if subcommand.Name() == required {

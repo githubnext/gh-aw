@@ -12,26 +12,31 @@ import (
 )
 
 func (b Branch) verifiedDefaultReference(ctx context.Context) (string, string, error) {
+	repository, _, revision, err := b.verifiedDefaultRoute(ctx)
+	return repository, revision, err
+}
+
+func (b Branch) verifiedDefaultRoute(ctx context.Context) (string, string, string, error) {
 	var repository struct {
 		FullName      string `json:"full_name"`
 		DefaultBranch string `json:"default_branch"`
 	}
 	if err := b.request(ctx, http.MethodGet, "", nil, &repository); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if !strings.EqualFold(repository.FullName, b.Remote) || repository.DefaultBranch == "" ||
 		!branchPattern.MatchString(repository.DefaultBranch) || strings.Contains(repository.DefaultBranch, "..") {
-		return "", "", queueError("policy_invalid", "AW configuration requires a verified repository and immutable approved default worker revision")
+		return "", "", "", queueError("policy_invalid", "AW configuration requires a verified repository and immutable approved default worker revision")
 	}
 	b.Remote = repository.FullName
 	revision, err := b.resolveHeadRef(ctx, repository.DefaultBranch)
 	if err != nil {
 		if errors.Is(err, errInvalidHeadReference) {
-			return "", "", queueError("policy_invalid", "default worker revision is not immutable")
+			return "", "", "", queueError("policy_invalid", "default worker revision is not immutable")
 		}
-		return "", "", err
+		return "", "", "", err
 	}
-	return repository.FullName, revision, nil
+	return repository.FullName, repository.DefaultBranch, revision, nil
 }
 
 // DeploymentOperationsFromConfig proposes route-only changes for existing AW

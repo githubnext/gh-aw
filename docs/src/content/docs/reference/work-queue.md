@@ -494,6 +494,7 @@ initialize Policy over an invalid log.
 | `submit-work --file work.json` | Admit an immutable payload with default priority 3 and shared accounting key `""`. On an absent queue, atomically install verified scheduling and AW routes with Work without administrator seeding. |
 | `submit-graph` | Atomically admit a normalized graph within size limits, including issue and pull request dependency nodes. Bootstraps an absent queue under the same rules as `submit-work`. |
 | `dispatch-next --pool POOL --max-claims N --max-dispatches N` | Commit the next assignments selected by deterministic fair scheduling and their reservations. Does not send a workflow-dispatch POST. |
+| `dispatch DISPATCHER [--wait] [--dry-run]` | Use the GitHub CLI to start one verified dispatcher on the repository's default branch. Its trusted controls grant and launch eligible assignments; it does not directly assign a Claim to a worker. |
 | `control`, `cancel-work` | Apply authorized pause, cutover, or cancellation decisions without refunding accounted service or force-releasing a reservation for a possible native run. |
 | `cancel-claim --claim-id ID[,ID...] --reason CODE` | Atomically revoke the exact current Claims' authority and terminally cancel their Work. Does not retry work, impersonate a worker, or stop a native run. |
 | `reprioritize --work-id ID[,ID...] --priority 1..5 --reason CODE` | Apply an administrator-only, compare-and-set priority override to future grants of available Work. Preserves admitted definitions, FIFO positions, retry boundaries, and accumulated fairness charges. |
@@ -504,6 +505,33 @@ the same logical publication across retries. Each command's `--help`
 describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
+
+To activate the ESLint factory through its trusted queue dispatcher:
+
+```bash
+gh aw work-queue --repo github/gh-aw dispatch eslint-factory-dispatcher --wait --json
+```
+
+`dispatch` verifies the dispatcher source and compiled lock at the immutable
+default-branch revision before invoking the existing workflow-run transport.
+This is a preflight snapshot, not a branch pin: the default branch can move.
+The command requires the activation's returned run URL and checks that run's
+repository, workflow, event, and SHA against the verified snapshot. Missing
+identity or a mismatch fails explicitly after activation; it never selects the
+latest run or automatically dispatches again. Inspect the accepted activation
+before retrying.
+It accepts only an unassigned dispatcher with a declared worker allowlist, never
+a worker requiring `work_queue_assignment`. It does not enable workflows, upload
+files, or supply assignment inputs. `--dry-run` previews the verified route only;
+it does not compile or execute a workflow. `--wait` waits for the dispatcher, not
+its workers' independently verified Results. A successful activation is not proof
+of Claims, worker launches, or consumption; inspect the ledger afterward.
+
+Direct `--claim-id`, `--work-id`, `--worker-profile`, `--ref`, alternate queue
+branches, and `--request-id` overrides are unsupported for `dispatch`. The
+dispatcher owns its native run identity and compiled queue authority. Existing
+Claims retain their original immutable worker route; this command does not
+reassign them or retry uncertain effects.
 
 `submit-work --execution-ref IMMUTABLE_SHA` explicitly pins execution to a
 registered, compatible revision. Retries retain the original admission contract
