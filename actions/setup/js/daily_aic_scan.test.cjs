@@ -804,6 +804,97 @@ describe("business response circuit breaker", () => {
 });
 
 describe("trusted artifact fallback without writable Actions cache", () => {
+  it("summarizes first-read quota exhaustion and blocks all further restore requests", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-14T10:04:13Z"));
+    const getWorkflowRun = vi.fn().mockRejectedValue(apiError(403, { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "15000", "x-ratelimit-used": "15000", "x-ratelimit-reset": "1791972360" }, "secret-test-value"));
+    const listWorkflowRuns = vi.fn();
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = { rest: { actions: { getWorkflowRun, listWorkflowRuns } } };
+    const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) };
+    global.core.summary = summary;
+    await expect(restore(cachePath)).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP", status: 403 });
+    expect(getWorkflowRun).toHaveBeenCalledOnce();
+    expect(listWorkflowRuns).not.toHaveBeenCalled();
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("restore stopped at current_run after 1 attempt(s)"));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("quota_exhausted"));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("reset=2026-10-14T10:06:00.000Z"));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Accounting remains unverified; agent startup is blocked"));
+    expect(JSON.stringify([global.core.info.mock.calls, summary.addRaw.mock.calls])).not.toContain("secret-test-value");
+    expect(fs.existsSync(cachePath)).toBe(false);
+  });
+
+  it("does not let a summary-write failure hide the original permission failure", async () => {
+    const failure = apiError(403, {}, "secret-test-value");
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = { rest: { actions: { getWorkflowRun: vi.fn().mockRejectedValue(failure) } } };
+    global.core.summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockRejectedValue(new Error("private summary payload")) };
+    await expect(restore(cachePath)).rejects.toBe(failure);
+    expect(global.core.warning).toHaveBeenCalledWith("Failed to write daily AIC snapshot restore failure summary.");
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("permission_denied"));
+    expect(JSON.stringify([global.core.info.mock.calls, global.core.warning.mock.calls])).not.toContain("private summary payload");
+  });
+
+  it("includes quota metadata in summaries when artifact transport wraps a read failure", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-14T10:04:13Z"));
+    const failure = apiError(403, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1791972360" }, "API rate limit exceeded for installation; private payload");
+    const wrapped = new Error("unable to download artifact: private payload", { cause: failure });
+    const getWorkflowRun = vi.fn().mockRejectedValue(wrapped);
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = { rest: { actions: { getWorkflowRun } } };
+    const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) };
+    global.core.summary = summary;
+    await expect(restore(cachePath)).rejects.toBe(wrapped);
+    expect(getWorkflowRun).toHaveBeenCalledOnce();
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("quota_exhausted"));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("retry_not_before=2026-10-14T10:06:00.000Z"));
+    expect(JSON.stringify([global.core.info.mock.calls, summary.addRaw.mock.calls])).not.toContain("private payload");
+  });
+
+  it.each([
+    ["HTTP 502", () => apiError(502, {}, "private API payload"), 502],
+    ["HTTP 504", () => apiError(504, {}, "private API payload"), 504],
+    ["transport", () => Object.assign(new Error("private transport payload"), { code: "ECONNRESET" }), "unknown"],
+  ])("summarizes exhausted %s restore reads without exposing raw errors", async (_kind, createFailure, status) => {
+    vi.useFakeTimers();
+    const failure = createFailure();
+    const getWorkflowRun = vi.fn().mockRejectedValue(failure);
+    const listWorkflowRuns = vi.fn();
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = { rest: { actions: { getWorkflowRun, listWorkflowRuns } } };
+    const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(undefined) };
+    global.core.summary = summary;
+    const assertion = expect(restore(cachePath)).rejects.toBe(failure);
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(getWorkflowRun).toHaveBeenCalledTimes(3);
+    expect(listWorkflowRuns).not.toHaveBeenCalled();
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("restore stopped at current_run after 3 attempt(s)"));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(`HTTP ${status}; reason=retry_exhausted`));
+    expect(summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Accounting remains unverified; agent startup is blocked"));
+    expect(summary.write).toHaveBeenCalledOnce();
+    expect(JSON.stringify([global.core.info.mock.calls, summary.addRaw.mock.calls])).not.toContain(failure.message);
+    expect(fs.existsSync(cachePath)).toBe(false);
+  });
+
+  it("does not let a summary-write failure hide the original exhausted transport failure", async () => {
+    vi.useFakeTimers();
+    const failure = Object.assign(new Error("private transport payload"), { code: "ECONNRESET" });
+    const getWorkflowRun = vi.fn().mockRejectedValue(failure);
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = { rest: { actions: { getWorkflowRun } } };
+    global.core.summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockRejectedValue(new Error("private summary payload")) };
+    const assertion = expect(restore(cachePath)).rejects.toBe(failure);
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(getWorkflowRun).toHaveBeenCalledTimes(3);
+    expect(global.core.warning).toHaveBeenCalledWith("Failed to write daily AIC snapshot restore failure summary.");
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("HTTP unknown; reason=retry_exhausted"));
+    const logged = JSON.stringify([global.core.info.mock.calls, global.core.warning.mock.calls, global.core.summary.addRaw.mock.calls]);
+    expect(logged).not.toContain("private transport payload");
+    expect(logged).not.toContain("private summary payload");
+    expect(fs.existsSync(cachePath)).toBe(false);
+  });
+
   it("restores required-workflow observations from repository history after workflow history returns 404", async () => {
     vi.spyOn(Date, "now").mockReturnValue(now);
     const current = { workflow_id: 7, path: ".github/workflows/example.yml" };

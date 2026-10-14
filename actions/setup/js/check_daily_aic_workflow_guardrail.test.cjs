@@ -507,6 +507,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     ["repository_history", 502, {}, 3, "retry_exhausted", "transient_error"],
     ["workflow_history", 503, { "retry-after": "120" }, 1, "retry_restricted", "transient_error"],
     ["workflow_history", 502, { "x-ratelimit-remaining": "100" }, 1, "quota_stop", "transient_error"],
+    ["workflow_history", 403, { "x-ratelimit-remaining": "0" }, 1, "quota_stop", "transient_error"],
     ["workflow_history", 403, {}, 1, "non_transient", "structural_error"],
   ])("main() safely attributes %s HTTP %i while keeping unknown history blocked", async (operation, httpStatus, headers, attempts, reason, guardrailStatus) => {
     vi.useFakeTimers();
@@ -534,7 +535,13 @@ describe("check_daily_aic_workflow_guardrail", () => {
       const pending = runMain();
       await vi.runAllTimersAsync();
       await pending;
-      const message = `Daily workflow AI Credits are unknown: ${operation} read stopped (HTTP ${httpStatus}; attempts: ${attempts}; reason: ${reason}). Accounting remains unverified; agent startup is blocked.`;
+      const diagnostic =
+        reason === "quota_stop"
+          ? ` GitHub API ${headers["x-ratelimit-remaining"] === "0" ? "quota_exhausted" : "quota_reserve"} (HTTP ${httpStatus}; resource=unknown; remaining=${headers["x-ratelimit-remaining"]}; limit=unknown; used=unknown; reset=unknown; retry_not_before=unknown)`
+          : httpStatus === 403
+            ? " GitHub API permission_denied (HTTP 403; Check the credential's access to this operation; quota exhaustion was not established.)"
+            : "";
+      const message = `Daily workflow AI Credits are unknown: ${operation} read stopped (HTTP ${httpStatus}; attempts: ${attempts}; reason: ${reason}). Accounting remains unverified; agent startup is blocked.${diagnostic}`;
       expect(outputs).toMatchObject({ daily_ai_credits_guardrail_status: guardrailStatus, daily_ai_credits_guardrail_error: message, daily_ai_credits_total: "", daily_ai_credits_estimated: "", daily_ai_credits_exceeded: "false" });
       expect(global.core.setFailed).toHaveBeenCalledWith(message);
       expect(failedRead).toHaveBeenCalledTimes(attempts);
@@ -548,6 +555,43 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete global.context;
       delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
       delete process.env.GH_AW_MAX_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
+
+  it("main() keeps wrapped quota failures classified and blocks unknown accounting", async () => {
+    const outputs = {};
+    const quotaError = httpError(403, "API rate limit exceeded for installation; private-payload");
+    quotaError.response.headers = { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1791972360" };
+    const wrapped = new Error("unable to download artifact: private-payload", { cause: quotaError });
+    const getCurrent = vi.fn().mockRejectedValue(wrapped);
+    global.core = {
+      setOutput: (key, value) => {
+        outputs[key] = value;
+      },
+      setFailed: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+    };
+    global.github = { rest: { actions: { getWorkflowRun: getCurrent } } };
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "synthetic";
+    try {
+      await runMain();
+      expect(outputs.daily_ai_credits_guardrail_status).toBe("transient_error");
+      expect(outputs.daily_ai_credits_total).toBe("");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("current_run read stopped");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("quota_exhausted");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("reset=2026-10-14T10:06:00.000Z");
+      expect(global.core.setFailed).toHaveBeenCalledWith(outputs.daily_ai_credits_guardrail_error);
+      expect(getCurrent).toHaveBeenCalledOnce();
+      expect(JSON.stringify([outputs, global.core.info.mock.calls, global.core.setFailed.mock.calls])).not.toContain("private-payload");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
       delete process.env.GH_AW_GITHUB_TOKEN;
     }
   });

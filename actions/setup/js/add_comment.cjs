@@ -508,6 +508,7 @@ async function main(config = {}) {
       : [];
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
+  const maxLinks = config.max_links ?? config["max-links"] ?? MAX_LINKS;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
@@ -817,7 +818,7 @@ async function main(config = {}) {
 
     // Enforce max limits before processing (validates user-provided content)
     try {
-      enforceCommentLimits(processedBody);
+      enforceCommentLimits(processedBody, { maxLinks });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Comment validation failed: ${errorMessage}`);
@@ -827,6 +828,7 @@ async function main(config = {}) {
       };
     }
 
+    const linkBody = processedBody;
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const runUrl = buildWorkflowRunUrl(context, effectiveEventContext.workflowRepo ?? context.repo);
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
@@ -903,9 +905,9 @@ async function main(config = {}) {
     processedBody = appendExecutionProvenance(processedBody, workflowName, runUrl);
 
     // Enforce max limits again after adding footer and metadata
-    // This ensures the final body (including generated content) doesn't exceed limits
+    // Length and mention limits include metadata; only agent content counts toward the link limit.
     try {
-      enforceCommentLimits(processedBody);
+      enforceCommentLimits(processedBody, { maxLinks, linkBody });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Final comment body validation failed: ${errorMessage}`);

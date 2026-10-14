@@ -42,8 +42,9 @@ DAG, and creating a refinement issue does not submit another Work.
 
 The dispatcher is also the producer. A trusted preparation step creates one
 independent root task for each worker, keyed by the UTC date of the original
-dispatcher run's creation time. The agent stages those exact nodes with
-`work_queue_submit` before requesting grants. Scheduled runs, manual runs, and
+dispatcher run's creation time. The trusted step stages those exact nodes with
+`work_queue_submit` before requesting grants; the agent only reads and explains
+the snapshot and staged plan, without duplicating either intent. Scheduled runs, manual runs, and
 reruns on the same date reuse the same graph/node identities and immutable
 payloads; they do not admit another copy. A new UTC day admits a new cohort.
 Older eligible work can still run before the new cohort.
@@ -106,8 +107,9 @@ go build -o ./gh-aw ./cmd/gh-aw
 yet been provisioned; the producer safe-output path treats it as empty and
 creates the branch only when it atomically commits its first Policy and Work.
 The agent's `work_queue_read` snapshot reports
-`queue_state: "uninitialized"`. Continue with the trusted producer plan and
-`work_queue_submit`; do not claim a successful empty-queue `noop`. Missing
+`queue_state: "uninitialized"`. Read and explain the already staged trusted
+producer plan; do not call `work_queue_submit` or `work_queue_dispatch_next`
+again or claim a successful empty-queue `noop`. Missing
 compiler Policy, invalid scheduling settings, or a denied Git read still block
 publication. Do not bypass GitHub access denials.
 
@@ -130,6 +132,35 @@ Inspect an existing dispatcher run without launching another:
 or `noop` does not establish that any Work was admitted or any worker launched.
 Check the snapshot, queue intents, and authoritative ledger, not just the audit's
 overall success recommendation.
+
+If trusted control processing times out before launching every worker, inspect
+the time between `Work queue: validated ... causal commits` messages. Repeated
+checkpoint ancestry reads can exhaust the dispatcher budget. For explicitly
+registered string-token clients constructed by `setupGlobals` through
+`global.getOctokit(token)` without `authStrategy`, the runtime reuses successful
+immutable ancestry proofs within one client and repository while authentication
+remains unchanged. It also retains one verified immutable ledger text up to
+4 MiB per client, avoiding repeated commit/tree/blob reads for an unchanged head.
+Injected github-script clients and unknown, dynamic, or custom-strategy clients
+fetch Git contents and verify ancestry on every read. Every client refreshes
+repository metadata and the branch ref and replays a detached projection on every
+read. The runtime never caches mutable queue state or failed verification.
+Canonical key sorting avoids
+UTF-8 buffer allocations when native string ordering is equivalent, retaining
+byte comparison for surrogate-containing keys. A native terminal
+run releases its reservation only after exact reconciliation; a completed Claim
+still needs independently verified output delivery before its Result settles.
+Do not redispatch uncertain effects or delete the ledger to recover capacity.
+
+The queue performance suite enforces a two-probe warm-read budget for registered,
+unchanged string-token clients and replay budgets against a representative
+checkpoint. To include an already captured live ledger without
+network calls or queue mutations:
+
+```bash
+GH_AW_WORK_QUEUE_PERF_LEDGER=/absolute/path/to/work-queue.jsonl \
+  npm run test:js --prefix actions/setup/js -- work_queue_performance.test.cjs
+```
 
 Validate the dispatcher and write-capable workers locally without dispatching:
 
@@ -186,11 +217,11 @@ Do not select Work IDs, workers, revisions, or targets from a queue snapshot.
 Read work_queue_read first and check queue_state. An uninitialized queue is
 empty; submit the trusted daily plan to provision it rather than reporting
 missing_data or producing noop.
-Read the trusted daily plan and stage its exact nodes with work_queue_submit.
+The trusted preparation step already stages the exact nodes with work_queue_submit.
 Repeated admissions of the same UTC date are idempotent.
-Request the trusted scheduler's fair prefix with work_queue_dispatch_next:
+It then stages the trusted scheduler's fair prefix with work_queue_dispatch_next:
 {"pool":"default","max_claims":3,"max_dispatches":3}.
-Issue at most one request for this pool in a run.
+Do not submit or dispatch again; read and explain the staged plan only.
 The response stages an intent, not a native launch.
 Do not call ordinary dispatch_workflow or typed per-worker dispatch tools.
 ```

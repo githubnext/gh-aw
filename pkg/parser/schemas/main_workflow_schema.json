@@ -8356,6 +8356,11 @@
               "type": "object",
               "description": "Configuration for automatically creating GitHub issue or pull request comments from AI workflow output. The main job does not need write permissions.",
               "properties": {
+                "max-links": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Maximum number of http/https URL occurrences in agent-provided comment content (default: 50). Generated footer and metadata links are excluded."
+                },
                 "max": {
                   "description": "Maximum number of comments to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
                   "oneOf": [

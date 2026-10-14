@@ -13,6 +13,13 @@ function registerTests({ describe, it }) {
       assert.equal(utf8Compare("\uE000", "\u{10000}"), -1);
       assert.equal(canonicalBytes("é"), 4);
     });
+    it("matches byte ordering across fast-path keys, BMP boundaries and surrogate fallback", () => {
+      const values = ["", "\0", "a", "aa", "work_id", "\x7f", "\u0080", "\u00e9", "\u07ff", "\u0800", "\ud7ff", "\ue000", "\uffff", "\u{10000}", "\u{10ffff}", "\ud800", "\udc00"];
+      for (const left of values)
+        for (const right of values) {
+          assert.equal(utf8Compare(left, right), Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")));
+        }
+    });
     it("rejects duplicate decoded keys, unsafe numeric IDs, invalid Unicode, and unknown JSON values", () => {
       for (const input of ['{"x":1,"x":2}', '{"x":1,"\\u0078":2}', '{"x":{"a":1,"a":1}}', "9007199254740992", "1.0", "1e0", "-0", '"\\uD800"', "[1,]", '{"a":1,}']) {
         assert.throws(() => parseStrictJSON(input), /codec_invalid|duplicate_key|noncanonical_number|invalid_unicode/);
