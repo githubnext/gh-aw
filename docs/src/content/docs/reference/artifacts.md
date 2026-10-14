@@ -151,7 +151,7 @@ The unified `agent` artifact contains agent job outputs:
 - Agent execution logs
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
-- Runner disk capacity snapshots (`disk_usage.jsonl`) and sampler diagnostics (`disk_usage_monitor.log`)
+- Privacy-preserving runner disk headroom snapshots (`disk_usage.jsonl`)
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `sandbox/firewall/logs/api-proxy-logs/`. When AWF records include valid `ai_credits_this_response` and `ai_credits_total` values, the summary preserves those reported values instead of repricing the tokens.
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
 
@@ -168,6 +168,8 @@ Each periodic sample performs at most four native `statfs` calls and one compact
 Measurement syscalls follow legitimate directory symlinks to their target filesystem. Broken, looping, or inaccessible targets produce `unavailable` bands and sanitized warnings. Output, diagnostics, and control files instead use non-following opens, regular-file/single-link validation, and descriptor-anchored directories. This protection requires Linux `/proc/self/fd`; when unavailable, monitoring is disabled with warnings rather than using unsafe pathname checks.
 
 Snapshots are also included in `agent-output-fallback` when that artifact is enabled, sanitized before upload, copied into `usage/disk_usage.jsonl`, and represented as `runner.disk_usage` events in the unified session. Monitor startup, sampling, control, cleanup, and collection failures only produce fixed-label warnings with allowlisted error codes, never raw filesystem errors. Unsupported watchers stop the worker instead of polling frequently. Unreadable or malformed telemetry cannot fail unified-session collection. A runner crash can still prevent artifact upload, so absent telemetry is not evidence of sufficient disk space.
+
+Sampler diagnostic logs remain local to the runner and are excluded from artifact uploads. Only the sanitized, coarse headroom observations are archived.
 
 ## `agent-output-fallback`
 

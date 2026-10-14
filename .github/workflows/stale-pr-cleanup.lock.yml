@@ -1202,7 +1202,6 @@ jobs:
             /tmp/gh-aw/agent_usage.jsonl
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/disk_usage.jsonl
-            /tmp/gh-aw/disk_usage_monitor.log
             /tmp/gh-aw/agent/model-endpoint-mismatch.json
             /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl
             /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl
@@ -1237,7 +1236,6 @@ jobs:
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/disk_usage.jsonl
-            /tmp/gh-aw/disk_usage_monitor.log
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/otlp-export-errors.jsonl
             /tmp/gh-aw/safeoutputs.jsonl

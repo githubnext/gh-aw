@@ -391,9 +391,8 @@ This workflow should generate a unified artifact upload step that includes the p
 		t.Error("Expected 'continue-on-error: true' in upload agent artifacts step")
 	}
 
-	for _, file := range []string{"disk_usage.jsonl", "disk_usage_monitor.log"} {
-		assert.Contains(t, uploadStepSection, "/tmp/gh-aw/"+file)
-	}
+	assert.Contains(t, uploadStepSection, "/tmp/gh-aw/disk_usage.jsonl")
+	assert.NotContains(t, uploadStepSection, "disk_usage_monitor.log")
 	stopStep := extractWorkflowStepByName(t, lockYAML, "Stop disk space monitoring")
 	assert.Contains(t, stopStep, "if: always()")
 	assert.Contains(t, stopStep, `disk_usage_logger.cjs" stop`)
@@ -651,7 +650,6 @@ Body.
 		"/tmp/gh-aw/agent_usage.jsonl",
 		"/tmp/gh-aw/agent_usage.json",
 		"/tmp/gh-aw/disk_usage.jsonl",
-		"/tmp/gh-aw/disk_usage_monitor.log",
 		"/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl",
 		"/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
@@ -670,6 +668,7 @@ Body.
 	if strings.Contains(uploadSection, constants.OperationalValueEvaluatorFilename.String()) {
 		t.Errorf("Fallback upload must not include an operational-value evaluator for inline-only graders, got:\n%s", uploadSection)
 	}
+	assert.NotContains(t, uploadSection, "disk_usage_monitor.log")
 
 	// The fallback artifact must be uploaded before the (large, failure-prone) agent artifact.
 	uploadIdx := strings.Index(lockYAML, "- name: Upload agent output fallback artifact")

@@ -68,8 +68,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	// Collect GitHub API rate-limit log for observability.
 	// Written by github_rate_limit_logger.cjs during REST API calls.
 	paths = append(paths, constants.TmpGhAwDirSlash+constants.GithubRateLimitsFilename.String())
-	paths = append(paths, constants.TmpGhAwDirSlash+constants.DiskUsageFilename.String(),
-		constants.TmpGhAwDirSlash+"disk_usage_monitor.log")
+	paths = append(paths, constants.TmpGhAwDirSlash+constants.DiskUsageFilename.String())
 
 	// Collect OTLP span mirror — enables post-hoc trace debugging without a live collector.
 	// Written by send_otlp_span.cjs; each line is a full OTLP/HTTP JSON traces payload.

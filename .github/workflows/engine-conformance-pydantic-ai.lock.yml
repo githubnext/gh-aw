@@ -1823,7 +1823,6 @@ jobs:
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/disk_usage.jsonl
-            /tmp/gh-aw/disk_usage_monitor.log
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/otlp-export-errors.jsonl
             /tmp/gh-aw/safeoutputs.jsonl

@@ -824,7 +824,6 @@ jobs:
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/disk_usage.jsonl
-            /tmp/gh-aw/disk_usage_monitor.log
             /tmp/gh-aw/awf-config.json
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/sandbox/firewall/audit/
