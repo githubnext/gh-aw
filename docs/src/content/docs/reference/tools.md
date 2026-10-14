@@ -200,6 +200,16 @@ tools:
 
 See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
 
+Workflow-writing tools (`add`, `update`, `fix`, and `compile`, including dry-run compilation) are disabled by default. Trusted workflows can opt in at server startup:
+
+```aw wrap
+tools:
+  agentic-workflows:
+    allow-write-tools: true
+```
+
+This sets `--allow-write-tools` while preserving actor validation. It permits local workflow modifications and compiler scanner execution, not additional GitHub permissions or workflow dispatch. Enable it only for trusted clients and workflow sources.
+
 ### MCP CLI Mounting (`cli-proxy:`)
 
 Set `tools.cli-proxy: true` to mount each user-facing MCP server as a standalone CLI tool on `PATH`, so the agent can invoke it from shell instead of through the MCP protocol:
