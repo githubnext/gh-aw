@@ -49,6 +49,8 @@ When the user has not already stated an automation goal, start with exactly:
 
 > What do you want to automate today?
 
+When the request already states a goal, skip the opening question and continue with only the design decisions it leaves unanswered.
+
 Run the structured interview in [designer.md#interview-framework](designer.md#interview-framework) — it covers goal/intent, repository survey, architecture/trigger, scope, data strategy, guardrails, context/network, engine, and confirmation, plus the progressive-disclosure rules and the confirmation summary format. This file covers generation, compile, and PR mechanics once the design is confirmed.
 
 Two additions used only here:
@@ -65,6 +67,7 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 ## Conversation Rules
 
 - Keep the conversation short and iterative.
+- When the request already states a goal, proceed with the relevant mode and ask only about missing details that would change the workflow design.
 - Translate user intent into workflow structure.
 - When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode.
 - In ad hoc evaluation mode, do not create `.github/workflows/*.md`.

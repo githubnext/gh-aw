@@ -963,7 +963,7 @@ Test workflow`
 // history.model_provider, which Codex ignores, causing it to fall back to the
 // default openai provider and bypass the AWF api-proxy sidecar (401 Unauthorized).
 func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
-	config := buildExternalDetectorCodexConfig("http://172.30.0.30:10000", "ws://172.30.0.30:10000")
+	config := buildExternalDetectorCodexConfig("http://172.30.0.30:10000", "ws://172.30.0.30:10000", false)
 
 	// Strip any leading whitespace from each line so the config reads as plain
 	// TOML regardless of the exact indentation used in the source template.

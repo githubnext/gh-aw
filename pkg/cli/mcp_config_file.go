@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -45,7 +45,7 @@ func ensureMCPConfig(verbose bool) error {
 	ghAwConfig := VSCodeMCPServer{
 		Type:    "local",
 		Command: "gh",
-		Args:    []string{"aw", "mcp-server"},
+		Args:    []string{"aw", "mcp-server", "--allow-write-tools"},
 		Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"},
 	}
 
@@ -137,11 +137,11 @@ func mergeRequiredMCPServerFields(existingConfig, requiredConfig VSCodeMCPServer
 		updatedConfig.Command = requiredConfig.Command
 		changed = true
 	}
-	if !reflect.DeepEqual(updatedConfig.Args, requiredConfig.Args) {
+	if !slices.Equal(updatedConfig.Args, requiredConfig.Args) {
 		updatedConfig.Args = append([]string(nil), requiredConfig.Args...)
 		changed = true
 	}
-	if !reflect.DeepEqual(updatedConfig.Tools, requiredConfig.Tools) {
+	if !slices.Equal(updatedConfig.Tools, requiredConfig.Tools) {
 		updatedConfig.Tools = append([]string(nil), requiredConfig.Tools...)
 		changed = true
 	}

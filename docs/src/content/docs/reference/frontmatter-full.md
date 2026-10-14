@@ -2727,12 +2727,16 @@ engine:
     # these profiles per task.
     mode: "economy"
 
-    # Required Copilot models the router may select and the routed task may call;
-    # declared sub-agent models are admitted separately. Provider qualification is
-    # added by the compiler. Must satisfy models.allowed and models.blocked; GitHub
-    # Actions expressions are rejected when either policy is set. Candidate lists from
-    # imported workflows using the same engine are merged. Unavailable models and
-    # models not covered by routing tables are not selected.
+    # Optional Copilot models the router may select for the main agent. This is not a
+    # request policy: the session and sub-agents may use any model allowed by
+    # models.allowed and models.blocked. Candidates outside that policy are dropped
+    # with a warning. When omitted, the router selects from the policy-filtered model
+    # catalogue (Claude and Codex are limited to their own model family); AWF versions
+    # before v0.28.33 require it. Provider qualification is added by the compiler.
+    # GitHub Actions expressions are rejected when models.allowed or models.blocked is
+    # set. Candidate lists from imported workflows using the same engine are merged.
+    # Unavailable models and models not covered by routing tables are not selected.
+    # (optional)
     allowed-models: []
       # Array of strings
 
@@ -21312,12 +21316,16 @@ safe-outputs:
         # these profiles per task.
         mode: "economy"
 
-        # Required Copilot models the router may select and the routed task may call;
-        # declared sub-agent models are admitted separately. Provider qualification is
-        # added by the compiler. Must satisfy models.allowed and models.blocked; GitHub
-        # Actions expressions are rejected when either policy is set. Candidate lists from
-        # imported workflows using the same engine are merged. Unavailable models and
-        # models not covered by routing tables are not selected.
+        # Optional Copilot models the router may select for the main agent. This is not a
+        # request policy: the session and sub-agents may use any model allowed by
+        # models.allowed and models.blocked. Candidates outside that policy are dropped
+        # with a warning. When omitted, the router selects from the policy-filtered model
+        # catalogue (Claude and Codex are limited to their own model family); AWF versions
+        # before v0.28.33 require it. Provider qualification is added by the compiler.
+        # GitHub Actions expressions are rejected when models.allowed or models.blocked is
+        # set. Candidate lists from imported workflows using the same engine are merged.
+        # Unavailable models and models not covered by routing tables are not selected.
+        # (optional)
         allowed-models: []
           # Array of strings
 

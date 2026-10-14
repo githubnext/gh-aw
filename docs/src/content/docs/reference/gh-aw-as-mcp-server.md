@@ -7,6 +7,8 @@ sidebar:
 
 The `gh aw mcp-server` command exposes GitHub Agentic Workflows CLI commands as MCP tools, allowing chat systems and workflows to manage agentic workflows programmatically.
 
+Tool options are selected through named MCP parameters, not CLI flags embedded in workflow names, workflow specifications, or run IDs/URLs. Except for the `logs` tool's `workflow_name`, positional values beginning with `-` return an invalid-parameters error before the command executes. The `logs` tool passes workflow names unchanged after a CLI `--` boundary, so names such as `-nightly` remain valid and cannot override options. For a local workflow file whose name begins with `-`, use a relative path such as `./-workflow.md`.
+
 Start the server:
 
 ```bash wrap
@@ -22,6 +24,17 @@ args: [aw, mcp-server]
 
 ## Configuration Options
 
+Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default, including dry-run calls. The operator can enable them at server startup for trusted clients and workflow sources:
+
+```bash wrap
+gh aw mcp-server --allow-write-tools
+```
+
+> [!WARNING]
+> This opt-in permits workflow modifications and compiler scanner execution. MCP callers cannot enable it through tool arguments. Repository write access alone does not enable these tools, and disabling actor validation does not bypass this gate.
+
+The `mcp-inspect` tool only lists configuration. It never starts workflow-declared commands or containers, connects to configured HTTP endpoints, or checks secrets, even when `--allow-write-tools` is enabled. Live discovery remains available through `gh aw mcp inspect <workflow>` invoked directly by the operator after reviewing and trusting the workflow's commands, packages, container images, and endpoints.
+
 Use `--port` to run over HTTP/SSE:
 
 ```bash wrap
@@ -34,7 +47,7 @@ Use `--validate-actor` to require repository permission checks before exposing l
 gh aw mcp-server --validate-actor
 ```
 
-When validation is enabled, `logs`, `audit`, and `audit-diff` require write, maintain, or admin access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY`, caches permission results in memory for 1 hour, and never falls back to open access if `GITHUB_ACTOR` is missing.
+When validation is enabled, `logs`, `audit`, `audit-diff`, and enabled workflow-writing tools require write, maintain, or admin access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY`, caches permission results in memory for 1 hour, and never falls back to open access if `GITHUB_ACTOR` is missing. Both the startup capability gate and actor checks apply to stdio and HTTP/SSE transports.
 
 > [!WARNING]
 > With `--validate-actor`, privileged tools remain mounted, but `logs`, `audit`, and `audit-diff` return permission-denied errors until `GITHUB_ACTOR` is provided.
@@ -117,11 +130,13 @@ The MCP server exposes these workflow-management tools:
 | `logs` | Download and analyze workflow logs with timeout and token guardrails. | `workflow_name`, `count`, `start_date`, `end_date`, `engine`, `firewall`, `no_firewall`, `branch`, `after_run_id`, `before_run_id`, `artifacts`, `timeout`, `max_tokens`, `jq` | JSON run data and metrics; the response sets `partial: true` and includes continuation parameters when results are incomplete. |
 | `audit` | Audit one or more workflow runs; with multiple runs, compare each run to the first. | `run_ids_or_urls` (preferred), `run_id`, deprecated `run_id_or_url`, plus `artifacts`, `experiment`, `variant`, `jq` | Single-run JSON audit or multi-run diff JSON. |
 | `checks` | Normalize CI check state for a pull request. | `pr_number`, `repo` | JSON with `state`, `required_state`, `pr_number`, `head_sha`, `check_runs`, `statuses`, `total_count`. |
-| `mcp-inspect` | List MCP servers in workflows and inspect their tools, resources, and roots. | `workflow_file`, `server`, `tool` | Formatted text output. |
+| `mcp-inspect` | List MCP server configurations without executing or connecting to servers. | `workflow_file`; `server` and `tool` are unsupported and return an error. | Formatted configuration listing. |
 | `work-queue` | Read the Git-backed work queue without publishing or changing queue state. | `operation`, `repo`, `branch`, and operation-specific selectors or filters | The selected CLI operation's JSON output. |
 | `add` | Add workflows from remote repositories to `.github/workflows`. | `workflows`, `number`, `name` | Added workflow files. |
 | `update` | Update sourced workflows and check for gh-aw updates. | `workflows`, `major`, `force` | Updated workflow files and version checks. |
 | `fix` | Apply automatic codemod-style fixes. | `workflows`, `write`, `list_codemods` | Dry-run or written fixes. |
+
+Workflow and run positional parameters must not start with `-`; use the tool's named parameters for options. For a local workflow filename beginning with `-`, supply a path prefixed with `./`. The `add` tool's `name` is a filename without an extension, not a path: `/`, `\`, and `..` are rejected. Workflow destinations must remain within the selected workflow directory, including when existing files are symlinks.
 
 > [!NOTE]
 > The `actionlint`, `zizmor`, and `poutine` scanners used by `compile` prefer compatible local binaries on `PATH` (actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6), falling back to Docker otherwise. Docker-based scanners, including `grant`, pull images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.

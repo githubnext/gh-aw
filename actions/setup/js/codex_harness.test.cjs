@@ -25,6 +25,7 @@ const {
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
   buildCodexChildEnv,
+  hasCodexAzureOIDCProxy,
   extractPortFromURL,
   extractOpenAIProxyBaseURLFromToml,
   getConfiguredProviderPortFromReflect,
@@ -72,7 +73,7 @@ function makeHarnessTempDir(name) {
 }
 
 function spawnSync(command, args, options) {
-  const env = { ...options.env, HOME: path.join(agentTempDir, "home"), AWF_REFLECT_ENABLED: "0" };
+  const env = { ...options.env, HOME: path.join(agentTempDir, "home"), AWF_REFLECT_ENABLED: options.env.AWF_REFLECT_ENABLED || "0" };
   if (!env.CODEX_HOME || env.CODEX_HOME === process.env.CODEX_HOME) env.CODEX_HOME = path.join(agentTempDir, "codex-home");
   if (!env.RUNNER_TEMP || env.RUNNER_TEMP === process.env.RUNNER_TEMP) env.RUNNER_TEMP = agentTempDir;
   if (!env.GH_AW_AGENT_OUTPUT || env.GH_AW_AGENT_OUTPUT === process.env.GH_AW_AGENT_OUTPUT) env.GH_AW_AGENT_OUTPUT = path.join(agentTempDir, "agent-output.json");
@@ -81,7 +82,7 @@ function spawnSync(command, args, options) {
   return spawnProcessSync(command, args, { ...options, env });
 }
 
-function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}, reflectData } = {}) {
+function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}, reflectData, reflectOk = true, config } = {}) {
   const dir = makeHarnessTempDir("runtime-");
   const executable = path.join(dir, "codex-stub.cjs");
   const promptPath = path.join(dir, "prompt.txt");
@@ -106,11 +107,15 @@ function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}
     CODEX_HARNESS_STUB_CALLS: callsPath,
     ...env,
   };
+  if (config) {
+    fs.mkdirSync(childEnv.CODEX_HOME, { recursive: true });
+    fs.writeFileSync(path.join(childEnv.CODEX_HOME, "config.toml"), config);
+  }
   if (reflectData) {
     const reflectPreload = path.join(dir, "reflect-fixture.cjs");
     fs.writeFileSync(
       reflectPreload,
-      `const fs=require("fs");const path=require("path");const reflect=require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))});const data=${JSON.stringify(reflectData)};reflect.fetchAWFReflect=async()=>{fs.mkdirSync(path.dirname(reflect.AWF_REFLECT_OUTPUT_PATH),{recursive:true});fs.writeFileSync(reflect.AWF_REFLECT_OUTPUT_PATH,JSON.stringify(data));return {ok:true,reflectData:data};};`
+      `const fs=require("fs");const path=require("path");const reflect=require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))});const data=${JSON.stringify(reflectData)};reflect.fetchAWFReflect=async()=>{fs.mkdirSync(path.dirname(reflect.AWF_REFLECT_OUTPUT_PATH),{recursive:true});fs.writeFileSync(reflect.AWF_REFLECT_OUTPUT_PATH,JSON.stringify(data));return {ok:${reflectOk},reflectData:data};};`
     );
     childEnv.NODE_OPTIONS = `${childEnv.NODE_OPTIONS || ""} --require=${JSON.stringify(reflectPreload)}`;
   }
@@ -132,6 +137,79 @@ function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}
 }
 
 describe("codex_harness.cjs", () => {
+  describe("Azure OIDC", () => {
+    const env = { CODEX_API_KEY: "", OPENAI_API_KEY: "", GH_AW_CODEX_OIDC_AUTH: "azure", AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai" };
+    const endpoint = { provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, models_url: "http://api-proxy:10000/v1/models", models: ["gpt-5.4"] };
+    const config = 'model_provider = "openai-proxy"\n[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\nwire_api = "responses"\nrequires_openai_auth = false\n';
+
+    it("runs without API keys through the configured Entra proxy", () => {
+      const { result, calls } = runHarnessFixture(
+        'const config=fs.readFileSync(process.env.CODEX_HOME+"/config.toml","utf8");if(process.env.CODEX_API_KEY||process.env.OPENAI_API_KEY||config.includes("env_key")||!config.includes("http://api-proxy:10000"))process.exitCode=1;',
+        { env, reflectData: { endpoints: [endpoint] }, config }
+      );
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
+
+    it.each([
+      ["unconfigured", { ...endpoint, configured: false }],
+      ["static key", { ...endpoint, auth_type: "static-key" }],
+      ["other OIDC provider", { ...endpoint, auth_type: "github-oidc/gcp" }],
+      ["other inference provider", { ...endpoint, provider: "github" }],
+    ])("refuses to spawn for a %s proxy", (_name, invalidEndpoint) => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [invalidEndpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Azure OIDC requires a configured OpenAI AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("refuses to spawn when reflection is disabled", () => {
+      const { result, calls } = runHarnessFixture("", { env: { ...env, AWF_REFLECT_ENABLED: "0" }, config });
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("does not trust persisted reflection after a failed fresh fetch", () => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [endpoint] }, reflectOk: false, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Azure OIDC requires a configured OpenAI AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each([undefined, '[history]\npersistence = "none"\n'])("refuses to spawn when Codex proxy configuration is missing (%s)", config => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [endpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unable to configure Codex for the Azure OIDC AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("keeps the API-key requirement for non-OIDC runs", () => {
+      const { result, calls } = runHarnessFixture("", { env: { CODEX_API_KEY: "", OPENAI_API_KEY: "" } });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("no API key available");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("requires the compiler policy and firewall even with OIDC reflection", () => {
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, env)).toBe(true);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, GH_AW_CODEX_OIDC_AUTH: "" })).toBe(false);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, AWF_REFLECT_ENABLED: "0" })).toBe(false);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, GH_AW_LLM_PROVIDER: "github" })).toBe(false);
+    });
+
+    it("checks the endpoint that will actually be selected", () => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [{ ...endpoint, auth_type: "static-key" }, endpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("accepts a normalized OpenAI provider alias selected by the resolver", () => {
+      const aliasedEndpoint = { ...endpoint, provider: " OPENAI " };
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [aliasedEndpoint] }, config });
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
+  });
   describe("AWF model routing", () => {
     const reflectData = {
       endpoints: [{ provider: "github", configured: true, models: ["gpt-5.6-sol"] }],
@@ -412,11 +490,39 @@ process.exit(0);`,
       expect(result.stderr).toContain("trusted budget-abort evidence");
     });
 
-    it("preempts an active attempt at the soft deadline even when it handles SIGTERM cleanly", () => {
-      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, { env: { GH_AW_TIMEOUT_MINUTES: "0.04" } });
+    it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
+      const tempDir = makeHarnessTempDir("soft-deadline-report-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const safeOutputsCLI = path.join(tempDir, "safeoutputs.cjs");
+      fs.writeFileSync(
+        safeOutputsCLI,
+        `#!${process.execPath}
+const fs = require("fs");
+const args = process.argv.slice(2);
+const item = { type: args[0] };
+for (let i = 1; i < args.length; i += 2) item[args[i].slice(2)] = args[i + 1];
+fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
+`
+      );
+      fs.chmodSync(safeOutputsCLI, 0o700);
+      const { result, calls } = runHarnessFixture(`process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000);`, {
+        env: {
+          GH_AW_TIMEOUT_MINUTES: "0.04",
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_SAFEOUTPUTS_CLI: safeOutputsCLI,
+        },
+      });
       expect(result.status).toBe(1);
       expect(calls).toHaveLength(1);
       expect(result.stderr).toContain("soft execution deadline");
+      const [item] = fs
+        .readFileSync(safeOutputsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(item).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
+      expect(item.details).toMatch(/^Codex run stopped by a runtime guard\./);
+      expect(item.details).toContain("Codex reached the soft execution deadline");
     });
 
     it("requires a path for stdin prompt delivery", () => {
@@ -611,11 +717,17 @@ process.exit(0);`,
       expect(cfg.termGraceMs).toBe(DEFAULT_CONTEXT_REBUILD_TERM_GRACE_MS);
     });
 
-    it("supports explicit disable via env", () => {
+    it.each(["false", "0", "off", "no", " FALSE ", "OFF", "No"])("supports explicit disable via env value %s", value => {
       const cfg = resolveContextRebuildCircuitBreakerConfig({
-        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false",
+        GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: value,
       });
       expect(cfg.enabled).toBe(false);
+    });
+
+    it("allows a measured long run with a higher workload-specific threshold", () => {
+      const workingSet = { rebuild_factor: 29.53, cumulative_input_tokens: 4650000 };
+      expect(evaluateContextRebuildCircuitBreaker(workingSet, resolveContextRebuildCircuitBreakerConfig({})).terminate).toBe(true);
+      expect(evaluateContextRebuildCircuitBreaker(workingSet, resolveContextRebuildCircuitBreakerConfig({ GH_AW_CODEX_MAX_REBUILD_FACTOR: "50" })).terminate).toBe(false);
     });
 
     it("trips only when both rebuild factor and cumulative input exceed thresholds", () => {
@@ -1719,6 +1831,18 @@ process.exit(1);`,
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
       const tokenUsagePath = path.join(tempDir, "token-usage.jsonl");
+      const safeOutputsCLI = path.join(tempDir, "safeoutputs.cjs");
+      fs.writeFileSync(
+        safeOutputsCLI,
+        `#!${process.execPath}
+const fs = require("fs");
+const args = process.argv.slice(2);
+const item = { type: args[0] };
+for (let i = 1; i < args.length; i += 2) item[args[i].slice(2)] = args[i + 1];
+fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
+`
+      );
+      fs.chmodSync(safeOutputsCLI, 0o700);
       // Preserve any pre-existing token-usage log so the test never destroys real data,
       // while still always executing its assertions.
       const previousTokenUsage = fs.existsSync(tokenUsagePath) ? fs.readFileSync(tokenUsagePath) : null;
@@ -1745,6 +1869,7 @@ setInterval(() => {}, 1000);`,
             ...process.env,
             CODEX_HARNESS_STUB_CALLS: callsPath,
             GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+            GH_AW_SAFEOUTPUTS_CLI: safeOutputsCLI,
             CODEX_API_KEY: "fake-key-for-test",
             GH_AW_HARNESS_MAX_RETRIES: "1",
             GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
@@ -1764,6 +1889,15 @@ setInterval(() => {}, 1000);`,
         expect(result.stderr).toContain("runtime guard requested termination");
         expect(result.stderr).toContain("normalizing exit code to 1");
         expect(result.stderr).toContain("not retrying (circuit breaker)");
+        const items = fs
+          .readFileSync(safeOutputsPath, "utf8")
+          .trim()
+          .split("\n")
+          .map(line => JSON.parse(line));
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ type: "report_incomplete", reason: "infrastructure_error" });
+        expect(items[0].details).toMatch(/^Codex run stopped by a runtime guard\./);
+        expect(items[0].details).toContain("context-rebuild circuit breaker tripped: rebuild_factor=3.00 cumulative_input_tokens=300 thresholds=2/10");
       } finally {
         if (previousTokenUsage === null) {
           fs.rmSync(tokenUsagePath, { force: true });

@@ -616,7 +616,7 @@ func TestAuditTool_AcceptsRunIDAlias(t *testing.T) {
 
 			require.GreaterOrEqual(t, len(capturedArgs), 2, "captured args should include command and run ID")
 			assert.Equal(t, "audit", capturedArgs[0], "first arg should be audit command")
-			assert.Equal(t, tc.expectedRunArg, capturedArgs[1], "run_id alias should be forwarded as positional run input")
+			assert.Equal(t, []string{tc.expectedRunArg}, capturedArgs[slices.Index(capturedArgs, "--")+1:], "run_id alias should be forwarded after the option boundary")
 		})
 	}
 }
@@ -650,7 +650,7 @@ func TestAuditTool_AcceptsNumericRunIDOrURLField(t *testing.T) {
 
 	require.GreaterOrEqual(t, len(capturedArgs), 2, "captured args should include command and run ID")
 	assert.Equal(t, "audit", capturedArgs[0], "first arg should be audit command")
-	assert.Equal(t, "1234567890", capturedArgs[1], "numeric run_id_or_url should be normalized to positional string run ID")
+	assert.Equal(t, []string{"1234567890"}, capturedArgs[slices.Index(capturedArgs, "--")+1:], "numeric run_id_or_url should be normalized to positional string run ID")
 }
 
 // TestAuditTool_MultiRunDiffMode verifies that when run_ids_or_urls contains
@@ -684,12 +684,10 @@ func TestAuditTool_MultiRunDiffMode(t *testing.T) {
 	require.True(t, ok, "expected text content in audit response")
 	assert.JSONEq(t, expectedStdout, textContent.Text, "audit tool should return subprocess stdout")
 
-	// All three run IDs must appear as positional args immediately after "audit"
+	// All three run IDs must appear after the option boundary.
 	require.GreaterOrEqual(t, len(capturedArgs), 4, "captured args should include audit + 3 run IDs: %v", capturedArgs)
 	assert.Equal(t, "audit", capturedArgs[0], "first arg should be 'audit'")
-	assert.Equal(t, "111", capturedArgs[1], "second arg should be first run ID")
-	assert.Equal(t, "222", capturedArgs[2], "third arg should be second run ID")
-	assert.Equal(t, "333", capturedArgs[3], "fourth arg should be third run ID")
+	assert.Equal(t, []string{"111", "222", "333"}, capturedArgs[slices.Index(capturedArgs, "--")+1:])
 }
 
 // TestAuditTool_FailsWhenNoRunIDProvided verifies that the audit tool

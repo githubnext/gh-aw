@@ -28,6 +28,11 @@ type AddWorkflowsResult struct {
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
 func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
+	if opts.Name != "" {
+		if err := validateAddedWorkflowName(opts.Name); err != nil {
+			return nil, err
+		}
+	}
 	addLog.Printf("Resolving %d workflow reference(s) before add", len(workflows))
 	// Resolve workflows first - fetches content directly from GitHub
 	resolved, err := ResolveWorkflows(ctx, workflows, opts.Verbose)
@@ -42,6 +47,11 @@ func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*Ad
 // This allows callers to resolve workflows early (e.g., to show descriptions) and then add them later.
 // The opts.Quiet parameter suppresses detailed output (useful for interactive mode where output is already shown).
 func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error) {
+	if opts.Name != "" {
+		if err := validateAddedWorkflowName(opts.Name); err != nil {
+			return nil, err
+		}
+	}
 	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, opts.WorkflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflowStrings), opts.EngineOverride, opts.CreatePR, opts.NoGitattributes, opts.WorkflowDir, opts.NoStopAfter, opts.StopAfter)
 
 	result := &AddWorkflowsResult{}

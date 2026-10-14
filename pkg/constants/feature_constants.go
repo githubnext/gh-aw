@@ -74,6 +74,14 @@ const (
 	//	features:
 	//	  dangerously-disable-sandbox-agent: true
 	DangerouslyDisableSandboxAgentFeatureFlag FeatureFlag = "dangerously-disable-sandbox-agent"
+	// DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag suppresses the
+	// pull_request_target/on.roles read-or-all warning in non-strict mode only.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  dangerously-allow-roles-read-and-pull-request-target: true
+	DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag FeatureFlag = "dangerously-allow-roles-read-and-pull-request-target"
 	// GHAWDetectionFeatureFlag controls the external threat-detect binary detection path.
 	// The external detector is enabled by default. Set this flag to false to use
 	// the legacy inline engine execution path.

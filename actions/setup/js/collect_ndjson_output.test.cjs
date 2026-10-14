@@ -26,6 +26,8 @@ const incompleteOutput = JSON.stringify({
 describe("collect_ndjson_output.cjs", () => {
   let mockCore, collectScript, legacyPatchSpy, diagnosticRoot, outcomeSpy;
   (beforeEach(() => {
+    vi.stubEnv("GITHUB_RUN_ID", "38401428490");
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     diagnosticRoot = fs.mkdtempSync(path.join(os.tmpdir(), "collect-ndjson-diagnostics-"));
     outcomeSpy = vi.spyOn(emptyOutputOutcome, "buildEmptyOutputOutcome").mockImplementation(errors => buildEmptyOutputOutcome(errors, diagnosticRoot));
     fs.rmSync("/tmp/gh-aw/mcp-cli-audit", { recursive: true, force: true });
@@ -167,6 +169,7 @@ describe("collect_ndjson_output.cjs", () => {
       ));
   }),
     afterEach(() => {
+      vi.unstubAllEnvs();
       outcomeSpy.mockRestore();
       fs.rmSync(diagnosticRoot, { recursive: true, force: true });
       legacyPatchSpy.mockRestore();
@@ -281,6 +284,16 @@ describe("collect_ndjson_output.cjs", () => {
       } finally {
         fs.unlinkSync(exitPath);
       }
+    }),
+    it("preserves a pre-agent startup failure as collector-owned metadata", async () => {
+      const executionPath = path.join(diagnosticRoot, "agent_execution.json");
+      fs.writeFileSync(executionPath, JSON.stringify({ version: 1, component: "agent", run_id: 38401428490, run_attempt: 1, state: "not_started" }));
+      delete process.env.GH_AW_SAFE_OUTPUTS;
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
+      expect(output.items[0]).toMatchObject({ type: "report_incomplete", reason: "agent_startup_failure", failureCause: "agent_startup_failure" });
+      expect(output.collectorEmptyOutputCause).toBe("agent_startup_failure");
+      expect(output.collectorFailureCause).toBe("agent_startup_failure");
     }),
     it("should validate and parse valid JSONL content", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",

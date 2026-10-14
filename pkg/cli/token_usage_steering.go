@@ -2,10 +2,17 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/singleflight"
 )
 
 type apiProxySteeringLog struct {
@@ -22,6 +29,13 @@ func applyGatewaySteeringSummary(summary *TokenUsageSummary, runDir string) {
 	if err != nil {
 		tokenUsageLog.Printf("Failed to parse API proxy steering events in %s: %v", runDir, err)
 		return
+	}
+	if log == nil {
+		log, err = readUnifiedSteeringLog(runDir)
+		if err != nil {
+			tokenUsageLog.Printf("Failed to read unified steering events in %s: %v", runDir, err)
+			return
+		}
 	}
 	if log == nil {
 		return
@@ -77,7 +91,11 @@ func parseAPIProxySteeringLog(filePath string) (*apiProxySteeringLog, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			tokenUsageLog.Printf("Failed to close steering log: %v", err)
+		}
+	}()
 
 	log := &apiProxySteeringLog{
 		path:        filePath,
@@ -112,6 +130,9 @@ func parseAPIProxySteeringLog(filePath string) (*apiProxySteeringLog, error) {
 
 func extractGatewaySteeringEvents(runDir string) ([]GatewaySteeringEvent, error) {
 	log, err := findAPIProxyEventsLog(runDir)
+	if err == nil && log == nil {
+		log, err = readUnifiedSteeringLog(runDir)
+	}
 	if err != nil || log == nil {
 		return nil, err
 	}
@@ -121,6 +142,126 @@ func extractGatewaySteeringEvents(runDir string) ([]GatewaySteeringEvent, error)
 	}
 
 	return gatewaySteeringEventsFromEntries(log.entries), nil
+}
+
+// readUnifiedSteeringLog uses the published session when the raw proxy event log
+// is absent. Never merge the two sources: they describe the same proxy events.
+// Cache successful results, including absent events, across summary and timeline
+// consumers of the same run.
+func readUnifiedSteeringLog(runDir string) (*apiProxySteeringLog, error) {
+	cacheKey := filepath.Clean(runDir)
+	if cached, ok := loadUnifiedSteeringLogCache(cacheKey); ok {
+		return cached.log, nil
+	}
+	result, err, _ := unifiedSteeringLogGroup.Do(cacheKey, func() (any, error) {
+		if cached, ok := loadUnifiedSteeringLogCache(cacheKey); ok {
+			return cached, nil
+		}
+		log, err := parseUnifiedSteeringLog(cacheKey)
+		if err != nil {
+			return nil, err
+		}
+		entry := apiProxySteeringLogCacheEntry{log: log}
+		unifiedSteeringLogCache.Store(cacheKey, entry)
+		return entry, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	entry, ok := result.(apiProxySteeringLogCacheEntry)
+	if !ok {
+		return nil, fmt.Errorf("unexpected unified steering log cache result type %T", result)
+	}
+	return entry.log, nil
+}
+
+var (
+	unifiedSteeringLogCache sync.Map
+	unifiedSteeringLogGroup singleflight.Group
+)
+
+func loadUnifiedSteeringLogCache(cacheKey string) (apiProxySteeringLogCacheEntry, bool) {
+	cached, ok := unifiedSteeringLogCache.Load(cacheKey)
+	if !ok {
+		return apiProxySteeringLogCacheEntry{}, false
+	}
+	entry, ok := cached.(apiProxySteeringLogCacheEntry)
+	if !ok {
+		unifiedSteeringLogCache.Delete(cacheKey)
+		return apiProxySteeringLogCacheEntry{}, false
+	}
+	return entry, true
+}
+
+func parseUnifiedSteeringLog(runDir string) (*apiProxySteeringLog, error) {
+	path, err := findUnifiedSessionPath(runDir)
+	if err != nil || path == "" {
+		return nil, err
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			tokenUsageLog.Printf("Failed to close unified session: %v", err)
+		}
+	}()
+
+	log := &apiProxySteeringLog{path: path, eventCounts: make(map[string]int)}
+	reader := bufio.NewReader(file)
+	for lineNumber := 1; ; lineNumber++ {
+		line, oversized, readErr := readUnifiedSessionLine(reader)
+		if oversized {
+			return nil, fmt.Errorf("oversized session record on line %d", lineNumber)
+		}
+		if len(bytes.TrimSpace(line)) > 0 {
+			var event sessionSubagentEvent
+			if err := json.Unmarshal(line, &event); err != nil {
+				return nil, fmt.Errorf("invalid session event on line %d: %w", lineNumber, err)
+			}
+			collectUnifiedSteeringEvent(log, event)
+		}
+		if readErr != nil {
+			if !errors.Is(readErr, io.EOF) {
+				return nil, fmt.Errorf("failed to read session: %w", readErr)
+			}
+			break
+		}
+	}
+	if len(log.eventCounts) == 0 {
+		return nil, nil
+	}
+	return log, nil
+}
+
+func collectUnifiedSteeringEvent(log *apiProxySteeringLog, event sessionSubagentEvent) {
+	if event.Type != "firewall.steering" || event.Provenance.Component != "firewall" ||
+		(event.Provenance.Phase != "agent" && event.Provenance.Phase != "detection") {
+		return
+	}
+	var data struct {
+		proxyEventsEntry
+		RequestIDCamel string `json:"requestId"`
+	}
+	if err := json.Unmarshal(event.Data, &data); err != nil {
+		return
+	}
+	name := data.eventName()
+	if !isSteeringEventName(name) {
+		return
+	}
+	log.eventCounts[name]++
+	if !isSteeringEvent(name, strings.TrimSpace(data.Message)) {
+		return
+	}
+	if data.RequestID == "" {
+		data.RequestID = data.RequestIDCamel
+	}
+	if timestamp := unifiedSteeringTimestamp(event); timestamp != "" {
+		data.Timestamp = timestamp
+	}
+	log.entries = append(log.entries, data.proxyEventsEntry)
 }
 
 func gatewaySteeringEventsFromEntries(entries []proxyEventsEntry) []GatewaySteeringEvent {

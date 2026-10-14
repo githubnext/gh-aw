@@ -20,6 +20,8 @@ native scheduling/launch capabilities, including historical multi-Claim
 profiles; those configurations do not override AW's singleton default.
 `ClaimScopedWorker` and `IssueProjection` abstract already-trusted identity and
 effect/admission authority, not AW enrollment or authentication implementation.
+`DispatchReservationRecovery` refines never-started reservations separately
+from the existing launch and worker models.
 
 The original `WorkQueue.tla` is retained as historical model evidence for
 [issue #64852](https://github.com/github/gh-aw/issues/64852). Its best-effort
@@ -37,6 +39,55 @@ First-submit Policy bootstrap and later quiescent Policy updates are documented 
 This directory retains executable specifications and formal evidence, not a
 second current user guide. The historical material below is model provenance,
 not supported deployment guidance.
+
+## Abandoned dispatcher reservation recovery
+
+`DispatchReservationRecovery.tla` starts with three granted singleton profiles:
+miner, refiner and monster. Bounded sweeps prepare recovery candidates from
+terminal originating-attempt evidence; start markers and sends can interleave
+before checked recovery publication. Active, unavailable, foreign and
+later-attempt observations cannot authorize automatic prelaunch release.
+Recovery cancels only original open Claims, preserves completed siblings and
+service debt, and enables an abstract new retry grant without reopening the old
+Claim or resending the original dispatch.
+
+The safety case checks exact terminal-origin evidence, the fresh-prefix/CAS
+start fence, one send per original dispatch, Claim preservation, no service
+refund, and the bounded sweep. Four mutation controls must fail the named
+invariant, and three guarded witnesses demonstrate sibling recovery with a
+bound miner, a new retry grant, and a prepared recovery overtaken by a start.
+
+| Configuration | Expected result |
+|---|---|
+| `ReservationRecovery.cfg` | Exhaust `Safety` with a two-group sweep bound. |
+| `BrokenReservationEvidence.cfg` | `PrelaunchEvidence` rejects non-exact origin evidence. |
+| `BrokenReservationCAS.cfg` | `StartFence` rejects release after a concurrent start. |
+| `BrokenReservationRefund.cfg` | `NoRefund` rejects refunding a failed grant. |
+| `BrokenReservationResend.cfg` | `OneSender` rejects another POST after uncertainty. |
+| `ReservationSiblingWitness.cfg` | Reach released refiner/monster reservations while miner stays bound. |
+| `ReservationRetryWitness.cfg` | Reach a new charged retry grant after prelaunch release. |
+| `ReservationRaceWitness.cfg` | Reach a stale prepared recovery candidate after a start marker wins. |
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar TLC_MODEL_FILTER=DispatchReservationRecovery \
+  bash specs/work-queue/check.sh
+```
+
+The model assumes independently authenticated origin evidence and atomic
+checked publication; it does not prove GitHub identity APIs, Git CAS,
+reconciliation sweep rotation, retry timing/exhaustion, fair retry selection,
+or retry launch. `QueueLifecycle` retains its abstract authorized prelaunch
+release, while `Factory` retains its worker-assignment projection.
+`work_queue_dispatch.test.cjs` and `work_queue_native.test.cjs` connect this
+boundary to native mocked origin reads, original-attempt selection,
+automatic retry dispatch, and both fresh-read and publication-time races.
+No bounded reachability witness establishes eventual recovery or live execution.
+
+Focused verification exhausted 11,665 distinct safety states at depth 17.
+All four mutation controls returned their exact named invariant violation,
+and all three witnesses reached their guarded target without a safety failure.
+Three seeded, depth-16 simulations also emitted traces. These results apply to
+this finite recovery model, not the older model totals or a live ESLint queue.
 
 ## First-submit bootstrap model
 
@@ -1075,16 +1126,27 @@ implementation, creation-receipt authenticity, runtime refinement, or liveness.
 
 [`IssueClosureCancellation.tla`](IssueClosureCancellation.tla) separately
 models closure of an exact Issue subject or immutable backing-Issue binding
-with fresh queue labels as intent, trusted terminal
-WorkCancellation, and an idempotent comment reporting the resulting ledger
-state. Its available/active/completed/cancelled configurations cover a running
-worker that is not automatically stopped, Completion winning the race,
-duplicate closure reports, already-terminal Work, and dependency-only or
-stale-label Issues that cannot create a cancellation intent. `Result` requires a
-separate completed-Work verification action; closure never creates one.
+only after a checked GraphQL ledger read. A verified-absent queue reference
+uses an empty state and returns without candidate reads; it is not replayed as
+an initialized ledger missing Policy. Initialized queues still require Policy.
+An unrelated/dependency Issue stops before
+configuration, native-run authentication, and the fresh GraphQL Issue preflight;
+the `ReadOrdering` and `UnboundAvoidsAmplification` invariants check this API
+read ordering. Candidate checks use fresh Issue closed state, immutable identity,
+and queue labels, with a modeled eligibility change before CAS to verify the
+recheck. The model also requires a checked terminal-ledger read before an
+idempotent confirmation comment. Its available/active/completed/cancelled
+configurations cover a running worker that is not automatically stopped,
+Completion winning the race, duplicate closure reports, already-terminal Work,
+and dependency-only, absent-queue, reopened, identity-changed, or stale-label
+Issues that cannot create a cancellation intent. `Result` requires a separate
+completed-Work verification action; closure never creates one.
 Run `TLC_MODEL_FILTER=IssueClosureCancellation` for these bounded safety
-checks. Exact relationship/label validation, authentic CAS writes, API comments, termination
-evidence, and eventual processing remain implementation obligations.
+checks. The model counts the checked-ledger read and candidate-only REST/fresh
+GraphQL reads, but abstracts exact API payload validation, transport/quota
+failures, Policy replay/validity, authentic CAS writes, actual API comments,
+termination evidence, and eventual processing; those remain implementation
+obligations.
 
 ### Daily evidence collection
 

@@ -3206,6 +3206,12 @@
           "default": false,
           "description": "Internal hidden feature. Replace the agentic step with the deterministic safe-outputs samples replay driver for this workflow, exactly as the hidden `gh aw compile --use-samples` flag does globally. Use it for workflows that are designed around `safe-outputs.*.samples` so a plain `gh aw compile` keeps producing the samples-mode lock file. Threat detection is force-disabled when enabled.",
           "examples": [true, false]
+        },
+        "dangerously-allow-roles-read-and-pull-request-target": {
+          "type": "boolean",
+          "default": false,
+          "description": "Suppress the non-strict warning when pull_request_target is combined with on.roles containing read or all. Strict mode still rejects this configuration.",
+          "examples": [true, false]
         }
       },
       "examples": [
@@ -13116,7 +13122,7 @@
               "description": "List of failure categories that should trigger issue creation. Categories can be prefixed with '!' to exclude them (e.g., '!inference_access_error'). If only non-prefixed categories are specified, only those categories trigger issues. If only prefixed (excluded) categories are specified, all categories except those trigger issues. If both are specified, categories must match included AND not match excluded. Common categories: agent_failure, timed_out, transport_wedge, missing_safe_outputs, report_incomplete, missing_tool, missing_data, inference_access_error, model_endpoint_mismatch, mcp_policy_error, ai_credits_rate_limit_error, max_ai_credits_exceeded, daily_ai_credits_unknown.",
               "items": {
                 "type": "string",
-                "pattern": "^!?(agent_failure|timed_out|transport_wedge|missing_safe_outputs|report_incomplete|engine_driver_failure|safeoutputs_cli_error|invalid_safe_outputs|missing_terminal_safe_output|missing_tool|missing_data|tool_denials_exceeded|cache_miss_misconfiguration|secret_verification_failed|inference_access_error|copilot_org_billing_error|mcp_policy_error|model_not_supported_error|model_endpoint_mismatch|ai_credits_rate_limit_error|unknown_model_ai_credits|max_ai_credits_exceeded|app_token_minting_failed|lockdown_check_failed|stale_lock_file_failed|daily_ai_credits_exceeded|daily_ai_credits_unknown|assignment_errors|assign_copilot_failures|skill_install_failures|create_discussion_errors|code_push_failures|repo_memory_validation_errors|push_repo_memory_failure)$"
+                "pattern": "^!?(agent_failure|timed_out|transport_wedge|missing_safe_outputs|report_incomplete|agent_startup_failure|engine_driver_failure|safeoutputs_cli_error|invalid_safe_outputs|missing_terminal_safe_output|missing_tool|missing_data|tool_denials_exceeded|cache_miss_misconfiguration|secret_verification_failed|inference_access_error|copilot_org_billing_error|mcp_policy_error|model_not_supported_error|model_endpoint_mismatch|ai_credits_rate_limit_error|unknown_model_ai_credits|max_ai_credits_exceeded|app_token_minting_failed|lockdown_check_failed|stale_lock_file_failed|daily_ai_credits_exceeded|daily_ai_credits_unknown|assignment_errors|assign_copilot_failures|skill_install_failures|create_discussion_errors|code_push_failures|repo_memory_validation_errors|push_repo_memory_failure)$"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -15184,7 +15190,7 @@
             "model-routing": {
               "type": "object",
               "description": "Experimental per-run GitHub Copilot model and reasoning-effort selection from the task text for Copilot, Claude, Codex, and pi engines; requires the AWF firewall and ignores fixed model and effort settings. See https://github.github.com/gh-aw/reference/model-routing/.",
-              "required": ["goal", "mode", "allowed-models"],
+              "required": ["goal", "mode"],
               "additionalProperties": false,
               "properties": {
                 "goal": {
@@ -15214,7 +15220,7 @@
                       }
                     ]
                   },
-                  "description": "Required Copilot models the router may select and the routed task may call; declared sub-agent models are admitted separately. Provider qualification is added by the compiler. Must satisfy models.allowed and models.blocked; GitHub Actions expressions are rejected when either policy is set. Candidate lists from imported workflows using the same engine are merged. Unavailable models and models not covered by routing tables are not selected."
+                  "description": "Optional Copilot models the router may select for the main agent. This is not a request policy: the session and sub-agents may use any model allowed by models.allowed and models.blocked. Candidates outside that policy are dropped with a warning. When omitted, the router selects from the policy-filtered model catalogue (Claude and Codex are limited to their own model family); AWF versions before v0.28.33 require it. Provider qualification is added by the compiler. GitHub Actions expressions are rejected when models.allowed or models.blocked is set. Candidate lists from imported workflows using the same engine are merged. Unavailable models and models not covered by routing tables are not selected."
                 }
               }
             },

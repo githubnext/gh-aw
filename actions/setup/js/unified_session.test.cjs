@@ -975,6 +975,7 @@ describe("Unified conclusion session", () => {
     write("sandbox/firewall/logs/api-proxy-logs/events.jsonl", [
       { timestamp: "2026-10-02T00:00:01Z", level: "info", event: "ai_credit_steering", request_id: "credit", provider: "copilot", threshold: 80, message: "[AWF AI CREDIT WARNING] budget" },
       { timestamp: "2026-10-02T00:00:03Z", level: "info", event: "timeout_steering", request_id: "time", provider: "copilot", threshold: 90, message: "[AWF TIME WARNING] time" },
+      { timestamp: "2026-10-02T00:00:04Z", payload: { event: "TOKEN_STEERING" }, request_id: "tokens", threshold: 95, message: "[AWF TOKEN WARNING] tokens" },
     ]);
     const { events } = collectUnifiedSession({ rootDir: root });
     const usage = events.filter(event => event.type === "firewall.token_usage");
@@ -987,6 +988,7 @@ describe("Unified conclusion session", () => {
     expect(events.filter(event => event.type === "firewall.steering").map(event => event.data)).toEqual([
       { event: "ai_credit_steering", level: "info", message: "[AWF AI CREDIT WARNING] budget", requestId: "credit", threshold: 80 },
       { event: "timeout_steering", level: "info", message: "[AWF TIME WARNING] time", requestId: "time", threshold: 90 },
+      { event: "token_steering", message: "[AWF TOKEN WARNING] tokens", requestId: "tokens", threshold: 95 },
     ]);
     const validate = req("./scripts/validate_session.cjs").createSessionValidator("unified").event;
     for (const event of events) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);

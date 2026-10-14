@@ -64,7 +64,20 @@ func (c *Compiler) addActivationSteeringIssueStep(ctx *activationJobBuildContext
 		"        id: create-steering-issue\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)),
 		"        env:\n",
-		fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", ctx.data.Name),
+	)
+	ctx.steps = append(ctx.steps, buildWorkflowMetadataEnvVarsWithTrackerID(ctx.data.Name, ctx.data.Source, ctx.data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
+	ctx.steps = append(ctx.steps,
+		fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", ctx.data.WorkflowID),
+		"          GH_AW_ENGINE_ID: ${{ steps.generate_aw_info.outputs.engine_id }}\n",
+	)
+	if ctx.data.EngineConfig == nil || ctx.data.EngineConfig.ModelRouting == nil {
+		ctx.steps = append(ctx.steps, "          GH_AW_ENGINE_MODEL: ${{ steps.generate_aw_info.outputs.model }}\n")
+	}
+	if ctx.data.EngineConfig != nil && ctx.data.EngineConfig.Version != "" {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_ENGINE_VERSION: %q\n", ctx.data.EngineConfig.Version))
+	}
+	addActivationSafeOutputMessagesEnv(ctx)
+	ctx.steps = append(ctx.steps,
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
 		"          script: |\n",

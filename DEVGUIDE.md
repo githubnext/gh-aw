@@ -971,15 +971,16 @@ This documentation provides:
    - Run the `pr-finisher` skill (automates final review/check/mergeability hardening) to get to green
    - For features that deeply impact the engine, add the `smoke` label and approve workflows
    - If no smoke run is queued after setting `smoke`, or additional changes require another smoke run, toggle the `smoke` label (remove and re-add), then approve workflows again
-   - For changes to model routing (`engine.model-routing`), add the `smoke-routing` label and approve workflows. It runs seven routed smokes on the PR's code:
+   - For changes to model routing (`engine.model-routing`), add the `smoke-routing` label and approve workflows. It runs eight routed smokes on the PR's code:
      - `smoke-copilot-routed`: Copilot CLI with routing and no sub-agents. It also runs the default threat-detection engine on a pinned model, and a detection-job post-step checks that detection completed on that model without routing (`D1`–`D3`)
      - `smoke-claude-routed`: Claude Code with routing on `model-provider: github`; AWF selects `/chat/completions` and the main agent must use `/v1/messages`
      - `smoke-pi-routed`: pi with routing and two cross-family declared sub-agents (Claude and GPT)
      - `smoke-copilot-sdk-routed`: Copilot SDK with routing and a Claude sub-agent under a GPT main agent
+     - `smoke-copilot-routed-steering`: Copilot CLI with routing on one model and a 7-credit `max-ai-credits` budget; the main agent must stop on the AWF AI-credit steering notice and finish under budget
      - `smoke-copilot-routed-claude`: Copilot CLI with routing over a Claude-only pool in `mode: auto`; the main agent must use `/chat/completions`
      - `smoke-pi-routed-claude`: pi with routing over a Claude-only pool in `mode: robust`; the main agent must use `/v1/messages`
      - `smoke-copilot-sdk-routed-claude`: Copilot SDK with routing over `claude-haiku-4.5` (no reasoning effort) and a GPT sub-agent on `/responses`
-   - Each routed smoke's post-step (`actions/setup/js/smoke_model_routing_assertions.cjs`) checks runner- and proxy-written evidence, not the agent's reply. Every failed check logs its ID (`R1`–`R4`, `S1`–`S4`, `M1`, `P1`, `E1`, `E2`) with the observed model, endpoint, status and event, so the step log is enough to diagnose a failure
+   - Each routed smoke's post-step (`actions/setup/js/smoke_model_routing_assertions.cjs`) checks runner- and proxy-written evidence, not the agent's reply. Every failed check logs its ID (`R1`–`R4`, `S1`–`S4`, `M1`, `P1`, `E1`, `E2`, and `T1`–`T4` for the steering smoke) with the observed model, endpoint, status, event or steering notice, so the step log is enough to diagnose a failure
    - `label_command` removes the `smoke-routing` label when the runs start. To run them again, re-add the label, then approve workflows again
 
 ## Release Process

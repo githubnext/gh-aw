@@ -142,6 +142,13 @@ safe-outputs:
 
 `team-id` accepts a Linear team model UUID, team key such as `ENG`, team name, or a GitHub Actions expression such as `${{ secrets.LINEAR_TEAM_ID }}`. UUIDs are passed directly to Linear; keys and names are resolved through the Linear API, with key matches taking precedence. Optional `project-id` fixes new issues to a trusted project and accepts either the 12-character identifier from a Linear project URL or its model UUID. When omitted, the compiler loads `LINEAR_TEAM_ID` from a repository or organization secret and `LINEAR_PROJECT_ID` from a same-named variable. Values in `safe-outputs.env` can override those defaults; explicit `team-id` and `project-id` values take precedence over environment fallbacks. Comment and update targets are fixed trusted configuration and accept either a Linear issue model UUID or shorthand identifier such as `ENG-123`. Updates replace only the enabled `title` and `body` fields. All agent-provided titles, descriptions, and comments use standard Safe Outputs sanitization.
 
+To find and configure `LINEAR_TEAM_ID`:
+
+1. In Linear, open the team that should receive the issues. Press **Cmd+K** (macOS) or **Ctrl+K** (Windows/Linux), then select **Copy model UUID**. The command uses the current page, so copy the team's UUID, not an issue or project's UUID. See [Linear's API documentation](https://linear.app/developers/graphql#queries--mutations).
+2. In the GitHub repository, open **Settings > Secrets and variables > Actions > New repository secret**. Name the secret `LINEAR_TEAM_ID` and paste the team's UUID. Alternatively, use an organization Actions secret with that name and grant the repository access.
+
+When the workflow references `${{ secrets.LINEAR_TEAM_ID }}`, a repository variable with the same name does not satisfy it. `LINEAR_TEAM_ID` identifies the destination team; it is separate from the `LINEAR_API_KEY` credential.
+
 ### System Types (Auto-Enabled)
 
 | Output | Key | Description |
@@ -216,6 +223,8 @@ This integration does not support transitions, assignment, custom fields, priori
 :::
 
 Set `steer: true` to create a run-scoped issue during the activation job, before the agent starts. Users can add comments containing the keyword `steer` while the run is in progress. The injected prompt identifies the exact issue and instructs the agent to read relevant user-authored comments with the GitHub MCP `issue_read` tool.
+
+The initial issue body includes the standard generated-by footer and tracking metadata for the workflow, run, tracker ID, and available engine information. Attribution is present before the agent starts and uses the configured `messages.footer` template when provided.
 
 Steering enables the GitHub MCP issues toolset for comment reads and requires top-level `issues: read` permission. The compiler reports an error instead of adding that permission automatically.
 
@@ -1759,6 +1768,7 @@ safe-outputs:
 | `timed_out` | Agent execution exceeded the timeout limit |
 | `missing_safe_outputs` | Agent succeeded but produced no safe outputs |
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
+| `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
 | `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
@@ -1776,6 +1786,10 @@ safe-outputs:
 | `assignment_errors` | Failures assigning issues or reviewers |
 
 When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+
+An observed `not_started` agent execution marker is classified as `agent_startup_failure`, not agent omission. Failure reports identify the failing startup step when available and direct investigation to setup and gateway logs. Missing, unreadable, invalid, or mismatched run evidence does not establish a startup failure; observed agent execution takes precedence over a stale marker.
+
+When the Actions jobs API confirms that the entire run has no jobs, failure reporting stays silent: no failure issue, update, or parent report is created. Such runs may be awaiting or lacking user approval and are not agent failures. API errors or missing agent metadata in a nonempty job list do not establish this condition; genuine setup failures within a started job remain reportable.
 
 Without a more specific runtime failure, the failure classification is `missing_terminal_safe_output`, not an inferred engine outage or budget exhaustion. Incompletion descriptions contain only inferred runtime status and validated error codes: driver exit status, last tool status, failed-tool counts, token and LLM-invocation exhaustion signals, and safe-output tool registration. Registration prefers a valid setup cache, falling back to the archived gateway snapshot when the cache is missing, unreadable, or invalid; neither proves continued availability. A recorded gateway zero-tools flag overrides registration evidence as unavailable; an unreadable flag makes availability unknown. CLI attempt counts and gateway request counts are reported separately because one invocation can appear in both. Persistence reports whether the output file is missing, empty, nonempty, or unreadable, with record and malformed-record counts; it does not establish validation or publication.
 

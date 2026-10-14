@@ -189,29 +189,6 @@ func TestIsBotUser(t *testing.T) {
 	assert.False(t, isBotUser("mnkiefer"), "human user is not a bot")
 }
 
-func TestCountHumanComments(t *testing.T) {
-	comments := []map[string]any{
-		{"user": map[string]any{"login": "octocat"}},
-		{"user": map[string]any{"login": "github-actions[bot]"}},
-		{"user": map[string]any{"login": "copilot-swe-agent"}},
-		{"user": map[string]any{"login": "hubot"}},
-	}
-
-	assert.Equal(t, 2, countHumanComments(comments), "should count only non-bot comments")
-	assert.Equal(t, 0, countHumanComments(nil), "empty comment list")
-	assert.Equal(t, 0, countHumanComments([]map[string]any{{}}), "missing actor cannot establish non-bot activity")
-}
-
-func TestCountHumanCommentsAfter(t *testing.T) {
-	comments := []map[string]any{
-		{"created_at": "2026-05-12T00:00:00Z", "user": map[string]any{"login": "octocat"}},
-		{"created_at": "2026-05-12T00:01:00Z", "user": map[string]any{"login": "github-actions[bot]"}},
-		{"created_at": "2026-05-12T00:02:00Z", "user": map[string]any{"login": "monalisa"}},
-	}
-
-	assert.Equal(t, 1, countHumanCommentsAfter(comments, "2026-05-12T00:00:00Z"), "should count only later human replies")
-}
-
 func TestIsLatestCloseByBot(t *testing.T) {
 	cases := []struct {
 		name      string

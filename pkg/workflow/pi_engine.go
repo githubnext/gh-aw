@@ -137,7 +137,10 @@ func piReflectProviderName(backend UniversalLLMBackend) string {
 	}
 }
 
-func resolvePiGatewaySecretEnvVar(profile universalLLMBackendProfile, backend UniversalLLMBackend) string {
+func resolvePiGatewaySecretEnvVar(profile universalLLMBackendProfile, backend UniversalLLMBackend, workflowData *WorkflowData) string {
+	if backend == UniversalLLMBackendCodex && isPiAzureOIDC(workflowData) {
+		return "AWF_AZURE_OIDC"
+	}
 	if len(profile.coreSecretNames) > 0 {
 		return profile.coreSecretNames[0] //nolint:uncheckedsliceindex // len(profile.coreSecretNames) is checked above.
 	}
@@ -387,7 +390,7 @@ func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile un
 	if modelConfigured {
 		modelID = extractPiModelID(workflowData.Model)
 	}
-	gatewaySecretEnvVar := resolvePiGatewaySecretEnvVar(profile, backend)
+	gatewaySecretEnvVar := resolvePiGatewaySecretEnvVar(profile, backend, workflowData)
 	if firewallEnabled {
 		if gatewaySecretEnvVar == "" {
 			piLog.Printf("Pi: no gateway apiKey env resolved for backend=%s; defaulting to COPILOT_GITHUB_TOKEN", backend)
@@ -544,6 +547,9 @@ func (e *PiEngine) buildPiExecutionEnv(workflowData *WorkflowData, profile unive
 	if firewallEnabled {
 		maps.Copy(env, getGitIdentityEnvVars())
 		env["AWF_REFLECT_ENABLED"] = "1"
+	}
+	if isPiAzureOIDC(workflowData) {
+		env["GH_AW_PI_AZURE_OIDC_AUTH"] = "azure"
 	}
 	applySafeOutputEnvToMap(env, workflowData)
 	applyDefaultMaxAICreditsEnvToMap(env, workflowData)

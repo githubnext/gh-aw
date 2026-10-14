@@ -272,6 +272,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		{"DIFCProxyFeatureFlag", DIFCProxyFeatureFlag, "difc-proxy"},
 		{"AwfDiagnosticLogsFeatureFlag", AwfDiagnosticLogsFeatureFlag, "awf-diagnostic-logs"},
 		{"GroupConcurrencyQueueFeatureFlag", GroupConcurrencyQueueFeatureFlag, "group-concurrency-queue"},
+		{"DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag", DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag, "dangerously-allow-roles-read-and-pull-request-target"},
 	}
 
 	for _, tt := range tests {

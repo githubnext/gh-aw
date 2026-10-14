@@ -242,21 +242,18 @@ The compact "usage" artifact set is downloaded by default (and added to any expl
 artifact selection) because it carries the per-run token usage data.`
 
 // newLogsToolHandler builds the handler for the logs tool.
-func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) {
+func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.
 	return func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
-		// Check actor permissions first
 		if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
 			return nil, nil, err
 		}
 
-		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
-		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
 		}
@@ -332,9 +329,6 @@ func buildLogsEmptyResult(cause error) (*mcp.CallToolResult, any, error) {
 func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, int) {
 	// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
 	cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
-	if args.WorkflowName != "" {
-		cmdArgs = append(cmdArgs, args.WorkflowName)
-	}
 	effectiveCount := effectiveMCPLogsToolCount(args.Count)
 	cmdArgs = append(cmdArgs, "-c", strconv.Itoa(effectiveCount))
 	cmdArgs = appendLogsFilterArgs(cmdArgs, args)
@@ -350,6 +344,10 @@ func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, in
 
 	// Always use --json mode in MCP server
 	cmdArgs = append(cmdArgs, "--json")
+	if args.WorkflowName != "" {
+		// Workflow display names are literal positionals, including flag-shaped names.
+		cmdArgs = append(cmdArgs, "--", args.WorkflowName)
+	}
 
 	return cmdArgs, effectiveCount, timeoutValue
 }
@@ -639,8 +637,9 @@ func runMCPAuditSubprocess(ctx context.Context, responseDeadline time.Time, exec
 	if timeout <= mcpAuditResponseMargin {
 		return nil, context.DeadlineExceeded
 	}
-	cmdArgs := buildAuditCommandArgs(args, runItems)
+	cmdArgs := buildAuditCommandArgs(args, nil)
 	cmdArgs = append(cmdArgs, "--timeout", (timeout - mcpAuditResponseMargin).String())
+	cmdArgs = appendMCPPositionals(cmdArgs, runItems...)
 	return execCmd(ctx, cmdArgs...).Output()
 }
 
@@ -655,6 +654,9 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 			return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
 		}
 		if hasRunID {
+			if err := validateMCPPositionalArgs("run_id", runID); err != nil {
+				return nil, err
+			}
 			runItems = []string{runID}
 		}
 	}
@@ -664,11 +666,17 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 			return nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
 		}
 		if hasRunIDOrURL {
+			if err := validateMCPPositionalArgs("run_id_or_url", runIDOrURL); err != nil {
+				return nil, err
+			}
 			runItems = []string{runIDOrURL}
 		}
 	}
 	if len(runItems) == 0 {
 		return nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
+	}
+	if err := validateMCPPositionalArgs("run_ids_or_urls", runItems...); err != nil {
+		return nil, err
 	}
 	return runItems, nil
 }
@@ -679,7 +687,6 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 // directly - the audit command handles single vs. diff mode.
 func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 	cmdArgs := []string{"audit"}
-	cmdArgs = append(cmdArgs, runItems...)
 	cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 	if len(args.Artifacts) > 0 {
 		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
@@ -693,7 +700,11 @@ func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 	if args.Runtime != "" {
 		cmdArgs = append(cmdArgs, "--runtime", args.Runtime)
 	}
-	return appendRepoFlagFromEnv(cmdArgs)
+	cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+	if len(runItems) > 0 {
+		cmdArgs = appendMCPPositionals(cmdArgs, runItems...)
+	}
+	return cmdArgs
 }
 
 // buildAuditErrorResult converts a failed audit subprocess execution into a JSON
@@ -816,16 +827,23 @@ func newAuditDiffToolHandler(execCmd execCmdFunc, actor string, validateActor bo
 		if len(args.CompareRunIDs) == 0 {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "compare_run_ids must contain at least one run ID", nil)
 		}
+		if err := validateMCPPositionalArgs("base_run_id", args.BaseRunID); err != nil {
+			return nil, nil, err
+		}
+		if err := validateMCPPositionalArgs("compare_run_ids", args.CompareRunIDs...); err != nil {
+			return nil, nil, err
+		}
 
 		// Build: gh aw audit diff <base> <compare...> -o ... --json [--artifacts ...]
-		cmdArgs := []string{"audit", "diff", args.BaseRunID}
-		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
+		cmdArgs := []string{"audit", "diff"}
 		cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
 		cmdArgs = appendRepoFlagFromEnv(cmdArgs)
+		cmdArgs = appendMCPPositionals(cmdArgs, args.BaseRunID)
+		cmdArgs = append(cmdArgs, args.CompareRunIDs...)
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 

@@ -93,7 +93,9 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 	}
 	features := map[string]any{"plugins": !config.DisablePlugins}
 	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
-		features["shell_tool"] = false
+		// Direct mode exposes function-backed exec_command, not the unsupported
+		// code-mode exec custom tool.
+		features["shell_tool"] = !workflowData.BashDisabled
 		features["code_mode"] = false
 		features["code_mode_only"] = false
 		config.Defaults["model_catalog_json"] = path.Join(codexHome(workflowData), "models.json")
@@ -104,11 +106,11 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 		proxy := map[string]any{
 			"name":                 codexOpenAIProxyProviderName,
 			"base_url":             e.getOpenAIProxyProviderBaseURL(workflowData),
-			"env_key":              "CODEX_API_KEY",
 			"wire_api":             "responses",
 			"requires_openai_auth": false,
 			"supports_websockets":  false,
 		}
+		configureCodexProxyAuthentication(proxy, workflowData)
 		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.HostedWeb != nil &&
 			workflowData.NetworkPermissions.HostedWeb.Enabled && e.ResolveLLMProvider(workflowData) == LLMProviderOpenAI {
 			proxy["supports_standalone_web_search"] = true
@@ -136,6 +138,12 @@ func (e *CodexEngine) buildNativeConfig(workflowData *WorkflowData, mcpTools []s
 		}
 	}
 	return config, nil
+}
+
+func configureCodexProxyAuthentication(proxy map[string]any, workflowData *WorkflowData) {
+	if !isCodexAzureOIDC(workflowData) {
+		proxy["env_key"] = "CODEX_API_KEY"
+	}
 }
 
 func codexNativeServerDefaults(workflowData *WorkflowData, mcpTools []string) map[string]any {
@@ -178,17 +186,35 @@ func codexNativeServerDefaults(workflowData *WorkflowData, mcpTools []string) ma
 	return servers
 }
 
+func validateCodexGitHubConfig(config *codexNativeConfig) error {
+	if _, exists := config.Overrides["model_catalog_json"]; exists {
+		return errors.New("engine.config: model_catalog_json is managed for GitHub inference to disable the unsupported Codex exec custom tool")
+	}
+	features, ok := config.Overrides["features"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	for _, name := range []string{"code_mode", "code_mode_only"} {
+		if value, exists := features[name]; exists && value != false {
+			return fmt.Errorf("engine.config: features.%s is disabled for GitHub inference because the Copilot compatibility adapter does not support the Codex exec custom tool", name)
+		}
+	}
+	defaultFeatures, ok := config.Defaults["features"].(map[string]any)
+	if !ok {
+		return errors.New("invalid compiler-generated Codex feature defaults: expected a table")
+	}
+	if defaultFeatures["shell_tool"] == false {
+		if value, exists := features["shell_tool"]; exists && value != false {
+			return errors.New("engine.config: features.shell_tool cannot be enabled when tools.bash is disabled")
+		}
+	}
+	return nil
+}
+
 func validateCodexManagedConfig(config *codexNativeConfig, firewallEnabled, githubProvider bool) error {
 	if githubProvider {
-		if _, exists := config.Overrides["model_catalog_json"]; exists {
-			return errors.New("engine.config: model_catalog_json is managed for GitHub inference to disable the unsupported Codex exec custom tool")
-		}
-		if features, ok := config.Overrides["features"].(map[string]any); ok {
-			for _, name := range []string{"shell_tool", "code_mode", "code_mode_only"} {
-				if value, exists := features[name]; exists && value != false {
-					return fmt.Errorf("engine.config: features.%s is disabled for GitHub inference because the Copilot compatibility adapter does not support the Codex exec custom tool", name)
-				}
-			}
+		if err := validateCodexGitHubConfig(config); err != nil {
+			return err
 		}
 	}
 	if rawServers, exists := config.Overrides["mcp_servers"]; exists {

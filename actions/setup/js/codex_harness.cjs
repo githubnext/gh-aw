@@ -51,6 +51,7 @@ const {
   normalizeReflectProviderName,
   REFLECT_PROVIDER_ALIASES,
   resolveProviderEndpointFromReflect,
+  hasAzureOIDCProviderEndpoint,
 } = require("./awf_reflect.cjs");
 const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -563,6 +564,18 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
 }
 
 /**
+ * Keyless Codex may only use the configured Entra-authenticated AWF endpoint.
+ * Reflection is fetched in this run, not accepted from a previous run's file.
+ * @param {any} reflectData
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {boolean}
+ */
+function hasCodexAzureOIDCProxy(reflectData, env) {
+  if (env.GH_AW_CODEX_OIDC_AUTH !== "azure" || env.AWF_REFLECT_ENABLED !== "1" || normalizeReflectProviderName(env.GH_AW_LLM_PROVIDER, "openai") !== "openai") return false;
+  return hasAzureOIDCProviderEndpoint(reflectData, "openai");
+}
+
+/**
  * Extract numeric port from a URL string.
  * @param {string} urlString
  * @returns {number|null}
@@ -680,7 +693,7 @@ function validateCodexOpenAIBaseURLFromReflect(options) {
 /**
  * Configure Codex openai-proxy base_url from /reflect and return env overrides.
  *
- * @param {{ codexConfigPath?: string, reflectPath?: string, provider?: string }} options
+ * @param {{ codexConfigPath?: string, reflectPath?: string, provider?: string, reflectData?: any }} options
  * @returns {{ env: NodeJS.ProcessEnv, configured: boolean }}
  */
 function configureCodexProviderFromReflect(options) {
@@ -690,8 +703,7 @@ function configureCodexProviderFromReflect(options) {
   const provider = normalizeReflectProviderName(options?.provider || process.env.GH_AW_LLM_PROVIDER, "openai");
   if (!reflectPath) return { env, configured: false };
   try {
-    const reflectContent = fs.readFileSync(reflectPath, "utf8");
-    const reflectData = JSON.parse(reflectContent);
+    const reflectData = options?.reflectData || JSON.parse(fs.readFileSync(reflectPath, "utf8"));
     const resolved = resolveProviderEndpointFromReflect({ provider, reflectData, logger: log });
     if (!resolved || !resolved.baseUrl) return { env, configured: false };
     env.OPENAI_BASE_URL = resolved.baseUrl;
@@ -700,15 +712,14 @@ function configureCodexProviderFromReflect(options) {
       const tomlContent = fs.readFileSync(codexConfigPath, "utf8");
       const providerSectionPattern = /\[model_providers\.openai-proxy\][\s\S]*?(?=\n\[|$)/;
       const baseLine = `base_url = "${resolved.baseUrl}"`;
-      if (providerSectionPattern.test(tomlContent)) {
-        const rewritten = tomlContent.replace(providerSectionPattern, section => {
-          if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
-            return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
-          }
-          return `${section.trimEnd()}\n${baseLine}\n`;
-        });
-        fs.writeFileSync(codexConfigPath, rewritten, "utf8");
-      }
+      if (!providerSectionPattern.test(tomlContent)) return { env, configured: false };
+      const rewritten = tomlContent.replace(providerSectionPattern, section => {
+        if (/(?:^|\n)\s*base_url\s*=/.test(section)) {
+          return section.replace(/(?:^|\n)\s*base_url\s*=\s*(?:"[^"]*"|'[^']*'|[^\n]+)/, `\n${baseLine}`);
+        }
+        return `${section.trimEnd()}\n${baseLine}\n`;
+      });
+      fs.writeFileSync(codexConfigPath, rewritten, "utf8");
     }
     return { env, configured: true };
   } catch (error) {
@@ -857,11 +868,12 @@ async function main() {
   const codexChildEnv = buildCodexChildEnv(process.env, codexApiKey, openaiApiKey);
   log(`secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` + ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`);
 
-  // Pre-flight: require at least one API key before spawning codex.
+  const azureOIDC = process.env.GH_AW_CODEX_OIDC_AUTH === "azure";
+  // Pre-flight: require a key unless the compiler selected sidecar-owned OIDC.
   // Without a key, codex exits immediately with "Missing environment variable" and every
   // retry attempt fails the same way. Failing here avoids burning the retry budget and
   // surfaces a clear, actionable message in CI logs.
-  if (!codexApiKey && !openaiApiKey) {
+  if (!codexApiKey && !openaiApiKey && !azureOIDC) {
     log("fatal: no API key available - set CODEX_API_KEY or OPENAI_API_KEY and retry");
     process.exit(1);
   }
@@ -887,6 +899,11 @@ async function main() {
   if (process.env.AWF_REFLECT_ENABLED === "1" || modelRoutingRequired) {
     const reflectResult = await fetchAWFReflect({ logger: log });
     if (reflectResult.ok && reflectResult.reflectData) reflectData = reflectResult.reflectData;
+  }
+  if (azureOIDC && !hasCodexAzureOIDCProxy(reflectData, process.env)) {
+    log("fatal: Azure OIDC requires a configured OpenAI AWF proxy with github-oidc/azure authentication; refusing to start Codex");
+    process.exit(1);
+    return;
   }
   let resolvedModel;
   if (modelRoutingRequired) {
@@ -924,9 +941,15 @@ async function main() {
     codexConfigPath: codexHome ? `${codexHome}/config.toml` : "",
     reflectPath: AWF_REFLECT_OUTPUT_PATH,
     provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+    reflectData: azureOIDC ? reflectData : undefined,
   });
   if (providerConfig.configured) {
     codexEnv = { ...codexEnv, ...providerConfig.env };
+  }
+  if (azureOIDC && (!codexHome || !providerConfig.configured)) {
+    log("fatal: unable to configure Codex for the Azure OIDC AWF proxy; refusing to start Codex");
+    process.exit(1);
+    return;
   }
   if (codexHome) {
     const validation = validateCodexOpenAIBaseURLFromReflect({
@@ -1056,7 +1079,7 @@ async function main() {
     handleFailure: ({ attempt, result }) => {
       if (result.runtimeGuardFired) {
         const details = result.runtimeGuardReason || "Codex runtime guard terminated the run after context rebuild thresholds were exceeded.";
-        emitInfrastructureIncomplete(details, { logger: log });
+        emitInfrastructureIncomplete(`Codex run stopped by a runtime guard. ${details}`, { logger: log });
         log(`attempt ${attempt + 1}: ${details} — not retrying (circuit breaker)`);
         return { action: "stop" };
       }
@@ -1268,6 +1291,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
     buildCodexChildEnv,
+    hasCodexAzureOIDCProxy,
     extractPortFromURL,
     extractOpenAIProxyBaseURLFromToml,
     getConfiguredProviderPortFromReflect,

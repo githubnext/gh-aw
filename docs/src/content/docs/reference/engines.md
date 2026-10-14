@@ -15,7 +15,7 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 |---|---|---|---|
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
 | [Claude Code](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) | [Using Claude Code with GitHub Agentic Workflows](/gh-aw/engines/claude/) |
-| [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | [Using OpenAI Codex with GitHub Agentic Workflows](/gh-aw/engines/codex/) |
+| [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | `CODEX_API_KEY`, [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key), or [Azure Entra OIDC](/gh-aw/reference/auth/#codex-azure-entra-oidc) | [Using OpenAI Codex with GitHub Agentic Workflows](/gh-aw/engines/codex/) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) (deprecated in favor of `agy`) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) | [Using Google Gemini with GitHub Agentic Workflows](/gh-aw/engines/gemini/) |
 | [Google Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (experimental) | `agy` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) only; no ADC/WIF | [Using experimental Agy](/gh-aw/engines/agy/) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) | `pi` | Copilot authentication by default; Anthropic or OpenAI/Codex key for a provider-prefixed `model:` | [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/) |
@@ -165,6 +165,12 @@ Retain Gemini for WIF or native shell restrictions. See the
 before considering a migration.
 
 Changing engines requires updating `engine:` and may also require different authentication, tools, model names, or network access. Review the setup guide and comparison before switching.
+
+Codex with GitHub Copilot inference uses direct tools with the function-backed
+`exec_command` shell tool. Code-mode tools remain disabled because the
+compatibility adapter does not support the code-mode `exec` custom tool.
+`tools.bash: ["*"]` enables checkout commands and CLI-mounted MCP tools;
+`tools.bash: false` or `tools.bash: []` disables shell execution.
 
 ## Engine Feature Comparison
 

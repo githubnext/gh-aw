@@ -47,6 +47,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: githubnext/agentics
+          # Skip the token-authenticated REST lookup for the default branch.
+          ref: main
           path: .agentics
           persist-credentials: false
           sparse-checkout: workflows

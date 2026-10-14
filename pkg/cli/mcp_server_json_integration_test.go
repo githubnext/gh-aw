@@ -81,7 +81,7 @@ This is a test workflow.
 	}, nil)
 
 	// Start the MCP server with --cmd flag to use the binary directly
-	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
+	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--allow-write-tools", "--cmd", absBinaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 

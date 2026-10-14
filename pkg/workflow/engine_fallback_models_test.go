@@ -64,6 +64,23 @@ func TestEngineFallbackProviderSecrets(t *testing.T) {
 	}
 }
 
+func TestPiAzureOIDCFallbackDoesNotRequireOpenAIKey(t *testing.T) {
+	data := &WorkflowData{
+		Model: "openai/gpt-5.4",
+		EngineConfig: &EngineConfig{
+			ID: "pi", FallbackModels: []string{"openai/gpt-5.4-mini"},
+			Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure", AzureTenantID: "tenant", AzureClientID: "client"},
+		},
+		NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
+	}
+
+	require.Empty(t, fallbackProviderSecretNames(data))
+	env := map[string]string{}
+	applyFallbackProviderEnv(env, data)
+	require.NotContains(t, env, "CODEX_API_KEY")
+	require.NotContains(t, env, "OPENAI_API_KEY")
+}
+
 func TestEngineFallbackModelsValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

@@ -178,6 +178,8 @@ on:
 
 `pull_request_target.types` accepts the same activity names as `pull_request`, including `ready_for_review`.
 
+Strict mode rejects `pull_request_target` when `on.roles` contains `all` or `read`, including in a role list. Non-strict mode warns about this dangerous combination: untrusted contributors can trigger an agent job with access to secrets, including engine credentials and custom secrets. This restriction applies even with `checkout: false`, trusted checkouts, or `on.pull_request_target.acknowledge-risk: true`. To suppress only the non-strict warning, set `features.dangerously-allow-roles-read-and-pull-request-target: true`. Prefer `pull_request`, or retain the default trusted roles `[admin, maintainer, write]`.
+
 #### Fork Filtering (`forks:`)
 
 Pull request workflows block forks by default for security. Use the `forks:` field to allow specific fork patterns:

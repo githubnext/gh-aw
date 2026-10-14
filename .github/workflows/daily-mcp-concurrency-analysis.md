@@ -53,17 +53,32 @@ sandbox:
       filesystem:
         allow-write:
           - /tmp/gh-aw/agent
+mcp-scripts:
+  concurrency-audit-state:
+    description: "Read this run's audit record and the latest record for one tool from the read-only concurrency ledger."
+    inputs:
+      analyzed_tool:
+        type: string
+        required: true
+        description: "Selected tool name from the canonical safe-output catalog."
+    env:
+      AUDIT_RUN_ID: ${{ github.run_id }}
+    script: |
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync("/tmp/gh-aw/ledgers/concurrency-audits/ledger.db", { readOnly: true });
+      try {
+        const current = db.prepare("SELECT payload FROM records WHERE json_extract(payload, '$.record_type') = 'mcp_concurrency_audit' AND json_extract(payload, '$.run_id') = ? LIMIT 1").get(process.env.AUDIT_RUN_ID);
+        const latest = db.prepare("SELECT payload FROM records WHERE json_extract(payload, '$.record_type') = 'mcp_concurrency_audit' AND json_extract(payload, '$.analyzed_tool') = ? ORDER BY ordinal DESC LIMIT 1").get(analyzed_tool);
+        return {
+          current_run: current ? JSON.parse(current.payload) : null,
+          latest_tool: latest ? JSON.parse(latest.payload) : null
+        };
+      } finally {
+        db.close();
+      }
 tools:
   bash:
-  - cat pkg/workflow/js/safe_outputs_tools.json
-  - jq -r ".[].name" pkg/workflow/js/safe_outputs_tools.json
-  - find actions/setup/js -name "*.cjs" ! -name "*.test.cjs" -type f
-  - cat actions/setup/js/*.cjs
-  - "grep -r \"let \\\\|var \\\\|const \" actions/setup/js --include=\"*.cjs\""
-  - grep -r "module.exports" actions/setup/js --include="*.cjs"
-  - head -n * actions/setup/js/*.cjs
-  - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
-  - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
+  - "git log -30 --format=\"%ai %s\" --name-only -- actions/setup/js/*.cjs"
   cache-memory: true
   ledger:
     concurrency-audits:
@@ -116,12 +131,12 @@ Analyze each tool in the safe-outputs MCP server for concurrency safety using be
 - **Race conditions**: Time-of-check vs time-of-use bugs
 - **Shared resources**: File system, network, database access without coordination
 
-When issues are identified, create detailed issues with specific recommendations and optionally create agent sessions for fixes. When no problems are found for a tool, record the result and continue to the next tool.
+When issues are identified, create detailed issues with specific recommendations and optionally create agent sessions for fixes. When no problems are found for the selected tool, record the result and finish. Analyze exactly one tool per run.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Date**: $(date +%Y-%m-%d)
+- **Analysis Date**: Use the current runtime date
 - **Run ID**: ${{ github.run_id }}
 - **Workspace**: ${{ github.workspace }}
 - **Tools Location**: `actions/setup/js/*.cjs`
@@ -129,9 +144,17 @@ When issues are identified, create detailed issues with specific recommendations
 
 ## Analysis Process
 
+### Tool Boundaries
+
+- Use native `glob`, `rg`, and `view` for file discovery, searches, and reads; use Serena for semantic analysis. Use native `apply_patch` or edit tools for cache updates.
+- Bash is only for the exact, bounded `git log` command declared above. Run it from the existing workspace directory, without `cd`, command chaining, pipes, redirection, heredocs, or helper scripts. Sort tool names and interpret JSON in your analysis, not with shell pipelines.
+- These narrow shell grants rely on the configured Copilot engine's shell-filter support. Do not port this shell fallback to an engine without shell filters (such as Codex), or substitute unrestricted shell access. Never execute handler modules; read only verified implementation paths.
+- Discover the exposed safe-output tools and their argument schemas, then call them directly with structured arguments. Do not construct CLI calls, pipe JSON into `safeoutputs`, or write a report file just to publish it.
+- A denied call is not a reason to retry it with different shell syntax. Use the permitted native or MCP equivalent. If required data or tools are unavailable, call `report_incomplete` with the concrete blocker; do not report a clean analysis or successful cache update.
+
 ### Step 1: Load Round-Robin State from Cache
 
-Use the cache-memory tool to track which tools you've recently analyzed.
+Use native `glob` to discover existing state files under `/tmp/gh-aw/cache-memory/`, then `view` to read the concurrency audit state. Reuse the existing state file and its format; if none exists, initialize `/tmp/gh-aw/cache-memory/concurrency-state.json` with the structure in Step 8. Do not inspect unrelated cache contents.
 
 Check your cache for:
 - `last_analyzed_tool`: The most recently analyzed tool
@@ -142,27 +165,26 @@ If this is the first run or cache is empty, start fresh with the complete tool l
 
 ### Step 2: Get List of All MCP Server Tools
 
-Extract the complete list of tools from the safe-outputs MCP server configuration:
+Read `pkg/workflow/js/safe_outputs_tools.json` with native `view`. This is the canonical source tool catalog, not the smaller list of safe outputs enabled for this workflow. Extract each entry's `name` and sort the names lexicographically in your analysis; do not run `cat`, `jq`, `sort`, or `tr` pipelines.
 
-```bash
-# Get all tool names from the JSON schema
-cat pkg/workflow/js/safe_outputs_tools.json | jq -r '.[].name' | sort
-```
-
-This will give you the complete list of ~32 tools to analyze.
+Use the actual catalog rather than assuming a fixed tool count. Select only top-level tool names, not nested parameter fields named `name`.
 
 ### Step 3: Select Today's Tool for Analysis
 
 Using a **round-robin scheme with priority for recently modified tools**:
 
 1. Get the list of all tools from Step 2
-2. For each tool, find its corresponding implementation file:
-   - Most tools map to `actions/setup/js/<tool_name>.cjs`
-   - Some tools may be handled in `safe_outputs_handlers.cjs` or other files
-3. Check git history to see when each tool was last modified:
+2. Resolve each candidate's implementation before selecting it:
+   - Read `attachHandlers` in `actions/setup/js/safe_outputs_tools_loader.cjs`, including `handlerMap`, `defaultHandler`, and ledger/dynamic-tool overrides, to map the MCP tool name to its actual handler function.
+   - Locate that function in `actions/setup/js/safe_outputs_handlers.cjs` using native search or Serena, and follow relevant imports.
+   - For downstream safe-output processing, inspect `actions/setup/js/safe_output_handler_manager.cjs` and verify the implementation path with native `glob`.
+   - Do not assume a tool named `<tool_name>` has a file named `<tool_name>.cjs`. For example, `upload_asset` maps to `uploadAssetHandler` in `safe_outputs_handlers.cjs`; its downstream upload job uses `upload_assets.cjs` (plural), and its work-queue adapter uses `work_queue_upload_assets.cjs`.
+   - If a candidate's implementation cannot be resolved, record the discovery gap and select the next resolvable candidate. A missing guessed filename is not a concurrency finding.
+3. Get recent implementation changes with this exact allowed command:
    ```bash
-   git log -1 --format="%ai" -- actions/setup/js/<tool_name>.cjs
+   git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs
    ```
+   Match the returned paths to the verified implementation files without changing the command or adding a pipeline. For handlers sharing a file, the modification time is file-level evidence, not proof that every handler changed. Files absent from this bounded history have unknown modification times; use cache age for their priority.
 4. Sort tools by:
    - Tools never analyzed (highest priority)
    - Tools modified since last analysis
@@ -178,18 +200,9 @@ For the selected tool, perform comprehensive concurrency analysis:
 
 #### 4.1 Locate Implementation File(s)
 
-```bash
-# Find the main implementation file
-TOOL_FILE="actions/setup/js/${TOOL_NAME}.cjs"
+Use the verified handler function and implementation paths from Step 3. Record `TOOL_FILE` as the actual implementation file, not a filename derived from `TOOL_NAME`.
 
-# Check if it exists
-if [ -f "$TOOL_FILE" ]; then
-  echo "Found: $TOOL_FILE"
-else
-  # Look in handlers or other locations
-  grep -r "HANDLER_TYPE = \"${TOOL_NAME}\"" actions/setup/js/*.cjs
-fi
-```
+For `upload_asset`, analyze `uploadAssetHandler` and the shared state it closes over in `safe_outputs_handlers.cjs`. Follow the downstream upload script or work-queue adapter only when relevant to that tool's concurrency behavior.
 
 #### 4.2 Read and Understand the Tool
 
@@ -204,10 +217,7 @@ Use Serena to:
 Analyze the tool for these specific concurrency issues:
 
 **A. Global/Module-Level State**
-```bash
-# Search for module-level mutable state
-grep -E "^(let|var) " "$TOOL_FILE"
-```
+Use native `rg` with pattern `^(let|var) ` scoped to the verified implementation files, then inspect matching state with `view` or Serena. Also inspect mutable state captured by handler closures in shared modules.
 
 Look for:
 - Module-level `let` or `var` declarations (mutable)
@@ -330,7 +340,10 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 
 #### Create Detailed Issue
 
+Call the exposed `create_issue` safe-output tool directly with the title and Markdown body below. Use the discovered schema for its arguments; the template is content, not a shell script.
+
 Use the following template:
+Pass the completed Markdown directly as the `body` argument of `create_issue`.
 
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`
@@ -338,7 +351,7 @@ Use the following template:
 **Severity**: [CRITICAL/HIGH/MEDIUM]  
 **Tool**: \`${TOOL_NAME}\`  
 **File**: \`${TOOL_FILE}\`  
-**Analysis Date**: $(date +%Y-%m-%d)
+**Analysis Date**: [Current runtime date]
 
 #### Summary
 
@@ -454,7 +467,7 @@ For CRITICAL or HIGH severity issues, consider creating a Copilot coding agent s
 ```markdown
 Fix the concurrency safety issue in \`${TOOL_NAME}\` tool.
 
-**File**: \`actions/setup/js/${TOOL_NAME}.cjs\`
+**File**: \`${TOOL_FILE}\` (the verified implementation path)
 
 **Issue**: [Brief description from issue]
 
@@ -477,7 +490,7 @@ If no concurrency issues were found:
 ```markdown
 ✅ Tool \`${TOOL_NAME}\` passed concurrency analysis
 
-**Analysis Date**: $(date +%Y-%m-%d)  
+**Analysis Date**: [Current runtime date]
 **File**: \`${TOOL_FILE}\`  
 **Status**: CLEAN - No concurrency issues detected
 
@@ -488,12 +501,12 @@ The tool follows safe patterns:
 - ✅ No race conditions identified
 - ✅ Safe resource access patterns
 
-Continue to next tool.
+Finish this run after updating cache and emitting the completion outputs.
 ```
 
 ### Step 8: Update Cache Memory
 
-Save your progress to cache-memory:
+Save your progress to the state file discovered in Step 1 using native `apply_patch` or edit tools, not Bash, heredocs, or redirection. Read it back with `view` to confirm the update:
 
 - Update `last_analyzed_tool` to today's tool name
 - Add/update entry in `analyzed_tools` with:
@@ -547,25 +560,15 @@ You MUST call at least one safe-output tool before finishing:
 If you emitted any actionable safe outputs, do not emit `noop`.
 
 ```json
-{"noop": {"message": "No actionable concurrency issues found in <tool_name>; analysis completed and cache state updated."}}
+{"message": "No actionable concurrency issues found in <tool_name>; analysis completed and cache state updated."}
 ```
 
-After the safe output, query the generic records projection at `/tmp/gh-aw/ledgers/concurrency-audits/ledger.db` for this run ID:
+Pass this object directly as arguments to `noop`; do not wrap it in a tool-name envelope or send it through Bash.
 
-```sql
-SELECT json_extract(payload, '$.run_id') AS run_id,
-       json_extract(payload, '$.analyzed_tool') AS analyzed_tool,
-       json_extract(payload, '$.status') AS status,
-       json_extract(payload, '$.issue_number') AS issue_number
-FROM records
-WHERE json_extract(payload, '$.record_type') = 'mcp_concurrency_audit'
-  AND json_extract(payload, '$.run_id') = '${{ github.run_id }}'
-LIMIT 1;
-```
+After the safe output, call the exposed `concurrency-audit-state` MCP script directly with `analyzed_tool` set to the selected tool name. It queries the generic records projection at `/tmp/gh-aw/ledgers/concurrency-audits/ledger.db` with fixed, parameterized SQL and a read-only connection. Use `current_run` to check for a record for this run ID and `latest_tool` for the most recent audit of the selected tool. Do not run SQLite through Bash or supply SQL.
 
-If absent, submit one `ledger_append` record with `record_type: mcp_concurrency_audit`. Include only the run ID, analyzed tool, status, and issue number if one was created; do not store code or raw analysis notes. Do not edit ledger branches directly.
-For the latest audit status per analyzed tool, filter `records` by
-`json_extract(payload, '$.analyzed_tool')` and order by `ordinal DESC LIMIT 1`.
+If absent, call the exposed `ledger_append` safe-output tool directly with `ledger: concurrency-audits` and a `record` containing `record_type: mcp_concurrency_audit`. Include only the run ID, analyzed tool, status, and issue number if one was created; do not store code or raw analysis notes. Submit at most once: queued records are not visible in this run's read-only projection and become durable only after the trusted ledger persistence job succeeds. Do not edit ledger branches directly.
+If the read-only query fails, report the concrete blocker with `report_incomplete`; do not bypass it with shell commands or direct ledger edits.
 
 ## Concurrency Analysis Best Practices
 
