@@ -31,6 +31,10 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		{"command copilot -p test", true},
 		{"command -- copilot -p test", true},
 		{"sudo env TOKEN=value copilot -p test", true},
+		{"sudo -u runner copilot -p test", true},
+		{`FOO="bar baz" copilot -p test`, true},
+		{`env FOO="bar baz" copilot -p test`, true},
+		{`env -S "copilot -p test"`, true},
 		{"timeout --signal=KILL 10s copilot -p test", true},
 		{"npx --yes copilot -p test", true},
 		{"pnpm exec codex exec test", true},
@@ -45,6 +49,8 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		{`/bin/bash -lc 'echo "Example: setup; copilot -p test"'`, false},
 		{`echo "/bin/bash -lc 'copilot -p test'"`, false},
 		{"echo ready && copilot -p test", true},
+		{"copilot>out.log", true},
+		{"copilot<input.txt", true},
 		{"result=$(copilot -p test)", true},
 		{`echo "$(copilot -p test)"`, true},
 		{"echo \"`copilot -p test`\"", true},
@@ -95,6 +101,7 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		{"npm install other # @github/copilot", false},
 		{"cat > example.txt <<'EOF'\ncopilot -p test\nEOF", false},
 		{"cat <<EOF\ncopilot -p test\nEOF", false},
+		{"read -r -d \"\" prompt <<EOF\ncopilot -p test\nEOF", false},
 		{"echo ready; cat <<EOF\ncopilot -p test\nEOF", false},
 		{"echo ready && cat <<'EOF'\ncopilot -p test\nEOF", false},
 		{"echo ready | tee <<EOF\ncopilot -p test\nEOF", false},
@@ -146,6 +153,26 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		})
 	}
 	assert.False(t, stepInvokesAgenticEngine(map[string]any{"name": "Run copilot", "env": map[string]any{"TOOL": "copilot"}}))
+}
+
+func TestHasAgenticEngineReference(t *testing.T) {
+	for _, tc := range []struct {
+		content string
+		want    bool
+	}{
+		{"permissions: read", false},
+		{"pipeline: build", false},
+		{"copy: file", false},
+		{"optional: true", false},
+		{"pin: v1", false},
+		{"run: pi --print 'review'", true},
+		{"ANTHROPIC_API_KEY", true},
+		{"uses: anthropics/claude-code-action@v1", true},
+	} {
+		t.Run(tc.content, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAgenticEngineReference(tc.content))
+		})
+	}
 }
 
 func TestValidateAgenticEngineSteps(t *testing.T) {
@@ -313,10 +340,14 @@ func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 		{"activation augmentation", "jobs:\n  activation:\n    steps:\n      - run: copilot -p test\n", "", false, true},
 		{"control keyword", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: if copilot -p test; then echo ok; fi\n", "", false, true},
 		{"shell wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: /bin/bash -lc 'copilot -p test'\n", "", false, true},
+		{"sudo wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: sudo -u runner copilot -p test\n", "", false, true},
+		{"quoted environment assignment", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: FOO=\"bar baz\" copilot -p test\n", "", false, true},
+		{"redirect without whitespace", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: copilot>out.log\n", "", false, true},
 		{"job-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}\n    steps:\n      - run: echo ready\n", "", false, true},
 		{"step-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - env:\n          TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}\n        run: echo ready\n", "", false, true},
 		{"arithmetic data", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $((pi + 1))\n", "", false, false},
 		{"heredoc data after command", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo ready; cat <<EOF\n          copilot -p test\n          EOF\n", "", false, false},
+		{"read heredoc data", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          read -r -d \"\" prompt <<EOF\n          copilot -p test\n          EOF\n", "", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
