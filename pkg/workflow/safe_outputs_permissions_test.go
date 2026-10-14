@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -1236,8 +1238,146 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 	}
 }
 
-// TestComputePermissionsForSafeOutputs_StagedYAMLRendering validates that fully-staged
-// safe output configurations produce explicit "permissions: {}" in YAML rendering,
+func TestComputePermissionsForSafeOutputs_StagedReads(t *testing.T) {
+	handlers := []struct {
+		key         string
+		unfiltered  map[PermissionScope]PermissionLevel
+		filterScope PermissionScope
+	}{
+		{key: "add-labels", filterScope: PermissionIssues},
+		{key: "remove-labels", filterScope: PermissionIssues},
+		{key: "update-issue", filterScope: PermissionIssues},
+		{key: "update-pull-request", filterScope: PermissionIssues},
+		{key: "assign-to-agent", filterScope: PermissionIssues},
+		{key: "assign-to-user", filterScope: PermissionIssues},
+		{key: "unassign-from-user", filterScope: PermissionIssues},
+		{key: "assign-milestone", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}},
+		{key: "add-reviewer", filterScope: PermissionIssues},
+		{key: "create-pull-request-review-comment", filterScope: PermissionIssues},
+		{key: "reply-to-pull-request-review-comment", filterScope: PermissionIssues},
+		{key: "dismiss-pull-request-review", filterScope: PermissionIssues},
+		{key: "submit-pull-request-review", filterScope: PermissionIssues},
+		{key: "set-issue-type", filterScope: PermissionIssues},
+		{key: "set-issue-field", filterScope: PermissionIssues},
+		{key: "close-issue", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}},
+		{key: "link-sub-issue", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}},
+		{key: "replace-label", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}},
+		{key: "close-pull-request", unfiltered: map[PermissionScope]PermissionLevel{PermissionPullRequests: PermissionRead}},
+		{key: "close-discussion", unfiltered: map[PermissionScope]PermissionLevel{PermissionDiscussions: PermissionRead}},
+		{key: "resolve-pull-request-review-thread", unfiltered: map[PermissionScope]PermissionLevel{PermissionPullRequests: PermissionRead}, filterScope: PermissionIssues},
+		{key: "mark-pull-request-as-ready-for-review", unfiltered: map[PermissionScope]PermissionLevel{PermissionPullRequests: PermissionRead}, filterScope: PermissionIssues},
+		{key: "merge-pull-request", unfiltered: map[PermissionScope]PermissionLevel{
+			PermissionPullRequests: PermissionRead, PermissionContents: PermissionRead, PermissionChecks: PermissionRead, PermissionAdministration: PermissionRead,
+		}},
+	}
+	filters := []struct {
+		name   string
+		config map[string]any
+	}{
+		{name: "no filters", config: map[string]any{}},
+		{name: "required labels", config: map[string]any{"required-labels": []any{"needs-triage"}}},
+		{name: "required title prefix", config: map[string]any{"required-title-prefix": "[triage]"}},
+	}
+	for _, handler := range handlers {
+		for _, filter := range filters {
+			for _, globalStaged := range []bool{true, false} {
+				staging := "per-handler staged"
+				if globalStaged {
+					staging = "globally staged"
+				}
+				t.Run(handler.key+"/"+filter.name+"/"+staging, func(t *testing.T) {
+					safeOutputs := SafeOutputsConfigFromKeys([]string{handler.key})
+					descriptor, ok := getSafeOutputHandlerByKey(handler.key)
+					require.True(t, ok)
+					field, ok := safeOutputPointerFieldValue(safeOutputs, descriptor.StructField)
+					require.True(t, ok)
+					if globalStaged {
+						safeOutputs.Staged = templatableBoolPtr("true")
+					} else {
+						field.Elem().FieldByName("Staged").Set(reflect.ValueOf(templatableBoolPtr("true")))
+					}
+					filterConfigured := false
+					if labels := field.Elem().FieldByName("RequiredLabels"); labels.IsValid() && filter.config["required-labels"] != nil {
+						labels.Set(reflect.ValueOf([]string{"needs-triage"}))
+						filterConfigured = true
+					}
+					if title := field.Elem().FieldByName("RequiredTitlePrefix"); title.IsValid() && filter.config["required-title-prefix"] != nil {
+						title.SetString("[triage]")
+						filterConfigured = true
+					}
+					expected := map[PermissionScope]PermissionLevel{}
+					maps.Copy(expected, handler.unfiltered)
+					if filterConfigured && handler.filterScope != "" {
+						expected[handler.filterScope] = PermissionRead
+					}
+					permissions := ComputePermissionsForSafeOutputs(safeOutputs)
+					assert.Equal(t, expected, permissions.permissions)
+					appPermissions := computeSafeOutputHandlerPermissions(safeOutputs, descriptor)
+					if len(expected) == 0 {
+						assert.Nil(t, appPermissions)
+					} else {
+						require.NotNil(t, appPermissions)
+						assert.Equal(t, expected, appPermissions.permissions)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestComputePermissionsForSafeOutputs_StagedReadsPreserveWrite(t *testing.T) {
+	safeOutputs := &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{},
+		RemoveLabels: &RemoveLabelsConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
+			SafeOutputFilterConfig: SafeOutputFilterConfig{RequiredLabels: []string{"needs-triage"}},
+		},
+	}
+	assert.Equal(t, map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite},
+		ComputePermissionsForSafeOutputs(safeOutputs).permissions)
+}
+
+func TestCompileStagedRemoveLabelsReadPermissions(t *testing.T) {
+	for _, app := range []string{"", "global", "per-handler"} {
+		t.Run(app, func(t *testing.T) {
+			appConfig := "github-app:\n      app-id: ${{ vars.APP_ID }}\n      private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"
+			globalApp, handlerApp := "", ""
+			switch app {
+			case "global":
+				globalApp = "  " + strings.ReplaceAll(appConfig, "\n      ", "\n    ")
+			case "per-handler":
+				handlerApp = "    " + appConfig
+			}
+			content := "---\non: issues\nengine: copilot\nsafe-outputs:\n  staged: true\n" +
+				globalApp + "  remove-labels:\n    allowed: [needs-triage]\n    required-labels: [needs-triage]\n" +
+				handlerApp + "---\n\nTest workflow.\n"
+			testFile := filepath.Join(t.TempDir(), "staged-remove-labels.md")
+			require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+			compiler := NewCompiler(WithVersion("1.0.0"))
+			data, err := compiler.ParseWorkflowFile(testFile)
+			require.NoError(t, err)
+			compiled, _, _, err := compiler.generateYAML(data, testFile)
+			require.NoError(t, err)
+			job := extractJobSection(compiled, "safe_outputs")
+			assert.Contains(t, job, "issues: read")
+			assert.NotContains(t, job, ": write")
+			if app != "" {
+				stepID := "safe-outputs-app-token"
+				if app == "per-handler" {
+					stepID = "remove-labels-app-token"
+					assert.Empty(t, computePermissionsForSafeOutputs(data.SafeOutputs, true).permissions)
+				}
+				step := compiledStepBlockForTest(compiled, stepID)
+				require.NotEmpty(t, step)
+				assert.Contains(t, step, "permission-issues: read")
+				assert.NotContains(t, step, "permission-pull-requests:")
+			}
+		})
+	}
+}
+
+// TestComputePermissionsForSafeOutputs_StagedYAMLRendering validates that staged
+// safe output configurations without reads produce explicit "permissions: {}" in YAML rendering,
 // rather than an empty string that would cause the job to inherit workflow-level permissions.
 func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
 	tests := []struct {
