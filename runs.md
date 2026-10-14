@@ -13,3 +13,4 @@
 2026-10-11: discovery run; reviewed githubnext/ado-aw (7); no blog; backlog 0.
 2026-10-12: discovery run; reviewed zwave-js/bot-workflows (8, blogged), beadle (5), ghaw-security-adoption (4); backlog 0.
 2026-10-13: discovery run; GitHub API rate-limited before exploring; 3 candidates queued; no blog; backlog 3.
+2026-10-14: reviewed cgwalters-forge/agentic-job (7), rknightion/renovate-repair (6), Hack23/euparliamentmonitor (6); no blog; backlog 0.
