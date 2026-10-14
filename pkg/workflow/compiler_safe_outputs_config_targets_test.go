@@ -20,9 +20,10 @@ func TestAllowFullHistoryFetch(t *testing.T) {
 	t.Parallel()
 	for _, value := range []any{nil, false, true} {
 		name := "default"
-		if value == false {
+		switch value {
+		case false:
 			name = "disabled"
-		} else if value == true {
+		case true:
 			name = "enabled"
 		}
 		t.Run(name, func(t *testing.T) {
