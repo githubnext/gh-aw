@@ -1,0 +1,2 @@
+# microsoft/conductor v0.1.42, pinned to its release commit.
+conductor-cli @ git+https://github.com/microsoft/conductor.git@a08650956ed66d29b8bc04b0e48ffd306de3fbe9

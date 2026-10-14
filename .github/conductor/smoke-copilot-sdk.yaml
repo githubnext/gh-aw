@@ -1,0 +1,62 @@
+workflow:
+  name: smoke-copilot-sdk
+  description: Verify tool-free Copilot SDK agents pass structured output through Conductor.
+  version: "1.0.0"
+  entry_point: calculator
+  mcp:
+    read_only: true
+  runtime:
+    provider: copilot
+    default_model: gpt-5.4
+    max_idle_recovery_attempts: 0
+  limits:
+    max_iterations: 2
+    timeout_seconds: 180
+  input:
+    marker:
+      type: string
+      required: true
+      description: Marker that must survive the two-agent handoff unchanged.
+
+agents:
+  - name: calculator
+    input:
+      - workflow.input.marker
+    tools: []
+    prompt: |
+      Compute 6 * 7. Return the numeric answer and copy this marker unchanged:
+      {{ workflow.input.marker }}
+    output:
+      answer:
+        type: number
+      marker:
+        type: string
+    routes:
+      - to: verifier
+
+  - name: verifier
+    input:
+      - workflow.input.marker
+      - calculator.output
+    tools: []
+    prompt: |
+      Verify the previous agent's structured result:
+      {{ calculator.output | json }}
+      Return PASS only if answer is the number 42 and marker exactly matches:
+      {{ workflow.input.marker }}
+      Otherwise return FAIL. Copy the received marker and answer unchanged.
+    output:
+      status:
+        type: string
+        enum: [PASS, FAIL]
+      marker:
+        type: string
+      answer:
+        type: number
+    routes:
+      - to: $end
+
+output:
+  status: "{{ verifier.output.status }}"
+  marker: "{{ verifier.output.marker }}"
+  answer: "{{ verifier.output.answer }}"
