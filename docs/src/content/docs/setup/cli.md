@@ -583,7 +583,7 @@ Analyze workflow runs with detailed reports. The `audit` command has two modes: 
 
 ##### `audit <run-id>`
 
-Analyze a single run with a rich multi-section report. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
+Analyze a single run with a multi-section report. Accepts run IDs and workflow run, job, or step URLs. Auto-detects Copilot coding agent runs. Job URLs extract that job's logs; step URLs extract that step, otherwise the first failing step.
 
 ```bash wrap
 gh aw audit 12345678                                      # By run ID
@@ -594,7 +594,7 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 gh aw audit 12345678 --repo owner/repo                    # Specify repository for bare run ID
 ```
 
-**`--stdin` flag:** Reads run IDs or URLs from stdin (one per line), bypassing the need to pass positional arguments. Mutually exclusive with positional run-ID arguments. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`; full URLs carry their own repo context.
+**`--stdin` flag:** Reads run IDs or URLs from stdin (one per line) instead of positional arguments (mutually exclusive). Blank and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`; full URLs carry their own repo context.
 
 ```bash wrap
 echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is base
@@ -606,9 +606,9 @@ gh aw audit 1234567890 --runtime cloud-hypervisor        # Skip run unless sandb
 
 The `--timeout` flag sets a duration such as `50s` or `5m` (default: `0`, no additional deadline). Timed-out single-run JSON audits exit unsuccessfully and return available metadata or collected analysis with `partial: true`, `complete: false`, and the interrupted `stage`. Incomplete reports are not persisted as complete audit caches.
 
-The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
+The `--repo` flag accepts `owner/repo` and is required for a bare numeric run ID.
 
-The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `evals`, `experiment`, `firewall`, `github-api`, `graders`, `info`, `mcp`, `usage`, and `work-queue`. The `work-queue` set downloads queue snapshots, worker finish intents, and workflow logs for coordinator operation reporting. Use `all` to download the full artifact set. Unlike `gh aw logs`, which defaults to `usage`, `audit` defaults to `all` for comprehensive analysis. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
+The `--artifacts` flag selects which artifact sets to download (default: `all`, unlike `gh aw logs`, which defaults to `usage`). Valid sets include `activation`, `agent`, `all`, `detection`, `evals`, `experiment`, `firewall`, `github-api`, `graders`, `info`, `mcp`, `usage`, and `work-queue`. The `work-queue` set downloads queue snapshots, worker finish intents, and workflow logs for coordinator operation reporting. The `--experiment` flag filters to runs that include the named experiment; `--variant` restricts to a variant value and requires `--experiment`. The `--output/-o` flag overrides the output directory.
 
 Logs are saved to `.github/aw/logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
@@ -630,7 +630,7 @@ Logs are saved to `.github/aw/logs/run-{id}/` with filenames indicating the extr
 
 ##### Multi-run diff mode
 
-Compare behavior between two or more workflow runs to detect policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics. Pass multiple run IDs directly to `audit` — the first is the base, the rest are comparisons:
+Compare two or more runs to detect policy regressions, new unauthorized domains, and behavioral drift. Pass multiple run IDs directly to `audit` — the first is the base, the rest are comparisons:
 
 ```bash wrap
 gh aw audit 12345 12346                     # Compare two runs
@@ -638,7 +638,7 @@ gh aw audit 12345 12346 12347 12348         # Compare base against 3 runs
 gh aw audit 12345 12346 --format markdown   # Markdown for PR comments (or --json for CI)
 ```
 
-The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, run metric comparisons (token usage, duration, turns), tokens-per-turn changes, and per-tool and per-bash-command call breakdowns.
+The diff shows new or removed network domains, status changes (allowed ↔ denied), volume changes (>100%), MCP tool invocation changes, run metrics (tokens, duration, turns, tokens per turn), and per-tool and per-bash-command call breakdowns.
 
 **Options:** `--artifacts`, `--format` (pretty, markdown; default: pretty), `--json/-j`, `--output/-o`, `--repo/-r`
 
@@ -650,11 +650,7 @@ file is absent, it reconstructs the session from the agent artifact using the sa
 engine parsers as `audit`, including available MCP and firewall evidence.
 Reconstruction does not fetch missing downstream artifacts; the collection record
 identifies absent components and source warnings.
-Runs from older `gh-aw` versions do not need `aw_session.jsonl` or
-`agent-session.jsonl`: native Copilot events, Pi streams, and raw engine logs are
-parsed into the current unified format. Legacy `agent-artifacts` and standalone
-`agent-stdio-log`/`agent-stdio.log` artifacts are supported, along with
-`aw-info`/`aw_info` or activation metadata.
+Runs from older `gh-aw` versions are parsed into the current unified format from native Copilot events, Pi streams, raw engine logs, legacy `agent-artifacts`, or `agent-stdio-log`/`agent-stdio.log` artifacts, along with `aw-info`/`aw_info` or activation metadata.
 
 ```bash wrap
 gh aw sessions download 1234567890 --repo owner/repo
@@ -682,10 +678,7 @@ executes either Bash embedded in `graders.operational-value.script` or a Bash
 file referenced by `graders.operational-value.run`; operational-value graders
 require standard input because historical replay is not supported.
 
-Built-in and custom JavaScript graders require Node.js 20 or newer with the
-permission model available. The CLI selects `--permission` or
-`--experimental-permission` according to runtime support and never runs a
-JavaScript grader without permissions enabled.
+JavaScript graders (built-in and custom) require Node.js 20+ with the permission model; the CLI picks `--permission` or `--experimental-permission` as supported and never runs a grader without permissions enabled.
 
 ```bash wrap
 gh aw graders run weekly-research loops 123456789
