@@ -105,13 +105,13 @@ describe("redact_evals_results.cjs", () => {
   });
 
   it("reports multiple lingering OTLP credentials without claiming an inaccurate count", async () => {
-    const passwords = ["synthetic-otlp-password-one", "synthetic-otlp-password-two", "12345678"];
+    const passwords = ["synthetic-otlp-password-one", "synthetic-otlp-password-two", "12345678", "9007199254740993"];
     const endpoints = passwords.map(password => ({
       url: "https://traces.example.com",
       headers: `Authorization=Basic ${Buffer.from(`123456:${password}`).toString("base64")}`,
     }));
     vi.stubEnv("GH_AW_OTLP_ENDPOINTS", JSON.stringify(endpoints));
-    fs.writeFileSync(OUTPUT_PATH, JSON.stringify({ questions: passwords.slice(0, 2) }) + "\n12345678\n", "utf8");
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify({ questions: passwords.slice(0, 2) }) + '\n12345678\n{"nested":{"ids":[12345678,{"token":9007199254740993},42]}}\n', "utf8");
 
     module.verifyRedaction();
 
@@ -121,6 +121,20 @@ describe("redact_evals_results.cjs", () => {
     const content = fs.readFileSync(OUTPUT_PATH, "utf8");
     for (const password of passwords) expect(content).not.toContain(password);
     expect(JSON.parse(content.trim().split("\n")[1])).toBe("***");
+    expect(JSON.parse(content.trim().split("\n")[2])).toEqual({ nested: { ids: ["***", { token: "***" }, 42] } });
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each(["12345678", "9007199254740993"])("detects a lone nested numeric OTLP credential %s and verifies it after redaction", async password => {
+    vi.stubEnv("OTEL_EXPORTER_OTLP_HEADERS", `Authorization=Basic ${Buffer.from(`123456:${password}`).toString("base64")}`);
+    fs.writeFileSync(OUTPUT_PATH, `{"nested":{"ids":[${password},42]}}\n`, "utf8");
+
+    module.verifyRedaction();
+
+    expect(mockCore.setFailed).toHaveBeenCalledExactlyOnceWith(`Secret redaction verification failed for ${OUTPUT_PATH}: unredacted values remain`);
+    mockCore.setFailed.mockClear();
+    await module.main();
+    expect(JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf8"))).toEqual({ nested: { ids: ["***", 42] } });
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });

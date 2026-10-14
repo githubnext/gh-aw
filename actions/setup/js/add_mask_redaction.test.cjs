@@ -161,6 +161,48 @@ describe("add_mask_redaction", () => {
         for (const line of redacted.trim().split("\n").slice(1)) expect(() => JSON.parse(line)).not.toThrow();
       });
 
+      it.each(["12345678", "-12345678", "12345678.5", "1.12345678e+9", "12345678901234567890"])("redacts nested numeric token %s without numeric normalization", token => {
+        const content = ` \t{"token":${token},"ids":[${token},42],"nested":{"items":[{"token":${token}}]}}\r\n`;
+        const redacted = redactArtifactMaskedValues(content, ["12345678"]);
+        const masked = token.replaceAll("12345678", "***");
+        expect(JSON.parse(redacted)).toEqual({ token: masked, ids: [masked, 42], nested: { items: [{ token: masked }] } });
+        expect(redacted).not.toContain("12345678");
+        expect(redacted.startsWith(" \t")).toBe(true);
+        expect(redacted.endsWith("\r\n")).toBe(true);
+      });
+
+      it.each(["9007199254740993", "123456789012345678901234567890", "1e400"])("redacts an exact nested numeric credential %s before precision loss", token => {
+        const content = `{"ids":[${token}],"text":"safe"}`;
+        expect(JSON.parse(redactArtifactMaskedValues(content, [token]))).toEqual({ ids: ["***"], text: "safe" });
+      });
+
+      it("redacts nested numeric records in JSONL and mixed logs", () => {
+        const records = '{"token":12345678,"safe":42}\n[42,{"ids":[12345678901234567890]}]\n{"nested":{"token":1.12345678e+9}}\n';
+        const expected = [{ token: "***", safe: 42 }, [42, { ids: ["***90***90"] }], { nested: { token: "1.***e+9" } }];
+        for (const prefix of ["", "::add-mask::12345678\nstarting\n"]) {
+          const redacted = redactArtifactMaskedValues(prefix + records, ["12345678"]);
+          expect(redacted).not.toContain("12345678");
+          const lines = redacted.trim().split("\n");
+          if (prefix) expect(lines.shift()).toBe("starting");
+          expect(lines.map(line => JSON.parse(line))).toEqual(expected);
+        }
+      });
+
+      it("does not match normalized numeric representations or alter unmatched nested records", () => {
+        const content = '  {"values":[-0,1e+09,9007199254740993,1e400],"escaped":"quote\\"12345","safe":false}\r\n';
+        expect(redactArtifactMaskedValues(content, ["12345678", "1000000000", "9007199254740992", "Infinity"])).toBe(content);
+      });
+
+      it("preserves nonmatching numeric tokens alongside matching nested numbers", () => {
+        const content = '  {"values":[12345678,-0,1e+09,9007199254740993,1e400]}\r\n';
+        expect(redactArtifactMaskedValues(content, ["12345678"])).toBe('  {"values":["***",-0,1e+09,9007199254740993,1e400]}\r\n');
+      });
+
+      it("keeps matching quoted numeric strings and numeric keys valid", () => {
+        const content = '{"12345678":"quote\\"12345678","values":[12345678,123456]}';
+        expect(JSON.parse(redactArtifactMaskedValues(content, ["12345678"]))).toEqual({ "***": 'quote"***', values: ["***", 123456] });
+      });
+
       it.each(["123456", "-0", "1e+09", "9007199254740993", "1e400", "false", "null"])("preserves unmatched scalar %s byte-for-byte", token => {
         const content = ` \t${token}\r\n`;
         expect(redactArtifactMaskedValues(content, ["12345678"])).toBe(content);
