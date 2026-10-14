@@ -34,7 +34,7 @@ func setupMCPServerSession(t *testing.T, workingDir string, timeout time.Duratio
 		Version: "1.0.0",
 	}, nil)
 
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	if workingDir != "" {
 		serverCmd.Dir = workingDir
 	}

@@ -49,6 +49,7 @@ func TestSpec_Constants_FeatureFlags(t *testing.T) {
 		{name: "integrity reactions", got: constants.IntegrityReactionsFeatureFlag, want: "integrity-reactions"},
 		{name: "group concurrency queue", got: constants.GroupConcurrencyQueueFeatureFlag, want: "group-concurrency-queue"},
 		{name: "disable sandbox agent", got: constants.DangerouslyDisableSandboxAgentFeatureFlag, want: "dangerously-disable-sandbox-agent"},
+		{name: "allow roles read and pull request target", got: constants.DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag, want: "dangerously-allow-roles-read-and-pull-request-target"},
 		{name: "gh-aw detection", got: constants.GHAWDetectionFeatureFlag, want: "gh-aw-detection"},
 	}
 	for _, tt := range tests {

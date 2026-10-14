@@ -25,7 +25,7 @@ func TestMCPServer_ErrorCodes_InvalidParams(t *testing.T) {
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+	serverCmd := exec.Command(binaryPath, "mcp-server", "--allow-write-tools", "--cmd", binaryPath)
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

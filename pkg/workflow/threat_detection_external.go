@@ -47,7 +47,7 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	// OpenAI (10000) or Copilot (10002) ingress can serve it.
 	codexAPIBase := NewCodexEngine().getOpenAIProxyProviderBaseURL(detectionData)
 	codexWSSBase := codexProxyWebsocketBaseURL(codexAPIBase)
-	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase)
+	codexConfig := buildExternalDetectorCodexConfig(codexAPIBase, codexWSSBase, isCodexAzureOIDC(detectionData))
 	codexConfigDelimiter := GenerateHeredocDelimiterFromContent("CODEX_DETECTION_CONFIG", codexConfig)
 
 	return []string{
@@ -65,13 +65,13 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 	}
 }
 
-func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
+func buildExternalDetectorCodexConfig(apiBase, wssBase string, keyless bool) string {
 	// The top-level model_provider selector must precede any table header
 	// ([history], [model_providers.*], ...). TOML assigns bare keys to the most
 	// recent table, so emitting model_provider after [history] would parse it as
 	// history.model_provider, which Codex ignores (falling back to the default
 	// openai provider and bypassing the AWF api-proxy sidecar).
-	return strings.Join([]string{
+	lines := []string{
 		"          model_provider = \"" + codexOpenAIProxyProviderID + "\"",
 		"",
 		"          [history]",
@@ -82,12 +82,17 @@ func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
 		"          base_url = \"" + apiBase + "\"",
 		"          api_base = \"" + apiBase + "\"",
 		"          wss_base = \"" + wssBase + "\"",
-		"          env_key = \"CODEX_API_KEY\"",
+	}
+	if !keyless {
+		lines = append(lines, "          env_key = \"CODEX_API_KEY\"")
+	}
+	lines = append(lines,
 		"          wire_api = \"responses\"",
 		"          requires_openai_auth = false",
 		"          supports_websockets = false",
 		"",
-	}, "\n")
+	)
+	return strings.Join(lines, "\n")
 }
 
 func codexProxyWebsocketBaseURL(apiBase string) string {
@@ -569,6 +574,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// no longer writes any step-summary output (see
 	// github/gh-aw-threat-detection#792), so the flag is intentionally omitted here.
 	npmPathSetup := GetNpmBinPathSetup()
+	if engineID == "codex" && isCodexAzureOIDC(threatDetectionData) {
+		npmPathSetup += " && " + codexAzureOIDCReflectionGuard()
+	}
 	threatDetectCmd := buildThreatDetectCommand(npmPathSetup, engineID, data.SafeOutputs.ThreatDetection, isArcDindTopology(threatDetectionData))
 
 	// Build the complete AWF command. BuildAWFCommand handles config file setup,
@@ -655,6 +663,20 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 
 	return steps
+}
+
+func codexAzureOIDCReflectionGuard() string {
+	script := `fetch("http://api-proxy:10000/reflect", { signal: AbortSignal.timeout(60000) }).then(async response => {
+  if (!response.ok) throw new Error("AWF /reflect request failed");
+  const reflectData = await response.json();
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(endpoint => endpoint?.configured === true) : [];
+  const endpoint = endpoints.find(candidate => String(candidate?.provider || "").trim().toLowerCase() === "openai");
+  if (!endpoint || endpoint.auth_type !== "github-oidc/azure") throw new Error("No configured OpenAI endpoint uses github-oidc/azure");
+}).catch(error => {
+  console.error("Azure OIDC threat detection requires fresh AWF reflection:", error);
+  process.exitCode = 1;
+})`
+	return "node -e " + shellEscapeArg(script)
 }
 
 func buildThreatDetectCommand(npmPathSetup, engineID string, config *ThreatDetectionConfig, arcDind bool) string {

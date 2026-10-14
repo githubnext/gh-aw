@@ -25,6 +25,7 @@ const {
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
   buildCodexChildEnv,
+  hasCodexAzureOIDCProxy,
   extractPortFromURL,
   extractOpenAIProxyBaseURLFromToml,
   getConfiguredProviderPortFromReflect,
@@ -72,7 +73,7 @@ function makeHarnessTempDir(name) {
 }
 
 function spawnSync(command, args, options) {
-  const env = { ...options.env, HOME: path.join(agentTempDir, "home"), AWF_REFLECT_ENABLED: "0" };
+  const env = { ...options.env, HOME: path.join(agentTempDir, "home"), AWF_REFLECT_ENABLED: options.env.AWF_REFLECT_ENABLED || "0" };
   if (!env.CODEX_HOME || env.CODEX_HOME === process.env.CODEX_HOME) env.CODEX_HOME = path.join(agentTempDir, "codex-home");
   if (!env.RUNNER_TEMP || env.RUNNER_TEMP === process.env.RUNNER_TEMP) env.RUNNER_TEMP = agentTempDir;
   if (!env.GH_AW_AGENT_OUTPUT || env.GH_AW_AGENT_OUTPUT === process.env.GH_AW_AGENT_OUTPUT) env.GH_AW_AGENT_OUTPUT = path.join(agentTempDir, "agent-output.json");
@@ -81,7 +82,7 @@ function spawnSync(command, args, options) {
   return spawnProcessSync(command, args, { ...options, env });
 }
 
-function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}, reflectData } = {}) {
+function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}, reflectData, reflectOk = true, config } = {}) {
   const dir = makeHarnessTempDir("runtime-");
   const executable = path.join(dir, "codex-stub.cjs");
   const promptPath = path.join(dir, "prompt.txt");
@@ -106,11 +107,15 @@ function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}
     CODEX_HARNESS_STUB_CALLS: callsPath,
     ...env,
   };
+  if (config) {
+    fs.mkdirSync(childEnv.CODEX_HOME, { recursive: true });
+    fs.writeFileSync(path.join(childEnv.CODEX_HOME, "config.toml"), config);
+  }
   if (reflectData) {
     const reflectPreload = path.join(dir, "reflect-fixture.cjs");
     fs.writeFileSync(
       reflectPreload,
-      `const fs=require("fs");const path=require("path");const reflect=require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))});const data=${JSON.stringify(reflectData)};reflect.fetchAWFReflect=async()=>{fs.mkdirSync(path.dirname(reflect.AWF_REFLECT_OUTPUT_PATH),{recursive:true});fs.writeFileSync(reflect.AWF_REFLECT_OUTPUT_PATH,JSON.stringify(data));return {ok:true,reflectData:data};};`
+      `const fs=require("fs");const path=require("path");const reflect=require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))});const data=${JSON.stringify(reflectData)};reflect.fetchAWFReflect=async()=>{fs.mkdirSync(path.dirname(reflect.AWF_REFLECT_OUTPUT_PATH),{recursive:true});fs.writeFileSync(reflect.AWF_REFLECT_OUTPUT_PATH,JSON.stringify(data));return {ok:${reflectOk},reflectData:data};};`
     );
     childEnv.NODE_OPTIONS = `${childEnv.NODE_OPTIONS || ""} --require=${JSON.stringify(reflectPreload)}`;
   }
@@ -132,6 +137,79 @@ function runHarnessFixture(script, { prompt = "fix the bug", args = [], env = {}
 }
 
 describe("codex_harness.cjs", () => {
+  describe("Azure OIDC", () => {
+    const env = { CODEX_API_KEY: "", OPENAI_API_KEY: "", GH_AW_CODEX_OIDC_AUTH: "azure", AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai" };
+    const endpoint = { provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, models_url: "http://api-proxy:10000/v1/models", models: ["gpt-5.4"] };
+    const config = 'model_provider = "openai-proxy"\n[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\nwire_api = "responses"\nrequires_openai_auth = false\n';
+
+    it("runs without API keys through the configured Entra proxy", () => {
+      const { result, calls } = runHarnessFixture(
+        'const config=fs.readFileSync(process.env.CODEX_HOME+"/config.toml","utf8");if(process.env.CODEX_API_KEY||process.env.OPENAI_API_KEY||config.includes("env_key")||!config.includes("http://api-proxy:10000"))process.exitCode=1;',
+        { env, reflectData: { endpoints: [endpoint] }, config }
+      );
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
+
+    it.each([
+      ["unconfigured", { ...endpoint, configured: false }],
+      ["static key", { ...endpoint, auth_type: "static-key" }],
+      ["other OIDC provider", { ...endpoint, auth_type: "github-oidc/gcp" }],
+      ["other inference provider", { ...endpoint, provider: "github" }],
+    ])("refuses to spawn for a %s proxy", (_name, invalidEndpoint) => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [invalidEndpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Azure OIDC requires a configured OpenAI AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("refuses to spawn when reflection is disabled", () => {
+      const { result, calls } = runHarnessFixture("", { env: { ...env, AWF_REFLECT_ENABLED: "0" }, config });
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("does not trust persisted reflection after a failed fresh fetch", () => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [endpoint] }, reflectOk: false, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Azure OIDC requires a configured OpenAI AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each([undefined, '[history]\npersistence = "none"\n'])("refuses to spawn when Codex proxy configuration is missing (%s)", config => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [endpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unable to configure Codex for the Azure OIDC AWF proxy");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("keeps the API-key requirement for non-OIDC runs", () => {
+      const { result, calls } = runHarnessFixture("", { env: { CODEX_API_KEY: "", OPENAI_API_KEY: "" } });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("no API key available");
+      expect(calls).toHaveLength(0);
+    });
+
+    it("requires the compiler policy and firewall even with OIDC reflection", () => {
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, env)).toBe(true);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, GH_AW_CODEX_OIDC_AUTH: "" })).toBe(false);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, AWF_REFLECT_ENABLED: "0" })).toBe(false);
+      expect(hasCodexAzureOIDCProxy({ endpoints: [endpoint] }, { ...env, GH_AW_LLM_PROVIDER: "github" })).toBe(false);
+    });
+
+    it("checks the endpoint that will actually be selected", () => {
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [{ ...endpoint, auth_type: "static-key" }, endpoint] }, config });
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("accepts a normalized OpenAI provider alias selected by the resolver", () => {
+      const aliasedEndpoint = { ...endpoint, provider: " OPENAI " };
+      const { result, calls } = runHarnessFixture("", { env, reflectData: { endpoints: [aliasedEndpoint] }, config });
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+    });
+  });
   describe("AWF model routing", () => {
     const reflectData = {
       endpoints: [{ provider: "github", configured: true, models: ["gpt-5.6-sol"] }],

@@ -9,7 +9,8 @@ const { parseSettings } = require("./work_queue_settings.cjs");
 const { nativeId, authenticatePublisher } = require("./work_queue_native.cjs");
 const { actorFromContext } = require("./work_queue_policy.cjs");
 const { newRequest, generateRequestOperations } = require("./work_queue_replay.cjs");
-const { readWorkQueueLog, publishWorkQueueRequest } = require("./work_queue_store.cjs");
+const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
+const { readCheckedQueue } = require("./work_queue_checked_transport.cjs");
 
 const REASON = "related_issue_closed";
 
@@ -65,35 +66,32 @@ async function main(options = {}) {
   const githubClient = options.githubClient || global.github;
   const coreApi = options.core || global.core;
   if (context.eventName !== "issues" || context.payload?.action !== "closed") return { status: "ignored" };
-  const config = options.issues === undefined ? await readIssuesConfig(githubClient, context) : issuesConfiguration(options.issues);
-  if (!config) return { status: "disabled" };
-  const trusted = await (options.authenticatePublisher || authenticatePublisher)({ githubClient, context, role: "administrator" });
-  const repository = trusted.repository;
-  if (repository.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase() || trusted.event !== "issues" || trusted.workflow !== ".github/workflows/agentic-workqueue.yml")
-    throw queueError("actor_unauthorized", "Issue closure requires the authenticated Agentic Workqueue workflow");
   const eventIssue = context.payload.issue;
   if (!eventIssue || eventIssue.pull_request || nativeId(eventIssue.number) !== nativeId(context.issue?.number)) throw queueError("issue_binding_invalid", "Issue closure event identity is invalid");
   const repoId = nativeId(context.payload.repository?.id);
-  if (nativeId(trusted.native_run?.repository?.id) !== repoId || context.payload.repository.full_name.toLowerCase() !== repository.toLowerCase())
-    throw queueError("issue_binding_invalid", "Issue closure event repository differs from authenticated repository");
+  const repository = context.payload.repository.full_name;
+  if (typeof repository !== "string" || repository.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase()) throw queueError("issue_binding_invalid", "Issue closure event repository differs from queue repository");
   const number = Number(nativeId(eventIssue.number));
-  const response = await githubClient.rest.issues.get({ ...context.repo, issue_number: number });
-  const issue = response?.data;
-  if (!issue || issue.pull_request || issue.state !== "closed" || nativeId(issue.id) !== nativeId(eventIssue.id) || nativeId(issue.number) !== String(number)) return { status: "stale" };
   const resource = {
     kind: "issue",
     host: "github.com",
     repository,
     repository_id: repoId,
-    resource_id: nativeId(issue.id),
+    resource_id: nativeId(eventIssue.id),
     number: String(number),
   };
-  const read = options.readWorkQueueLog || readWorkQueueLog;
+  const read = options.readWorkQueueLog || readCheckedQueue;
   const queueOptions = { githubClient, ...context.repo };
   const initial = await read(queueOptions);
   if (!initial.sha) return { status: "queue_missing" };
   const work = matchingWork(initial.state, resource);
   if (!work) return { status: "unbound" };
+  const config = options.issues === undefined ? await readIssuesConfig(githubClient, context) : issuesConfiguration(options.issues);
+  if (!config) return { status: "disabled" };
+  const trusted = await (options.authenticatePublisher || authenticatePublisher)({ githubClient, context, role: "administrator" });
+  if (trusted.repository.toLowerCase() !== repository.toLowerCase() || trusted.event !== "issues" || trusted.workflow !== ".github/workflows/agentic-workqueue.yml")
+    throw queueError("actor_unauthorized", "Issue closure requires the authenticated Agentic Workqueue workflow");
+  if (nativeId(trusted.native_run?.repository?.id) !== repoId) throw queueError("issue_binding_invalid", "Issue closure event repository differs from authenticated repository");
   const fresh = options.closedIssue || closedIssue;
   if (!(await fresh(githubClient, context, resource, config))) return { status: "stale" };
   const actor = actorFromContext(trusted);

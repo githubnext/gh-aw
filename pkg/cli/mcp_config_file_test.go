@@ -38,8 +38,9 @@ func TestEnsureMCPConfig(t *testing.T) {
 				if server.Command != "gh" {
 					t.Errorf("Expected command 'gh', got %q", server.Command)
 				}
-				if len(server.Args) != 2 || server.Args[0] != "aw" || server.Args[1] != "mcp-server" {
-					t.Errorf("Expected args ['aw', 'mcp-server'], got %v", server.Args)
+				expectedArgs := []string{"aw", "mcp-server", "--allow-write-tools"}
+				if !reflect.DeepEqual(server.Args, expectedArgs) {
+					t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
 				}
 				expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"}
 				if len(server.Tools) != len(expectedTools) {
@@ -89,7 +90,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 					"github-agentic-workflows": {
 						Type:    "local",
 						Command: "gh",
-						Args:    []string{"aw", "mcp-server"},
+						Args:    []string{"aw", "mcp-server", "--allow-write-tools"},
 						Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"},
 					},
 				},
@@ -123,7 +124,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 				if server.Command != "gh" {
 					t.Errorf("Expected command 'gh', got %q", server.Command)
 				}
-				expectedArgs := []string{"aw", "mcp-server"}
+				expectedArgs := []string{"aw", "mcp-server", "--allow-write-tools"}
 				if !reflect.DeepEqual(server.Args, expectedArgs) {
 					t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
 				}
@@ -142,7 +143,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 				Servers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
 						Command: "gh",
-						Args:    []string{"aw", "mcp-server"},
+						Args:    []string{"aw", "mcp-server", "--allow-write-tools"},
 					},
 				},
 			},
@@ -338,7 +339,7 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 			"github-agentic-workflows": {
 				Type:    "local",
 				Command: "gh",
-				Args:    []string{"aw", "mcp-server"},
+				Args:    []string{"aw", "mcp-server", "--allow-write-tools"},
 				Tools:   []string{"compile", "audit", "logs", "inspect", "status", "audit-diff"},
 			},
 		},
@@ -370,8 +371,9 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 		t.Errorf("Expected command 'gh', got %q", server.Command)
 	}
 
-	if len(server.Args) != 2 {
-		t.Errorf("Expected 2 args, got %d", len(server.Args))
+	expectedArgs := []string{"aw", "mcp-server", "--allow-write-tools"}
+	if !reflect.DeepEqual(server.Args, expectedArgs) {
+		t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
 	}
 
 	if server.Type != "local" {
