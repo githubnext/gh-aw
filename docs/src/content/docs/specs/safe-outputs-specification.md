@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.9<br>
+**Version**: 1.29.10<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-12<br>
+**Publication Date**: 2026-10-14<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -2569,6 +2569,7 @@ safe-outputs:
 11. **Summary and Manifest Provenance**: Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest.
 12. **`head_repo` Required for Same-Organization Forks**: The owner-qualified head reference (requirement 9) alone is insufficient when `head-repo` and `target-repo` share the same owner/organization, because multiple repositories under that owner can define the same branch name. Whenever `head-repo` differs from `target-repo` — including when both share the same owner/organization — every pull request creation or update API call MUST include the `head_repo` parameter naming the head repository, in addition to the owner-qualified `head` reference.
 13. **Signed Commit Delivery**: Branch delivery MUST satisfy the [signed commit delivery requirements](#signed-commit-delivery-requirements), shared with `push_to_pull_request_branch`.
+14. **Transport Integrity**: Patch/bundle application and publication MUST satisfy the shared [transport integrity requirements](#patch-and-bundle-transport-integrity-requirements).
 
 **Configuration Parameters**:
 
@@ -2602,6 +2603,35 @@ These requirements apply to `create_pull_request` and `push_to_pull_request_bran
 **SCD-003**: Rebase attachment MUST NOT broaden fallback policy or change signing defaults, credential selection, or head-repository routing. When the shared delivery helper is invoked with `allowGitPushFallback: false`, a signed-delivery failure MUST fail without attempting an unsigned push. Unsupported commit shapes and policy violations MUST continue to refuse unsigned fallback.
 
 **Conformance Evidence**: The real-git regression in `actions/setup/js/push_signed_commits.test.cjs` advances the base, seeds the remote delivery branch at that base, and simulates GraphQL signing failure with fallback enabled. It verifies attached `HEAD`, the updated named branch, advanced-base ancestry, and delivery of both agent and upstream file contents.
+
+##### Patch and Bundle Transport Integrity Requirements
+
+These requirements apply to `create_pull_request` and `push_to_pull_request_branch`, including unsigned delivery, bundle recovery, signed delivery, PR/issue publication retries, and optional CI-trigger commits. They bind handler-time policy validation and Git consumption to captured bytes; capture alone does not establish policy approval or detection provenance.
+
+**PTI-001 — Trusted capture**: The privileged handler MUST derive canonical transport paths from the validated branch and repository rather than agent-supplied paths. For each resolved patch or bundle, it MUST capture raw bytes, a cryptographic digest, and descriptor-verified device/inode identity. Opens MUST reject symlinks and nonregular files without blocking on FIFOs. Missing or unreadable resolved artifacts MUST fail closed, including in allow-empty mode.
+
+**PTI-002 — Stable consumption**: Git operations that consume a captured path MUST receive a private, read-only snapshot outside the checkout, not the agent-writable original. A bundle's verification, head discovery, imports, and recovery retries MUST use the same snapshot unless a trusted transformation explicitly replaces it. Capture and snapshots MUST preserve raw bytes, including non-UTF-8 data.
+
+**PTI-003 — Integrity boundaries and cost**: Full content-digest and identity checks of originals and existing snapshots MUST run at transport reads/application, immediately before publication attempts, and at handler completion. Publication includes remote ref creation/deletion, signed mutations, direct pushes, PR creation, and issue fallbacks; each retried attempt MUST recheck. Unrelated local commands MAY use lightweight identity/type/size checks, but these MUST NOT replace byte checks at trust boundaries. Implementations MUST cache snapshot digests and MUST NOT reread or hash full artifacts around every unrelated command.
+
+**PTI-004 — Trusted transformations**: Temporary-ID substitution and commit-title suffixing MUST operate on captured bytes and affect only trusted in-memory content and its private snapshot. They MUST NOT rewrite canonical artifacts or refresh the original digest/identity baseline from disk. The transformed bytes consumed by Git MUST be the trusted transformation of the validated input.
+
+**PTI-005 — Permanent failure**: An integrity failure MUST remain sticky for the invocation and prevent further application or publication. It MUST NOT enter conflict recovery, publication fallbacks, or transient/rate-limit retries, regardless of branch names, paths, or message substrings. A previously completed remote write is not rolled back by this contract; implementations MUST NOT claim transactional rollback across GitHub operations.
+
+**PTI-006 — Restricted cleanup**: Integrity failure MUST NOT prevent registered local cleanup of temporary bundle refs or an in-progress patch application. Cleanup MUST be limited to resources registered by the current guard and pinned to the original checkout; it MUST NOT permit arbitrary ref deletion, remote writes, or renewed artifact consumption. Private snapshots MUST be disposed on success and failure, even when Git cleanup fails. Cleanup failures MUST be surfaced rather than treated as success.
+
+**PTI-007 — Diagnostics**: Capture and verification MUST preserve filesystem error causes and distinguish operation, nonregular input, identity replacement, and content mismatch. Handler errors MUST expose the stable `ERR_TRANSPORT_INTEGRITY` classification, including when an intermediate helper wraps the error. Logs MUST use safe operation/reason/system-code diagnostics and MUST NOT expose artifact contents, secret values, or raw filesystem cause text.
+
+**Conformance Evidence**:
+
+| Requirement | Implementation | Regression evidence |
+|---|---|---|
+| PTI-001–004 | `resolve_transport_paths.cjs`, `transport_integrity.cjs`, both PR handlers | `resolve_transport_paths.test.cjs`, `transport_integrity.test.cjs`, `transport_integrity_handlers.test.cjs` |
+| PTI-003 cost bound | Lightweight local checks and cached snapshot digests | An 8 MiB bundle and 100 unrelated commands require zero full-file reads and hashes; subsequent publication still rejects same-size mutation |
+| PTI-005 | `error_recovery.cjs`, `create_or_update_pull_request.cjs`, guarded publication callbacks | `error_recovery.test.cjs`, `create_or_update_pull_request.test.cjs`; real typed errors with network/timeout/rate-limit paths |
+| PTI-006–007 | Registered cleanup and structured diagnostics in `transport_integrity.cjs` | `transport_integrity_git.test.cjs` verifies real Git refs and conflict rollback; helper tests cover checkout pinning, failed cleanup, cause retention, and safe logging |
+
+All implementation and test paths in this table are under `actions/setup/js/`. The bounded [transport lifecycle model](https://github.com/github/gh-aw/blob/main/specs/workflow-security/SafeOutputTransport.tla) specifies stable consumption, failure, retry, cleanup, and diagnostic invariants; it does not prove filesystem isolation or cryptographic collision resistance.
 
 **Security Requirements**:
 
@@ -3672,6 +3702,7 @@ For all Linear types, GraphQL source, endpoint, protocol, and host are implement
 - Successful executions MUST record `head_repo` in the safe-output summary and machine-readable manifest
 - When the Convertible fallback (WTD2) opens a review or fallback pull request from `head-repo`, the `head_repo` parameter MUST be included on the pull request creation API call whenever `head-repo` differs from `target-repo`, including when both share the same owner/organization
 - Signed branch delivery MUST satisfy the shared [signed commit delivery requirements](#signed-commit-delivery-requirements).
+- Patch/bundle handling and publication MUST satisfy the shared [transport integrity requirements](#patch-and-bundle-transport-integrity-requirements).
 
 ---
 
@@ -6119,6 +6150,11 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.10** (2026-10-14):
+
+- **Added**: PTI-001–007 for captured patch/bundle bytes, nonblocking regular-file checks, private snapshots, bounded integrity-check cost, trusted transformations, permanent retry classification, restricted Git cleanup, and safe diagnostics.
+- **Added**: Runtime regression mappings and a bounded transport lifecycle TLA+ model; no new compiler rule or token permission is introduced.
 
 **Version 1.29.9** (2026-10-12):
 

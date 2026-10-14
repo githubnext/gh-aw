@@ -42,6 +42,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Git | `checkouts`, `cleanup`, `agentBegan`, `privilegedCheckout`, `operations`, `errors` | Per-repository auth, temporary setup credentials, verified cleanup/failure, available blobs/refs, sparse/shallow state, local operations, REST, and privileged push. |
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | Comment/review-triggered PR checkout | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Allow-listed Bot sender and exact comment/review-author identity, canonical App slug/bot actor equivalence, and same-repository head/base boundaries. |
+| Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -100,6 +101,69 @@ control, copy the `.cfg` to a temporary file, set `Fault` to
 confirm TLC reports `NoUntrustedCheckoutAcceptance`. This model specifies the
 compiler decision boundary; it does not model Git's parser or prove safety of
 the contents at an otherwise trusted mutable ref.
+
+## Safe-output transport lifecycle
+
+[`SafeOutputTransport.tla`](SafeOutputTransport.tla) supplements the job-level
+model with the runtime contract in Safe Outputs
+[PTI-001–007](../../docs/src/content/docs/specs/safe-outputs-specification.md#patch-and-bundle-transport-integrity-requirements).
+It separates original bytes/identity, captured baselines, trusted transformed
+bytes, private snapshots, applied bytes, and publication-time verification.
+One adversarial mutation may change bytes, identity, regular-file status, or
+an existing snapshot between boundaries; FIFO replacement also occurs before
+capture. Rate-limited
+publication can retry once; each attempt rechecks integrity.
+
+The patch profile registers an abort after conflicting application; the bundle
+profile registers a temporary ref. Both complete through finally cleanup.
+Cleanup may itself fail, but snapshots must still be disposed and the failure
+reported. An already completed remote effect is not rolled back if a later
+completion check fails. Diagnostic safety and zero full-artifact hashes around
+an unrelated local command are abstract obligations, not measurements of Node.
+
+Run both baselines, all negative controls, and all reachability witnesses with
+the pinned TLA+ runtime described below. The runner rejects incorrect tooling
+status or invariant names and automatically removes temporary configurations,
+TLC states, and traces:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check_transport.py
+```
+
+`SafeOutputTransport.cfg` defaults to `Transport = "patch"`. The runner also
+checks `Transport = "bundle"`. For each synthetic negative control, it changes
+only `Fault` and requires TLC exit code 12 with the corresponding invariant:
+
+| Fault | Expected invariant |
+|---|---|
+| `blocking-open` | `NonblockingOpen` |
+| `reopen-original` | `StableConsumption` |
+| `rebaseline` | `OriginalBaseline` |
+| `skip-publication-check` | `PublicationIntegrity` |
+| `retry-integrity` | `PermanentFailure` |
+| `cleanup-blocked` | `CleanupDisposition` |
+| `cleanup-error-hidden` | `CleanupDisposition` |
+| `unsafe-diagnostics` | `SafeDiagnostics` |
+| `redundant-hashing` | `BoundedLocalCost` |
+
+With `Fault = "none"`, append each of `NoSuccessfulWrite`,
+`NoRejectedMutation`, `NoRateLimitRetry`, `NoCleanupFailure`, and
+`NoConflictCleanup` as an invariant to obtain positive reachability witnesses
+for publication, rejection, retry, surfaced cleanup failure, and conflict
+cleanup, respectively. These deliberately false predicates and synthetic
+faults are not product vulnerabilities.
+
+The bounded model assumes snapshot privacy, collision-free byte classes,
+trusted transformations and exact registered-cleanup dispatch. It does not
+model arbitrary same-user filesystem races, Git parsing, App API semantics,
+unbounded retries, credential selection, or the full structured logging
+payload. Those remain implementation obligations covered by
+`transport_integrity.test.cjs`, `transport_integrity_handlers.test.cjs`,
+`transport_integrity_git.test.cjs`, `error_recovery.test.cjs`, and
+`create_or_update_pull_request.test.cjs` under `actions/setup/js/`.
+The existing `check.py` and its checked-in examples cover `CompiledWorkflow`;
+the transport model is checked separately, like the checkout submodels.
 
 ## Comment- and review-triggered pull request checkout
 

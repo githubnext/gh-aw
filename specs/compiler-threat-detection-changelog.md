@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.52 | Audit-only clarification of the safe-output patch/bundle runtime integrity boundary, PTI-001–007 and bounded TLA+ evidence; no new CTR rule or generated-workflow compatibility change. |
 | 1.0.51 | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode; in non-strict mode, the dangerous feature flag suppresses only the roles warning. |
 | 1.0.50 | Extended CTR-032 with creating-run traceability for every issue comment, PR description, and PR review comment from first publication. Specified HTML execution markers except percent-encoded Markdown anchor markers for review comments and replies, independent of visible footers, with forged-marker and destination API filtering coverage required. |
 | 1.0.49 | Added CTR-032 for step-scoped safe-output publishing identity, replacement of forged execution-provenance comments, and fail-closed runtime metadata validation. |
@@ -46,6 +47,21 @@ This changelog records the version history and the dated mapping audits for `spe
 | 1.0.7–1.0.0 | Established CTR-001–015, conformance model, and daily reconciliation. |
 
 ## Mapping Audits
+
+### Mapping Audit (2026-10-14)
+
+Reviewed `transport_integrity.cjs`, both PR handlers, publication retry callbacks,
+and the transport regression tests. Captured validation bytes are consumed
+through private snapshots; nonregular files fail promptly, integrity errors
+remain permanent, and only registered local Git cleanup may proceed after failure.
+Full byte checks remain mandatory at trust boundaries, without full artifact
+scans around unrelated local commands. Filesystem causes and safe diagnostics
+remain available without publishing artifact contents.
+
+The controls are runtime obligations in Safe Outputs PTI-001–007, with bounded
+state-machine evidence in `workflow-security/SafeOutputTransport.tla`. They
+complement artifact provenance, detection, authorization, and CTR-005 routing
+rather than adding a compiler-detectable construct or a new `CTR-*` rule.
 
 ### Mapping Audit (2026-10-12)
 
