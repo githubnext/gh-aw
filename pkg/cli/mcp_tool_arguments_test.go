@@ -93,7 +93,7 @@ func TestMCPToolsSeparatePositionalsAndPreserveOptions(t *testing.T) {
 		{"update", map[string]any{"workflows": []string{"one", "two"}, "major": true, "force": true}, []string{"one", "two"}, []string{"--major", "--force"}},
 		{"fix", map[string]any{"workflows": []string{"one"}, "write": true, "list_codemods": true}, []string{"one"}, []string{"--write", "--list-codemods"}},
 		{"compile", map[string]any{"workflows": []string{"one.md"}, "strict": true, "fix": true, "environment": "test"}, []string{"one.md"}, []string{"--strict", "--fix", "--environment", "test", "--prior-manifest-file", "/trusted/manifest.json"}},
-		{"mcp-inspect", map[string]any{"workflow_file": "one.md", "server": "github", "tool": "list"}, []string{"one.md"}, []string{"--server", "github", "--tool", "list", "--check-secrets"}},
+		{"mcp-inspect", map[string]any{"workflow_file": "one.md"}, []string{"one.md"}, []string{"list", "--verbose"}},
 		{"audit", map[string]any{"run_ids_or_urls": []string{"123", "https://github.com/owner/repo/actions/runs/456"}, "experiment": "test", "variant": "a"}, []string{"123", "https://github.com/owner/repo/actions/runs/456"}, []string{"--json", "--repo", "owner/repo", "--experiment", "test", "--variant", "a", "--timeout"}},
 		{"audit-diff", map[string]any{"base_run_id": "123", "compare_run_ids": []string{"456", "789"}, "artifacts": []string{"info"}}, []string{"123", "456", "789"}, []string{"--json", "--repo", "owner/repo", "--artifacts", "info"}},
 		{"update", map[string]any{}, []string{}, nil},
@@ -115,6 +115,9 @@ func TestMCPToolsSeparatePositionalsAndPreserveOptions(t *testing.T) {
 			assert.Equal(t, tool.positionals, captured[boundary+1:])
 			for _, option := range tool.options {
 				assert.Contains(t, captured[:boundary], option)
+			}
+			if tool.name == "mcp-inspect" {
+				assert.Equal(t, []string{"mcp", "list", "--verbose", "--", "one.md"}, captured)
 			}
 			if tool.name == "add" {
 				command := NewAddCommand(validateEngineStub)
