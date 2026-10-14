@@ -111,13 +111,15 @@ It follows one entry through compilation, preflight, metadata validation,
 checkout, finalization, manifest publication, consumer execution, or trusted
 failure reporting. Each run chooses the agent or privileged job; both derive
 paths from the same canonical repository/prefix function rather than sharing
-an agent-writable manifest. Static literal and standalone hosting-repository
-exceptions stop at compiler classification; their checkout execution remains
-covered by the original model.
+an agent-writable manifest. Only literal `multi: true` enters the list pipeline.
+Omitted/false mode permits single-repository expressions without list policy
+and validates exactly one slug before reaching the static-checkout boundary;
+static checkout execution remains covered by the original model.
 
 Finite input classes include trusted literal/configuration-variable policies,
 caller/composite policies, missing policies, scoped matching sets and unrestricted
-policies, explicit/wildcard selectors, empty and case-duplicate lists, canonical
+policies, explicit multi opt-in, single expressions with list-only features
+unrestricted, explicit/wildcard selectors, empty and case-duplicate lists, canonical
 redirects, unverifiable metadata, public/private/internal hosts and targets with
 and without explicit private-repository opt-in,
 invalid prefixes, unsafe target paths, LFS/submodule settings, and staged mode.
@@ -131,7 +133,7 @@ is the current job's GitHub token, whose grants differ between job kinds.
 
 | Predicates | Contract / implementation connection |
 |---|---|
-| `MandatoryAllowlist`, `PolicyProvenance`, `ExplicitSelector`, `ScopedPolicy` | RCR8; [`validateCheckoutAllowedRepos`](../../pkg/workflow/checkout_dynamic.go), [`parseAllowedRepos`](../../actions/setup/js/checkout_dynamic.cjs), and compiler policy regressions. |
+| `ExplicitMultiMode`, `SingleRepositoryOnly`, `MandatoryAllowlist`, `PolicyProvenance`, `ExplicitSelector`, `ScopedPolicy` | RCR8 / CTR-033; explicit `Multi` classification, [`validateSingleRepository`](../../actions/setup/js/checkout_dynamic.cjs), [`validateCheckoutAllowedRepos`](../../pkg/workflow/checkout_dynamic.go), [`parseAllowedRepos`](../../actions/setup/js/checkout_dynamic.cjs), and compiler policy regressions. |
 | `SelectedRepositoriesAllowed`, `BoundedSelection`, `BatchValidatedBeforeCheckout`, `ValidatedPathsSafe`, `CanonicalRepositoriesAllowed`, `VisibilityIsolation`, `PrivateRepositoryOptIn` | RCR9; [`prepareCheckouts`](../../actions/setup/js/checkout_dynamic.cjs) validates the complete batch, requires explicit opt-in for non-public targets, and never permits them on public hosts. |
 | `EntryAuthentication` | RCR11; [`dynamicCheckoutToken`](../../pkg/workflow/checkout_dynamic.go) and [`prepareSharedPRCheckout`](../../pkg/workflow/compiler_safe_outputs_steps.go) preserve explicit entry credentials and resolve the shared fallback independently of neighboring Apps. |
 | `NoSecondaryReads` | RCR12; generated actions disable LFS/submodules and [`finish`](../../actions/setup/js/checkout_dynamic.cjs) explicitly disables recursive submodule fetching. |
@@ -139,10 +141,11 @@ is the current job's GitHub token, whose grants differ between job kinds.
 | `ManifestPrecedesConsumers`, `SafeOutputAuthorization` | RCR6/RCR10; job-local manifest generation follows finalization, and checkout authorization never expands a handler's write allowlist. |
 | `StagedIsolation`, `CheckoutFailureReported` | RCR14/RCR15; preview mode omits checkout dependencies, and known checkout failures remain reportable even without recorded agent jobs. |
 
-The existing checker runs this model, its 21 deliberate guard mutations, and
-six reachability witnesses alongside `CompiledWorkflow`. Witnesses establish
+The existing checker runs this model, its 23 deliberate guard mutations, and
+eight reachability witnesses alongside `CompiledWorkflow`. Witnesses establish
 that runtime checkout, deep-prefix handler lookup, known failure reporting,
-the standalone hosting-repository exception, and opted-in private/internal-host checkouts are
+single expressions without an allowlist, single-checkout LFS/submodule/private
+access without list restrictions, the hosting-repository case, and opted-in private/internal-host checkouts are
 reachable; the safety properties therefore do not pass by rejecting everything.
 The mutations are hypothetical broken guards, not confirmed product bugs.
 

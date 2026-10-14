@@ -48,11 +48,12 @@ checkout:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `repository` | string | Explicit repository in `owner/repo` format, or a newline-separated list with `allowed-repos`. Expressions require `allowed-repos`. Does not support wildcards. Defaults to the current repository. |
+| `repository` | string | Explicit repository in `owner/repo` format, or a newline-separated list with `multi: true`. Without `multi`, expressions must resolve to exactly one repository and need no allowlist. Does not support wildcards. Defaults to the current repository. |
 | `repo` | string | Alias for `repository`; specify only one. Does not support wildcards. |
-| `allowed-repos` | string \| string[] | Mandatory allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or an expression; supports scoped patterns such as `owner/*` and `*/repo`, but not unrestricted `"*"` or `"*/*"`. |
-| `max-repos` | integer | Maximum unique repositories per runtime checkout entry. Requires `allowed-repos`; defaults to `10`. Must be a positive literal integer. |
-| `allow-private-repos` | boolean | Allow private/internal targets in a runtime list hosted by a private/internal repository. Requires `allowed-repos`; defaults to `false` and must be a literal boolean. Public hosts always reject non-public targets, even when `true`. |
+| `multi` | boolean | Explicitly enables runtime repository-list expansion and its restrictions. Defaults to `false`; must be a literal boolean. |
+| `allowed-repos` | string \| string[] | Mandatory allowlist for `multi: true`; does not enable multi mode by itself. Accepts newline-separated patterns, an array, or an expression; supports scoped patterns such as `owner/*` and `*/repo`, but not unrestricted `"*"` or `"*/*"`. Ignored in single-repository mode. |
+| `max-repos` | integer | Maximum unique repositories per `multi: true` checkout entry. Requires `allowed-repos` in multi mode; defaults to `10`. Must be a positive literal integer. Ignored in single-repository mode. |
+| `allow-private-repos` | boolean | With `multi: true`, allow private/internal targets in a runtime list hosted by a private/internal repository. Requires `allowed-repos` in multi mode; defaults to `false` and must be a literal boolean. Public hosts always reject non-public multi targets, even when `true`. Ignored in single-repository mode. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
@@ -68,7 +69,16 @@ checkout:
 
 ## Runtime Repository Lists
 
-An entry with `allowed-repos` expands `repository` (or `repo`) at runtime into one checkout per newline-separated `owner/repo` slug. This allows scheduled workers to process a changing repository set supplied through variables, inputs, or earlier step outputs:
+An entry with `multi: true` expands `repository` (or `repo`) at runtime into one checkout per newline-separated `owner/repo` slug. It requires `allowed-repos`. This allows scheduled workers to process a changing repository set supplied through variables, inputs, or earlier step outputs.
+
+Without `multi: true` (including `multi: false`), the runtime requires exactly one `owner/repo` slug. Repository expressions do not require `allowed-repos` or a non-root path prefix. Normal single-checkout authentication, private-repository access, LFS, submodules, `current`, and `wiki` behavior applies; none of the multi-repo restrictions below apply. Merely specifying `allowed-repos` does not enable expansion or constrain a single checkout.
+
+```yaml wrap
+checkout:
+  repo: ${{ inputs.repo }}
+  path: target
+  current: true
+```
 
 `repository` and `repo` select explicit repository names, not wildcard patterns. Their expressions must resolve to concrete `owner/repo` slugs. Wildcards are supported only in `allowed-repos`, which filters the selected list and never discovers or selects repositories.
 
@@ -78,14 +88,15 @@ An entry with `allowed-repos` expands `repository` (or `repo`) at runtime into o
 on:
   schedule: daily
 checkout:
-  - repository: ${{ vars.WORKER_REPOS }}
+  - multi: true
+    repository: ${{ vars.WORKER_REPOS }}
     path: targets
     allowed-repos: ${{ vars.ALLOWED_WORKER_REPOS }}
     max-repos: 5
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
-For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the checkouts are placed at `targets/org/api` and `targets/org/web`. `path` must be a literal, non-root prefix. The compiler requires `allowed-repos` for `repository` or `repo` expressions, even when they select a single repository, except for the standalone `${{ github.repository }}` expression. That expression selects the workflow repository using normal single-checkout behavior and needs neither an allowlist nor a path prefix. Expressions that combine it with other values still require `allowed-repos`. The allowlist may contain scoped wildcard patterns such as `org/*` or `*/api`. Unrestricted patterns such as `*` and `*/*` are rejected, including when an expression resolves to them at runtime. Matching and deduplication are case-insensitive; an empty selected list produces no additional checkouts, not all allowlisted repositories.
+For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the checkouts are placed at `targets/org/api` and `targets/org/web`. With `multi: true`, `path` must be a literal, non-root prefix and `allowed-repos` is mandatory, even if the selector is literal or resolves to just the workflow repository. The allowlist may contain scoped wildcard patterns such as `org/*` or `*/api`. Unrestricted patterns such as `*` and `*/*` are rejected, including when an expression resolves to them at runtime. Matching and deduplication are case-insensitive; an empty selected list produces no additional checkouts, not all allowlisted repositories.
 
 Every selected repository must pass the allowlist and GitHub API metadata checks before the checkout action is generated. Redirected repository names are checked against the allowlist again. Runtime lists allow only public targets by default. Set `allow-private-repos: true` on an entry to also allow private/internal targets when the hosting repository is private/internal. **Public workflow repositories cannot check out private or internal repositories**, even when this flag is `true` and the supplied token can access them. The flag requires `allowed-repos` and a literal boolean; it does not change ordinary static checkouts. Both checkout jobs enforce the same policy, and merged entries permit non-public targets only if every entry explicitly opts in. Omission or `false` prevents an imported entry from broadening access. Failed or incomplete visibility checks stop the job.
 
