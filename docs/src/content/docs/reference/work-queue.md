@@ -466,6 +466,43 @@ safe-output job cannot be recovered from agent logs. See
 [Claim diagnostic artifacts](/gh-aw/patterns/daily-report-portfolio/#claim-diagnostic-artifacts)
 for file purposes and redaction limits.
 
+## Performance regression tests
+
+The offline performance suite exercises the trusted control adapter, checked
+publication, deployment synchronization, reconciliation, and native worker
+binding with an in-memory GitHub API:
+
+```bash
+npm --prefix actions/setup/js run test:work-queue-performance
+```
+
+Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
+100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
+commits. Assertions cover API-call budgets, bounded history verification,
+full-batch retries without writes or duplicate launches, and both REST and
+GraphQL publication. JSON metrics include per-method counts and measured local
+execution time. Simulated network cost assumes 250 ms per read and 500 ms per
+mutation; it is not measured GitHub elapsed time.
+
+Injected-client and custom-auth cases are explicit negative controls for the
+known uncached-history amplification. They must report
+`within_single_traversal_budget: false`. Passing these reproductions does not
+mean the production injected-client cache gap has been fixed.
+
+Optional live-data tests use a privately captured ledger and the exact queue
+head's Git objects already fetched into the current checkout:
+
+```bash
+GH_AW_WORK_QUEUE_PERF_LEDGER=/path/to/private/work-queue.jsonl \
+GH_AW_WORK_QUEUE_PERF_LIVE_HEAD=IMMUTABLE_QUEUE_SHA \
+npm --prefix actions/setup/js run test:work-queue-performance
+```
+
+These tests verify native checkpoint ancestry, compare reconstructed state with
+the captured ledger, and measure cold and repeated reads with and without static
+authentication caching. They make no network requests, publish no queue records,
+and launch no workers. Missing live-data settings skip the optional cases.
+
 ## Operator commands
 
 `gh aw work-queue` defaults to branch `work-queue` and supports Git storage only.
