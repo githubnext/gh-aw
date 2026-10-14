@@ -91,6 +91,7 @@ const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness
 const { isCAPIQuotaExceededError, isCAPIServerError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { parseMultiProviderJson, qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
+const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { isRoutingReasoningEffort } = require("./copilot_routing_effort.cjs");
 const { resolveAWFModelRoutingSelection, isModelAvailableInReflectData, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
 const { recordAWFModelRoutingOutcome } = require("./awf_model_routing.cjs");
@@ -682,10 +683,26 @@ function extractTokenCountFromOutput(output) {
   return total;
 }
 
+/** @param {string} output @returns {boolean} */
+function isCopilotContentFilterError(output) {
+  return output.split(/\r?\n/).some(line => {
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      return false;
+    }
+    if (event?.type !== "assistant.message") return false;
+    const context = copilotSessionContext(event);
+    return context.agentId === undefined && !context.parentToolUseId && getCopilotMessageRefusal(event.data)?.reason === "content_filter";
+  });
+}
+
 /**
  * Classify a failed Copilot attempt into a short, named failure class.
  * @param {{
  *   hasOutput: boolean,
+ *   isContentFiltered?: boolean,
  *   isAuthErr?: boolean,
  *   isAuthenticationFailed?: boolean,
  *   isTransientCAPIError?: boolean,
@@ -709,6 +726,7 @@ function extractTokenCountFromOutput(output) {
  * @returns {string}
  */
 function classifyCopilotFailure(detection) {
+  if (detection.isContentFiltered) return "content_filter";
   if (detection.isModelEndpointMismatch) return "model_endpoint_mismatch";
   if (detection.isModelRoutingFailure) return "model_routing_failed";
   if (detection.isInvocationCapExceeded) return "invocation_cap_exceeded";
@@ -743,6 +761,7 @@ function classifyCopilotFailure(detection) {
  */
 function shouldRetryFailedExecution(params) {
   if (params.exitCode === 0) return false;
+  if (isCopilotContentFilterError(params.output)) return false;
   if (params.isModelRoutingFailure) return false;
   if (hasNumerousPermissionDeniedIssues(params.output)) return false;
   if (isCAPIQuotaExceededError(params.output)) return false;
@@ -1490,6 +1509,7 @@ async function main() {
           const permissionDeniedCount = countPermissionDeniedIssues(result.output);
           const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
           const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
+          const isContentFiltered = isCopilotContentFilterError(result.output);
           const isInvocationCapExceeded = nonRetryableGuard.maxRunsExceeded;
           const tokenCount = extractTokenCountFromOutput(result.output);
           const attemptDurationMs = result.durationMs ?? 0;
@@ -1508,6 +1528,7 @@ async function main() {
           const shouldCheckEventLogForAPIProxyGuard = !nonRetryableGuard.apiProxyGuardRejection && !isTrustedAICreditsBudgetExhausted && (isProxyHTTP403AuthFailure || isAuthenticationFailed);
           const apiProxyGuardRejection = nonRetryableGuard.apiProxyGuardRejection || (shouldCheckEventLogForAPIProxyGuard ? parseAPIProxyGuardRejectionFromEventLog() : null);
           const failureClass = classifyCopilotFailure({
+            isContentFiltered,
             hasOutput: result.hasOutput,
             isModelRoutingFailure,
             isModelEndpointMismatch: !!nonRetryableGuard.modelEndpointMismatch,
@@ -1572,6 +1593,11 @@ async function main() {
                 ` startupRetryEligible=${isStartupRetryEligible}` +
                 ` startupRetries=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES}`
             );
+          }
+
+          if (isContentFiltered) {
+            log(`attempt ${attempt + 1}: model response blocked by content filtering — not retrying; task completion could not be confirmed`);
+            return { action: "stop" };
           }
 
           if (nonRetryableGuard.modelEndpointMismatch) {
@@ -1874,6 +1900,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,
+    isCopilotContentFilterError,
     extractTokenCountFromOutput,
     shouldRetryFailedExecution,
     shouldContinueCopilotSessionAfterFailure,

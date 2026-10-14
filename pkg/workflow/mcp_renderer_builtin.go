@@ -240,7 +240,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 	}
 
 	// JSON format
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies, r.options.ContainerPinMappings)
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies, r.options.ContainerPinMappings, r.options.AllowAgenticWorkflowWrites)
 }
 
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
@@ -274,6 +274,9 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 
 	// Apply container_pins mapping so private-cloud runners use the configured mirror.
 	mounts = append(mounts, agenticWorkflowsMCPHomeMount)
+	if r.options.AllowAgenticWorkflowWrites {
+		entrypointArgs = []string{"mcp-server", "--validate-actor", "--allow-write-tools"}
+	}
 	containerImage = resolveGatewayContainerFromMappings(containerImage, r.options.ContainerPinMappings)
 
 	yaml.WriteString("          container = \"" + containerImage + "\"\n")
@@ -431,7 +434,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
-func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any, containerPinMappings map[string]string) { //nolint:largefunc // Existing config emission preserves field ordering.
+func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any, containerPinMappings map[string]string, allowWriteTools bool) { //nolint:largefunc // Existing config emission preserves field ordering.
 	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP config: isLast=%v, includeCopilotFields=%v, actionMode=%v", isLast, includeCopilotFields, actionMode)
 
 	// Environment variables: map of env var name to value (literal) or source variable (reference)
@@ -484,6 +487,9 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 	// Apply container_pins mapping so private-cloud runners use the configured mirror.
 	mounts = append(mounts, agenticWorkflowsMCPHomeMount)
+	if allowWriteTools {
+		entrypointArgs = []string{"mcp-server", "--validate-actor", "--allow-write-tools"}
+	}
 	containerImage = resolveGatewayContainerFromMappings(containerImage, containerPinMappings)
 
 	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")

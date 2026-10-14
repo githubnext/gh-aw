@@ -34,7 +34,7 @@ const { buildCopilotSDKSessionToolConfig } = require("./copilot_sdk_tool_config.
 const { buildCopilotSDKToolCallBudget } = require("./copilot_sdk_tool_budget.cjs");
 const { resolveModelWithFallback } = require("./model_fallback.cjs");
 const { COPILOT_WORKFLOW_EVENT_TYPES } = require("./copilot_workflow_events.cjs");
-const { copilotSessionContext } = require("./copilot_session.cjs");
+const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 const { qualifyModelForMultiProvider, parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
 
@@ -73,6 +73,10 @@ const DENIAL_GUARD_FORCE_EXIT_MS_DEFAULT = 15 * 1000;
 // no tool calls in flight, and no active inference turn).
 // Override via the GH_AW_SDK_IDLE_MS environment variable.
 const SDK_POST_COMPLETION_IDLE_MS_DEFAULT = 30 * 1000;
+
+function contentFilterError() {
+  return Object.assign(new Error("Copilot model response blocked by content filtering; task completion could not be confirmed."), { code: "content_filter" });
+}
 
 /**
  * Extract the prompt text from a resolved args array.
@@ -227,6 +231,7 @@ async function runWithCopilotSDK({
   let clientStarted = false;
   let toolDenialCount = 0;
   let assistantTurnCount = 0;
+  let contentFiltered = false;
   /** @type {any} */
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
@@ -442,6 +447,10 @@ async function runWithCopilotSDK({
         case "assistant.message": {
           assistantEvents.push(event);
           const content = data.content;
+          if (getCopilotMessageRefusal(data)?.reason === "content_filter") {
+            if (context.agentId === undefined && !context.parentToolUseId) contentFiltered = true;
+            break;
+          }
           if (typeof content === "string" && content && context.agentId === undefined && !context.parentToolUseId) {
             hasOutput = true;
             output += content;
@@ -478,14 +487,14 @@ async function runWithCopilotSDK({
       //   tool call was just started, LLM inference is in progress, or no output yet).
       // The watchdog fires only if sendAndWait never resolves on its own after
       // the final tool result is returned — the common SDK post-completion hang.
-      if (hasOutput && pendingToolCalls.size === 0 && !inAssistantTurn) {
+      if (!contentFiltered && hasOutput && pendingToolCalls.size === 0 && !inAssistantTurn) {
         if (postCompletionWatchdog) clearTimeout(postCompletionWatchdog);
         postCompletionWatchdog = setTimeout(() => {
           postCompletionWatchdog = null;
           // Re-check conditions at fire time: a new tool call could have started
           // or a new turn could have begun between arming the watchdog and the
           // timer firing (race condition guard).
-          if (!hasOutput || pendingToolCalls.size !== 0 || inAssistantTurn || !session) return;
+          if (contentFiltered || !hasOutput || pendingToolCalls.size !== 0 || inAssistantTurn || !session) return;
           log(`warning: post-completion idle watchdog fired after ${postCompletionIdleMs}ms — force-disconnecting session`);
           postCompletionWatchdogTriggered = true;
           void session.disconnect().catch(err => {
@@ -512,6 +521,13 @@ async function runWithCopilotSDK({
       throw catastrophicToolDenialsError;
     }
 
+    const resultContext = result ? copilotSessionContext(result) : {};
+    if (result && resultContext.agentId === undefined && !resultContext.parentToolUseId && getCopilotMessageRefusal(result.data)?.reason === "content_filter") {
+      contentFiltered = true;
+      if (!assistantEvents.some(event => isDeepStrictEqual(event, result))) writeEvent("assistant.message", result.data, result.timestamp, result);
+    }
+    if (contentFiltered) throw contentFilterError();
+
     // sendAndWait returns the last assistant.message event; capture its content
     // as a fallback in case the on() handler missed it.
     if (result && !hasOutput) {
@@ -531,13 +547,13 @@ async function runWithCopilotSDK({
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const failure = catastrophicToolDenialsError ?? (err instanceof Error ? err : new Error(String(err)));
+    const failure = catastrophicToolDenialsError ?? (contentFiltered ? contentFilterError() : err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
 
     // When the post-completion idle watchdog force-disconnected the session, the
     // agent's work is done — the SDK simply failed to resolve sendAndWait after
     // the final tool result was returned.  Treat it as a successful completion.
-    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && hasOutput && pendingToolCalls.size === 0) {
+    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && !contentFiltered && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: post-completion watchdog triggered disconnect — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
       return { exitCode: 0, output, hasOutput, durationMs };
@@ -547,7 +563,7 @@ async function runWithCopilotSDK({
     // output and all tracked tool calls have already completed, the session work is
     // done — the SDK simply failed to emit the idle signal.  Treat it as a successful
     // run so the harness does not classify it as a failure or waste retry attempts.
-    const isIdleTimeout = !catastrophicToolDenialsError && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
+    const isIdleTimeout = !catastrophicToolDenialsError && !contentFiltered && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
     if (isIdleTimeout && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: SDK idle-timeout with collected output and no pending tool calls — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);

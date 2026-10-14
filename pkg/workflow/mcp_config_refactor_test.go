@@ -195,7 +195,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderAgenticWorkflowsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields, tt.actionMode, nil, nil)
+			renderAgenticWorkflowsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields, tt.actionMode, nil, nil, false)
 
 			result := output.String()
 
