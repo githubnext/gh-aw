@@ -70,7 +70,11 @@ jobs:
 > passes only when the agent artifact contains the firewall's
 > `ai_credits_limit_exceeded` event for the configured cap of 1 AI credit.
 > Assistant text, a successful exit, `noop`, and credit totals alone are not
-> evidence that the firewall rejected a request.
+> evidence that the firewall rejected a request. The verifier binds the artifact
+> to this repository, run ID and run attempt. If structured rejection evidence
+> is missing, it reports the collected firewall record count, last AWF usage
+> total and any top-level Codex terminal credit rejection separately. These
+> diagnostics never turn an unverified outcome into a pass.
 
 #### What This Tests
 

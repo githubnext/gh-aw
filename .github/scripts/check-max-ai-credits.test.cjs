@@ -6,8 +6,12 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
-const { LOG_PATHS, verifyCreditLimit } = require("./check-max-ai-credits.cjs");
+const { LOG_PATHS, USAGE_PATH, verifyCreditLimit: verify } = require("./check-max-ai-credits.cjs");
+const expected = { runId: "38556022048", runAttempt: "1", repository: "github/gh-aw" };
+const verifyCreditLimit = directory => verify(directory, expected);
+const captured = require("./fixtures/max-ai-credits-rejection-38556022048.json");
 
+// Contract fixture, not a captured producer event.
 const rejection = { event: "ai_credits_limit_exceeded", total_ai_credits: 1.02, max_ai_credits: 1, hard_cap: false };
 
 test("workflow bounds one-session tool continuation and gates its conclusion on runtime evidence", () => {
@@ -39,6 +43,7 @@ function fixture(t) {
     fs.writeFileSync(filename, content);
   };
   write("awf-config.json", JSON.stringify({ apiProxy: { maxAiCredits: 1 } }));
+  write("aw_info.json", JSON.stringify(captured.info));
   return { directory, write };
 }
 
@@ -91,7 +96,7 @@ test("accepts a rejection at exactly the cap", t => {
 
 test("missing logs fail verification", t => {
   const { directory } = fixture(t);
-  assert.throws(() => verifyCreditLimit(directory), /runtime evidence may be missing/);
+  assert.throws(() => verifyCreditLimit(directory), /Runtime evidence may be missing/);
 });
 
 test("a different compiled cap fails even with a matching event", t => {
@@ -122,7 +127,11 @@ test("malformed configuration fails without echoing its contents", t => {
 test("CLI exits nonzero for unexpected completion and writes a summary only on pass", t => {
   const { directory, write } = fixture(t);
   const summary = path.join(directory, "summary.md");
-  const run = () => spawnSync(process.execPath, [path.join(__dirname, "check-max-ai-credits.cjs"), directory], { encoding: "utf8", env: { ...process.env, GITHUB_STEP_SUMMARY: summary } });
+  const run = () =>
+    spawnSync(process.execPath, [path.join(__dirname, "check-max-ai-credits.cjs"), directory], {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_STEP_SUMMARY: summary, GITHUB_RUN_ID: expected.runId, GITHUB_RUN_ATTEMPT: expected.runAttempt, GITHUB_REPOSITORY: expected.repository },
+    });
   const failed = run();
   assert.equal(failed.status, 1);
   assert.match(failed.stderr, /enforcement remains unverified/);
@@ -131,4 +140,102 @@ test("CLI exits nonzero for unexpected completion and writes a summary only on p
   const passed = run();
   assert.equal(passed.status, 0);
   assert.match(fs.readFileSync(summary, "utf8"), /Passed: AWF recorded/);
+});
+
+test("captured genuine Codex rejection remains unverified without a structured AWF rejection", t => {
+  const { directory, write } = fixture(t);
+  write("awf-config.json", JSON.stringify(captured.config));
+  write(
+    LOG_PATHS.find(name => name.includes("token-tracker-audit")),
+    captured.tracker.map(entry => JSON.stringify(entry)).join("\n")
+  );
+  write(USAGE_PATH, JSON.stringify(captured.usage));
+  write("agent-stdio.log", JSON.stringify(captured.terminalError));
+  assert.throws(
+    () => verifyCreditLimit(directory),
+    error =>
+      /Inspected 2 records in 1 candidate firewall files/.test(error.message) &&
+      /check AWF rejection-event emission and artifact collection/.test(error.message) &&
+      /Last AWF token_usage total: 1.021966 \(at\/above cap 1\)/.test(error.message) &&
+      /Codex terminal API error reports credit rejection \(1.021966 \/ 1\)/.test(error.message) &&
+      /enforcement remains unverified/.test(error.message)
+  );
+});
+
+for (const info of [{ ...captured.info, run_id: 38242557753 }, { ...captured.info, run_attempt: "2" }, { ...captured.info, repository: "another/repository" }, {}, null]) {
+  test(`rejects wrong or missing artifact identity ${JSON.stringify(info)}`, t => {
+    const { directory, write } = fixture(t);
+    write("aw_info.json", JSON.stringify(info));
+    write(LOG_PATHS[0], JSON.stringify(rejection));
+    assert.throws(() => verifyCreditLimit(directory), /artifact repository\/run\/attempt does not match/);
+  });
+}
+
+for (const identity of [{ run_id: 38242557753 }, { run_attempt: 2 }, { repository: "another/repository" }]) {
+  test(`rejects explicit wrong-run rejection even after qualifying evidence ${JSON.stringify(identity)}`, t => {
+    const { directory, write } = fixture(t);
+    write(LOG_PATHS[0], [rejection, { ...rejection, ...identity }].map(entry => JSON.stringify(entry)).join("\n"));
+    assert.throws(() => verifyCreditLimit(directory), /Firewall rejection repository\/run\/attempt does not match/);
+  });
+}
+
+test("verification requires an independently supplied expected run identity", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify(rejection));
+  assert.throws(() => verify(directory, {}), /Expected repository, run ID and run attempt are required/);
+  fs.rmSync(path.join(directory, "aw_info.json"));
+  assert.throws(() => verifyCreditLimit(directory), /Missing aw_info.json/);
+  write("aw_info.json", "PRIVATE_PAYLOAD");
+  assert.throws(
+    () => verifyCreditLimit(directory),
+    error => /Invalid JSON in aw_info.json/.test(error.message) && !error.message.includes("PRIVATE_PAYLOAD")
+  );
+});
+
+test("malformed tracker or usage evidence fails even after a valid rejection", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify(rejection));
+  const trackerPath = LOG_PATHS.find(name => name.includes("token-tracker-audit"));
+  write(trackerPath, "PRIVATE_PAYLOAD");
+  assert.throws(() => verifyCreditLimit(directory), /Invalid firewall JSONL.*token-tracker-audit/);
+  write(trackerPath, "");
+  write(USAGE_PATH, "PRIVATE_PAYLOAD");
+  assert.throws(() => verifyCreditLimit(directory), /Invalid firewall JSONL.*token-usage/);
+});
+
+for (const entry of [
+  { type: "error", message: "unexpected status 403 Forbidden: Access denied." },
+  { type: "item.completed", item: { type: "command_execution", aggregated_output: JSON.stringify(captured.terminalError) } },
+  { type: "error", message: `Quoted previous-run log: ${captured.terminalError.message}` },
+  { type: "report_incomplete", message: captured.terminalError.message },
+  { type: "error", message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.02 / 2)." },
+]) {
+  test(`never passes on non-authoritative agent evidence ${entry.type}: ${entry.message || "tool output"}`, t => {
+    const { directory, write } = fixture(t);
+    write("agent-stdio.log", JSON.stringify(entry));
+    assert.throws(() => verifyCreditLimit(directory), /enforcement remains unverified/);
+    if (entry !== undefined && entry.message !== "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.02 / 2).") {
+      assert.throws(
+        () => verifyCreditLimit(directory),
+        error => !error.message.includes("Codex terminal API error reports")
+      );
+    }
+  });
+}
+
+test("diagnostics omit untrusted payloads and do not mistake below-cap usage for missing usage", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify({ event: "request_complete", message: "PRIVATE_PAYLOAD" }));
+  write(USAGE_PATH, JSON.stringify({ event: "token_usage", ai_credits_total: 0.39811 }));
+  write("agent-stdio.log", JSON.stringify({ ...captured.terminalError, message: `${captured.terminalError.message} PRIVATE_PAYLOAD` }));
+  assert.throws(
+    () => verifyCreditLimit(directory),
+    error => /below cap 1/.test(error.message) && !error.message.includes("PRIVATE_PAYLOAD")
+  );
+});
+
+test("invalid structured rejection fields are diagnosed without becoming passing evidence", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify({ ...rejection, max_ai_credits: 2 }));
+  assert.throws(() => verifyCreditLimit(directory), /1 credit rejection records had invalid cap, usage or hard_cap fields/);
 });

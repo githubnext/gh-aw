@@ -1,0 +1,22 @@
+{
+  "provenance": "Normalized diagnostic fields from github/gh-aw Actions run 38556022048, attempt 1, SHA 462ed682857c4ab64d40f2c85e3738fa27834839. URLs, request IDs, prompts and payloads omitted. No structured AWF rejection event was collected.",
+  "info": {
+    "engine_id": "codex",
+    "run_id": 38556022048,
+    "run_attempt": "1",
+    "repository": "github/gh-aw"
+  },
+  "config": {
+    "apiProxy": { "maxAiCredits": 1 }
+  },
+  "usage": {
+    "event": "token_usage",
+    "status": 200,
+    "ai_credits_total": 1.021966
+  },
+  "tracker": [{ "event": "TRACK_START" }, { "event": "TRACK_END" }],
+  "terminalError": {
+    "type": "error",
+    "message": "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.021966 / 1)."
+  }
+}
