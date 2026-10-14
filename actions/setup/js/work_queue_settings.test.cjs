@@ -182,4 +182,19 @@ describe("work_queue scheduling settings", () => {
       );
     }
   });
+
+  it("rejects invalid issue label and title_prefix literals at their byte limits", () => {
+    const cases = [
+      [{ label: "x".repeat(34) }, "work_queue.issues.label"],
+      [{ label: "  " }, "work_queue.issues.label"],
+      [{ label: "${{ github.actor }}" }, "work_queue.issues.label"],
+      [{ label: "a\u0000b" }, "work_queue.issues.label"],
+      [{ label: "a\uD800" }, "work_queue.issues.label"],
+      [{ title_prefix: "x".repeat(81) }, "work_queue.issues.title_prefix"],
+      [{ title_prefix: "${{ x }}" }, "work_queue.issues.title_prefix"],
+      [{ title_prefix: "a\uDC00b" }, "work_queue.issues.title_prefix"],
+    ];
+    for (const [issues, property] of cases) assert.throws(() => parseSettings({ issues }), new RegExp(property.replace(/\./g, "\\.")));
+    assert.deepEqual(parseSettings({ issues: { label: "x".repeat(33), title_prefix: "y".repeat(80) } }).issues, { label: "x".repeat(33), title_prefix: "y".repeat(80) });
+  });
 });
