@@ -31,6 +31,13 @@ func validateCheckoutAllowedRepos(values []string) error {
 	return nil
 }
 
+func generateSingleCheckoutValidationStep(entry *resolvedCheckout, index int, getActionPin func(string) string) string {
+	var env strings.Builder
+	writeYAMLEnv(&env, "          ", "GH_AW_CHECKOUT_REPOSITORY", entry.key.repository)
+	return fmt.Sprintf("      - name: Validate single checkout repository (%d)\n        uses: %s\n        env:\n%s        with:\n          script: |\n            const { validateSingleRepository } = require('${{ runner.temp }}/gh-aw/actions/checkout_dynamic.cjs');\n            validateSingleRepository(process.env.GH_AW_CHECKOUT_REPOSITORY);\n",
+		index, getActionPin("actions/github-script"), env.String())
+}
+
 func generateDynamicCheckoutSteps(entry *resolvedCheckout, index int, keepCredentials bool, pushToken string, getActionPin func(string) string) []string {
 	env := buildDynamicCheckoutEnvironment(entry, index, keepCredentials, pushToken, getActionPin)
 	prepare := buildDynamicCheckoutScriptStep("Validate runtime checkout repositories", "prepare", "await prepare({ core, github, getOctokit });", index, env, getActionPin)
@@ -47,7 +54,7 @@ func generateDynamicCheckoutSteps(entry *resolvedCheckout, index int, keepCreden
 func dynamicCheckoutFailureOutput(configs []*CheckoutConfig) string {
 	var outputs []string
 	for index, entry := range NewCheckoutManager(configs).ordered {
-		if len(entry.allowedRepos) > 0 {
+		if entry.key.multi {
 			outputs = append(outputs, fmt.Sprintf("steps.checkout-validate-%d.outputs.checkout_error", index))
 		}
 	}

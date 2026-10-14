@@ -54,6 +54,7 @@ func TestSafeOutputDynamicCheckoutTokenPriority(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			entry := tt.entry
+			entry.Multi = true
 			entry.Repository = "${{ inputs.repositories }}"
 			entry.Path = "one/two/three/four/five/six/targets"
 			entry.AllowedRepos = []string{"org/*"}
@@ -87,7 +88,7 @@ func TestSafeOutputDynamicCheckoutKeepsHostingAndStaticAuth(t *testing.T) {
 	configs := []*CheckoutConfig{
 		{GitHubToken: "${{ secrets.HOST_TOKEN }}"},
 		{Repository: "org/static", Path: "static"},
-		{Repository: "${{ inputs.repositories }}", Path: "targets", AllowedRepos: []string{"org/*"}},
+		{Repository: "${{ inputs.repositories }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}},
 	}
 	data := &WorkflowData{
 		CheckoutConfigs: configs,
@@ -107,7 +108,7 @@ func TestSafeOutputDynamicCheckoutDoesNotInheritAnotherEntryApp(t *testing.T) {
 	data := &WorkflowData{
 		CheckoutConfigs: []*CheckoutConfig{
 			{Repository: "org/current", Path: "current", Current: true, SafeOutputGitHubApp: app},
-			{Repository: "${{ inputs.repositories }}", Path: "targets", AllowedRepos: []string{"org/*"}},
+			{Repository: "${{ inputs.repositories }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}},
 		},
 		SafeOutputs: &SafeOutputsConfig{
 			GitHubApp:          app,
@@ -137,7 +138,8 @@ on:
         required: true
 engine: copilot
 checkout:
-  - repository: ${{ inputs.repositories }}
+  - multi: true
+    repository: ${{ inputs.repositories }}
     path: one/two/three/four/five/six/targets
     allowed-repos: ["org/*"]
 safe-outputs:

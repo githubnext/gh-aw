@@ -25,7 +25,7 @@ var checkoutPathValidationLog = logger.New("workflow:checkout_path_validation")
 //
 // Dynamic repository expressions (those containing "${{") are skipped: the compiler
 // cannot determine the selected repositories at compile time. These entries
-// require allowed-repos and an explicit path prefix when parsed from frontmatter.
+// require an allowlist and path prefix only when multi: true is enabled.
 //
 // NOTE: This pass intentionally mutates the provided CheckoutConfig entries before
 // YAML generation. It also intentionally remains warning-only, even in strict mode,

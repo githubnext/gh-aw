@@ -31,7 +31,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
-const { maskSecret, maskAuthorizationValue } = require("./actions_secret_masking.cjs");
+const { maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -118,7 +118,7 @@ function getPrimaryOTLPEndpoint(endpointsRaw) {
  * @returns {Promise<void>}
  */
 async function run() {
-  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints, parseOTLPHeaders } = require("./send_otlp_span.cjs");
+  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints } = require("./send_otlp_span.cjs");
 
   const rawStartMs = process.env.SETUP_START_MS;
   const parsedMs = /^\d+$/.test(rawStartMs ?? "") ? Number(rawStartMs) : NaN;
@@ -167,14 +167,7 @@ async function run() {
 
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
-  for (const headers of [process.env.OTEL_EXPORTER_OTLP_HEADERS, process.env.GH_AW_OTLP_ALL_HEADERS, ...parsedEndpoints.map(endpoint => endpoint.headers)]) {
-    // Parse each pair separately so repeated names cannot discard credentials.
-    for (const pair of (headers || "").split(",")) {
-      for (const value of Object.values(parseOTLPHeaders(pair))) {
-        maskAuthorizationValue(value);
-      }
-    }
-  }
+  for (const secret of getOTLPSecretValues()) maskSecret(secret);
   if (endpoints) {
     const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
     const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
