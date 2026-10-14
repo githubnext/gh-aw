@@ -360,6 +360,32 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
   });
 
   describe("E008: Link Count Violations", () => {
+    it.each(["max_links", "max-links"])("should enforce configured %s before recording output", async key => {
+      vi.stubGlobal("context", { eventName: "pull_request", payload: { pull_request: { number: 42 } }, repo: { owner: "owner", repo: "repo" } });
+      const handlersModule = await import("./safe_outputs_handlers.cjs");
+      const appendModule = await import("./safe_outputs_append.cjs");
+      const handlers = handlersModule.createHandlers(server, appendModule.createAppendFunction(outputFile), {
+        "add-comment": { [key]: 75 },
+      });
+      registerTool(server, {
+        ...JSON.parse(fs.readFileSync(toolsFile, "utf8"))[0],
+        handler: handlers.addCommentHandler,
+      });
+      const call = body =>
+        handleRequest(server, {
+          jsonrpc: "2.0",
+          id: 30,
+          method: "tools/call",
+          params: { name: "add_comment", arguments: { body } },
+        });
+      const accepted = await call("https://example.com/screenshot ".repeat(75));
+      expect(accepted.result.isError).not.toBe(true);
+      const rejected = await call("https://example.com/screenshot ".repeat(76));
+      expect(rejected.error.code).toBe(-32602);
+      expect(rejected.error.message).toMatch(/E008.*76.*maximum is 75/);
+      expect(fs.readFileSync(outputFile, "utf8").trim().split("\n")).toHaveLength(1);
+    });
+
     it("should reject comment with too many links", async () => {
       const links = Array.from({ length: 51 }, (_, i) => `https://example.com/${i}`).join(" ");
       const request = {

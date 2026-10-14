@@ -414,10 +414,13 @@ Posts comments on issues, PRs, or discussions. Defaults to triggering item; use 
 
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
+`max-links` accepts a positive integer and defaults to 50. It counts every `http://` or `https://` URL occurrence in agent-provided content, including repeated URLs. Generated footer and metadata links do not count toward this limit. Both tool invocation and comment posting enforce the configured limit; the final body still must satisfy length and mention limits. Raise `max-links` for trusted link-heavy reports.
+
 ```yaml wrap
 safe-outputs:
   add-comment:
     max: 3                       # max comments (default: 1)
+    max-links: 100                # max URL occurrences in agent content (default: 50)
     target: "*"                  # "triggering" (default), "*", or number
     allows-comment-ids: ${{ needs.prepare.outputs.comment_ids }} # comment IDs the agent may update when target is "*"
     discussions: true            # request discussions:write permission (default: false)

@@ -128,6 +128,36 @@ describe("add_comment", () => {
     delete process.env.GH_AW_COMMENT_ID;
   });
 
+  describe("link limits", () => {
+    it.each([
+      [{}, 50, true],
+      [{ footer: false }, 50, true],
+      [{}, 51, false],
+      [{ max_links: 75 }, 75, true],
+      [{ max_links: 75 }, 76, false],
+      [{ "max-links": 2 }, 3, false],
+    ])("should enforce the agent link budget for config %j and %i links", async (config, count, success) => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const createComment = vi.fn(mockGithub.rest.issues.createComment);
+      mockGithub.rest.issues.createComment = createComment;
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main(${JSON.stringify(config)}); })()`);
+      const body = "https://github.com/owner/repo/issues/42 ".repeat(count);
+      const result = await handler({ type: "add_comment", body }, {});
+      expect(result.success).toBe(success);
+      if (success) {
+        expect(createComment).toHaveBeenCalledOnce();
+        const postedBody = createComment.mock.calls[0][0].body;
+        expect(postedBody).toContain(body.trim());
+        if (config.footer !== false) {
+          expect((postedBody.match(/https?:\/\//g) || []).length).toBeGreaterThan(count);
+        }
+      } else {
+        expect(result.error).toMatch(/E008/);
+        expect(createComment).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   describe("target configuration", () => {
     it("should use triggering PR context when target is 'triggering'", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");

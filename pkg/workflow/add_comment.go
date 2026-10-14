@@ -15,6 +15,7 @@ type AddCommentConfig = AddCommentsConfig
 type AddCommentsConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputFilterConfig `yaml:",inline"`
+	MaxLinks               int      `yaml:"max-links,omitempty"`                 // Maximum URLs in agent content (default: 50); generated metadata is excluded
 	Target                 string   `yaml:"target,omitempty"`                    // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`               // Target repository in format "owner/repo" for cross-repository comments
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`             // List of additional repositories that comments can be added to (additionally to the target-repo)
