@@ -341,8 +341,8 @@ describe("unified session publication views", () => {
     expect(trace).toEqual(original);
     const markdown = generateCopilotCliStyleSummary(trace);
     expect(markdown).toContain("Done <details>");
-    expect(markdown).toContain("<details><summary>Unified session</summary>");
-    expect(markdown).not.toContain("### Unified session");
+    expect(markdown).toMatch(/^### Unified session\n\n/);
+    expect(markdown).not.toContain("<summary>Unified session</summary>");
     expect(markdown).not.toContain("=== Unified session ===");
     expect(markdown).not.toContain("| Time |");
   });
@@ -375,6 +375,18 @@ describe("unified session publication views", () => {
     expect(conversation).not.toContain("Statistics:");
     expect(markdown).toContain("<details><summary>Session overview</summary>");
     expect(markdown).not.toContain("<details open");
+    let disclosureDepth = 0;
+    for (const match of markdown.matchAll(/<details>|<\/details>|### Conversation/g)) {
+      if (match[0] === "<details>") {
+        disclosureDepth++;
+        expect(disclosureDepth).toBe(1);
+      } else if (match[0] === "</details>") {
+        disclosureDepth--;
+      } else {
+        expect(disclosureDepth).toBe(0);
+      }
+    }
+    expect(disclosureDepth).toBe(0);
     expect(events).toEqual(original);
   });
 
@@ -829,7 +841,7 @@ describe("unified session publication views", () => {
     expect(markdown).not.toContain("&gt;");
     expect(markdown.slice(fences[2].index, fences[3].index)).toContain("<script>");
     expect(markdown.slice(fences[4].index, fences[5].index)).toContain("<script>");
-    expect(markdown.slice(fences[5].index + fences[5][0].length).trim()).toMatch(/^<\/details>\s+<\/details>$/);
+    expect(markdown.slice(fences[5].index + fences[5][0].length).trim()).toBe("</details>");
   });
 
   it("clips oversized views with explicit notices without trimming the source artifact", () => {
@@ -880,7 +892,8 @@ describe("unified session publication views", () => {
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("mcp.tool_call"));
     const output = fs.readFileSync(summary, "utf8");
     expect(output.startsWith("Earlier summary\n")).toBe(true);
-    expect(output.match(/<summary>Unified session<\/summary>/g)).toHaveLength(1);
+    expect(output.match(/^### Unified session$/gm)).toHaveLength(1);
+    expect(output).not.toContain("<summary>Unified session</summary>");
     expect(output).toContain("mcp.tool_call");
   });
 
