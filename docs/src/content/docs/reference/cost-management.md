@@ -209,7 +209,7 @@ gh-aw does not compile a synthetic price for the selector itself. Requests are a
 
 The same rule applies to `apiProxy.maxModelMultiplierCap`: the cap is evaluated against the multiplier of the *resolved* concrete model, not against the dynamic selector. A selector such as `auto` therefore never bypasses the cap — a request routed to a model whose multiplier exceeds the cap is rejected with HTTP 400 (`model_multiplier_cap_exceeded`). Models without an explicit multiplier use `defaultModelMultiplier` when configured, otherwise the highest configured multiplier.
 
-For task-level model routing, see the [Model Routing guide](/gh-aw/reference/model-routing/) for configuration and for interpreting classifier overhead, selected-route costs, and deviations in `gh aw audit` and `gh aw logs`.
+For task-level model routing, see the [Model Routing guide](/gh-aw/reference/model-routing/) for configuration, and the [Audit](/gh-aw/reference/audit/) page for interpreting classifier overhead, selected-route costs, and deviations in `gh aw audit` and `gh aw logs`.
 
 ### Cap Turns per Run
 

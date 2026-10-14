@@ -1,47 +1,129 @@
 ---
 title: Model Routing
-description: Configure experimental per-run Copilot model and reasoning-effort selection for Copilot, Claude, Codex, and pi engines.
+description: Let each workflow run use a model and reasoning effort suited to its task, chosen from the models the workflow allows.
 sidebar:
   order: 605
 ---
 
 > [!WARNING]
-> Model routing is experimental. Review the [known limitations](#known-limitations) before enabling it.
+> Model routing is experimental, and its configuration and behavior may change. Review the [known limitations](#known-limitations) before enabling it.
 
-## How routing works
+Model routing chooses the model and reasoning effort for each run of a workflow, based on the task that run receives. Instead of naming one model in `engine.model` and using it for everything, you state what to optimize for and which models are acceptable, and a router makes the choice for each run.
 
-`engine.model-routing` chooses a Copilot model and reasoning effort once per run, before the agent starts, instead of using a fixed model. It supports the Copilot, Claude, Codex, and pi engines, each using the Copilot API. When routing is enabled, `engine.model` and any configured effort setting are ignored.
+## Why use model routing
 
-AWF's API proxy makes a small LLM call to classify the workflow's task text from `user.txt`, not gh-aw's system instructions. This text includes anything interpolated into the workflow prompt, such as issue bodies. The classifier treats it as untrusted data, not instructions to follow.
+**Right-size the model for each task.** Most workflows get tasks of varying difficulty. An issue-triage workflow might get a typo report one day and a bug that spans several services the next. A single fixed model is a compromise: a large model spends AI Credits on easy tasks, and a small model struggles with hard ones. With routing, routine tasks run on small, inexpensive models, and harder tasks get stronger models or more reasoning effort. The workflow can cost less than it would on one large model, and produce better results on hard tasks than it would on one small model.
 
-The public [githubnext/gh-aw-router](https://github.com/githubnext/gh-aw-router) then ranks the allowed model-and-effort choices using precompiled routing tables fitted on benchmark results and model capability data. Models not covered by the tables are never selected, even if allowed. The [router README](https://github.com/githubnext/gh-aw-router/blob/main/README.md) describes the classification labels, profiles, `/classify` and `/route` APIs, and table format. The router does not itself call an LLM; AWF executes the classifier call.
+**Stop hard-coding model names.** Models are added and retired regularly. A workflow that pins a model in `engine.model` fails when that model is retired, and it keeps using that model after better or cheaper ones appear, until someone edits it. A routed workflow describes which models are acceptable, for example every GPT model, or every model except the most expensive ones. The router skips models that are no longer available, and new models become candidates when you upgrade gh-aw. See [Keeping up with new models](#keeping-up-with-new-models).
 
-The selection is advisory. Requests for other policy-allowed models are admitted and logged as deviations, rather than rejected merely for differing from the selection.
+A fixed model is still the better fit when you need the same behavior on every run, because routing can choose differently for similar tasks, or when the task depends on one model's specific capabilities.
 
-The workflow's request policy is set only by `models.allowed` and `models.blocked` (see [Model Policy](/gh-aw/reference/glossary/#model-policy-modelsallowed-modelsblocked)), exactly as for non-routed workflows. The compiler writes them to AWF `apiProxy.allowedModels` and `disallowedModels`. The main agent, built-in agents such as `explore`, and declared sub-agents may use any model that policy allows. Without either field, every model is allowed.
+## Get started
 
-The optional `allowed-models` is the router's candidate list for the main agent only. The compiler narrows it by the model policy and writes the result to AWF `routing.candidateModels`; it warns when the policy removes some candidates and fails when it removes all of them. When `allowed-models` is omitted, the router selects from AWF's model catalogue filtered by the model policy. For Claude and Codex, the compiler limits the candidates to the engine's model family (`claude-*` or `gpt-*`), so the router cannot pick a model the engine cannot call. Compilation fails when the policy leaves no model in that family.
+To route a workflow, add `model-routing` under `engine` with a `goal` and a `mode`:
 
-| `models.allowed` | `models.blocked` | `allowed-models` | Router selects from | Session and sub-agents may use |
-|---|---|---|---|---|
-| – | – | – | every routable model (engine family for Claude and Codex) | every model |
-| – | – | set | `allowed-models` | every model |
-| – | set | – | all models except blocked (for Claude and Codex, the engine family intersected with the policy) | all models except blocked |
-| – | set | set | `allowed-models` except blocked | all models except blocked |
-| set | – | – | allowed models (for Claude and Codex, the engine family intersected with the policy) | allowed models |
-| set | – | set | `allowed-models` that are allowed | allowed models |
-| set | set | – | allowed models except blocked (for Claude and Codex, the engine family intersected with the policy) | allowed models except blocked |
-| set | set | set | `allowed-models` that are allowed and not blocked | allowed models except blocked |
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+  copilot-requests: write
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+safe-outputs:
+  add-comment:
+---
 
-## Configuration
+Find the likely cause of issue #${{ github.event.issue.number }} and comment with a suggested fix.
+```
 
-`goal` and `mode` are required; `allowed-models` is optional:
+This configuration is a good starting point for most workflows. `goal: cost` prefers the cheapest choice that is likely to succeed, and `mode: auto` lets the router judge how demanding each task is. Because the workflow doesn't restrict models, the router can choose any model it supports that your organization's Copilot plan offers. [Choose which models the router can use](#choose-which-models-the-router-can-use) shows how to narrow that.
 
-| Field | Values | Meaning |
+Routing currently works only with models served through GitHub Copilot, so the workflow needs Copilot authentication, here through the [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) permission. Workflows that call model providers such as Anthropic or OpenAI directly, with their own API keys, can't use routing yet; see [GitHub Copilot models only](#github-copilot-models-only). Routing also needs the AWF firewall, which is enabled by default. The Copilot and pi engines need nothing else. Claude and Codex need one more setting; see [Use routing with Claude, Codex, or pi](#use-routing-with-claude-codex-or-pi).
+
+Compile and run the workflow as usual. To see which model a run used, see [Check which model was used](#check-which-model-was-used).
+
+If the workflow already sets `engine.model`, or another fixed model or reasoning effort setting, routing overrides it and the compiler warns. Remove the fixed setting once routing is enabled.
+
+## Choose a goal and mode
+
+`goal` and `mode` are both required. Together they tell the router how to trade cost against the chance that the task succeeds.
+
+The **mode** sets how likely the chosen model and effort should be to complete the task. Higher targets lead to stronger models and more reasoning effort, and so to higher cost:
+
+| `mode` | Target | Use it for |
 |---|---|---|
-| `goal` | `cost`, `cost-speed` | `cost` prefers the cheapest model-and-effort choice that meets the quality bar. `cost-speed` also weighs execution time. |
-| `mode` | `economy`, `balanced`, `robust`, `auto` | `economy`, `balanced`, and `robust` set increasing quality bars, generally with increasing cost. `auto` lets the classifier recommend one of these three profiles for the task. |
-| `allowed-models` | Optional non-empty list of Copilot model IDs | The router's candidates for the main agent. It does not restrict sub-agents or other requests; use `models.allowed` and `models.blocked` for that. When omitted, the router selects from the policy-filtered catalogue (the engine's model family for Claude and Codex). Claude accepts Claude models only; Codex accepts GPT models; pi accepts any Copilot model. Each runtime verifies that the selected model advertises support for its API. The organization must have access to the models, and the routing tables must cover them for selection. Required with AWF before v0.28.33. |
+| `economy` | Lowest | Routine, low-risk tasks such as triage, labeling, and summaries. |
+| `balanced` | Medium | General-purpose work. |
+| `robust` | Highest | Tasks where a failed run is costly, such as workflows that open pull requests. |
+| `auto` | Chosen per run | Workflows whose tasks vary. The router picks `economy`, `balanced`, or `robust` for each task. |
+
+The **goal** decides which of the choices that meet the target the router prefers:
+
+| `goal` | Prefers |
+|---|---|
+| `cost` | The cheapest model and effort that meet the target. |
+| `cost-speed` | The fastest model and effort that meet the target, even when a slower choice would cost less. |
+
+If you're unsure, start with `goal: cost` and `mode: auto`. Set a fixed mode when you know what kind of tasks the workflow gets, for example `economy` for a labeling workflow. Choose `cost-speed` when someone is waiting on the result, such as a workflow that replies to a comment.
+
+Targets are success rates estimated from benchmark results on similar tasks, not guarantees for a particular repository. The router can choose below the target when no candidate meets it or, with `goal: cost`, when a choice just below the target costs much less.
+
+## Choose which models the router can use
+
+By default, the router chooses from every model it supports that your organization's Copilot plan offers. Two settings narrow that, and they do different jobs:
+
+| Setting | What it does | Applies to | Entries |
+|---|---|---|---|
+| `models.allowed` and `models.blocked` | Sets which models the workflow may use at all. The firewall rejects requests for other models. | Every model request in the run: the main agent, sub-agents, and built-in agents | Model names or patterns with `*` |
+| `engine.model-routing.allowed-models` | Gives the router a shortlist to choose from. | Only the router's choice for the main agent | Exact model names |
+
+`models.allowed` and `models.blocked` are the workflow's [model policy](/gh-aw/reference/glossary/#model-policy-modelsallowed-modelsblocked), and they work the same way with or without routing. Use them for rules such as "only GPT models" or "never Opus models". Use `allowed-models` when you want the router to choose among a few specific models. Most workflows need only one of the two. The examples below show common setups.
+
+### Only one model family
+
+To let the router choose among all GPT models, put a pattern in the model policy and omit `allowed-models`:
+
+```aw wrap
+models:
+  allowed: ["gpt-*"]
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+```
+
+New GPT models become candidates without editing the workflow. Because the policy applies to the whole run, sub-agents are also limited to GPT models.
+
+> [!NOTE]
+> `allowed-models` accepts exact model names only. A pattern such as `allowed-models: ["gpt-*"]` fails to compile. Put patterns in `models.allowed` or `models.blocked` instead.
+
+### Every model except the most expensive
+
+To keep the router away from the most expensive models, block them in the model policy:
+
+```aw wrap
+models:
+  blocked: ["claude-opus-*"]
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: robust
+```
+
+This is useful with `mode: robust`, which chooses stronger models more often.
+
+### A fixed shortlist
+
+To let the router choose only among models you've tested the workflow with, list them in `allowed-models`:
 
 ```aw wrap
 engine:
@@ -49,63 +131,46 @@ engine:
   model-routing:
     goal: cost
     mode: auto
-    allowed-models:
-      - gpt-5.4-mini
-      - gpt-5.4
-      - gpt-5.6-luna
+    allowed-models: [gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-sol]
 ```
 
-Candidate lists from imported workflows using the same engine are merged. Routing adds one classifier call per run, typically costing a fraction of a credit.
+The router never considers other models, including new ones, so update the list as models change. If a listed model is retired, the router chooses among the others, and if none is available, the run fails. The shortlist doesn't affect sub-agents.
 
-## Requirements
+### A policy and a shortlist together
 
-Routing requires the AWF firewall enabled and GitHub Copilot inference. It supports `copilot`, `claude`, `codex`, and `pi`; the compiler rejects other engines, non-Copilot providers, and incompatible literal model candidates. Claude Code uses the native Messages API and Codex uses the Responses API, so their candidate lists are restricted by model family. Expressions in `allowed-models` cannot be checked by the compiler. For non-Copilot engines, AWF's selected endpoint is advisory: Claude and Codex verify through `/reflect` `routing_models.supported_endpoints` that the selected model supports the engine's API, then use that API. Pi resolves its API from the Pi/AWF model catalog and verifies the corresponding endpoint against the same reflected metadata. These checks fail closed when candidate metadata is incomplete or the model does not advertise a compatible endpoint.
-
-The provider must resolve to GitHub Copilot inference. Copilot and pi default to `github`. Claude defaults to Anthropic and Codex to OpenAI, so routed Claude and Codex workflows must set `engine.model-provider: github`. Any other provider, whether a default or set explicitly, fails compilation.
+When a workflow sets both, the router chooses from the `allowed-models` entries that the policy allows. `allowed-models` can't permit a model that the policy excludes:
 
 ```aw wrap
+models:
+  allowed: ["gpt-*"]
 engine:
-  id: codex
-  model-provider: github
+  id: copilot
   model-routing:
     goal: cost
-    mode: economy
-    allowed-models: [gpt-5.6-luna]
+    mode: balanced
+    allowed-models: [gpt-5.4-mini, gpt-5.6-sol, claude-sonnet-5]
 ```
 
-| AWF version | Capability |
-|---|---|
-| v0.28.29 or later | Task-level routing |
-| v0.28.33 or later | Separate router candidates (`routing.candidateModels`) from the request policy; `allowed-models` becomes optional. With older versions, AWF admits only `allowed-models` and `allowed-models` is required. |
-| v0.28.35 or later | Model-routing audit log |
+Here the router chooses `gpt-5.4-mini` or `gpt-5.6-sol`, and the compiler warns that `claude-sonnet-5` won't be selected. If the policy excludes every entry, compilation fails.
 
-Since [gh-aw#66291](https://github.com/github/gh-aw/pull/66291), routed workflows use gh-aw's default AWF version (currently **v0.28.56**) and router **0.1.3**, with version-matched, digest-pinned images. Most authors need no version or image overrides. An override of `sandbox.agent.version` must name a published AWF release, not just a Git tag.
+`allowed-models` entries can be GitHub Actions expressions, such as `${{ vars.ROUTING_MODEL }}`, but only when the workflow sets neither `models.allowed` nor `models.blocked`, because the compiler can't check an expression against the policy.
 
-Organizations requiring approved registries can override the router image through `sandbox.agent.images.router`. Use a compatible, digest-pinned image; see [Sandbox image overrides](/gh-aw/reference/sandbox/).
+### Shared routing settings
 
-`allowed-models` entries outside the workflow's `models.allowed` and `models.blocked` policy are dropped with a compile warning; compilation fails if none remain. GitHub Actions expressions in `allowed-models` are rejected when either policy is set, because the compiler cannot validate their runtime values. Models must also be available to the organization's Copilot plan; unavailable models are skipped.
+To use the same routing settings in several workflows, put them in a shared file and import it. For example, `.github/workflows/shared/routing.md`:
 
-For AWF-side routing configuration, including `routing.candidateModels`, see the [AWF configuration specification](https://github.com/github/gh-aw-firewall/blob/main/docs/awf-config-spec.md#13a-task-level-model-routing). The [API proxy sidecar reference](https://github.com/github/gh-aw-firewall/blob/main/docs/api-proxy-sidecar.md) describes discovery, selection, request policy, and logging.
+```aw wrap
+---
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models: [gpt-5.4-mini, gpt-5.6-sol]
+---
+```
 
-## Sub-agents
-
-Sub-agents may use any model the model policy (`models.allowed` and `models.blocked`) allows, whether or not it is in `allowed-models`. This applies to inline and imported sub-agents declaring a `model:` and to built-in agents such as `explore` that use their own default models. Sub-agent models do not expand router candidates. To limit what sub-agents can use, set `models.allowed`. The compiler warns when a declared sub-agent's model is outside the policy, because AWF will reject its requests.
-
-Whether a sub-agent may use a different model family (Claude versus GPT) from the main agent depends on the engine. For the Copilot engine, it depends on the execution mode; see [CLI mode vs SDK mode](#cli-mode-vs-sdk-mode). The pi engine already runs sub-agents from both families in one run. Claude and Codex require sub-agent models compatible with their engine's API.
-
-## CLI mode vs SDK mode
-
-Model routing works with the Copilot engine in both Copilot CLI mode (the default) and Copilot SDK mode (`engine.copilot-sdk: true`). Only SDK mode supports declared sub-agents from a different model family in the same run.
-
-- **CLI mode**: one wire API serves the whole session. If the main agent is a GPT model and a sub-agent is a Claude model (or the reverse), the sub-agent's requests fail; the main model's subsequent response is nondeterministic and may report the missing result or attempt another approach ([copilot-cli#5103](https://github.com/github/copilot-cli/issues/5103)). Since [gh-aw#67487](https://github.com/github/gh-aw/pull/67487), the run logs a startup warning when a declared custom agent's model does not support the main model's session endpoint.
-- **SDK mode**: since [gh-aw#67509](https://github.com/github/gh-aw/pull/67509), the runner builds one provider per wire API (Responses and Chat Completions), so each model uses its own endpoint.
-
-For mixed-family candidate pools, this means:
-
-- In SDK mode, any routing pick works with any declared sub-agent.
-- In CLI mode, a mixed pool is fine without sub-agents. With sub-agents, every candidate must be in the sub-agents' family, because the router may pick any of them as the main model.
-
-CLI mode, with candidates and the sub-agent in the same family:
+A workflow that imports it is routed with those settings:
 
 ```aw wrap
 ---
@@ -113,27 +178,35 @@ on: workflow_dispatch
 permissions:
   contents: read
   copilot-requests: write
-engine:
-  id: copilot
-  model-routing:
-    goal: cost
-    mode: auto
-    allowed-models: [gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-sol]
+imports:
+  - shared/routing.md
 ---
 
-Summarize the repository README and use the `summarizer` agent for the first draft.
-
-## agent: `summarizer`
----
-description: Drafts a short summary
-model: gpt-5.4-mini
----
-Draft a three-sentence summary of the text you are given.
+Summarize the open pull requests.
 ```
 
-Without the sub-agent, the same CLI-mode workflow can route over a mixed pool.
+The importing workflow must either omit `engine` or use its object form, such as `engine: { id: copilot }`. If it also enables routing for the same engine, its `goal` and `mode` apply, and the imported `allowed-models` entries are added to its own. If it enables routing without `allowed-models`, the router chooses from only the imported entries.
 
-SDK mode, with a mixed pool and a Claude sub-agent:
+### Keeping up with new models
+
+The router chooses only among models it has benchmark data for. That data is part of the router version that gh-aw pins when it compiles the workflow. When gh-aw updates the router with data for new models, run [`gh aw upgrade`](/gh-aw/guides/working-with-workflows/#upgrading-workflows) to recompile your workflows, and the new models become candidates if your settings allow them. Models that have been retired, or that your organization's Copilot plan doesn't offer, are skipped at run time.
+
+To get the most from this, describe models with patterns in the model policy, or don't restrict them, rather than listing exact names in `allowed-models`.
+
+## Sub-agents
+
+Routing chooses the model for the main agent only. Declared sub-agents use the model they declare, and built-in agents such as `explore` use their default models, as long as the model policy allows them. The compiler warns when a sub-agent's model is outside the policy, because the firewall will reject its requests. `gh aw audit` reports sub-agent requests as deviations from the selected route, which is expected.
+
+A sub-agent's model must also work with the engine and with the main agent's selected model:
+
+| Engine | Sub-agent models |
+|---|---|
+| Copilot in CLI mode (default) | Same family as the main agent's selected model, such as `gpt-*` or `claude-*` |
+| Copilot in SDK mode (`engine.copilot-sdk: true`) | Any family |
+| pi | Any family |
+| Claude, Codex | The engine's own family |
+
+In Copilot CLI mode, a sub-agent from a different family than the selected main model fails ([copilot-cli#5103](https://github.com/github/copilot-cli/issues/5103)), and the run logs a warning at startup. If a CLI-mode workflow declares sub-agents, either keep every candidate in the sub-agents' family or use SDK mode. In this example, the router can choose a GPT or Claude model for the main agent, and the Claude sub-agent works with either:
 
 ```aw wrap
 ---
@@ -147,10 +220,10 @@ engine:
   model-routing:
     goal: cost
     mode: auto
-    allowed-models: [gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-sol, claude-haiku-4.5, claude-sonnet-5, claude-opus-5]
+    allowed-models: [gpt-5.4-mini, gpt-5.6-sol, claude-sonnet-5]
 ---
 
-Review the open issues and use the `triager` agent to suggest a label for each one.
+Review the open issues and ask the `triager` agent to suggest a label for each one.
 
 ## agent: `triager`
 ---
@@ -160,89 +233,92 @@ model: claude-haiku-4.5
 Reply with the single best label for the issue you are given.
 ```
 
-All six candidates are covered by the routing tables of router 0.1.3.
+## Use routing with Claude, Codex, or pi
 
-### Tested reference workflows
+Routing works with the `copilot`, `claude`, `codex`, and `pi` engines, as long as they use models served through GitHub Copilot. Claude and Codex call the Anthropic and OpenAI APIs by default, so they need `model-provider: github` to use Copilot instead, and they can only use models from their own family:
 
-These smoke workflows run every 2 days, with `mode: economy` unless noted. They check main-agent request models against the candidate models and use the unified session and AWF's api-proxy `token-usage.jsonl` as model/endpoint evidence, including a successful request on a supported or declared endpoint:
+| Engine | Required setting | Candidate models |
+|---|---|---|
+| `copilot` | None | Any |
+| `pi` | None | Any |
+| `claude` | `model-provider: github` | `claude-*` only |
+| `codex` | `model-provider: github` | `gpt-*` only |
 
-- [`smoke-copilot-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed.md): Copilot CLI mode, routing over three models (`gpt-5.4-mini`, `gpt-5.6-luna`, `claude-haiku-4.5`) with no sub-agents.
-- [`smoke-claude-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-claude-routed.md): Claude Code with `model-provider: github`, routing over `claude-sonnet-5` with no sub-agents. AWF selects `/chat/completions`; the main agent must use `/v1/messages`.
-- [`smoke-copilot-sdk-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed.md): Copilot SDK mode, routing over `gpt-5.6-luna` with a `claude-haiku-4.5` sub-agent.
-- [`smoke-pi-routed.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-pi-routed.md): pi, routing over `gpt-5.6-luna` with `claude-haiku-4.5` (`/v1/messages`) and `gpt-5.4-mini` (`/responses`) sub-agents.
-- [`smoke-copilot-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-routed-claude.md): Copilot CLI mode with `mode: auto`, routing over `claude-sonnet-5` with no sub-agents. The main agent must use `/chat/completions`.
-- [`smoke-pi-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-pi-routed-claude.md): pi with `mode: robust`, routing over `claude-sonnet-5` with no sub-agents. The main agent must use `/v1/messages`.
-- [`smoke-copilot-sdk-routed-claude.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-sdk-routed-claude.md): Copilot SDK mode, routing over `claude-haiku-4.5` (`/chat/completions`, no reasoning effort) with a `gpt-5.4-mini` sub-agent (`/responses`).
+For example, to route a Claude workflow between two Claude models:
 
-The three Claude smokes also check the selection record: the requested mode matches the workflow's `mode`, the recommended profile is `economy`, `balanced` or `robust`, and the selected effort is one the selected model supports (or none when it supports no efforts). The recommended profile and effort vary between runs, so they are only logged.
+```aw wrap
+engine:
+  id: claude
+  model-provider: github
+  model-routing:
+    goal: cost
+    mode: balanced
+    allowed-models: [claude-sonnet-5, claude-opus-5]
+```
 
-The SDK and pi smokes route over a single model only to keep their checks deterministic: they attribute traffic to sub-agents by model, so sub-agent models must not appear in `allowed-models`. This is not a recommendation for real workflows.
+Without `allowed-models`, Claude and Codex choose from every model in their family that the policy allows. The compiler rejects other engines and providers, and `allowed-models` entries from another family.
+
+Routing also has these requirements:
+
+- It needs the AWF firewall, which is the default sandbox.
+- It can't be combined with `engine.fallback-models`.
+- gh-aw's default AWF version supports routing. If a workflow pins AWF with `sandbox.agent.version`, use v0.28.33 or later.
+- Organizations that require images from approved registries can replace the router image with `sandbox.agent.images.router`; see [Custom infrastructure images](/gh-aw/reference/sandbox/#custom-infrastructure-images-sandboxagentimages).
+
+## How routing works
+
+Routing happens once per run, before the agent starts:
+
+1. A small model classifies the task by type (such as fix, refactor, or explain), scope, and complexity. It reads the workflow's prompt, including interpolated content such as the triggering issue's text, and treats that text as data, not instructions.
+2. The [router](https://github.com/githubnext/gh-aw-router) ranks the candidate models and efforts for that kind of task, using benchmark results, and chooses one according to the workflow's `goal` and `mode`.
+3. The main agent runs the whole task with the chosen model and effort.
+
+The router chooses only from the workflow's candidates, whatever the task text says. Classification runs on one of the candidates, preferring a small one, and typically costs a small fraction of an AI Credit per run. If routing can't choose a model, the run fails rather than falling back to a fixed model. Threat detection isn't routed and uses its configured detection model.
+
+## Check which model was used
+
+The agent step's log shows the selection, for example:
+
+```text
+inference routing: mode=awf-routed model=gpt-5.6-sol effort=high
+```
+
+`gh aw audit <run-id>` includes a Model Routing section with the task classification, the selected model and effort, the ranked alternatives, and what the classifier, the selected model, and any other models cost. `gh aw logs` aggregates routing across runs, showing which model each kind of task received and what it cost. See [Audit](/gh-aw/reference/audit/) and [Cost Management](/gh-aw/reference/cost-management/).
 
 ## Known limitations
 
-### Selection can vary between runs
+### GitHub Copilot models only
 
-The classifier's recommendation is not deterministic, especially with `mode: auto`. Runs of the same task can select different models or efforts. An explicit profile fixes the quality bar, but does not make classification or selection deterministic.
+The router currently chooses only among models served through GitHub Copilot, because its benchmark data and model availability checks cover Copilot's models. The compiler rejects routing in workflows that use another provider, such as Claude or Codex with their own Anthropic or OpenAI API keys, and in workflows on engines other than `copilot`, `claude`, `codex`, and `pi`. This limitation is temporary, and support for more providers and engines is planned.
 
-### Cross-family sub-agents in Copilot CLI mode
+### Selection varies between runs
 
-With the Copilot engine in CLI mode, sub-agents from a different model family than the main model fail. Use [SDK mode](#cli-mode-vs-sdk-mode) or keep every candidate in the sub-agents' family.
+The classifier is a language model, so the same task can get a different model or effort on another run, especially with `mode: auto`.
 
-## Observability
+### Reasoning effort with Claude and Codex
 
-With AWF v0.28.35 or later, the `agent` artifact contains:
+The router doesn't yet account for which reasoning efforts each engine supports. If it chooses an effort the engine can't use (`none` or `minimal` with Claude, `none` or `max` with Codex), the run fails.
 
-```text
-sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl
-```
+With the Claude engine, requests to `claude-haiku-4.5` fail with HTTP 400, because Claude Code sends a reasoning effort that this model doesn't accept ([gh-aw#68834](https://github.com/github/gh-aw/issues/68834)). The router can choose it when `allowed-models` is omitted, so list Claude candidates explicitly and leave it out.
 
-It records classification labels and mode, ranked choices, the selection, router version, and one terminal record per inference request. Request records report `as_selected` or `deviated` and the outcome; requests whose model or effort cannot be observed can be marked `unobserved`.
+### AI Credits budget
 
-The adjacent `token-usage.jsonl` contains credits per request. Classifier usage is marked with `purpose: "routing_classification"` and joined to routing requests by `request_id`.
+Routing doesn't consider the run's AI Credits budget (`max-ai-credits`, 1,000 by default). Runs routed to larger models, which `robust` chooses more often, use more of it. See [Cap AI Credits per Run](/gh-aw/reference/cost-management/#cap-ai-credits-per-run).
 
-Threat-detection jobs are not routed; they use their configured detection model ([gh-aw#66670](https://github.com/github/gh-aw/pull/66670)).
+### Sub-agents in Copilot CLI mode
 
-### Steering notices
-
-With AWF v0.28.51 or later, the run's AI-credit budget and timeout produce advisory steering notices, which `gh aw audit` lists as `steering_notices` ([gh-aw#67597](https://github.com/github/gh-aw/pull/67597)). This matters for routing because runs routed to expensive models can approach the default 1,000-credit budget. Since gh-aw's default AWF version is v0.28.56, routed workflows get these notices by default; workflows that pin an older `sandbox.agent.version` don't. See [Token steering](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
-
-Claude, Codex, and pi log the selected model, effort, and effective endpoint before starting inference. When a runtime uses its own API instead of AWF's selected endpoint, `selected_endpoint` records AWF's original choice. Copilot CLI retains its existing model-and-effort log:
-
-| Engine | Example log line |
-|---|---|
-| Copilot | `inference routing: mode=awf-routed model=gpt-5.6-sol effort=high` |
-| Claude | `inference routing: mode=awf-routed model=claude-opus-5 effort=xhigh endpoint=/v1/messages selected_endpoint=/chat/completions` |
-| Codex | `inference routing: mode=awf-routed model=gpt-5.6-sol effort=high endpoint=/responses` |
-| pi | `inference routing: mode=awf-routed model=claude-haiku-4.5 effort=none endpoint=/v1/messages selected_endpoint=/chat/completions` |
-
-Effort support and runtime mapping are engine-specific. AWF currently ranks its model-and-effort choices without filtering efforts by engine, so a routed choice the runtime cannot represent still fails closed rather than being clamped or replaced. Engine-specific pre-ranking effort filtering requires an AWF configuration capability; the runtime check remains the backstop:
-
-| Engine | Accepted routed efforts | Runtime setting |
-|---|---|---|
-| Copilot | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` | Passed through unchanged |
-| Claude | `low`, `medium`, `high`, `xhigh`, `max` | Passed through unchanged; `none` and `minimal` fail |
-| Codex | `minimal`, `low`, `medium`, `high`, `xhigh` | Passed through unchanged; `none` and `max` fail |
-| pi | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` | `none` maps to `off`; all others pass through unchanged |
-
-`gh aw audit <run-id>` reports whether routing selected a route or failed, the objective and classification, selected model/effort/endpoint, top ranked choices, router version and latency, request outcomes and deviations, and a cost split for classifier, selected-model, and deviated traffic. The comparison notes model, effort, mode, or router-version changes even when total cost is similar. With `gh aw logs --format pretty|markdown` (or `--json`), the Model Routing section aggregates label-to-selection routes across runs, including run counts, total and average AIC, classifier cost, and deviation share. For example:
-
-```text
-Model Routing
-  classifier_aic=0.059 deviated_requests=0/4 (0.0%)
-  explain/local/trivial mode=economy selected=gpt-5.6-luna:high router=0.1.3 runs=1 aic_total=0.760 aic_avg=0.760
-```
-
-The per-run audit JSON includes `model_routing` with the same decision, request, failure, and cost details; logs JSON includes the cross-run `model_routing.routes` aggregate. See the [AWF routing audit-log schema](https://github.com/github/gh-aw-firewall/blob/main/docs/api-proxy-sidecar.md#model-routing-audit-log) for the complete record definition.
+Sub-agents from a different model family than the selected main model fail. See [Sub-agents](#sub-agents).
 
 ## Troubleshooting
 
-| Signal | Meaning and checks |
+| Symptom | Cause and fix |
 |---|---|
-| Exit code `78` | Routing failed, rather than silently falling back to a fixed model. The audit routing section shows failure `code` and `detail`; check for `no_route`, unavailable classifier/router, or configuration errors. |
-| `degraded_reason` | The audit routing section reports why classification degraded and whether the router continued with fallback classification or failed. |
-| `routed: "deviated"` | Audit shows request counts and the requested/selected models and efforts for deviations. A sub-agent using a policy-allowed model can be a normal deviation; deviation is not itself a policy violation. For records from AWF before v0.28.39, an endpoint-only deviation is counted as selected-model traffic and the report notes this normalization. |
-| `model ... advertises endpoints [...], none compatible with this engine API [...]` | The selected model does not advertise the Messages or Responses API required by Claude or Codex. Check the `/reflect` routing model metadata and remove the incompatible model from `allowed-models`. |
-| `candidate metadata is incomplete` | AWF `/reflect` did not provide complete routing endpoint metadata. The runtime refuses to guess an API; upgrade AWF to a version that returns complete candidate metadata. |
-| Upstream HTTP or stream error | Inspect `sandbox/firewall/logs/api-proxy-logs/upstream-errors.jsonl` in the `agent` artifact alongside the routing log. In particular, a sub-agent HTTP 400 can indicate the API-family mismatch rather than a model-policy rejection. |
-
-Use the [API proxy sidecar reference](https://github.com/github/gh-aw-firewall/blob/main/docs/api-proxy-sidecar.md) and [AWF configuration specification](https://github.com/github/gh-aw-firewall/blob/main/docs/awf-config-spec.md) for the upstream contracts and failure details.
+| Compilation fails because routing requires GitHub Copilot inference | A Claude or Codex workflow uses its default provider. Set `engine.model-provider: github`. See [GitHub Copilot models only](#github-copilot-models-only). |
+| Compilation fails when `allowed-models` contains a pattern such as `gpt-*` | `allowed-models` takes exact names. Put the pattern in `models.allowed` instead. See [Only one model family](#only-one-model-family). |
+| Compilation fails because all `allowed-models` are excluded by `models.allowed` or `models.blocked` | The policy excludes every candidate or, for Claude or Codex without `allowed-models`, the engine's whole family. Change either setting. |
+| Compilation fails with an incompatible model-routing candidate | An `allowed-models` entry isn't in the engine's model family. Remove it. |
+| Compilation fails with "multiple engine fields found" after importing routing settings | The importing workflow uses `engine: copilot`. Remove `engine`, or use `engine: { id: copilot }`. |
+| The agent step fails and `gh aw audit` reports a routing failure | Routing couldn't produce a usable selection: no candidate was available to the organization, the router failed (exit code `78`), or the engine can't use the selected model or effort. The audit's Model Routing section shows the failure code and details. |
+| A sub-agent's requests fail with HTTP 400 in Copilot CLI mode | The sub-agent's model family differs from the selected main model. See [Sub-agents](#sub-agents). |
+| `gh aw audit` reports deviated requests | Requests used a model other than the selected one, usually from sub-agents or built-in agents. This is expected and isn't a policy violation. |
+| `gh aw audit` reports degraded classification | Classification failed, so routing continued without it; with `mode: auto`, the router used `balanced`. |
