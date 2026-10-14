@@ -190,7 +190,7 @@ func TestWorkQueueToolErrors(t *testing.T) {
 
 func TestWorkQueueToolSchema(t *testing.T) {
 	t.Parallel()
-	server := createMCPServer("", "", true, "", nil)
+	server := createMCPServer("", "", true, false, "", nil)
 	session := connectInMemory(t, server)
 	result, err := session.ListTools(context.Background(), &mcp.ListToolsParams{})
 	require.NoError(t, err)

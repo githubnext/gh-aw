@@ -246,6 +246,10 @@ func NewMCPInspectSubcommand() *cobra.Command { //nolint:largefunc // Existing c
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
+Only run live inspection on trusted workflows: configured commands, packages, and
+container images execute locally, and configured HTTP endpoints receive connections.
+The MCP server's mcp-inspect tool only lists configuration and does not execute servers.
+
 MCP Scripts servers are automatically detected and inspected when present in the workflow.
 
 The workflow-id-or-file can be:

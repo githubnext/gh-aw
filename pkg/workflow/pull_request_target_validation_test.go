@@ -592,6 +592,177 @@ Read the source PR as data; update only the trusted documentation checkout.
 	}
 }
 
+func TestPullRequestTargetRoleValidation(t *testing.T) {
+	for _, roles := range []string{"all", "read", "[read]", "[admin, read]", "[admin, maintainer, write]", ""} {
+		for _, strict := range []bool{true, false} {
+			for _, customSecret := range []bool{true, false} {
+				name := fmt.Sprintf("roles=%s/strict=%t/custom-secret=%t", roles, strict, customSecret)
+				t.Run(name, func(t *testing.T) {
+					roleConfig := ""
+					if roles != "" {
+						roleConfig = "  roles: " + roles + "\n"
+					}
+					secretConfig := ""
+					if customSecret {
+						secretConfig = "secrets:\n  CUSTOM_TOKEN: ${{ secrets.CUSTOM_TOKEN }}\n"
+					}
+					content := fmt.Sprintf(`---
+strict: %t
+on:
+  pull_request_target:
+    types: [opened]
+    acknowledge-risk: true
+%scheckout: false
+tools:
+  github: false
+%s---
+
+# Role validation
+Analyze the pull request.
+`, strict, roleConfig, secretConfig)
+					mdFile := filepath.Join(testutil.TempDir(t, "prt-role-validation"), "workflow.md")
+					if err := os.WriteFile(mdFile, []byte(content), 0600); err != nil {
+						t.Fatal(err)
+					}
+					compiler := NewCompiler()
+					compiler.SetNoEmit(true)
+					var err error
+					output := captureStderr(func() {
+						err = compiler.CompileWorkflow(mdFile)
+					})
+					unsafe := strings.Contains(roles, "all") || strings.Contains(roles, "read")
+					const diagnostic = "pull_request_target with on.roles containing 'all' or 'read' is a dangerous combination"
+					if strict && unsafe {
+						if err == nil || !strings.Contains(err.Error(), diagnostic) {
+							t.Fatalf("Expected role safety error, got %v", err)
+						}
+					} else if err != nil {
+						t.Fatalf("Unexpected compilation error: %v", err)
+					}
+					wantWarnings := 0
+					if unsafe && !strict {
+						wantWarnings = 1
+						if !strings.Contains(output, diagnostic) {
+							t.Errorf("Missing role safety warning: %s", output)
+						}
+					}
+					if compiler.GetWarningCount() != wantWarnings {
+						t.Errorf("Expected %d warnings, got %d", wantWarnings, compiler.GetWarningCount())
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestPullRequestTargetRoleValidationTriggerAndCheckout(t *testing.T) {
+	tests := []struct {
+		name      string
+		on        string
+		checkout  string
+		cliStrict bool
+		wantError bool
+		warnings  int
+	}{
+		{"CLI strict overrides opt-out", "  pull_request_target:\n    acknowledge-risk: true", "false", true, true, 0},
+		{"trusted checkout cannot bypass", "  pull_request_target:\n    acknowledge-risk: true", "\n  ref: ${{ github.event.pull_request.base.sha }}", true, true, 0},
+		{"mixed triggers cannot bypass", "  pull_request_target:\n    acknowledge-risk: true\n  workflow_dispatch:", "false", true, true, 0},
+		{"pull_request remains allowed", "  pull_request:\n    types: [opened]", "false", true, false, 0},
+		{"trigger text is not a trigger", "  workflow_dispatch:\n    inputs:\n      reason:\n        default: pull_request_target", "false", true, false, 1},
+		{"checkout warning still emitted", "  pull_request_target:\n    types: [opened]", "\n  ref: ${{ github.event.pull_request.head.sha }}", false, false, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := fmt.Sprintf(`---
+strict: false
+on:
+%s
+  roles: read
+checkout: %s
+tools:
+  github: false
+---
+
+# Role validation
+Analyze the pull request.
+`, tt.on, tt.checkout)
+			mdFile := filepath.Join(testutil.TempDir(t, "prt-role-trigger-validation"), "workflow.md")
+			if err := os.WriteFile(mdFile, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			compiler := NewCompiler()
+			compiler.SetStrictMode(tt.cliStrict)
+			compiler.SetNoEmit(true)
+			err := compiler.CompileWorkflow(mdFile)
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "on.roles containing 'all' or 'read'") {
+					t.Fatalf("Expected role safety error, got %v", err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected compilation error: %v", err)
+			}
+			if compiler.GetWarningCount() != tt.warnings {
+				t.Errorf("Expected %d warnings, got %d", tt.warnings, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
+func TestPullRequestTargetRoleValidationFeatureOptOut(t *testing.T) {
+	tests := []struct {
+		name         string
+		strict       bool
+		cliStrict    bool
+		featureValue string
+		wantError    string
+		wantWarnings int
+	}{
+		{"feature suppresses non-strict warning", false, false, "true", "", 0},
+		{"false does not suppress non-strict warning", false, false, "false", "", 1},
+		{"string true is rejected by schema", false, false, "'true'", "got string, want boolean", 0},
+		{"strict mode rejects despite feature", true, false, "true", "on.roles containing 'all' or 'read'", 0},
+		{"CLI strict mode rejects despite feature", false, true, "true", "on.roles containing 'all' or 'read'", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := fmt.Sprintf(`---
+strict: %t
+on:
+  pull_request_target:
+    acknowledge-risk: true
+  roles: read
+checkout: false
+features:
+  dangerously-allow-roles-read-and-pull-request-target: %s
+tools:
+  github: false
+---
+
+# Role validation
+Analyze the pull request.
+`, tt.strict, tt.featureValue)
+			mdFile := filepath.Join(testutil.TempDir(t, "prt-role-feature-opt-out"), "workflow.md")
+			if err := os.WriteFile(mdFile, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			compiler := NewCompiler()
+			compiler.SetStrictMode(tt.cliStrict)
+			compiler.SetNoEmit(true)
+			err := compiler.CompileWorkflow(mdFile)
+			if tt.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+					t.Fatalf("Expected error containing %q, got %v", tt.wantError, err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected compilation error: %v", err)
+			}
+			if compiler.GetWarningCount() != tt.wantWarnings {
+				t.Errorf("Expected %d warnings, got %d", tt.wantWarnings, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 func TestAllowedPullRequestTargetCheckoutFailsClosed(t *testing.T) {
 	t.Parallel()
 	for _, cfg := range []*CheckoutConfig{

@@ -21,7 +21,7 @@ import (
 // expected set of tools without spawning a subprocess.
 func TestMCPServerUnit_ListTools(t *testing.T) {
 	t.Parallel()
-	server := createMCPServer("", "", false, "", nil)
+	server := createMCPServer("", "", false, false, "", nil)
 	session := connectInMemory(t, server)
 
 	ctx := context.Background()
@@ -46,7 +46,7 @@ func TestMCPServerUnit_ListTools(t *testing.T) {
 // Tools capability with ListChanged=false (tools are static, no notifications needed).
 func TestMCPServerUnit_ServerCapabilities(t *testing.T) {
 	t.Parallel()
-	server := createMCPServer("", "", false, "", nil)
+	server := createMCPServer("", "", false, false, "", nil)
 	session := connectInMemory(t, server)
 
 	initResult := session.InitializeResult()
@@ -60,7 +60,7 @@ func TestMCPServerUnit_ProtocolVersions(t *testing.T) {
 	for _, version := range mcp.SupportedProtocolVersions() {
 		t.Run(version, func(t *testing.T) {
 			t.Parallel()
-			server := createMCPServer("", "", false, "", nil)
+			server := createMCPServer("", "", false, false, "", nil)
 			clientTransport, serverTransport := mcp.NewInMemoryTransports()
 			serverSession, err := server.Connect(context.Background(), serverTransport, nil)
 			require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestMCPServerUnit_ProtocolVersions(t *testing.T) {
 
 func TestMCPServerUnit_ToolListCache(t *testing.T) {
 	t.Parallel()
-	server := createMCPServer("", "", false, "", nil)
+	server := createMCPServer("", "", false, false, "", nil)
 	session := connectInMemory(t, server)
 	result, err := session.ListTools(context.Background(), &mcp.ListToolsParams{})
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestMCPServerUnit_ToolListCache(t *testing.T) {
 
 func TestMCPServerUnit_DiscoveryCache(t *testing.T) {
 	t.Parallel()
-	server := createMCPServer("", "", false, "", nil)
+	server := createMCPServer("", "", false, false, "", nil)
 	var discovered *mcp.DiscoverResult
 	server.AddReceivingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
@@ -118,7 +118,7 @@ func TestMCPServerUnit_StatusTool(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir), "should change to temp dir")
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	server := createMCPServer("", "", false, "", nil)
+	server := createMCPServer("", "", false, false, "", nil)
 	session := connectInMemory(t, server)
 
 	ctx := context.Background()

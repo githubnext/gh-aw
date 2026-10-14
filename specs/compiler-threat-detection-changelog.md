@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.51 | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode; in non-strict mode, the dangerous feature flag suppresses only the roles warning. |
 | 1.0.50 | Extended CTR-032 with creating-run traceability for every issue comment, PR description, and PR review comment from first publication. Specified HTML execution markers except percent-encoded Markdown anchor markers for review comments and replies, independent of visible footers, with forged-marker and destination API filtering coverage required. |
 | 1.0.49 | Added CTR-032 for step-scoped safe-output publishing identity, replacement of forged execution-provenance comments, and fail-closed runtime metadata validation. |
 | 1.0.48 | Audit-only clarification that same-repository checkout for allow-listed App comments and reviews is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
