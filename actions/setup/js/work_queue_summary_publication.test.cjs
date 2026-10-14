@@ -29,7 +29,7 @@ describe("queue publication step summaries", () => {
     const nodes = submission([genesis(policy)], ["admitted-node"]).operations;
     const admitted = await publishWorkQueueRequest(options(fake, newRequest("admit-summary", "submit", producer, { nodes }), producer, { core, policyProposal: policy }));
     expect(admitted.publishedNow).toBe(true);
-    expect(core.summary.addRaw.mock.calls[0][0]).toContain("### Work queue admission");
+    expect(core.summary.addRaw.mock.calls[0][0]).toMatch(/^<details>\n<summary>Work queue admission<\/summary>\n\n/);
     expect(core.summary.addRaw.mock.calls[0][0]).toContain("<code>admitted-node</code>");
     const control = newRequest("control-summary", "control", administrator, { operations: [{ kind: "Control", control: "grants_paused", value: true, reason: "maintenance" }] });
     const updated = await publishWorkQueueRequest(options(fake, control, administrator, { core }));

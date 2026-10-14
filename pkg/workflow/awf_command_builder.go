@@ -20,6 +20,7 @@ var otlpSandboxExcludedEnvVarNames = []string{
 	"OTEL_EXPORTER_OTLP_ENDPOINT",
 	"OTEL_EXPORTER_OTLP_HEADERS",
 	"GH_AW_OTLP_ENDPOINTS",
+	"GH_AW_OTLP_ALL_HEADERS",
 }
 
 // BuildAWFCommand builds a complete AWF command with all arguments.

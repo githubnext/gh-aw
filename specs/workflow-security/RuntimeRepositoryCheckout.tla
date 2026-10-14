@@ -9,7 +9,8 @@ ASSUME Fault \in {"none", "untrusted-policy", "missing-allowlist",
                  "partial-preflight", "recursive-fetch", "cleanup-fail-open",
                  "manifest-omitted", "fallback-token", "neighbor-token",
                  "write-credentials-stripped", "write-allowlist",
-                 "staged-checkout", "failure-no-jobs"}
+                 "staged-checkout", "failure-no-jobs",
+                 "implicit-multi", "single-selector-bypass"}
 
 Jobs == {"agent", "safe_outputs"}
 Repos == {"org/a", "org/b", "outside/c"}
@@ -23,7 +24,7 @@ TrustedPolicy == {"literal", "variable"}
 
 \* Finite input classes abstract the parsers, wildcard matcher, and API responses.
 BaseInput ==
-    [selector |-> "expression", policySource |-> "literal",
+    [multi |-> TRUE, selector |-> "expression", policySource |-> "literal",
      allowed |-> {"org/a", "org/b"}, unrestricted |-> FALSE,
      values |-> <<"org/a">>, limit |-> 10, limitSyntaxValid |-> TRUE,
      prefix |-> "targets", prefixValid |-> TRUE, pathsSafe |-> TRUE,
@@ -40,9 +41,21 @@ Inputs == {BaseInput,
     [BaseInput EXCEPT !.policySource = "caller"],
     [BaseInput EXCEPT !.policySource = "composite"],
     [BaseInput EXCEPT !.policySource = "missing"],
-    [BaseInput EXCEPT !.selector = "hosting", !.policySource = "missing",
+    [BaseInput EXCEPT !.multi = FALSE, !.selector = "hosting", !.policySource = "missing",
                      !.prefixValid = FALSE],
-    [BaseInput EXCEPT !.selector = "literal", !.policySource = "missing"],
+    [BaseInput EXCEPT !.multi = FALSE, !.selector = "literal", !.policySource = "missing"],
+    [BaseInput EXCEPT !.multi = FALSE],
+    [BaseInput EXCEPT !.multi = FALSE, !.policySource = "missing"],
+    [BaseInput EXCEPT !.multi = FALSE, !.policySource = "caller",
+                     !.prefixValid = FALSE, !.appScopeExplicit = FALSE,
+                     !.lfs = TRUE, !.submodules = TRUE,
+                     !.visibility["org/a"] = "private"],
+    [BaseInput EXCEPT !.multi = FALSE, !.values = <<>>],
+    [BaseInput EXCEPT !.multi = FALSE, !.values = <<"org/a", "org/b">>],
+    [BaseInput EXCEPT !.multi = FALSE, !.values = <<"org/a", "ORG/A">>],
+    [BaseInput EXCEPT !.multi = FALSE, !.values = <<"org/*">>],
+    [BaseInput EXCEPT !.multi = FALSE, !.selector = "literal",
+                     !.values = <<"org/a", "org/b">>],
     [BaseInput EXCEPT !.selector = "hosting"],
     [BaseInput EXCEPT !.selector = "wildcard"],
     [BaseInput EXCEPT !.values = <<"org/*">>],
@@ -83,9 +96,12 @@ Inputs == {BaseInput,
     [BaseInput EXCEPT !.staged = TRUE],
     [BaseInput EXCEPT !.noRecordedJobs = FALSE]}
 
-Runtime(i) == i.policySource # "missing" \/ i.selector = "expression"
+Runtime(i) == i.multi
+ObservedRuntime(i) ==
+    Runtime(i) \/ (Fault = "implicit-multi" /\ i.policySource # "missing")
 Normalize(r) == IF r = "ORG/A" THEN "org/a" ELSE r
 Selected(i) == {Normalize(i.values[n]) : n \in 1..Len(i.values)}
+SingleValid(i) == Len(i.values) = 1 /\ Selected(i) \subseteq Repos
 Canonical(i, r) == IF r = "org/a" /\ i.redirect # None THEN i.redirect ELSE r
 CanonicalRepos(i) == {Canonical(i, r) : r \in Selected(i)}
 RepoPath(i, r) == i.prefix \o "/" \o r
@@ -99,7 +115,7 @@ ExpectedCompile(i) ==
             /\ (i.policySource = "variable" \/ ~i.unrestricted)
             /\ i.limitSyntaxValid /\ i.prefixValid /\ i.appScopeExplicit
             /\ ~i.lfs /\ ~i.submodules
-       ELSE i.selector \in {"hosting", "literal"}
+       ELSE i.selector # "literal" \/ SingleValid(i)
 ObservedCompile(i) ==
     ExpectedCompile(i) \/
     (Fault = "untrusted-policy" /\ i.policySource \in {"caller", "composite"}
@@ -168,8 +184,14 @@ Compile ==
            !.phase = IF ~accepted THEN "compile-rejected"
                      ELSE IF s.job = "safe_outputs" /\ s.input.staged
                              /\ Fault # "staged-checkout" THEN "skipped"
-                     ELSE IF ~Runtime(s.input) THEN "static" ELSE "preflight",
+                     ELSE IF ~ObservedRuntime(s.input) THEN "single-preflight" ELSE "preflight",
            !.lastEvent = "Compile"]
+ValidateSingle ==
+    /\ s.phase = "single-preflight"
+    /\ s' = [s EXCEPT
+        !.phase = IF SingleValid(s.input) \/ Fault = "single-selector-bypass"
+                  THEN "static" ELSE "single-rejected",
+        !.lastEvent = "ValidateSingle"]
 Preflight ==
     /\ s.phase = "preflight"
     /\ LET accepted == PreflightAllowed(s.input)
@@ -227,7 +249,7 @@ ReportFailure ==
         !.failureIssue = ~(Fault = "failure-no-jobs" /\ s.input.noRecordedJobs),
         !.phase = "failed", !.lastEvent = "ReportFailure"]
 Next ==
-    \/ Compile \/ Preflight \/ ValidateMetadata
+    \/ Compile \/ ValidateSingle \/ Preflight \/ ValidateMetadata
     \/ \E r \in Repos: Checkout(r) \/ EarlyCheckout(r) \/ Consume(r)
     \/ CheckoutComplete \/ \E success \in BOOLEAN: Finalize(success)
     \/ PublishManifest \/ ReportFailure
@@ -237,6 +259,7 @@ TypeOK ==
     /\ s.input \in Inputs /\ s.job \in Jobs /\ s.entry \in EntryAuth
     /\ s.fallback \in Fallbacks /\ s.token \in Tokens
     /\ s.phase \in {"compile", "compile-rejected", "static", "skipped",
+                    "single-preflight", "single-rejected",
                     "preflight", "metadata", "checkout", "finalize", "manifest",
                     "consumer", "complete", "failure-pending", "failed"}
     /\ s.validated \subseteq Repos /\ s.checkouts \subseteq Repos /\ s.writes \subseteq Repos
@@ -245,7 +268,11 @@ TypeOK ==
                  s.engineStarted, s.handlerStarted, s.indirectReads,
                  s.failureOutput, s.failureIssue}: b \in BOOLEAN
 MandatoryAllowlist ==
-    s.compiled /\ s.input.selector = "expression" => s.input.policySource # "missing"
+    s.compiled /\ Runtime(s.input) => s.input.policySource # "missing"
+ExplicitMultiMode ==
+    s.phase \in {"preflight", "metadata", "checkout", "finalize", "manifest",
+                "consumer", "complete", "failure-pending", "failed"} => s.input.multi
+SingleRepositoryOnly == s.phase = "static" => ~s.input.multi /\ SingleValid(s.input)
 PolicyProvenance ==
     s.compiled /\ Runtime(s.input) => s.input.policySource \in TrustedPolicy
 ExplicitSelector == s.compiled => s.input.selector # "wildcard"
@@ -281,6 +308,13 @@ NoDeepManifestConsumer ==
 NoKnownCheckoutFailure == ~s.failureIssue
 NoHostingException ==
     ~(s.phase = "static" /\ s.input.selector = "hosting" /\ s.input.policySource = "missing")
+NoSingleExpression ==
+    ~(s.phase = "static" /\ s.input.selector = "expression"
+      /\ s.input.policySource = "missing")
+NoSingleUnrestrictedFeatures ==
+    ~(s.phase = "static" /\ s.input.lfs /\ s.input.submodules
+      /\ ~s.input.prefixValid /\ ~s.input.appScopeExplicit
+      /\ s.input.visibility["org/a"] = "private")
 NoPrivateHostCheckout ==
     ~(s.input.hostVisibility = "private" /\ s.input.allowPrivateRepos
       /\ s.input.visibility["org/b"] = "private" /\ "org/b" \in s.checkouts)

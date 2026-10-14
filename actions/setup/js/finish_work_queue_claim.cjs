@@ -17,6 +17,7 @@ const { authenticatePublisher, fetchNativeRunAttempt, validateNativeRun } = requ
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { claimControlReceipts } = require("./work_queue_control_receipts.cjs");
 const { validateDeliveryContract, isTrustedClaimDelivery } = require("./work_queue_delivery.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 
 const SNAPSHOT_PATH = "/tmp/gh-aw/work-queue.snapshot.json";
 const FINISH_INTENT_PATH = DEFAULT_FINISH_INTENT_PATH;
@@ -416,7 +417,11 @@ async function finalizeWorkerResults(options = {}) {
 
 function renderSummary(result) {
   const states = typeof result === "object" ? Object.values(result.claims || {}) : [];
-  return `## Work queue reconciliation\n\n<details>\n<summary>Show independent Claim reconciliation</summary>\n\n${states.filter(state => state.authorized).length} Claims may process scoped effects; ${states.filter(state => !state.authorized).length} Claims are cancelled, settled or blocked. Completion is not a verified Result. Shared native capacity remains reserved until exact terminal/nonlaunch evidence.\n\n</details>\n`;
+  const summary = renderTemplateFromFile(getPromptPath("work_queue_reconciliation_summary.md"), {
+    authorized_claims: states.filter(state => state.authorized).length,
+    unauthorized_claims: states.filter(state => !state.authorized).length,
+  });
+  return summary.trimEnd() + "\n\n\n";
 }
 
 async function main(options = {}) {

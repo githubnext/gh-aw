@@ -44,7 +44,10 @@ type CheckoutConfig struct {
 	// Repository to checkout in owner/repo format. Defaults to the current repository.
 	Repository string `json:"repository,omitempty"`
 
-	// AllowedRepos opts into runtime repository-list expansion with mandatory allowlisting.
+	// Multi explicitly enables runtime repository-list expansion.
+	Multi bool `json:"multi,omitempty"`
+
+	// AllowedRepos constrains repository-list expansion when Multi is enabled.
 	AllowedRepos []string `json:"allowed-repos,omitempty"`
 
 	// MaxRepos limits the number of unique repositories in a runtime checkout list.
@@ -130,14 +133,15 @@ type CheckoutConfig struct {
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
-// Repository, path, and wiki are used as key fields — ref and token are settings
-// that can be merged across configs targeting the same (repository, path, wiki) tuple.
+// Repository, path, wiki, and multi are key fields — ref and token are settings
+// that can be merged across configs targeting the same target and checkout mode.
 // Wiki is included because a wiki checkout and a regular checkout of the same repository
 // at the same path must remain as separate steps.
 type checkoutKey struct {
 	repository string
 	path       string
 	wiki       bool
+	multi      bool
 }
 
 // resolvedCheckout is an internal merged checkout entry used by CheckoutManager.
@@ -323,6 +327,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		repository: normalizedRepo,
 		path:       normalizedPath,
 		wiki:       cfg.Wiki,
+		multi:      cfg.Multi,
 	}
 	maxRepos := defaultCheckoutMaxRepos
 	if cfg.MaxRepos != nil {
