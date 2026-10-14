@@ -76,7 +76,7 @@ jobs:
         run: node .github/scripts/work-queue-formal-check.cjs
       - name: Upload verification evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: work-queue-formal-${{ matrix.config }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/work-queue-formal/${{ matrix.config }}/bundle/
@@ -89,7 +89,7 @@ jobs:
     timeout-minutes: 20
 steps:
   - name: Download verification evidence
-    uses: actions/download-artifact@v8.0.1
+    uses: actions/download-artifact@v8.0.2
     with:
       pattern: work-queue-formal-*
       path: /tmp/gh-aw/agent/work-queue-formal/evidence
@@ -98,7 +98,7 @@ steps:
 post-steps:
   - name: Upload analysis handoff
     if: always()
-    uses: actions/upload-artifact@v7.0.1
+    uses: actions/upload-artifact@v7.0.2
     with:
       name: work-queue-formal-handoff-${{ github.run_id }}-${{ github.run_attempt }}
       path: /tmp/gh-aw/agent/work-queue-formal/handoff/

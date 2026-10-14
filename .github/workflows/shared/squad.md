@@ -46,7 +46,7 @@ jobs:
       - name: Mint Squad GitHub App token
         id: squad-app-token
         if: ${{ steps.squad-installation.outputs.installed != 'true' && vars.SQUAD_GITHUB_APP_ID != '' }}
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ vars.SQUAD_GITHUB_APP_ID }}
           private-key: ${{ secrets.SQUAD_GITHUB_APP_PRIVATE_KEY }}
