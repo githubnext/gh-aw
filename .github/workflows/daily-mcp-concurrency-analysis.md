@@ -100,7 +100,7 @@ tools:
         additionalProperties: false
       max-record-kb: 4
       max-patch-kb: 10
-  cli-proxy: true
+  cli-proxy: false
   edit: null
   github:
     mode: local
@@ -150,6 +150,7 @@ When issues are identified, create detailed issues with specific recommendations
 - Bash is only for the exact, bounded `git log` command declared above. Run it from the existing workspace directory, without `cd`, command chaining, pipes, redirection, heredocs, or helper scripts. Sort tool names and interpret JSON in your analysis, not with shell pipelines.
 - These narrow shell grants rely on the configured Copilot engine's shell-filter support. Do not port this shell fallback to an engine without shell filters (such as Codex), or substitute unrestricted shell access. Never execute handler modules; read only verified implementation paths.
 - Discover the exposed safe-output tools and their argument schemas, then call them directly with structured arguments. Do not construct CLI calls, pipe JSON into `safeoutputs`, or write a report file just to publish it.
+- GitHub, Serena, safeoutputs, and mcpscripts are native MCP servers, not individual tool names. Discover their exposed function names and schemas; never call a tool named `mcpscripts` or invoke its CLI through Bash. Only call functions actually present in the tool inventory.
 - A denied call is not a reason to retry it with different shell syntax. Use the permitted native or MCP equivalent. If required data or tools are unavailable, call `report_incomplete` with the concrete blocker; do not report a clean analysis or successful cache update.
 
 ### Step 1: Load Round-Robin State from Cache
@@ -161,7 +162,7 @@ Check your cache for:
 - `analyzed_tools`: Map of tools with their analysis timestamps (format: `[{"tool": "<name>", "analyzed_at": "<date>", "status": "clean|issues_found"}, ...]`)
 - `known_issues`: List of tools with known concurrency issues
 
-If this is the first run or cache is empty, start fresh with the complete tool list.
+If this is the first run or cache is empty, start fresh with the complete tool list. Create the state file with native `apply_patch` or edit tools; do not create its directory with Bash.
 
 ### Step 2: Get List of All MCP Server Tools
 
@@ -565,10 +566,12 @@ If you emitted any actionable safe outputs, do not emit `noop`.
 
 Pass this object directly as arguments to `noop`; do not wrap it in a tool-name envelope or send it through Bash.
 
-After the safe output, call the exposed `concurrency-audit-state` MCP script directly with `analyzed_tool` set to the selected tool name. It queries the generic records projection at `/tmp/gh-aw/ledgers/concurrency-audits/ledger.db` with fixed, parameterized SQL and a read-only connection. Use `current_run` to check for a record for this run ID and `latest_tool` for the most recent audit of the selected tool. Do not run SQLite through Bash or supply SQL.
+Before emitting a clean completion, discover and call the native mcpscripts function for `concurrency-audit-state` with `analyzed_tool` set to the selected tool name. It queries the generic records projection at `/tmp/gh-aw/ledgers/concurrency-audits/ledger.db` with fixed, parameterized SQL and a read-only connection. Use `current_run` to check for a record for this run ID and `latest_tool` for the most recent audit of the selected tool. Do not run SQLite through Bash or supply SQL.
 
 If absent, call the exposed `ledger_append` safe-output tool directly with `ledger: concurrency-audits` and a `record` containing `record_type: mcp_concurrency_audit`. Include only the run ID, analyzed tool, status, and issue number if one was created; do not store code or raw analysis notes. Submit at most once: queued records are not visible in this run's read-only projection and become durable only after the trusted ledger persistence job succeeds. Do not edit ledger branches directly.
 If the read-only query fails, report the concrete blocker with `report_incomplete`; do not bypass it with shell commands or direct ledger edits.
+
+Complete the cache read-back and ledger query/submission before calling `noop`. If cache editing, the MCP script, or `ledger_append` is unavailable or denied, call native `report_incomplete` with the exact missing function or blocked path and the completed analysis steps; do not emit a clean `noop` or claim persistence. If `report_incomplete` itself is unavailable, state explicitly in the final response that no terminal safe output was emitted.
 
 ## Concurrency Analysis Best Practices
 

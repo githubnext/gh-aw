@@ -1,6 +1,8 @@
 // @ts-check
 
-const SAFE_HEADERS = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-used", "x-ratelimit-reset", "retry-after"];
+const { getGitHubAPIQuota, getGitHubAPIDiagnostic, getSanitizedGitHubAPICause } = require("./github_api_diagnostics.cjs");
+
+const SAFE_HEADERS = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-used", "x-ratelimit-reset", "x-ratelimit-resource", "retry-after"];
 const API_READ_OPERATIONS = Object.freeze({
   CURRENT_RUN: "current_run",
   WORKFLOW_HISTORY: "workflow_history",
@@ -37,12 +39,7 @@ function apiError(status, headers, message) {
 }
 
 function retryNotBefore(headers, now = Date.now(), quotaStopped = false) {
-  const safe = safeResponseHeaders(headers);
-  const reset = quotaStopped || safe["x-ratelimit-remaining"] === "0" ? Number(safe["x-ratelimit-reset"]) * 1000 : NaN;
-  const retry = safe["retry-after"];
-  const retryAt = retry == null ? NaN : /^\d+$/.test(retry) ? now + Number(retry) * 1000 : Date.parse(retry);
-  const times = [reset, retryAt].filter(value => Number.isFinite(value) && value > now);
-  return times.length ? new Date(Math.max(...times)).toISOString() : "";
+  return getGitHubAPIQuota(headers, now, quotaStopped).retryNotBefore;
 }
 
 function getErrorStatus(error) {
@@ -52,7 +49,7 @@ function getErrorStatus(error) {
 function isQuotaError(error) {
   const headers = safeResponseHeaders(error?.response?.headers);
   const status = getErrorStatus(error);
-  return error?.code === "DAILY_AIC_QUOTA_STOP" || status === 429 || (status === 403 && (headers["x-ratelimit-remaining"] === "0" || headers["retry-after"] != null));
+  return error?.code === "DAILY_AIC_QUOTA_STOP" || status === 429 || (status === 403 && (headers["x-ratelimit-remaining"] === "0" || headers["retry-after"] != null)) || getGitHubAPIDiagnostic(error)?.quota === true;
 }
 
 function isTransientError(error) {
@@ -72,13 +69,17 @@ function createAPIBudget(reserve = 100) {
   let requests = 0;
   let latest = {};
   const budget = {
-    observe(response) {
+    observe(response, cause = undefined) {
       requests++;
       latest = safeResponseHeaders(response.headers);
       const remaining = latest["x-ratelimit-remaining"];
       const limited = response.status === 429 || (response.status === 403 && (remaining === "0" || latest["retry-after"] != null));
       if (limited || (remaining != null && Number(remaining) <= reserve)) {
-        throw Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP" });
+        const sanitizedCause = getSanitizedGitHubAPICause(cause);
+        const error = Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP", ...(sanitizedCause ? { cause: sanitizedCause } : {}) });
+        const diagnostic = getGitHubAPIDiagnostic(error);
+        if (diagnostic) error.message += `: ${diagnostic.message}`;
+        throw error;
       }
     },
     async request(operation, observe = true, readOperation) {
@@ -92,7 +93,7 @@ function createAPIBudget(reserve = 100) {
           try {
             response = await operation();
           } catch (error) {
-            if (observe && error?.response) budget.observe(error.response);
+            if (observe && error?.response) budget.observe(error.response, error);
             throw error;
           }
           if (observe) budget.observe(response);
@@ -111,6 +112,8 @@ function createAPIBudget(reserve = 100) {
             const failure = Object.freeze({ attempts: attempt + 1, status: status !== null && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null, reason, requests, operation: operationName });
             if (error && typeof error === "object") READ_FAILURES.set(error, failure);
             core.info(`[daily-workflow-aic] Stopped daily AIC read: ${JSON.stringify(failure)}`);
+            const diagnostic = getGitHubAPIDiagnostic(error);
+            if (diagnostic) core.info(`[daily-workflow-aic] ${operationName}: ${diagnostic.message}`);
             throw error;
           }
           const delayMs = 1000 * 2 ** attempt;
@@ -120,12 +123,13 @@ function createAPIBudget(reserve = 100) {
       }
     },
     snapshot() {
+      const metadata = getGitHubAPIQuota(latest);
       return {
         requests,
-        remaining: Number(latest["x-ratelimit-remaining"] || 0),
-        limit: Number(latest["x-ratelimit-limit"] || 0),
-        used: Number(latest["x-ratelimit-used"] || 0),
-        reset: latest["x-ratelimit-reset"] ? new Date(Number(latest["x-ratelimit-reset"]) * 1000).toISOString() : "",
+        remaining: metadata.remaining ?? 0,
+        limit: metadata.limit ?? 0,
+        used: metadata.used ?? 0,
+        reset: metadata.reset,
       };
     },
   };

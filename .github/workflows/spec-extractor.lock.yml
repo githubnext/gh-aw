@@ -641,8 +641,8 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
-      - name: Verify Go installation
-        run: go version
+      - name: Expose Go to Serena container
+        run: "set -euo pipefail\ngo_root=\"$(go env GOROOT)\"\ncase \"$go_root\" in\n  \"${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}\"/go/*) ;;\n  *)\n    echo \"Serena Go runtime is outside its read-only runner tool-cache mount; check actions/setup-go and RUNNER_TOOL_CACHE.\" >&2\n    exit 1\n    ;;\nesac\nif [ ! -x \"$go_root/bin/go\" ]; then\n  echo \"Serena Go runtime has no executable bin/go in the mounted toolchain.\" >&2\n  exit 1\nfi\nprintf 'GH_AW_SERENA_GO_PATH=%s/bin:%s\\n' \"$go_root\" \"$PATH\" >> \"$GITHUB_ENV\"\n\"$go_root/bin/go\" version\n"
       - name: Collect package analysis data
         run: "set -e\nPACKAGES=(agentdrain cli console constants envutil fileutil gitutil logger parser repoutil semverutil sliceutil stringutil styles testutil timeutil tty types typeutil workflow)\nTOTAL=${#PACKAGES[@]}\nCACHE_DIR=/tmp/gh-aw/cache-memory/spec-extractor\nCONTEXT=/tmp/gh-aw/agent/pkg-context.md\n\n# Initialize or load rotation state\nmkdir -p \"$CACHE_DIR/extractions\"\nif [ -f \"$CACHE_DIR/rotation.json\" ]; then\n  LAST_INDEX=$(python3 -c \"import json; d=json.load(open('$CACHE_DIR/rotation.json')); print(d.get('last_index', 0))\" 2>/dev/null || echo 0)\nelse\n  printf '{\"last_index\":0,\"last_packages\":[],\"last_run\":\"\",\"total_packages\":%d}\\n' \"$TOTAL\" > \"$CACHE_DIR/rotation.json\"\n  LAST_INDEX=0\nfi\n\n# Select next 4 packages using round-robin\nPKG0=\"${PACKAGES[$((LAST_INDEX % TOTAL))]}\"\nPKG1=\"${PACKAGES[$(((LAST_INDEX + 1) % TOTAL))]}\"\nPKG2=\"${PACKAGES[$(((LAST_INDEX + 2) % TOTAL))]}\"\nPKG3=\"${PACKAGES[$(((LAST_INDEX + 3) % TOTAL))]}\"\nNEXT_INDEX=$(((LAST_INDEX + 4) % TOTAL))\nSELECTED=(\"$PKG0\" \"$PKG1\" \"$PKG2\" \"$PKG3\")\n\necho \"Selected packages: ${SELECTED[*]} (last_index=$LAST_INDEX, next=$NEXT_INDEX)\"\n\n# Collect analysis data for each package into the context file\n{\n  echo \"# Package Analysis Context\"\n  echo \"\"\n  echo \"**Run date**: $(date -u +%Y-%m-%d)\"\n  echo \"**Rotation last_index (current)**: $LAST_INDEX\"\n  echo \"**Selected packages**: ${SELECTED[*]}\"\n  echo \"**Next last_index (save this after run)**: $NEXT_INDEX\"\n  echo \"\"\n\n  for PKG in \"${SELECTED[@]}\"; do\n    echo \"---\"\n    echo \"\"\n    echo \"## Package: \\`$PKG\\`\"\n    echo \"\"\n\n    echo \"### Source Files\"\n    echo '```'\n    find \"pkg/$PKG\" -name '*.go' ! -name '*_test.go' -type f 2>/dev/null | sort || true\n    echo '```'\n\n    echo \"### Line Counts\"\n    echo '```'\n    wc -l pkg/\"$PKG\"/*.go 2>/dev/null || true\n    echo '```'\n\n    echo \"### Exported Functions\"\n    echo '```'\n    grep -rn \"^func [A-Z]\" \"pkg/$PKG\" --include='*.go' 2>/dev/null || true\n    echo '```'\n\n    echo \"### Exported Types\"\n    echo '```'\n    grep -rn \"^type [A-Z]\" \"pkg/$PKG\" --include='*.go' 2>/dev/null || true\n    echo '```'\n\n    echo \"### Exported Constants\"\n    echo '```'\n    grep -rn \"^const [A-Z]\" \"pkg/$PKG\" --include='*.go' 2>/dev/null || true\n    echo '```'\n\n    echo \"### Exported Variables\"\n    echo '```'\n    grep -rn \"^var [A-Z]\" \"pkg/$PKG\" --include='*.go' 2>/dev/null || true\n    echo '```'\n\n    echo \"### Package Doc Comments (first 30 lines per file)\"\n    for f in pkg/\"$PKG\"/*.go; do\n      [ -f \"$f\" ] || continue\n      echo \"#### $f\"\n      echo '```go'\n      head -n 30 \"$f\" 2>/dev/null || true\n      echo '```'\n    done\n\n    echo \"### Imports\"\n    echo '```'\n    find \"pkg/$PKG\" -name '*.go' ! -name '*_test.go' -type f -print0 | xargs -0 grep -h \"import\" 2>/dev/null | sort -u || true\n    echo '```'\n\n    echo \"### Existing README.md\"\n    echo '```markdown'\n    cat \"pkg/$PKG/README.md\" 2>/dev/null || echo \"No existing README.md\"\n    echo '```'\n\n    echo \"### Recent Git History (30 days)\"\n    echo '```'\n    git log --oneline --since='30 days ago' -- \"pkg/$PKG\" 2>/dev/null || true\n    echo '```'\n    echo \"\"\n  done\n} > \"$CONTEXT\"\necho \"Context file written to $CONTEXT ($(wc -l < \"$CONTEXT\") lines)\""
 
@@ -828,6 +828,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}
+          GH_AW_SERENA_GO_PATH: ${{ env.GH_AW_SERENA_GO_PATH }}
           GH_AW_SINK_VISIBILITY: ${{ steps.determine-automatic-lockdown.outputs.visibility }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -863,11 +864,11 @@ jobs:
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.31@sha256:dbec0f2ddef6adf83b7764019323096e3e5cc0f3886255f6320555b7fe2a7caf'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e GH_AW_SERENA_GO_PATH -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.31@sha256:dbec0f2ddef6adf83b7764019323096e3e5cc0f3886255f6320555b7fe2a7caf'
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ebfa38c61042518e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_c0808bc106ca8d14_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -934,7 +935,7 @@ jobs:
                   "*"
                 ],
                 "env": {
-                  "PATH": "\${PATH}"
+                  "PATH": "\${GH_AW_SERENA_GO_PATH}:\${PATH}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -959,7 +960,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ebfa38c61042518e_EOF
+          GH_AW_MCP_CONFIG_c0808bc106ca8d14_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
