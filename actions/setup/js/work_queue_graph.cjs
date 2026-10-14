@@ -6,6 +6,7 @@ const { boundedBytes } = require("./work_queue_limits.cjs");
 const { decimal, poolPolicy, validateRequestRole, validateSubmissionEntitlement, workerContinuationAuthority } = require("./work_queue_policy.cjs");
 const { externalVertex, indexesFor } = require("./work_queue_indexes.cjs");
 const { admissionProfile } = require("./work_queue_deployment.cjs");
+const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
 
 function nodeId(graph_id, node_key) {
   return digest({ graph_id, node_key });
@@ -19,7 +20,7 @@ function validateResource(resource) {
   closed(resource, ["kind", "host", "repository", "repository_id", "resource_id", "number"], [], "resource");
   if (!["issue", "pull_request"].includes(resource.kind)) throw queueError("resource_invalid", "resource kind must be Issue or Pull Request");
   for (const field of ["host", "repository"]) identity(resource[field], field);
-  if (resource.host !== "github.com" || !/^[^/\s]+\/[^/\s]+$/.test(resource.repository)) throw queueError("resource_unauthorized", "resource host/repository must be approved normalized GitHub coordinates");
+  if (resource.host !== expectedGitHubHost() || !/^[^/\s]+\/[^/\s]+$/.test(resource.repository)) throw queueError("resource_unauthorized", "resource host/repository must be approved normalized GitHub coordinates");
   for (const field of ["repository_id", "resource_id", "number"]) decimal(resource[field], field, "resource_invalid");
   return resource;
 }

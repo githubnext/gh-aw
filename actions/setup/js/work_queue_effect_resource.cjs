@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost, validateEffectResource } = require("./work_queue_resource_scope.cjs");
 
 const DECIMALS = new Set(["repository_id", "resource_id", "number", "comment_id", "run_id"]);
 const FIELDS = new Set(["repository", "kind", "host", ...DECIMALS, "ref", "path"]);
@@ -37,7 +37,7 @@ function canonicalResourceTarget(resource) {
 
 async function resolveRepositoryTarget(github, resource) {
   const target = canonicalResourceTarget(resource);
-  if ((process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "") === "https://api.github.com") target.host = "github.com";
+  target.host = expectedGitHubHost();
   if (typeof github?.rest?.repos?.get === "function") {
     const [owner, repo] = target.repository.split("/");
     const { data } = await github.rest.repos.get({ owner, repo });

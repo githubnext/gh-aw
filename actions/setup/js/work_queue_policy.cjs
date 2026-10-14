@@ -4,6 +4,7 @@
 const { canonical, closed, identity, integer, queueError } = require("./work_queue_codec.cjs");
 const { DEFAULT_LIMITS, validateLimits } = require("./work_queue_limits.cjs");
 const { tickScale } = require("./work_queue_scheduler.cjs");
+const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
 
 const ROLES = new Set(["administrator", "producer", "dispatcher", "worker", "reconciler", "projector"]);
 const ROLE_KINDS = {
@@ -111,7 +112,7 @@ function validatePolicy(policy) {
         if (!Array.isArray(rule.backing_issues) || !rule.backing_issues.length || rule.backing_issues.length > 256) throw queueError("policy_invalid", "backing Issues require 1..256 explicit targets");
         for (const resource of rule.backing_issues) {
           closed(resource, ["kind", "host", "repository", "repository_id", "resource_id", "number"], [], "projector backing Issue", "policy_invalid");
-          if (resource.kind !== "issue" || resource.host !== "github.com" || !rule.repositories.includes(resource.repository)) throw queueError("policy_invalid", "backing Issue target must be an installed GitHub Issue");
+          if (resource.kind !== "issue" || resource.host !== expectedGitHubHost() || !rule.repositories.includes(resource.repository)) throw queueError("policy_invalid", "backing Issue target must be an installed GitHub Issue");
           for (const field of ["repository_id", "resource_id", "number"]) decimal(resource[field], field, "policy_invalid");
         }
       }

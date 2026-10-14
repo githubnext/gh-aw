@@ -5,6 +5,7 @@ const log = require("./work_queue_logging.cjs").createWorkQueueLogger("effects")
 const { assertClaimAuthorized, currentClaimHandle, recordClaimEffect, claimIdentity, assertClaimIdentity, currentClaimResourceEffects } = require("./work_queue_claim_scope.cjs");
 const { canonical, digest, parseStrictJSON } = require("./work_queue_codec.cjs");
 const { canonicalResourceTarget, nativeDecimalIdentity, resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
+const { expectedGitHubHost } = require("./work_queue_resource_scope.cjs");
 
 const READ_METHODS = new Set(["get", "list", "getSarif", "getAnalysis", "getComment", "getCommit", "getRef", "getTree", "getBlob", "getArtifact", "getBranch", "getByUsername", "getWorkflowRun", "getWorkflowRunAttempt"]);
 /** @type {WeakMap<object, {identity: ReturnType<typeof claimIdentity>, options: Record<string, unknown>}>} */
@@ -498,7 +499,7 @@ function wrapClaimEffectClient(client, options) {
           ...(resource.databaseId === undefined || node.__typename === "Repository" ? {} : { resource_id: nativeDecimalIdentity(resource.databaseId) }),
           ...(node.__typename === "Repository" ? { repository_id: nativeDecimalIdentity(node.databaseId) } : nativeRepository.databaseId === undefined ? {} : { repository_id: nativeDecimalIdentity(nativeRepository.databaseId) }),
           ...(typeof node.__typename === "string" && ["IssueComment", "PullRequestReviewComment"].includes(node.__typename) && node.databaseId !== undefined ? { comment_id: nativeDecimalIdentity(node.databaseId) } : {}),
-          ...((process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "") === "https://api.github.com" ? { host: "github.com" } : {}),
+          host: expectedGitHubHost(),
         };
         if (node.__typename === "Ref") {
           if (typeof node.name !== "string" || !node.name || typeof node.prefix !== "string" || !node.prefix.startsWith("refs/") || !node.prefix.endsWith("/")) throw new Error("Claim GraphQL Ref has no resolved native name");
