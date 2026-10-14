@@ -12,6 +12,7 @@ global.core = {
 };
 
 import { withRetry, isTransientError, getRetryAfterMs, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG, RATE_LIMIT_RETRY_CONFIG } from "./error_recovery.cjs";
+import { TransportIntegrityError } from "./transport_integrity.cjs";
 
 describe("error_recovery", () => {
   beforeEach(() => {
@@ -19,6 +20,10 @@ describe("error_recovery", () => {
   });
 
   describe("isTransientError", () => {
+    it.each(["network", "timeout", "rate limit", "secondary rate limit", "econnreset"])("never retries transport-integrity errors whose paths contain %s", text => {
+      expect(isTransientError(new TransportIntegrityError(`/tmp/gh-aw/aw-${text}.patch`))).toBe(false);
+    });
+
     it("should identify network errors as transient", () => {
       expect(isTransientError(new Error("Network error occurred"))).toBe(true);
       expect(isTransientError(new Error("ECONNRESET"))).toBe(true);
