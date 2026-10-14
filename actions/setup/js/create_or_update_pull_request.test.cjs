@@ -28,4 +28,34 @@ describe("createOrUpdatePullRequest", () => {
     await createOrUpdatePullRequest({ ...options, githubClient });
     expect(githubClient.rest.pulls.create).toHaveBeenCalledWith(expect.not.objectContaining({ head_repo: expect.anything() }));
   });
+
+  it("rechecks transport integrity before a retried API write", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("core", { info: vi.fn(), debug: vi.fn(), warning: vi.fn() });
+    let tampered = false;
+    const githubClient = {
+      rest: {
+        pulls: {
+          create: vi.fn(async () => {
+            tampered = true;
+            throw Object.assign(new Error("Service unavailable"), { status: 503 });
+          }),
+        },
+      },
+    };
+    const assertTransportUnchanged = vi.fn(() => {
+      if (tampered) throw new Error("SECURITY: Safe-output transport changed after capture");
+    });
+    try {
+      const result = createOrUpdatePullRequest({ ...options, githubClient, assertTransportUnchanged });
+      const rejection = expect(result).rejects.toThrow("SECURITY:");
+      await vi.runAllTimersAsync();
+      await rejection;
+      expect(assertTransportUnchanged).toHaveBeenCalledTimes(2);
+      expect(githubClient.rest.pulls.create).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
 });

@@ -2608,6 +2608,7 @@ ${issueSafeFallbackFooter}`;
         }
         transport.assertUnchanged();
         const { data: pullRequest } = await createOrUpdatePullRequest({
+          assertTransportUnchanged: transport.assertUnchanged,
           githubClient,
           repoParts,
           title,
