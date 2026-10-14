@@ -507,6 +507,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     ["repository_history", 502, {}, 3, "retry_exhausted", "transient_error"],
     ["workflow_history", 503, { "retry-after": "120" }, 1, "retry_restricted", "transient_error"],
     ["workflow_history", 502, { "x-ratelimit-remaining": "100" }, 1, "quota_stop", "transient_error"],
+    ["workflow_history", 403, { "x-ratelimit-remaining": "0" }, 1, "quota_stop", "transient_error"],
     ["workflow_history", 403, {}, 1, "non_transient", "structural_error"],
   ])("main() safely attributes %s HTTP %i while keeping unknown history blocked", async (operation, httpStatus, headers, attempts, reason, guardrailStatus) => {
     vi.useFakeTimers();
@@ -534,7 +535,13 @@ describe("check_daily_aic_workflow_guardrail", () => {
       const pending = runMain();
       await vi.runAllTimersAsync();
       await pending;
-      const message = `Daily workflow AI Credits are unknown: ${operation} read stopped (HTTP ${httpStatus}; attempts: ${attempts}; reason: ${reason}). Accounting remains unverified; agent startup is blocked.`;
+      const diagnostic =
+        reason === "quota_stop"
+          ? ` GitHub API ${headers["x-ratelimit-remaining"] === "0" ? "quota_exhausted" : "quota_reserve"} (HTTP ${httpStatus}; resource=unknown; remaining=${headers["x-ratelimit-remaining"]}; limit=unknown; used=unknown; reset=unknown; retry_not_before=unknown)`
+          : httpStatus === 403
+            ? " GitHub API permission_denied (HTTP 403; Check the credential's access to this operation; quota exhaustion was not established.)"
+            : "";
+      const message = `Daily workflow AI Credits are unknown: ${operation} read stopped (HTTP ${httpStatus}; attempts: ${attempts}; reason: ${reason}). Accounting remains unverified; agent startup is blocked.${diagnostic}`;
       expect(outputs).toMatchObject({ daily_ai_credits_guardrail_status: guardrailStatus, daily_ai_credits_guardrail_error: message, daily_ai_credits_total: "", daily_ai_credits_estimated: "", daily_ai_credits_exceeded: "false" });
       expect(global.core.setFailed).toHaveBeenCalledWith(message);
       expect(failedRead).toHaveBeenCalledTimes(attempts);

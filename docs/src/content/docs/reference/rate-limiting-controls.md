@@ -146,6 +146,14 @@ When a run starts and the workflow has already consumed more than the threshold 
 - **Label commands**: Runs triggered by label commands bypass the guardrail in the same way.
 - **Centralized invocations**: `workflow_call` and `repository_dispatch` events always bypass the guardrail; the calling workflow manages its own budget.
 
+## GitHub API Quota Diagnostics
+
+GitHub API quota is separate from daily AI Credits. During daily AIC inspection, `quota_exhausted` means the failed response reports zero remaining requests; `quota_reserve` means inspection stopped at the protective reserve. `rate_limited` identifies a rate-limit response without claiming that missing quota headers mean zero. HTTP 401 is reported as `authentication_failed`; a 403 without rate-limit evidence is reported as `permission_denied`.
+
+Daily AIC restore failures identify the stopped read (such as `current_run`) and attempt count in logs and the step summary. Review-fetch failures in `dismiss-pull-request-review` retain the PR and review boundary. Diagnostics include validated remaining, limit, used, UTC reset and `retry_not_before` metadata when supplied by that business response; unavailable metadata is `unknown`. A precheck from another client is not authoritative for the failed request's quota.
+
+Quota-limited accounting remains unverified and blocks agent startup; it is not a measured daily credit overrun. Reset and Retry-After timestamps are earliest retry constraints, not automatic retries or guarantees of available shared installation quota.
+
 ## Example: Multiple Protection Layers
 
 ```yaml wrap

@@ -16,6 +16,27 @@ afterEach(() => {
 const response = (status = 200, headers = { "x-ratelimit-remaining": "4000" }) => ({ status, headers });
 
 describe("bounded daily AIC read retries", () => {
+  it("classifies a headerless installation rate limit without retrying or publishing its payload", async () => {
+    const error = apiError(403, {}, "API rate limit exceeded for installation; secret-test-value");
+    const request = vi.fn().mockRejectedValue(error);
+    await expect(createAPIBudget().request(request, true, API_READ_OPERATIONS.CURRENT_RUN)).rejects.toBe(error);
+    expect(getAPIReadFailure(error)).toMatchObject({ attempts: 1, reason: "quota_stop", operation: "current_run" });
+    expect(request).toHaveBeenCalledOnce();
+    const logs = global.core.info.mock.calls.flat().join("\n");
+    expect(logs).toContain("current_run: GitHub API rate_limited");
+    expect(logs).toContain("remaining=unknown");
+    expect(logs).not.toContain("secret-test-value");
+  });
+
+  it("does not let malformed reset metadata replace the original failure", async () => {
+    const request = vi.fn().mockRejectedValue(apiError(403, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "9999999999999999" }, "private payload"));
+    const budget = createAPIBudget();
+    await expect(budget.request(request)).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
+    expect(budget.snapshot().reset).toBe("");
+    expect(retryNotBefore({ "x-ratelimit-remaining": "0", "x-ratelimit-reset": "9999999999999999" })).toBe("");
+    expect(request).toHaveBeenCalledOnce();
+  });
+
   it("retries only the failed read and observes each response once", async () => {
     const budget = createAPIBudget();
     const request = vi
