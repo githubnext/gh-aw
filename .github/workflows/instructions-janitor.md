@@ -45,7 +45,7 @@ tools:
   - "git show --stat *"
   - ls .github/aw/
   cache-memory: true
-  cli-proxy: true
+  cli-proxy: false
   edit: null
   github:
     mode: local
@@ -83,6 +83,14 @@ Use small, topic-focused files.
 4. Prefer imperative, high-density wording and minimal examples.
 
 ## Required Audits
+
+### Tool and permission boundaries
+
+- Use native GitHub MCP tools for release metadata and remote reads, and native read/search/edit tools for local files.
+- Bash is only for the declared audit commands. Invoke each separately from the existing workspace; do not add pipelines, command chains, redirection, substitutions, or helper scripts.
+- Use native `get_latest_release` for the latest release tag and publication date. If shallow checkout history cannot resolve the tag, use native GitHub commit/file reads; do not fetch or expand shell permissions.
+- Publish edits through the native `create_pull_request` safe-output tool with structured arguments following its discovered schema. Do not invoke the `safeoutputs` CLI, serialize a payload in Bash, or pipe a PR body through `jq`.
+- After a denied or unavailable required call, stop that operation and call native `report_incomplete` with the blocked tool, audit phase, and edited paths. Never repeat a denied write in another syntax or claim the PR was created.
 
 ### 1. Release and change audit
 
@@ -154,6 +162,8 @@ Update the instruction files if behavior changed even when docs commits did not 
 If you made changes, open a PR titled:
 
 `[instructions] Sync instruction files with release X.Y.Z`
+
+Call native `create_pull_request` once with the title and body as argument fields after completing the edits and checks. Follow its generated patch/commit instructions; do not push a branch or use `gh pr create`. If no edits are needed after the required audits, call native `noop` with the audit result before finishing.
 
 Include:
 
