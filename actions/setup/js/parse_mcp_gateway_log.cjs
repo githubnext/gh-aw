@@ -793,7 +793,9 @@ function formatRpcInlineCodeLabel(value) {
  * @returns {string|null}
  */
 function getMcpRateLimitHint(message) {
-  const status = Array.from(message.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi)).at(-1);
+  const status = Array.from(message.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi))
+    .filter(match => !/\bretry-after\s*$/i.test(message.slice(0, match.index)))
+    .at(-1);
   if (!status || status[1] !== "429") return null;
   const diagnostic = message.slice(status.index);
   const duration = diagnostic.match(/\btry again in\s+((?:\d+(?:\.\d+)?(?:ns|µs|μs|us|ms|s|m|h))+)/i);

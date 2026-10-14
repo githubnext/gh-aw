@@ -59,6 +59,12 @@ describe("parse_mcp_gateway_log", () => {
       expect(summary).toContain("No retry hint provided");
     });
 
+    test.each([400, 429, 480, 599])("does not mistake Retry-After: %s for an HTTP status", seconds => {
+      const entries = [request(), response(`HTTP 429 Too Many Requests; Retry-After: ${seconds}`)];
+      expect(generateMcpRateLimitSummary(jsonl(entries))).toContain(`Retry-After: ${seconds}s`);
+      expect(generateRpcMessagesSummary(parseRpcMessagesJsonl(jsonl(entries)), [])).toContain(`error | HTTP 429: Retry-After: ${seconds}s`);
+    });
+
     test("matches request IDs per server and escapes tool labels", () => {
       const entries = [request(), request("other", "<img src=x>|tool"), response("429 try again in 2s", "other")];
       const summary = generateMcpRateLimitSummary(jsonl(entries));
