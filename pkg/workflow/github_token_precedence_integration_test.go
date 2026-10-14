@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTopLevelGitHubTokenPrecedence(t *testing.T) {
@@ -105,20 +107,20 @@ Test that safe-outputs github-token overrides tools.github token.
 			t.Fatal(err)
 		}
 
-		yamlContent := string(content)
-		// Strip the comment header to check only the actual YAML content
-		yamlContentNoComments := testutil.StripYAMLCommentHeader(yamlContent)
-
-		// Verify that safe-outputs token is used in the safe_outputs job
-		if !strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
-			t.Error("Expected safe-outputs github-token to be used in safe_outputs job")
-			t.Logf("Generated YAML:\n%s", yamlContent)
+		var workflow struct {
+			Jobs map[string]any `yaml:"jobs"`
 		}
+		require.NoError(t, yaml.Unmarshal(content, &workflow))
+		safeOutputsJob, ok := workflow.Jobs["safe_outputs"]
+		require.True(t, ok, "Expected safe_outputs job")
+		safeOutputsYAML, err := yaml.Marshal(safeOutputsJob)
+		require.NoError(t, err)
 
-		// Verify that tools.github token is NOT used in safe-outputs job
-		if strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.GITHUB_TOOL_PAT }}") {
-			t.Error("tools.github github-token should not be used when safe-outputs token is present")
-		}
+		require.Contains(t, string(safeOutputsYAML), "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}")
+		require.NotContains(t, string(safeOutputsYAML), "${{ secrets.GITHUB_TOOL_PAT }}",
+			"tools.github token must not be used in the safe_outputs job")
+		require.Contains(t, string(content), "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOOL_PAT }}",
+			"tools.github token must remain available to the GitHub MCP server")
 	})
 
 	t.Run("safe-outputs token used independently", func(t *testing.T) {

@@ -10,6 +10,7 @@ import "embed"
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
+//go:embed js/mcp_rate_limit.cjs
 //go:embed js/parse_claude_log.cjs js/parse_codex_log.cjs js/parse_copilot_log.cjs js/parse_gemini_log.cjs
 //go:embed js/parse_custom_log.cjs js/parse_pi_log.cjs js/parse_opencode_log.cjs js/parse_goose_log.cjs
 //go:embed js/parse_agy_log.cjs
@@ -28,6 +29,7 @@ import "embed"
 //go:embed js/work_queue_mcp_server.cjs js/work_queue_replay.cjs js/work_queue_intents.cjs
 //go:embed js/work_queue_issue_contract.cjs
 //go:embed js/work_queue_binding.cjs js/work_queue_policy.cjs js/work_queue_store.cjs
+//go:embed js/work_queue_auth_cache.cjs
 //go:embed js/work_queue_policy_config.cjs
 //go:embed js/work_queue_checked_transport.cjs
 //go:embed js/work_queue_summary_renderer.cjs
