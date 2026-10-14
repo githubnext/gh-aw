@@ -1814,6 +1814,7 @@ jobs:
           GH_AW_WORK_QUEUE_CONTRACT: "14639a000869e40bfa9e9cb312ab60e13cc3039f2df1297776e21487769cb127"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GH_AW_GITHUB_TOKEN_SOURCE: ${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'pat' || 'github_actions' }}
+          GH_AW_WORK_QUEUE_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_WORK_QUEUE_INTENTS: /tmp/gh-aw/work-queue.intents.jsonl
           GH_AW_WORK_QUEUE_CONTROL_CONFIG: "{\"aw_context_workflows\":null,\"github-token\":\"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\",\"work_queue_dispatch_credential\":{\"kind\":\"${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'authenticated' || 'github_token' }}\"},\"work_queue_enabled\":true,\"work_queue_workflows\":null}"
         with:

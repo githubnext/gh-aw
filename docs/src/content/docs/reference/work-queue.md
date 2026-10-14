@@ -484,10 +484,17 @@ GraphQL publication. JSON metrics include per-method counts and measured local
 execution time. Simulated network cost assumes 250 ms per read and 500 ms per
 mutation; it is not measured GitHub elapsed time.
 
-Injected-client and custom-auth cases are explicit negative controls for the
-known uncached-history amplification. They must report
-`within_single_traversal_budget: false`. Passing these reproductions does not
-mean the production injected-client cache gap has been fixed.
+Compiled controls construct a separate queue client from the protected publisher
+token, not the worker-dispatch credential. Within one control invocation, this
+permits reuse of immutable checkpoint-history proofs under registered, unchanged
+static authentication while retaining fresh repository/ref probes and checked
+publication. Both publication transports have full-step regression budgets for
+this compiled-token path.
+
+Arbitrary injected-client and custom-auth cases without an explicit publisher
+token remain uncached negative controls. They must report
+`within_single_traversal_budget: false`; caching is not enabled by inspecting an
+unknown client's `auth()` result.
 
 Optional live-data tests use a privately captured ledger and the exact queue
 head's Git objects already fetched into the current checkout:

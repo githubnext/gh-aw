@@ -39,7 +39,7 @@ afterEach(() => {
   for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-async function fixture({ depth = 32, profiles = 3, works = 15, retained = 100, auth = "constructed", deploymentsChanged = false, transport = "graphql" } = {}) {
+async function fixture({ depth = 32, profiles = 3, works = 15, retained = 100, auth = "constructed", deploymentsChanged = false, transport = "graphql", publisherToken = false } = {}) {
   const root = fs.mkdtempSync(path.join(process.cwd(), ".gh-aw-control-performance-"));
   directories.push(root);
   const workers = ESLINT_WORKERS.slice(0, profiles);
@@ -144,7 +144,7 @@ async function fixture({ depth = 32, profiles = 3, works = 15, retained = 100, a
     role: "dispatcher",
     policyProposal: policy,
     core,
-    env: {},
+    env: publisherToken ? { GH_AW_WORK_QUEUE_TOKEN: "publisher-token", GH_AW_GITHUB_TOKEN_SOURCE: "github_actions" } : {},
     intentPath,
     config: { ...config, work_queue_workflows: workers, aw_context_workflows: workers },
     sleepFn: async milliseconds => {
@@ -166,6 +166,7 @@ async function fixture({ depth = 32, profiles = 3, works = 15, retained = 100, a
       phase,
       success: result.success,
       auth,
+      publisher_token: publisherToken,
       transport,
       profiles,
       works,
@@ -247,14 +248,32 @@ describe("trusted work queue control step performance", () => {
     30000
   );
 
+  it.each(["graphql", "rest"])(
+    "constructs a cache-eligible publisher client for compiled injected-client controls (%s)",
+    async transport => {
+      const scenario = await fixture({ auth: "injected", publisherToken: true, deploymentsChanged: true, transport });
+      const metrics = await scenario.run("compiled-publisher-token");
+      assertBoundClaims(scenario);
+      expect(metrics.history_reads).toBe(2 * scenario.depth + 1);
+      expect(metrics.api_calls).toBeLessThanOrEqual(4 * scenario.depth + 60 * scenario.profiles + 64);
+      const head = scenario.fake.refs.get("work-queue");
+      const retry = await scenario.run("compiled-publisher-retry");
+      assertBoundClaims(scenario);
+      expect(scenario.fake.refs.get("work-queue")).toBe(head);
+      expect(retry.writes).toBe(0);
+      expect(retry.history_reads).toBeLessThanOrEqual(2 * (scenario.depth + 1) + 8 * scenario.profiles);
+    },
+    30000
+  );
+
   it.each(["injected", "dynamic"])(
     "detects uncached-history amplification for the %s client at the real compiler adapter boundary",
     async auth => {
       const scenario = await fixture({ auth, deploymentsChanged: true });
-      const metrics = await scenario.run(auth === "injected" ? "known-injected-client-regression" : "uncached-auth-negative-control");
+      const metrics = await scenario.run("uncached-auth-negative-control");
       assertBoundClaims(scenario);
       // Negative controls must fail the same one-traversal budget as the cached
-      // cases. A passing reproduction does not mean the production gap is fixed.
+      // cases when no explicit publisher token is supplied.
       expect(metrics.within_single_traversal_budget).toBe(false);
       expect(metrics.history_reads).toBeGreaterThan(5 * (scenario.depth + 1));
       expect(metrics.simulated_network_ms).toBeGreaterThan(120000);
