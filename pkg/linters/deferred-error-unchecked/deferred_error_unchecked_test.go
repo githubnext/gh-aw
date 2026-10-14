@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 
-	"github.com/github/gh-aw/pkg/linters/deferred-error-unchecked"
+	deferrerrorunchecked "github.com/github/gh-aw/pkg/linters/deferred-error-unchecked"
 )
 
 func TestDeferredErrorUnchecked(t *testing.T) {
