@@ -1115,6 +1115,9 @@ func TestGenerateAgentRateLimitSnapshotStepTokenPrecedence(t *testing.T) {
 		{name: "default magic secrets", tools: map[string]any{"github": nil}, githubEnabled: true, token: defaultToken},
 		{name: "without GitHub tool"},
 		{name: "disabled GitHub tool", tools: map[string]any{"github": false}},
+		{name: "GitHub CLI proxy", tools: map[string]any{"github": map[string]any{"mode": "gh-proxy"}}},
+		{name: "empty GitHub configuration", tools: map[string]any{"github": map[string]any{}}, githubEnabled: true, token: defaultToken},
+		{name: "remote GitHub MCP", tools: map[string]any{"github": map[string]any{"mode": "remote"}}, githubEnabled: true, token: defaultToken},
 		{name: "configured token", tools: map[string]any{"github": map[string]any{"github-token": customToken}}, githubEnabled: true, token: customToken},
 		{name: "app overrides configured token", tools: map[string]any{"github": map[string]any{
 			"github-token": customToken,
@@ -1133,10 +1136,7 @@ func TestGenerateAgentRateLimitSnapshotStepTokenPrecedence(t *testing.T) {
 			t.Parallel()
 			for _, phase := range []string{"start", "end"} {
 				var yaml strings.Builder
-				data := &WorkflowData{Tools: tt.tools, ParsedTools: &ToolsConfig{}}
-				if tt.githubEnabled {
-					data.ParsedTools.GitHub = &GitHubToolConfig{}
-				}
+				data := &WorkflowData{Tools: tt.tools, ParsedTools: NewTools(tt.tools)}
 				NewCompiler().generateAgentRateLimitSnapshotStep(&yaml, data, phase)
 				output := yaml.String()
 				if !tt.githubEnabled {

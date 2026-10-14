@@ -793,7 +793,8 @@ function formatRpcInlineCodeLabel(value) {
  * @returns {string|null}
  */
 function getMcpRateLimitHint(message) {
-  const unquotedMessage = message.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, match => " ".repeat(match.length));
+  // Echoed queries can contain unescaped quotes, so use their final closing delimiter.
+  const unquotedMessage = message.replace(/\bquery\s+(['"])[\s\S]*\1(?=\s*(?::|$))/gi, match => " ".repeat(match.length)).replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, match => " ".repeat(match.length));
   const requestStatuses = Array.from(unquotedMessage.matchAll(/\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+https?:\/\/\S*?:\s+([45]\d{2})\b/gi)).map(match => ({ index: match.index + match[0].lastIndexOf(match[1]), code: match[1] }));
   const diagnosticMessage = unquotedMessage.replace(/https?:\/\/\S+/gi, match => " ".repeat(match.length));
   const statuses = Array.from(diagnosticMessage.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi))
@@ -1406,6 +1407,8 @@ if (typeof module !== "undefined" && module.exports) {
     parseRpcMessagesJsonl,
     getRpcMessageType,
     getRpcRequestLabel,
+    getMcpRateLimitHint,
+    getRpcRateLimitHint,
     generateRpcMessagesSummary,
     generateMcpRateLimitSummary,
     printAllGatewayFiles,

@@ -8,6 +8,7 @@ const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs
 const { sessionContext } = require("./agent_session.cjs");
 const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./parse_mcp_gateway_log.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -76,6 +77,8 @@ const MCP_FIELDS = {
   inputSize: ["inputSize", "input_size"],
   outputSize: ["outputSize", "output_size"],
   status: ["status"],
+  httpStatus: ["httpStatus"],
+  retryHint: ["retryHint"],
   reason: ["reason"],
   error: ["error"],
 };
@@ -603,6 +606,20 @@ function normalizeUnifiedSessionEvent(event, phase) {
       if (!Object.hasOwn(data, key) && value !== undefined) data[key] = structuredClone(value);
     }
     if (data.error && typeof data.error === "object") data.error = selectFields(data.error, { code: ["code"], message: ["message"] });
+    const retryHint =
+      data.httpStatus === 429 && typeof data.retryHint === "string"
+        ? data.retryHint
+        : event.type === "mcp.rpc.response"
+          ? getRpcRateLimitHint({ payload: rpc })
+          : event.type === "mcp.tool_call" && typeof source.error === "string"
+            ? getMcpRateLimitHint(source.error)
+            : null;
+    if (retryHint !== null) {
+      data.httpStatus = 429;
+      data.retryHint = retryHint;
+      if (typeof data.error === "string") data.error = `HTTP 429: ${retryHint}`;
+      else if (data.error && typeof data.error === "object") data.error.message = `HTTP 429: ${retryHint}`;
+    }
   }
   if (["session.result", "firewall.token_usage", "usage.report"].includes(event.type)) {
     const usage = selectFields(event.type === "session.result" ? source.usage : (source.usage ?? source), USAGE_FIELDS);

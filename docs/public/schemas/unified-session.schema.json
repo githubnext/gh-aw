@@ -753,6 +753,8 @@
         "inputSize": { "$ref": "#/definitions/JsonValue" },
         "outputSize": { "$ref": "#/definitions/JsonValue" },
         "status": { "$ref": "#/definitions/JsonValue" },
+        "httpStatus": { "type": "number" },
+        "retryHint": { "type": "string" },
         "reason": { "$ref": "#/definitions/JsonValue" },
         "error": { "$ref": "#/definitions/JsonValue" }
       },

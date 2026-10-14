@@ -16,6 +16,8 @@ const {
   parseRpcMessagesJsonl,
   getRpcMessageType,
   getRpcRequestLabel,
+  getMcpRateLimitHint,
+  getRpcRateLimitHint,
   generateRpcMessagesSummary,
   generateMcpRateLimitSummary,
   printAllGatewayFiles,
@@ -102,6 +104,27 @@ describe("parse_mcp_gateway_log", () => {
     test("handles legacy gateway tool errors", () => {
       const entry = { event: "tool_call", server_name: "github", tool_name: "search_code", error: "429 try again in 719.5s" };
       expect(generateMcpRateLimitSummary(jsonl([entry]))).toContain("<code>search_code</code> | try again in 719.5s");
+    });
+
+    test.each(["'can't HTTP 429'", "'can't HTTP 429 try again in 1s'", "'can't status: 429'", "'nested ': HTTP 429 try again in 1s'", '"nested "HTTP 429 try again in 1s""'])("ignores unescaped quotes in echoed query %s", query => {
+      const message = `failed to search code with query ${query}: validation failed`;
+      const rpcResponse = response(message);
+      const rpcError = { event: "rpc_response", server_id: "github", payload: { id: 1, error: { code: -32603, message } } };
+      const legacy = { event: "tool_call", server_name: "github", tool_name: "search_code", error: message };
+      expect(getMcpRateLimitHint(message)).toBeNull();
+      expect(getRpcRateLimitHint(rpcResponse)).toBeNull();
+      expect(getRpcRateLimitHint(rpcError)).toBeNull();
+      expect(generateMcpRateLimitSummary(jsonl([request(), rpcResponse, rpcError, legacy]))).toBe("");
+      expect(generateRpcMessagesSummary(parseRpcMessagesJsonl(jsonl([request(), rpcResponse, rpcError])), [])).not.toContain("HTTP 429:");
+      expect(getMcpRateLimitHint(`failed to search code with query ${query}`)).toBeNull();
+    });
+
+    test.each(["HTTP 429", "GET https://api.github.com/search/code?q=private-query: 429"])("retains real transport status %s after an echoed query with apostrophes", transport => {
+      const message = `failed to search code with query 'can't HTTP 422': ${transport} try again in 2s`;
+      expect(getMcpRateLimitHint(message)).toBe("try again in 2s");
+      expect(getRpcRateLimitHint(response(message))).toBe("try again in 2s");
+      expect(generateMcpRateLimitSummary(jsonl([request(), response(message)]))).toContain("try again in 2s");
+      expect(getMcpRateLimitHint("failed to search code with query 'can't HTTP 429': HTTP 422 Validation Failed")).toBeNull();
     });
 
     test.each(["gateway.jsonl", "rpc-messages.jsonl", "both", "legacy"])("surfaces 429s with %s logs", async filename => {

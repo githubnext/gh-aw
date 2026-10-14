@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -16,12 +17,16 @@ const (
 )
 
 func (c *Compiler) generateAgentRateLimitSnapshotStep(yaml *strings.Builder, data *WorkflowData, phase string) {
-	if data == nil || data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
+	if data == nil {
+		return
+	}
+	mcpTools := collectMCPTools(data)
+	if !slices.Contains(mcpTools, "github") {
 		return
 	}
 	// Reuse the MCP resolver so App, configured token, and magic-secret precedence
 	// observe the same identity as the GitHub MCP server.
-	token := collectMCPEnvironmentVariables(data.Tools, []string{"github"}, data, false)["GITHUB_MCP_SERVER_TOKEN"]
+	token := collectMCPEnvironmentVariables(data.Tools, mcpTools, data, false)["GITHUB_MCP_SERVER_TOKEN"]
 	fmt.Fprintf(yaml, "      - name: Log GitHub rate limits at agent %s\n", phase) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	if phase == "end" {
 		yaml.WriteString("        if: always()\n")
