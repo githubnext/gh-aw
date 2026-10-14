@@ -296,12 +296,18 @@ function resolveEffectiveModel(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp/
   const routedModel = routing?.status === "selected" ? validateModelIdentifier(routing.wire_model) : "";
   const primaryModel = validateModelIdentifier(env.GH_AW_PRIMARY_MODEL);
   const configuredModel = validateModelIdentifier(env.GH_AW_ENGINE_MODEL);
-  const model = fallbackModel || (routing ? (routing.status === "selected" ? routedModel || primaryModel || configuredModel : "") : configuredModel);
+  const fs = require("fs");
+  const info = fs.existsSync(infoPath) ? readFallbackMetadata(infoPath) : {};
+  const selection = phase === "agent" ? info.model_selection : info[`${phase}_model_selection`];
+  const observed = ["observed", "substituted", "unavailable"].includes(selection?.status);
+  const model = observed
+    ? (selection.status === "observed" && fallbackModel) || validateModelIdentifier(selection.effective_model)
+    : fallbackModel || (routing ? (routing.status === "selected" ? routedModel || primaryModel || configuredModel : "") : configuredModel);
   return {
     model,
     fallbackModel,
     routing,
-    requestedModel: validateModelIdentifier(routing?.requested_model || (routing ? env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL : "")),
+    requestedModel: validateModelIdentifier(observed ? info.requested_model || selection.configured_model : routing?.requested_model || (routing ? env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL : "")),
     effort: routing?.status === "selected" ? routing.applied_effort || routing.effort : "",
   };
 }
@@ -314,6 +320,7 @@ function getEffectiveModelLabel(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp
   if (attribution.routing.status === "selected") {
     const routedModel = reduceModelNameToIdentifier(attribution.routing.wire_model);
     const routed = `routed: ${routedModel}${attribution.effort ? ` ${attribution.effort}` : ""}`;
+    if (!attribution.fallbackModel && shortModel !== routedModel) return `observed: ${shortModel} (${routed})`;
     return attribution.fallbackModel ? `fallback: ${shortModel} (${routed})` : routed;
   }
   const failureCode = validateModelIdentifier(attribution.routing.failure_code);

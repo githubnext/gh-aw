@@ -131,9 +131,16 @@ func resolveEffectiveModelAttribution(runDir string, info *AwInfo, routing *Mode
 	primaryModel := primaryTokenUsageModel(usage)
 	routingActive := (info.ModelRouting != nil && info.ModelRouting.Status != "" && info.ModelRouting.Status != "not_routed") ||
 		(routing != nil && routing.Status != "" && routing.Status != "not_routed")
+	selection := info.ModelSelection
 	switch {
+	case selection != nil && selection.Status == "unavailable":
+		result.Model = ""
+	case selection != nil && selection.Status == "substituted":
+		result.Model = selection.EffectiveModel
 	case info.FallbackModel != "":
 		result.Model = info.FallbackModel
+	case selection != nil && selection.Status == "observed":
+		result.Model = selection.EffectiveModel
 	case info.ModelRouting != nil && info.ModelRouting.Status == "selected":
 		result.Model = firstNonEmpty(info.ModelRouting.WireModel, info.ModelRouting.Model)
 	case routing != nil && routing.Status == "selected":

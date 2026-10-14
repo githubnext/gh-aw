@@ -4099,6 +4099,30 @@ process.exit(1);`
       expect(logs.some(l => l.includes("retrying awf-reflect model-catalog fetch once"))).toBe(true);
     });
 
+    it("reports a model missing from a fetched catalog instead of blaming catalog retrieval", async () => {
+      const tempDir = makeHarnessTempDir("copilot-model-unavailable-");
+      vi.stubEnv("GH_AW_TMP_DIR", tempDir);
+      process.env.COPILOT_MODEL = "gemini-3.8-flash";
+      writeAwfConfig({ "gemini-3.8-flash": ["copilot/gemini-3.8-flash"] });
+      const logs = [];
+      const reflect = { endpoints: [{ configured: true, provider: "copilot", models: ["claude-sonnet-5"] }] };
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined);
+      try {
+        await applyCopilotModelAliasResolution({ awfReflectData: reflect, refetchReflectData: async () => null, logger: message => logs.push(message) });
+        expect(exitSpy).toHaveBeenCalledWith(1);
+        expect(logs.at(-1)).toContain("not available in the workflow's live model catalog");
+        expect(logs.at(-1)).not.toContain("retrieval prevented");
+        expect(JSON.parse(fs.readFileSync(path.join(tempDir, "aw_info.json"), "utf8"))).toMatchObject({
+          requested_model: "gemini-3.8-flash",
+          model: "",
+          model_selection: { status: "unavailable" },
+        });
+      } finally {
+        vi.unstubAllEnvs();
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
     it("stops before spawning Copilot when catalog retries are exhausted for a known alias", async () => {
       process.env.COPILOT_MODEL = "sol";
       writeAwfConfig({ sol: ["copilot/gpt-5.6-sol"] });

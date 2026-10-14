@@ -99,6 +99,8 @@ const COPILOT_ROUTING_POLICY = getAWFModelRoutingPolicy("copilot");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
 const { resolveConfiguredCopilotModel, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { MODEL_NOT_SUPPORTED_PATTERN } = require("./agent_error_patterns.cjs");
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
 
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
@@ -146,18 +148,6 @@ const HTTP_400_RESPONSE_ERROR_PATTERN =
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
-
-// Pattern to detect "model not supported" errors (e.g. a model unavailable to the
-// current token or repository context).
-// Also matches the Copilot SDK driver's policy-enablement error, which is emitted when a model
-// (commonly the one requested by a subagent / `task` dispatch) is disabled by the org/repo
-// Copilot policy:
-//   "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available.
-//    Check policy enablement under GitHub Settings > Copilot"
-// The alternative is anchored to the "policy enablement" phrase so that the generic
-// "No model available" wording alone does not produce false positives.
-// Retrying the same session with --continue will not change model availability.
-const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 
 // Pattern to detect missing authentication credentials.
 // On a --continue attempt this may indicate that the Copilot CLI's on-disk session
@@ -445,7 +435,11 @@ async function applyCopilotModelAliasResolution(options) {
       if (!(retryErr instanceof ModelAliasResolutionError)) {
         throw retryErr;
       }
-      logger(`copilot model alias resolution failed: model-catalog retrieval prevented alias resolution for '${configuredModel}' after a bounded refresh — refusing to start Copilot with an unresolved alias`);
+      const failure = err.reason === "model_unavailable" ? err : retryErr;
+      logger(`copilot model alias resolution failed: ${failure.message} after a bounded refresh — refusing to start Copilot with an unresolved alias`);
+      if (failure.reason === "model_unavailable") {
+        recordCopilotModelSelection({ status: "unavailable", configured_model: configuredModel, resolved_model: "", effective_model: "" });
+      }
       process.exit(1);
       return configuredModel; // unreachable, keeps TypeScript control-flow analysis happy
     }
@@ -1451,6 +1445,7 @@ async function main() {
 
           // Redact --prompt / -p value from logs to avoid leaking prompt content
           const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+          const modelObserver = copilotSDKMode ? { check: () => "" } : createCopilotModelObserver({ configuredModel: configuredCopilotModel, resolvedModel: process.env.COPILOT_MODEL || "", logger: log });
           // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
           // already started the sidecar; the driver only opens an SDK client connection.
           const result = await runProcess({
@@ -1461,6 +1456,7 @@ async function main() {
             logArgs: safeArgs,
             env: childEnv,
             stdin: promptStdin,
+            runtimeGuard: { shouldTerminate: () => ({ terminate: Boolean(modelObserver.check()), reason: "copilot_model_verification" }) },
             postResultWatchdog: safeOutputsPath
               ? {
                   shouldArm: () => hasTerminalSafeOutput(safeOutputsPath),
@@ -1468,6 +1464,12 @@ async function main() {
                 }
               : undefined,
           });
+          const modelSubstitution = modelObserver.check(true);
+          if (modelSubstitution) {
+            result.exitCode = 1;
+            result.runtimeGuardReason = "copilot_model_verification";
+            result.output += `\n${modelSubstitution}`;
+          }
           lastHasOutput = result.hasOutput;
           const attemptDetections = detectCopilotErrors(result.output);
           detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
@@ -1478,6 +1480,7 @@ async function main() {
           return result;
         },
         handleFailure: async ({ attempt, result }) => {
+          if (result.runtimeGuardReason === "copilot_model_verification") return { action: "stop" };
           // Determine whether to retry.
           // Retry whenever the session was partially executed (hasOutput).
           //   - CLI mode: retry with --continue so the Copilot CLI can continue from on-disk state.

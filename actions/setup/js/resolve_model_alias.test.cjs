@@ -8,6 +8,7 @@ const path = require("path");
 const { fileURLToPath } = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { buildCatalogFromReflect, globMatch, ModelAliasResolutionError, normalizeForCopilotCLI, resolveConfiguredCopilotModel, resolveModelAlias, selectLatestGlobMatch } = require("./resolve_model_alias.cjs");
+const { detectErrors } = require("./agent_error_patterns.cjs");
 
 const ALIAS_MAP = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../pkg/workflow/data/model_aliases.json"), "utf8")).aliases;
 
@@ -104,6 +105,18 @@ describe("resolve_model_alias", () => {
         reflectData,
       })
     ).toThrow(ModelAliasResolutionError);
+  });
+
+  it.each(["gemini-3.8-flash", "gemini-3.8-flash?effort=high"])("distinguishes unavailable %s from catalog retrieval failure", configuredModel => {
+    const options = {
+      configuredModel,
+      aliasMap: { "gemini-3.8-flash": ["copilot/gemini-3.8-flash"] },
+      reflectData: { endpoints: [{ configured: true, provider: "copilot", models: ["claude-sonnet-5"] }] },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(/not available.*live model catalog/);
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(/agentic-workflows integration/);
+    expect(() => resolveConfiguredCopilotModel({ ...options, reflectData: null })).toThrow(/model-catalog retrieval prevented/);
+    expect(detectErrors(new ModelAliasResolutionError(configuredModel, "model_unavailable").message).modelNotSupportedError).toBe(true);
   });
 
   it("does not throw for a concrete model even when the catalog is empty", () => {

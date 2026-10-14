@@ -6,22 +6,24 @@
  */
 
 /**
- * Dedicated error thrown when a configured model is a known gh-aw alias but the
- * model catalog needed to resolve it could not be built (e.g. an AWF /reflect
- * model-catalog fetch failed or returned no models — see
- * https://github.com/github/gh-aw/issues/52782). Callers must not forward the
- * unresolved alias to Copilot when this is thrown, because the API proxy will
- * reject it with a misleading "no AI credits pricing" error rather than the
- * actual root cause (catalog retrieval failure).
+ * A known alias could not resolve because its catalog is unavailable or no
+ * catalog entry matches. Keep those causes distinct; neither permits forwarding
+ * an unresolved alias to Copilot.
  */
 class ModelAliasResolutionError extends Error {
   /**
    * @param {string} configuredModel
+   * @param {"catalog_unavailable" | "model_unavailable"} [reason]
    */
-  constructor(configuredModel) {
-    super(`model-catalog retrieval prevented alias resolution for '${configuredModel}'`);
+  constructor(configuredModel, reason = "catalog_unavailable") {
+    super(
+      reason === "model_unavailable"
+        ? `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. For Copilot, availability also depends on the agentic-workflows integration, not just organization policy. Select a model offered to this workflow; enabling a missing model for that integration requires Copilot API support.`
+        : `model-catalog retrieval prevented alias resolution for '${configuredModel}'`
+    );
     this.name = "ModelAliasResolutionError";
     this.configuredModel = configuredModel;
+    this.reason = reason;
   }
 }
 
@@ -329,7 +331,7 @@ function resolveConfiguredCopilotModel(options) {
   const resolved = resolveModelAlias(configuredModel, aliasMap, catalog, { logger });
   if (!resolved) {
     logger(`copilot model alias resolution: known alias '${configuredModel}' did not resolve against catalog`);
-    throw new ModelAliasResolutionError(configuredModel);
+    throw new ModelAliasResolutionError(configuredModel, "model_unavailable");
   }
 
   const normalized = normalizeForCopilotCLI(resolved);
