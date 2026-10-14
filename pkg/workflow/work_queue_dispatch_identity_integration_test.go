@@ -89,6 +89,7 @@ Dispatch only approved workers using the protected launch credential.
 					continue
 				}
 				found = true
+				require.Equal(t, step.With["github-token"], step.Env["GH_AW_WORK_QUEUE_TOKEN"])
 				require.Equal(t, "dispatcher", step.Env["GH_AW_WORK_QUEUE_ROLE"])
 				proposal := strings.ReplaceAll(step.Env["GH_AW_WORK_QUEUE_POLICY"], "${{ github.repository }}", "owner/repo")
 				require.NotEmpty(t, proposal)
