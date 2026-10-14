@@ -10,6 +10,15 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 class CheckoutPreparationError extends Error {}
 
 /**
+ * @param {string | undefined} value
+ */
+function validateSingleRepository(value) {
+  if (!value || !/^[a-zA-Z0-9][a-zA-Z0-9-]*\/[a-zA-Z0-9_.-]+$/.test(value.trim()) || [".", ".."].includes(value.trim().split("/")[1])) {
+    throw new CheckoutPreparationError("checkout.repository (or repo) must resolve to exactly one owner/repo slug unless checkout.multi is true");
+  }
+}
+
+/**
  * @param {string} value
  * @returns {string[]}
  */
@@ -351,4 +360,4 @@ async function finish(options = {}) {
   return entries;
 }
 
-module.exports = { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath };
+module.exports = { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath, validateSingleRepository };
