@@ -35,7 +35,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	toolsResult *toolsProcessingResult,
 	engineSetup *engineSetupResult,
 	importsResult *parser.ImportsResult,
-) *WorkflowData {
+) (*WorkflowData, error) {
 	workflowBuilderLog.Print("Building initial workflow data")
 	_, subAgents, _ := parser.ExtractInlineSubAgents(result.Markdown)
 
@@ -143,7 +143,11 @@ func (c *Compiler) buildInitialWorkflowData(
 			if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
 				workflowData.CheckoutDisabled = true
 				workflowData.CheckoutExplicitlyDisabled = true
-			} else if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+			} else {
+				configs, err := ParseCheckoutConfigs(rawCheckout)
+				if err != nil {
+					return nil, fmt.Errorf("invalid checkout configuration: %w", err)
+				}
 				workflowData.CheckoutConfigs = configs
 			}
 		}
@@ -166,13 +170,11 @@ func (c *Compiler) buildInitialWorkflowData(
 			}
 			var raw any
 			if err := json.Unmarshal([]byte(line), &raw); err != nil {
-				workflowBuilderLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
-				continue
+				return nil, fmt.Errorf("invalid imported checkout JSON: %w", err)
 			}
 			importedConfigs, err := ParseCheckoutConfigs(raw)
 			if err != nil {
-				workflowBuilderLog.Printf("Failed to parse imported checkout configs: %v", err)
-				continue
+				return nil, fmt.Errorf("invalid imported checkout configuration: %w", err)
 			}
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
 		}
@@ -272,7 +274,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ExcludedEnv = names
 	}
 
-	return workflowData
+	return workflowData, nil
 }
 
 // sourceActionPinVersions collects inline labels from frontmatter and imported action steps.

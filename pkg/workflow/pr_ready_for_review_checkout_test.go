@@ -286,7 +286,6 @@ permissions:
   pull-requests: read
 engine: claude
 checkout:
-  repository: ${{ github.repository }}
   ref: ${{ github.event.pull_request.base.sha }}
 ---
 
