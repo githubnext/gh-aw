@@ -70,6 +70,7 @@ describe("runtime repository checkout", () => {
     expect(action.runs.steps[0].with.repository).toBe("org/a");
     expect(action.runs.steps[0].with["persist-credentials"]).toBe("${{ env.GH_AW_DYNAMIC_PERSIST }}");
     expect(action.runs.steps.every(step => step.with.lfs === false)).toBe(true);
+    expect(action.runs.steps.every(step => step.with.submodules === false)).toBe(true);
     expect(JSON.stringify(action)).not.toContain("secret-token");
     expect(JSON.stringify(entries)).not.toContain("secret-token");
   });
@@ -178,9 +179,25 @@ describe("runtime repository checkout", () => {
     expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
   });
 
-  it("blocks submodule checkout in public hosts", async () => {
-    vi.stubEnv("GH_AW_DYNAMIC_SUBMODULES", "recursive");
-    await expect(prepare(runtime)).rejects.toThrow("cannot enable submodules");
+  it.each(["public", "private", "internal"])("rejects enabled submodules before authenticated reads in a %s host", async visibility => {
+    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", visibility) });
+    for (const submodules of ["true", "recursive", "${{ inputs.submodules }}"]) {
+      vi.stubEnv("GH_AW_DYNAMIC_SUBMODULES", submodules);
+      await expect(prepare(runtime)).rejects.toThrow("submodule URLs can bypass allowed-repos");
+      expect(runtime.core.setOutput).toHaveBeenLastCalledWith("checkout_error", expect.stringContaining("submodule URLs can bypass allowed-repos"));
+      expect(runtime.github.request).not.toHaveBeenCalled();
+      expect(runtime.getOctokit).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+      expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+    }
+  });
+
+  it.each(["public", "private", "internal"].flatMap(visibility => ["", "false"].map(submodules => [visibility, submodules])))("keeps submodules disabled in a %s host with setting %s", async (visibility, submodules) => {
+    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", visibility) });
+    vi.stubEnv("GH_AW_DYNAMIC_SUBMODULES", submodules);
+    await prepare(runtime);
+    const action = JSON.parse(fs.readFileSync(path.join(workspace, ".gh-aw/checkouts/0/action.yml"), "utf8"));
+    expect(action.runs.steps.every(step => step.with.submodules === false)).toBe(true);
   });
 
   it.each(["public", "private", "internal"])("rejects LFS before authenticated reads in a %s host, with or without sparse checkout", async visibility => {

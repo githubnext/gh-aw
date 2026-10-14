@@ -117,7 +117,10 @@ selected checkout and MUST be included in the agent failure issue according to
 the workflow's failure-reporting settings, including safe-output checkout failures.
 If the workflow repository is public, non-public targets MUST be rejected,
 regardless of the checkout credential's access. Missing or unverifiable visibility
-MUST fail closed. Public-host runtime checkouts MUST reject enabled submodules.
+MUST fail closed. Runtime lists MUST reject enabled submodules at compilation and
+runtime regardless of host visibility, because repository-controlled submodule
+URLs can bypass the repository allowlist. Generated dynamic checkout actions
+MUST disable submodules. Static checkout submodule support MUST remain unchanged.
 Runtime lists MUST reject `lfs: true` at compilation and runtime regardless of
 host visibility, because repository-controlled LFS endpoints can bypass the
 repository allowlist. Generated dynamic checkout actions MUST disable LFS.

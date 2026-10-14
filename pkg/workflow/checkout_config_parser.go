@@ -368,6 +368,9 @@ func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
 		if cfg.LFS {
 			return errors.New("runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs")
 		}
+		if cfg.Submodules != "" && cfg.Submodules != "false" {
+			return errors.New("runtime repository-list checkout does not support enabled submodules because submodule URLs can bypass allowed-repos; set checkout.submodules to false")
+		}
 		for _, app := range []*GitHubAppConfig{cfg.GitHubApp, cfg.SafeOutputGitHubApp} {
 			if app != nil && (app.Owner == "" || len(app.Repositories) == 0) {
 				return errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")

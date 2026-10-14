@@ -8,4 +8,6 @@ Add runtime repository-list checkouts for scheduled workers, with the `repo` ali
 
 Runtime repository-list checkouts reject `lfs: true` at compilation and runtime, including in private workflows, because repository-controlled LFS endpoints can bypass the repository allowlist. Disable LFS for runtime lists; static checkout LFS support is unchanged.
 
+Runtime repository-list checkouts also reject enabled submodules at compilation and runtime for all workflow host visibilities because repository-controlled submodule URLs can bypass the allowlist using the checkout token. Omit `submodules` or set it to `false`; static checkout submodule support is unchanged.
+
 Agent checkout finalization cleans and verifies every expanded repository and submodule config using validated checkout paths, regardless of prefix depth, closing a gap in bounded credential discovery. Missing or unverifiable configs fail closed; safe-output write credentials remain available.

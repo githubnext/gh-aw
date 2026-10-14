@@ -23735,7 +23735,9 @@ checkout:
   sparse-checkout: "example-value"
 
   # Controls submodule checkout. Use "recursive" for all submodules, "true" for
-  # immediate submodules, or "false" to skip.
+  # immediate submodules, or "false" to skip. Runtime repository-list checkouts with
+  # allowed-repos require false or omission because submodule URLs can bypass the
+  # allowlist.
   # (optional)
   # Accepted formats:
 

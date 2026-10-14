@@ -126,6 +126,9 @@ async function prepareCheckouts({ github, getOctokit }, token) {
   if ((process.env.GH_AW_DYNAMIC_LFS || "false") !== "false") {
     throw new CheckoutPreparationError("Runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs");
   }
+  if ((process.env.GH_AW_DYNAMIC_SUBMODULES || "false") !== "false") {
+    throw new CheckoutPreparationError("Runtime repository-list checkout does not support enabled submodules because submodule URLs can bypass allowed-repos; set checkout.submodules to false");
+  }
   for (const repository of repos) {
     if (!isRepoAllowed(repository, allowed)) throw new CheckoutPreparationError(`Runtime checkout repository ${repository} is not permitted by allowed-repos`);
   }
@@ -144,10 +147,6 @@ async function prepareCheckouts({ github, getOctokit }, token) {
     throw new CheckoutPreparationError("Unable to verify workflow repository visibility; runtime checkout refused");
   }
   const isPublic = hostData.visibility === "public" || hostData.private === false;
-  const submodules = process.env.GH_AW_DYNAMIC_SUBMODULES || "false";
-  if (isPublic && submodules !== "false") {
-    throw new CheckoutPreparationError("Runtime checkout in public workflows cannot enable submodules because their visibility is not verified");
-  }
   /** @type {DynamicCheckout[]} */
   const entries = [];
   for (const repository of repos) {
@@ -190,7 +189,7 @@ async function prepareCheckouts({ github, getOctokit }, token) {
       "fetch-depth": "${{ env.GH_AW_DYNAMIC_FETCH_DEPTH }}",
       "sparse-checkout": "${{ env.GH_AW_DYNAMIC_SPARSE }}",
       filter: process.env.GH_AW_DYNAMIC_SPARSE ? "blob:limit=1073741824" : "",
-      submodules: "${{ env.GH_AW_DYNAMIC_SUBMODULES }}",
+      submodules: false,
       lfs: false,
       "persist-credentials": "${{ env.GH_AW_DYNAMIC_PERSIST }}",
     },

@@ -159,6 +159,45 @@ func TestRuntimeCheckoutRejectsLFS(t *testing.T) {
 	require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
 }
 
+func TestRuntimeCheckoutRejectsSubmodules(t *testing.T) {
+	for _, repository := range []string{"${{ inputs.repos }}", "org/a\norg/b", "org/a"} {
+		for _, submodules := range []any{true, "true", "recursive", "${{ inputs.submodules }}"} {
+			_, err := checkoutConfigFromMap(map[string]any{
+				"repo": repository, "path": "targets", "allowed-repos": "org/*", "submodules": submodules,
+			})
+			require.ErrorContains(t, err, "submodule URLs can bypass allowed-repos")
+		}
+		for _, submodules := range []string{"true", "recursive", "${{ inputs.submodules }}"} {
+			_, err := NewCompiler().CompileToYAML(&WorkflowData{
+				CheckoutConfigs: []*CheckoutConfig{{
+					Repository: repository, Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, Submodules: submodules,
+				}},
+			}, filepath.Join(t.TempDir(), "worker.md"))
+			require.ErrorContains(t, err, "submodule URLs can bypass allowed-repos")
+		}
+		for _, submodules := range []any{false, "false", ""} {
+			_, err := checkoutConfigFromMap(map[string]any{
+				"repo": repository, "path": "targets", "allowed-repos": "org/*", "submodules": submodules,
+			})
+			require.NoError(t, err)
+		}
+	}
+	for _, repository := range []string{"org/a", "${{ github.repository }}"} {
+		for _, submodules := range []any{true, "recursive"} {
+			_, err := checkoutConfigFromMap(map[string]any{"repository": repository, "submodules": submodules})
+			require.NoError(t, err, "static checkout submodules must remain supported")
+		}
+	}
+	dir := t.TempDir()
+	file := filepath.Join(dir, "worker.md")
+	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  submodules: recursive\n---\nProcess selected repositories.\n"
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
+	require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "submodule URLs can bypass allowed-repos")
+	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
+	_, err := NewCompiler().ParseWorkflowString(content, file)
+	require.ErrorContains(t, err, "submodule URLs can bypass allowed-repos")
+}
+
 func TestRuntimeCheckoutFailureOutputs(t *testing.T) {
 	configs := []*CheckoutConfig{
 		{Repository: "org/static", Path: "static"},
