@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-14",
+  "latest_release": "v0.91.12",
+  "open_prs": 9,
+  "commits_30d": 910,
+  "issues_opened_30d": 199,
+  "prs_merged_30d": 50,
+  "highlight": "Shipping cadence strong: v0.91.12, MCP capability controls, firewall bumps, work-queue protocol refresh"
+}

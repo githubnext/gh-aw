@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-14",
+  "window_start": "2026-09-15",
+  "window_end": "2026-10-14",
+  "open_issues_count": 100,
+  "closed_issues_sampled": 100,
+  "open_prs_count": 9,
+  "merged_prs_sampled": 50,
+  "closed_prs_sampled": 30,
+  "commits_sampled_total": 18681,
+  "commits_30d": 910,
+  "discussions_count": 50,
+  "releases_count": 30,
+  "changesets_count": 788,
+  "issues_opened_30d": 199,
+  "issues_closed_30d": 100,
+  "prs_opened_30d": 88,
+  "prs_merged_30d": 50,
+  "unique_commit_authors_30d": 8,
+  "top_commit_authors": [
+    [
+      "Copilot",
+      484
+    ],
+    [
+      "Peli de Halleux",
+      214
+    ],
+    [
+      "github-actions[bot]",
+      165
+    ],
+    [
+      "dependabot[bot]",
+      26
+    ],
+    [
+      "Maggie Appleton",
+      8
+    ],
+    [
+      "Don Syme",
+      6
+    ]
+  ],
+  "latest_release": "v0.91.12",
+  "highlight_issue_numbers": [
+    68481,
+    68442,
+    68043,
+    68503,
+    68616,
+    68602
+  ],
+  "highlight_pr_numbers": [
+    68579,
+    68315,
+    68626,
+    68598,
+    68582,
+    68548
+  ]
+}
