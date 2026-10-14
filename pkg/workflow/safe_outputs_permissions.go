@@ -245,6 +245,10 @@ func computeSafeOutputHandlerPermissions(safeOutputs *SafeOutputsConfig, handler
 		permissions.Set(PermissionDiscussions, PermissionRead)
 	case "create-project-status-update":
 		permissions.Set(PermissionOrganizationProj, PermissionRead)
+	case "add-comment":
+		if addCommentTargetsEnabled(safeOutputs.AddComments) {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
 	case "hide-comment":
 		permissions.Set(PermissionIssues, PermissionRead)
 		permissions.Set(PermissionPullRequests, PermissionRead)
@@ -259,15 +263,12 @@ func computeSafeOutputHandlerPermissions(safeOutputs *SafeOutputsConfig, handler
 	}
 
 	switch handler.Key {
-	case "add-comment", "add-labels", "remove-labels", "replace-label", "update-issue",
+	case "add-labels", "remove-labels", "replace-label", "update-issue",
 		"update-pull-request", "assign-to-agent", "assign-to-user", "unassign-from-user",
 		"add-reviewer", "create-pull-request-review-comment",
 		"reply-to-pull-request-review-comment", "dismiss-pull-request-review",
 		"mark-pull-request-as-ready-for-review", "resolve-pull-request-review-thread",
 		"submit-pull-request-review", "set-issue-type", "set-issue-field":
-		if handler.Key == "add-comment" && !addCommentTargetsEnabled(safeOutputs.AddComments) {
-			break
-		}
 		field, _ := safeOutputPointerFieldValue(safeOutputs, handler.StructField)
 		config := field.Elem()
 		labels := config.FieldByName("RequiredLabels")

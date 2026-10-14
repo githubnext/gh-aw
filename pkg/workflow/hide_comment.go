@@ -29,7 +29,6 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
 			}
 			hideCommentConfig.SafeOutputTargetConfig = targetConfig
-
 			if discussions, ok := configMap["discussions"].(bool); ok {
 				hideCommentConfig.Discussions = &discussions
 			}

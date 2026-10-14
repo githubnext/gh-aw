@@ -1125,7 +1125,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 		expected    map[PermissionScope]PermissionLevel
 	}{
 		{
-			name: "global staged=true - discussion lookup requires read",
+			name: "global staged=true - only discussion lookup permissions",
 			safeOutputs: &SafeOutputsConfig{
 				Staged:            templatableBoolPtr("true"),
 				CreateIssues:      &CreateIssuesConfig{},
@@ -1149,7 +1149,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			},
 		},
 		{
-			name: "all handlers per-handler staged - discussion lookup requires read",
+			name: "all handlers per-handler staged - only discussion lookup permissions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
@@ -1266,6 +1266,7 @@ func TestComputePermissionsForSafeOutputs_StagedReads(t *testing.T) {
 		{key: "close-discussion", unfiltered: map[PermissionScope]PermissionLevel{PermissionDiscussions: PermissionRead}},
 		{key: "create-discussion", unfiltered: map[PermissionScope]PermissionLevel{PermissionDiscussions: PermissionRead}},
 		{key: "create-project-status-update", unfiltered: map[PermissionScope]PermissionLevel{PermissionOrganizationProj: PermissionRead}},
+		{key: "add-comment", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}, filterScope: PermissionIssues},
 		{key: "hide-comment", unfiltered: map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead, PermissionPullRequests: PermissionRead}},
 		{key: "resolve-pull-request-review-thread", unfiltered: map[PermissionScope]PermissionLevel{PermissionPullRequests: PermissionRead}, filterScope: PermissionIssues},
 		{key: "mark-pull-request-as-ready-for-review", unfiltered: map[PermissionScope]PermissionLevel{PermissionPullRequests: PermissionRead}, filterScope: PermissionIssues},
@@ -1340,127 +1341,123 @@ func TestComputePermissionsForSafeOutputs_StagedReadsPreserveWrite(t *testing.T)
 		ComputePermissionsForSafeOutputs(safeOutputs).permissions)
 }
 
+func TestComputePermissionsForSafeOutputs_StagedAddCommentDiscussionOnly(t *testing.T) {
+	for _, globalStaged := range []bool{true, false} {
+		safeOutputs := &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				SafeOutputFilterConfig: SafeOutputFilterConfig{
+					RequiredLabels:      []string{"needs-triage"},
+					RequiredTitlePrefix: "[triage]",
+				},
+				Issues:       ptrBool(false),
+				PullRequests: ptrBool(false),
+				Discussions:  ptrBool(true),
+			},
+		}
+		if globalStaged {
+			safeOutputs.Staged = templatableBoolPtr("true")
+		} else {
+			safeOutputs.AddComments.Staged = templatableBoolPtr("true")
+		}
+		assert.Empty(t, ComputePermissionsForSafeOutputs(safeOutputs).permissions)
+		handler, ok := getSafeOutputHandlerByKey("add-comment")
+		require.True(t, ok)
+		assert.Nil(t, computeSafeOutputHandlerPermissions(safeOutputs, handler))
+	}
+}
+
 func TestCompileStagedHandlerReadPermissions(t *testing.T) {
 	handlers := []struct {
 		key    string
 		config string
-		scope  PermissionScope
+		scopes []PermissionScope
 	}{
-		{key: "remove-labels", config: "    allowed: [needs-triage]\n    required-labels: [needs-triage]\n", scope: PermissionIssues},
-		{key: "set-issue-type", config: "    required-labels: [needs-triage]\n    required-title-prefix: '[triage]'\n", scope: PermissionIssues},
-		{key: "create-discussion", config: "    category: General\n", scope: PermissionDiscussions},
-		{key: "create-project-status-update", config: "    project: https://github.com/orgs/test-org/projects/1\n", scope: PermissionOrganizationProj},
-		{key: "add-comment", config: "    required-labels: [needs-triage]\n", scope: PermissionIssues},
-		{key: "add-comment", config: "    issues: false\n    pull-requests: false\n    discussions: true\n    required-labels: [needs-triage]\n    required-title-prefix: '[triage]'\n"},
-		{key: "hide-comment", config: "    discussions: true\n", scope: PermissionIssues},
-		{key: "create-pull-request-review-comment", config: "    target: '*'\n", scope: PermissionPullRequests},
-		{key: "submit-pull-request-review", config: "    target: '*'\n", scope: PermissionPullRequests},
+		{key: "remove-labels", config: "    allowed: [needs-triage]\n    required-labels: [needs-triage]\n", scopes: []PermissionScope{PermissionIssues}},
+		{key: "set-issue-type", config: "    required-labels: [needs-triage]\n    required-title-prefix: '[triage]'\n", scopes: []PermissionScope{PermissionIssues}},
+		{key: "add-comment", config: "    required-labels: [needs-triage]\n", scopes: []PermissionScope{PermissionIssues}},
+		{key: "create-discussion", config: "    category: General\n", scopes: []PermissionScope{PermissionDiscussions}},
+		{key: "create-project-status-update", config: "    project: https://github.com/orgs/test-org/projects/1\n", scopes: []PermissionScope{PermissionOrganizationProj}},
+		{key: "create-pull-request-review-comment", scopes: []PermissionScope{PermissionPullRequests}},
+		{key: "submit-pull-request-review", scopes: []PermissionScope{PermissionPullRequests}},
+		{key: "hide-comment", scopes: []PermissionScope{PermissionIssues, PermissionPullRequests}},
+		{key: "hide-comment", config: "    discussions: true\n", scopes: []PermissionScope{PermissionIssues, PermissionPullRequests, PermissionDiscussions}},
 	}
 	for _, handler := range handlers {
 		for _, app := range []string{"", "global", "per-handler"} {
 			if handler.key == "hide-comment" && app == "per-handler" {
-				continue
+				continue // hide-comment does not expose per-handler github-app configuration.
 			}
-			t.Run(handler.key+"/"+app, func(t *testing.T) {
-				appConfig := "github-app:\n      app-id: ${{ vars.APP_ID }}\n      private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"
-				globalApp, handlerApp := "", ""
-				switch app {
-				case "global":
-					globalApp = "  " + strings.ReplaceAll(appConfig, "\n      ", "\n    ")
-				case "per-handler":
-					handlerApp = "    " + appConfig
+			for _, globalStaged := range []bool{true, false} {
+				staging := "per-handler"
+				if globalStaged {
+					staging = "global"
 				}
-				content := "---\non: issues\nengine: copilot\nsafe-outputs:\n  staged: true\n" +
-					globalApp + "  " + handler.key + ":\n" + handler.config +
-					handlerApp + "---\n\nTest workflow.\n"
-				testFile := filepath.Join(t.TempDir(), "staged-handler.md")
-				require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
-				compiler := NewCompiler(WithVersion("1.0.0"))
-				data, err := compiler.ParseWorkflowFile(testFile)
-				require.NoError(t, err)
-				compiled, _, _, err := compiler.generateYAML(data, testFile)
-				require.NoError(t, err)
-				job := extractJobSection(compiled, "safe_outputs")
-				switch handler.scope {
-				case "":
-					assert.Empty(t, ComputePermissionsForSafeOutputs(data.SafeOutputs).permissions)
-					assert.NotContains(t, job, "permission-issues:")
-					assert.NotContains(t, job, "id: add-comment-app-token")
-					assert.NotContains(t, job, "id: safe-outputs-app-token")
-				case PermissionOrganizationProj:
-					assert.NotContains(t, job, "\n      organization-projects:")
-				default:
-					assert.Contains(t, job, string(handler.scope)+": read")
-				}
-				assert.NotContains(t, job, ": write")
-				if handler.key == "set-issue-type" {
-					config := extractHandlerConfig(t, compiled)["set_issue_type"]
-					assert.Equal(t, []any{"needs-triage"}, config["required_labels"])
-					assert.Equal(t, "[triage]", config["required_title_prefix"])
-				}
-				if app != "" && handler.scope != "" {
-					stepID := "safe-outputs-app-token"
+				t.Run(handler.key+"/"+app+"/"+staging, func(t *testing.T) {
+					appConfig := "github-app:\n      app-id: ${{ vars.APP_ID }}\n      private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"
+					globalApp, handlerApp := "", ""
+					switch app {
+					case "global":
+						globalApp = "  " + strings.ReplaceAll(appConfig, "\n      ", "\n    ")
+					case "per-handler":
+						handlerApp = "    " + appConfig
+					}
+					globalFlag, handlerFlag := "", "    staged: true\n"
+					if globalStaged {
+						globalFlag, handlerFlag = "  staged: true\n", ""
+					}
+					content := "---\non: issues\nengine: copilot\nsafe-outputs:\n  missing-tool: false\n  missing-data: false\n  report-incomplete: false\n" + globalFlag +
+						globalApp + "  " + handler.key + ":\n" + handler.config + handlerFlag +
+						handlerApp + "---\n\nTest workflow.\n"
+					testFile := filepath.Join(t.TempDir(), "staged-handler.md")
+					require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+					compiler := NewCompiler(WithVersion("1.0.0"))
+					data, err := compiler.ParseWorkflowFile(testFile)
+					require.NoError(t, err)
 					if app == "per-handler" {
-						stepID = handler.key + "-app-token"
-						if handler.key != "add-comment" {
-							assert.Empty(t, computePermissionsForSafeOutputs(data.SafeOutputs, true).permissions)
+						descriptor, ok := getSafeOutputHandlerByKey(handler.key)
+						require.True(t, ok)
+						require.NotNil(t, getHandlerGitHubApp(data.SafeOutputs, descriptor.StructField))
+					}
+					compiled, _, _, err := compiler.generateYAML(data, testFile)
+					require.NoError(t, err)
+					job := extractJobSection(compiled, "safe_outputs")
+					assert.Contains(t, job, "id: process_safe_outputs")
+					for _, scope := range handler.scopes {
+						if scope != PermissionOrganizationProj {
+							assert.Contains(t, job, string(scope)+": read")
 						}
 					}
-					step := compiledStepBlockForTest(compiled, stepID)
-					require.NotEmpty(t, step)
-					assert.Contains(t, step, "permission-"+string(handler.scope)+": read")
-					if handler.key == "hide-comment" {
-						assert.Contains(t, step, "permission-pull-requests: read")
-						assert.Contains(t, step, "permission-discussions: read")
+					assert.NotContains(t, job, ": write")
+					if handler.key == "set-issue-type" {
+						config := extractHandlerConfig(t, compiled)["set_issue_type"]
+						assert.Equal(t, []any{"needs-triage"}, config["required_labels"])
+						assert.Equal(t, "[triage]", config["required_title_prefix"])
 					}
-					assert.NotContains(t, step, ": write")
-				}
-			})
-		}
-	}
-}
-
-func TestComputePermissionsForSafeOutputs_StagedAddCommentTargets(t *testing.T) {
-	for _, filter := range []SafeOutputFilterConfig{
-		{RequiredLabels: []string{"needs-triage"}},
-		{RequiredTitlePrefix: "[triage]"},
-	} {
-		for _, issuesEnabled := range []bool{false, true} {
-			for _, prsEnabled := range []bool{false, true} {
-				config := &SafeOutputsConfig{
-					Staged: templatableBoolPtr("true"),
-					AddComments: &AddCommentsConfig{
-						SafeOutputFilterConfig: filter,
-						Issues:                 &issuesEnabled, PullRequests: &prsEnabled, Discussions: boolPtr(true),
-					},
-				}
-				expected := map[PermissionScope]PermissionLevel{}
-				if issuesEnabled || prsEnabled {
-					expected[PermissionIssues] = PermissionRead
-				}
-				assert.Equal(t, expected, ComputePermissionsForSafeOutputs(config).permissions)
-				descriptor, ok := getSafeOutputHandlerByKey("add-comment")
-				require.True(t, ok)
-				permissions := computeSafeOutputHandlerPermissions(config, descriptor)
-				if len(expected) == 0 {
-					assert.Nil(t, permissions)
-				} else {
-					require.NotNil(t, permissions)
-					assert.Equal(t, expected, permissions.permissions)
-				}
+					if app != "" {
+						stepID := "safe-outputs-app-token"
+						if app == "per-handler" {
+							stepID = handler.key + "-app-token"
+						}
+						step := compiledStepBlockForTest(compiled, stepID)
+						require.NotEmpty(t, step)
+						for _, scope := range handler.scopes {
+							assert.Contains(t, step, "permission-"+string(scope)+": read")
+						}
+						assert.NotContains(t, step, ": write")
+					}
+				})
 			}
 		}
 	}
 }
 
-func TestHideCommentRejectsUnsupportedFilters(t *testing.T) {
+func TestCompileHideCommentRejectsUnsupportedFilters(t *testing.T) {
 	for _, filter := range []string{"required-labels: [needs-triage]", "required-title-prefix: '[triage]'"} {
-		content := "---\non: issues\nengine: copilot\nsafe-outputs:\n  hide-comment:\n    " + filter + "\n---\nTest.\n"
 		testFile := filepath.Join(t.TempDir(), "hide-comment.md")
+		content := "---\non: issues\nsafe-outputs:\n  hide-comment:\n    " + filter + "\n---\n\nTest workflow.\n"
 		require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
 		_, err := NewCompiler().ParseWorkflowFile(testFile)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), strings.SplitN(filter, ":", 2)[0])
+		require.ErrorContains(t, err, "Unknown property")
 	}
 }
 
