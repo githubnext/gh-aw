@@ -58,9 +58,10 @@ function getModelSupportedReasoningEfforts(model, modelsJson = loadModelsJson())
  * @param {unknown} reasoningEffort
  * @param {string|null} [model]
  * @param {Record<string, any>|null} [modelsJson]
+ * @param {string[]|null} [supportedEffortsOverride]
  * @returns {string|null}
  */
-function resolveReasoningEffort(reasoningEffort, model = null, modelsJson) {
+function resolveReasoningEffort(reasoningEffort, model = null, modelsJson, supportedEffortsOverride = null) {
   if (reasoningEffort == null) return null;
 
   const normalizedEffort = typeof reasoningEffort === "string" ? reasoningEffort.trim().toLowerCase() : null;
@@ -68,7 +69,7 @@ function resolveReasoningEffort(reasoningEffort, model = null, modelsJson) {
     core.warning(`Ignoring reasoning-effort: expected one of ${[...REASONING_EFFORT_VALUES].join(", ")}.`);
     return null;
   }
-  const supportedEfforts = getModelSupportedReasoningEfforts(model, modelsJson);
+  const supportedEfforts = Array.isArray(supportedEffortsOverride) ? supportedEffortsOverride : getModelSupportedReasoningEfforts(model, modelsJson);
   if (supportedEfforts && !supportedEfforts.some(effort => typeof effort === "string" && effort.trim().toLowerCase() === normalizedEffort)) {
     core.warning(`Ignoring reasoning-effort for model '${model}': reasoning effort is not supported. The model default will be used.`);
     return null;
@@ -377,6 +378,7 @@ async function getPullRequestDetails(owner, repo, pullNumber, githubClient = git
  * @param {{rationale?: string, confidence?: "LOW"|"MEDIUM"|"HIGH", suggest?: boolean}} [intentMetadata] - Optional issue-intent metadata
  * @param {boolean} [useIssueIntent] - Whether to include issue-intent metadata/headers
  * @param {string|null} [reasoningEffort] - Optional reasoning effort
+ * @param {string[]|null} [supportedEffortsOverride] - Optional model capability override
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(
@@ -394,7 +396,8 @@ async function assignAgentToIssue(
   pullRequestRepoSlug = null,
   intentMetadata = {},
   useIssueIntent = true,
-  reasoningEffort = null
+  reasoningEffort = null,
+  supportedEffortsOverride = null
 ) {
   // SECURITY: pullRequestRepoSlug specifies a cross-repo target repository slug.
   // Callers MUST validate the corresponding repository slug against allowedRepos using
@@ -452,7 +455,7 @@ async function assignAgentToIssue(
     if (customInstructions != null) agentAssignment.custom_instructions = customInstructions;
     if (customAgent != null) agentAssignment.custom_agent = customAgent;
     if (model != null) agentAssignment.model = model;
-    const validReasoningEffort = resolveReasoningEffort(reasoningEffort, model);
+    const validReasoningEffort = resolveReasoningEffort(reasoningEffort, model, undefined, supportedEffortsOverride);
     if (validReasoningEffort != null) agentAssignment.reasoning_effort = validReasoningEffort;
     if (Object.keys(agentAssignment).length > 0) assignParams.agent_assignment = agentAssignment;
     await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);

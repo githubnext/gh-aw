@@ -10,17 +10,18 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig      `yaml:",inline"`
 	SafeOutputTargetConfig    `yaml:",inline"`
-	DefaultAgent              string   `yaml:"name,omitempty"`                       // Default agent to assign (e.g., "copilot")
-	DefaultModel              string   `yaml:"model,omitempty"`                      // Default AI model to use (e.g., "claude-sonnet-5")
-	ReasoningEffort           string   `yaml:"reasoning-effort,omitempty"`           // Optional reasoning effort
-	DefaultCustomAgent        string   `yaml:"custom-agent,omitempty"`               // Default custom agent ID for custom agents
-	DefaultCustomInstructions string   `yaml:"custom-instructions,omitempty"`        // Default custom instructions for the agent
-	Allowed                   []string `yaml:"allowed,omitempty"`                    // Optional list of allowed agent names. If omitted, any agents are allowed.
-	RequiredLabels            []string `yaml:"required-labels,omitempty"`            // Required labels that must ALL be present on the target issue or pull request
-	IgnoreIfError             bool     `yaml:"ignore-if-error,omitempty"`            // If true, workflow continues when agent assignment fails
-	PullRequestRepoSlug       string   `yaml:"pull-request-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
-	AllowedPullRequestRepos   []string `yaml:"allowed-pull-request-repos,omitempty"` // List of additional repositories that PRs can be created in (beyond pull-request-repo which is automatically allowed)
-	BaseBranch                string   `yaml:"base-branch,omitempty"`                // Base branch for PR creation in target repo (defaults to target repo's default branch)
+	DefaultAgent              string   `yaml:"name,omitempty"`                        // Default agent to assign (e.g., "copilot")
+	DefaultModel              string   `yaml:"model,omitempty"`                       // Default AI model to use (e.g., "claude-sonnet-5")
+	ReasoningEffort           string   `yaml:"reasoning-effort,omitempty"`            // Optional reasoning effort
+	SupportedReasoningEfforts []string `yaml:"supported-reasoning-efforts,omitempty"` // Optional model capability override
+	DefaultCustomAgent        string   `yaml:"custom-agent,omitempty"`                // Default custom agent ID for custom agents
+	DefaultCustomInstructions string   `yaml:"custom-instructions,omitempty"`         // Default custom instructions for the agent
+	Allowed                   []string `yaml:"allowed,omitempty"`                     // Optional list of allowed agent names. If omitted, any agents are allowed.
+	RequiredLabels            []string `yaml:"required-labels,omitempty"`             // Required labels that must ALL be present on the target issue or pull request
+	IgnoreIfError             bool     `yaml:"ignore-if-error,omitempty"`             // If true, workflow continues when agent assignment fails
+	PullRequestRepoSlug       string   `yaml:"pull-request-repo,omitempty"`           // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
+	AllowedPullRequestRepos   []string `yaml:"allowed-pull-request-repos,omitempty"`  // List of additional repositories that PRs can be created in (beyond pull-request-repo which is automatically allowed)
+	BaseBranch                string   `yaml:"base-branch,omitempty"`                 // Base branch for PR creation in target repo (defaults to target repo's default branch)
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration

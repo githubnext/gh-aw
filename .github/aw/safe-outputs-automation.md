@@ -168,7 +168,8 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
     assign-to-agent:
       name: "copilot"                 # Optional: agent name
       model: "claude-sonnet-4-5"      # Optional: model override
-      reasoning-effort: "high"        # Optional: none/minimal/low/medium/high/xhigh; omitted with a warning for gemini-3.8-flash
+      reasoning-effort: "high"        # Optional: none/minimal/low/medium/high/xhigh; omitted with a warning when unsupported
+      supported-reasoning-efforts: [low, medium, high] # Optional: override model capability metadata; [] disables all values
       custom-agent: "agent-id"        # Optional: custom agent ID
       custom-instructions: "..."      # Optional: additional instructions for the agent
       allowed: [copilot]              # Optional: restrict to specific agent names

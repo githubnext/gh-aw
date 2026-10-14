@@ -155,6 +155,30 @@ func TestAssignToAgentHandlerIncludesRequiredLabels(t *testing.T) {
 	}
 }
 
+func TestAssignToAgentHandlerIncludesSupportedReasoningEfforts(t *testing.T) {
+	builder := handlerRegistry["assign_to_agent"]
+
+	for _, tt := range []struct {
+		name   string
+		values []string
+	}{
+		{name: "configured", values: []string{"low", "medium"}},
+		{name: "empty override", values: []string{}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := builder(&SafeOutputsConfig{
+				AssignToAgent: &AssignToAgentConfig{
+					SupportedReasoningEfforts: tt.values,
+				},
+			})
+
+			if !reflect.DeepEqual(got["supported-reasoning-efforts"], tt.values) {
+				t.Fatalf("supported-reasoning-efforts = %v, want %v", got["supported-reasoning-efforts"], tt.values)
+			}
+		})
+	}
+}
+
 func TestMergeHandlerMapsKeepsFirstDuplicateKey(t *testing.T) {
 	first := func(*SafeOutputsConfig) map[string]any { return map[string]any{"source": "first"} }
 	second := func(*SafeOutputsConfig) map[string]any { return map[string]any{"source": "second"} }

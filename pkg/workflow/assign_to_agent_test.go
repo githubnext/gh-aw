@@ -121,6 +121,41 @@ safe-outputs:
 	require.Error(t, err)
 }
 
+func TestAssignToAgentSupportedReasoningEfforts(t *testing.T) {
+	tests := []struct {
+		name   string
+		values string
+		want   []string
+	}{
+		{name: "configured", values: "[low, medium, high]", want: []string{"low", "medium", "high"}},
+		{name: "empty override", values: "[]", want: []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "assign-to-agent-supported-reasoning-efforts")
+			workflow := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  assign-to-agent:
+    supported-reasoning-efforts: ` + tt.values + `
+---
+# Test Workflow
+`
+			testFile := filepath.Join(tmpDir, "test-assign-to-agent.md")
+			require.NoError(t, os.WriteFile(testFile, []byte(workflow), 0644))
+
+			workflowData, err := NewCompiler(WithVersion("1.0.0")).ParseWorkflowFile(testFile)
+			require.NoError(t, err)
+			require.NotNil(t, workflowData.SafeOutputs.AssignToAgent)
+			assert.Equal(t, tt.want, workflowData.SafeOutputs.AssignToAgent.SupportedReasoningEfforts)
+		})
+	}
+}
+
 // TestAssignToAgentInHandlerManagerStep verifies that assign_to_agent is processed within
 // the handler manager step (process_safe_outputs) and that the safe_outputs job exports
 // the required assign_to_agent outputs for the conclusion job.

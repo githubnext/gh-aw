@@ -14697,6 +14697,13 @@ safe-outputs:
     # (optional)
     reasoning-effort: "example-value"
 
+    # Optional override for the selected model's supported reasoning efforts. When
+    # omitted, model metadata from the built-in catalog is used. An empty list
+    # disables reasoning effort for every value.
+    # (optional)
+    supported-reasoning-efforts: []
+      # Array of strings
+
     # Default custom agent ID to use when assigning custom agents. This is used for
     # specialized agent configurations beyond the standard Copilot agent.
     # (optional)

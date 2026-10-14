@@ -10211,6 +10211,15 @@
                   "description": "Optional reasoning effort. Supports none, minimal, low, medium, high, xhigh, and GitHub Actions expressions. Values unsupported by the selected model (including all values for gemini-3.8-flash) are ignored with a warning so the model default is used. Invalid runtime values are also ignored with a warning.",
                   "examples": ["high", "${{ inputs.reasoning_effort }}"]
                 },
+                "supported-reasoning-efforts": {
+                  "type": "array",
+                  "description": "Optional override for the selected model's supported reasoning efforts. When omitted, model metadata from the built-in catalog is used. An empty list disables reasoning effort for every value.",
+                  "items": {
+                    "type": "string",
+                    "enum": ["none", "minimal", "low", "medium", "high", "xhigh"]
+                  },
+                  "examples": [["low", "medium", "high"], []]
+                },
                 "custom-agent": {
                   "type": "string",
                   "description": "Default custom agent ID to use when assigning custom agents. This is used for specialized agent configurations beyond the standard Copilot agent."

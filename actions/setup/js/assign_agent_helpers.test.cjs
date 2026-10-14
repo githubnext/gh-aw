@@ -516,7 +516,7 @@ describe("assign_agent_helpers.cjs", () => {
       const mockRequest = vi.fn().mockResolvedValue({ status: 201 });
       const restClient = { request: mockRequest };
 
-      await assignAgentToIssue("id", "copilot-swe-agent[bot]", [], "copilot", null, "future-model", "my-agent", "Follow the guidelines.", "main", restClient, taskContext, "otherorg/otherrepo", {}, true, "high");
+      await assignAgentToIssue("id", "copilot-swe-agent[bot]", [], "copilot", null, "gemini-3.8-flash", "my-agent", "Follow the guidelines.", "main", restClient, taskContext, "otherorg/otherrepo", {}, true, "high", ["high"]);
 
       expect(mockRequest).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
@@ -526,11 +526,12 @@ describe("assign_agent_helpers.cjs", () => {
             base_branch: "main",
             custom_instructions: "Follow the guidelines.",
             custom_agent: "my-agent",
-            model: "future-model",
+            model: "gemini-3.8-flash",
             reasoning_effort: "high",
           },
         })
       );
+      expect(mockCore.warning).not.toHaveBeenCalled();
     });
 
     it.each(["none", "minimal", "low", "medium", "high", "xhigh"])("should support the %s reasoning-effort enum value", effort => {
@@ -587,6 +588,12 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(resolveReasoningEffort("medium", "test-model", modelsJson)).toBe("medium");
       expect(resolveReasoningEffort("high", "test-model", modelsJson)).toBeNull();
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+    });
+
+    it("should allow frontmatter capability overrides for reasoning effort", () => {
+      expect(resolveReasoningEffort("high", "custom-model", undefined, ["low", "high"])).toBe("high");
+      expect(resolveReasoningEffort("medium", "gemini-3.8-flash", undefined, [])).toBeNull();
       expect(mockCore.warning).toHaveBeenCalledOnce();
     });
 

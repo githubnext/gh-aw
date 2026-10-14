@@ -483,6 +483,21 @@ describe("assign_to_agent", () => {
     expect(mockGithub.request).not.toHaveBeenCalled();
   });
 
+  it("should apply configured reasoning-effort capabilities in staged previews", async () => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+    setAgentOutput({ items: [{ type: "assign_to_agent", pull_number: 42, agent: "copilot" }], errors: [] });
+
+    const handler = await eval(`(async () => {
+      ${assignToAgentScript};
+      return main({ model: "custom-model", "reasoning-effort": "high", "supported-reasoning-efforts": ["low"] });
+    })()`);
+    await handler({ type: "assign_to_agent", pull_number: 42, agent: "copilot" }, {}, new Map());
+
+    expect(mockCore.summary.addRaw.mock.calls[0][0]).not.toContain("Reasoning Effort:");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("custom-model"));
+    expect(mockGithub.request).not.toHaveBeenCalled();
+  });
+
   it("should use default agent when not specified", async () => {
     process.env.GH_AW_AGENT_DEFAULT = "copilot";
     setAgentOutput({

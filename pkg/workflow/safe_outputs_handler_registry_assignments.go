@@ -7,7 +7,7 @@ var assignmentHandlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.AssignToAgent
-		return newHandlerConfigBuilder().
+		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("name", c.DefaultAgent).
 			AddIfNotEmpty("model", c.DefaultModel).
@@ -27,6 +27,10 @@ var assignmentHandlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "assign-to-agent", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
+		if c.SupportedReasoningEfforts != nil {
+			builder["supported-reasoning-efforts"] = c.SupportedReasoningEfforts
+		}
+		return builder
 	},
 	"assign_to_user": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AssignToUser == nil {

@@ -1605,6 +1605,7 @@ safe-outputs:
     name: "copilot"            # default agent (default: "copilot")
     model: "o3"                # default AI model (default: "auto")
     reasoning-effort: "high"   # optional enum value or expression
+    supported-reasoning-efforts: [low, medium, high] # optional override for model capability metadata
     custom-agent: "agent-id"   # default custom agent ID (optional)
     custom-instructions: "..."  # default custom instructions (optional)
     allowed: [copilot]         # restrict to specific agents (optional)
@@ -1621,6 +1622,8 @@ safe-outputs:
 When configured, `required-labels` checks that every listed label is still present on the target issue or pull request immediately before the agent is assigned.
 
 `reasoning-effort` accepts `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`, as well as GitHub Actions expressions. Values are forwarded only when supported by the selected model; unsupported values are omitted with a warning so the model default is used. For example, `gemini-3.8-flash` does not support reasoning effort. Invalid runtime values also produce a warning and are omitted without failing assignment.
+
+`supported-reasoning-efforts` overrides the selected model's built-in capability metadata for this assignment. Omit it to use the built-in catalog; set it to `[]` to disable all reasoning-effort values.
 
 See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#assign-to-agent)** for complete configuration options and authorization setup.
 
