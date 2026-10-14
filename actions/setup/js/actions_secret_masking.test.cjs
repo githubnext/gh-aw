@@ -108,6 +108,57 @@ describe("actions_secret_masking.cjs", () => {
     expect(setSecret.mock.calls).toEqual([["bearer synthetic-bearer-token"], ["synthetic-bearer-token"]]);
   });
 
+  it.each(["", "1", "ab", "abc"])("does not mask short header value %j", value => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+
+    maskAuthorizationValue(value);
+
+    expect(setSecret).not.toHaveBeenCalled();
+  });
+
+  it("masks a header value at the four-character minimum", () => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+
+    maskAuthorizationValue("abcd");
+
+    expect(setSecret.mock.calls).toEqual([["abcd"]]);
+  });
+
+  it.each(["a", "ab", "abc", "abcd"])("guards bare credentials independently for %j", credential => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+    const value = `Bearer ${credential}`;
+
+    maskAuthorizationValue(value);
+
+    expect(setSecret.mock.calls).toEqual(credential.length < 4 ? [[value]] : [[value], [credential]]);
+  });
+
+  it.each(["", "a", "ab", "abc", "abcd"])("guards decoded Basic-auth passwords independently for %j", password => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+    const decoded = `user:${password}`;
+    const encoded = Buffer.from(decoded).toString("base64");
+    const value = `Basic ${encoded}`;
+
+    maskAuthorizationValue(value);
+
+    expect(setSecret.mock.calls).toEqual(password.length < 4 ? [[value], [encoded], [decoded]] : [[value], [encoded], [decoded], [password]]);
+  });
+
+  it.each([":a", "u:a", "u:ab"])("guards decoded Basic-auth pairs independently for %j", decoded => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+    const encoded = Buffer.from(decoded).toString("base64");
+    const value = `Basic ${encoded}`;
+
+    maskAuthorizationValue(value);
+
+    expect(setSecret.mock.calls).toEqual(decoded.length < 4 ? [[value], [encoded]] : [[value], [encoded], [decoded]]);
+  });
+
   it.each(["Basic not-base64!", "Basic bm8tY29sb24=", "custom-header-value"])("masks %s without inventing decoded credentials", value => {
     const setSecret = vi.fn();
     global.core = { setSecret };
