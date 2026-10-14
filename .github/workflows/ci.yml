@@ -218,7 +218,7 @@ jobs:
         persist-credentials: false
 
     - name: Set up Node.js
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020   # v6
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v6
       with:
         node-version: "24"
 
@@ -477,7 +477,7 @@ jobs:
 
     - name: Upload integration test results
       if: always()    # Upload even if tests fail so canary_go can track coverage
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: test-result-integration-${{ matrix.test-group.name }}
         path: test-result-integration-*.json
@@ -485,7 +485,7 @@ jobs:
 
     - name: Upload integration coverage artifacts
       if: always() && hashFiles(format('coverage-integration-{0}.out', steps.run-tests.outputs.safe_name)) != ''
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: ci-integration-coverage-${{ steps.run-tests.outputs.safe_name }}
         path: |
@@ -501,7 +501,7 @@ jobs:
 
     - name: Upload integration coverage to code coverage API
       if: always() && vars.CODE_QUALITY_COVERAGE_ENABLED == 'true' && hashFiles(format('coverage-integration-{0}.xml', steps.run-tests.outputs.safe_name)) != ''
-      uses: actions/upload-code-coverage@bfa741d815a28cb064a8e3a0837e577457a017d5   # v1
+      uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52   # v1
       with:
         file: coverage-integration-${{ steps.run-tests.outputs.safe_name }}.xml
         language: Go
@@ -569,7 +569,7 @@ jobs:
       run: make build
 
     - name: Upload gh-aw binary artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: gh-aw-linux-amd64
         path: gh-aw
@@ -603,7 +603,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
 
     - name: Download gh-aw binary artifact
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
       with:
         name: gh-aw-linux-amd64
         path: .
@@ -632,7 +632,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
 
     - name: Download gh-aw binary artifact
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
       with:
         name: gh-aw-linux-amd64
         path: .
@@ -660,7 +660,7 @@ jobs:
 
     - name: Set up Node.js
       id: setup-node
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020   # v6
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v6
       with:
         node-version: "24"
         cache: npm
@@ -787,7 +787,7 @@ jobs:
         echo "- v0.x exposure: ${V0_PERCENT}%" >> $GITHUB_STEP_SUMMARY
 
     - name: Upload audit results
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: dependency-audit
         path: |
@@ -1072,7 +1072,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
 
     - name: Download gh-aw binary artifact
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
       with:
         name: gh-aw-linux-amd64
         path: .
@@ -1388,7 +1388,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: test-result-integration-unauthenticated
         path: test-result-integration-unauthenticated.json
@@ -1402,7 +1402,7 @@ jobs:
 
     - name: Upload unauthenticated coverage to code coverage API
       if: always() && vars.CODE_QUALITY_COVERAGE_ENABLED == 'true' && hashFiles('coverage-integration-unauthenticated.xml') != ''
-      uses: actions/upload-code-coverage@bfa741d815a28cb064a8e3a0837e577457a017d5   # v1
+      uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52   # v1
       with:
         file: coverage-integration-unauthenticated.xml
         language: Go
@@ -1463,7 +1463,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
       with:
         name: test-result-integration-add-dispatch-workflow
         path: test-result-integration-add-dispatch-workflow.json
@@ -1477,7 +1477,7 @@ jobs:
 
     - name: Upload dispatch-workflow coverage to code coverage API
       if: always() && vars.CODE_QUALITY_COVERAGE_ENABLED == 'true' && hashFiles('coverage-integration-add-dispatch-workflow.xml') != ''
-      uses: actions/upload-code-coverage@bfa741d815a28cb064a8e3a0837e577457a017d5   # v1
+      uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52   # v1
       with:
         file: coverage-integration-add-dispatch-workflow.xml
         language: Go
@@ -2019,7 +2019,7 @@ jobs:
 
     - name: Upload redirect test coverage to code coverage API
       if: always() && vars.CODE_QUALITY_COVERAGE_ENABLED == 'true' && hashFiles(format('coverage-redirect-{0}.xml', matrix.os)) != ''
-      uses: actions/upload-code-coverage@bfa741d815a28cb064a8e3a0837e577457a017d5   # v1
+      uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52   # v1
       with:
         file: coverage-redirect-${{ matrix.os }}.xml
         language: Go

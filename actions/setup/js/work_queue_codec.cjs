@@ -13,6 +13,8 @@ function queueError(code, message) {
 
 /** @returns {number} */
 function utf8Compare(a, b) {
+  // UTF-16 and UTF-8 ordering agree outside surrogate code units.
+  if (typeof a === "string" && typeof b === "string" && !/[\uD800-\uDFFF]/.test(a) && !/[\uD800-\uDFFF]/.test(b)) return a < b ? -1 : a > b ? 1 : 0;
   return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }
 

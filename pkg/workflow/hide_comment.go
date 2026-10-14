@@ -10,7 +10,6 @@ var hideCommentLog = logger.New("workflow:hide_comment")
 type HideCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	SafeOutputFilterConfig `yaml:",inline"`
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"` // List of allowed reasons for hiding comments (default: all reasons allowed)
 	Discussions            *bool    `yaml:"discussions,omitempty"`     // When true, includes discussions:write permission. Default (nil or false) excludes discussions:write.
 }
@@ -30,6 +29,9 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
 			}
 			hideCommentConfig.SafeOutputTargetConfig = targetConfig
+			if discussions, ok := configMap["discussions"].(bool); ok {
+				hideCommentConfig.Discussions = &discussions
+			}
 
 			// Parse allowed-reasons
 			if allowedReasons, exists := configMap["allowed-reasons"]; exists {
