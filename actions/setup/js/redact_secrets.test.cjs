@@ -32,7 +32,7 @@ describe("redact_secrets.cjs", () => {
   let tempDir, ambientPathsSpy;
   it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("redacts decoded OTLP passwords from artifacts and summaries using %s without setup log masks", async variable => {
     const { main, redactFilesInDir, redactStepSummaryContent } = require("./redact_secrets.cjs");
-    const passwords = ['synthetic-otlp-"password\\one', "four"];
+    const passwords = ['synthetic-otlp-"password\\one', "four", "12345678"];
     const encoded = passwords.map(password => Buffer.from(`123456:${password}`).toString("base64"));
     const headers = encoded.map(value => `Authorization=${encodeURIComponent(`Basic ${value}`)}`);
     vi.stubEnv(variable, variable === "GH_AW_OTLP_ENDPOINTS" ? JSON.stringify(headers.map(header => ({ url: "https://traces.example.com", headers: header }))) : headers.join(","));
@@ -40,9 +40,11 @@ describe("redact_secrets.cjs", () => {
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, "evals.json");
     const log = path.join(dir, "evals.log");
+    const scalarFile = path.join(dir, "numeric.json");
     const payload = JSON.stringify({ toolOutput: passwords.join("\n"), header: headers.join(","), credentials: encoded, safe: "123456" });
     fs.writeFileSync(file, payload);
     fs.writeFileSync(log, [...passwords, ...encoded, ...headers].join("\n"));
+    fs.writeFileSync(scalarFile, "12345678\n");
 
     await main();
 
@@ -56,12 +58,17 @@ describe("redact_secrets.cjs", () => {
     assertRedacted(fs.readFileSync(file, "utf8"));
     const logContent = fs.readFileSync(log, "utf8");
     for (const value of [...passwords, ...encoded, ...headers]) expect(logContent).not.toContain(value);
+    expect(JSON.parse(logContent.split("\n")[2])).toBe("***");
+    expect(JSON.parse(fs.readFileSync(scalarFile, "utf8"))).toBe("***");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
     fs.writeFileSync(file, payload);
+    fs.writeFileSync(scalarFile, "12345678\n");
     await redactFilesInDir(dir);
     assertRedacted(fs.readFileSync(file, "utf8"));
+    expect(JSON.parse(fs.readFileSync(scalarFile, "utf8"))).toBe("***");
     assertRedacted(redactStepSummaryContent(payload));
+    expect(JSON.parse(redactStepSummaryContent("12345678\n"))).toBe("***");
     expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(passwords[0]);
   });
   it("redacts decoded Grafana Cloud tokens even without an exact-value secret", () => {

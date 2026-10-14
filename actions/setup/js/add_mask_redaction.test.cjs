@@ -148,6 +148,24 @@ describe("add_mask_redaction", () => {
         expect(JSON.parse(redactArtifactMaskedValues('{"text":"\\""}\n', ['"']))).toEqual({ text: "***" });
       });
 
+      it.each(["12345678", "-12345678", "12345678.5", "1.12345678e+9", "12345678901234567890"])("redacts numeric scalar %s using its original token and keeps JSON valid", token => {
+        const redacted = redactArtifactMaskedValues(` \t${token}\r\n`, ["12345678"]);
+        expect(redacted).toBe(` \t${JSON.stringify(token.replaceAll("12345678", "***"))}\r\n`);
+        expect(JSON.parse(redacted)).toBe(token.replaceAll("12345678", "***"));
+      });
+
+      it("redacts numeric scalar records within mixed logs and JSONL", () => {
+        const content = 'starting\n12345678\n{"data":"12345678"}\n-12345678\n123456\nfalse\nnull\n';
+        const redacted = redactArtifactMaskedValues(content, ["12345678"]);
+        expect(redacted).toBe('starting\n"***"\n{"data":"***"}\n"-***"\n123456\nfalse\nnull\n');
+        for (const line of redacted.trim().split("\n").slice(1)) expect(() => JSON.parse(line)).not.toThrow();
+      });
+
+      it.each(["123456", "-0", "1e+09", "9007199254740993", "1e400", "false", "null"])("preserves unmatched scalar %s byte-for-byte", token => {
+        const content = ` \t${token}\r\n`;
+        expect(redactArtifactMaskedValues(content, ["12345678"])).toBe(content);
+      });
+
       it("redacts JSONL, Unicode escapes, and malformed adjacent records", () => {
         const content = '::add-mask::opaque\n{"data":"\\u006fpaque"}\n{"broken":"\\u006fpaque",\nplain opaque\n{"data":"safe"}\n';
         const redacted = redactArtifactMaskedValues(content, ["opaque"]);

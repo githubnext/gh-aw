@@ -140,8 +140,9 @@ function applyAddMaskRedaction(text, maskedValues) {
 
 /**
  * Sanitize artifact sources while runtime masks are still available in memory.
- * Decode JSON strings first so escaping cannot hide a registered value, and
- * preserve untouched records byte-for-byte.
+ * Decode JSON strings first so escaping cannot hide a registered value, redact
+ * matching numeric scalar records as JSON strings, and preserve untouched records
+ * byte-for-byte.
  * @param {string} content
  * @param {string[]} maskedValues
  * @returns {string}
@@ -157,6 +158,12 @@ function redactArtifactMaskedValues(content, maskedValues) {
   const redactJson = text => {
     try {
       const value = JSON.parse(text);
+      if (typeof value === "number") {
+        // Match the original token so rounding or exponent notation cannot hide a mask.
+        const token = text.trim();
+        const redacted = redactMaskedValues(token, maskedValues);
+        return redacted === token ? text : text.match(/^\s*/)[0] + JSON.stringify(redacted) + text.match(/\s*$/)[0];
+      }
       const redacted = JSON.stringify(redactValue(value));
       return redacted === JSON.stringify(value) ? text : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
     } catch {
