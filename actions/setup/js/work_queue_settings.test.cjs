@@ -162,6 +162,8 @@ describe("work_queue scheduling settings", () => {
       [{ label: "${{ vars.LABEL }}" }, "issues.label"],
       [{ label: "work\n" }, "issues.label"],
       [{ label: "work\u0085" }, "issues.label"],
+      [{ label: "a\u0000b" }, "issues.label"],
+      [{ label: "a\uD800" }, "issues.label"],
       [{ label: "a".repeat(34) }, "issues.label"],
       [{ label: "😀".repeat(9) }, "issues.label"],
       [{ title_prefix: null }, "issues.title_prefix"],
@@ -170,6 +172,7 @@ describe("work_queue scheduling settings", () => {
       [{ title_prefix: "${{ vars.PREFIX }}" }, "issues.title_prefix"],
       [{ title_prefix: "queue\n" }, "issues.title_prefix"],
       [{ title_prefix: "queue\u0085" }, "issues.title_prefix"],
+      [{ title_prefix: "a\uDC00b" }, "issues.title_prefix"],
       [{ title_prefix: "a".repeat(81) }, "issues.title_prefix"],
       [{ title_prefix: "😀".repeat(21) }, "issues.title_prefix"],
       [{ "tracking-label": "work" }, "issues.tracking-label"],
@@ -183,18 +186,7 @@ describe("work_queue scheduling settings", () => {
     }
   });
 
-  it("rejects invalid issue label and title_prefix literals at their byte limits", () => {
-    const cases = [
-      [{ label: "x".repeat(34) }, "work_queue.issues.label"],
-      [{ label: "  " }, "work_queue.issues.label"],
-      [{ label: "${{ github.actor }}" }, "work_queue.issues.label"],
-      [{ label: "a\u0000b" }, "work_queue.issues.label"],
-      [{ label: "a\uD800" }, "work_queue.issues.label"],
-      [{ title_prefix: "x".repeat(81) }, "work_queue.issues.title_prefix"],
-      [{ title_prefix: "${{ x }}" }, "work_queue.issues.title_prefix"],
-      [{ title_prefix: "a\uDC00b" }, "work_queue.issues.title_prefix"],
-    ];
-    for (const [issues, property] of cases) assert.throws(() => parseSettings({ issues }), new RegExp(property.replace(/\./g, "\\.")));
+  it("accepts issue literals at their byte limits", () => {
     assert.deepEqual(parseSettings({ issues: { label: "x".repeat(33), title_prefix: "y".repeat(80) } }).issues, { label: "x".repeat(33), title_prefix: "y".repeat(80) });
   });
 });

@@ -15,13 +15,13 @@ const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.
 
 describe("daily MCP concurrency workflow tool contract", () => {
   it("restricts shell access to history and the read-only audit projection", () => {
-    expect(workflow.tools.bash).toEqual(['git log -1 --format="%ai" --:*']);
+    expect(workflow.tools.bash).toEqual(['git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs']);
     expect(workflow["max-tool-denials"]).toBe(3);
     expect(workflow.tools).toHaveProperty("edit");
     expect(prompt).toContain("native `glob`, `rg`, and `view`");
     expect(prompt).toContain("native `apply_patch` or edit tools");
     const shellExamples = [...prompt.matchAll(/```bash\n([\s\S]*?)```/g)].map(match => match[1].trim());
-    expect(shellExamples).toEqual(['git log -1 --format="%ai" -- actions/setup/js/safe_outputs_tools_loader.cjs']);
+    expect(shellExamples).toEqual(['git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs']);
     expect(prompt).not.toMatch(/\$\((?:date|cat|jq)\b|cat .* \| jq|TOOL_FILE=|safeoutputs create_issue/);
     expect(prompt).toContain("call `report_incomplete` with the concrete blocker");
     expect(prompt).toContain("Do not port this shell fallback to an engine without shell filters (such as Codex)");
@@ -33,8 +33,8 @@ describe("daily MCP concurrency workflow tool contract", () => {
       expect(existsSync(resolve(root, file))).toBe(true);
       expect(prompt).toContain(file.split("/").at(-1));
     }
-    expect(prompt).toContain("Confirm each path with native `glob` before reading it");
-    expect(prompt).toContain("Never assume `actions/setup/js/<tool_name>.cjs` exists");
+    expect(prompt).toContain("Read `pkg/workflow/js/safe_outputs_tools.json` with native `view`");
+    expect(prompt).toContain("Do not assume a tool named `<tool_name>` has a file named `<tool_name>.cjs`.");
     expect(prompt).not.toContain("~32 tools");
     expect(prompt).toContain("Analyze exactly one tool per run");
     expect(prompt).not.toContain("Continue to next tool");
@@ -43,7 +43,7 @@ describe("daily MCP concurrency workflow tool contract", () => {
   it("allows the documented commands with the real SDK matcher but rejects denied pipelines", () => {
     const handler = buildCopilotSDKPermissionHandler({ allowedTools: workflow.tools.bash.map(command => `shell(${command})`) }, () => ({ kind: "approve-once" }));
     const check = command => handler({ kind: "shell", commands: [], fullCommandText: command });
-    for (const command of ['git log -1 --format="%ai" -- actions/setup/js/safe_outputs_tools_loader.cjs']) {
+    for (const command of ['git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs']) {
       expect(check(command)).toEqual({ kind: "approve-once" });
     }
     for (const command of [
