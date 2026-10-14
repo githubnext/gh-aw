@@ -9,6 +9,9 @@
         "dispatch_id": {
           "$ref": "#/$defs/Identity"
         },
+        "keep_open": {
+          "type": "boolean"
+        },
         "outcome": {
           "anyOf": [
             {

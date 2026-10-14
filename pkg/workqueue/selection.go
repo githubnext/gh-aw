@@ -108,6 +108,9 @@ func positionLess(a, b Position) bool {
 }
 
 func (state Projection) eligibility(work *WorkState, at int64, logical int, accounts map[string]int) string {
+	if work.Barrier == "pending" || work.Barrier == "failed" {
+		return "delivery_" + work.Barrier
+	}
 	if work.State != "available" {
 		return "ownership_" + work.State
 	}

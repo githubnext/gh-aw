@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeUnifiedSessionEvent } from "./unified_session_payload.cjs";
+import { normalizeUnifiedSessionEvent, normalizeModelInventoryData } from "./unified_session_payload.cjs";
 import { mergeSessionSources } from "./unified_session.cjs";
 import { generatePlainTextSummary, generateCopilotCliStyleSummary, convertCopilotEventsToLegacyLogEntries } from "./log_parser_shared.cjs";
 import { serializeSessionArtifact } from "./session_artifact.cjs";
@@ -14,6 +14,94 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it("preserves top-level AWF routing metadata with endpoint-local precedence and no credentials", () => {
+    const source = {
+      models_fetch_complete: false,
+      routing_models: [{ model_id: "fallback", supported_endpoints: ["/responses", "ws:/responses"], apiKey: "PRIVATE_ROUTING_KEY" }],
+      endpoints: [
+        { provider: "copilot", models: [{ id: "fallback", token: "PRIVATE_TOKEN" }], base_url: "PRIVATE_URL" },
+        { provider: "openai", models: ["local"], routing_models: [{ model_id: "local", supported_endpoints: ["/chat/completions"], headers: "PRIVATE_HEADERS" }] },
+        { provider: "anthropic", models: [], routing_models: [] },
+      ],
+      credential: "PRIVATE_CREDENTIAL",
+    };
+    const original = structuredClone(source);
+    const event = normalizeUnifiedSessionEvent({ type: "model.inventory", data: source });
+    expect(event.data).toEqual({
+      modelsFetchComplete: false,
+      endpoints: [
+        { provider: "copilot", models: ["fallback"], routingModels: [{ modelId: "fallback", supportedEndpoints: ["/responses", "ws:/responses"] }] },
+        { provider: "openai", models: ["local"], routingModels: [{ modelId: "local", supportedEndpoints: ["/chat/completions"] }] },
+        { provider: "anthropic", models: [], routingModels: [] },
+      ],
+    });
+    expect(normalizeModelInventoryData(source)).toEqual(event.data);
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+    const [unified] = mergeSessionSources([{ component: "firewall", phase: "agent", path: "awf-reflect.json", events: [event] }]);
+    const validate = createSessionValidator("unified").event;
+    expect(validate(unified), JSON.stringify(validate.errors)).toBe(true);
+    expect(JSON.stringify(unified)).not.toContain("PRIVATE_");
+    expect(source).toEqual(original);
+  });
+
+  it.each(["models", "available_models", "detected_models", "model_ids", "availableModels"])("normalizes valid model collections using %s", field => {
+    const models = ["a", { id: "b", apiKey: "PRIVATE_KEY" }, { name: "c" }, { model: "d" }];
+    const expected = { endpoints: [{ provider: "copilot", models: ["a", "b", "c", "d"] }] };
+    expect(normalizeModelInventoryData({ endpoints: [{ provider: "copilot", [field]: models }] })).toEqual(expected);
+    expect(normalizeModelInventoryData({ providers: { copilot: { [field]: models } } })).toEqual(expected);
+    expect(normalizeModelInventoryData({ provider: "copilot", [field]: models })).toEqual(expected);
+  });
+
+  it.each([
+    [{ endpoints: [] }, { endpoints: [] }],
+    [{ providers: {} }, { endpoints: [] }],
+    [{ provider: "copilot", models: [] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+    [{ endpoints: [{ provider: "anthropic", configured: false, models: null }] }, { endpoints: [{ provider: "anthropic", models: [] }] }],
+    [{ endpoints: [{ provider: "opencode", configured: true, models: null, models_url: null }] }, { endpoints: [{ provider: "opencode", models: [] }] }],
+  ])("accepts genuine empty inventories and AWF null model collections: %j", (source, expected) => {
+    expect(normalizeModelInventoryData(source)).toEqual(expected);
+    const event = normalizeUnifiedSessionEvent({ type: "model.inventory", data: source });
+    expect(event.data).toEqual(expected);
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+  });
+
+  it.each([
+    null,
+    [],
+    {},
+    { endpoints: null },
+    { endpoints: [null] },
+    { endpoints: ["copilot"] },
+    { endpoints: [{ provider: "copilot" }] },
+    { endpoints: [{ provider: 1, models: [] }] },
+    { endpoints: [{ provider: " ", models: [] }] },
+    { endpoints: [{ provider: "copilot", models: "malformed" }] },
+    { endpoints: [{ provider: "copilot", models: null }] },
+    { endpoints: [{ provider: "copilot", configured: "false", models: null }] },
+    { endpoints: [{ provider: "copilot", models: ["valid"] }, null] },
+    { providers: [] },
+    { providers: { copilot: null } },
+    { providers: { copilot: ["model"] } },
+    { providers: { copilot: {} } },
+    { provider: "copilot", models: ["valid", null] },
+    { provider: "copilot", models: ["valid", false] },
+    { provider: "copilot", models: ["valid", 42] },
+    { provider: "copilot", models: [{ id: { token: "PRIVATE_KEY" } }] },
+    { provider: "copilot", models: [{ id: 42, name: "valid" }] },
+    { provider: "copilot", models: [""] },
+    { endpoints: [], routing_models: "malformed" },
+    { endpoints: [], routing_models: [null] },
+    { endpoints: [], routing_models: [{ model_id: 42 }] },
+    { endpoints: [], routing_models: [{ model_id: "model", supported_endpoints: "malformed" }] },
+    { endpoints: [], routing_models: [{ model_id: "model", supported_endpoints: ["/responses", 42] }] },
+    { provider: "copilot", models: [], routingModels: [null] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedEndpoints: null }] },
+    { endpoints: [], models_fetch_complete: "true" },
+  ])("rejects malformed inventory rather than producing a success-shaped empty payload: %j", source => {
+    expect(normalizeModelInventoryData(source)).toBeUndefined();
+    expect(() => normalizeUnifiedSessionEvent({ type: "model.inventory", data: source })).toThrow("ERR_VALIDATION: Model inventory snapshot must contain valid endpoint model collections");
+  });
+
   it("projects canonical MCP configuration through the shared metadata allowlist", () => {
     const source = {
       type: "mcp.configuration",

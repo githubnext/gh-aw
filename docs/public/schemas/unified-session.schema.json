@@ -119,6 +119,7 @@
       { "if": { "properties": { "type": { "const": "mcp.rpc.request" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.rpc.response" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.tool_call" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
+      { "if": { "properties": { "type": { "const": "model.inventory" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelInventoryData" } } } },
       { "if": { "properties": { "type": { "const": "model_endpoint.mismatch" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelEndpointMismatchData" } } } },
       { "if": { "properties": { "type": { "const": "model_routing.outcome" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelRoutingOutcomeData" } } } },
       { "if": { "properties": { "type": { "const": "plugin.installation" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/PluginInstallationData" } } } },
@@ -773,6 +774,30 @@
         "endpoint": { "type": "string" }
       },
       "required": ["category", "phase", "configured_model", "resolved_model", "wire_api", "wire_api_source", "supported_endpoints", "detail", "fix"],
+      "additionalProperties": false
+    },
+    "ModelInventoryData": {
+      "type": "object",
+      "properties": {
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "provider": { "type": "string" },
+              "models": { "type": "array", "items": { "type": "string" } },
+              "routingModels": {
+                "type": "array",
+                "items": { "type": "object", "properties": { "modelId": { "type": "string" }, "supportedEndpoints": { "type": "array", "items": { "type": "string" } } }, "required": ["modelId"], "additionalProperties": false }
+              }
+            },
+            "required": ["provider", "models"],
+            "additionalProperties": false
+          }
+        },
+        "modelsFetchComplete": { "type": "boolean" }
+      },
+      "required": ["endpoints"],
       "additionalProperties": false
     },
     "ModelRoutingData": {

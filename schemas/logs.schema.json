@@ -533,6 +533,9 @@
                         },
                         "outcome": {
                           "type": "string"
+                        },
+                        "keep_open": {
+                          "type": "boolean"
                         }
                       },
                       "required": [

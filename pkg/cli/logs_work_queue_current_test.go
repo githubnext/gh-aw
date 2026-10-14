@@ -311,6 +311,9 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 		`{"outcome":"completed"}`, `null`, strings.Replace(valid, `"h1"`, `"foreign"`, 1),
 		strings.Replace(valid, `"completed"`, `"invalid"`, 1),
 		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","secret":"x"}`, 1),
+		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":null}`, 1),
+		strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"cancelled","keep_open":true}`, 1),
+		valid + "\n" + strings.Replace(strings.Replace(valid, `"i"`, `"j"`, 1), `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":true}`, 1),
 		valid + "\n" + strings.Replace(valid, `"completed"`, `"cancelled"`, 1),
 		valid + "\n" + strings.Replace(strings.Replace(valid, `"i"`, `"j"`, 1), `"completed"`, `"cancelled"`, 1),
 		strings.Repeat(valid+"\n", 257),
@@ -327,6 +330,44 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 	receipts, err := readCurrentWorkQueueFinishIntents(path, snapshot)
 	require.NoError(t, err)
 	require.Len(t, receipts, 1)
+	explicitFalse := strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":false}`, 1)
+	require.NoError(t, os.WriteFile(path, []byte(valid+"\n"+explicitFalse+"\n"), 0o600))
+	receipts, err = readCurrentWorkQueueFinishIntents(path, snapshot)
+	require.NoError(t, err)
+	require.Len(t, receipts, 1)
+	retained := strings.Replace(valid, `"parameters":{"outcome":"completed"}`, `"parameters":{"outcome":"completed","keep_open":true}`, 1)
+	require.NoError(t, os.WriteFile(path, []byte(retained+"\n"), 0o600))
+	receipts, err = readCurrentWorkQueueFinishIntents(path, snapshot)
+	require.NoError(t, err)
+	require.True(t, receipts[0].KeepOpen)
+	serialized, err := json.Marshal(receipts[0])
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"intent_id":"i","claim_handle":"h1","outcome":"completed","keep_open":true}`, string(serialized))
+}
+
+func TestNormalizeCurrentWorkQueueFinishIntent(t *testing.T) {
+	t.Parallel()
+	for _, scenario := range []struct {
+		name       string
+		fields     map[string]json.RawMessage
+		parameters map[string]json.RawMessage
+		valid      bool
+	}{
+		{"explicit false", map[string]json.RawMessage{}, map[string]json.RawMessage{"outcome": json.RawMessage(`"completed"`), "keep_open": json.RawMessage(`false`)}, true},
+		{"invalid parameters", map[string]json.RawMessage{}, map[string]json.RawMessage{"outcome": json.RawMessage(`invalid`)}, false},
+		{"invalid intent", map[string]json.RawMessage{"intent_id": json.RawMessage(`invalid`)}, map[string]json.RawMessage{"outcome": json.RawMessage(`"completed"`)}, false},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			normalized, err := normalizeCurrentWorkQueueFinishIntent(scenario.fields, scenario.parameters)
+			if !scenario.valid {
+				require.Error(t, err)
+				require.Nil(t, normalized)
+				return
+			}
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"parameters":{"outcome":"completed"}}`, string(normalized))
+		})
+	}
 }
 
 func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {

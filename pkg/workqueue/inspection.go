@@ -241,6 +241,7 @@ type TraceEvent struct {
 	CredentialPrincipal string          `json:"credential_principal,omitempty"`
 	ClaimHandle         string          `json:"claim_handle,omitempty"`
 	CompletionID        string          `json:"completion_id,omitempty"`
+	KeepOpen            bool            `json:"keep_open,omitempty"`
 	State               string          `json:"state,omitempty"`
 	Reason              string          `json:"reason,omitempty"`
 	Disposition         string          `json:"disposition,omitempty"`
