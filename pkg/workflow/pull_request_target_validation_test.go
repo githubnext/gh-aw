@@ -459,7 +459,7 @@ func TestPullRequestTargetPolicy(t *testing.T) { //nolint:largefunc // Table cov
 		{name: "empty allowlist", policy: acknowledged + "    allowed-checkouts: []\n", checkout: externalCheckout, errorContains: insecureCheckout},
 		{name: "pairs cannot be combined", policy: acknowledged + allowlist + "      - repository: dotnet/other\n        ref: other\n", checkout: strings.ReplaceAll(externalCheckout, "ref: main", "ref: other"), errorContains: insecureCheckout},
 		{name: "omitted external ref", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "    ref: main\n", ""), errorContains: insecureCheckout},
-		{name: "head repository expression", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "dotnet/AspNetCore.Docs", "${{ github.event.pull_request.head.repo.full_name }}"), errorContains: "expressions require checkout.allowed-repos"},
+		{name: "head repository expression", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "dotnet/AspNetCore.Docs", "${{ github.event.pull_request.head.repo.full_name }}"), errorContains: insecureCheckout},
 		{name: "head ref expression", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "ref: main", "ref: ${{ github.event.pull_request.head.sha }}"), errorContains: insecureCheckout},
 		{name: "base ref expression for external repository", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "ref: main", "ref: ${{ github.event.pull_request.base.ref }}"), errorContains: insecureCheckout},
 		{name: "allowlisted checkout with PR fetch ref", policy: acknowledged + allowlist, checkout: externalCheckout + "    fetch: [refs/pull/123/head]\n", errorContains: insecureCheckout},
