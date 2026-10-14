@@ -64,12 +64,6 @@ func checkoutStepsHaveRootGoMod(checkoutSteps string, firstCheckoutOnly bool) bo
 }
 
 func sparseCheckoutIncludesRootGoMod(patterns, coneMode string) bool {
-	if strings.Contains(patterns, "${{") {
-		return false
-	}
-	if patterns == "" {
-		return true
-	}
 	if coneMode == "" {
 		return true
 	}
@@ -78,6 +72,12 @@ func sparseCheckoutIncludesRootGoMod(patterns, coneMode string) bool {
 		return false
 	}
 	if cone {
+		return true
+	}
+	if strings.Contains(patterns, "${{") {
+		return false
+	}
+	if patterns == "" {
 		return true
 	}
 	included := false
