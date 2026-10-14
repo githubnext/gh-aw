@@ -82,6 +82,14 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) { //nolint:largefunc // Existing checkout parsing remains centralized.
 	cfg := &CheckoutConfig{}
 
+	if v, ok := m["multi"]; ok {
+		value, ok := v.(bool)
+		if !ok {
+			return nil, errors.New("checkout.multi must be a literal boolean; use true or false")
+		}
+		cfg.Multi = value
+	}
+
 	if v, ok := m["allow-private-repos"]; ok {
 		value, ok := v.(bool)
 		if !ok {
@@ -363,6 +371,15 @@ func validateRuntimeCheckoutConfigs(configs []*CheckoutConfig) error {
 }
 
 func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
+	if strings.ContainsAny(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, ""), "*?[]") {
+		return errors.New("checkout.repository (or repo) must specify explicit owner/repo names; wildcards are only supported in checkout.allowed-repos")
+	}
+	if !cfg.Multi {
+		if strings.ContainsAny(strings.TrimSpace(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, "expression")), "\r\n") {
+			return errors.New("checkout.repository (or repo) must select a single repository unless checkout.multi is true")
+		}
+		return nil
+	}
 	if cfg.AllowPrivateRepos != nil && len(cfg.AllowedRepos) == 0 {
 		return errors.New("checkout.allow-private-repos requires checkout.allowed-repos for runtime repository-list expansion")
 	}
@@ -374,39 +391,30 @@ func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
 			return errors.New("checkout.max-repos requires checkout.allowed-repos for runtime repository-list expansion")
 		}
 	}
-	if strings.ContainsAny(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, ""), "*?[]") {
-		return errors.New("checkout.repository (or repo) must specify explicit owner/repo names; wildcards are only supported in checkout.allowed-repos")
+	if len(cfg.AllowedRepos) == 0 {
+		return errors.New("checkout.multi: true requires checkout.allowed-repos; specify allowed repository patterns such as owner/*")
 	}
-	isWorkflowRepository := matchesGitHubExpression(cfg.Repository, "github.repository")
-	if containsExpression(cfg.Repository) && !isWorkflowRepository && len(cfg.AllowedRepos) == 0 {
-		return errors.New("checkout.repository (or repo) expressions require checkout.allowed-repos unless the value is only ${{ github.repository }}; specify allowed repository patterns such as owner/*")
+	if err := validateCheckoutAllowedRepos(cfg.AllowedRepos); err != nil {
+		return err
 	}
-	if strings.ContainsAny(cfg.Repository, "\r\n") && !isWorkflowRepository && len(cfg.AllowedRepos) == 0 {
-		return errors.New("repository-list checkout requires allowed-repos; specify allowed repository patterns such as owner/*")
+	if strings.TrimSpace(cfg.Repository) == "" {
+		return errors.New("checkout.allowed-repos requires repository (or repo) containing the runtime repository list")
 	}
-	if len(cfg.AllowedRepos) > 0 {
-		if err := validateCheckoutAllowedRepos(cfg.AllowedRepos); err != nil {
-			return err
-		}
-		if strings.TrimSpace(cfg.Repository) == "" {
-			return errors.New("checkout.allowed-repos requires repository (or repo) containing the runtime repository list")
-		}
-		if !cfg.PathExplicit || path.Clean(cfg.Path) == "." || strings.Contains(cfg.Path, "${{") {
-			return errors.New("runtime repository-list checkout requires a literal, non-root path prefix. Example:\ncheckout:\n  repository: ${{ inputs.repos }}\n  path: repos\n  allowed-repos: [owner/*]")
-		}
-		if cfg.Current || cfg.Wiki {
-			return errors.New("runtime repository-list checkout does not support current: true or wiki: true")
-		}
-		if cfg.LFS {
-			return errors.New("runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs")
-		}
-		if cfg.Submodules != "" && cfg.Submodules != "false" {
-			return errors.New("runtime repository-list checkout does not support enabled submodules because submodule URLs can bypass allowed-repos; set checkout.submodules to false")
-		}
-		for _, app := range []*GitHubAppConfig{cfg.GitHubApp, cfg.SafeOutputGitHubApp} {
-			if app != nil && (app.Owner == "" || len(app.Repositories) == 0) {
-				return errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")
-			}
+	if !cfg.PathExplicit || path.Clean(cfg.Path) == "." || strings.Contains(cfg.Path, "${{") {
+		return errors.New("runtime repository-list checkout requires a literal, non-root path prefix. Example:\ncheckout:\n  multi: true\n  repository: ${{ inputs.repos }}\n  path: repos\n  allowed-repos: [owner/*]")
+	}
+	if cfg.Current || cfg.Wiki {
+		return errors.New("runtime repository-list checkout does not support current: true or wiki: true")
+	}
+	if cfg.LFS {
+		return errors.New("runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs")
+	}
+	if cfg.Submodules != "" && cfg.Submodules != "false" {
+		return errors.New("runtime repository-list checkout does not support enabled submodules because submodule URLs can bypass allowed-repos; set checkout.submodules to false")
+	}
+	for _, app := range []*GitHubAppConfig{cfg.GitHubApp, cfg.SafeOutputGitHubApp} {
+		if app != nil && (app.Owner == "" || len(app.Repositories) == 0) {
+			return errors.New("runtime repository-list checkout GitHub App authentication requires explicit owner and repositories")
 		}
 	}
 	return nil
@@ -453,7 +461,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string { //nolint:
 		if cfg == nil {
 			continue
 		}
-		if len(cfg.AllowedRepos) > 0 {
+		if cfg.Multi {
 			line := fmt.Sprintf("  - Runtime-selected repositories are checked out under `${{ github.workspace }}/%s/<owner>/<repo>`. Read `${{ runner.temp }}/gh-aw/safeoutputs/checkout-manifest.json` for their exact repository names, paths, and default branches.\n", cfg.Path)
 			sb.WriteString(line)
 			continue
