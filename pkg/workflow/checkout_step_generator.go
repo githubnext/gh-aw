@@ -47,6 +47,10 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 			continue
 		}
 		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
+		repository := entry.key.repository
+		if len(entry.allowedRepos) > 0 {
+			repository = ""
+		}
 		// Pass empty fallback so the app token defaults to github.event.repository.name.
 		// Checkout-specific cross-repo scoping is handled via the explicit repository field.
 		steps = append(steps, collapseYAMLLinesIntoSteps(c.buildGitHubAppTokenMintStepForJob(
@@ -54,7 +58,7 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 			entry.githubApp,
 			permissions,
 			"",
-			entry.key.repository,
+			repository,
 			fmt.Sprintf("Generate GitHub App token for checkout (%d)", checkoutIndex),
 			fmt.Sprintf("checkout-app-token-%d", checkoutIndex),
 		))...)
@@ -77,12 +81,16 @@ func (cm *CheckoutManager) GenerateSafeOutputCheckoutAppTokenSteps(c *Compiler, 
 			continue
 		}
 		checkoutManagerLog.Printf("Generating safe_outputs app token minting step for checkout index=%d repo=%q", checkoutIndex, entry.key.repository)
+		repository := entry.key.repository
+		if len(entry.allowedRepos) > 0 {
+			repository = ""
+		}
 		steps = append(steps, collapseYAMLLinesIntoSteps(c.buildGitHubAppTokenMintStepForJob(
 			"safe_outputs",
 			entry.safeOutputApp,
 			permissions,
 			"",
-			entry.key.repository,
+			repository,
 			fmt.Sprintf("Generate safe_outputs GitHub App token for checkout (%d)", checkoutIndex),
 			fmt.Sprintf("checkout-safe-output-app-token-%d", checkoutIndex),
 		))...)
@@ -121,6 +129,14 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 		if entry.isDefault() {
 			continue
 		}
+		if len(entry.allowedRepos) > 0 {
+			pushToken := cm.dynamicPushToken
+			if pushToken == "" {
+				pushToken = cm.pushToken
+			}
+			lines = append(lines, generateDynamicCheckoutSteps(entry, checkoutIndex, cm.keepCredentialsForPush, pushToken, getActionPin)...)
+			continue
+		}
 		lines = append(lines, generateCheckoutStepLines(entry, checkoutIndex, cm.keepCredentialsForPush, cm.pushToken, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
@@ -142,26 +158,8 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //
 // Returns an empty slice when there are no non-default cross-repo checkouts to record.
 func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string) string) []string {
-	type manifestEntry struct {
-		repository string
-		path       string
-		token      string
-	}
-	var entries []manifestEntry
-	for checkoutIndex, entry := range cm.ordered {
-		if entry.key.wiki {
-			continue
-		}
-		if entry.key.repository == "" {
-			continue
-		}
-		entries = append(entries, manifestEntry{
-			repository: entry.key.repository,
-			path:       entry.key.path,
-			token:      resolveCheckoutTokenExpression(entry, checkoutIndex, false),
-		})
-	}
-	if len(entries) == 0 {
+	entries, dynamicIndexes := cm.checkoutManifestEntries()
+	if len(entries) == 0 && len(dynamicIndexes) == 0 {
 		return nil
 	}
 
@@ -173,6 +171,9 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 	sb.WriteString("        env:\n")
 	sb.WriteString("          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	writeYAMLEnv(&sb, "          ", "GH_AW_CHECKOUT_MANIFEST_COUNT", strconv.Itoa(len(entries)))
+	if len(dynamicIndexes) > 0 {
+		writeYAMLEnv(&sb, "          ", "GH_AW_DYNAMIC_CHECKOUT_INDEXES", strings.Join(dynamicIndexes, ","))
+	}
 	for manifestIndex, e := range entries {
 		repoKey := fmt.Sprintf("GH_AW_CHECKOUT_REPO_%d", manifestIndex)
 		pathKey := fmt.Sprintf("GH_AW_CHECKOUT_PATH_%d", manifestIndex)
@@ -200,6 +201,35 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 	sb.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/build_checkout_manifest.cjs');\n")
 	sb.WriteString("            await main();\n")
 	return []string{sb.String()}
+}
+
+type checkoutManifestEntry struct {
+	repository string
+	path       string
+	token      string
+}
+
+func (cm *CheckoutManager) checkoutManifestEntries() ([]checkoutManifestEntry, []string) {
+	var entries []checkoutManifestEntry
+	var dynamicIndexes []string
+	for checkoutIndex, entry := range cm.ordered {
+		if len(entry.allowedRepos) > 0 {
+			dynamicIndexes = append(dynamicIndexes, strconv.Itoa(checkoutIndex))
+			continue
+		}
+		if entry.key.wiki {
+			continue
+		}
+		if entry.key.repository == "" {
+			continue
+		}
+		entries = append(entries, checkoutManifestEntry{
+			repository: entry.key.repository,
+			path:       entry.key.path,
+			token:      resolveCheckoutTokenExpression(entry, checkoutIndex, false),
+		})
+	}
+	return entries, dynamicIndexes
 }
 
 // GenerateGitHubFolderCheckoutStep generates YAML step lines for a sparse checkout of

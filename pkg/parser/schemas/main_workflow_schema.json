@@ -16582,8 +16582,31 @@
         },
         "repository": {
           "type": "string",
-          "description": "Repository to checkout in owner/repo format. Defaults to the current repository.",
+          "description": "Repository to checkout in owner/repo format, or a newline-separated list when allowed-repos is set. Expressions require allowed-repos except for the standalone ${{ github.repository }} expression, which retains normal single-repository checkout behavior without an allowlist or path prefix. Expressions must resolve to explicit repository names. Wildcards are not supported. Defaults to the current repository.",
           "examples": ["owner/repo", "github/gh-aw"]
+        },
+        "repo": {
+          "type": "string",
+          "description": "Alias for repository. Specify only one of repo and repository. Expressions require allowed-repos except for the standalone ${{ github.repository }} expression. Wildcards are not supported."
+        },
+        "allowed-repos": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "not": { "enum": ["*", "*/*"] } },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "enum": ["*", "*/*"] } } }
+          ],
+          "description": "Required allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or a whole GitHub Actions expression directly referencing a repository or organization configuration variable (e.g. ${{ vars.ALLOWED_REPOS }} or ${{ vars['ALLOWED_REPOS'] }}). Caller-controlled contexts, dynamic indexing, and composite or mixed expressions are rejected. Supports scoped wildcard patterns such as owner/* or */repo, but not unrestricted wildcards such as * or */*. The path is a literal prefix; repositories are placed under prefix/owner/repo."
+        },
+        "allow-private-repos": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow private or internal targets in a runtime repository list only when the hosting workflow repository is private or internal. Requires allowed-repos and a literal boolean. Defaults to false. Public hosting repositories always reject non-public targets, even when true. Every merged entry must explicitly opt in."
+        },
+        "max-repos": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "default": 10,
+          "description": "Maximum number of unique repositories per runtime checkout entry. Requires allowed-repos. Defaults to 10. Oversized lists fail before metadata requests or checkout; matching and deduplication are case-insensitive. Merged entries use the smallest effective limit, including the default for omitted values."
         },
         "ref": {
           "type": "string",
@@ -16616,11 +16639,11 @@
               "type": "boolean"
             }
           ],
-          "description": "Controls submodule checkout. Use \"recursive\" for all submodules, \"true\" for immediate submodules, or \"false\" to skip."
+          "description": "Controls submodule checkout. Use \"recursive\" for all submodules, \"true\" for immediate submodules, or \"false\" to skip. Runtime repository-list checkouts with allowed-repos require false or omission because submodule URLs can bypass the allowlist."
         },
         "lfs": {
           "type": "boolean",
-          "description": "Whether to download Git LFS objects. Defaults to false."
+          "description": "Whether to download Git LFS objects. Defaults to false. Runtime repository-list checkouts with allowed-repos reject lfs: true because repository-controlled LFS endpoints can bypass the allowlist."
         },
         "token": {
           "type": "string",

@@ -124,7 +124,8 @@ func TestInlinedImports_AgentFileCleared(t *testing.T) {
 		AgentImportSpec: ".github/agents/my-agent.md",
 	}
 
-	wd := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, importsResult)
+	wd, err := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, importsResult)
+	require.NoError(t, err)
 
 	// InlinedImports should be true in WorkflowData
 	assert.True(t, wd.InlinedImports, "InlinedImports should be true in WorkflowData")

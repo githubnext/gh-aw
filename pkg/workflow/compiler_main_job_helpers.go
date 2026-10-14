@@ -220,6 +220,9 @@ func (c *Compiler) addMainJobEngineErrorOutputs(outputs map[string]string, data 
 // buildMainJobOutputs builds the complete outputs map for the main agent job.
 func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 	outputs := buildMainJobCoreOutputs(data)
+	if checkoutError := dynamicCheckoutFailureOutput(data.CheckoutConfigs); checkoutError != "" {
+		outputs["checkout_error"] = checkoutError
+	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).
 	// The validate-secret step runs in the activation job, before context variable validation.

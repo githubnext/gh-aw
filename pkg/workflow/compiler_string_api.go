@@ -154,7 +154,10 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	}
 
 	// Build initial workflow data structure
-	workflowData := c.buildInitialWorkflowData(parseResult.frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	workflowData, err := c.buildInitialWorkflowData(parseResult.frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 	resolveMaxDailyAICBackendIntoWorkflowData(workflowData, parseResult.frontmatterResult.Frontmatter, engineSetup.importsResult.MergedMaxDailyAICredits)
 

@@ -338,6 +338,8 @@ Test workflow that uses Go without go.mod file.
 
 	// Compile workflow
 	compiler := NewCompiler()
+	// Keep repository manifest detection inside the fixture without go.mod.
+	compiler.gitRoot = tempDir
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

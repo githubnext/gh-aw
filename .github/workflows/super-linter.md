@@ -43,7 +43,7 @@ jobs:
       
       - name: Run super-linter
         # zizmor: ignore[github_action_from_unverified_creator_used]
-        uses: super-linter/super-linter@v9 # x-release-please-version
+        uses: super-linter/super-linter@v9.0.0 # x-release-please-version
         id: super-linter
         # Findings must reach the reporting agent, not skip it via a failed dependency.
         continue-on-error: true
