@@ -238,10 +238,23 @@ func computeSafeOutputHandlerPermissions(safeOutputs *SafeOutputsConfig, handler
 	switch handler.Key {
 	case "close-issue", "link-sub-issue", "replace-label", "assign-milestone":
 		permissions.Set(PermissionIssues, PermissionRead)
-	case "close-pull-request", "resolve-pull-request-review-thread", "mark-pull-request-as-ready-for-review":
+	case "close-pull-request", "resolve-pull-request-review-thread", "mark-pull-request-as-ready-for-review",
+		"create-pull-request-review-comment", "submit-pull-request-review":
 		permissions.Set(PermissionPullRequests, PermissionRead)
-	case "close-discussion":
+	case "close-discussion", "create-discussion":
 		permissions.Set(PermissionDiscussions, PermissionRead)
+	case "create-project-status-update":
+		permissions.Set(PermissionOrganizationProj, PermissionRead)
+	case "add-comment":
+		if addCommentTargetsEnabled(safeOutputs.AddComments) {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
+	case "hide-comment":
+		permissions.Set(PermissionIssues, PermissionRead)
+		permissions.Set(PermissionPullRequests, PermissionRead)
+		if safeOutputs.HideComment.Discussions != nil && *safeOutputs.HideComment.Discussions {
+			permissions.Set(PermissionDiscussions, PermissionRead)
+		}
 	case "merge-pull-request":
 		permissions.Set(PermissionPullRequests, PermissionRead)
 		permissions.Set(PermissionContents, PermissionRead)

@@ -1,8 +1,8 @@
 # ADR-68724: Infer Read Permissions for Staged Safe-Output Handlers
 
 **Date**: 2026-10-14
-**Status**: Draft
-**Deciders**: Unknown (PR #68724 author and reviewers)
+**Status**: Proposed
+**Deciders**: PR #68724 maintainers
 
 ---
 
@@ -12,7 +12,9 @@ Safe-output handlers that support `required-labels` and `required-title-prefix` 
 
 ### Decision
 
-We will compute staged-handler permissions from the reads a handler actually performs instead of assuming staged means "no permissions". A new `computeSafeOutputHandlerPermissions` function wraps each handler's `PermissionBuilder`: when the builder returns `nil` (staged) but the handler is configured, it grants a handler-specific read-only scope set — `issues: read`, `pull-requests: read`, `discussions: read`, or the broader read set for `merge-pull-request` — plus `issues: read` when `required-labels` or `required-title-prefix` is configured. The same function is used both for job-level `permissions:` and for global and per-handler GitHub App token scoping, so job permissions and minted token scopes stay consistent. Handlers that need no reads still yield `nil`, preserving explicit `permissions: {}` rendering.
+We will compute staged-handler permissions from the reads a handler actually performs instead of assuming staged means "no permissions". A new `computeSafeOutputHandlerPermissions` function wraps each handler's `PermissionBuilder`: when the builder returns `nil` (staged) but the handler is configured, it grants a handler-specific read-only scope set — `issues: read`, `pull-requests: read`, `discussions: read`, `organization-projects: read`, or the broader read set for `merge-pull-request` — plus `issues: read` when supported `required-labels` or `required-title-prefix` filters are configured. The same function is used both for job-level `permissions:` and for global and per-handler GitHub App token scoping, so job permissions and minted token scopes stay consistent. Organization-project scopes apply only to App tokens, not the Actions job permission block. Handlers that need no reads still yield `nil`, preserving explicit `permissions: {}` rendering.
+
+Discussion creation, project status updates, review operations, and comment hiding receive the read scopes required to resolve their targets before previewing. `add-comment` receives Issues read access only when issue or pull-request targets are enabled; discussion-only comments do not use Issues filters. `set-issue-type` serializes both supported filters into its runtime configuration. `hide-comment` does not implement label/title filters, so its unused filter configuration embed is removed rather than advertising unsupported safety gates.
 
 ### Alternatives Considered
 
@@ -22,7 +24,7 @@ Change each handler script (for example `remove_labels.cjs`) to short-circuit on
 
 #### Alternative 2: Continue per-handler ad-hoc fixes (extend the `add-comment` special case)
 
-Keep the existing shape where specific handlers get hard-coded read grants, adding `remove-labels` and others as bugs are reported. This is the smallest diff and was genuinely considered because it matches the existing precedent from #66571. It was rejected because it is reactive: each newly filtered handler reintroduces the same 403 class of failure, and the special cases were not shared with GitHub App token scoping, so app-token runs could still diverge from job permissions.
+Keep the existing shape where specific handlers get hard-coded read grants, adding `remove-labels` and others as bugs are reported. This matches the existing precedent from #66571 but is reactive: each newly filtered handler reintroduces the same 403 class of failure, and the special cases were not shared with GitHub App token scoping, so app-token runs could still diverge from job permissions.
 
 ### Consequences
 
@@ -43,4 +45,4 @@ Keep the existing shape where specific handlers get hard-coded read grants, addi
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Maintainer acceptance remains pending; this proposal documents the implemented decision without claiming approval.*
