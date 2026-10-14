@@ -353,7 +353,7 @@ If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-p
 
 Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `--fix`.
 
-**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dry-run`, `--dir/-d`, `--engine/-e`, `--environment`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--force-refresh-container-pins`, `--gh-aw-ref`, `--ghes`, `--grant`, `--grype`, `--json/-j`, `--logical-repo/-l`, `--models`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--require-self-hosted-runners`, `--runner-guard`, `--schedule-seed`, `--shellcheck`, `--show-all`, `--staged`, `--stats`, `--strict`, `--syft`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--yamllint`, `--zizmor`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--allow-experimental`, `--approve`, `--dependabot`, `--dry-run`, `--dir/-d`, `--engine/-e`, `--environment`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--force-refresh-container-pins`, `--gh-aw-ref`, `--ghes`, `--grant`, `--grype`, `--json/-j`, `--logical-repo/-l`, `--models`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--require-self-hosted-runners`, `--runner-guard`, `--schedule-seed`, `--shellcheck`, `--show-all`, `--staged`, `--stats`, `--strict`, `--syft`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--yamllint`, `--zizmor`
 
 **`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, model checks, and warnings as errors. Docker-based image validation and scanners are opt-in. Without Docker, required run-step linting uses native shellcheck. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations are disabled, including push jobs, memory/cache persistence, work-queue operations, reusable safe-output calls, reactions, comments/issues, label removal, and issue locking. Emitted locks remove `OTEL_*` and `GH_AW_OTLP_*` variables from workflow, job, step, container, and service environment mappings and disable automatic OTLP configuration and authentication. The runtime records `dry_run` in `aw_info.json` and warns that custom scripts/jobs, agent shell commands, external MCP servers, and custom credentials remain unverified. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
 
@@ -371,7 +371,7 @@ Dry-run locks also omit daily credit accounting, retain existing per-run caps or
 
 **JSON Output (`--json`):** Emits an array of `ValidationResult` objects. Each result includes a `labels` field listing all repository labels referenced in safe-outputs (`create-issue.labels`, `create-discussion.labels`, `create-pull-request.labels`, `add-labels.allowed`). Use `--json --no-emit` to collect label references without writing compiled files.
 
-With `--dry-run`, workflow warnings invalidate only the affected workflow. Compiler/scanner diagnostics that cannot be attributed to one workflow appear as separate results with `scope: "batch"`; their `workflow` field identifies the diagnostic source rather than a workflow path. Any invalid result fails development compilation, even when individual workflows remain valid.
+With `--dry-run`, workflow warnings invalidate only the affected workflow. Add `--allow-experimental` to accept built-in experimental-feature notices while keeping them visible; all other warnings, validation errors, and scanner failures remain fatal. The JSON dry-run summary records `accepted_experimental_warnings`. Compiler/scanner diagnostics that cannot be attributed to one workflow appear as separate results with `scope: "batch"`; their `workflow` field identifies the diagnostic source rather than a workflow path. Any invalid result fails development compilation, even when individual workflows remain valid.
 
 **Dependabot Integration (`--dependabot`):** Generates dependency manifests and `.github/dependabot.yml` by analyzing runtime tools across all workflows. See [Dependabot Support reference](/gh-aw/reference/dependabot/).
 
@@ -992,9 +992,11 @@ gh aw mcp-server --port 8080          # HTTP server with SSE
 gh aw mcp-server --validate-actor     # Enable actor validation
 ```
 
-**Options:** `--port/-p` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
+**Options:** `--port/-p` (HTTP server port), `--cmd` (custom subprocess command), `--allow-write-tools` (enable workflow-writing tools for trusted clients), `--validate-actor` (enforce actor validation for logs, audit, audit-diff, and enabled workflow-writing tools)
 
-**Available Tools:** status, compile, logs, audit, audit-diff, checks, mcp-inspect, add, update, fix
+**Available Tools:** status, compile, logs, audit, checks, work-queue (read-only), mcp-inspect, add, update, fix
+
+Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default. Enable them with `--allow-write-tools` only for trusted MCP clients and workflow sources.
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

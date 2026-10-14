@@ -205,11 +205,6 @@ func resolveMaxDailyAICFromRaw(raw any) (*string, bool) {
 	return nil, false
 }
 
-func resolveMaxDailyAIC(frontmatter map[string]any, importedJSON string) *string {
-	value, _ := resolveMaxDailyAICWithSource(frontmatter, importedJSON)
-	return value
-}
-
 func resolveMaxDailyAICWithSource(frontmatter map[string]any, importedJSON string) (*string, bool) {
 	if value, found := resolveMaxDailyAICFromRaw(frontmatter[maxDailyAICreditsField]); found {
 		dailyAICWorkflowLog.Print("Resolved max-daily-ai-credits from workflow frontmatter")

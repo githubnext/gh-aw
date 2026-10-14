@@ -828,6 +828,7 @@ async function main() {
       memoryDir: destMemoryPath,
       memoryId,
       kind: "repo",
+      phase: "push",
       timeoutSeconds: validationTimeoutSeconds,
       isEligibleFile,
     });
@@ -1000,6 +1001,7 @@ async function main() {
               memoryDir: destMemoryPath,
               memoryId,
               kind: "repo",
+              phase: "push",
               timeoutSeconds: validationTimeoutSeconds,
               isEligibleFile,
             });

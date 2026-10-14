@@ -144,6 +144,25 @@ else
 fi
 echo ""
 
+# ── Test 10: Excludes large installed tool caches ────────────────────────────
+echo "Test 10: Installed tool-cache trees are excluded"
+TMPDIR="${TEST_ROOT}/tmp10"
+mkdir -p "${TMPDIR}/gh-aw/tool-cache/dotnet" "${TMPDIR}/gh-aw/tool-cache/node"
+touch "${TMPDIR}/gh-aw/tool-cache/dotnet/installed-toolchain-library-with-a-long-name-for-summary-size-regression-"{1..5000}.dll
+touch "${TMPDIR}/gh-aw/tool-cache/node/installed-toolchain-module-with-a-long-name-for-summary-size-regression-"{1..5000}.js
+touch "${TMPDIR}/gh-aw/agent-config.json"
+GH_OUT10="${TEST_ROOT}/github_output10"
+SUMMARY10="${TEST_ROOT}/step_summary10"
+touch "${GH_OUT10}" "${SUMMARY10}"
+GITHUB_WORKSPACE="${TEST_ROOT}/workspace-8" HOME="${TEST_ROOT}/home10" RUNNER_TEMP="${TMPDIR}" GITHUB_OUTPUT="${GH_OUT10}" GITHUB_STEP_SUMMARY="${SUMMARY10}" bash "${SCRIPT_PATH}" >/dev/null 2>&1
+assert "tool-cache excluded from audit listing" "! grep -q '/tool-cache' /tmp/gh-aw/pre-agent-audit.txt"
+assert "tool-cache excluded from summary" "! grep -q '/tool-cache' '${SUMMARY10}'"
+assert "Sibling file still listed in audit" "grep -Fq '${TMPDIR}/gh-aw/agent-config.json' /tmp/gh-aw/pre-agent-audit.txt"
+assert "Sibling file still listed in summary" "grep -Fq '${TMPDIR}/gh-aw/agent-config.json' '${SUMMARY10}'"
+assert "Summary remains below the 1 MiB limit" "[ \"\$(wc -c < '${SUMMARY10}')\" -lt 1048576 ]"
+assert "Reported line count matches audit" "grep -Fxq \"pre-agent-audit-line-count=\$(wc -l < /tmp/gh-aw/pre-agent-audit.txt | tr -d ' ')\" '${GH_OUT10}'"
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
 if [ "${TESTS_FAILED}" -gt 0 ]; then

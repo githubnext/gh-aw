@@ -26,7 +26,74 @@ tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**"
-    max-patch-size: 131072 # 128KB - handles large daily metrics snapshots without patch-size gate failures
+    allowed-extensions: [".json"]
+    max-file-size: 524288 # 512KiB per complete snapshot (observed: 447189 bytes for 344 workflows)
+    max-patch-size: 1048576 # 1MiB for both daily and latest, including a first collection
+    validation:
+      script: |
+        const root = path.join(memoryRoot, "metrics");
+        const latest = fs.readFileSync(path.join(root, "latest.json"));
+        const snapshot = JSON.parse(latest);
+        const timestamp = new Date(snapshot.timestamp);
+        if (!Number.isFinite(timestamp.getTime()) ||
+            Date.now() - timestamp.getTime() > 86400000 ||
+            timestamp.getTime() - Date.now() > 3600000) {
+          throw new Error("Latest metrics must have a timestamp in the current collection window.");
+        }
+        if (!snapshot.workflows || Array.isArray(snapshot.workflows) ||
+            typeof snapshot.workflows !== "object" || Object.keys(snapshot.workflows).length === 0) {
+          throw new Error("Latest metrics must contain workflow records.");
+        }
+        const day = timestamp.toISOString().slice(0, 10);
+        const dailyPath = path.join(root, "daily", `${day}.json`);
+        if (!fs.existsSync(dailyPath) || !fs.readFileSync(dailyPath).equals(latest)) {
+          throw new Error("Latest metrics must exactly match the daily snapshot for its UTC timestamp.");
+        }
+        const maxFileBytes = 524288;
+        const maxPatchBytes = 1048576;
+        const maxArtifactBytes = 16777216;
+        const maxArtifactFiles = 100;
+        // A first collection adds both copies; git counts the '+' prefix on each line.
+        const addedBytes = latest.length + latest.toString("utf8").split("\n").length;
+        if (latest.length > maxFileBytes || 2 * addedBytes > maxPatchBytes) {
+          throw new Error("Complete metrics snapshot exceeds the file or two-copy patch budget; do not truncate workflows or fields.");
+        }
+        // Push validation sees historical backing-branch files omitted from the upload.
+        if (memoryPhase === "push") return;
+        const cutoff = new Date(`${day}T00:00:00Z`);
+        cutoff.setUTCDate(cutoff.getUTCDate() - 29);
+        const oldestDay = cutoff.toISOString().slice(0, 10);
+        for (const name of fs.readdirSync(path.join(root, "daily"))) {
+          if (!/^\d{4}-\d{2}-\d{2}\.json$/i.test(name)) continue;
+          if (!name.endsWith(".json")) throw new Error("Dated daily metrics must use lowercase .json filenames.");
+          const date = name.slice(0, 10);
+          const parsed = new Date(`${date}T00:00:00Z`);
+          if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+            throw new Error("Dated daily metrics must use valid calendar dates.");
+          }
+          if (date < oldestDay || date > day) {
+            throw new Error("Prune dated daily metrics outside the 30-day upload window before persistence.");
+          }
+        }
+        let artifactBytes = 0;
+        let artifactFiles = 0;
+        function checkDirectory(directory) {
+          for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const filename = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+              checkDirectory(filename);
+            } else if (path.extname(entry.name).toLowerCase() === ".json") {
+              const bytes = fs.statSync(filename).size;
+              if (bytes > maxFileBytes) throw new Error("Retained metrics JSON exceeds the per-file budget.");
+              artifactBytes += bytes;
+              artifactFiles++;
+            }
+          }
+        }
+        checkDirectory(root);
+        if (artifactBytes > maxArtifactBytes || artifactFiles > maxArtifactFiles) {
+          throw new Error("Metrics upload exceeds the 16MiB or 100-file artifact budget.");
+        }
 pre-agent-steps:
   - name: Record metrics baseline timestamp
     run: |
@@ -339,6 +406,16 @@ Create a JSON object following this schema:
 **Latest Snapshot**:
 - Copy current metrics to: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
 - This provides quick access to most recent data without date calculations
+- Keep both files byte-identical and retain every workflow and collected field. The storage
+  contract allows 512KiB per file and 1MiB per push for both copies, including first collection.
+  The observed 344-workflow snapshot is 447189 bytes (299336 even when compacted), so the old
+  100KiB file / 128KiB patch budgets cannot store it. Do not drop data to meet a budget.
+- Repo-memory uploads the retained directory as one Actions artifact, not a safe-output
+  `upload-artifact` operation. Its dated-snapshot portion is at most 31 files
+  and 15.5MiB at the file cap, below the default 100-changed-file persistence limit.
+  Supplemental JSON (for example an existing `daily/summary.json`) is preserved and remains
+  subject to file/count/patch checks; it is not a dated snapshot. The complete eligible
+  metrics upload, including supplemental JSON, is capped at 16MiB and 100 files by the validator.
 
 **Create Directory Structure**:
 ```bash
@@ -362,17 +439,37 @@ jq . /tmp/gh-aw/repo-memory/default/metrics/latest.json >/dev/null && echo "JSON
 - ❌ `/tmp/gh-aw/repo-memory/default/agent-performance-latest.md` — NOT allowed (root level, wrong format)
 - ❌ `/tmp/gh-aw/repo-memory/default/anything-else.md` — NOT allowed
 
-### 4. Cleanup Old Data
+### 4. Bound the Upload Artifact
 
-**Retention Policy**:
-- Keep last 30 days of daily metrics
-- Delete daily files older than 30 days from the metrics directory
+**Upload Retention Policy**:
+- Include the last 30 days of daily metrics in this run's upload artifact
+- Remove daily files before the snapshot's UTC date minus 29 days (today included) from the upload directory
 - Preserve `latest.json` (always keep)
 
-**Cleanup Command**:
+Run this cleanup before calling `push_repo_memory` or finishing collection:
+
 ```bash
-find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -delete
+node <<'NODE'
+const fs = require("fs");
+const path = require("path");
+const root = "/tmp/gh-aw/repo-memory/default/metrics";
+const timestamp = JSON.parse(fs.readFileSync(path.join(root, "latest.json"), "utf8")).timestamp;
+const cutoff = new Date(timestamp);
+cutoff.setUTCDate(cutoff.getUTCDate() - 29);
+const oldestDay = cutoff.toISOString().slice(0, 10);
+for (const name of fs.readdirSync(path.join(root, "daily"))) {
+  if (/^\d{4}-\d{2}-\d{2}\.json$/.test(name) && name.slice(0, 10) < oldestDay) {
+    fs.unlinkSync(path.join(root, "daily", name));
+  }
+}
+NODE
 ```
+
+The repo-memory validator rejects an unpruned upload before artifact creation. Do not use
+`find -mtime`: checkout resets file modification times and would retain old snapshots forever.
+Repo-memory overlays uploaded files on the backing branch; omitted files are not deleted there.
+This bounds the current upload, not the historical files or Git history on the backing branch.
+Consumers can still read older backing-branch snapshots; branch cleanup is a separate operation.
 
 ### 5. Calculate Ecosystem Aggregates
 
@@ -574,10 +671,15 @@ find /tmp/gh-aw/repo-memory/default/metrics -type f | sort
 
 If the validation passes, proceed with the `noop` call.
 
-#### Post-run Collection Gate (enforced automatically)
+#### Persistence and Post-run Collection Gates (enforced automatically)
 
-After the agent finishes, a workflow step verifies that collection actually happened and **fails the
-run** when it did not. The run fails if any of the following is true:
+Repo-memory validation runs before artifact upload and again before committing eligible uploaded
+files. It rejects missing/invalid snapshots, empty workflows, stale/future timestamps, unequal
+daily/latest copies and exceeded file/two-copy patch budgets in both phases. Before upload it also
+checks the complete artifact budget and rejects unpruned or invalid dated history. Push-phase
+validation does not impose upload retention on historical files already on the backing branch.
+A separate post-step checks freshness against the pre-agent baseline; it is not the
+pre-upload persistence gate. The run fails if any of the following is true:
 
 - `metrics/latest.json` was not written, or is not valid JSON
 - its `timestamp` field is missing, unparseable, or unchanged from the value present on the
@@ -585,6 +687,15 @@ run** when it did not. The run fails if any of the following is true:
 - its `timestamp` is not within the current collection window
 - no file was written under `metrics/daily/`
 - `workflows` is empty
+- the timestamp's daily snapshot is missing or not byte-identical to `latest.json`
+- the complete snapshot exceeds 512KiB, or both copies with diff-line prefixes exceed 1MiB
+- dated daily files are outside the 30-day upload window or use invalid calendar dates
+- any retained JSON exceeds 512KiB, or the complete eligible upload exceeds 16MiB or 100 files
+
+The validator is read-only: run the cleanup command yourself before persistence. The push job
+overlays eligible uploaded files without deleting older backing-branch files. Its generic file,
+changed-file count, and patch checks remain fail-closed; its 20% patch overhead allowance is not
+needed for a valid first collection. Consumer paths and the JSON schema are unchanged.
 
 This means an early exit after a couple of exploratory tool calls is reported as a failure instead
 of a green run with stale data. Always run the full collection loop described above.

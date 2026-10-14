@@ -55,6 +55,7 @@ func TestSemanticFunctionRefactorWorkflowCostGuardrails(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
+	compiler.SetWorkflowIdentifier("semantic-function-refactor.md")
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("failed to compile workflow: %v", err)
 	}
@@ -67,16 +68,32 @@ func TestSemanticFunctionRefactorWorkflowCostGuardrails(t *testing.T) {
 	lockStr := string(lockContent)
 
 	for _, snippet := range []string{
-		`17 2 * * *`,
 		`GH_AW_MAX_DAILY_AI_CREDITS: "300"`,
 		`"maxAiCredits":300`,
 		`claude-sonnet-5`,
 		`name: Precompute semantic refactor slice`,
-		`/tmp/gh-aw/agent/semantic-function-refactor/targets.txt`,
-		`/tmp/gh-aw/agent/semantic-function-refactor/go-files.txt`,
+		`/tmp/gh-aw/agent/semantic-function-refactor/analysis.json`,
+		`go run ./scripts/semantic-refactor-slice`,
+		`--max-turns 50`,
 	} {
 		if !strings.Contains(lockStr, snippet) {
 			t.Fatalf("expected compiled workflow to contain %q", snippet)
+		}
+		for _, snippet := range []string{`Bash(awk)`, `Bash(find`, `Bash(serena:*)`, "# - Edit\n", "# - Write\n", `"serena":`} {
+			if strings.Contains(lockStr, snippet) {
+				t.Fatalf("analysis workflow must not expose broad discovery/edit tools: %q", snippet)
+			}
+		}
+		for _, snippet := range []string{
+			"Do not implement refactorings", "48 KiB", "16 functions", "600 source",
+			"turn 20", "turn 25", "8 analysis tool calls", "3 promising candidate",
+			"gh CLI proxy", "safeoutputs --help", "Only **after** submitting",
+			"Do not close existing reports", "report_incomplete", "truncated: true",
+			"schedule: daily around 02:17", "edit: false",
+		} {
+			if !strings.Contains(string(content), snippet) {
+				t.Fatalf("missing prompt/tool/budget guardrail: %q", snippet)
+			}
 		}
 	}
 }

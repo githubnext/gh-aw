@@ -93,11 +93,18 @@ func TestMCPWriteTools_StartupCapabilityAndActorChecks(t *testing.T) {
 			require.NoError(t, registerMCPTools(server, execCmd, tc.actor, tc.validateActor, ""))
 			session := connectInMemory(t, server)
 
-			for _, tool := range []string{"add", "update", "fix", "compile"} {
+			for _, tool := range []string{"add", "update", "fix", "compile", "compile-dry-run"} {
 				t.Run(tool, func(t *testing.T) {
 					before := invocations.Load()
+					name := tool
+					args := map[string]any{"workflows": []string{"owner/repo/workflow"}}
+					if tool == "compile-dry-run" {
+						name = "compile"
+						args["dry_run"] = true
+						args["strict"] = true
+					}
 					result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
-						Name: tool, Arguments: map[string]any{"workflows": []string{"owner/repo/workflow"}},
+						Name: name, Arguments: args,
 					})
 					if tc.wantError != "" {
 						require.ErrorContains(t, err, tc.wantError)
