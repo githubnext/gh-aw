@@ -283,7 +283,7 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       const errorMsg = getErrorMessage(error);
 
       // Check if this error should be retried
-      if (!fullConfig.shouldRetry(error)) {
+      if (error?.code === "ERR_TRANSPORT_INTEGRITY" || !fullConfig.shouldRetry(error)) {
         core.debug(`${operationName} failed with non-retryable error: ${errorMsg}`);
         throw enhanceError(error, {
           operation: operationName,

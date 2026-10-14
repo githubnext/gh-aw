@@ -40,6 +40,7 @@ const {
   buildManualBranchApplyCommands,
   withTransientPushRetry,
 } = require("./create_pull_request_helpers.cjs");
+const { TransportIntegrityError } = require("./transport_integrity.cjs");
 
 function runGit(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -90,6 +91,20 @@ describe("withTransientPushRetry", () => {
     await vi.advanceTimersByTimeAsync(1);
     await expect(resultPromise).resolves.toBe("ok");
     expect(operation).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry integrity errors whose artifact path resembles a workflows-scope timeout", async () => {
+    vi.useFakeTimers();
+    const error = new TransportIntegrityError("/tmp/unable to determine if workflow can be created or updated.patch");
+    const operation = vi.fn().mockRejectedValue(error);
+
+    const result = withTransientPushRetry(operation);
+    const rejection = expect(result).rejects.toBe(error);
+    await vi.runAllTimersAsync();
+    await rejection;
+
+    expect(operation).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

@@ -78,4 +78,30 @@ describe("createOrUpdatePullRequest", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("rejects a transport mutation after successful PR creation before returning", async () => {
+    vi.stubGlobal("core", { debug: vi.fn(), info: vi.fn(), warning: vi.fn() });
+    let tampered = false;
+    const githubClient = {
+      rest: {
+        pulls: {
+          create: vi.fn(async () => {
+            tampered = true;
+            return { data: { number: 42 } };
+          }),
+        },
+      },
+    };
+    const assertTransportUnchanged = vi.fn(() => {
+      if (tampered) throw new TransportIntegrityError("/tmp/aw-feature.patch");
+    });
+
+    try {
+      await expect(createOrUpdatePullRequest({ ...options, githubClient, assertTransportUnchanged })).rejects.toThrow("SECURITY:");
+      expect(githubClient.rest.pulls.create).toHaveBeenCalledTimes(1);
+      expect(assertTransportUnchanged).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

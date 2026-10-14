@@ -110,4 +110,63 @@ describe("transport integrity Git cleanup", () => {
     expect(mustGit(["status", "--porcelain"])).toBe("");
     expect(api.exec).toHaveBeenCalledWith("git", ["am", "--abort"], expect.objectContaining({ cwd: repo }));
   });
+
+  it.each(["explicit abort", "finalizer cleanup"])("does not mask malformed patch errors with %s when git am never starts", async cleanup => {
+    const patch = path.join(directory, "malformed.patch");
+    fs.writeFileSync(patch, "not a format-patch file\n");
+    const api = execApi(() => {});
+    const handler = withTransportIntegrity(async (_message, _ids, transport) => {
+      transport.captureOptional(patch);
+      const exec = transport.guardExec(api);
+      try {
+        await exec.exec("git", ["am", "--3way", patch], { cwd: repo });
+      } catch (error) {
+        if (cleanup === "explicit abort") await exec.exec("git", ["am", "--abort"], { cwd: repo });
+        throw error;
+      }
+    });
+
+    await expect(handler({}, {})).rejects.toThrow("Patch format detection failed");
+
+    expect(api.exec.mock.calls.some(([, args]) => args[0] === "am" && args[1] === "--abort")).toBe(false);
+    expect(mustGit(["status", "--porcelain"])).toBe("");
+  });
+
+  it("restores the pinned checkout after integrity failure during a conflicting bundle rewrite", async () => {
+    const baseHead = mustGit(["rev-parse", "HEAD"]).trim();
+    mustGit(["checkout", "-qb", "feature"]);
+    fs.writeFileSync(path.join(repo, "file.txt"), "feature\n");
+    mustGit(["commit", "-qam", "feature"]);
+    const originalHead = mustGit(["rev-parse", "HEAD"]).trim();
+    const bundle = path.join(directory, "aw-feature.bundle");
+    mustGit(["bundle", "create", bundle, "feature", `^${baseHead}`]);
+
+    mustGit(["checkout", "-q", "main"]);
+    fs.writeFileSync(path.join(repo, "file.txt"), "target\n");
+    mustGit(["commit", "-qam", "target"]);
+    mustGit(["update-ref", "refs/remotes/origin/main", mustGit(["rev-parse", "HEAD"]).trim()]);
+    mustGit(["checkout", "-q", "feature"]);
+
+    const api = execApi(args => {
+      if (args[0] === "rebase" && args[1] === "--onto") {
+        fs.unlinkSync(bundle);
+        fs.writeFileSync(bundle, "changed during rebase");
+      }
+    });
+    const handler = withTransportIntegrity(async (_message, _ids, transport) => {
+      transport.captureOptional(bundle);
+      const { rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+      await rewriteBundleBranchAsSingleCommit("main", transport.guardExec(api), bundle, { gitOpts: { cwd: repo } });
+    });
+
+    await expect(handler({}, {})).resolves.toMatchObject({ success: false, error_type: "ERR_TRANSPORT_INTEGRITY" });
+
+    expect(api.exec).toHaveBeenCalledWith("git", ["rebase", "--abort"], expect.objectContaining({ cwd: repo }));
+    expect(api.exec).toHaveBeenCalledWith("git", ["reset", "--hard", originalHead], expect.objectContaining({ cwd: repo }));
+    expect(mustGit(["rev-parse", "HEAD"]).trim()).toBe(originalHead);
+    expect(fs.readFileSync(path.join(repo, "file.txt"), "utf8")).toBe("feature\n");
+    expect(fs.existsSync(path.join(repo, ".git", "rebase-merge"))).toBe(false);
+    expect(fs.existsSync(path.join(repo, ".git", "rebase-apply"))).toBe(false);
+    expect(mustGit(["status", "--porcelain"])).toBe("");
+  });
 });

@@ -133,6 +133,15 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
 
   it("uses a stable patch during git am and does not recover tampering as a conflict", async () => {
     let applied;
+    const applySession = path.join(directory, "active-rebase-apply");
+    fs.mkdirSync(applySession);
+    const originalGetExecOutput = global.exec.getExecOutput.getMockImplementation();
+    global.exec.getExecOutput.mockImplementation(async (command, args, options) => {
+      if (command === "git" && args[0] === "rev-parse" && args[1] === "--git-path" && args[2] === "rebase-apply") {
+        return { exitCode: 0, stdout: `${applySession}\n`, stderr: "" };
+      }
+      return originalGetExecOutput(command, args, options);
+    });
     global.exec.exec.mockImplementation(async (_command, args) => {
       if (args[0] === "am" && args[1] === "--3way") {
         const snapshot = args[2];
@@ -141,6 +150,7 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
         applied = fs.readFileSync(snapshot, "utf8");
         throw new Error("git conflict");
       }
+      if (args[0] === "am" && args[1] === "--abort") fs.rmSync(applySession, { recursive: true, force: true });
       return 0;
     });
     const result = await run();

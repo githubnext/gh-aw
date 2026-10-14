@@ -783,7 +783,8 @@ index 0000000..abc1234
       }
       if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
         revParseHeadCallCount += 1;
-        return Promise.resolve({ exitCode: 0, stdout: revParseHeadCallCount === 1 ? "old-head-sha\n" : "new-head-sha\n", stderr: "" });
+        const head = revParseHeadCallCount === 1 ? "a".repeat(40) : "d".repeat(40);
+        return Promise.resolve({ exitCode: 0, stdout: `${head}\n`, stderr: "" });
       }
       if (cmd === "git" && args[0] === "log" && args[1] === "-1" && args[2] === "--format=%s" && args[3] === "HEAD") {
         return Promise.resolve({ exitCode: 0, stdout: "bundle merge headline\n", stderr: "" });
@@ -4888,6 +4889,23 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
 
     // PR creation should NOT have been attempted
     expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a transport mutation after successful fallback issue creation", async () => {
+    const patchPath = canonicalPatchPath("data/refresh");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+    global.github.rest.issues.create.mockImplementationOnce(async () => {
+      fs.writeFileSync(patchPath, "tampered after fallback issue creation");
+      return { data: { number: 55, html_url: "https://github.com/test/issues/55" } };
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
+
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("SECURITY:");
   });
 
   it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {

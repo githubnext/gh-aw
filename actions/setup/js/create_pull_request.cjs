@@ -375,10 +375,10 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
  * revert or absorb commits that were added to the base branch after the agent's checkout.
  *
  * @param {string} baseBranch
- * @param {{ exec: Function, getExecOutput: Function }} execApi
+ * @param {{ exec: Function, getExecOutput: Function, registerRewriteCleanup?: (originalHead: string, gitOpts?: Object) => () => void }} execApi
  * @param {string} [bundleFilePath] - Optional path to the bundle file; used to extract the
  *   precise base commit the agent worked from.
- * @param {{ excludedFiles?: string[] }} [options]
+ * @param {{ excludedFiles?: string[], gitOpts?: Object }} [options]
  * @returns {Promise<void>}
  */
 async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFilePath, options = {}) {
@@ -427,10 +427,15 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
   }
 
   core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
+  const gitArgs = options.gitOpts ? [options.gitOpts] : [];
+  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...gitArgs);
+  const releaseRewriteCleanup = execApi.registerRewriteCleanup?.(originalHeadOut.trim(), options.gitOpts || { cwd: process.cwd() });
   const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi, {
+    ...(options.gitOpts ? { gitOpts: options.gitOpts } : {}),
     excludedFiles: options.excludedFiles,
     rebaseOnto: fallbackBaseRef,
   });
+  releaseRewriteCleanup?.();
   core.info(`Bundle rewrite completed (new HEAD: ${newHead})`);
 }
 
@@ -489,6 +494,7 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
     try {
       assertUnchanged();
       const response = await githubClient.rest.issues.create(payload);
+      assertUnchanged();
       return { ...response, issueRepoParts: { owner: payload.owner, repo: payload.repo } };
     } catch (error) {
       assertUnchanged();

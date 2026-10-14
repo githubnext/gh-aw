@@ -28,7 +28,7 @@ function createTransportIntegrity() {
   /** @typedef {{hash: string, dev: number, ino: number, size: number}} FileIdentity */
   /** @type {Map<string, FileIdentity & {bytes: Buffer, snapshot?: FileIdentity & {path: string}}>} */
   const inputs = new Map();
-  /** @type {Map<string, () => Promise<unknown>>} */
+  /** @type {Map<string, {run: () => Promise<unknown>, execute?: (method: string) => Promise<unknown>}>} */
   const cleanups = new Map();
   let directory = "";
   /** @type {TransportIntegrityError | null} */
@@ -134,15 +134,29 @@ function createTransportIntegrity() {
     input.bytes = Buffer.from(bytes);
   }
 
+  async function hasGitStateDirectory(execApi, stateDirectory, cleanupOptions) {
+    if (typeof execApi.getExecOutput !== "function") return true;
+    const { exitCode, stdout } = await execApi.getExecOutput("git", ["rev-parse", "--git-path", stateDirectory], {
+      ...cleanupOptions[0],
+      ignoreReturnCode: true,
+      silent: true,
+    });
+    if (exitCode !== 0) throw new Error(`Unable to inspect Git state directory: ${stateDirectory}`);
+    const statePath = stdout.trim();
+    return !!statePath && fs.existsSync(path.isAbsolute(statePath) ? statePath : path.resolve(cleanupOptions[0].cwd, statePath));
+  }
+
   function guardExec(execApi) {
     const guarded = { ...execApi };
     for (const method of ["exec", "getExecOutput"]) {
       guarded[method] = async (command, args = [], ...options) => {
-        const cleanupKey = cleanupArgs => JSON.stringify([options[0]?.cwd || process.cwd(), cleanupArgs]);
-        const key = cleanupKey(args);
+        const cleanupKey = (cwd, cleanupArgs) => JSON.stringify([path.resolve(cwd || process.cwd()), cleanupArgs]);
+        const cwd = path.resolve(options[0]?.cwd || process.cwd());
+        const key = cleanupKey(cwd, args);
         // Only cleanup registered by this guard may bypass a sticky failure.
-        if (command === "git" && cleanups.has(key)) {
-          const result = await execApi[method](command, args, ...options);
+        const registeredCleanup = cleanups.get(key);
+        if (command === "git" && registeredCleanup) {
+          const result = registeredCleanup.execute ? await registeredCleanup.execute(method) : await execApi[method](command, args, ...options);
           if ((method === "exec" ? result : result.exitCode) === 0) cleanups.delete(key);
           return result;
         }
@@ -152,18 +166,25 @@ function createTransportIntegrity() {
         // and handler completion. Unrelated local commands only check identity.
         checkUnchanged(verifyContents);
         const stableArgs = command === "git" ? args.map(arg => (inputs.has(arg) ? snapshot(arg) : arg)) : args;
-        const cleanupOptions = [{ ...options[0], cwd: options[0]?.cwd || process.cwd() }, ...options.slice(1)];
+        const cleanupOptions = [{ ...options[0], cwd }, ...options.slice(1)];
         let amCleanupKey;
         if (usesTransport && args[0] === "am" && args[1] === "--3way") {
-          amCleanupKey = cleanupKey(["am", "--abort"]);
-          cleanups.set(amCleanupKey, () => execApi.exec("git", ["am", "--abort"], ...cleanupOptions));
+          const abortArgs = ["am", "--abort"];
+          amCleanupKey = cleanupKey(cwd, abortArgs);
+          const runAbort = async cleanupMethod => {
+            if (!(await hasGitStateDirectory(execApi, "rebase-apply", cleanupOptions))) {
+              return cleanupMethod === "exec" ? 0 : { exitCode: 0, stdout: "", stderr: "" };
+            }
+            return execApi[cleanupMethod]("git", abortArgs, ...cleanupOptions);
+          };
+          cleanups.set(amCleanupKey, { run: () => runAbort("exec"), execute: runAbort });
         }
         if (usesTransport && args[0] === "fetch") {
           for (const refspec of args.slice(2)) {
             const ref = refspec.split(":")[1];
             if (ref?.startsWith("refs/bundles/")) {
               const cleanup = ["update-ref", "-d", ref];
-              cleanups.set(cleanupKey(cleanup), () => execApi.exec("git", cleanup, ...cleanupOptions));
+              cleanups.set(cleanupKey(cwd, cleanup), { run: () => execApi.exec("git", cleanup, ...cleanupOptions) });
             }
           }
         }
@@ -171,7 +192,7 @@ function createTransportIntegrity() {
           const result = await execApi[method](command, stableArgs, ...options);
           if ((method === "exec" ? result : result.exitCode) === 0) {
             if (amCleanupKey) cleanups.delete(amCleanupKey);
-            if (command === "git" && args[0] === "am" && args[1] === "--continue") cleanups.delete(cleanupKey(["am", "--abort"]));
+            if (command === "git" && args[0] === "am" && args[1] === "--continue") cleanups.delete(cleanupKey(cwd, ["am", "--abort"]));
           }
           return result;
         } finally {
@@ -181,14 +202,43 @@ function createTransportIntegrity() {
         }
       };
     }
+    guarded.registerRewriteCleanup = (originalHead, gitOpts = {}) => {
+      if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(originalHead)) {
+        throw new Error("Cannot register bundle rewrite cleanup without a resolved original HEAD");
+      }
+      const checkout = path.resolve(gitOpts.cwd || process.cwd());
+      const cleanupOptions = [{ ...gitOpts, cwd: checkout }];
+      /** @param {string[]} args @param {() => Promise<unknown>} run @param {(method: string) => Promise<unknown>} [execute] @returns {string} */
+      const register = (args, run, execute) => {
+        const key = JSON.stringify([checkout, args]);
+        cleanups.set(key, { run, execute });
+        return key;
+      };
+      const abortArgs = ["rebase", "--abort"];
+      const resetArgs = ["reset", "--hard", originalHead];
+      const abortRebase = async cleanupMethod => {
+        const inMergeRebase = await hasGitStateDirectory(execApi, "rebase-merge", cleanupOptions);
+        const inApplyRebase = await hasGitStateDirectory(execApi, "rebase-apply", cleanupOptions);
+        if (!(inMergeRebase || inApplyRebase)) {
+          return cleanupMethod === "exec" ? 0 : { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return execApi[cleanupMethod]("git", abortArgs, ...cleanupOptions);
+      };
+      const abortKey = register(abortArgs, () => abortRebase("exec"), abortRebase);
+      const resetKey = register(resetArgs, () => execApi.exec("git", resetArgs, ...cleanupOptions));
+      return () => {
+        cleanups.delete(abortKey);
+        cleanups.delete(resetKey);
+      };
+    };
     return guarded;
   }
 
   async function cleanup() {
     const errors = [];
-    for (const run of cleanups.values()) {
+    for (const cleanup of cleanups.values()) {
       try {
-        const exitCode = await run();
+        const exitCode = await cleanup.run();
         if (typeof exitCode === "number" && exitCode !== 0) throw new Error(`Git cleanup exited with code ${exitCode}`);
       } catch (error) {
         errors.push(error);
