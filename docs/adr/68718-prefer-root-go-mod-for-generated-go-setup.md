@@ -1,8 +1,8 @@
 # ADR-68718: Prefer Root `go.mod` for Generated Go Setup Steps
 
-**Date**: 2026-02-18
+**Date**: 2026-10-14
 **Status**: Draft
-**Deciders**: Unknown (originating PR [#68718](https://github.com/github/gh-aw/pull/68718), fixes #68678)
+**Deciders**: Pending maintainer review (originating PR [#68718](https://github.com/github/gh-aw/pull/68718), fixes #68678)
 
 ---
 
@@ -14,7 +14,7 @@ The compiler emits an `actions/setup-go` step whenever a workflow needs the Go r
 
 We will have the compiler emit `go-version-file: go.mod` instead of a pinned `go-version` when three conditions all hold: the workflow does not set `runtimes.go.version`, a regular `go.mod` file exists at the compiler's detected git root, and the generated job performs a root checkout of the workflow's own repository before runtime setup. The primary driver is correctness of the toolchain selection: the repository's own module file is the authoritative statement of its minimum Go version. In every other case the compiler keeps emitting the existing default version, so no workflow loses a working setup step.
 
-The "root checkout" predicate is evaluated from both the compiler's own checkout configuration (`shouldAddCheckoutStep`, excluding external-root and wiki checkouts) and from user-supplied custom steps via a new `customCheckoutHasRootGoMod` helper, which accepts only an unconditional, non-sparse, same-repository checkout with an empty or `.` path.
+The "root checkout" predicate reads the emitted default and additional checkout steps, including trial-mode repository overrides, or the first custom checkout before runtime setup is inserted. It accepts only an unconditional, same-repository checkout with an empty or `.` path and no explicit ref. The current-repository expression is normalized for whitespace. Sparse checkouts qualify in cone mode, which retains root files, or when non-cone patterns include `go.mod`. Unverified refs, repositories, conditions, and sparse layouts retain the default version.
 
 ### Alternatives Considered
 

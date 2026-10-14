@@ -23,6 +23,8 @@ func TestCompileWorkflowGoModVersion(t *testing.T) {
 		version       string
 		config        string
 		customSetup   string
+		trial         bool
+		logicalRepo   string
 		wantVersion   string
 		wantGoModFile bool
 	}{
@@ -89,6 +91,74 @@ func TestCompileWorkflowGoModVersion(t *testing.T) {
 			wantVersion: string(constants.DefaultGoVersion),
 		},
 		{
+			name:          "configured current repository expression",
+			goMod:         true,
+			config:        "checkout:\n  repository: ${{github.repository}}\n  path: .\n",
+			wantGoModFile: true,
+		},
+		{
+			name:        "configured checkout ref uses default",
+			goMod:       true,
+			config:      "checkout:\n  ref: other-branch\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "custom checkout ref uses default",
+			goMod:       true,
+			customSetup: "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      ref: other-branch\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:          "configured sparse cone checkout retains root files",
+			goMod:         true,
+			config:        "checkout:\n  sparse-checkout: docs\n",
+			wantGoModFile: true,
+		},
+		{
+			name:          "custom sparse cone checkout retains root files",
+			goMod:         true,
+			customSetup:   "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      sparse-checkout: docs\n",
+			wantGoModFile: true,
+		},
+		{
+			name:          "custom non-cone checkout includes go.mod",
+			goMod:         true,
+			customSetup:   "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      sparse-checkout-cone-mode: false\n      sparse-checkout: |\n        /go.mod\n        /docs/\n",
+			wantGoModFile: true,
+		},
+		{
+			name:        "custom non-cone checkout excludes go.mod",
+			goMod:       true,
+			customSetup: "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      sparse-checkout-cone-mode: false\n      sparse-checkout: docs\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "trial logical repository uses default",
+			goMod:       true,
+			trial:       true,
+			logicalRepo: "example/other",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:          "trial without logical repository retains current checkout",
+			goMod:         true,
+			trial:         true,
+			wantGoModFile: true,
+		},
+		{
+			name:          "trial ignores configured ref override",
+			goMod:         true,
+			trial:         true,
+			config:        "checkout:\n  ref: other-branch\n",
+			wantGoModFile: true,
+		},
+		{
+			name:        "conditional custom checkout uses default",
+			goMod:       true,
+			customSetup: "  - uses: actions/checkout@v7\n    if: github.event_name == 'push'\n    with:\n      persist-credentials: false\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
 			name:  "deduplicated root go.mod setup",
 			goMod: true,
 			customSetup: `  - uses: actions/setup-go@v7
@@ -130,6 +200,8 @@ engine: copilot
 
 			compiler := NewCompiler()
 			compiler.gitRoot = root
+			compiler.trialMode = tt.trial
+			compiler.trialLogicalRepoSlug = tt.logicalRepo
 			require.NoError(t, compiler.CompileWorkflow(workflowPath))
 			lock, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
 			require.NoError(t, err)
@@ -146,8 +218,62 @@ engine: copilot
 				assert.Contains(t, setup, fmt.Sprintf("go-version: '%s'", tt.wantVersion))
 				assert.NotContains(t, setup, "go-version-file:")
 			}
+
 			assert.Equal(t, 1, strings.Count(lockContent, "        uses: actions/setup-go@"))
 			assert.Less(t, setupStart, strings.Index(lockContent, "run: go mod vendor"))
+		})
+	}
+}
+
+func TestSparseCheckoutIncludesRootGoMod(t *testing.T) {
+	tests := []struct {
+		patterns string
+		coneMode string
+		want     bool
+	}{
+		{"docs", "", true},
+		{"docs", "true", true},
+		{"docs", "false", false},
+		{"go.mod", "false", true},
+		{"/*.mod", "false", true},
+		{"**/go.mod", "false", true},
+		{"*\n!**/go.mod", "false", false},
+		{"*\n!**/*.mod", "false", false},
+		{"*\n!go.mod", "false", false},
+		{"*\n!*.mod", "false", false},
+		{"*\n!*.mod\ngo.mod", "false", true},
+		{"# go.mod\ndocs/", "false", false},
+		{"go.mod/", "false", false},
+		{"${{ inputs.paths }}", "", false},
+		{"docs", "${{ inputs.cone }}", false},
+		{"[", "false", false},
+		{"*\n![[:alpha:]]*", "false", false},
+		{"*\n![!a]*", "false", false},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s/%s", tt.patterns, tt.coneMode), func(t *testing.T) {
+			assert.Equal(t, tt.want, sparseCheckoutIncludesRootGoMod(tt.patterns, tt.coneMode))
+		})
+	}
+}
+
+func TestCheckoutStepsHaveRootGoMod(t *testing.T) {
+	tests := []struct {
+		name  string
+		steps string
+		first bool
+		want  bool
+	}{
+		{"wrapped current expression", "steps:\n  - uses: actions/checkout@v7\n    with:\n      repository: ${{  github.repository  }}\n", true, true},
+		{"malformed steps", "steps: [", true, false},
+		{"first checkout is subdirectory", "- uses: actions/checkout@v7\n  with:\n    path: src\n- uses: actions/checkout@v7\n", true, false},
+		{"last root checkout is external", "- uses: actions/checkout@v7\n- uses: actions/checkout@v7\n  with:\n    repository: example/other\n", false, false},
+		{"additional subdirectory preserves root", "- uses: actions/checkout@v7\n- uses: actions/checkout@v7\n  with:\n    repository: example/other\n    path: src\n", false, true},
+		{"last root checkout has ref", "- uses: actions/checkout@v7\n- uses: actions/checkout@v7\n  with:\n    ref: other-branch\n", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, checkoutStepsHaveRootGoMod(tt.steps, tt.first))
 		})
 	}
 }
