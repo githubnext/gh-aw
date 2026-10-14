@@ -15,6 +15,7 @@ const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.
 
 describe("daily MCP concurrency workflow tool contract", () => {
   it("restricts shell access to bounded implementation history", () => {
+    expect(workflow.tools["cli-proxy"]).toBe(false);
     expect(workflow.tools.bash).toEqual(['git log -30 --format="%ai %s" --name-only -- actions/setup/js/*.cjs']);
     expect(workflow["max-tool-denials"]).toBe(3);
     expect(workflow.tools).toHaveProperty("edit");
@@ -26,6 +27,7 @@ describe("daily MCP concurrency workflow tool contract", () => {
     expect(prompt).toContain("call `report_incomplete` with the concrete blocker");
     expect(prompt).toContain("Do not port this shell fallback to an engine without shell filters (such as Codex)");
     expect(prompt).toContain("Never execute handler modules");
+    expect(prompt).toContain("never call a tool named `mcpscripts`");
   });
 
   it("discovers real MCP and deferred handler paths instead of guessing filenames", () => {
@@ -77,6 +79,8 @@ describe("daily MCP concurrency workflow tool contract", () => {
     expect(prompt).toContain("Submit at most once");
     expect(prompt).toContain("queued records are not visible in this run's read-only projection");
     expect(prompt).toContain("do not store code or raw analysis notes");
+    expect(prompt).toContain("Complete the cache read-back and ledger query/submission before calling `noop`");
+    expect(prompt).toContain("no terminal safe output was emitted");
   });
 
   it("queries only the fixed ledger with read-only, parameterized SQL and closes it", async () => {

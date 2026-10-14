@@ -132,7 +132,7 @@ steps:
     echo "{\"should_run\": \"$should_run\", \"current_sha\": \"$current_sha\", \"last_sha\": \"$last_sha\", \"manifest\": \"$out_dir/manifest.json\", \"new_files\": \"$new_files\"}" > "$out_dir/preflight.json"
     echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
 - name: Setup Node.js
-  uses: actions/setup-node@v7.0.0
+  uses: actions/setup-node@v7.1.0
   with:
     cache: npm
     cache-dependency-path: actions/setup/js/package-lock.json

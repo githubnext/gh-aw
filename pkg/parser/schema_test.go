@@ -9,6 +9,53 @@ import (
 	"testing"
 )
 
+func TestValidateMainWorkflowFrontmatter_CheckoutAllowPrivateRepos(t *testing.T) {
+	for _, value := range []any{true, false, nil, "true", 1, "${{ vars.ALLOW_PRIVATE_REPOS }}"} {
+		checkout := map[string]any{
+			"repo": "${{ vars.REPOS }}", "path": "targets", "allowed-repos": "org/*", "allow-private-repos": value,
+		}
+		for _, config := range []any{checkout, []any{checkout}} {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on": "workflow_dispatch", "engine": "copilot", "checkout": config,
+			}, "workflow.md")
+			_, valid := value.(bool)
+			if (err == nil) != valid {
+				t.Fatalf("allow-private-repos=%v: validation error = %v, valid %t", value, err, valid)
+			}
+		}
+	}
+}
+
+func TestValidateMainWorkflowFrontmatter_CheckoutMaxRepos(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		value   any
+		wantErr bool
+	}{
+		{name: "positive", value: 2},
+		{name: "zero", value: 0, wantErr: true},
+		{name: "negative", value: -1, wantErr: true},
+		{name: "fraction", value: 1.5, wantErr: true},
+		{name: "unsafe integer", value: uint64(1 << 53), wantErr: true},
+		{name: "string", value: "2", wantErr: true},
+		{name: "expression", value: "${{ inputs.max }}", wantErr: true},
+		{name: "boolean", value: true, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":     "workflow_dispatch",
+				"engine": "copilot",
+				"checkout": map[string]any{
+					"repo": "${{ vars.REPOS }}", "path": "targets", "allowed-repos": "org/*", "max-repos": tt.value,
+				},
+			}, "workflow.md")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validation error = %v, wantErr %t", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateIncludedFileFrontmatter_InternalMCPInfrastructureCapability(t *testing.T) {
 	for _, tt := range []struct {
 		name    string

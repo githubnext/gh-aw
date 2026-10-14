@@ -17,6 +17,7 @@ const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
 const { queueFixture } = require("./work_queue_lifecycle.test_helpers.cjs");
 const { futurePolicy, serializeDeployments } = require("./work_queue_deployment.cjs");
 const { normalizeSubmitParameters } = require("./work_queue_intents.cjs");
+const { registerStaticQueueAuthentication } = require("./work_queue_auth_cache.cjs");
 
 async function aliasedCheckpointFixture() {
   const contract = "a".repeat(64);
@@ -96,6 +97,99 @@ async function aliasedCheckpointFixture() {
 }
 
 describe("shared version-3 checkpoint conformance", () => {
+  it.each([readWorkQueueLog, readCheckedQueue])("reuses verified immutable ancestry while refreshing refs and replaying detached projections (%#)", async read => {
+    const f = await aliasedCheckpointFixture();
+    const token = "static-checkpoint-token";
+    Object.assign(f.fake.githubClient, { auth: async () => ({ type: "token", token }) });
+    registerStaticQueueAuthentication(f.fake.githubClient, token);
+    f.fake.refs.set("work-queue", f.parent);
+    const git = f.fake.githubClient.rest.git;
+    const getCommit = git.getCommit;
+    const commits = [];
+    git.getCommit = parameters => {
+      commits.push(parameters.commit_sha);
+      return getCommit(parameters);
+    };
+    const input = { githubClient: f.fake.githubClient, owner: "owner", repo: "repo" };
+    const first = await read(input);
+    assert.ok(commits.includes(f.prior));
+    first.state.policy.limits.operations--;
+    first.transactions[0].operations[0].state.stats.nodes++;
+    commits.length = 0;
+    const repeated = await read(input);
+    assert.equal(repeated.state.policy.limits.operations, f.queue.policy.limits.operations);
+    assert.equal(canonical(repeated.transactions), canonical(f.checkpoint));
+    assert.ok(!commits.includes(f.prior));
+
+    const next = await f.store(f.valid);
+    commits.length = 0;
+    const advanced = await read(input);
+    assert.equal(advanced.sha, next);
+    assert.equal(canonical(advanced.transactions), canonical(f.valid));
+    assert.ok(!commits.includes(f.prior));
+    assert.ok(commits.length <= 4, `expected bounded ancestry reads, got ${commits.length}`);
+    const forged = structuredClone(f.valid);
+    forged[0].at++;
+    await f.store(forged);
+    await assert.rejects(() => read(input), /checkpoint_invalid/);
+    assert.equal(f.fake.state.updates, 0);
+  });
+
+  it("does not reuse ancestry proofs for a different client or cache failed verification", async () => {
+    const f = await aliasedCheckpointFixture();
+    const token = "static-checkpoint-token";
+    Object.assign(f.fake.githubClient, { auth: async () => ({ type: "token", token }) });
+    registerStaticQueueAuthentication(f.fake.githubClient, token);
+    f.fake.refs.set("work-queue", f.parent);
+    const input = { githubClient: f.fake.githubClient, owner: "owner", repo: "repo" };
+    await readWorkQueueLog(input);
+    const git = f.fake.githubClient.rest.git;
+    const getCommit = git.getCommit;
+    let denied = 0;
+    git.getCommit = async parameters => {
+      if (parameters.commit_sha === f.prior) {
+        denied++;
+        throw Object.assign(new Error("History unavailable"), { status: 403 });
+      }
+      return getCommit(parameters);
+    };
+    const other = { ...f.fake.githubClient };
+    for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(() => readWorkQueueLog({ ...input, githubClient: other }), /History unavailable/);
+    assert.equal(denied, 2);
+    git.getCommit = getCommit;
+    assert.equal(canonical((await readWorkQueueLog({ ...input, githubClient: other })).transactions), canonical(f.checkpoint));
+  });
+
+  it.each([readWorkQueueLog, readCheckedQueue])("does not replay ancestry authorization after same-client credential changes or with unknown auth (%#)", async read => {
+    for (const authentication of ["rotated-token", "replaced-auth", "reregistered-auth", "dynamic-auth", "unknown-auth"]) {
+      const f = await aliasedCheckpointFixture();
+      f.fake.refs.set("work-queue", f.parent);
+      let token = "initial-checkpoint-token";
+      if (authentication !== "unknown-auth") Object.assign(f.fake.githubClient, { auth: async () => ({ type: "token", token }) });
+      if (authentication === "rotated-token" || authentication === "replaced-auth" || authentication === "reregistered-auth") registerStaticQueueAuthentication(f.fake.githubClient, token);
+      const input = { githubClient: f.fake.githubClient, owner: "owner", repo: "repo" };
+      await read(input);
+      if (authentication === "rotated-token" || authentication === "reregistered-auth") token = "downgraded-checkpoint-token";
+      if (authentication === "replaced-auth") Object.assign(f.fake.githubClient, { auth: async () => ({ type: "token", token: "replacement-checkpoint-token" }) });
+      if (authentication === "reregistered-auth") registerStaticQueueAuthentication(f.fake.githubClient, token);
+      const git = f.fake.githubClient.rest.git;
+      const getCommit = git.getCommit;
+      let denied = 0;
+      git.getCommit = async parameters => {
+        if (parameters.commit_sha === f.prior) {
+          denied++;
+          throw Object.assign(new Error("Ancestor access denied"), { status: 403 });
+        }
+        return getCommit(parameters);
+      };
+      for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(() => read(input), /Ancestor access denied/, authentication);
+      assert.equal(denied, 2, authentication);
+      git.getCommit = getCommit;
+      assert.equal(canonical((await read(input)).transactions), canonical(f.checkpoint), authentication);
+      assert.equal(f.fake.state.updates, 0);
+    }
+  });
+
   it.each([readWorkQueueLog, readCheckedQueue])("recovers only deployment aliasing from the verified Git parent without writes (%#)", async read => {
     const f = await aliasedCheckpointFixture();
     const warnings = [];
@@ -334,7 +428,7 @@ describe("shared version-3 checkpoint conformance", () => {
   it("authenticates the checkpoint against its actual Git parent ledger", async () => {
     const checkedTransport = process.env.GH_AW_WORK_QUEUE_CHECKED_TRANSPORT;
     process.env.GH_AW_WORK_QUEUE_CHECKED_TRANSPORT = "graphql";
-    const head = "f".repeat(40);
+    let head = "f".repeat(40);
     const foreign = "e".repeat(40);
     const prior = fixture.prior_git_sha;
     const blobs = { root: serializeTransactionLog(fixture.checkpoint), history: serializeTransactionLog(fixture.history) };
@@ -355,9 +449,11 @@ describe("shared version-3 checkpoint conformance", () => {
     const read = () => readWorkQueueLog({ githubClient, owner: "owner", repo: "repo" });
     try {
       assert.equal((await read()).state.tip, fixture.checkpoint[0].id);
+      head = "9".repeat(40);
       parent = foreign;
       await assert.rejects(read(), /checkpoint_invalid/);
       parent = prior;
+      head = "8".repeat(40);
       blobs.history = serializeTransactionLog(fixture.history.slice(0, 1));
       await assert.rejects(read(), /checkpoint_invalid/);
     } finally {
@@ -367,7 +463,7 @@ describe("shared version-3 checkpoint conformance", () => {
   });
 
   it("authenticates checkpoints read through the checked GraphQL transport", async () => {
-    const head = "f".repeat(40);
+    let head = "f".repeat(40);
     const prior = fixture.prior_git_sha;
     let parent = prior;
     const logs = {
@@ -406,6 +502,7 @@ describe("shared version-3 checkpoint conformance", () => {
     };
     const read = () => readCheckedQueue({ githubClient, owner: "owner", repo: "repo" });
     assert.equal((await read()).state.tip, fixture.checkpoint[0].id);
+    head = "9".repeat(40);
     parent = "e".repeat(40);
     await assert.rejects(read(), /checkpoint_invalid/);
   });

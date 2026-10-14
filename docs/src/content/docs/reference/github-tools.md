@@ -36,6 +36,31 @@ Common toolsets include `context` (user and team info), `repos` (repository oper
 
 Some toolsets require [additional authentication](#additional-authentication-for-github-tools).
 
+### Code Search Rate Limits
+
+The GitHub MCP `search_code` tool uses a separate, much smaller budget than ordinary GitHub API reads. GitHub's [search rate limits](https://docs.github.com/en/rest/search/search#rate-limit) allow 10 authenticated code-search requests per minute, compared with 30 per minute for other search endpoints. An available `core` quota does not imply that code search is available.
+
+Agent start/end rate-limit snapshots log `core`, `code_search`, and `search` with their limit, remaining requests, and reset time. MCP HTTP 429 failures appear in the agent job summary with the server's retry hint, when provided. These snapshots reflect the configured GitHub tools credential; they do not prove that concurrent runs share an identity or explain every secondary limit or MCP-server throttle. A retry hint is not a guarantee that waiting will make the next request succeed.
+
+For inspecting code in another repository, the recommended alternative is [`checkout:` with `sparse-checkout`](/gh-aw/reference/checkout/), then local `grep` or `rg` searches. This checkout configuration is supported in v0.89.17:
+
+```aw wrap
+permissions:
+  contents: read
+checkout:
+  - repository: owner/target-repo
+    ref: main
+    path: target-repo
+    sparse-checkout: |
+      src
+      docs
+    github-token: ${{ secrets.TARGET_REPO_READ_TOKEN }}
+tools:
+  bash: ["grep", "rg"]
+```
+
+Use a token or GitHub App with read access to the target repository; the workflow's `GITHUB_TOKEN` is scoped to its own repository. The checkout credential is separate from `tools.github` authentication. Search the checked-out paths locally rather than fetching missing files during agent execution. For occasional API code searches, keep a small per-run [`max-calls` limit](#restricting-tools-toolsgithuballowed); it does not reserve quota or prevent throttling.
+
 ## Restricting Tools (`tools.github.allowed`)
 
 Use `tools.github.allowed` to restrict which GitHub MCP tools the agent can call. Each entry is either a string tool name or an object with a per-tool call limit:

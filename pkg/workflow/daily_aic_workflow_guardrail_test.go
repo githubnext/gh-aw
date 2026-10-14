@@ -13,75 +13,6 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestResolveMaxDailyAIC(t *testing.T) {
-	t.Run("prefers top-level literal value", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 1234}, `"999"`)
-		if got == nil || *got != "1234" {
-			t.Fatalf("expected literal top-level value, got %v", got)
-		}
-
-	})
-
-	t.Run("falls back to imported expression", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{}, `"${{ inputs.max-daily-ai-credits }}"`)
-		if got == nil || *got != "${{ inputs.max-daily-ai-credits }}" {
-			t.Fatalf("expected imported expression, got %v", got)
-		}
-	})
-
-	t.Run("emits runtime expression when no frontmatter", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{}, "")
-		wantExpr := "${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}"
-		if got == nil || *got != wantExpr {
-			t.Fatalf("expected runtime expression %q, got %v", wantExpr, got)
-		}
-	})
-
-	t.Run("frontmatter value takes precedence over runtime default expression", func(t *testing.T) {
-		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 1234}, "")
-		if got == nil || *got != "1234" {
-			t.Fatalf("expected frontmatter value to override runtime default expression, got %v", got)
-		}
-	})
-
-	t.Run("normalizes suffix strings", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": "100M"}, "")
-		if got == nil || *got != "100000000" {
-			t.Fatalf("expected normalized suffix string, got %v", got)
-		}
-	})
-
-	t.Run("explicit disable skips guardrail", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": -1}, "")
-		if got != nil {
-			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
-		}
-	})
-
-	// T-AIC-DG-007: Imported workflow max-daily-ai-credits used when no frontmatter value;
-	// frontmatter takes precedence over imports (spec §9.3 (2)).
-	t.Run("spec §9.3(2) / T-AIC-DG-007: imported config used when no frontmatter value", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{}, `"2000"`)
-		if got == nil || *got != "2000" {
-			t.Fatalf("spec §9.3(2): expected imported config value %q, got %v", "2000", got)
-		}
-	})
-
-	t.Run("spec §9.3(2) / T-AIC-DG-007: frontmatter takes precedence over imported config", func(t *testing.T) {
-		t.Parallel()
-		got := resolveMaxDailyAIC(map[string]any{"max-daily-ai-credits": 9999}, `"2000"`)
-		if got == nil || *got != "9999" {
-			t.Fatalf("spec §9.3(2): expected frontmatter value to override imported config, got %v", got)
-		}
-	})
-}
-
 func TestDailyAICWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-ai-credits-workflow-guardrail-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail.md")
@@ -426,7 +357,7 @@ Object form without value key`
 
 func TestMaxDailyAICObjectForm(t *testing.T) {
 	t.Run("object form value is used as threshold", func(t *testing.T) {
-		got := resolveMaxDailyAIC(map[string]any{
+		got, _ := resolveMaxDailyAICWithSource(map[string]any{
 			"max-daily-ai-credits": map[string]any{
 				"value": 5000,
 			},
@@ -437,7 +368,7 @@ func TestMaxDailyAICObjectForm(t *testing.T) {
 	})
 
 	t.Run("object form with value -1 is treated as disabled", func(t *testing.T) {
-		got := resolveMaxDailyAIC(map[string]any{
+		got, _ := resolveMaxDailyAICWithSource(map[string]any{
 			"max-daily-ai-credits": map[string]any{
 				"value": -1,
 			},

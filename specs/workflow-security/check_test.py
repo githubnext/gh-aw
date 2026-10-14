@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 import sys
 import unittest
@@ -190,6 +191,74 @@ class ResultContractTest(unittest.TestCase):
                         check.check_compiled_workflows(script, root, root)
                 saved = json.loads((root / "compiled-workflows.json").read_text())
                 self.assertEqual(saved["failed"], 0 if outcome == "success" else 1)
+
+
+class RuntimeCheckoutModelTest(unittest.TestCase):
+    def test_controls_are_declared_and_check_configured_invariants(self):
+        model = (check.ROOT / "RuntimeRepositoryCheckout.tla").read_text()
+        config = (check.ROOT / "RuntimeRepositoryCheckout.cfg").read_text()
+        for fault, invariant in check.RUNTIME_CHECKOUT_MUTATIONS.items():
+            with self.subTest(fault=fault):
+                self.assertIn(f'"{fault}"', model)
+                self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+                self.assertRegex(config, rf"(?m)^\s+{invariant}$")
+        for invariant in check.RUNTIME_CHECKOUT_WITNESSES.values():
+            self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+            self.assertNotRegex(config, rf"(?m)^\s+{invariant}$")
+
+    def test_runtime_counterexamples_are_separate_from_source_mutations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = {"counterexample": {"state": [
+                [1, {"s": {"lastEvent": "Init"}}],
+                [2, {"s": {"lastEvent": "Compile"}}],
+            ]}}
+
+            def tlc(command, **kwargs):
+                Path(command[command.index("-dumpTrace") + 2]).write_text(json.dumps(raw))
+                text = ("Invariant PolicyProvenance is violated.\n"
+                        "10 states generated, 8 distinct states found")
+                return subprocess.CompletedProcess(command, 12, text, "")
+
+            with patch.object(check.subprocess, "run", side_effect=tlc):
+                report = check.run_case("java", root / "fixture.jar", root, "runtime-policy",
+                                        fault="untrusted-policy", invariant="PolicyProvenance",
+                                        model="RuntimeRepositoryCheckout")
+            saved = root / "runtime-policy"
+            self.assertTrue((saved / "RuntimeRepositoryCheckout.tla").is_file())
+            self.assertFalse((saved / "CompiledWorkflow.tla").exists())
+            self.assertFalse((saved / "source.md").exists())
+            self.assertIn('Fault = "untrusted-policy"', (saved / "model.cfg").read_text())
+            classification = json.loads((saved / "counterexample.json").read_text())
+            self.assertFalse(classification["confirmed_product_bug"])
+            self.assertEqual(classification["model"], "RuntimeRepositoryCheckout")
+            self.assertEqual(report["model"], "RuntimeRepositoryCheckout")
+            self.assertNotIn("checkout_mode", report)
+
+    def test_main_includes_the_runtime_baseline_controls_and_witnesses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "fixture.jar"
+            jar.write_bytes(b"runtime fixture")
+            results = root / "results"
+
+            def run_case(*args, model="CompiledWorkflow", **kwargs):
+                return {"case": args[3], "model": model,
+                        "model_sha256": hashlib.sha256(
+                            (check.ROOT / f"{model}.tla").read_bytes()).hexdigest()}
+
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(sys, "argv", ["check.py", "--results", str(results)]), \
+                 patch.object(check, "JAR_SHA256", hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                 patch.object(check, "run_case", side_effect=run_case), patch("sys.stdout"):
+                check.main()
+            report = json.loads((results / "results.json").read_text())
+            self.assertEqual(report["additional_models"], ["RuntimeRepositoryCheckout"])
+            cases = {case["case"] for case in report["cases"]
+                     if case["model"] == "RuntimeRepositoryCheckout"}
+            self.assertEqual(cases, {"secure-runtime-checkout"} |
+                             {f"runtime-checkout-{fault}" for fault in check.RUNTIME_CHECKOUT_MUTATIONS} |
+                             {f"runtime-checkout-{name}" for name in check.RUNTIME_CHECKOUT_WITNESSES})
 
 
 if __name__ == "__main__":

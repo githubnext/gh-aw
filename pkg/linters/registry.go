@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
+	deferrerrorunchecked "github.com/github/gh-aw/pkg/linters/deferred-error-unchecked"
 	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errortypeassertion"
@@ -108,6 +109,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	contextcancelnotdeferred.Analyzer,
 	ctxbackground.Analyzer,
 	deferinloop.Analyzer,
+	deferrerrorunchecked.Analyzer,
 	errormessage.Analyzer,
 	errortypeassertion.Analyzer,
 	fprintlnsprintf.Analyzer,
