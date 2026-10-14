@@ -120,9 +120,15 @@ func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]Git
 	}
 
 	// Prefer the repository's Go version unless the workflow specifies one.
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	hasDefaultCheckout := c.shouldAddCheckoutStep(data) && !checkoutMgr.HasExternalRootCheckout()
+	if override := checkoutMgr.GetDefaultCheckoutOverride(); override != nil && override.key.wiki {
+		hasDefaultCheckout = false
+	}
+	hasCheckout := hasDefaultCheckout || customCheckoutHasRootGoMod(data.CustomSteps)
 	for i := range runtimeRequirements {
 		req := &runtimeRequirements[i]
-		if req.Runtime.ID == "go" && req.Version == "" && req.GoModFile == "" && c.gitRoot != "" {
+		if req.Runtime.ID == "go" && req.Version == "" && req.GoModFile == "" && c.gitRoot != "" && hasCheckout {
 			if info, err := os.Stat(filepath.Join(c.gitRoot, "go.mod")); err == nil && info.Mode().IsRegular() {
 				req.GoModFile = "go.mod"
 			}

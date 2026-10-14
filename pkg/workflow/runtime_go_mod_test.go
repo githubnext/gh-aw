@@ -21,6 +21,7 @@ func TestCompileWorkflowGoModVersion(t *testing.T) {
 		goMod         bool
 		goModDir      bool
 		version       string
+		config        string
 		customSetup   string
 		wantVersion   string
 		wantGoModFile bool
@@ -43,6 +44,48 @@ func TestCompileWorkflowGoModVersion(t *testing.T) {
 		{
 			name:        "go.mod directory uses default",
 			goModDir:    true,
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "disabled checkout uses default",
+			goMod:       true,
+			config:      "checkout: false\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "skipped default checkout uses default",
+			goMod:       true,
+			config:      "permissions:\n  contents: none\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:          "custom checkout uses go.mod",
+			goMod:         true,
+			customSetup:   "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n",
+			wantGoModFile: true,
+		},
+		{
+			name:        "custom subdirectory checkout uses default",
+			goMod:       true,
+			customSetup: "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      path: src\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "custom external checkout uses default",
+			goMod:       true,
+			customSetup: "  - uses: actions/checkout@v7\n    with:\n      persist-credentials: false\n      repository: example/other\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "configured external root checkout uses default",
+			goMod:       true,
+			config:      "checkout:\n  repository: example/other\n  path: .\n",
+			wantVersion: string(constants.DefaultGoVersion),
+		},
+		{
+			name:        "root wiki checkout uses default",
+			goMod:       true,
+			config:      "checkout:\n  wiki: true\n",
 			wantVersion: string(constants.DefaultGoVersion),
 		},
 		{
@@ -77,12 +120,12 @@ func TestCompileWorkflowGoModVersion(t *testing.T) {
 			content := fmt.Sprintf(`---
 on: push
 engine: copilot
-%ssteps:
+%s%ssteps:
 %s  - run: go mod vendor
 ---
 
 # Test Go version selection
-`, runtimes, tt.customSetup)
+`, runtimes, tt.config, tt.customSetup)
 			require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0644))
 
 			compiler := NewCompiler()

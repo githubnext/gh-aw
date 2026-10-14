@@ -17,6 +17,35 @@ func ContainsCheckout(customSteps string) bool {
 	return found
 }
 
+// customCheckoutHasRootGoMod checks the first checkout, where runtime setup is inserted.
+func customCheckoutHasRootGoMod(customSteps string) bool {
+	var wrapper struct {
+		Steps []struct {
+			Uses string `yaml:"uses"`
+			If   any    `yaml:"if"`
+			With struct {
+				Path           string `yaml:"path"`
+				Repository     string `yaml:"repository"`
+				SparseCheckout any    `yaml:"sparse-checkout"`
+			} `yaml:"with"`
+		} `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(customSteps), &wrapper); err != nil || len(wrapper.Steps) == 0 {
+		if err := yaml.Unmarshal([]byte(customSteps), &wrapper.Steps); err != nil {
+			return false
+		}
+	}
+	for _, step := range wrapper.Steps {
+		if !isCheckoutActionReference(step.Uses) {
+			continue
+		}
+		return (step.With.Path == "" || filepath.Clean(step.With.Path) == ".") &&
+			(step.With.Repository == "" || step.With.Repository == "${{ github.repository }}") &&
+			step.If == nil && step.With.SparseCheckout == nil
+	}
+	return false
+}
+
 // findLastCheckoutStepIndex returns the zero-based index of the last
 // actions/checkout step in customSteps and true, or (0, false) if none is found.
 // It uses the same parsing strategy as findFirstCheckoutStepIndex.

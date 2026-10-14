@@ -685,7 +685,7 @@ runtimes:
 
 Omitted runtimes use the defaults above. Runtimes from imported shared workflows are merged with your workflow's configuration.
 
-When Go is required and `runtimes.go.version` is omitted, the generated setup step uses `go-version-file: go.mod` if the repository root contains that file. An explicit `runtimes.go.version` takes precedence.
+When Go is required and `runtimes.go.version` is omitted, the generated setup step uses `go-version-file: go.mod` if the repository root contains that file and the workflow checks out the repository at workspace root before setup. If that file is not available, the compiler uses the default version. An explicit `runtimes.go.version` takes precedence.
 
 ### `run-install-scripts`
 
