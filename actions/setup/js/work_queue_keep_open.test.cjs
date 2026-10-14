@@ -6,6 +6,7 @@ const { administrator, bind, context, evidence, finish, genesis, grant, operatio
 const { workIssueStatus } = require("./work_queue_issues.cjs");
 const { canonical, digest } = require("./work_queue_codec.cjs");
 const { deflateRawSync, inflateRawSync } = require("node:zlib");
+const { createHash } = require("node:crypto");
 
 function fixture() {
   const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
@@ -45,6 +46,57 @@ function settle(log, assignment, member, { failed = false, id = "result" } = {})
 }
 
 describe("keep-open Claim completion", () => {
+  it.each([
+    ["finish-conflict", false],
+    ["finish-conflict", true],
+    ["finish-identical", false],
+    ["finish-identical", true],
+    ["operation", false],
+    ["operation", true],
+  ])("rejects duplicate Completion receipts via %s with keep_open=%s", (path, keepOpen) => {
+    const { log, assignment } = fixture();
+    const member = assignment.claims[0];
+    log.push(finish(log, assignment.dispatch_id, member.handle, "completed", { keep_open: keepOpen }));
+    const checkpoint = queue.prepareCheckpoint(log, "a".repeat(40), administrator, 40);
+    const operation = checkpoint[0].operations[0];
+    const wire = operation.state;
+    const requests = JSON.parse(inflateRawSync(Buffer.from(wire.requests_compressed, "base64")).toString("utf8"));
+    const receipt = requests.at(-1);
+    expect(receipt.kind).toBe("finish");
+    expect(receipt.events).toHaveLength(1);
+    const history = structuredClone(log);
+    const final = history.at(-1);
+    if (path === "operation") {
+      receipt.events.push(structuredClone(receipt.events[0]));
+      final.operations.push(structuredClone(final.operations[0]));
+    } else {
+      const parameters = { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome: "completed", ...((path === "finish-conflict" ? !keepOpen : keepOpen) ? { keep_open: true } : {}) };
+      const request = queue.newRequest("duplicate-completion-first", "finish", receipt.actor, parameters);
+      const duplicate = structuredClone(receipt);
+      duplicate.id = request.id;
+      duplicate.request_id = request.id;
+      duplicate.fingerprint = request.fingerprint;
+      duplicate.parameters_digest = digest(request.parameters);
+      delete duplicate.events[0].keep_open;
+      if (parameters.keep_open) duplicate.events[0].keep_open = true;
+      requests.splice(requests.length - 1, 0, duplicate);
+      receipt.previous = duplicate.id;
+      wire.stats.transactions++;
+      const prior = { ...structuredClone(final), id: duplicate.id, request, operations: duplicate.events };
+      final.previous = prior.id;
+      history.splice(history.length - 1, 0, prior);
+    }
+    expect(() => queue.replayTransactions(history)).toThrow();
+    wire.requests_compressed = deflateRawSync(Buffer.from(canonical(requests))).toString("base64");
+    const { requests_compressed, ...state } = wire;
+    operation.state_sha256 = digest({ ...state, requests });
+    operation.history_sha256 = createHash("sha256")
+      .update(history.map(canonical).join("\n") + "\n")
+      .digest("hex");
+    checkpoint[0].request = queue.newRequest(checkpoint[0].request.id, "checkpoint", administrator, { ...checkpoint[0].request.parameters, state_sha256: operation.state_sha256, history_sha256: operation.history_sha256 });
+    expect(() => queue.replayTransactions(checkpoint)).toThrow(/checkpoint_invalid/);
+  });
+
   it("rejects checkpoints that rewrite the retention choice even with recomputed projection hashes", () => {
     const { log, assignment } = fixture();
     const member = assignment.claims[0];

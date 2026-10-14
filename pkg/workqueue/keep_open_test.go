@@ -3,6 +3,7 @@ package workqueue
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -194,6 +195,113 @@ func TestKeepOpenFailedDeliveryRequiresExplicitDisposition(t *testing.T) {
 	state, _ = Replay(commits)
 	if state.Works[member.WorkID].State != "cancelled" || state.Claims[member.ClaimID].State != "completed" {
 		t.Fatal("explicit disposition rewrote completed Claim")
+	}
+}
+
+func TestKeepOpenCheckpointRejectsDuplicateCompletions(t *testing.T) {
+	for _, keepOpen := range []bool{false, true} {
+		for _, path := range []string{"finish-conflict", "finish-identical", "operation"} {
+			t.Run(fmt.Sprintf("%s/keep_open=%t", path, keepOpen), func(t *testing.T) {
+				commits, assignment := boundAssignment(t)
+				member := assignment.Claims[0]
+				actor := workerActor(assignment, member.Handle)
+				parameters := FinishParameters{
+					DispatchID: assignment.DispatchID, ClaimHandle: member.Handle, Outcome: "completed", KeepOpen: keepOpen,
+				}
+				request, err := NewRequest("duplicate-completion-final", "finish", actor, parameters)
+				if err != nil {
+					t.Fatal(err)
+				}
+				commits, _, _, err = BuildCandidate(commits, actor, request, 4000)
+				if err != nil {
+					t.Fatal(err)
+				}
+				checkpoint, err := CompactCheckpoint(commits, strings.Repeat("a", 40), testActor("administrator"), 4000)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var operation CheckpointOperation
+				if err := json.Unmarshal(checkpoint[0].Operations[0], &operation); err != nil {
+					t.Fatal(err)
+				}
+				snapshot, _, err := decodeCheckpointSnapshot(operation.State)
+				if err != nil {
+					t.Fatal(err)
+				}
+				last := len(snapshot.Requests) - 1
+				receipt := snapshot.Requests[last]
+				if receipt.Kind != "finish" || len(receipt.Events) != 1 {
+					t.Fatal("expected one finish Completion event")
+				}
+				history := append([]QueueCommit(nil), commits...)
+				final := history[len(history)-1]
+				if path == "operation" {
+					snapshot.Requests[last].Events = append(append([]Operation(nil), receipt.Events...), receipt.Events[0])
+					final.Operations = append(append([]Operation(nil), final.Operations...), final.Operations[0])
+				} else {
+					if path == "finish-conflict" {
+						parameters.KeepOpen = !keepOpen
+					}
+					request, err := NewRequest("duplicate-completion-first", "finish", actor, parameters)
+					if err != nil {
+						t.Fatal(err)
+					}
+					var event map[string]any
+					if err := json.Unmarshal(receipt.Events[0], &event); err != nil {
+						t.Fatal(err)
+					}
+					delete(event, "keep_open")
+					if parameters.KeepOpen {
+						event["keep_open"] = true
+					}
+					duplicate := receipt
+					duplicate.ID, duplicate.RequestID, duplicate.Fingerprint = request.ID, request.ID, request.Fingerprint
+					duplicate.ParametersDigest = hashBytes(request.Parameters)
+					duplicate.Events = []Operation{mustOp(t, event)}
+					snapshot.Requests = append(snapshot.Requests[:last], duplicate, receipt)
+					snapshot.Requests[last+1].Previous = &duplicate.ID
+					snapshot.Stats.Transactions++
+					prior := final
+					prior.ID, prior.Request, prior.Operations = duplicate.ID, request, duplicate.Events
+					final.Previous = &prior.ID
+					history = append(history[:len(history)-1], prior, final)
+				}
+				history[len(history)-1] = final
+				if _, err := Replay(history); err == nil && path != "finish-identical" {
+					t.Fatal("full replay accepted duplicate Completion")
+				}
+				logical, err := canonicalValue(snapshot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				operation.State, err = encodeCheckpointSnapshot(snapshot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				operation.StateSHA256 = hashBytes(logical)
+				var archive strings.Builder
+				for _, commit := range history {
+					data, err := canonicalValue(commit)
+					if err != nil {
+						t.Fatal(err)
+					}
+					archive.Write(data)
+					archive.WriteByte('\n')
+				}
+				operation.HistorySHA256 = hashBytes([]byte(archive.String()))
+				checkpoint[0].Operations[0] = mustOp(t, operation)
+				checkpoint[0].Request, err = NewRequest(checkpoint[0].Request.ID, "checkpoint", checkpoint[0].Actor, CheckpointParameters{
+					PriorGitSHA: operation.PriorGitSHA, PriorTip: operation.PriorTip,
+					HistorySHA256: operation.HistorySHA256, StateSHA256: operation.StateSHA256,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := Replay(checkpoint); err == nil || !strings.Contains(err.Error(), "checkpoint_invalid") {
+					t.Fatalf("checkpoint must reject duplicate Completion: %v", err)
+				}
+			})
+		}
 	}
 }
 

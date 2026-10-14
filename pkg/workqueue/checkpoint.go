@@ -537,6 +537,9 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 				return invalid()
 			}
 			if completion.Kind == "Completion" {
+				if _, exists := completions[completion.ClaimID]; exists {
+					return invalid()
+				}
 				parameters, err := canonicalValue(FinishParameters{
 					DispatchID: completion.DispatchID, ClaimHandle: completion.ClaimHandle,
 					Outcome: "completed", KeepOpen: completion.KeepOpen,

@@ -1015,6 +1015,7 @@ function restoreCheckpointState(checkpoint) {
   for (const receipt of snapshot.requests)
     for (const event of receipt.events)
       if (event.kind === "Completion") {
+        if (completions.has(event.claim_id)) throw invalid();
         if (Object.hasOwn(event, "keep_open") && typeof event.keep_open !== "boolean") throw invalid();
         const parameters = { dispatch_id: event.dispatch_id, claim_handle: event.claim_handle, outcome: "completed", ...(event.keep_open === true ? { keep_open: true } : {}) };
         if (receipt.kind !== "finish" || fingerprint(receipt.actor, "finish", parameters) !== receipt.fingerprint) throw invalid();
