@@ -12,7 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
-const { getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
 
 /**
  * @param {unknown} error

@@ -4,7 +4,7 @@
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { main: redactWorkspaceSecrets, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
-const { getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
 const { redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 
 function getSecretValues() {
