@@ -412,6 +412,8 @@ safe-outputs:
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
 
+`add-comment` can include an existing GitHub video attachment URL as a standalone paragraph, but does not upload recordings or resolve media attachment references. See [Native inline video publication](#native-inline-video-publication) for the platform dependency and interim integration requirements.
+
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
 ```yaml wrap
@@ -1170,6 +1172,40 @@ The repository's `artifact_retention_days` setting in `aw.json`, or the
 `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` Actions variable when that setting is
 absent, overrides this output's `retention-days`. See
 [Artifact Retention](/gh-aw/reference/compiler-enterprise-environment-controls/#artifact-retention).
+
+### Native inline video publication
+
+Native inline playback of generated MP4/WebM recordings in issue and PR comments is **not currently available as a built-in safe output**. `upload-artifact` with `skip-archive: true` provides a direct, expiring download, not a native video attachment. `upload-asset` stores files in Git and returns raw/blob URLs, not user attachment URLs. Neither guarantees GitHub's inline video player.
+
+#### GitHub platform dependency
+
+The native user-attachment upload endpoint does not currently support GitHub App installation tokens, including Actions `GITHUB_TOKEN`. Adding write permissions does not remove this restriction. [GitHub CLI issue #14309](https://github.com/cli/cli/issues/14309) tracks the platform dependency.
+
+Ordinary App user-to-server tokens are also generally unsupported. Exceptions exist for privileged Apps, but widening the CLI's token allowlist does not grant backend access. GitHub maintainers confirm that [there is currently no configuration to enable uploads for a user's App](https://github.com/cli/cli/issues/14495#issuecomment-6159411769); see also the [user-to-server token clarification](https://github.com/cli/cli/issues/14495#issuecomment-5828904483).
+
+A first-class publisher therefore requires a supported App-authenticated upload path coordinated with the GitHub platform. No native-video configuration key or attachment-reference syntax is available in gh-aw today.
+
+#### Interim user-credential integration
+
+An explicitly configured user-credential uploader can be implemented as a [custom safe-output job](/gh-aw/reference/custom-safe-outputs/), subject to repository policy and acceptance of the user credential's risks. This is an opt-in, repository-maintained integration, not a built-in native-video safe output or a recommendation to introduce a long-lived PAT. Use only a credential type supported by the attachment endpoint, with the minimum repository access required; do not assume every user token is supported.
+
+The credential must be supplied through a dedicated secret to a separate trusted publisher job only. Never use ambient `GH_TOKEN`/`GITHUB_TOKEN`, fall back to another identity, expose the credential to the agent or untrusted PR runtime, or execute PR-controlled code in the publisher. Repository policy must determine credential ownership, rotation, revocation, and any environment approval requirements.
+
+#### Publisher security and delivery contract
+
+The following requirements describe the intended first-class publisher and the checks an interim integration must implement. They are not guarantees provided by the existing upload handlers or automatically enforced by custom safe-output jobs.
+
+| Boundary | Required behavior |
+|----------|-------------------|
+| Request | Accept only a bounded source artifact/file reference and an allowed issue or PR target. Do not accept credentials, upload endpoints, or agent-supplied attachment URLs as proof of publication. |
+| Provenance and scope | Verify the source repository, workflow run and attempt, artifact identity, and expected producing job against trusted workflow state. Verify the issue/PR belongs to the configured repository and allowed target scope before uploading. A digest supplied solely by the agent is not provenance. |
+| File validation | Restrict file count, individual and total size with explicit finite limits. Reject traversal, absolute paths, symlinks (including parent components), and non-regular files; enforce containment when extracting artifacts. Validate MP4/WebM content against the declared MIME type (`video/mp4` or `video/webm`), not just the extension. |
+| Upload and reference resolution | Use a fixed GitHub attachment endpoint and validate the returned attachment URL against the expected GitHub attachment host and path. Resolve a publisher-owned reference only after a successful upload, and insert the URL as its own paragraph in the comment, not an image, code block, or download link. The agent must not control reference-to-URL mappings. |
+| Staged mode | Validate and preview the request without uploading an attachment or posting/editing a comment. Do not fabricate a successful attachment URL. Custom integrations must implement this behavior themselves. |
+| Publication status | Distinguish published attachment and comment, staged preview, unsupported authentication, upload failure, and comment failure after upload. An uploaded attachment alone is not successful inline-video comment publication. Do not log credentials or raw authentication responses. |
+| Fallback | Fail clearly on unsupported authentication or upload failure. An artifact-link fallback must be explicitly enabled by the workflow author and labeled as a download fallback, never reported as successful inline-video publication. |
+
+Native attachments and Actions artifacts have separate lifecycles. Artifact retention controls source recordings and download fallbacks; it does not configure attachment expiration or delete an already uploaded attachment. An integration must document attachment visibility, viewer access, retention/deletion behavior, and cleanup after a comment failure using the supported platform behavior. Do not assume a recording uploaded from a private repository is publicly accessible or that deleting its source artifact removes the attachment.
 
 ### Asset Uploads (`upload-asset:`)
 
