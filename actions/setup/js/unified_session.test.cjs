@@ -950,6 +950,35 @@ describe("Unified conclusion session", () => {
     expect(persisted.find(event => event.type === "workflow.info").data.dryRun).toBe(dryRun);
   });
 
+  it("persists MCP retry hints and GitHub search quotas in the unified session without echoed queries", () => {
+    const query = "PRIVATE_QUERY";
+    const date = "Wed, 21 Oct 2015 07:28:00 GMT";
+    write("mcp-logs/rpc-messages.jsonl", [
+      { event: "rpc_response", server_id: "github", payload: { id: 1, result: { isError: true, content: [{ type: "text", text: `failed to search code with query '${query}': HTTP 429 try again in 216.007769ms` }] } } },
+      { event: "rpc_response", server_id: "github", payload: { id: 2, error: { code: -32603, message: `GET https://example.com/${query}: 429; Retry-After: ${date}` } } },
+      { event: "rpc_response", server_id: "github", payload: { id: 3, result: { isError: true, content: [{ type: "text", text: "failed to search code with query 'HTTP 429': validation failed" }] } } },
+      { event: "rpc_response", server_id: "github", payload: { id: 4, result: { isError: false, content: [{ type: "text", text: "HTTP 429 try again in 1s" }] } } },
+    ]);
+    write("mcp-logs/gateway.jsonl", [{ event: "tool_call", server_name: "github", tool_name: "search_code", error: `GET https://example.com/${query}: 429; Retry-After: 60` }]);
+    const snapshots = ["agent_start", "agent_end"].flatMap(operation => ["core", "code_search", "search"].map(resource => ({ source: "rate_limit_api", operation, resource, limit: 10, remaining: 0, reset: "2026-10-02T01:00:00Z" })));
+    write("github_rate_limits.jsonl", snapshots);
+    writeUnifiedSession({ rootDir: root });
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    const events = persisted.trimEnd().split("\n").map(JSON.parse);
+    const responses = events.filter(event => event.type === "mcp.rpc.response");
+    expect(responses[0].data).toMatchObject({ rpcId: 1, httpStatus: 429, retryHint: "try again in 216.007769ms" });
+    expect(responses[1].data).toMatchObject({ rpcId: 2, httpStatus: 429, retryHint: `Retry-After: ${date}`, error: { code: -32603, message: `HTTP 429: Retry-After: ${date}` } });
+    for (const response of responses.slice(2)) {
+      expect(response.data).not.toHaveProperty("httpStatus");
+      expect(response.data).not.toHaveProperty("retryHint");
+    }
+    expect(events.find(event => event.type === "mcp.tool_call").data).toMatchObject({ httpStatus: 429, retryHint: "Retry-After: 60s", error: "HTTP 429: Retry-After: 60s" });
+    expect(events.filter(event => event.type === "github_api.rate_limit").map(event => event.data)).toEqual(snapshots);
+    expect(persisted).not.toContain(query);
+    expect(persisted).not.toContain("https://example.com");
+    for (const event of events.filter(event => event.data.httpStatus === 429)) expect(normalizeUnifiedSessionEvent(event).data).toEqual(event.data);
+  });
+
   it("collects rate-limit state and provenance without duplicating the copied artifact or leaking unknown fields", () => {
     const rateLimits = [
       {

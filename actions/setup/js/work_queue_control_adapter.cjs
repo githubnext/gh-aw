@@ -17,6 +17,7 @@ const { normalizeDispatchCredential, createDispatchCredentialValidator } = requi
  *   core?: {setOutput: (name: string, value: unknown) => unknown, info: (message: string) => unknown, setFailed?: (message: string) => unknown},
  *   github?: object,
  *   githubClient?: object,
+ *   queueClient?: object,
  *   dispatchClient?: object,
  *   getOctokit?: (token: string, options?: {baseUrl?: string, credentialSource?: string}) => object | Promise<object>,
  *   config?: Record<string, unknown> & {"github-token"?: string, work_queue_dispatch_credential?: unknown, work_queue_enabled?: boolean},
@@ -149,6 +150,15 @@ async function main(options = {}) {
     configured.validateDispatchCredential = async () => {
       throw new Error("work_queue_preview_cannot_validate_launch_credential");
     };
+  }
+  const queueToken = (configured.env || process.env).GH_AW_WORK_QUEUE_TOKEN;
+  if (!preview && configured.queueClient === undefined && queueToken !== undefined) {
+    if (typeof queueToken !== "string" || !queueToken || queueToken.length > 16384 || /[\x00-\x1f\x7f]/.test(queueToken)) throw new Error("work_queue_publisher_credential_token_invalid");
+    const factory = configured.getOctokit || global.getOctokit;
+    if (typeof factory !== "function") throw new Error("work_queue_publisher_credential_client_unavailable");
+    const credentialSource = (configured.env || process.env).GH_AW_GITHUB_TOKEN_SOURCE || "unknown";
+    // The publisher token is distinct from the action-dispatch credential.
+    configured.queueClient = await factory(queueToken, { credentialSource });
   }
   if (intents.some(intent => ["submit", "dispatch_next"].includes(intent.kind)) && !preview) {
     const latest = await loadQueue({ ...configured, policyProposal: undefined, initializationContext: undefined });

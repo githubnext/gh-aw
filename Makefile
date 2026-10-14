@@ -524,6 +524,7 @@ test-scripts: build
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh
 	python3 scripts/test_super_linter_scope.py
+	python3 scripts/test_publish_safe_outputs_node.py
 	bash actions/setup/sh/collect_usage_artifact_files_test.sh
 	bash actions/setup/sh/copy_gh_aw_binary_for_mcp_test.sh
 	bash actions/setup/sh/create_gh_aw_tmp_dir_test.sh

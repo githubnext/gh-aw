@@ -145,10 +145,11 @@ function logRateLimitFromResponse(response, operation, credentialSource) {
  *
  * @param {any} github - The github object injected by actions/github-script
  * @param {string} [operation="fetch"] - Label recorded in each log entry
+ * @param {boolean} [visible=false] - Also print core, code_search, and search limits to the Actions log
  * @returns {Promise<{remaining:number,limit:number,used:number,reset:string}|null>}
  *   Core rate-limit data, or null if the call fails or the core resource is absent.
  */
-async function fetchAndLogRateLimit(github, operation = "fetch") {
+async function fetchAndLogRateLimit(github, operation = "fetch", visible = false) {
   try {
     const response = await github.rest.rateLimit.get();
     const resources = response?.data?.resources;
@@ -169,6 +170,9 @@ async function fetchAndLogRateLimit(github, operation = "fetch") {
         reset: data.reset ? new Date(data.reset * 1000).toISOString() : null,
       };
       appendEntry(entry);
+      if (visible && ["core", "code_search", "search"].includes(resource)) {
+        core.info(`${operation}: ${resource} limit=${entry.limit} remaining=${entry.remaining} reset=${entry.reset}`);
+      }
     }
 
     const coreData = resources.core;

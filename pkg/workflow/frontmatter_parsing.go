@@ -98,10 +98,11 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 			frontmatterTypesLog.Print("Checkout disabled via checkout: false")
 		} else {
 			checkoutConfigs, err := ParseCheckoutConfigs(config.Checkout)
-			if err == nil {
-				config.CheckoutConfigs = checkoutConfigs
-				frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
+			if err != nil {
+				return nil, fmt.Errorf("invalid checkout configuration: %w", err)
 			}
+			config.CheckoutConfigs = checkoutConfigs
+			frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
 		}
 	}
 

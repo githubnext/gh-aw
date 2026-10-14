@@ -90,7 +90,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{ github.repository }}
   ref: ${{ github.event.pull_request.base.sha }}
 ---
 
@@ -207,7 +206,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{ github.repository }}
   ref: ${{ github.event.pull_request.base.sha }}
 ---
 
@@ -231,7 +229,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{ github.repository }}
   sparse-checkout: |
     .github
 ---
@@ -245,7 +242,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with trusted checkout expressions using compact syntax - strict - warning only",
+			name: "pull_request_target with trusted checkout ref using compact syntax - strict - warning only",
 			frontmatter: `---
 on:
   pull_request_target:
@@ -256,7 +253,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{github.repository}}
   ref: ${{github.event.pull_request.base.sha}}
 ---
 
@@ -280,7 +276,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{ github.repository }}
   ref: ${{ github.event.pull_request.base.ref }}
 ---
 
@@ -304,7 +299,6 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  repository: ${{ github.repository }}
   ref: github.event.pull_request.base.sha
 ---
 
@@ -329,9 +323,8 @@ tools:
 permissions:
   pull-requests: read
 checkout:
-  - repository: ${{ github.repository }}
-    ref: ${{ github.event.pull_request.base.sha }}
-  - repository: ${{ github.event.pull_request.head.repo.full_name }}
+  - ref: ${{ github.event.pull_request.base.sha }}
+  - repository: untrusted/repo
     ref: ${{ github.event.pull_request.head.sha }}
 ---
 
@@ -454,8 +447,8 @@ func TestPullRequestTargetPolicy(t *testing.T) { //nolint:largefunc // Table cov
 		{name: "literal SHA checkout", policy: acknowledged + strings.ReplaceAll(allowlist, "ref: main", "ref: '0123456789abcdef0123456789abcdef01234567'"), checkout: strings.ReplaceAll(externalCheckout, "ref: main", "ref: '0123456789abcdef0123456789abcdef01234567'"), expectedRef: "0123456789abcdef0123456789abcdef01234567"},
 		{name: "acknowledged disabled checkout", policy: acknowledged, checkout: "checkout: false\n"},
 		{name: "acknowledged base checkout", policy: acknowledged, checkout: "checkout:\n  ref: ${{ github.event.pull_request.base.sha }}\n"},
-		{name: "acknowledged default base ref", policy: acknowledged, checkout: "checkout:\n  repository: ${{ github.repository }}\n"},
-		{name: "mixed trusted and allowed checkouts", policy: acknowledged + allowlist, checkout: externalCheckout + "  - repository: ${{ github.repository }}\n    ref: ${{ github.event.pull_request.base.ref }}\n    path: source\n"},
+		{name: "acknowledged default base ref", policy: acknowledged, checkout: "checkout: {}\n"},
+		{name: "mixed trusted and allowed checkouts", policy: acknowledged + allowlist, checkout: externalCheckout + "  - ref: ${{ github.event.pull_request.base.ref }}\n    path: source\n"},
 		{name: "app authenticated external checkout", policy: acknowledged + allowlist, checkout: externalCheckout + "    github-app:\n      app-id: ${{ vars.DOCS_APP_ID }}\n      private-key: ${{ secrets.DOCS_APP_PRIVATE_KEY }}\n"},
 		{name: "id-token permission is informational", policy: acknowledged + allowlist, checkout: externalCheckout, extraPermissions: "  id-token: write\n"},
 		{name: "unrelated strict validation remains", policy: acknowledged + allowlist, checkout: externalCheckout, extraPermissions: "  contents: write\n", errorContains: "write"},
@@ -471,7 +464,7 @@ func TestPullRequestTargetPolicy(t *testing.T) { //nolint:largefunc // Table cov
 		{name: "base ref expression for external repository", policy: acknowledged + allowlist, checkout: strings.ReplaceAll(externalCheckout, "ref: main", "ref: ${{ github.event.pull_request.base.ref }}"), errorContains: insecureCheckout},
 		{name: "allowlisted checkout with PR fetch ref", policy: acknowledged + allowlist, checkout: externalCheckout + "    fetch: [refs/pull/123/head]\n", errorContains: insecureCheckout},
 		{name: "allowlisted checkout with fetch expression", policy: acknowledged + allowlist, checkout: externalCheckout + "    fetch: [\"${{ github.event.pull_request.head.ref }}\"]\n", errorContains: insecureCheckout},
-		{name: "trusted base checkout with additional fetch", policy: acknowledged, checkout: "checkout:\n  repository: ${{ github.repository }}\n  ref: ${{ github.event.pull_request.base.sha }}\n  fetch: [\"refs/pulls/open/*\"]\n", errorContains: insecureCheckout},
+		{name: "trusted base checkout with additional fetch", policy: acknowledged, checkout: "checkout:\n  ref: ${{ github.event.pull_request.base.sha }}\n  fetch: [\"refs/pulls/open/*\"]\n", errorContains: insecureCheckout},
 		{name: "mixed allowed and untrusted checkouts", policy: acknowledged + allowlist, checkout: externalCheckout + "  - ref: ${{ github.event.pull_request.head.sha }}\n    path: untrusted\n", errorContains: insecureCheckout},
 		{name: "policy cannot allow repository expression", policy: acknowledged + strings.ReplaceAll(allowlist, "dotnet/AspNetCore.Docs", "${{ github.event.pull_request.head.repo.full_name }}"), checkout: externalCheckout, errorContains: "'repository'"},
 		{name: "policy cannot allow ref expression", policy: acknowledged + strings.ReplaceAll(allowlist, "ref: main", "ref: ${{ github.event.pull_request.head.sha }}"), checkout: externalCheckout, errorContains: "'ref'"},

@@ -40,6 +40,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Apps and secrets | `live`, `revoked`, `appScope`, `appRepos`, `agentSecrets` | Read-only checkout credentials, authorized engine credentials, and privileged installation tokens have different consumers and lifetimes. |
 | Networking | `ToolCall`, `egress`, `NetworkPolicy` | Authorized GitHub/inference services, blocked destinations, and service-bound engine authentication. |
 | Git | `checkouts`, `cleanup`, `agentBegan`, `privilegedCheckout`, `operations`, `errors` | Per-repository auth, temporary setup credentials, verified cleanup/failure, available blobs/refs, sparse/shallow state, local operations, REST, and privileged push. |
+| Runtime repository-list checkout | [`RuntimeRepositoryCheckout.tla`](RuntimeRepositoryCheckout.tla) | Trusted policy, bounded whole-batch validation, visibility, entry authentication, agent/privileged finalization, job-local manifests, staged isolation, and failure reporting. |
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | Comment/review-triggered PR checkout | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Allow-listed Bot sender and exact comment/review-author identity, canonical App slug/bot actor equivalence, and same-repository head/base boundaries. |
 
@@ -100,6 +101,62 @@ control, copy the `.cfg` to a temporary file, set `Fault` to
 confirm TLC reports `NoUntrustedCheckoutAcceptance`. This model specifies the
 compiler decision boundary; it does not model Git's parser or prove safety of
 the contents at an otherwise trusted mutable ref.
+
+## Runtime repository-list checkout
+
+[`RuntimeRepositoryCheckout.tla`](RuntimeRepositoryCheckout.tla) refines the
+checkout and safe-output boundary in RCR8-RCR15 of the
+[Safe Outputs specification](../../docs/src/content/docs/specs/safe-outputs-specification.md).
+It follows one entry through compilation, preflight, metadata validation,
+checkout, finalization, manifest publication, consumer execution, or trusted
+failure reporting. Each run chooses the agent or privileged job; both derive
+paths from the same canonical repository/prefix function rather than sharing
+an agent-writable manifest. Only literal `multi: true` enters the list pipeline.
+Omitted/false mode permits single-repository expressions without list policy
+and validates exactly one slug before reaching the static-checkout boundary;
+static checkout execution remains covered by the original model.
+
+Finite input classes include trusted literal/configuration-variable policies,
+caller/composite policies, missing policies, scoped matching sets and unrestricted
+policies, explicit multi opt-in, single expressions with list-only features
+unrestricted, explicit/wildcard selectors, empty and case-duplicate lists, canonical
+redirects, unverifiable metadata, public/private/internal hosts and targets with
+and without explicit private-repository opt-in,
+invalid prefixes, unsafe target paths, LFS/submodule settings, and staged mode.
+The bounded lists use three repositories and limits 1, 2, and the production
+default 10. Token classes distinguish entry PAT/read-App/write-App overrides,
+representative optional-key fallbacks, effective operation/shared credentials,
+and an unrelated entry's scoped App token. Cleanup can succeed or fail.
+Safe-output write authorization is independent of checkout authorization.
+Token names track credential provenance, not permission grants; `job-default`
+is the current job's GitHub token, whose grants differ between job kinds.
+
+| Predicates | Contract / implementation connection |
+|---|---|
+| `ExplicitMultiMode`, `SingleRepositoryOnly`, `MandatoryAllowlist`, `PolicyProvenance`, `ExplicitSelector`, `ScopedPolicy` | RCR8 / CTR-033; explicit `Multi` classification, [`validateSingleRepository`](../../actions/setup/js/checkout_dynamic.cjs), [`validateCheckoutAllowedRepos`](../../pkg/workflow/checkout_dynamic.go), [`parseAllowedRepos`](../../actions/setup/js/checkout_dynamic.cjs), and compiler policy regressions. |
+| `SelectedRepositoriesAllowed`, `BoundedSelection`, `BatchValidatedBeforeCheckout`, `ValidatedPathsSafe`, `CanonicalRepositoriesAllowed`, `VisibilityIsolation`, `PrivateRepositoryOptIn` | RCR9; [`prepareCheckouts`](../../actions/setup/js/checkout_dynamic.cjs) validates the complete batch, requires explicit opt-in for non-public targets, and never permits them on public hosts. |
+| `EntryAuthentication` | RCR11; [`dynamicCheckoutToken`](../../pkg/workflow/checkout_dynamic.go) and [`prepareSharedPRCheckout`](../../pkg/workflow/compiler_safe_outputs_steps.go) preserve explicit entry credentials and resolve the shared fallback independently of neighboring Apps. |
+| `NoSecondaryReads` | RCR12; generated actions disable LFS/submodules and [`finish`](../../actions/setup/js/checkout_dynamic.cjs) explicitly disables recursive submodule fetching. |
+| `AgentCredentialsCleared`, `PrivilegedCredentialsRetained` | RCR13; agent finalization cleans/verifies actual Git configurations before engine execution; privileged finalization retains write authentication. |
+| `ManifestPrecedesConsumers`, `SafeOutputAuthorization` | RCR6/RCR10; job-local manifest generation follows finalization, and checkout authorization never expands a handler's write allowlist. |
+| `StagedIsolation`, `CheckoutFailureReported` | RCR14/RCR15; preview mode omits checkout dependencies, and known checkout failures remain reportable even without recorded agent jobs. |
+
+The existing checker runs this model, its 23 deliberate guard mutations, and
+eight reachability witnesses alongside `CompiledWorkflow`. Witnesses establish
+that runtime checkout, deep-prefix handler lookup, known failure reporting,
+single expressions without an allowlist, single-checkout LFS/submodule/private
+access without list restrictions, the hosting-repository case, and opted-in private/internal-host checkouts are
+reachable; the safety properties therefore do not pass by rejecting everything.
+The mutations are hypothetical broken guards, not confirmed product bugs.
+
+This is a bounded contract model, not compiler/runtime refinement or a liveness
+proof. Policy matching is represented by finite sets, API visibility and
+canonicalization by response classes, and configuration cleanup by a verified
+success/failure result. It does not prove expression syntax, wildcard semantics,
+the 9007199254740991 parser bound, filesystem/symlink enforcement, Git behavior,
+installation-token grants, arbitrary independent tooling, or multi-entry merge
+semantics. Existing compiler and runtime tests supply those narrower conformance
+checks; the real-Git `.gitmodules` regression is not replaced by this abstraction.
 
 ## Comment- and review-triggered pull request checkout
 
@@ -219,11 +276,13 @@ cover sparse/full checkout, issue/pull-request effects, force-clean lifecycle,
 reusable invocation naming, and declared detection modes. Twenty-one deliberately
 broken protections (including failure-path token retention) and eight reachability
 witnesses cover authenticated push, temporary host credentials, and a blocking
-cleanup failure.
+cleanup failure. The additional runtime-checkout model exhausts both job kinds
+and verifies the controls and witnesses described above.
 
 Counterexamples include raw `tlc-trace.json`, normalized `trace.json`, and
-`events.txt`. Negative controls also generate `source.md` and
-`counterexample.json`. Only `agent-write` directly changes a supported
+`events.txt`. `CompiledWorkflow` negative controls also generate `source.md` and
+`counterexample.json`; runtime-checkout controls generate classification reports
+without inventing source-level exploits. Only `agent-write` directly changes a supported
 frontmatter grant; the strict compiler must reject it. Other source seeds
 explicitly describe the hypothetical compiler/runtime mutation needed to
 realize their trace. They are not source-level exploits. Witnesses deliberately
@@ -311,7 +370,7 @@ assumptions until real behavior disappears:
 | Redaction coverage and exceptions | Ordering checks do not guarantee successful redaction of every artifact. Binary/unscanned exceptions and fallback `always()` uploads need explicit coverage/lifecycle states. |
 | Cache integrity and publication | CTR-019; model policy/integrity namespaces, restoration, detection-gated publication, and detection-disabled post-action saving. |
 | Checkout merging, primary target, and directory identity | Entry identity is `(repository,path,wiki)`; `current` does not change cwd. Model token/app alternatives, unioned fetch/sparse patterns, and deepest history selection. |
-| Safe-output token precedence | Checkout specification K:175–190 differs from `resolvePRCheckoutToken`:131–191, which supports operation PAT, checkout safe-output app, shared app/PAT, and defaults. Preserve this as a conformance observation, not a vulnerability claim. |
+| Safe-output token precedence | Runtime entry precedence, representative missing-key fallbacks, and independence from neighboring scoped Apps are modeled. Static/shared checkout target selection, installation grants, and handler/head-token variants still require separate refinement. |
 | Filesystem and platform enforcement | Artifact service origin, immutable event metadata, AWF/gateway isolation, labels, action pin integrity, post-job cleanup, and revocation are environmental assumptions at this layer. |
 
 ## Daily investigation

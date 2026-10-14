@@ -182,11 +182,9 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"checkout: false\n\n" +
 		"2) Check out only the trusted base repo/ref:\n" +
 		"checkout:\n" +
-		"  repository: ${{ github.repository }}\n" +
 		"  ref: ${{ github.event.pull_request.base.sha }}\n\n" +
 		"3) Check out only the trusted base repository and omit ref:\n" +
-		"checkout:\n" +
-		"  repository: ${{ github.repository }}\n\n" +
+		"checkout: {}\n\n" +
 		"You can also use 'ref: ${{ github.event.pull_request.base.ref }}'.\n" +
 		"For a fixed external checkout, declare its literal repository/ref pair in\n" +
 		"on.pull_request_target.allowed-checkouts and configure checkout to match exactly.\n" +

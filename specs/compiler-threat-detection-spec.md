@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.51
+**Version**: 1.0.52
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.52` | Unreleased | Adds CTR-033: repository-list checkout requires literal `multi: true`; ordinary repository expressions retain single-checkout semantics with runtime cardinality validation in both jobs. |
 | `1.0.51` | Unreleased | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode and permit suppression of only the corresponding warning in non-strict mode via an explicit dangerous feature flag. |
 | `1.0.50` | Unreleased | Extends CTR-032 with mandatory creating-run traceability from first publication, HTML markers for issue comments and PR descriptions, and Markdown anchor markers for PR review comments. Versioned activation markers and review-comment persistence coverage remain implementation obligations. |
 | `1.0.49` | Unreleased | Adds CTR-032; safe-output publishing jobs supply step-level check-run identity, and runtime publishers replace forged execution-provenance markers with trusted metadata. |
@@ -77,6 +78,8 @@ Host-side OTLP exporter configuration is another secret-bearing trust boundary. 
 
 Safe-output body content is untrusted even when supplied to a trusted publisher. A body can contain forged reserved HTML comments, including nested, variant, or unterminated openers, or Markdown anchor markers that imitate execution provenance. Attribution can also be lost when a publisher omits markers from initial WIP bodies or uses HTML comments in PR review comments, where GitHub's API filters them out. CTR-032 requires the compiler to provide the publishing check-run identity and the runtime publisher to remove or neutralize supplied reserved markers before appending trusted execution metadata in a format retained by the destination API; missing or invalid identity fails closed.
 
+Repository-selection expressions are runtime data, not an implicit request for repository-list expansion. Inferring multi mode from an expression or an allowlist changes authentication, visibility, path, and secondary-fetch behavior unexpectedly. CTR-033 requires explicit mode classification and generated single-selector validation. The multi-mode preflight and privileged-consumer boundary are specified by checkout behavior §3.1 and safe outputs RCR8–RCR15 and modeled in `specs/workflow-security/RuntimeRepositoryCheckout.tla`; the model does not prove parser, filesystem, or Git correctness.
+
 ## 4. Governance and Responsibilities
 
 Maintainers own the rule catalog, its implementation mapping, and its test coverage; the daily optimizer (Section 6) reviews new candidate threats and reports coverage gaps. Every rule addition, deprecation, or mapping change MUST be reviewed against this specification in the same pull request that changes the implementation, per the Spec-to-Implementation Sync table in Section 2.
@@ -118,6 +121,7 @@ Each rule has a stable `CTR-*` ID, threat class, trigger, compiler action, diagn
 - **CTR-030 Activation Checkout Provenance**: For `pull_request`, `pull_request_review`, and `pull_request_review_comment` events, emit an activation sparse checkout pinned to `github.event.pull_request.base.sha`, guarded by event name and pull-request payload presence. Match trigger names exactly so `pull_request_target` does not opt into this rule. Other events retain their existing checkout ref (including the resolved callee SHA for `workflow_call`); cross-repository `workflow_call` checkout remains same-repository-only when activation authentication can fall back to `GITHUB_TOKEN`.
 - **CTR-031 Private-to-Public Flow Opt-Out**: Reject `tools.github.private-to-public-flows` in strict mode in both its blanket and server-list forms; in non-strict mode, emit a security warning because the opt-out can expose private data through public Actions logs or agent-controlled public destinations.
 - **CTR-032 Safe-Output Execution Provenance Spoofing**: Generated built-in, custom, maintenance, and activation-time publishers MUST receive `job.check_run_id` only in the publishing step. Before publishing issue, pull request, comment, or discussion bodies, runtime publishers MUST replace supplied `gh-aw-execution` and `gh-aw-agentic-workflow` markers—including nested, variant, and unterminated comment forms and Markdown anchor forms—with trusted versioned execution metadata. Every issue comment, pull request description, and pull request review comment MUST remain traceable to the workflow run ID that created it, using the destination-specific marker contract in Section 5.1.1. Missing or invalid provenance metadata MUST fail closed.
+- **CTR-033 Explicit Checkout Expansion**: Only literal `checkout.multi: true` MUST enable repository-list expansion. Non-boolean mode values MUST fail compilation. With multi omitted or false, selectors MUST retain ordinary single-checkout behavior without list-only restrictions; literal lists MUST fail compilation, and generated agent and safe-output checkout steps MUST validate expression values as exactly one `owner/repo` slug before `actions/checkout`. Empty, malformed, wildcard, and multiple values, including duplicate slugs, MUST fail closed. Expressions MUST be passed through environment data, not executable script text. With multi enabled, the compiler MUST require a trusted scoped allowlist and literal non-root prefix and reject LFS, enabled submodules, `current`, `wiki`, and implicitly scoped Apps as specified by checkout behavior §3.1. Entries MUST NOT merge across modes, and neither mode MUST widen safe-output write authorization.
 
 ### 5.1.1 Creating-Run Marker Contract (CTR-032)
 
@@ -206,6 +210,7 @@ Every active rule MUST map to implementation and test coverage. References are p
 | CTR-030 Activation Checkout Provenance | `pkg/workflow/compiler_activation_job.go` | `pkg/workflow/compiler_activation_job_test.go` |
 | CTR-031 Private-to-Public Flow Opt-Out | `pkg/workflow/strict_mode_private_to_public_flows_validation.go`, `pkg/workflow/compiler_validators.go` | `pkg/workflow/private_to_public_flows_test.go` |
 | CTR-032 Safe-Output Execution Provenance Spoofing | `pkg/workflow/compiler_safe_outputs_steps.go`, custom and maintenance safe-output job builders, `pkg/workflow/compiler_steering_issue.go`, `actions/setup/js/execution_provenance.cjs`, issue/PR publishers, `actions/setup/js/create_pr_review_comment.cjs`, `actions/setup/js/pr_review_buffer.cjs`, `actions/setup/js/reply_to_pr_review_comment.cjs` | `pkg/workflow/safe_outputs_job_identity_test.go`, `pkg/workflow/compiler_steering_issue_test.go`, `actions/setup/js/execution_provenance.test.cjs`, WIP and review-comment handler tests; destination-filtering coverage for Section 5.1.1 remains required |
+| CTR-033 Explicit Checkout Expansion | `pkg/workflow/checkout_config_parser.go`, `pkg/workflow/checkout_manager.go`, `pkg/workflow/checkout_step_generator.go`, `actions/setup/js/checkout_dynamic.cjs` | `pkg/workflow/checkout_multi_test.go`, checkout dynamic/policy/private/safe-output tests, `actions/setup/js/checkout_dynamic.test.cjs`, `specs/workflow-security/RuntimeRepositoryCheckout.tla` |
 
 ### 7.2 Mapping Audit History
 
@@ -250,6 +255,7 @@ Each active rule MUST have at least one deterministic test that covers its prima
 | **T-CTR-045** | CTR-030 Activation Checkout Provenance | A workflow with pull-request and/or review triggers generates an activation sparse checkout | Pin supported PR events to the PR base SHA; preserve the existing fallback ref for other events and the same-repo guard when activation auth may use `GITHUB_TOKEN`. | `CTR-030` |
 | **T-CTR-046** | CTR-031 Private-to-Public Flow Opt-Out | A workflow configures `tools.github.private-to-public-flows` as `allow` or a server-ID list | Reject both forms in strict mode; emit a security warning in non-strict mode. | `CTR-031` |
 | **T-CTR-047** | CTR-032 Safe-Output Execution Provenance Spoofing | A built-in, custom, maintenance, or activation-time publisher creates an issue comment, PR description, or PR review comment/reply, including forged markers, buffered comments, cross-repository targets, and custom/disabled footers | Pass the runtime check-run ID only to the publishing step; replace supplied reserved HTML and Markdown markers with trusted metadata; fail closed on invalid or missing identity; verify that the first persisted body retains the creating `run_id` and `run_url` after destination API filtering, using HTML comments except Markdown anchors for each PR review comment. | `CTR-032` |
+| **T-CTR-048** | CTR-033 Explicit Checkout Expansion | A checkout selector is an expression or list, with multi omitted, false, true, or non-boolean; imports mix modes | Enable list controls only for literal true; validate single expression results before both jobs' checkout without list restrictions; reject literal lists without opt-in, invalid mode types, invalid single results, and missing multi policy; preserve per-mode merge identity and independent write authorization. | `CTR-033` |
 
 The core tests exercise their catalog trigger and assert the expected rejection, warning, rewrite, or runtime-safe output.
 

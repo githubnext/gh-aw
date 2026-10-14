@@ -544,6 +544,7 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH")
 	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH")
+	containerCmd.WriteString(" -e GH_AW_TARGET_REPO_SLUG")
 	for _, envVar := range optionalPRHeadEnvVars {
 		containerCmd.WriteString(" -e " + envVar)
 	}

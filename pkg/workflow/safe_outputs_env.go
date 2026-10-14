@@ -273,6 +273,10 @@ func injectProcessorStepEnv(steps []string, env map[string]string) []string {
 }
 
 func (c *Compiler) addResolvedSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string, resolver func(string) string, allowGitHubApp bool) {
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", resolveSafeOutputGitHubTokenForConfig(data, configToken, resolver, allowGitHubApp)))
+}
+
+func resolveSafeOutputGitHubTokenForConfig(data *WorkflowData, configToken string, resolver func(string) string, allowGitHubApp bool) string {
 	var safeOutputsToken string
 	var githubApp *GitHubAppConfig
 	if data.SafeOutputs != nil {
@@ -291,15 +295,12 @@ func (c *Compiler) addResolvedSafeOutputGitHubTokenForConfig(steps *[]string, da
 		// fallback in that case so github-token never resolves to an empty value.
 		if githubApp.shouldIgnoreMissingKey() || !safeOutputsGlobalAppTokenMinted(data.SafeOutputs) {
 			fallbackToken := resolver(resolvedCustomToken)
-			*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)))
-			return
+			return combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)
 		}
-		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
-		return
+		return "${{ steps.safe-outputs-app-token.outputs.token }}"
 	}
 
-	resolvedToken := resolver(resolvedCustomToken)
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", resolvedToken))
+	return resolver(resolvedCustomToken)
 }
 
 func (c *Compiler) safeOutputGitHubTokenSource(data *WorkflowData) string {

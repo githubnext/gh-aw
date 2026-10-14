@@ -240,7 +240,7 @@ opaque because its essential fields are not defined by this specification.
 | Agent tool lifecycle | Correlation IDs, tool/server names, one `input` or `output` field, command, outcome/error signals, duration, and exit code. Background tool updates retain observed `taskId` and `taskType`; progress and task notifications do not imply a tool completion. |
 | Agent accounting | Turns, duration, cost, observed terminal `status` and `sourceType`, normalized `usage` including reported reasoning tokens, errors, and permission denials. |
 | Agent execution diagnostics | Unique harness/compiler `categories`, native `errorCodes` and `errorTypes`, and the observed final process `exitCode`; no diagnostic messages or duplicated engine envelopes. |
-| MCP | Server, direction, RPC/call/request IDs, method, tool name, duration, sizes, status, reason, and error code/message; no RPC arguments, response bodies, or error context. |
+| MCP | Server, direction, RPC/call/request IDs, method, tool name, duration, sizes, status, reason, and error code/message. Failed calls reporting HTTP 429 also retain `httpStatus: 429` and the sanitized `retryHint`, including retry durations or `Retry-After` seconds/HTTP-date. No RPC arguments, response bodies, echoed queries/URLs in rate-limit diagnostics, or error context. |
 | Firewall | Host, method, status, decision, byte count, duration; steering/tracker event, level, message, reason, and request ID. |
 | Safe outputs | Operation type, repository/number, provider/identifier/URL, status, and errors; no requested title/body or arbitrary operation payload. |
 | Experiments | Run ID, assignments, and counts. |
@@ -1419,13 +1419,14 @@ envelope's target `agentId` does not identify the emitting caller. Readers must
 not invent parent tool IDs to distinguish these scopes; a view containing only
 one nested scope can select that scope's initialization and accounting explicitly.
 
-Actions publishes this view once in a plain-titled `Unified session` disclosure,
+Actions publishes this view once in a top-level `Unified session` disclosure,
 using a fenced CLI-style transcript like the Claude conversation summary rather
 than a Markdown table. Opening the disclosure shows source-local conversations
 with paired tool outcomes; per-source statistics and the full chronological
-timeline remain in separate, collapsed disclosures. Gateway diagnostics do not
-append a second unified event timeline, and the disclosure does not repeat its
-title as a standalone heading.
+timeline remain in separate, collapsed disclosures. The log parser does not wrap
+this view in an additional `Agentic Conversation` disclosure. Gateway diagnostics
+do not append a second unified event timeline, and the disclosure does not repeat
+its title as a standalone heading.
 
 | Observation | Unified display projection |
 | --- | --- |

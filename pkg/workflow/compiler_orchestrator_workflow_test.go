@@ -62,7 +62,8 @@ func TestBuildInitialWorkflowData_BasicFields(t *testing.T) {
 	}
 
 	// Call buildInitialWorkflowData
-	workflowData := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	workflowData, err := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	require.NoError(t, err)
 
 	// Verify all fields are populated correctly
 	assert.Equal(t, "Test Workflow", workflowData.Name)
@@ -110,7 +111,8 @@ func TestBuildInitialWorkflowData_EmptyFields(t *testing.T) {
 		importsResult:      &parser.ImportsResult{},
 	}
 
-	workflowData := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	workflowData, err := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	require.NoError(t, err)
 
 	// Should not panic and should create valid structure
 	assert.NotNil(t, workflowData)
@@ -2050,7 +2052,8 @@ func TestBuildInitialWorkflowData_FieldMapping(t *testing.T) {
 		},
 	}
 
-	workflowData := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	workflowData, err := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	require.NoError(t, err)
 
 	// Verify all mappings
 	assert.Equal(t, "Test Name", workflowData.Name)

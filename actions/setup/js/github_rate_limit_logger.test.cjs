@@ -209,6 +209,53 @@ describe("fetchAndLogRateLimit", () => {
 
     expect(searchEntry).toBeDefined();
     expect(searchEntry.limit).toBe(30);
+    expect(mockCore.info).not.toHaveBeenCalled();
+  });
+
+  it.each(["agent_start", "agent_end"])("prints the requested resource limits for %s while retaining every JSONL resource", async operation => {
+    const resources = {
+      core: { limit: 5000, remaining: 4900, used: 100, reset: 1700000000 },
+      code_search: { limit: 10, remaining: 0, used: 10, reset: 1700000060 },
+      search: { limit: 30, remaining: 28, used: 2, reset: 1700000120 },
+      graphql: { limit: 5000, remaining: 4999, used: 1, reset: 1700000000 },
+    };
+    const mockGithub = { rest: { rateLimit: { get: vi.fn().mockResolvedValue({ data: { resources } }) } } };
+
+    const snapshot = await fetchAndLogRateLimit(mockGithub, operation, true);
+
+    expect(mockGithub.rest.rateLimit.get).toHaveBeenCalledOnce();
+    expect(appendSpy).toHaveBeenCalledTimes(4);
+    expect(mockCore.info).toHaveBeenCalledTimes(3);
+    for (const resource of ["core", "code_search", "search"]) {
+      const data = resources[resource];
+      expect(mockCore.info).toHaveBeenCalledWith(`${operation}: ${resource} limit=${data.limit} remaining=${data.remaining} reset=${new Date(data.reset * 1000).toISOString()}`);
+    }
+    expect(appendSpy.mock.calls.map(([, content]) => JSON.parse(content))).toEqual(
+      Object.entries(resources).map(([resource, data]) => expect.objectContaining({ operation, resource, limit: data.limit, remaining: data.remaining, reset: new Date(data.reset * 1000).toISOString() }))
+    );
+    expect(snapshot.remaining).toBe(4900);
+  });
+
+  it("prints a visible snapshot even when the JSONL file cannot be written", async () => {
+    appendSpy.mockImplementation(() => {
+      throw new Error("disk full");
+    });
+    const mockGithub = {
+      rest: { rateLimit: { get: vi.fn().mockResolvedValue({ data: { resources: { search: { limit: 30, remaining: 0, reset: 1700000000 } } } }) } },
+    };
+
+    await expect(fetchAndLogRateLimit(mockGithub, "agent_end", true)).resolves.toBeNull();
+    expect(mockCore.warning).toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("agent_end: search limit=30 remaining=0 reset=2023-11-14T22:13:20.000Z");
+  });
+
+  it("keeps visible snapshot API failures nonfatal", async () => {
+    const mockGithub = { rest: { rateLimit: { get: vi.fn().mockRejectedValue(new Error("API unavailable")) } } };
+
+    await expect(fetchAndLogRateLimit(mockGithub, "agent_end", true)).resolves.toBeNull();
+    expect(mockCore.warning).toHaveBeenCalled();
+    expect(mockCore.info).not.toHaveBeenCalled();
+    expect(appendSpy).not.toHaveBeenCalled();
   });
 
   it("emits a warning and does not throw when the API call fails", async () => {

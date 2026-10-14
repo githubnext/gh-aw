@@ -39,6 +39,25 @@ func TestWorkQueueDispatchCredentialConfiguration(t *testing.T) {
 				require.NotContains(t, credential, "app_slug")
 			}
 			require.NotContains(t, config, "github.actor_id")
+			data := &WorkflowData{
+				Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
+				SafeOutputs: entry.outputs,
+			}
+			require.NoError(t, validateWorkQueueConfiguration(data))
+			lines, err := NewCompiler().buildWorkQueueControlProcessingStep(data)
+			require.NoError(t, err)
+			var steps []struct {
+				ID   string            `yaml:"id"`
+				With map[string]string `yaml:"with"`
+				Env  map[string]string `yaml:"env"`
+			}
+			require.NoError(t, yaml.Unmarshal([]byte(strings.Join(lines, "")), &steps))
+			control := steps[len(steps)-1]
+			require.Equal(t, "work_queue_controls", control.ID)
+			require.Equal(t, control.With["github-token"], control.Env["GH_AW_WORK_QUEUE_TOKEN"], "queue cache client must use exactly the publisher credential")
+			if strings.HasPrefix(entry.name, "handler-") {
+				require.NotEqual(t, entry.token, control.Env["GH_AW_WORK_QUEUE_TOKEN"], "dispatch credentials must not be used for queue access")
+			}
 		})
 	}
 }
@@ -58,6 +77,7 @@ func TestWorkQueueControlStepPassesGitHubTokenProvenance(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(strings.Join(steps, "")), &generated))
 	require.Len(t, generated, 1)
 	require.Equal(t, "github_actions", generated[0].Env["GH_AW_GITHUB_TOKEN_SOURCE"])
+	require.Equal(t, "${{ secrets.GITHUB_TOKEN }}", generated[0].Env["GH_AW_WORK_QUEUE_TOKEN"])
 	require.Contains(t, generated[0].With["script"], "setupGlobals(core, github, context, exec, io, getOctokit, process.env.GH_AW_GITHUB_TOKEN_SOURCE)")
 }
 

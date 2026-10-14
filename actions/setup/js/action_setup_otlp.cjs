@@ -18,6 +18,8 @@ require("./shim.cjs");
  *   GITHUB_OUTPUT   – path to the GitHub Actions output file
  *   GITHUB_ENV      – path to the GitHub Actions env file
  *   INPUT_*         – standard GitHub Actions input env vars (read by sendJobSetupSpan)
+ *   OTLP header credentials are masked, including decoded Basic-auth passwords,
+ *   before span export or subsequent workflow steps can print them.
  *
  * Environment variables written:
  *   GITHUB_AW_OTEL_TRACE_ID        – resolved trace ID (for cross-job correlation)
@@ -29,7 +31,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
-const { maskSecret } = require("./actions_secret_masking.cjs");
+const { maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -165,6 +167,7 @@ async function run() {
 
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
+  for (const secret of getOTLPSecretValues()) maskSecret(secret);
   if (endpoints) {
     const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
     const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";

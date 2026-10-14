@@ -25,7 +25,7 @@ func (cm *CheckoutManager) effectiveRootCheckoutRepository() string {
 func (cm *CheckoutManager) credentialSubrepositories() []credentialSubrepository {
 	var repositories []credentialSubrepository
 	for _, entry := range cm.ordered {
-		if entry.key.repository == "" || entry.key.path == "" || entry.key.wiki {
+		if entry.key.repository == "" || entry.key.path == "" || entry.key.wiki || entry.key.multi {
 			continue
 		}
 		index := len(repositories)

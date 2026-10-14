@@ -70,6 +70,34 @@ describe("Copilot retry session bootstrap", () => {
 
   const run = () => runLogParser({ parseLog: parseCopilotLog, parserName: "Copilot", supportsDirectories: true, artifactDir: root });
 
+  it.each([false, true])("publishes Unified session as a top-level disclosure with safe outputs enabled: %s", async safeOutputs => {
+    writeSession("session", session("session", "2026-10-03T18:23:15Z", { tool: true }));
+    if (safeOutputs) {
+      const outputs = path.join(root, "safe-outputs.jsonl");
+      fs.writeFileSync(outputs, serialize([{ type: "create_issue", title: "Test issue", body: "Test body" }]));
+      process.env.GH_AW_SAFE_OUTPUTS = outputs;
+    }
+
+    await run();
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.summary.addRaw).toHaveBeenCalledOnce();
+    const markdown = core.summary.addRaw.mock.calls[0][0];
+    expect(markdown).toMatch(/^<details><summary>Unified session<\/summary>\n\n/);
+    expect(markdown.match(/<summary>Unified session<\/summary>/g)).toHaveLength(1);
+    expect(markdown).not.toContain("<summary>Agentic Conversation</summary>");
+    expect(markdown).toContain("retained result");
+    let depth = 0;
+    for (const match of markdown.matchAll(/<details(?: open)?>|<\/details>|<summary>(Unified session|Safe Outputs)<\/summary>/g)) {
+      if (match[0].startsWith("<details")) depth++;
+      else if (match[0] === "</details>") depth--;
+      else expect(depth).toBe(1);
+      expect(depth).toBeGreaterThanOrEqual(0);
+    }
+    expect(depth).toBe(0);
+    if (safeOutputs) expect(markdown).toContain("<summary>Safe Outputs</summary>");
+  });
+
   it("persists every retry conversation with source provenance but accounts only the chronological final attempt", async () => {
     writeSession("z-first", session("first", "2026-10-03T18:23:15Z", { inputTokens: 100, tool: true }));
     writeSession("a-last", session("last", "2026-10-03T18:23:23Z"));

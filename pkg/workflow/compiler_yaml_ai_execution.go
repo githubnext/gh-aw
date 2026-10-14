@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -14,6 +15,32 @@ const (
 	detectionExecutionEvidencePath = constants.ThreatDetectionDir + "/execution.json"
 	evalsExecutionEvidencePath     = constants.TmpGhAwDirSlash + "evals/execution.json"
 )
+
+func (c *Compiler) generateAgentRateLimitSnapshotStep(yaml *strings.Builder, data *WorkflowData, phase string) {
+	if data == nil {
+		return
+	}
+	mcpTools := collectMCPTools(data)
+	if !slices.Contains(mcpTools, "github") {
+		return
+	}
+	// Reuse the MCP resolver so App, configured token, and magic-secret precedence
+	// observe the same identity as the GitHub MCP server.
+	token := collectMCPEnvironmentVariables(data.Tools, mcpTools, data, false)["GITHUB_MCP_SERVER_TOKEN"]
+	fmt.Fprintf(yaml, "      - name: Log GitHub rate limits at agent %s\n", phase) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	if phase == "end" {
+		yaml.WriteString("        if: always()\n")
+	}
+	yaml.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          github-token: %s\n", token) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	yaml.WriteString("          script: |\n")
+	fmt.Fprintf(yaml, "            const { setupGlobals } = require('%s');\n", path.Join(SetupActionDestination, "setup_globals.cjs")) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	fmt.Fprintf(yaml, "            const { fetchAndLogRateLimit } = require('%s');\n", path.Join(SetupActionDestination, "github_rate_limit_logger.cjs")) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	fmt.Fprintf(yaml, "            await fetchAndLogRateLimit(github, 'agent_%s', true);\n", phase)                                                       //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+}
 
 func generateComponentExecutionEvidenceStep(component, state, filePath, condition string) []string {
 	stepName := "Initialize " + component + " execution evidence"
@@ -258,7 +285,7 @@ func isOTLPEnabled(data *WorkflowData) bool {
 	if data == nil || data.DryRun {
 		return false
 	}
-	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT")
+	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT") || strings.Contains(data.Env, "GH_AW_OTLP_ENDPOINTS")
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output
@@ -647,9 +674,13 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
 
+	c.generateAgentRateLimitSnapshotStep(yaml, data, "start")
+
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	c.generateAgentRateLimitSnapshotStep(yaml, data, "end")
 
 	for _, line := range generateNVXAssetCollectionStep(data) {
 		yaml.WriteString(line + "\n")

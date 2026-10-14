@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { escapeWorkflowCommandValue, maskSecret } = require("./actions_secret_masking.cjs");
+const { escapeWorkflowCommandValue, maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { getAuthorizationSecretValues } = require("./otlp_header_helpers.cjs");
 
 describe("actions_secret_masking.cjs", () => {
   let originalCore;
@@ -23,6 +24,7 @@ describe("actions_secret_masking.cjs", () => {
       process.env.GITHUB_ACTIONS = originalGithubActions;
     }
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("uses core.setSecret when a real implementation is available", () => {
@@ -84,5 +86,105 @@ describe("actions_secret_masking.cjs", () => {
 
   it("escapes workflow command payloads", () => {
     expect(escapeWorkflowCommandValue("a%b\rc\n")).toBe("a%25b%0Dc%0A");
+  });
+
+  it("collects Basic credentials in both encoded and decoded forms without collecting the username", () => {
+    const password = "synthetic-grafana-password";
+    const decoded = `123456:${password}`;
+    const encoded = Buffer.from(decoded).toString("base64");
+
+    expect(getAuthorizationSecretValues(`Basic ${encoded}`)).toEqual([`Basic ${encoded}`, encoded, decoded, password]);
+  });
+
+  it("collects bare Bearer tokens case-insensitively", () => {
+    expect(getAuthorizationSecretValues("bearer synthetic-bearer-token")).toEqual(["bearer synthetic-bearer-token", "synthetic-bearer-token"]);
+  });
+
+  it.each(["", "1", "ab", "abc"])("does not collect short header value %j", value => {
+    expect(getAuthorizationSecretValues(value)).toEqual([]);
+  });
+
+  it("collects a header value at the four-character minimum", () => {
+    expect(getAuthorizationSecretValues("abcd")).toEqual(["abcd"]);
+  });
+
+  it.each(["a", "ab", "abc", "abcd"])("guards bare credentials independently for %j", credential => {
+    const value = `Bearer ${credential}`;
+
+    expect(getAuthorizationSecretValues(value)).toEqual(credential.length < 4 ? [value] : [value, credential]);
+  });
+
+  it.each(["", "a", "ab", "abc", "abcd"])("guards decoded Basic-auth passwords independently for %j", password => {
+    const decoded = `user:${password}`;
+    const encoded = Buffer.from(decoded).toString("base64");
+    const value = `Basic ${encoded}`;
+
+    expect(getAuthorizationSecretValues(value)).toEqual(password.length < 4 ? [value, encoded, decoded] : [value, encoded, decoded, password]);
+  });
+
+  it.each([":a", "u:a", "u:ab"])("guards decoded Basic-auth pairs independently for %j", decoded => {
+    const encoded = Buffer.from(decoded).toString("base64");
+    const value = `Basic ${encoded}`;
+
+    expect(getAuthorizationSecretValues(value)).toEqual(decoded.length < 4 ? [value, encoded] : [value, encoded, decoded]);
+  });
+
+  it.each(["Basic not-base64!", "Basic bm8tY29sb24=", "custom-header-value"])("collects %s without inventing decoded credentials", value => {
+    expect(getAuthorizationSecretValues(value)).toEqual(value.startsWith("Basic ") ? [value, value.slice(6)] : [value]);
+  });
+
+  describe("getOTLPSecretValues", () => {
+    beforeEach(() => {
+      vi.stubEnv("OTEL_EXPORTER_OTLP_HEADERS", "");
+      vi.stubEnv("GH_AW_OTLP_ALL_HEADERS", "");
+      vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "");
+    });
+
+    it("warns about malformed endpoint JSON without throwing or discarding other headers", () => {
+      const warning = vi.fn();
+      global.core = { warning };
+      vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "{");
+      vi.stubEnv("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=synthetic-fallback-secret");
+
+      expect(getOTLPSecretValues()).toEqual(["synthetic-fallback-secret"]);
+      expect(warning).toHaveBeenCalledExactlyOnceWith("Unable to collect OTLP endpoint credentials: invalid endpoint JSON");
+    });
+
+    it("tolerates malformed endpoint JSON without a warning implementation", () => {
+      vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "{");
+      delete global.core;
+
+      expect(getOTLPSecretValues()).toEqual([]);
+    });
+
+    it("skips endpoint entries with non-string headers and keeps string headers", () => {
+      vi.stubEnv(
+        "GH_AW_OTLP_ENDPOINTS",
+        JSON.stringify([
+          null,
+          {},
+          { headers: null },
+          { headers: 123456 },
+          { headers: false },
+          { headers: ["x-api-key=synthetic-skipped-array"] },
+          { headers: { "x-api-key": "synthetic-skipped-object" } },
+          { headers: "x-api-key=synthetic-valid-endpoint" },
+        ])
+      );
+
+      expect(getOTLPSecretValues()).toEqual(["synthetic-valid-endpoint"]);
+    });
+
+    it("includes the JSON-escaped form of secrets containing backslashes and quotes", () => {
+      const password = 'synthetic-password\\with"quote';
+      const encoded = Buffer.from(`user:${password}`).toString("base64");
+      vi.stubEnv("OTEL_EXPORTER_OTLP_HEADERS", `Authorization=${encodeURIComponent(`Basic ${encoded}`)}`);
+
+      const values = getOTLPSecretValues();
+
+      expect(values).toContain(password);
+      expect(values).toContain(JSON.stringify(password).slice(1, -1));
+      expect(values).toContain(JSON.stringify(`user:${password}`).slice(1, -1));
+    });
   });
 });

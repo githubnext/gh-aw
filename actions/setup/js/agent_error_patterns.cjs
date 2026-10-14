@@ -220,8 +220,8 @@ function isMaxCacheMissesExceededError(output) {
 /**
  * Determines if the collected output shows the sandbox's shell command-injection guard
  * rejected a command for containing (or appearing to contain) dangerous bash expansion
- * patterns. Retrying the same command verbatim will not succeed; the agent should switch
- * to the `jq -Rs` file-piping pattern for multi-line safeoutputs CLI bodies instead.
+ * patterns. Do not retry the same command or bypass the denial with unapproved
+ * shell helpers; use an exposed native safe-output tool or report the blocker.
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */

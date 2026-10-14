@@ -266,7 +266,8 @@ permissions:
 engine: copilot
 checkout:
   repository: ${{ inputs.target_repo }}
-  current: true
+  path: targets
+  allowed-repos: ["my-org/*"]
 ---
 
 # Dynamic repository workflow.

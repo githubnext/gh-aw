@@ -24,9 +24,8 @@ var checkoutPathValidationLog = logger.New("workflow:checkout_path_validation")
 // the explicit path: field and opt out of the auto-derivation.
 //
 // Dynamic repository expressions (those containing "${{") are skipped: the compiler
-// cannot determine at compile time whether they target a different repository, and
-// common patterns such as `repository: ${{ github.repository }}` are valid
-// same-repository checkouts that should not receive a warning.
+// cannot determine the selected repositories at compile time. These entries
+// require an allowlist and path prefix only when multi: true is enabled.
 //
 // NOTE: This pass intentionally mutates the provided CheckoutConfig entries before
 // YAML generation. It also intentionally remains warning-only, even in strict mode,
@@ -38,9 +37,7 @@ func (c *Compiler) deriveAndWarnCrossRepoCheckoutPaths(checkoutConfigs []*Checko
 		}
 
 		// Dynamic expression: skip — cannot determine at compile time whether it
-		// targets a different repository (e.g. ${{ github.repository }} is the
-		// same repo checked out at a specific ref, which is a valid pattern for
-		// pull_request_target and should not trigger a warning).
+		// targets a different repository.
 		repository := strings.TrimSpace(cfg.Repository)
 		if repository == "" || strings.Contains(repository, "${{") {
 			continue
