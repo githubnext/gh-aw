@@ -15201,7 +15201,7 @@
                 "goal": {
                   "type": "string",
                   "enum": ["cost", "cost-speed"],
-                  "description": "Routing objective: cost prefers the cheapest model-and-effort choice meeting the quality bar; cost-speed also weighs execution time."
+                  "description": "Routing objective: cost prefers the cheapest model and effort that meet the mode's target; cost-speed prefers the fastest model and effort that meet it."
                 },
                 "mode": {
                   "type": "string",
@@ -15225,7 +15225,7 @@
                       }
                     ]
                   },
-                  "description": "Optional Copilot models the router may select for the main agent. This is not a request policy: the session and sub-agents may use any model allowed by models.allowed and models.blocked. Candidates outside that policy are dropped with a warning. When omitted, the router selects from the policy-filtered model catalogue (Claude and Codex are limited to their own model family); AWF versions before v0.28.33 require it. Provider qualification is added by the compiler. GitHub Actions expressions are rejected when models.allowed or models.blocked is set. Candidate lists from imported workflows using the same engine are merged. Unavailable models and models not covered by routing tables are not selected."
+                  "description": "Optional exact Copilot model names that narrow the router's choice for the main agent only. This is not a request policy; put patterns such as gpt-* in models.allowed or models.blocked. When omitted, the router chooses from the models that policy allows (Claude and Codex only from their own model family). GitHub Actions expressions are allowed only when neither models.allowed nor models.blocked is set."
                 }
               }
             },
