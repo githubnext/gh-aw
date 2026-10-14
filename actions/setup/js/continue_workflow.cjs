@@ -30,7 +30,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
-const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const ledger = require("./continue_workflow_ledger.cjs");
 
 /** @type {string} Safe output type handled by this module */
@@ -205,10 +205,24 @@ async function checkContinuationPolicy(baseSha, headSha, config) {
   const sizeKb = Math.ceil(Buffer.byteLength(diff, "utf8") / 1024);
   const maxKb = parsePositive(config.max_patch_size, DEFAULT_MAX_PATCH_KB);
   if (sizeKb > maxKb) throw new Error(`${ERR_VALIDATION}: continuation changes (${sizeKb} KB) exceed the maximum allowed patch size (${maxKb} KB)`);
-  const protection = checkFileProtection(diff, { ...config, protected_files_policy: config.protected_files_policy ?? "request_review" });
+  const policyConfig = { ...config, protected_files_policy: config.protected_files_policy ?? "request_review" };
+  const parsedProtection = checkFileProtection(diff, policyConfig);
+  const { stdout: changedFileOutput } = await git(["diff", "--name-only", "-z", "--no-renames", baseSha, headSha]);
+  const postApplyProtection = checkFileProtectionPostApply(changedFileOutput.split("\0").filter(Boolean), policyConfig);
+  /** @type {ReturnType<typeof checkFileProtection> | ReturnType<typeof checkFileProtectionPostApply>} */
+  let protection = parsedProtection;
+  if (postApplyProtection.action === "deny" || parsedProtection.action === "allow") {
+    protection = postApplyProtection.action === "allow" ? parsedProtection : postApplyProtection;
+  } else if (postApplyProtection.action !== "allow") {
+    protection = { ...parsedProtection, files: [...new Set([...parsedProtection.files, ...postApplyProtection.files])] };
+  }
   if (protection.action === "deny") {
     const files = protection.files.join(", ");
-    throw new Error(protection.source === "allowlist" ? `${ERR_VALIDATION}: continuation modifies files outside the allowed-files list (${files})` : `${ERR_VALIDATION}: continuation modifies protected files (${files})`);
+    throw new Error(
+      protection.source === "allowlist" || protection.source === "post-apply"
+        ? `${ERR_VALIDATION}: continuation modifies files outside the allowed-files list (${files})`
+        : `${ERR_VALIDATION}: continuation modifies protected files (${files})`
+    );
   }
   if (protection.action === "fallback" || protection.action === "request_review") {
     return { protectedFiles: protection.files, protectedAction: protection.action };

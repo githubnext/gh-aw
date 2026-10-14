@@ -440,6 +440,7 @@ func enableHandlerForIsolationTest(t *testing.T, safeOutputs *SafeOutputsConfig,
 	switch handlerName {
 	case "continue_workflow":
 		safeOutputs.CreatePullRequests = &CreatePullRequestsConfig{}
+		safeOutputs.ContinueWorkflow = &ContinueWorkflowConfig{}
 	case "dispatch_repository":
 		safeOutputs.DispatchRepository = &DispatchRepositoryConfig{
 			Tools: map[string]*DispatchRepositoryToolConfig{

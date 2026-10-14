@@ -361,6 +361,43 @@ describe("persistContinuationHop (real git)", () => {
     expect(git(originDir, ["rev-parse", WORK_BRANCH]).stdout.trim()).toBe(hop1);
   });
 
+  it.each([
+    {
+      name: "protected-files policy",
+      config: { protected_files: ["package.json"], protected_files_policy: "deny" },
+      error: /continuation modifies protected files \(package\.json\)/,
+    },
+    {
+      name: "allowed-files policy",
+      config: { allowed_files: ["README.md"], protected_files_policy: "deny" },
+      error: /continuation modifies files outside the allowed-files list \(package\.json\)/,
+    },
+  ])("enforces $name against Git's changed-path list", async ({ config, error }) => {
+    git(agentDir, ["checkout", "-q", "-b", "agent"]);
+    const hop = commitFile(agentDir, "package.json", '{"private":true}\n', "hop");
+    const realExec = global.exec;
+    global.exec = {
+      ...realExec,
+      getExecOutput: async (program, args, options = {}) => {
+        if (program === "git" && args[0] === "diff" && args[1] === "--binary") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return realExec.getExecOutput(program, args, options);
+      },
+    };
+
+    await expect(
+      persist({
+        bundlePath: bundle("protected", "agent", baseSha),
+        expectedBase: baseSha,
+        isInitial: true,
+        config: { signed_commits: false, ...config },
+      })
+    ).rejects.toThrow(error);
+    expect(git(originDir, ["rev-parse", WORK_BRANCH], true).status).not.toBe(0);
+    expect(hop).not.toBe(baseSha);
+  });
+
   it("refuses to overwrite a work branch that moved unexpectedly", async () => {
     git(agentDir, ["checkout", "-q", "-b", "agent"]);
     const hop0 = commitFile(agentDir, "plan.md", "# Plan\n", "hop 0");
