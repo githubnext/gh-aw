@@ -23714,6 +23714,13 @@ checkout:
   allowed-repos: []
     # Array items: string
 
+  # Maximum number of unique repositories per runtime checkout entry. Requires
+  # allowed-repos. Defaults to 10. Oversized lists fail before metadata requests or
+  # checkout; matching and deduplication are case-insensitive. Merged entries use
+  # the smallest effective limit, including the default for omitted values.
+  # (optional)
+  max-repos: 1
+
   # Branch, tag, or SHA to checkout. Defaults to the ref that triggered the
   # workflow.
   # (optional)

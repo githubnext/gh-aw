@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,53 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRuntimeCheckoutMaxReposParsing(t *testing.T) {
+	for _, value := range []any{1, int64(2), uint64(3), float64(4)} {
+		cfg, err := checkoutConfigFromMap(map[string]any{
+			"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "max-repos": value,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cfg.MaxRepos)
+		assert.Positive(t, *cfg.MaxRepos)
+	}
+	for _, value := range []any{0, -1, 1.5, math.NaN(), math.Inf(1), uint64(math.MaxUint64), float64(1 << 53), "2", true, nil, "${{ inputs.max }}"} {
+		_, err := checkoutConfigFromMap(map[string]any{
+			"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "max-repos": value,
+		})
+		require.ErrorContains(t, err, "checkout.max-repos must be a positive integer")
+	}
+	_, err := checkoutConfigFromMap(map[string]any{"repository": "org/a", "max-repos": 1})
+	require.ErrorContains(t, err, "checkout.max-repos requires checkout.allowed-repos")
+	for _, limit := range []int{0, -1} {
+		_, err := NewCompiler().CompileToYAML(&WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{{
+				Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, MaxRepos: &limit,
+			}},
+		}, filepath.Join(t.TempDir(), "worker.md"))
+		require.ErrorContains(t, err, "checkout.max-repos must be a positive integer")
+	}
+}
+
+func TestRuntimeCheckoutMaxReposMerging(t *testing.T) {
+	for _, limits := range [][]int{{3, 20}, {20, 3}, {0, 20}, {20, 0}, {20, 30}} {
+		configs := make([]*CheckoutConfig, 0, len(limits))
+		expected := 30
+		for _, limit := range limits {
+			cfg := &CheckoutConfig{Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}}
+			if limit != 0 {
+				cfg.MaxRepos = &limit
+			} else {
+				limit = defaultCheckoutMaxRepos
+			}
+			expected = min(expected, limit)
+			configs = append(configs, cfg)
+		}
+		manager := NewCheckoutManager(configs)
+		require.Len(t, manager.ordered, 1)
+		assert.Equal(t, expected, manager.ordered[0].maxRepos, "merged entries must not broaden the effective cap")
+	}
+}
 
 func TestParseRuntimeCheckout(t *testing.T) {
 	cfg, err := checkoutConfigFromMap(map[string]any{
@@ -226,6 +274,7 @@ func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	assert.Contains(t, steps, "id: checkout-validate-0")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_REPOSITORIES: "${{ inputs.repos }}"`)
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*"`)
+	assert.Contains(t, steps, `GH_AW_DYNAMIC_MAX_REPOS: "10"`)
 	assert.Contains(t, steps, "GH_AW_DYNAMIC_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "false"`)
 	assert.Contains(t, steps, "await finish({ cleanCredentials: true });")
@@ -267,6 +316,7 @@ checkout:
   - repo: ${{ vars.WORKER_REPOS }}
     path: targets
     allowed-repos: ["org/*"]
+    max-repos: 3
 safe-outputs:
   create-pull-request:
     target-repo: "*"
@@ -283,6 +333,7 @@ Process each selected repository under targets.
 	assert.Contains(t, yaml, `GH_AW_DYNAMIC_REPOSITORIES: "${{ vars.WORKER_REPOS }}"`)
 	assert.Contains(t, yaml, "checkout_dynamic.cjs")
 	assert.Equal(t, 2, strings.Count(yaml, "uses: ./.gh-aw/checkouts/0"), "agent and safe_outputs must share checkout layout")
+	assert.Equal(t, 6, strings.Count(yaml, `GH_AW_DYNAMIC_MAX_REPOS: "3"`), "preparation, checkout and finalization in both jobs must share the cap")
 	assert.NotContains(t, yaml, "repository: ${{ vars.WORKER_REPOS }}")
 	assert.Equal(t, 2, strings.Count(yaml, "checkout_error: ${{ steps.checkout-validate-0.outputs.checkout_error }}"))
 	assert.Contains(t, yaml, "GH_AW_CHECKOUT_ERROR: ${{ needs.agent.outputs.checkout_error || needs.safe_outputs.outputs.checkout_error }}")

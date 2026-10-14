@@ -33,6 +33,7 @@ describe("runtime repository checkout", () => {
       GH_AW_DYNAMIC_PREFIX: "targets",
       GH_AW_DYNAMIC_REPOSITORIES: "org/a\r\norg/b\n",
       GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*",
+      GH_AW_DYNAMIC_MAX_REPOS: "10",
       GH_AW_DYNAMIC_TOKEN: "secret-token",
       GH_AW_DYNAMIC_CHECKOUT_ACTION: `actions/checkout@${"a".repeat(40)}`,
       GH_AW_DYNAMIC_SUBMODULES: "false",
@@ -80,6 +81,45 @@ describe("runtime repository checkout", () => {
     expect(await prepare(runtime)).toEqual([]);
     const action = JSON.parse(fs.readFileSync(path.join(workspace, ".gh-aw/checkouts/0/action.yml"), "utf8"));
     expect(action.runs.steps).toEqual([{ shell: "bash", run: "true" }]);
+  });
+
+  it.each(["0", "-1", "1.5", "NaN", "Infinity", "9007199254740992", "", " 2 ", "2e1", "2repos", "${{ inputs.max }}"])("rejects invalid max-repos before authenticated reads: %s", async value => {
+    vi.stubEnv("GH_AW_DYNAMIC_MAX_REPOS", value);
+    await expect(prepare(runtime)).rejects.toThrow("checkout.max-repos must be a positive integer");
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringContaining("checkout.max-repos"));
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.github.request).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+    expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+  });
+
+  it.each(["public", "private", "internal"])("rejects the whole oversized batch in a %s host before authenticated reads", async visibility => {
+    runtime.github.request.mockResolvedValue({ data: metadata("host/workflows", visibility) });
+    vi.stubEnv("GH_AW_DYNAMIC_MAX_REPOS", "1");
+    await expect(prepare(runtime)).rejects.toThrow("selected 2 repositories, exceeding checkout.max-repos (1)");
+    expect(runtime.core.setOutput).toHaveBeenCalledWith("checkout_error", expect.stringContaining("exceeding checkout.max-repos (1)"));
+    expect(runtime.getOctokit).not.toHaveBeenCalled();
+    expect(runtime.github.request).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(workspace, ".gh-aw"))).toBe(false);
+    expect(fs.existsSync(path.join(runnerTemp, "gh-aw"))).toBe(false);
+  });
+
+  it.each(["false", "true"])("counts unique slugs at the limit with persist-credentials %s", async persist => {
+    vi.stubEnv("GH_AW_DYNAMIC_PERSIST", persist);
+    vi.stubEnv("GH_AW_DYNAMIC_MAX_REPOS", "2");
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a\nORG/A\norg/b\n\n");
+    expect(await prepare(runtime)).toHaveLength(2);
+  });
+
+  it.each([undefined, "12"])("enforces the default or explicitly raised cap: %s", async max => {
+    vi.stubEnv("GH_AW_DYNAMIC_MAX_REPOS", max);
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", Array.from({ length: 11 }, (_, i) => `org/repo-${i}`).join("\n"));
+    if (max === undefined) {
+      await expect(prepare(runtime)).rejects.toThrow("exceeding checkout.max-repos (10)");
+      expect(runtime.getOctokit).not.toHaveBeenCalled();
+    } else {
+      expect(await prepare(runtime)).toHaveLength(11);
+    }
   });
 
   it.each(["", "  \n", "org", "https://github.com/org/a", "*", " * ", "*/*", "**/**", "org/*\n*", "org/*,*"])("rejects invalid or missing allowed-repos: %s", async allow => {

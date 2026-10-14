@@ -47,6 +47,9 @@ type CheckoutConfig struct {
 	// AllowedRepos opts into runtime repository-list expansion with mandatory allowlisting.
 	AllowedRepos []string `json:"allowed-repos,omitempty"`
 
+	// MaxRepos limits the number of unique repositories in a runtime checkout list.
+	MaxRepos *int `json:"max-repos,omitempty"`
+
 	// Ref (branch, tag, or SHA) to checkout. Defaults to the ref that triggered the workflow.
 	Ref string `json:"ref,omitempty"`
 
@@ -149,6 +152,7 @@ type resolvedCheckout struct {
 	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
 	cleanCreds     bool     // true enables persist-credentials + injected cleanup step
 	allowedRepos   []string // first-seen runtime repository allowlist
+	maxRepos       int      // smallest effective runtime repository limit
 	// wiki is intentionally not stored here; use entry.key.wiki instead.
 }
 
@@ -306,12 +310,17 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		path:       normalizedPath,
 		wiki:       cfg.Wiki,
 	}
+	maxRepos := defaultCheckoutMaxRepos
+	if cfg.MaxRepos != nil {
+		maxRepos = *cfg.MaxRepos
+	}
 
 	if idx, exists := cm.index[key]; exists {
 		// Merge into existing entry; first-seen wins for ref and token/app (auth is mutually exclusive:
 		// once either github-token or github-app is set for an entry, the other method is not added
 		// even if a later config provides it — this preserves the main workflow's auth choice).
 		entry := cm.ordered[idx]
+		entry.maxRepos = min(entry.maxRepos, maxRepos)
 		entry.fetchDepth = deeperFetchDepth(entry.fetchDepth, cfg.FetchDepth)
 		if cfg.Ref != "" && entry.ref == "" {
 			entry.ref = cfg.Ref // first-seen ref wins
@@ -357,6 +366,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			current:       cfg.Current,
 			cleanCreds:    cfg.CleanGitCredentials,
 			allowedRepos:  cfg.AllowedRepos,
+			maxRepos:      maxRepos,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)

@@ -51,6 +51,7 @@ checkout:
 | `repository` | string | Explicit repository in `owner/repo` format, or a newline-separated list with `allowed-repos`. Expressions require `allowed-repos`. Does not support wildcards. Defaults to the current repository. |
 | `repo` | string | Alias for `repository`; specify only one. Does not support wildcards. |
 | `allowed-repos` | string \| string[] | Mandatory allowlist for runtime repository-list expansion. Accepts newline-separated patterns, an array, or an expression; supports scoped patterns such as `owner/*` and `*/repo`, but not unrestricted `"*"` or `"*/*"`. |
+| `max-repos` | integer | Maximum unique repositories per runtime checkout entry. Requires `allowed-repos`; defaults to `10`. Must be a positive literal integer. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
@@ -77,6 +78,7 @@ checkout:
   - repository: ${{ vars.WORKER_REPOS }}
     path: targets
     allowed-repos: ${{ vars.ALLOWED_WORKER_REPOS }}
+    max-repos: 5
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
@@ -84,7 +86,9 @@ For `WORKER_REPOS` containing `org/api` and `org/web` on separate lines, the che
 
 Every selected repository must pass the allowlist and GitHub API metadata checks before the checkout action is generated. Redirected repository names are checked against the allowlist again. **Public workflow repositories cannot check out private or internal repositories**, even if the supplied token can access them. Failed or incomplete visibility checks stop the job. Enabled submodules are rejected at compilation and runtime for all repository lists because repository-controlled submodule URLs can bypass `allowed-repos` using the checkout token. Omit `submodules` or set it to `false`; static checkout submodule support is unchanged.
 
-A disallowed repository fails the entire checkout step before any selected repository is cloned; it is never silently skipped. The rejection is included in the workflow's agent failure issue, subject to the existing `safe-outputs.report-failure-as-issue` settings. Invalid runtime selectors or allowlists, unsafe paths, missing credentials, and failed visibility checks also report their preparation failure through this path. Unexpected dependency errors report a generic preparation failure rather than exposing raw dependency diagnostics in the issue. Failures in the agent and safe-output checkout jobs both use this reporting path.
+`max-repos` caps each runtime entry at 10 unique selected slugs by default, after case-insensitive deduplication and before metadata requests or checkout. Oversized lists fail the entire batch; they are not truncated. Set a positive literal integer to change the cap. Entries merged for the same repository expression and path use the smallest effective cap, including the default when omitted. Separate runtime entries have independent caps.
+
+A disallowed repository fails the entire checkout step before any selected repository is cloned; it is never silently skipped. The rejection is included in the workflow's agent failure issue, subject to the existing `safe-outputs.report-failure-as-issue` settings. Invalid runtime selectors or allowlists, unsafe paths, missing credentials, failed visibility checks, and exceeded repository limits also report their preparation failure through this path. Unexpected dependency errors report a generic preparation failure rather than exposing raw dependency diagnostics in the issue. Failures in the agent and safe-output checkout jobs both use this reporting path.
 
 Runtime entries support the normal ref, history, sparse-checkout, fetch, and authentication options. `lfs: true` is rejected at compilation and runtime for all repository lists: repository-controlled LFS endpoints could download content outside `allowed-repos` using the checkout token. Static checkouts continue to support LFS. GitHub App authentication requires explicit `owner` and `repositories` scoping. `current: true` and `wiki: true` are not supported for repository lists. Existing destination directories and symlinked path ancestors are rejected rather than cleaned or followed.
 

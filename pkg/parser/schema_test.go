@@ -9,6 +9,36 @@ import (
 	"testing"
 )
 
+func TestValidateMainWorkflowFrontmatter_CheckoutMaxRepos(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		value   any
+		wantErr bool
+	}{
+		{name: "positive", value: 2},
+		{name: "zero", value: 0, wantErr: true},
+		{name: "negative", value: -1, wantErr: true},
+		{name: "fraction", value: 1.5, wantErr: true},
+		{name: "unsafe integer", value: uint64(1 << 53), wantErr: true},
+		{name: "string", value: "2", wantErr: true},
+		{name: "expression", value: "${{ inputs.max }}", wantErr: true},
+		{name: "boolean", value: true, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":     "workflow_dispatch",
+				"engine": "copilot",
+				"checkout": map[string]any{
+					"repo": "${{ vars.REPOS }}", "path": "targets", "allowed-repos": "org/*", "max-repos": tt.value,
+				},
+			}, "workflow.md")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validation error = %v, wantErr %t", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateIncludedFileFrontmatter_InternalMCPInfrastructureCapability(t *testing.T) {
 	for _, tt := range []struct {
 		name    string

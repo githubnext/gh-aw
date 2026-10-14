@@ -123,6 +123,14 @@ async function prepareCheckouts({ github, getOctokit }, token) {
   const config = readConfig();
   const repos = parseRepositories(process.env.GH_AW_DYNAMIC_REPOSITORIES || "");
   const allowed = parseAllowedRepos(process.env.GH_AW_DYNAMIC_ALLOWED_REPOS || "");
+  const maxReposValue = process.env.GH_AW_DYNAMIC_MAX_REPOS ?? "10";
+  const maxRepos = Number(maxReposValue);
+  if (!/^[1-9]\d*$/.test(maxReposValue) || !Number.isSafeInteger(maxRepos)) {
+    throw new CheckoutPreparationError("checkout.max-repos must be a positive integer no greater than 9007199254740991");
+  }
+  if (repos.length > maxRepos) {
+    throw new CheckoutPreparationError(`Runtime checkout selected ${repos.length} repositories, exceeding checkout.max-repos (${maxRepos}); reduce the repository list or raise max-repos`);
+  }
   if ((process.env.GH_AW_DYNAMIC_LFS || "false") !== "false") {
     throw new CheckoutPreparationError("Runtime repository-list checkout does not support lfs: true because LFS endpoints can bypass allowed-repos; disable checkout.lfs");
   }

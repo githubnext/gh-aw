@@ -110,6 +110,13 @@ patterns such as `*` or `*/*` MUST be rejected at compile time for literal value
 and at runtime for expression-resolved values.
 An empty selected list MUST NOT select every allowed repository.
 
+`max-repos` MUST be a positive literal integer no greater than 9007199254740991
+and MUST require `allowed-repos`. Each runtime entry MUST default to a limit of
+10 unique selected slugs after case-insensitive deduplication. Oversized lists
+MUST fail in full before metadata requests or checkout action generation, not
+truncate. Agent and safe_outputs jobs MUST enforce the same limit. Separate
+runtime entries MAY have independent limits.
+
 Before checkout, the runtime MUST verify every selected repository against the
 allowlist and GitHub API metadata. Redirected canonical names MUST be checked
 again. A disallowed repository MUST fail the checkout job before creating any
@@ -143,6 +150,7 @@ Entries with the same `(repository, path, wiki)` key MUST merge with these rules
 - `ref`: first non-empty wins
 - auth (`github-token` vs `github-app`): first auth wins
 - runtime `allowed-repos`: first entry wins; later entries MUST NOT broaden the allowlist
+- runtime `max-repos`: smallest effective limit wins, including the default for omitted values
 - safe_outputs auth (`safe-outputs-github-app`): first non-empty wins
 - sparse patterns: union
 - fetch refs: union

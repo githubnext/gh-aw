@@ -82,6 +82,19 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) { //nolint:largefunc // Existing checkout parsing remains centralized.
 	cfg := &CheckoutConfig{}
 
+	if v, ok := m["max-repos"]; ok {
+		if value, ok := v.(int64); ok {
+			if int64(int(value)) != value {
+				return nil, errors.New("checkout.max-repos must be a positive integer no greater than 9007199254740991")
+			}
+			v = int(value)
+		}
+		cfg.MaxRepos = parseOptionalInt(v)
+		if cfg.MaxRepos == nil {
+			return nil, errors.New("checkout.max-repos must be a positive integer no greater than 9007199254740991")
+		}
+	}
+
 	if v, ok := m["pull-request"]; ok {
 		b, ok := v.(bool)
 		if !ok {
@@ -342,6 +355,14 @@ func validateRuntimeCheckoutConfigs(configs []*CheckoutConfig) error {
 }
 
 func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
+	if cfg.MaxRepos != nil {
+		if *cfg.MaxRepos <= 0 || uint64(*cfg.MaxRepos) > 9007199254740991 {
+			return errors.New("checkout.max-repos must be a positive integer no greater than 9007199254740991")
+		}
+		if len(cfg.AllowedRepos) == 0 {
+			return errors.New("checkout.max-repos requires checkout.allowed-repos for runtime repository-list expansion")
+		}
+	}
 	if strings.ContainsAny(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, ""), "*?[]") {
 		return errors.New("checkout.repository (or repo) must specify explicit owner/repo names; wildcards are only supported in checkout.allowed-repos")
 	}

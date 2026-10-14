@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const defaultCheckoutMaxRepos = 10
+
 func validateCheckoutAllowedRepos(values []string) error {
 	for _, value := range values {
 		if strings.Contains(value, "${{") {
@@ -90,6 +92,7 @@ func buildDynamicCheckoutEnvironment(entry *resolvedCheckout, index int, keepCre
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_REPOSITORIES", entry.key.repository)
 	// Expressions remain data in environment variables, never executable script text.
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_ALLOWED_REPOS", strings.Join(entry.allowedRepos, "\n"))
+	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_MAX_REPOS", strconv.Itoa(entry.maxRepos))
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_PREFIX", entry.key.path)
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_REF", entry.ref)
 	writeYAMLEnv(&env, "          ", "GH_AW_DYNAMIC_FETCH_DEPTH", strconv.Itoa(depth))
