@@ -626,6 +626,40 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       foreign.claims[0].work_id = "foreign";
       assert.throws(() => ownProjectionTargets(state, f.origin, ref, foreign), /assignment_mismatch/);
     });
+    it("keeps backing Issues open after retained Completion and Result despite close-on-result policy", async () => {
+      const f = fixture({ worker: true });
+      for (const projector of f.log[0].operations[0].policy.projectors) projector.completion_policy = "close-on-result";
+      f.log[0].request = q.newRequest(f.log[0].request.id, "policy", f.log[0].actor, { operations: f.log[0].operations });
+      const member = f.assignment.claims[0];
+      f.log.push(helpers.finish(f.log, f.assignment.dispatch_id, member.handle, "completed", { keep_open: true }));
+      const m = mock(f);
+      assert.deepEqual((await main(m.options)).pending, []);
+      assert.equal(m.issues.get("1").state, "OPEN");
+      assert.ok([...m.comments.values()].some(comment => /Work kept open; delivery pending/.test(comment.body)));
+      let state = m.state();
+      const work = state.works.get(member.work_id);
+      const dispatch = state.dispatches.get(f.assignment.dispatch_id);
+      const operation = {
+        kind: "Result",
+        work_id: member.work_id,
+        claim_id: member.claim_id,
+        completion_id: work.completion_id,
+        descriptor: { outputs: [] },
+        evidence: { ...helpers.evidence(state, dispatch, "delivery", 100, { run_id: dispatch.run.run_id, run_attempt: 1, receipt: "kept-open-result" }), source: "verified_receipts" },
+      };
+      const history = [...(state.historicalTransactions || []), ...state.transactions];
+      const uniqueHistory = [...new Map(history.map(commit => [commit.id, commit])).values()];
+      m.setLog([...uniqueHistory, helpers.operationCommit(uniqueHistory, "retained-result", "result", [operation], helpers.reconciler, 100)]);
+      assert.deepEqual((await main(m.options)).pending, []);
+      state = m.state();
+      assert.equal(state.works.get(member.work_id).state, "available");
+      assert.equal(m.issues.get("1").state, "OPEN");
+      assert.equal(
+        m.calls.filter(call => call[0] === "mutation").some(call => String(call[1]).includes("closeIssue")),
+        false
+      );
+      assert.ok([...m.comments.values()].some(comment => /Work kept open; delivery verified/.test(comment.body)));
+    });
     it("uses restored admission and policy history instead of suffix transaction offsets", () => {
       const checkpoint = require("../../../specs/work-queue/fixtures/checkpoint.json");
       const state = q.replayTransactions(checkpoint.checkpoint);

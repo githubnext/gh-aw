@@ -190,11 +190,16 @@ and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
 Use Java 21, Python 3 (standard library only), the repository's Go toolchain,
 and official [TLA+ Tools v1.8.0](https://github.com/tlaplus/tlaplus/releases/tag/v1.8.0).
 The runner verifies this jar SHA-256 before executing it (the v1.8.0 release
-asset SHA-256 published by GitHub; the release notes publish SHA-1):
+asset SHA-256 published by GitHub for asset `637645448`, uploaded on
+2026-10-13; the release notes publish SHA-1):
 
 ```text
-411ab54221cf0c9fa7ae18f07a3e0ebbdf9e5ba6254b79017e7007f1feb44e89
+0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9
 ```
+
+When updating the release pin, verify the downloaded bytes against the release
+asset metadata and update the workflow, runner, and this digest together.
+Existing example reports retain the jar digest used to generate their evidence.
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s specs/workflow-security -p '*_test.py'

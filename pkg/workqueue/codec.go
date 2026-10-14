@@ -363,6 +363,20 @@ func IndependentGraphID(payload []byte) (string, error) {
 }
 
 func Fingerprint(actor Actor, kind string, parameters json.RawMessage) (string, error) {
+	if kind == "finish" {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(parameters, &fields); err != nil {
+			return "", err
+		}
+		if string(fields["keep_open"]) == "false" {
+			delete(fields, "keep_open")
+			normalized, err := json.Marshal(fields)
+			if err != nil {
+				return "", err
+			}
+			parameters = normalized
+		}
+	}
 	data, err := canonicalValue(map[string]any{"actor": actor, "kind": kind, "parameters": parameters})
 	if err != nil {
 		return "", err

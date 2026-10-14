@@ -120,7 +120,7 @@ func (b Branch) readDeliveryRecovery(ctx context.Context, workID string) (delive
 		return deliveryRecoveryState{}, err
 	}
 	work := state.Works[workID]
-	if work == nil || work.State != "completed" {
+	if work == nil || (work.State != "completed" && (state.Claims[work.ClaimID] == nil || !state.Claims[work.ClaimID].KeepOpen)) {
 		return deliveryRecoveryState{}, queueError("result_invalid", "delivery recovery requires completed frozen ownership")
 	}
 	return deliveryRecoveryState{actor: actor, state: state, work: work}, nil

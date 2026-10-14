@@ -31,7 +31,10 @@ CanBindExisting == admitted /\ admissionAuthorized /\ HookAuthorized
 CanProject == admitted /\ admissionAuthorized /\ HookAuthorized /\ bound /\ issueExists
               /\ (TargetMode = "existing" => TargetGrant)
               /\ (TargetMode = "created" => createdByProjector /\ receipt)
-CanClose == CanProject /\ resultVerified /\ ~IsPullRequest
+\* Default Completion closes Work; a retained completed Claim does not.
+ResultClosesWork == TRUE
+RetainedResultClosesWork == FALSE
+CanClose == CanProject /\ resultVerified /\ ResultClosesWork /\ ~IsPullRequest
             /\ admissionClose /\ ~issueClosed
 
 Init ==
@@ -257,7 +260,9 @@ UncertainCreationFence ==
     /\ ~receipt /\ ~bound
 
 ClosureAuthority ==
-  issueClosed => closureAuthorized /\ resultVerified /\ ~IsPullRequest
+  issueClosed => closureAuthorized /\ resultVerified /\ ResultClosesWork /\ ~IsPullRequest
                  /\ admissionClose /\ bound
+NoRetainedProjection ==
+  ~(~ResultClosesWork /\ resultVerified /\ summaryProjected /\ ~issueClosed)
 
 =============================================================================

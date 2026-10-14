@@ -241,7 +241,9 @@ unrelated labels/fields, and discussion are preserved.
 Each backing Issue has a canonical summary and one historical comment per
 owned Claim, with run, ledger, and verified outcome links. Summaries include
 changing status alongside its label. Completion projects **Verifying**, verified PR delivery **Needs review**,
-and verified non-PR delivery **Done**. Native job failure/cancellation is
+and verified non-PR delivery **Done**. A successful `keep_open` finish instead retains
+the Work: its summary returns to the queue after verified delivery, while its
+historical Claim comment records the retained outcome. Native job failure/cancellation is
 diagnostic, not Work cancellation or Result. A closed backing Issue or exact
 Issue `subject` triggers trusted cancellation only when its fresh
 closed state, tracking and status labels, repository identity, and unique
@@ -256,6 +258,8 @@ already completed or cancelled by another request, the handler does not
 rewrite the outcome. After verifying a terminal ledger commit, it posts an
 idempotent comment reporting the observed state without claiming the closure
 caused it. This does not stop an already running worker or establish Result.
+Retained Work with pending delivery cannot be cancelled until that barrier
+settles; Issue closure never revokes the completed Claim's existing authority.
 Human status-label changes alone cannot establish cancellation or Result.
 When Work Queue Issue mirroring is enabled, the compiler generates
 `.github/workflows/agentic-workqueue.yml` to handle `issues: closed` and
@@ -280,6 +284,8 @@ requires a verified non-PR Result and current target authority. Later policy
 expansion cannot retroactively authorize closure. Agent payload fields,
 including `issue_completion_policy`, never control closure. PR delivery alone
 never authorizes closure.
+Likewise, `keep_open: true` on a successful Claim finish prevents closure even
+under `close-on-result`; only a later terminal Work completion can authorize it.
 
 ### Synchronization and recovery
 
@@ -385,7 +391,7 @@ only within its authority; this does not authorize arbitrary resource writes.
 | `work_queue_submit` | Stage immutable task or graph plans within size and installed scheduling limits. |
 | `work_queue_continue` | Worker-only helper that stages one dependent continuation Work with a bounded handoff. |
 | `work_queue_dispatch_next` | Request the next assignments from a pool, within a specified limit. The scheduler selects the Work and target. |
-| `work_queue_claim_finish` | Stage a `completed` or `cancelled` finish intent for an original Claim. |
+| `work_queue_claim_finish` | Stage a `completed` or `cancelled` finish intent for an original Claim, optionally retaining Work with `keep_open: true`. |
 
 When `<mcp-clis>` lists the runtime wrapper, the invocation is
 `work-queue work_queue_read '{}'`. These subcommands are Model Context Protocol
@@ -471,6 +477,10 @@ assignment can omit it. Multi-Claim assignments require the original
 Malformed, null, foreign, or conflicting selectors fail.
 
 Each Claim finishes independently with `outcome: "completed"` or `"cancelled"`.
+To finish successfully while leaving the Work in the queue, pass
+`{"outcome":"completed","keep_open":true}` (and `claim_handle` for a batch).
+`keep_open` defaults to false and accepts only booleans; true is invalid with
+`"cancelled"`. Retries must preserve both the outcome and the keep-open choice.
 A missing finish intent does not authorize effects. Assignments contain one
 Claim by default. Batching multiple Claims is enabled only for compatible Work
 that can reuse substantial setup.
@@ -478,6 +488,13 @@ that can reuse substantial setup.
 Staging a finish intent does not make it durable. Trusted processing publishes
 Completion before authorizing that Claim's effects and publishes Result only
 after independently verified delivery. Completion is not Result.
+Retained Work cannot receive another Claim while delivery is pending or failed.
+Verified delivery makes it available for a new fair grant without satisfying
+its successors' dependencies, resetting fairness debt, or reopening the old
+Claim's effect authority. Its backing Issue stays open. Checkpoints and
+compaction preserve the keep-open choice and every historical Claim settlement.
+Successful retained rounds reset retry attempts and backoff so repeated success
+does not exhaust the failure-retry limit.
 
 A predecessor is a dependency that must be satisfied before a task can run.
 An issue predecessor needs fresh evidence that it is completed; a pull request
