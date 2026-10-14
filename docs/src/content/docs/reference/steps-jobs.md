@@ -7,7 +7,7 @@ sidebar:
 
 Custom steps and jobs let you mix deterministic computation with agentic execution. All custom steps and jobs run **outside the firewall sandbox** with standard GitHub Actions security.
 
-The compiler checks steps outside the `agent` job for recognizable agentic engine installations and invocations, including Copilot CLI, Claude Code, Codex, Gemini CLI, Agy, and Pi. These produce an error in strict mode and a warning with `strict: false`, including in safe-output and custom jobs. Configure agentic execution through `engine:` instead of installing or running an engine in another job. The built-in `detection` and `evals` jobs are exempt.
+The compiler checks jobs and steps outside the `agent` job for references to registered engines' required secrets, such as `${{ secrets.COPILOT_GITHUB_TOKEN }}` and `${{ secrets.ANTHROPIC_API_KEY }}`. These suggest engine execution outside the sandbox and produce an error in strict mode or a warning with `strict: false`, including in safe-output and custom jobs. Configure agentic execution through `engine:` instead. The built-in `detection` and `evals` jobs and generated activation credential checks are exempt. Shell commands and action names are not inspected for engine execution; engines using other credentials are not detected.
 
 See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for patterns combining computation with AI reasoning.
 

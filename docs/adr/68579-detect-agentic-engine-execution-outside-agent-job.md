@@ -12,7 +12,7 @@ In `gh-aw`, only the generated `agent` job runs the agentic engine inside the fi
 
 ### Decision
 
-We will add a compiler validation pass, `validateAgenticEngineSteps`, that performs **static pattern analysis over the final compiled workflow YAML** and rejects recognizable agentic engine installations and invocations in every job except `agent`, `detection`, and `evals`. Violations are a hard error in strict mode (no lock file is written) and a compiler warning when `strict: false`. The check is gated by a cheap substring pre-filter (`hasAgenticEngineReference`) so the extra `yaml.Unmarshal` is only paid when an engine name appears in the output. Detection is deliberately *command-position aware*: a hand-written masking pass removes comments, single/double-quoted literals and quoted (data) heredocs before the regexes run, and it recurses into `bash -c '...'` scripts and `$(...)`/backtick substitutions, so that documentation-like text and `command -v copilot` existence checks do not trip the gate.
+The compiler validation pass, `validateAgenticEngineSteps`, checks **secret references in the final compiled workflow YAML** against the required secret names supplied by registered engines. References outside `agent`, `detection`, and `evals` suggest engine execution outside the sandbox. They produce a hard error in strict mode (no lock file is written) and a compiler warning when `strict: false`. Generated activation credential-validation steps are exempt. A pre-filter checks for matching secret expressions before requiring an extra `yaml.Unmarshal`. Shell commands, package installations, and action names are not inspected.
 
 ### Alternatives Considered
 
@@ -26,25 +26,23 @@ The engine binaries could be blocked at execution time, e.g. by network policy o
 
 #### Alternative 3: Parse the `run:` script with a real shell parser (e.g. `mvdan/sh`)
 
-A proper shell AST would make command-position detection exact and would remove the need for the bespoke masking/regex machinery in `agentic_engine_steps_validation.go`. It was not chosen in this PR, presumably to avoid a new dependency and to keep the check tolerant of the non-POSIX fragments that appear in Actions `run:` blocks (PowerShell, `&`-prefixed Windows paths). The cost is that correctness now rests on a large, hand-tuned regex/masking layer — which is why the change ships with ~180 lines of table-driven positive/negative tests. *[TODO: verify whether a shell parser was explicitly evaluated and rejected.]*
+A shell AST parser was implemented during review, then removed at the maintainer's request along with its dependency. Secret-only detection avoids shell-specific parsing and its maintenance burden, but deliberately does not detect execution that uses other credentials.
 
 ### Consequences
 
 #### Positive
-- The sandbox-bypass path is closed by default: a workflow that installs or runs an engine CLI outside the `agent` job fails to compile in strict mode and produces no lock file.
+- Recognized engine-secret references outside designated jobs fail to compile in strict mode and produce no lock file.
 - Coverage extends to imported steps, safe-output steps and generated job augmentations, not just hand-written custom jobs, because the check runs on the final compiled `jobs:` map.
 - Diagnostics name the offending job and step index and point authors at `engine:`, so the remediation is explicit rather than a bare rejection.
 - The `strict: false` escape hatch degrades to a warning, so existing workflows are not hard-broken by the new rule.
 
 #### Negative
-- Detection is heuristic. The masking + regex approach will inevitably drift: new engines, new install channels (vendored binaries, private registries, container images) and unusual shells are not covered, so this is a speed bump rather than an enforcement boundary.
-- False positives are possible for legitimate scripts that happen to sit in a command position (`pi`, `agy` and `codex` are short, generic names), and the only remedy today is `strict: false`, which disables strictness workflow-wide rather than per-step.
-- The validation code is intricate (manual quote/heredoc/substitution state machine) and carries a real maintenance burden; a subtle bug there either silently misses bypasses or blocks valid workflows.
-- Users can still evade the check trivially (e.g. `C=cop; "${C}ilot" -p ...`, or invoking the engine from a committed script), so it must not be relied on as a security control.
+- Detection is heuristic: engines using renamed secrets, other credentials, or dynamic secret lookups are not detected, so this is not an enforcement boundary.
+- Provider secrets may also be used without running an engine, such as model-list API requests. Those workflows require `strict: false`, which changes strictness workflow-wide rather than per-step.
 
 #### Neutral
 - `agent`, `detection` and `evals` are hard-coded exemptions via `constants.*JobName`; adding a future built-in job that legitimately runs an engine requires editing this list.
-- An extra `yaml.Unmarshal` of the compiled output is now performed when an engine name appears anywhere in the YAML, even when schema validation is skipped; the substring pre-filter keeps the common case free.
+- An extra `yaml.Unmarshal` of the compiled output is performed when a recognized engine-secret expression appears in the YAML, even when schema validation is skipped; ordinary engine names do not trigger parsing.
 - The behaviour is documented in `docs/src/content/docs/reference/steps-jobs.md`, making the restriction part of the public contract for custom steps and jobs.
 
 ---

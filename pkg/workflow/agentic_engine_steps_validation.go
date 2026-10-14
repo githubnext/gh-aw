@@ -13,12 +13,7 @@ import (
 var (
 	engineSecretExpressionPattern = regexp.MustCompile(`\$\{\{[^}]*\}\}`)
 	engineSecretReferencePattern  = regexp.MustCompile(`(?i)\bsecrets(?:\.[A-Za-z_][A-Za-z0-9_]*|\[['"][A-Za-z_][A-Za-z0-9_]*['"]\])`)
-	agenticEngineReferencePattern = regexp.MustCompile(`(?i)(?:\b(?:copilot|claude|codex|gemini|agy|pi)(?:\.exe)?\b|@(?:github/copilot|anthropic-ai/claude-code|openai/codex|google/gemini-cli|earendil-works/pi-coding-agent)|(?:anthropics/claude-code-action|openai/codex-action|github/copilot-cli-action|google-github-actions/run-gemini-cli)|(?:copilot_github_token|anthropic_api_key|openai_api_key|gemini_api_key))`)
 )
-
-func hasAgenticEngineReference(content string) bool {
-	return agenticEngineReferencePattern.MatchString(content)
-}
 
 func agenticEngineSecretNames(registry *EngineRegistry) map[string]struct{} {
 	names := make(map[string]struct{})
@@ -68,29 +63,6 @@ func referencesAgenticEngineSecret(value any, secretNames map[string]struct{}) b
 		}
 	}
 	return false
-}
-
-func stepUsesProviderModelCatalogAPI(step map[string]any) bool {
-	run, ok := step["run"].(string)
-	if !ok {
-		return false
-	}
-	// Provider keys are also used for direct model-list API requests that do not run an engine.
-	run = strings.ToLower(run)
-	for _, endpoint := range []string{
-		"api.openai.com/v1/models",
-		"api.anthropic.com/v1/models",
-		"generativelanguage.googleapis.com/v1beta/models",
-	} {
-		if strings.Contains(run, endpoint) {
-			return true
-		}
-	}
-	return false
-}
-
-func stepReferencesAgenticEngineSecret(step map[string]any, secretNames map[string]struct{}) bool {
-	return !stepUsesProviderModelCatalogAPI(step) && referencesAgenticEngineSecret(step, secretNames)
 }
 
 func jobReferencesAgenticEngineSecret(job map[string]any, secretNames map[string]struct{}) bool {
@@ -154,11 +126,11 @@ func (c *Compiler) validateAgenticEngineSteps(workflow map[string]any, strict bo
 				continue
 			}
 			stepHasEngineSecret := !jobHasEngineSecret && !isActivationSecretValidationStep(jobName, step) &&
-				stepReferencesAgenticEngineSecret(step, engineSecrets)
-			if !stepHasEngineSecret && !stepInvokesAgenticEngine(step) {
+				referencesAgenticEngineSecret(step, engineSecrets)
+			if !stepHasEngineSecret {
 				continue
 			}
-			msg := fmt.Sprintf("agentic engine installation, invocation, or credential in job %q, step %d runs outside the agent sandbox; configure the engine with 'engine:' and run it in the agent job instead", jobName, i+1)
+			msg := fmt.Sprintf("agentic engine credential in job %q, step %d suggests engine execution outside the agent sandbox; configure the engine with 'engine:' and run it in the agent job instead", jobName, i+1)
 			if strict {
 				return fmt.Errorf("strict mode: %s", msg)
 			}

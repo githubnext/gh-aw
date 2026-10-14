@@ -344,7 +344,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 		envKeys := sliceutil.SortedKeys(env)
 
 		for _, key := range envKeys {
-			fmt.Fprintf(b, "      %s: %s\n", key, env[key])
+			fmt.Fprintf(b, "      %s: %s\n", key, quoteYAMLValueContainingColonSpace(env[key]))
 		}
 	}
 

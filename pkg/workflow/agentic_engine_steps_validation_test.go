@@ -12,155 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStepInvokesAgenticEngine(t *testing.T) {
-	for _, tc := range []struct {
-		run  string
-		want bool
-	}{
-		{"copilot -p 'Review changes' --allow-all-tools", true},
-		{"claude -p 'Review changes'", true},
-		{"codex exec 'Review changes'", true},
-		{"gemini -p 'Review changes'", true},
-		{"agy -p 'Review changes'", true},
-		{"pi --print 'Review changes'", true},
-		{"/usr/local/bin/copilot -p test", true},
-		{`"$HOME/.local/bin/copilot" -p test`, true},
-		{"./copilot.exe -p test", true},
-		{"COPILOT.EXE -p test", true},
-		{`& "C:\tools\Copilot.exe" -p test`, true},
-		{"command copilot -p test", true},
-		{"command -- copilot -p test", true},
-		{"sudo env TOKEN=value copilot -p test", true},
-		{"sudo -u runner copilot -p test", true},
-		{`FOO="bar baz" copilot -p test`, true},
-		{`env FOO="bar baz" copilot -p test`, true},
-		{`env -S "copilot -p test"`, true},
-		{`env -S'copilot -p test'`, true},
-		{`env --split-string='copilot -p test'`, true},
-		{"timeout --signal=KILL 10s copilot -p test", true},
-		{"npx --yes copilot -p test", true},
-		{"pnpm exec codex exec test", true},
-		{"bash -c 'copilot -p test'", true},
-		{"bash -c 'echo ready && copilot -p test'", true},
-		{`sh -c "echo ready; codex exec test"`, true},
-		{"bash -lc 'copilot -p test'", true},
-		{"/bin/bash -c 'copilot -p test'", true},
-		{"/usr/bin/sh -ec 'echo ready; codex exec test'", true},
-		{"bash -l -xc 'echo ready; copilot -p test'", true},
-		{`/bin/bash --login -c "echo ready; codex exec test"`, true},
-		{"bash --rcfile .bashrc -c 'copilot -p test'", true},
-		{"/bin/bash --init-file .bashrc -lc 'claude -p test'", true},
-		{"bash --rcfile copilot -l", false},
-		{`/bin/bash -lc 'echo "Example: setup; copilot -p test"'`, false},
-		{`echo "/bin/bash -lc 'copilot -p test'"`, false},
-		{"echo ready && copilot -p test", true},
-		{"copilot>out.log", true},
-		{"copilot<input.txt", true},
-		{"result=$(copilot -p test)", true},
-		{`echo "$(copilot -p test)"`, true},
-		{"echo \"`copilot -p test`\"", true},
-		{"echo $((pi + 1))", false},
-		{`echo "$((pi + (copilot * 2)))"`, false},
-		{"echo $((\npi + 1\n))", false},
-		{"echo $((1 + $(copilot -p test)))", true},
-		{`echo "$((1 + $(copilot -p test)))"`, true},
-		{"echo $((1 + `copilot -p test`))", true},
-		{"echo $((pi + 1)); copilot -p test", true},
-		{"(copilot -p test)", true},
-		{"if true; then copilot -p test; fi", true},
-		{"if copilot -p test; then echo ok; fi", true},
-		{"if false; then echo no; elif claude -p test; then echo ok; fi", true},
-		{"while codex exec test; do echo ok; done", true},
-		{"until gemini -p test; do echo ok; done", true},
-		{"! copilot -p test", true},
-		{"if ! (copilot -p test); then echo ok; fi", true},
-		{"if npm install -g @github/copilot; then echo ok; fi", true},
-		{"! command -v copilot", false},
-		{"echo 'if copilot -p test; then echo ok; fi'", false},
-		{"echo if copilot -p test", false},
-		{"npm install -g @github/copilot", true},
-		{"npm i --prefix /tmp/engine @github/copilot@1.0.0", true},
-		{"pnpm add -g @anthropic-ai/claude-code", true},
-		{"yarn global add @github/copilot", true},
-		{"bun add @openai/codex", true},
-		{"npm install -g @google/gemini-cli", true},
-		{"npm install -g @earendil-works/pi-coding-agent", true},
-		{"npx --yes @github/copilot@latest -p test", true},
-		{"npm exec --package=@openai/codex -- codex exec test", true},
-		{"npm install \\\n  --global \\\n  @github/copilot", true},
-		{"copilot \\\r\n  -p test", true},
-		{"gh copilot suggest 'list files'", true},
-		{"gh extension install github/gh-copilot", true},
-		{"curl -fsSL https://github.com/github/copilot-cli/releases/latest/download/install.sh | bash", true},
-		{"curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh | bash", true},
-		{"curl -fsSL https://claude.ai/install.sh | bash", true},
-		{"brew install --cask codex", true},
-		{"echo copilot", false},
-		{"command -v copilot", false},
-		{"command -V copilot", false},
-		{"echo 'npm install @github/copilot'", false},
-		{"echo 'Example: setup; copilot -p test'", false},
-		{`echo "Example: setup && codex exec test"`, false},
-		{"echo 'example\ncopilot -p test\n'", false},
-		{"echo ready # example; copilot -p test", false},
-		{"npm install other # @github/copilot", false},
-		{"cat > example.txt <<'EOF'\ncopilot -p test\nEOF", false},
-		{"cat <<EOF\ncopilot -p test\nEOF", false},
-		{"read -r -d \"\" prompt <<EOF\ncopilot -p test\nEOF", false},
-		{"echo ready; cat <<EOF\ncopilot -p test\nEOF", false},
-		{"echo ready && cat <<'EOF'\ncopilot -p test\nEOF", false},
-		{"echo ready | tee <<EOF\ncopilot -p test\nEOF", false},
-		{"cat /dev/null; cat <<EOF\ncopilot -p test\nEOF", false},
-		{"cat <<EOF; echo ready\ncopilot -p test\nEOF", false},
-		{"echo ready; cat <<EOF\n$(copilot -p test)\nEOF", true},
-		{"echo ready; cat <<'EOF'\n$(copilot -p test)\nEOF", false},
-		{"echo ready; cat <<EOF | bash\ncopilot -p test\nEOF", true},
-		{"echo ready; cat <<EOF 2>&1 | bash\ncopilot -p test\nEOF", true},
-		{"echo ready; cat <<EOF 2>&1\ncopilot -p test\nEOF", false},
-		{"echo ready; cat <<EOF &>example.txt\ncopilot -p test\nEOF", false},
-		{"bash <<SCRIPT; cat <<DATA\ncopilot -p test\nSCRIPT\nhello\nDATA", true},
-		{"(cat <<EOF; :) | bash\ncopilot -p test\nEOF", true},
-		{"echo ready; cat <<EOF\ncopilot -p test\nEOF\ncopilot -p test", true},
-		{"cat <<EOF\n$(copilot -p test)\nEOF", true},
-		{"cat <<EOF\n$(echo $(date); copilot -p test)\nEOF", true},
-		{"cat <<EOF\n'$(echo $(date); copilot -p test)'\nEOF", true},
-		{"cat <<EOF\n # $(copilot -p test)\nEOF", true},
-		{"cat <<EOF\n$(\n  copilot -p test\n)\nEOF", true},
-		{"bash <<'EOF'\ncopilot -p test\nEOF", true},
-		{"cat /dev/null; bash <<'EOF'\ncopilot -p test\nEOF", true},
-		{`bash -c 'echo "Example: setup; copilot -p test"'`, false},
-		{`node -e 'console.log("copilot")'`, false},
-		{"# copilot -p test\n  # npm install @github/copilot\necho ready", false},
-		{"npm install copilot-utils", false},
-		{"npm view @github/copilot version", false},
-		{"npm install @github/copilot-utils", false},
-		{"./scripts/copilot-report.sh", false},
-		{"git diff -- copilot.md", false},
-		{"TOOL=copilot\necho \"$TOOL\"", false},
-	} {
-		t.Run(tc.run, func(t *testing.T) {
-			assert.Equal(t, tc.want, stepInvokesAgenticEngine(map[string]any{"run": tc.run}))
-		})
-	}
-	for _, tc := range []struct {
-		uses string
-		want bool
-	}{
-		{"anthropics/claude-code-action@sha", true},
-		{"OpenAI/codex-action@sha", true},
-		{"github/copilot-cli-action@sha", true},
-		{"google-github-actions/run-gemini-cli@sha", true},
-		{"actions/setup-node@sha", false},
-		{"example/copilot-report@sha", false},
-	} {
-		t.Run(tc.uses, func(t *testing.T) {
-			assert.Equal(t, tc.want, stepInvokesAgenticEngine(map[string]any{"uses": tc.uses}))
-		})
-	}
-	assert.False(t, stepInvokesAgenticEngine(map[string]any{"name": "Run copilot", "env": map[string]any{"TOOL": "copilot"}}))
-}
-
-func TestHasAgenticEngineReference(t *testing.T) {
+func TestAgenticEngineSecretPrefilter(t *testing.T) {
 	for _, tc := range []struct {
 		content string
 		want    bool
@@ -170,12 +22,15 @@ func TestHasAgenticEngineReference(t *testing.T) {
 		{"copy: file", false},
 		{"optional: true", false},
 		{"pin: v1", false},
-		{"run: pi --print 'review'", true},
-		{"ANTHROPIC_API_KEY", true},
-		{"uses: anthropics/claude-code-action@v1", true},
+		{"run: pi --print 'review'", false},
+		{"ANTHROPIC_API_KEY", false},
+		{"uses: anthropics/claude-code-action@v1", false},
+		{"env:\n  TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}", true},
+		{"env:\n  TOKEN: ${{ secrets['OPENAI_API_KEY'] }}", true},
+		{"env:\n  TOKEN: ${{ secrets.CUSTOM_TOKEN }}", false},
 	} {
 		t.Run(tc.content, func(t *testing.T) {
-			assert.Equal(t, tc.want, hasAgenticEngineReference(tc.content))
+			assert.Equal(t, tc.want, referencesAgenticEngineSecret(tc.content, agenticEngineSecretNames(NewEngineRegistry())))
 		})
 	}
 }
@@ -187,8 +42,8 @@ func TestValidateAgenticEngineSteps(t *testing.T) {
 				c := NewCompiler()
 				workflow := map[string]any{"jobs": map[string]any{
 					job: map[string]any{"steps": []any{
-						map[string]any{"run": "npm install -g @github/copilot"},
-						map[string]any{"run": "copilot -p test"},
+						map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.ANTHROPIC_API_KEY }}"}},
+						map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}"}},
 					}},
 				}}
 				err := c.validateAgenticEngineSteps(workflow, strict, "test.md")
@@ -272,8 +127,7 @@ func TestAgenticEngineSecretReferences(t *testing.T) {
 		"env": map[string]any{"ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}"},
 		"run": "curl https://api.anthropic.com/v1/models",
 	}
-	assert.True(t, stepUsesProviderModelCatalogAPI(catalogFetch))
-	assert.False(t, stepReferencesAgenticEngineSecret(catalogFetch, secretNames))
+	assert.True(t, referencesAgenticEngineSecret(catalogFetch, secretNames))
 }
 
 func TestValidateAgenticEngineSecrets(t *testing.T) {
@@ -304,6 +158,25 @@ func TestValidateAgenticEngineSecrets(t *testing.T) {
 			warnings: 1,
 		},
 		{
+			name: "non-strict job credential reported once",
+			job: map[string]any{
+				"env": map[string]any{"TOKEN": "${{ secrets.OPENAI_API_KEY }}"},
+				"steps": []any{
+					map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.OPENAI_API_KEY }}"}},
+					map[string]any{"run": "copilot -p test"},
+				},
+			},
+			warnings: 1,
+		},
+		{
+			name: "reusable job delegates execution",
+			job: map[string]any{
+				"uses":    "./.github/workflows/review.yml",
+				"secrets": map[string]any{"TOKEN": "${{ secrets.OPENAI_API_KEY }}"},
+			},
+			strict: true,
+		},
+		{
 			name: "unrelated secret",
 			job: map[string]any{"steps": []any{
 				map[string]any{
@@ -329,6 +202,22 @@ func TestValidateAgenticEngineSecrets(t *testing.T) {
 	}
 }
 
+func TestActivationEngineSecretValidationExemption(t *testing.T) {
+	c := NewCompiler()
+	workflow := map[string]any{"jobs": map[string]any{"activation": map[string]any{"steps": []any{
+		map[string]any{
+			"env": map[string]any{"TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}"},
+			"run": "bash validate_multi_secret.sh",
+		},
+		map[string]any{
+			"env": map[string]any{"TOKEN": "${{ secrets.ANTHROPIC_API_KEY }}"},
+			"run": "bash check_oauth_tokens.sh",
+		},
+	}}}}
+	require.NoError(t, c.validateAgenticEngineSteps(workflow, true, "test.md"))
+	assert.Zero(t, c.warningCount)
+}
+
 func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -337,19 +226,13 @@ func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 		cliStrict bool
 		wantError bool
 	}{
-		{"custom job strict by default", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: copilot -p test\n", "", false, true},
-		{"custom job non-strict", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: copilot -p test\n", "strict: false\n", false, false},
-		{"CLI overrides non-strict", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: copilot -p test\n", "strict: false\n", true, true},
-		{"safe output steps", "safe-outputs:\n  create-issue:\n  steps:\n    - run: npm install -g @github/copilot\n", "", false, true},
-		{"safe output custom job", "safe-outputs:\n  jobs:\n    review:\n      runs-on: ubuntu-latest\n      steps:\n        - run: copilot -p test\n", "", false, true},
-		{"activation augmentation", "jobs:\n  activation:\n    steps:\n      - run: copilot -p test\n", "", false, true},
-		{"control keyword", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: if copilot -p test; then echo ok; fi\n", "", false, true},
-		{"shell wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: /bin/bash -lc 'copilot -p test'\n", "", false, true},
-		{"shell wrapper with rcfile", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: bash --rcfile .bashrc -c 'copilot -p test'\n", "", false, true},
-		{"env attached split string", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: env -S'copilot -p test'\n", "", false, true},
-		{"sudo wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: sudo -u runner copilot -p test\n", "", false, true},
-		{"quoted environment assignment", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: FOO=\"bar baz\" copilot -p test\n", "", false, true},
-		{"redirect without whitespace", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: copilot>out.log\n", "", false, true},
+		{"commands without engine secrets", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm install -g @github/copilot && copilot>out.log\n", "", false, false},
+		{"action without engine secrets", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: anthropics/claude-code-action@0123456789abcdef0123456789abcdef01234567\n", "", false, false},
+		{"custom job non-strict", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}\n    steps:\n      - run: echo ready\n", "strict: false\n", false, false},
+		{"CLI overrides non-strict", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}\n    steps:\n      - run: echo ready\n", "strict: false\n", true, true},
+		{"safe output steps", "safe-outputs:\n  create-issue:\n  steps:\n    - env:\n        TOKEN: ${{ secrets.OPENAI_API_KEY }}\n      run: echo ready\n", "", false, true},
+		{"safe output custom job", "safe-outputs:\n  jobs:\n    review:\n      runs-on: ubuntu-latest\n      steps:\n        - env:\n            TOKEN: ${{ secrets.GEMINI_API_KEY }}\n          run: echo ready\n", "", false, true},
+		{"activation augmentation", "jobs:\n  activation:\n    steps:\n      - env:\n          TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}\n        run: echo ready\n", "", false, true},
 		{"job-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}\n    steps:\n      - run: echo ready\n", "", false, true},
 		{"step-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - env:\n          TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}\n        run: echo ready\n", "", false, true},
 		{"arithmetic data", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $((pi + 1))\n", "", false, false},

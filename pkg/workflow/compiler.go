@@ -214,7 +214,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// fast-path checks avoid an unnecessary yaml.Unmarshal.
 	needsSchemaCheck := !c.skipValidation
 	needsAppTokenCheck := strings.Contains(strings.ToLower(yamlContent), "actions/create-github-app-token@")
-	needsEngineCheck := hasAgenticEngineReference(strings.ToLower(yamlContent))
+	needsEngineCheck := referencesAgenticEngineSecret(yamlContent, agenticEngineSecretNames(c.engineRegistry))
 	needsWorkflowParse := needsSchemaCheck || requireSelfHostedRunners || needsAppTokenCheck || needsEngineCheck
 
 	var parsedWorkflow map[string]any
