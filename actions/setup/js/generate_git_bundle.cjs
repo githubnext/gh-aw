@@ -14,7 +14,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
-const { isAncestorCommit, describeGitFailure } = require("./git_patch_utils.cjs");
+const { isAncestorCommit, describeGitFailure, sanitizeBranchNameForPatch } = require("./git_patch_utils.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 
@@ -51,7 +51,7 @@ function sanitizeForFilename(value, fallback) {
  * @returns {string} The sanitized branch name safe for use in a filename
  */
 function sanitizeBranchNameForBundle(branchName) {
-  return sanitizeForFilename(branchName, "unknown");
+  return sanitizeBranchNameForPatch(branchName);
 }
 
 /**

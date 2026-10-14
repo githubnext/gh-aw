@@ -51,7 +51,11 @@ function sanitizeForFilename(value, fallback) {
  * @returns {string} The sanitized branch name safe for use in a filename
  */
 function sanitizeBranchNameForPatch(branchName) {
-  return sanitizeForFilename(branchName, "unknown");
+  const sanitized = sanitizeForFilename(branchName, "unknown");
+  if (!sanitized || (branchName && /^-+$/.test(branchName.trim()))) {
+    throw new Error("Invalid branch name: provide a name containing more than dashes or filename separators.");
+  }
+  return sanitized;
 }
 
 /**

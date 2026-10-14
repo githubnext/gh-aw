@@ -10,6 +10,48 @@ import unittest
 from unittest.mock import patch
 
 import check
+import check_transport
+
+
+class TransportRunnerTest(unittest.TestCase):
+    def test_untrusted_runtime_is_rejected_before_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            jar = Path(directory) / "tla2tools.jar"
+            jar.write_bytes(b"untrusted runtime")
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(check_transport.subprocess, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "pinned SHA-256"):
+                    check_transport.main()
+                run.assert_not_called()
+
+    def test_all_profiles_faults_and_witnesses_run_and_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            jar = Path(directory) / "tla2tools.jar"
+            jar.write_bytes(b"local runtime fixture")
+            digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+            configurations = []
+            destinations = []
+
+            def run(command, cwd, **options):
+                configurations.append((cwd / "model.cfg").read_text())
+                destinations.append(cwd)
+                return check_transport.subprocess.CompletedProcess(command, 0, "", "")
+
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(check_transport, "JAR_SHA256", digest), \
+                 patch.object(check_transport.subprocess, "run", side_effect=run), \
+                 patch.object(check_transport, "check_result",
+                              return_value={"distinct": 1}) as result, \
+                 patch("builtins.print"):
+                check_transport.main()
+            expected = [None, *check_transport.FAULTS.values(), *check_transport.WITNESSES]
+            self.assertEqual([call.args[2] for call in result.call_args_list], expected * 2)
+            for transport in ["patch", "bundle"]:
+                self.assertEqual(
+                    sum(f'Transport = "{transport}"' in config for config in configurations),
+                    len(expected),
+                )
+            self.assertTrue(all(not destination.exists() for destination in destinations))
 
 
 class RuntimePinTest(unittest.TestCase):
