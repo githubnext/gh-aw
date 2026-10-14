@@ -16,14 +16,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestWorkQueueDispatchCommand(t *testing.T) {
+func TestWorkQueueDispatchPinsVerifiedRevisionWhenDefaultBranchMoves(t *testing.T) {
 	for _, preview := range []bool{false, true} {
 		t.Run(fmt.Sprintf("preview=%t", preview), func(t *testing.T) {
 			readCalls := mockWorkDispatcherAPI(t)
 			calls := 0
 			command := newWorkDispatchTestCommand(func(ctx context.Context, name string, options RunOptions) error {
 				calls++
-				if name != "dispatcher" || options.RepoOverride != "owner/repo" || options.RefOverride != "main" ||
+				if name != "dispatcher" || options.RepoOverride != "owner/repo" ||
+					options.RefOverride != "refs/tags/gh-aw/work-queue/"+strings.Repeat("f", 40) ||
 					options.ExpectedRevision != strings.Repeat("f", 40) ||
 					options.JSON || !options.WaitForCompletion || options.Push || options.Enable || options.Approve ||
 					len(options.Inputs) != 0 || options.RepeatCount != 0 {
@@ -41,8 +42,12 @@ func TestWorkQueueDispatchCommand(t *testing.T) {
 			if err := command.Execute(); err != nil {
 				t.Fatal(err)
 			}
-			if *readCalls != 4 {
-				t.Fatalf("expected only repository/ref/source/lock reads, got %d", *readCalls)
+			expectedAPICalls, expectedRef := 7, "refs/tags/gh-aw/work-queue/"+strings.Repeat("f", 40)
+			if preview {
+				expectedAPICalls, expectedRef = 4, "main"
+			}
+			if *readCalls != expectedAPICalls {
+				t.Fatalf("unexpected API calls: got %d, want %d", *readCalls, expectedAPICalls)
 			}
 			var result struct {
 				Status, Revision, Ref, Workflow, Repository string
@@ -55,7 +60,7 @@ func TestWorkQueueDispatchCommand(t *testing.T) {
 				expectedCalls, expectedStatus = 0, "preview"
 			}
 			if calls != expectedCalls || result.Status != expectedStatus || result.Revision != strings.Repeat("f", 40) ||
-				result.Repository != "owner/repo" || result.Ref != "main" || result.Workflow != "dispatcher.lock.yml" {
+				result.Repository != "owner/repo" || result.Ref != expectedRef || result.Workflow != "dispatcher.lock.yml" {
 				t.Fatalf("incorrect activation count or result: calls=%d output=%s", calls, output.String())
 			}
 		})
@@ -173,23 +178,73 @@ func newWorkDispatchTestCommand(run func(context.Context, string, RunOptions) er
 }
 
 func mockWorkDispatcherAPI(t *testing.T) *int {
+	return mockWorkDispatcherActivationAPI(t, false)
+}
+
+func TestWorkQueueDispatchRejectsSnapshotMismatch(t *testing.T) {
+	mockWorkDispatcherActivationAPI(t, true)
+	command := newWorkDispatchTestCommand(func(context.Context, string, RunOptions) error {
+		t.Fatal("snapshot mismatch reached workflow dispatch")
+		return nil
+	})
+	command.SetArgs([]string{"--repo", "owner/repo", "dispatch", "dispatcher"})
+	if err := command.Execute(); err == nil || !strings.Contains(err.Error(), "snapshot tag does not match") {
+		t.Fatalf("snapshot mismatch did not fail closed: %v", err)
+	}
+}
+
+func mockWorkDispatcherActivationAPI(t *testing.T, mismatch bool) *int {
 	t.Helper()
 	t.Setenv("GH_HOST", "github.com")
 	t.Setenv("GH_TOKEN", "test-token")
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
 	calls := new(int)
+	tagCreated := false
+	defaultRevision := strings.Repeat("f", 40)
 	http.DefaultTransport = workAPIRoundTripper(func(request *http.Request) (*http.Response, error) {
-		if request.Method != http.MethodGet || request.Header.Get("Authorization") != "token test-token" {
-			t.Fatalf("dispatcher preflight attempted an unauthenticated read or a mutation: %s", request.Method)
+		if request.Header.Get("Authorization") != "token test-token" {
+			t.Fatal("dispatcher request was not authenticated")
 		}
 		*calls++
 		var value any
+		status := http.StatusOK
+		tag := "refs/tags/gh-aw/work-queue/" + strings.Repeat("f", 40)
+		if request.Method == http.MethodPost {
+			if request.URL.Path != "/repos/owner/repo/git/refs" || tagCreated {
+				t.Fatalf("unexpected or repeated mutation: %s", request.URL.Path)
+			}
+			var body map[string]string
+			if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if len(body) != 2 || body["ref"] != tag || body["sha"] != strings.Repeat("f", 40) {
+				t.Fatalf("snapshot creation changed verified route: %v", body)
+			}
+			tagCreated = true
+			defaultRevision = strings.Repeat("a", 40)
+			status = http.StatusCreated
+		} else if request.Method != http.MethodGet {
+			t.Fatalf("unexpected dispatcher mutation: %s", request.Method)
+		}
 		switch request.URL.Path {
+		case "/repos/owner/repo/git/refs":
+			value = map[string]any{}
+		case "/repos/owner/repo/git/ref/" + strings.TrimPrefix(tag, "refs/"):
+			if !tagCreated && !mismatch {
+				status = http.StatusNotFound
+				value = map[string]string{"message": "Not Found"}
+			} else {
+				sha := strings.Repeat("f", 40)
+				if mismatch {
+					sha = strings.Repeat("a", 40)
+				}
+				value = map[string]any{"ref": tag, "object": map[string]string{"type": "commit", "sha": sha}}
+			}
 		case "/repos/owner/repo":
 			value = map[string]any{"full_name": "owner/repo", "default_branch": "main"}
 		case "/repos/owner/repo/git/ref/heads/main":
-			value = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": strings.Repeat("f", 40)}}
+			value = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": defaultRevision}}
 		case "/repos/owner/repo/contents/.github/workflows/dispatcher.md",
 			"/repos/owner/repo/contents/.github/workflows/dispatcher.lock.yml":
 			if request.URL.Query().Get("ref") != strings.Repeat("f", 40) {
@@ -197,7 +252,9 @@ func mockWorkDispatcherAPI(t *testing.T) *int {
 			}
 			content := "---\ntools:\n  work-queue: true\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [worker]\n---\nDispatch"
 			if strings.HasSuffix(request.URL.Path, ".yml") {
-				content = "on:\n  workflow_dispatch:\njobs:\n  agent:\n    env:\n      GH_AW_WORK_QUEUE_ROLE: dispatcher\n"
+				content = "on:\n  workflow_dispatch:\njobs:\n  agent:\n    env:\n      GH_AW_WORK_QUEUE_ROLE: dispatcher\n" +
+					"    steps:\n      - id: work_queue_controls\n        env:\n" +
+					"          GH_AW_WORK_QUEUE_CONTROL_CONFIG: '{\"work_queue_workflows\":[\"worker\"],\"aw_context_workflows\":[\"worker\"]}'\n"
 			}
 			value = map[string]string{"type": "file", "path": strings.TrimPrefix(request.URL.Path, "/repos/owner/repo/contents/"),
 				"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(content))}
@@ -208,7 +265,7 @@ func mockWorkDispatcherAPI(t *testing.T) *int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}},
+		return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}},
 			Body: io.NopCloser(bytes.NewReader(data)), Request: request}, nil
 	})
 	return calls

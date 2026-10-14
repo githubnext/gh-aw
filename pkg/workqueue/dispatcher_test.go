@@ -9,7 +9,8 @@ import (
 )
 
 const dispatcherSource = "---\ntools:\n  work-queue: true\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [worker]\n---\nDispatch queued work."
-const dispatcherLock = "on:\n  workflow_dispatch:\njobs:\n  agent:\n    env:\n      GH_AW_WORK_QUEUE_ROLE: dispatcher\n"
+const dispatcherControlStep = "      - id: work_queue_controls\n        env:\n          GH_AW_WORK_QUEUE_CONTROL_CONFIG: '{\"work_queue_workflows\":[\"worker\"],\"aw_context_workflows\":[\"worker\"]}'\n"
+const dispatcherLock = "on:\n  workflow_dispatch:\njobs:\n  agent:\n    env:\n      GH_AW_WORK_QUEUE_ROLE: dispatcher\n    steps:\n" + dispatcherControlStep
 
 func TestDispatcherAcceptsESLintFactoryArtifacts(t *testing.T) {
 	source, err := os.ReadFile("../../.github/workflows/eslint-factory-dispatcher.md")
@@ -20,10 +21,11 @@ func TestDispatcherAcceptsESLintFactoryArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := validateDispatcherSource(source); err != nil {
+	workers, err := dispatcherSourceWorkflows(source)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := validateDispatcherLock(compiled); err != nil {
+	if err := validateDispatcherLock(compiled, workers); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -65,6 +67,8 @@ func TestDispatcherFromConfigRejectsInvalidRoutes(t *testing.T) {
 		{name: "not dispatchable", source: dispatcherSource, lock: strings.ReplaceAll(dispatcherLock, "workflow_dispatch:", "push:")},
 		{name: "wrong compiled role", source: dispatcherSource, lock: strings.ReplaceAll(dispatcherLock, "ROLE: dispatcher", "ROLE: worker")},
 		{name: "assignment input", source: dispatcherSource, lock: strings.ReplaceAll(dispatcherLock, "workflow_dispatch:", "workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string")},
+		{name: "stale broadened lock", source: dispatcherSource, lock: strings.ReplaceAll(dispatcherLock, `["worker"]`, `["worker","other"]`)},
+		{name: "stale narrowed lock", source: strings.ReplaceAll(dispatcherSource, "[worker]", "[worker, other]"), lock: dispatcherLock},
 		{name: "denied source", source: dispatcherSource, lock: dispatcherLock, status: http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -85,5 +89,84 @@ func TestDispatcherFromConfigRejectsInvalidRoutes(t *testing.T) {
 		if _, err := branch.DispatcherFromConfig(context.Background(), name); err == nil {
 			t.Fatalf("invalid dispatcher name was accepted: %q", name)
 		}
+	}
+}
+
+func TestDispatcherLockAllowlistParity(t *testing.T) {
+	configLock := func(config string) string {
+		return strings.Replace(dispatcherLock, `{"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]}`, config, 1)
+	}
+	for _, tc := range []struct {
+		name, lock string
+	}{
+		{"missing controls", strings.Replace(dispatcherLock, dispatcherControlStep, "", 1)},
+		{"missing config", strings.Replace(dispatcherLock, dispatcherControlStep, "      - id: work_queue_controls\n", 1)},
+		{"wrong control id", strings.Replace(dispatcherLock, "id: work_queue_controls", "id: other", 1)},
+		{"multiple control steps", dispatcherLock + dispatcherControlStep},
+		{"other step config", dispatcherLock + strings.Replace(dispatcherControlStep, "id: work_queue_controls", "id: other", 1)},
+		{"multiple control jobs", dispatcherLock + "  other:\n    steps:\n" + dispatcherControlStep},
+		{"workflow env config", "env:\n  GH_AW_WORK_QUEUE_CONTROL_CONFIG: '{}'\n" + dispatcherLock},
+		{"job env config", strings.Replace(dispatcherLock, "ROLE: dispatcher", "ROLE: dispatcher\n      GH_AW_WORK_QUEUE_CONTROL_CONFIG: '{}'", 1)},
+		{"malformed YAML", dispatcherLock + "      - ["},
+		{"duplicate YAML config", strings.Replace(dispatcherLock, "          GH_AW_WORK_QUEUE_CONTROL_CONFIG:", "          GH_AW_WORK_QUEUE_CONTROL_CONFIG: '{}'\n          GH_AW_WORK_QUEUE_CONTROL_CONFIG:", 1)},
+		{"malformed JSON", configLock("{")},
+		{"trailing JSON", configLock(`{"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]} {}`)},
+		{"duplicate JSON key", configLock(`{"work_queue_workflows":["other"],"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]}`)},
+		{"nonobject JSON", configLock(`[]`)},
+		{"expression config", configLock(`${{ needs.activation.outputs.config }}`)},
+		{"YAML object config", strings.Replace(dispatcherLock, `'{"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]}'`, `{work_queue_workflows: [worker], aw_context_workflows: [worker]}`, 1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateDispatcherLock([]byte(tc.lock), []string{"worker"}); err == nil {
+				t.Fatal("invalid compiled dispatcher configuration was accepted")
+			}
+		})
+	}
+	for _, field := range []string{"work_queue_workflows", "aw_context_workflows"} {
+		for _, tc := range []struct {
+			name, value string
+		}{
+			{"broadened", `["worker","other"]`},
+			{"narrowed", `[]`},
+			{"substituted", `["other"]`},
+			{"wrong case", `["Worker"]`},
+			{"not basenames", `["worker.lock.yml"]`},
+			{"path", `["../worker"]`},
+			{"nonstring member", `["worker",false]`},
+			{"object", `{}`},
+			{"string", `"worker"`},
+			{"null", `null`},
+			{"missing", ""},
+		} {
+			t.Run(field+"/"+tc.name, func(t *testing.T) {
+				config := `{"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]}`
+				if tc.value == "" {
+					if field == "work_queue_workflows" {
+						config = `{"aw_context_workflows":["worker"]}`
+					} else {
+						config = `{"work_queue_workflows":["worker"]}`
+					}
+				} else {
+					config = strings.Replace(config, `"`+field+`":["worker"]`, `"`+field+`":`+tc.value, 1)
+				}
+				if err := validateDispatcherLock([]byte(configLock(config)), []string{"worker"}); err == nil {
+					t.Fatal("compiled dispatcher allowlist drift was accepted")
+				}
+			})
+		}
+	}
+}
+
+func TestDispatcherAllowlistCanonicalEquality(t *testing.T) {
+	branch, mock := newQueueAPI(t)
+	mock.sources = map[string]string{"dispatcher": strings.Replace(dispatcherSource, "[worker]", "[beta, alpha, beta]", 1)}
+	mock.workerRoutes = map[string]string{".github/workflows/dispatcher.lock.yml": strings.Replace(dispatcherLock,
+		`{"work_queue_workflows":["worker"],"aw_context_workflows":["worker"]}`,
+		`{"work_queue_workflows":["alpha","beta"],"aw_context_workflows":["beta","alpha","alpha"]}`, 1)}
+	if _, err := branch.DispatcherFromConfig(context.Background(), "dispatcher"); err != nil {
+		t.Fatalf("equivalent allowlist sets were rejected: %v", err)
+	}
+	if mock.refWrites != 0 || mock.nativeReads != 0 {
+		t.Fatal("dispatcher parity validation mutated the queue")
 	}
 }

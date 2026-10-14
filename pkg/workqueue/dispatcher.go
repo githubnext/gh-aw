@@ -3,6 +3,7 @@ package workqueue
 import (
 	"context"
 	"regexp"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/parser"
 	"gopkg.in/yaml.v3"
@@ -36,7 +37,8 @@ func (b Branch) DispatcherFromConfig(ctx context.Context, name string) (Dispatch
 	if err != nil {
 		return DispatcherRoute{}, err
 	}
-	if err := validateDispatcherSource(source); err != nil {
+	workers, err := dispatcherSourceWorkflows(source)
+	if err != nil {
 		return DispatcherRoute{}, err
 	}
 	workflow := name + ".lock.yml"
@@ -44,23 +46,23 @@ func (b Branch) DispatcherFromConfig(ctx context.Context, name string) (Dispatch
 	if err != nil {
 		return DispatcherRoute{}, err
 	}
-	if err := validateDispatcherLock(compiled); err != nil {
+	if err := validateDispatcherLock(compiled, workers); err != nil {
 		return DispatcherRoute{}, err
 	}
 	return DispatcherRoute{Repository: repository, Workflow: workflow, Ref: ref, Revision: revision}, nil
 }
 
-func validateDispatcherSource(source []byte) error {
+func dispatcherSourceWorkflows(source []byte) ([]string, error) {
 	frontmatter, err := parser.ExtractFrontmatterFromContent(string(source))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if frontmatter == nil {
-		return queueError("dispatcher_invalid", "dispatcher source requires agentic workflow frontmatter")
+		return nil, queueError("dispatcher_invalid", "dispatcher source requires agentic workflow frontmatter")
 	}
 	tools, ok := frontmatter.Frontmatter["tools"].(map[string]any)
 	if !ok {
-		return queueError("dispatcher_invalid", "dispatcher must declare work-queue tools")
+		return nil, queueError("dispatcher_invalid", "dispatcher must declare work-queue tools")
 	}
 	queue := tools["work-queue"]
 	enabled := queue == true
@@ -68,34 +70,46 @@ func validateDispatcherSource(source []byte) error {
 		enabled = options["worker"] != true && options["require-assignment"] != true
 	}
 	if !enabled {
-		return queueError("dispatcher_invalid", "expected an unassigned work-queue dispatcher; workers require authenticated Claims")
+		return nil, queueError("dispatcher_invalid", "expected an unassigned work-queue dispatcher; workers require authenticated Claims")
 	}
 	outputs, ok := frontmatter.Frontmatter["safe-outputs"].(map[string]any)
 	if !ok {
-		return queueError("dispatcher_invalid", "dispatcher must declare safe-outputs")
+		return nil, queueError("dispatcher_invalid", "dispatcher must declare safe-outputs")
 	}
 	dispatch, ok := outputs["dispatch-workflow"].(map[string]any)
 	if !ok {
-		return queueError("dispatcher_invalid", "dispatcher must declare safe-outputs.dispatch-workflow")
+		return nil, queueError("dispatcher_invalid", "dispatcher must declare safe-outputs.dispatch-workflow")
 	}
-	workers, ok := dispatch["workflows"].([]any)
+	return dispatcherWorkflowAllowlist(dispatch["workflows"])
+}
+
+func dispatcherWorkflowAllowlist(value any) ([]string, error) {
+	workers, ok := value.([]any)
 	if !ok || len(workers) == 0 {
-		return queueError("dispatcher_invalid", "dispatcher must declare safe-outputs.dispatch-workflow.workflows")
+		return nil, queueError("dispatcher_invalid", "dispatcher worker allowlist must be a nonempty array of workflow basenames")
 	}
+	names := make([]string, 0, len(workers))
 	for _, worker := range workers {
 		name, ok := worker.(string)
 		if !ok || !dispatcherNamePattern.MatchString(name) {
-			return queueError("dispatcher_invalid", "dispatcher worker allowlist must contain workflow basenames")
+			return nil, queueError("dispatcher_invalid", "dispatcher worker allowlist must contain workflow basenames")
 		}
+		names = append(names, name)
 	}
-	return nil
+	slices.Sort(names)
+	return slices.Compact(names), nil
 }
 
-func validateDispatcherLock(compiled []byte) error {
+func validateDispatcherLock(compiled []byte, workers []string) error {
 	var workflow struct {
 		On   map[string]any `yaml:"on"`
+		Env  map[string]any `yaml:"env"`
 		Jobs map[string]struct {
-			Env map[string]any `yaml:"env"`
+			Env   map[string]any `yaml:"env"`
+			Steps []struct {
+				ID  string         `yaml:"id"`
+				Env map[string]any `yaml:"env"`
+			} `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	if err := yaml.Unmarshal(compiled, &workflow); err != nil {
@@ -112,10 +126,62 @@ func validateDispatcherLock(compiled []byte) error {
 			}
 		}
 	}
+	const controlConfig = "GH_AW_WORK_QUEUE_CONTROL_CONFIG"
+	if _, exists := workflow.Env[controlConfig]; exists {
+		return queueError("dispatcher_invalid", "compiled dispatcher control configuration must be scoped to its trusted control step")
+	}
+	hasRole, controls := false, 0
 	for _, job := range workflow.Jobs {
 		if job.Env["GH_AW_WORK_QUEUE_ROLE"] == "dispatcher" {
-			return nil
+			hasRole = true
+		}
+		if _, exists := job.Env[controlConfig]; exists {
+			return queueError("dispatcher_invalid", "compiled dispatcher control configuration must be scoped to its trusted control step")
+		}
+		for _, step := range job.Steps {
+			value, exists := step.Env[controlConfig]
+			if step.ID != "work_queue_controls" && !exists {
+				continue
+			}
+			controls++
+			if step.ID != "work_queue_controls" || !exists {
+				return queueError("dispatcher_invalid", "compiled dispatcher requires a protected work_queue_controls configuration")
+			}
+			if err := validateDispatcherControlConfig(value, workers); err != nil {
+				return err
+			}
 		}
 	}
-	return queueError("dispatcher_invalid", "compiled workflow must contain the trusted work-queue dispatcher role")
+	if !hasRole {
+		return queueError("dispatcher_invalid", "compiled workflow must contain the trusted work-queue dispatcher role")
+	}
+	if controls != 1 {
+		return queueError("dispatcher_invalid", "compiled dispatcher must contain exactly one trusted work_queue_controls configuration")
+	}
+	return nil
+}
+
+func validateDispatcherControlConfig(value any, workers []string) error {
+	encoded, ok := value.(string)
+	if !ok {
+		return queueError("dispatcher_invalid", "compiled dispatcher control configuration must be a JSON object")
+	}
+	decoded, err := decodeStrict([]byte(encoded))
+	if err != nil {
+		return queueError("dispatcher_invalid", "invalid compiled dispatcher control configuration: %v", err)
+	}
+	config, ok := decoded.(map[string]any)
+	if !ok {
+		return queueError("dispatcher_invalid", "compiled dispatcher control configuration must be a JSON object")
+	}
+	for _, field := range []string{"work_queue_workflows", "aw_context_workflows"} {
+		names, err := dispatcherWorkflowAllowlist(config[field])
+		if err != nil {
+			return queueError("dispatcher_invalid", "compiled dispatcher %s: %v", field, err)
+		}
+		if !slices.Equal(names, workers) {
+			return queueError("dispatcher_invalid", "compiled dispatcher %s must match source dispatch-workflow.workflows; recompile the dispatcher", field)
+		}
+	}
+	return nil
 }

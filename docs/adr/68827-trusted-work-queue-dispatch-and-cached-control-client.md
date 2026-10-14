@@ -14,6 +14,8 @@ The work queue has no supported way for an operator to request that a *dispatche
 
 We will add a first-class `gh aw work-queue --repo OWNER/REPO dispatch DISPATCHER` command that resolves a dispatcher route at the repository's verified default revision (`pkg/workqueue/dispatcher.go`, `pkg/cli/work_command_dispatch.go`) and routes the request through the trusted controller, validating the dispatcher source and its compiled `.lock.yml` and correlating the native run — instead of assigning workers or rebinding immutable Claims. We will also construct the control-step queue client from the protected publisher token before the first queue load (`actions/setup/js/work_queue_control_adapter.cjs` reading `GH_AW_WORK_QUEUE_TOKEN`, bound by the compiler via the existing shared publisher-token resolver in `pkg/workflow/safe_outputs_env.go`), so that checkpoint-history verification becomes cache-eligible within an invocation. Worker-launch credentials remain a separate credential path, and preview mode constructs no credential client.
 
+The dispatcher validates both compiled control allowlists against the source worker-name set, then creates or reuses the SHA-derived lightweight tag `refs/tags/gh-aw/work-queue/<verified-sha>`. Dispatch targets that verified tag, not the moving default branch; mismatched tags and ambiguous creation failures stop before activation. Tags are never overwritten or deleted by the command. Repository writers remain trusted not to mutate these tags while in use; returned native-run identity checks detect mismatches but cannot undo an activation. Preview performs only read-only route validation.
+
 ### Alternatives Considered
 
 #### Alternative 1: Reuse existing worker-assignment / Claim commands for dispatch
@@ -39,6 +41,7 @@ Verifying fewer ancestors would cut the same API cost. Rejected because checkpoi
 #### Negative
 - A new credential binding (`GH_AW_WORK_QUEUE_TOKEN`) is threaded into compiled workflows, requiring 33 lock files to be regenerated and widening the surface that must be reviewed for token-scope correctness.
 - The dispatcher CLI adds a new trusted entry point that must be kept in lockstep with queue protocol changes and validated on every protocol upgrade.
+- Snapshot tags persist and require `contents: write` when created, in addition to workflow-dispatch permission. Privileged tag mutation remains outside the ordinary branch-movement guarantee.
 - Performance now depends on cache eligibility: clients without an explicit publisher token stay uncached, so misconfiguration silently regresses to the slow path.
 - The test suite grows substantially (large `.test.cjs` and Go test files) and parts depend on captured fixtures/profiles that are intentionally not committed.
 

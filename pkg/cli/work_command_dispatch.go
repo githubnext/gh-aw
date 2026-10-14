@@ -18,7 +18,8 @@ func workDispatchCommandWithRunner(run func(context.Context, string, RunOptions)
 		Use:   "dispatch <dispatcher>",
 		Short: "Run a trusted dispatcher to grant and launch fair queue assignments",
 		Long: "Run a verified work-queue dispatcher through the GitHub CLI on the target\n" +
-			"repository's default branch. Its trusted controls select and launch assignments.\n" +
+			"repository's verified default revision using a SHA-derived snapshot tag.\n" +
+			"Its trusted controls select and launch assignments.\n" +
 			"This command cannot choose a Work, reassign a Claim, or replay worker effects.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,14 +44,19 @@ func workDispatchCommandWithRunner(run func(context.Context, string, RunOptions)
 				return workPrint(cmd, result, fmt.Sprintf("Dispatcher preview: %s at %s (%s); no Claims granted or workflows launched",
 					route.Workflow, route.Ref, route.Revision))
 			}
+			activationRef, err := branch.PrepareDispatcherActivation(cmd.Context(), route)
+			if err != nil {
+				return err
+			}
 			wait, _ := cmd.Flags().GetBool("wait")
 			if err := run(cmd.Context(), args[0], RunOptions{ //nolint:uncheckedsliceindex // Exactly one argument is checked above.
-				WorkflowRunFlags:  WorkflowRunFlags{RepoOverride: route.Repository, RefOverride: route.Ref},
+				WorkflowRunFlags:  WorkflowRunFlags{RepoOverride: route.Repository, RefOverride: activationRef},
 				WaitForCompletion: wait,
 				ExpectedRevision:  route.Revision,
 			}); err != nil {
 				return err
 			}
+			result.Ref = activationRef
 			result.Status = "activated"
 			return workPrint(cmd, result, fmt.Sprintf("Dispatcher activated: %s at %s; inspect the ledger for Claims and Results",
 				route.Workflow, route.Revision))
