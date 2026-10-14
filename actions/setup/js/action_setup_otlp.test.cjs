@@ -135,6 +135,29 @@ describe("action_setup_otlp.cjs", () => {
     expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(password);
   });
 
+  it.each(["GH_AW_OTLP_ALL_HEADERS", "OTEL_EXPORTER_OTLP_HEADERS"])("masks repeated Authorization headers in %s even when the middle endpoint URL is empty", async headerVariable => {
+    const passwords = ["synthetic-first-password", "synthetic-middle-password", "synthetic-last-password"];
+    const headers = passwords.map(password => `Authorization=${encodeURIComponent(`Basic ${Buffer.from(`123456:${password}`).toString("base64")}`)}`);
+    const endpoints = [
+      { url: "https://first.example.com", headers: headers[0] },
+      { url: "", headers: headers[1] },
+      { url: "https://last.example.com", headers: headers[2] },
+    ];
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify(endpoints);
+    process.env[headerVariable] = headers.join(",Authorization=%invalid,");
+    mockSendJobSetupSpan.mockImplementationOnce(async () => {
+      for (const password of passwords) {
+        expect(mockCore.setSecret).toHaveBeenCalledWith(password);
+      }
+      return { traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID };
+    });
+
+    await run();
+
+    expect(JSON.parse(process.env.GH_AW_OTLP_ENDPOINTS || "[]")).toEqual(endpoints);
+    expect(process.env[headerVariable]).toBe(headers.join(",Authorization=%invalid,"));
+  });
+
   describe("when GH_AW_OTLP_ENDPOINTS is not set", () => {
     it("should log that OTLP export is being skipped", async () => {
       await run();

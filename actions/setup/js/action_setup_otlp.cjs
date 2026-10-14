@@ -168,8 +168,11 @@ async function run() {
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
   for (const headers of [process.env.OTEL_EXPORTER_OTLP_HEADERS, process.env.GH_AW_OTLP_ALL_HEADERS, ...parsedEndpoints.map(endpoint => endpoint.headers)]) {
-    for (const value of Object.values(parseOTLPHeaders(headers || ""))) {
-      maskAuthorizationValue(value);
+    // Parse each pair separately so repeated names cannot discard credentials.
+    for (const pair of (headers || "").split(",")) {
+      for (const value of Object.values(parseOTLPHeaders(pair))) {
+        maskAuthorizationValue(value);
+      }
     }
   }
   if (endpoints) {
