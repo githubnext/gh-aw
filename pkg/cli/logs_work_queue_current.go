@@ -38,12 +38,16 @@ type WorkQueueFinishReceipt struct {
 	KeepOpen bool   `json:"keep_open,omitempty"`
 }
 
-func readBoundedWorkQueueArtifact(path string, limit int64) ([]byte, error) {
+func readBoundedWorkQueueArtifact(path string, limit int64) (data []byte, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = errors.Join(err, errors.New("could not close the work queue artifact; check filesystem access before retrying"))
+		}
+	}()
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
@@ -51,7 +55,7 @@ func readBoundedWorkQueueArtifact(path string, limit int64) ([]byte, error) {
 	if !info.Mode().IsRegular() || info.Size() > limit {
 		return nil, errors.New("work queue artifact exceeds bounded input limit")
 	}
-	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	data, err = io.ReadAll(io.LimitReader(file, limit+1))
 	if int64(len(data)) > limit {
 		return nil, errors.New("work queue artifact exceeds bounded input limit")
 	}
@@ -111,37 +115,9 @@ type currentWorkQueueEnvelope struct {
 }
 
 func parseCurrentWorkQueueSnapshot(data []byte) (*WorkQueueSnapshot, error) {
-	var envelope currentWorkQueueEnvelope
-	if err := decodeClosedWorkQueueObject(data,
-		[]string{"version", "sha", "worker", "transactionLog", "captured_at", "origin"},
-		[]string{"visible_work_ids", "role"}, &envelope); err != nil {
-		return nil, err
-	}
-	if err := validateCurrentWorkQueueEnvelope(envelope); err != nil {
-		return nil, err
-	}
-	role, err := currentWorkQueueSnapshotRole(envelope)
+	envelope, state, role, err := replayCurrentWorkQueueSnapshot(data)
 	if err != nil {
 		return nil, err
-	}
-	if role == "observer" && envelope.SHA == nil && *envelope.TransactionLog == "" {
-		return &WorkQueueSnapshot{Version: 3, Current: &WorkQueueCurrentSnapshot{
-			Role: role, CapturedAt: *envelope.CapturedAt,
-		}}, nil
-	}
-	commits, err := workqueue.Parse([]byte(*envelope.TransactionLog))
-	if err != nil {
-		return nil, currentWorkQueueDiagnosticError("ledger", err)
-	}
-	state, err := workqueue.Replay(commits)
-	if err != nil {
-		return nil, currentWorkQueueDiagnosticError("chain", err)
-	}
-	if state.Policy == nil {
-		return nil, errors.New("current snapshot requires an installed policy")
-	}
-	if role == "observer" && envelope.Origin.Repository != state.Repository {
-		return nil, errors.New("current observer snapshot repository differs from captured queue")
 	}
 	current := &WorkQueueCurrentSnapshot{
 		Role: role, PolicyInstalled: state.Policy != nil,
@@ -155,6 +131,41 @@ func parseCurrentWorkQueueSnapshot(data []byte) (*WorkQueueSnapshot, error) {
 		}
 	}
 	return &WorkQueueSnapshot{Version: 3, SHA: envelope.SHA, Current: current}, nil
+}
+
+func replayCurrentWorkQueueSnapshot(data []byte) (currentWorkQueueEnvelope, workqueue.Projection, string, error) {
+	var envelope currentWorkQueueEnvelope
+	var state workqueue.Projection
+	if err := decodeClosedWorkQueueObject(data,
+		[]string{"version", "sha", "worker", "transactionLog", "captured_at", "origin"},
+		[]string{"visible_work_ids", "role"}, &envelope); err != nil {
+		return envelope, state, "", err
+	}
+	if err := validateCurrentWorkQueueEnvelope(envelope); err != nil {
+		return envelope, state, "", err
+	}
+	role, err := currentWorkQueueSnapshotRole(envelope)
+	if err != nil {
+		return envelope, state, "", err
+	}
+	if role == "observer" && envelope.SHA == nil && *envelope.TransactionLog == "" {
+		return envelope, state, role, nil
+	}
+	commits, err := workqueue.Parse([]byte(*envelope.TransactionLog))
+	if err != nil {
+		return envelope, state, role, currentWorkQueueDiagnosticError("ledger", err)
+	}
+	state, err = workqueue.Replay(commits)
+	if err != nil {
+		return envelope, state, role, currentWorkQueueDiagnosticError("chain", err)
+	}
+	if state.Policy == nil {
+		return envelope, state, role, errors.New("current snapshot requires an installed policy")
+	}
+	if role == "observer" && envelope.Origin.Repository != state.Repository {
+		return envelope, state, role, errors.New("current observer snapshot repository differs from captured queue")
+	}
+	return envelope, state, role, nil
 }
 
 func validateCurrentWorkQueueEnvelope(envelope currentWorkQueueEnvelope) error {

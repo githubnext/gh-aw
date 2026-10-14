@@ -325,6 +325,24 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     expect(client.rest.users.getAuthenticated).not.toHaveBeenCalled();
   });
 
+  it.each(["github_token", "github_app", "authenticated"])("accepts omitted user-role metadata for %s only after exact tag verification", async kind => {
+    const { fixture } = setupAW();
+    const profile = fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile;
+    const token = "test-only-installation-token";
+    const client = fixture.githubClient;
+    client.auth = vi.fn().mockResolvedValue({ type: "token", token });
+    client.rest.repos.get = vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY } });
+    client.rest.users.getByUsername = vi.fn(async ({ username }) => ({ status: 200, data: { id: "22", type: "Bot", login: username } }));
+    const credential = kind === "github_app" ? { kind, app_slug: "test-app" } : { kind };
+    const proof = await createDispatchCredentialValidator(client, credential, token)({ profile, repository: REPOSITORY });
+    expect(proof).toMatchObject({ principal: "22", tag_prepared: true });
+    expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
+    const denied = Object.assign(new Error("private-request-details"), { status: 403 });
+    client.rest.git = { getRef: vi.fn().mockRejectedValue({ status: 404 }), createRef: vi.fn().mockRejectedValue(denied) };
+    await expect(createDispatchCredentialValidator(client, credential, token)({ profile, repository: REPOSITORY })).rejects.toBe(denied);
+    expect(client.rest.git.createRef).toHaveBeenCalledOnce();
+  });
+
   it("checks dispatch write permission before publishing the launch marker", async () => {
     const { fixture, options, post } = setupAW();
     fixture.githubClient.rest.repos.get = vi.fn().mockResolvedValue({

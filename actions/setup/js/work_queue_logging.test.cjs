@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createWorkQueueLogger, debugEnabled } = require("./work_queue_logging.cjs");
+const { createWorkQueueLogger, debugEnabled, queueControlErrorCode, queueControlErrorExplanation } = require("./work_queue_logging.cjs");
 const { fakeGitHub, options } = require("./work_queue_store_checks.cjs");
 const { genesis, submission, producer } = require("./work_queue_test_helpers.cjs");
 const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
@@ -93,7 +93,7 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).toContain("[work-queue:timing] first +0ms\n");
     expect(output()).toContain("[work-queue:other-timing] independent +0ms\n");
     expect(output()).toContain("[work-queue:timing] second +42ms\n");
-    expect(output()).toContain("[work-queue:timing] third failed=true http_status=503 +8ms\n");
+    expect(output()).toMatch(/\[work-queue:timing\] third failed=true http_status=503 queue_control_github_api_unavailable=true -- .* \+8ms\n/);
   });
 
   it("does not advance the delta clock for suppressed events or use wall-clock time", () => {
@@ -107,7 +107,7 @@ describe("privacy-preserving work queue logging", () => {
     clock.mockReturnValue(130);
     logger.failure("visible.failure", { status: 500 }, true);
     expect(output()).toContain("first +0ms\n");
-    expect(output()).toContain("visible.failure failed=true http_status=500 +30ms\n");
+    expect(output()).toMatch(/visible.failure failed=true http_status=500 queue_control_github_api_unavailable=true -- .* \+30ms\n/);
     expect(output()).not.toContain("suppressed.failure");
   });
 
@@ -142,6 +142,39 @@ describe("privacy-preserving work queue logging", () => {
     createWorkQueueLogger("native").diagnostic("dispatch.post.start", { input_count: 1, named_ref: true, assignment: "private", token: "private", ref: "private" });
     expect(output()).toContain("dispatch.post.start input_count=1 named_ref=true");
     expect(output()).not.toContain("private");
+  });
+
+  it("reports only allowlisted static error codes without DEBUG or invoking getters", () => {
+    const logger = createWorkQueueLogger("dispatch");
+    logger.failure("launch.preflight.blocked", new Error("work_queue_dispatch_contents_write_required"), true);
+    expect(output()).toContain("work_queue_dispatch_contents_write_required=true");
+    expect(output()).toContain("selected dispatch credential reports no repository write access");
+    expect(output()).toContain("contents: write and actions: write");
+    expect(output()).toContain("keep the agent job read-only");
+    const getter = vi.fn(() => "private-token");
+    const error = Object.defineProperties({}, { code: { get: getter }, message: { get: getter } });
+    expect(queueControlErrorCode(error)).toBe("queue_control_authority_or_publication_failed");
+    expect(getter).not.toHaveBeenCalled();
+    expect(queueControlErrorCode(new Error("work_queue_dispatch_contents_write_required: private-token"))).toBe("queue_control_authority_or_publication_failed");
+    expect(queueControlErrorCode({ code: "private-token" })).toBe("queue_control_authority_or_publication_failed");
+    expect(output()).not.toContain("private-token");
+  });
+
+  it.each([
+    [401, "GitHub rejected the credential", "valid, and unexpired"],
+    [403, "GitHub denied the queue API request", "contents: write and actions: write"],
+    [404, "GitHub could not find or expose", "selected token's access"],
+    [429, "GitHub rate-limited", "reconcile existing reservations"],
+    [503, "GitHub returned a server error", "launch may already have happened"],
+    [422, "GitHub rejected the queue API request", "workflow_dispatch trigger"],
+  ])("explains HTTP %s and a safe recovery action without raw provider data", (status, problem, action) => {
+    const error = { status, response: { data: { message: "private-provider-body" } } };
+    const explanation = queueControlErrorExplanation(queueControlErrorCode(error));
+    expect(explanation).toContain(problem);
+    expect(explanation).toContain(action);
+    createWorkQueueLogger("dispatch").failure("launch.post.failed", error, true);
+    expect(output()).toContain(explanation);
+    expect(output()).not.toContain("private-provider-body");
   });
 
   it("does not invoke nested response getters or print oversized error bodies in always-visible diagnostics", () => {

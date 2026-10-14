@@ -75,7 +75,10 @@ function createDispatchCredentialValidator(client, supplied, selectedToken) {
     if (access?.status !== 200 || access.data?.full_name?.toLowerCase() !== repository.toLowerCase()) {
       throw new Error("work_queue_dispatch_repository_identity_mismatch");
     }
-    if (!(permissions?.push === true || permissions?.maintain === true || permissions?.admin === true || ["write", "admin"].includes(permissions?.contents ?? ""))) throw new Error("work_queue_dispatch_contents_write_required");
+    // Installation-token responses can omit user-role metadata. The exact tag
+    // preparation below checks the selected client's actual repository access.
+    if (permissions !== undefined && !(permissions?.push === true || permissions?.maintain === true || permissions?.admin === true || ["write", "admin"].includes(permissions?.contents ?? "")))
+      throw new Error("work_queue_dispatch_contents_write_required");
     const expected = Object.hasOwn(profile, "principal") ? nativeId(profile.principal, "approved worker principal") : undefined;
     const actual = await resolveDispatchCredentialPrincipal(client, credential);
     if (expected !== undefined && actual !== expected) throw new Error("work_queue_dispatch_credential_principal_mismatch");

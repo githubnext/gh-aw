@@ -2,6 +2,7 @@
 "use strict";
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("dispatch");
+const { queueControlErrorCode, queueControlErrorExplanation } = require("./work_queue_logging.cjs");
 
 const { canonical, closed, digest, integer, queueError } = require("./work_queue_codec.cjs");
 const { actorFromContext, dispatchPrincipal } = require("./work_queue_policy.cjs");
@@ -493,12 +494,21 @@ async function dispatchQueueIntent(options) {
   const groups = assignmentsForRequest(published.state, request.id);
   log.debug("intent.dispatch.published", { assignments: groups.length, recovered: published.recovered === true });
   const launches = [];
-  for (const assignment of groups) launches.push({ dispatch_id: assignment.dispatch_id, ...(await launchAssignment(configured, assignment)) });
+  for (const assignment of groups) {
+    try {
+      launches.push({ dispatch_id: assignment.dispatch_id, ...(await launchAssignment(configured, assignment)) });
+    } catch (error) {
+      log.failure("launch.processing.blocked", error, true);
+      const reason = queueControlErrorCode(error);
+      launches.push({ dispatch_id: assignment.dispatch_id, state: "blocked", reason, explanation: queueControlErrorExplanation(reason), failure_stage: "launch_processing" });
+    }
+  }
   log.debug("intent.dispatch.complete", { assignments: groups.length, launches: launches.length });
   return {
     success: launches.every(launch => ["bound", "released", "staged_preview"].includes(launch.state)),
     status: groups.length ? "durable" : "no_grant",
     request_id: request.id,
+    commit_id: published.commit?.id,
     reason: published.reason,
     dispatches: groups.length,
     launches,
@@ -522,7 +532,7 @@ async function processParsedWorkQueueIntents(options, runtime, intents, errors) 
     return { version: 3, receipts: [{ reason: invalidPreparedBatch, status: "blocked" }], remaining_dispatches: options.maxDispatches ?? 1 };
   }
   let remaining = options.maxDispatches ?? 1;
-  /** @type {Array<{status: string, intent_id?: string, reason?: string, line?: number, claim_handle?: string, request_id?: string, commit_id?: string, success?: boolean, staged?: boolean, dispatches?: number, recovered?: boolean, launches?: object[], acknowledgement_only?: boolean, control?: object | null}>} */
+  /** @type {Array<{status: string, intent_id?: string, reason?: string, explanation?: string, failure_stage?: string, line?: number, claim_handle?: string, request_id?: string, commit_id?: string, success?: boolean, staged?: boolean, dispatches?: number, recovered?: boolean, launches?: object[], acknowledgement_only?: boolean, control?: object | null}>} */
   const receipts = errors.map(error => ({ ...error, status: "blocked" }));
   for (const intent of intents) {
     log.debug("intent.process.start", { dispatch: intent.kind === "dispatch_next", submit: intent.kind === "submit" });
@@ -593,9 +603,9 @@ async function processParsedWorkQueueIntents(options, runtime, intents, errors) 
         log.debug("intent.submit.persisted", { recovered: result.recovered === true });
       }
     } catch (error) {
-      log.failure("intent.process.blocked", error);
-      const checkpointInvalid = error instanceof Error && "code" in error && error.code === "checkpoint_invalid";
-      receipts.push({ intent_id: intent.intent_id, status: "blocked", reason: checkpointInvalid ? "queue_control_checkpoint_invalid" : "queue_control_authority_or_publication_failed" });
+      log.failure("intent.process.blocked", error, true);
+      const code = queueControlErrorCode(error);
+      receipts.push({ intent_id: intent.intent_id, status: "blocked", reason: code === "checkpoint_invalid" ? "queue_control_checkpoint_invalid" : code, explanation: queueControlErrorExplanation(code), failure_stage: "intent_processing" });
     }
   }
   log.debug("intents.process.complete", { receipts: receipts.length, remaining_dispatches: remaining });
@@ -633,11 +643,11 @@ async function main(options = {}) {
       errors
     );
   } catch (error) {
-    log.failure("controls.blocked", error);
-    result = { version: 3, receipts: [{ status: "blocked", reason: "staged_queue_intents_invalid" }], remaining_dispatches: 0 };
+    log.failure("controls.blocked", error, true);
+    result = { version: 3, receipts: [{ status: "blocked", reason: "staged_queue_intents_invalid", explanation: queueControlErrorExplanation(queueControlErrorCode(error)), failure_stage: "control_setup" }], remaining_dispatches: 0 };
   }
   const durable = result.receipts.filter(receipt => receipt.status === "durable").length;
-  const blocked = result.receipts.filter(receipt => receipt.status === "blocked").length;
+  const blocked = result.receipts.filter(receipt => receipt.status === "blocked" || receipt.launches?.some(launch => launch.state === "blocked")).length;
   const rejected = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => launch.state === "rejected").length, 0);
   const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "rejected", "staged_preview"].includes(launch.state)).length, 0);
   const recoveryRequired = blocked > 0 || unresolved > 0 || rejected > 0;
@@ -652,6 +662,8 @@ async function main(options = {}) {
     `- Blocked intents: ${blocked}`,
     `- Rejected launches: ${rejected}`,
     `- Unresolved launches: ${unresolved}`,
+    ...result.receipts.filter(receipt => receipt.status === "blocked").map(receipt => `- Control blocked: ${receipt.explanation || queueControlErrorExplanation(receipt.reason)}`),
+    ...result.receipts.flatMap(receipt => (receipt.launches || []).filter(launch => launch.state === "blocked").map(launch => `- Launch processing blocked: ${launch.explanation} (\`${launch.reason}\`)`)),
   ].join("\n");
   result = { ...result, status, success: !recoveryRequired, summary };
   coreApi.setOutput("work_queue_requests", JSON.stringify(result));
@@ -662,9 +674,27 @@ async function main(options = {}) {
     await coreApi.summary.write();
   }
   if (recoveryRequired) {
+    const explanations = [
+      ...new Set(
+        result.receipts.flatMap(receipt => [
+          ...(receipt.status === "blocked" ? [receipt.explanation || queueControlErrorExplanation(receipt.reason)] : []),
+          ...(receipt.launches || [])
+            .map(launch =>
+              launch.state === "blocked"
+                ? launch.explanation
+                : launch.state === "rejected"
+                  ? "GitHub rejected a worker launch. Inspect the launch diagnostics and correct the published worker route, trigger, inputs, or credential permissions."
+                  : !["bound", "released", "staged_preview"].includes(launch.state)
+                    ? "A worker may have launched, but its run has not been verified. Reconcile the original reservation; do not dispatch the same assignment again."
+                    : null
+            )
+            .filter(Boolean),
+        ])
+      ),
+    ];
     const failure = result.receipts.some(receipt => receipt.reason === "work_queue_dispatcher_intents_missing")
       ? "Work queue dispatcher produced no control intents; inspect the preparation step and tool-denial logs."
-      : "Work queue controls require recovery; inspect the work_queue_requests output and step summary.";
+      : `Work queue controls require recovery. ${explanations.join(" ")} Inspect the work_queue_requests output and step summary for the durable request and reservation IDs. Failure does not prove that no worker launched; verify the authoritative ledger before releasing or retrying reservations.`;
     if (typeof coreApi.setFailed === "function") coreApi.setFailed(failure);
     else throw new Error(failure);
   }

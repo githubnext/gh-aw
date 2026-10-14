@@ -7,6 +7,135 @@ const { performance } = require("node:perf_hooks");
 /** @type {Map<string, number>} */
 const lastEmittedAt = new Map();
 
+const CONTROL_ERROR_CODES = new Set([
+  "checkpoint_invalid",
+  "resource_limit",
+  "work_queue_dispatch_credential_binding_required",
+  "work_queue_dispatch_credential_auth_unavailable",
+  "work_queue_dispatch_credential_client_mismatch",
+  "work_queue_dispatch_credential_identity_unavailable",
+  "work_queue_dispatch_credential_identity_unverified",
+  "work_queue_dispatch_credential_principal_mismatch",
+  "work_queue_dispatch_credential_proof_invalid",
+  "work_queue_dispatch_credential_validator_required",
+  "work_queue_dispatch_contents_write_unavailable",
+  "work_queue_dispatch_contents_write_required",
+  "work_queue_dispatch_repository_identity_mismatch",
+  "work_queue_dispatch_tag_mismatch",
+  "work_queue_dispatch_tag_preparation_failed",
+  "work_queue_assignment_mismatch",
+  "work_queue_assignment_profile_missing",
+  "work_queue_policy_proposal_mismatch",
+  "work_queue_dispatch_credential_kind_invalid",
+  "work_queue_dispatch_app_metadata_missing",
+  "work_queue_dispatch_credential_metadata_conflict",
+  "queue_control_github_access_denied",
+  "queue_control_github_authentication_failed",
+  "queue_control_github_not_found",
+  "queue_control_github_rate_limited",
+  "queue_control_github_api_unavailable",
+  "queue_control_github_request_rejected",
+  "queue_control_dispatch_ref_missing",
+  "queue_control_dispatch_inputs_mismatch",
+  "queue_control_dispatch_trigger_missing",
+]);
+
+/** @param {string} code */
+function queueControlErrorExplanation(code) {
+  switch (code) {
+    case "work_queue_dispatch_contents_write_required":
+      return "The selected dispatch credential reports no repository write access. Grant contents: write and actions: write to the trusted safe-output job; keep the agent job read-only.";
+    case "work_queue_dispatch_contents_write_unavailable":
+      return "The dispatch client cannot check the target repository. Use the authenticated GitHub client created by the compiled safe-output job.";
+    case "work_queue_dispatch_credential_binding_required":
+    case "work_queue_dispatch_credential_auth_unavailable":
+    case "work_queue_dispatch_credential_client_mismatch":
+      return "The dispatch client could not be bound to the compiler-selected token. Fix trusted client construction so credential validation and workflow dispatch use the same selected token; do not substitute the caller's credential.";
+    case "work_queue_dispatch_credential_identity_unavailable":
+    case "work_queue_dispatch_credential_identity_unverified":
+      return "The dispatch credential's GitHub identity could not be verified. Check the selected token's validity and GitHub API access; do not infer identity from the workflow's human caller.";
+    case "work_queue_dispatch_credential_principal_mismatch":
+      return "The selected token belongs to a different identity than the original assignment permits. Use the approved worker credential; do not reassign the Claim or bypass the identity check.";
+    case "work_queue_dispatch_credential_proof_invalid":
+    case "work_queue_dispatch_credential_validator_required":
+      return "The assignment has no valid credential proof from the actual dispatch client. Restore the compiled credential validator and verify the original route before launching.";
+    case "work_queue_dispatch_repository_identity_mismatch":
+      return "GitHub returned a different repository than the approved target. Check the repository and API host configuration; do not broaden the assignment's scope.";
+    case "work_queue_dispatch_tag_mismatch":
+      return "The worker snapshot tag does not point to the approved immutable commit. Inspect the tag and worker revision; never overwrite the conflicting tag or launch from a moving branch.";
+    case "work_queue_dispatch_tag_preparation_failed":
+      return "The worker snapshot tag could not be prepared and verified. Check GitHub API access and contents: write on the selected dispatch credential before retrying through trusted reconciliation.";
+    case "work_queue_assignment_mismatch":
+    case "work_queue_assignment_profile_missing":
+      return "The stored assignment does not match a valid approved worker route. Inspect the original Claim and installed deployment; do not rebuild an assignment from task text or a stale snapshot.";
+    case "work_queue_policy_proposal_mismatch":
+      return "The proposed queue policy differs from the installed policy. Refresh compatible worker deployments, or use an explicit administrator policy update only after the queue is quiescent.";
+    case "checkpoint_invalid":
+    case "queue_control_checkpoint_invalid":
+      return "The queue checkpoint failed validation. Inspect the authoritative ledger and restore a valid causal history; do not delete the queue or reset its scheduling debt.";
+    case "resource_limit":
+      return "The queue operation exceeded a bounded protocol limit. Reduce the batch or assignment size; compact the ledger only through the supported command without discarding history.";
+    case "work_queue_dispatch_credential_kind_invalid":
+    case "work_queue_dispatch_app_metadata_missing":
+    case "work_queue_dispatch_credential_metadata_conflict":
+      return "The compiled dispatch credential configuration is missing or inconsistent. Recompile the dispatcher with its declared safe-outputs.dispatch-workflow workers and approved credential source.";
+    case "queue_control_github_access_denied":
+      return "GitHub denied the queue API request (HTTP 403). Check the selected credential's repository access and required permissions, including contents: write and actions: write for dispatch; keep the agent job read-only.";
+    case "queue_control_github_authentication_failed":
+      return "GitHub rejected the credential (HTTP 401). Check that the compiler-selected token is present, valid, and unexpired in the trusted safe-output job; never print the token.";
+    case "queue_control_github_not_found":
+      return "GitHub could not find or expose the requested queue resource (HTTP 404). Check the approved repository, worker revision, workflow path, and selected token's access.";
+    case "queue_control_github_rate_limited":
+      return "GitHub rate-limited the queue request (HTTP 429). Wait for the rate limit to reset, then inspect the authoritative ledger and reconcile existing reservations before retrying.";
+    case "queue_control_github_api_unavailable":
+      return "GitHub returned a server error. A write or worker launch may already have happened; inspect the ledger and reconcile the original reservation before retrying.";
+    case "queue_control_dispatch_ref_missing":
+      return "GitHub could not find the worker snapshot ref. Verify that the approved immutable snapshot tag exists in the destination repository before trusted reconciliation.";
+    case "queue_control_dispatch_inputs_mismatch":
+      return "The published worker workflow does not accept the dispatch inputs. Recompile and publish the worker with its work_queue_assignment input, then reconcile the original reservation.";
+    case "queue_control_dispatch_trigger_missing":
+      return "The published worker workflow has no workflow_dispatch trigger. Recompile and publish the queue worker with that trigger, then reconcile the original reservation.";
+    case "queue_control_github_request_rejected":
+      return "GitHub rejected the queue API request (HTTP 422). Verify the compiled worker route, snapshot ref, workflow_dispatch trigger, and input schema; inspect the original reservation before retrying.";
+    default:
+      return "The queue control failed for an unclassified reason. Inspect the durable request and ledger with DEBUG=work-queue:*; raw exception details are withheld to protect credentials and task data.";
+  }
+}
+
+/** @param {unknown} value @param {string} key */
+function ownValue(value, key) {
+  try {
+    return value && typeof value === "object" ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** @param {unknown} error */
+function queueControlErrorCode(error) {
+  for (const key of ["code", "message"]) {
+    const code = ownValue(error, key);
+    if (typeof code === "string" && CONTROL_ERROR_CODES.has(code)) return code;
+  }
+  const response = ownValue(error, "response");
+  const status = ownValue(error, "status") ?? ownValue(response, "status");
+  if (status === 401) return "queue_control_github_authentication_failed";
+  if (status === 403) return "queue_control_github_access_denied";
+  if (status === 404) return "queue_control_github_not_found";
+  if (status === 429) return "queue_control_github_rate_limited";
+  if (Number.isInteger(status) && status >= 500 && status <= 599) return "queue_control_github_api_unavailable";
+  if (status === 422) {
+    const message = ownValue(ownValue(response, "data"), "message");
+    if (typeof message === "string" && message.length <= 8192) {
+      if (message.startsWith("No ref found for:")) return "queue_control_dispatch_ref_missing";
+      if (message.startsWith("Unexpected inputs provided:")) return "queue_control_dispatch_inputs_mismatch";
+      if (message === "Workflow does not have 'workflow_dispatch' trigger") return "queue_control_dispatch_trigger_missing";
+    }
+    return "queue_control_github_request_rejected";
+  }
+  return "queue_control_authority_or_publication_failed";
+}
+
 /** @param {string} namespace */
 function debugEnabled(namespace) {
   if (process.env.ACTIONS_RUNNER_DEBUG === "true" || process.env.RUNNER_DEBUG === "1") return true;
@@ -26,34 +155,26 @@ function debugEnabled(namespace) {
 }
 
 /**
- * Events and field names must be static developer-authored labels. Values are
+ * Events, field names and explanations must be developer-authored. Values are
  * counts/flags only: never pass identities, payloads, credentials or raw errors.
  * @param {string} component
  */
 function createWorkQueueLogger(component) {
   const namespace = `work-queue:${component}`;
   const logger = createLogger(namespace);
-  /** @param {string} event @param {Record<string, unknown>} [fields] */
-  function diagnostic(event, fields = {}) {
+  /** @param {string} event @param {Record<string, unknown>} [fields] @param {string} [explanation] */
+  function diagnostic(event, fields = {}, explanation) {
     const metadata = Object.entries(fields).filter(([, value]) => typeof value === "boolean" || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0));
     const now = performance.now();
     const previous = lastEmittedAt.get(namespace) ?? now;
     const elapsed = Math.max(0, Math.round(now - previous));
-    logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`), `+${elapsed}ms`].join(" "));
+    logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`), ...(explanation ? ["--", explanation] : []), `+${elapsed}ms`].join(" "));
     lastEmittedAt.set(namespace, now);
   }
   /** @param {string} event @param {Record<string, unknown>} [fields] */
   function debug(event, fields = {}) {
     if (!debugEnabled(namespace)) return;
     diagnostic(event, fields);
-  }
-  /** @param {unknown} value @param {string} key */
-  function ownValue(value, key) {
-    try {
-      return value && typeof value === "object" ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
-    } catch {
-      return undefined;
-    }
   }
   /** @param {string} event @param {unknown} error @param {boolean} [always] */
   function failure(event, error, always = false) {
@@ -63,19 +184,25 @@ function createWorkQueueLogger(component) {
     const status = ownValue(error, "status") ?? ownValue(response, "status");
     const message = ownValue(ownValue(response, "data"), "message");
     const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
-    diagnostic(event, {
-      failed: true,
-      ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}),
-      ...(status === 422
-        ? {
-            ref_not_found: boundedMessage.startsWith("No ref found for:"),
-            unexpected_inputs: boundedMessage.startsWith("Unexpected inputs provided:"),
-            dispatch_trigger_missing: boundedMessage === "Workflow does not have 'workflow_dispatch' trigger",
-          }
-        : {}),
-    });
+    const code = queueControlErrorCode(error);
+    diagnostic(
+      event,
+      {
+        failed: true,
+        ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}),
+        ...(status === 422
+          ? {
+              ref_not_found: boundedMessage.startsWith("No ref found for:"),
+              unexpected_inputs: boundedMessage.startsWith("Unexpected inputs provided:"),
+              dispatch_trigger_missing: boundedMessage === "Workflow does not have 'workflow_dispatch' trigger",
+            }
+          : {}),
+        [code]: true,
+      },
+      queueControlErrorExplanation(code)
+    );
   }
   return { debug, diagnostic, failure };
 }
 
-module.exports = { createWorkQueueLogger, debugEnabled };
+module.exports = { createWorkQueueLogger, debugEnabled, queueControlErrorCode, queueControlErrorExplanation };
