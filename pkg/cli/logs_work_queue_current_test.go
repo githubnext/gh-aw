@@ -340,6 +340,9 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 	receipts, err = readCurrentWorkQueueFinishIntents(path, snapshot)
 	require.NoError(t, err)
 	require.True(t, receipts[0].KeepOpen)
+	serialized, err := json.Marshal(receipts[0])
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"intent_id":"i","claim_handle":"h1","outcome":"completed","keep_open":true}`, string(serialized))
 }
 
 func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {

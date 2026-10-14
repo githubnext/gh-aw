@@ -619,31 +619,39 @@ func (state Projection) settleResult(op Operation, commit QueueCommit, failed bo
 		return queueError("delivery_barrier_conflict", "Result and DeliveryFailure are immutable and exclusive")
 	}
 	if failed {
-		if err := terminalEvidence(state, dispatch, result.Evidence, commit.At); err != nil {
-			return err
-		}
-		recovery := state.Policy.Pools[work.Pool].Reconciliation
-		if !deliveryVerificationExhausted(work, recovery, result.Evidence.Attempts, commit.At) {
-			return queueError("reconciliation_pending", "delivery failure requires exhausted bounded verification")
-		}
-		effects := result.Evidence.Effects
-		if effects == "" {
-			effects = "unknown"
-		}
-		if result.Disposition != effects || result.Disposition == "none" && result.Evidence.Receipt == "" {
-			return queueError("evidence_invalid", "failure disposition must match evidence; none requires positive no-effects proof")
-		}
-		work.Barrier, work.Disposition = "failed", result.Disposition
-		if claim.KeepOpen {
-			claim.Barrier = "failed"
-		}
-		return nil
+		return state.settleFailedDelivery(work, claim, dispatch, result.Disposition, result.Evidence, commit.At)
 	}
-	data, err := Canonical(result.Descriptor)
+	return state.settleVerifiedDelivery(work, claim, dispatch, result.Descriptor, result.Evidence, commit)
+}
+
+func (state Projection) settleFailedDelivery(work *WorkState, claim *ClaimState, dispatch *DispatchState, disposition string, evidence Evidence, at int64) error {
+	if err := terminalEvidence(state, dispatch, evidence, at); err != nil {
+		return err
+	}
+	recovery := state.Policy.Pools[work.Pool].Reconciliation
+	if !deliveryVerificationExhausted(work, recovery, evidence.Attempts, at) {
+		return queueError("reconciliation_pending", "delivery failure requires exhausted bounded verification")
+	}
+	effects := evidence.Effects
+	if effects == "" {
+		effects = "unknown"
+	}
+	if disposition != effects || disposition == "none" && evidence.Receipt == "" {
+		return queueError("evidence_invalid", "failure disposition must match evidence; none requires positive no-effects proof")
+	}
+	work.Barrier, work.Disposition = "failed", disposition
+	if claim.KeepOpen {
+		claim.Barrier = "failed"
+	}
+	return nil
+}
+
+func (state Projection) settleVerifiedDelivery(work *WorkState, claim *ClaimState, dispatch *DispatchState, descriptor json.RawMessage, evidence Evidence, commit QueueCommit) error {
+	data, err := Canonical(descriptor)
 	if err != nil || int64(len(data)) > state.Policy.Limits.ResultBytes ||
-		result.Evidence.Kind != "delivery" || result.Evidence.Source != "verified_receipts" ||
-		result.Evidence.Receipt == "" || dispatch.Run == nil ||
-		result.Evidence.RunID != dispatch.Run.RunID || result.Evidence.RunAttempt != 1 {
+		evidence.Kind != "delivery" || evidence.Source != "verified_receipts" ||
+		evidence.Receipt == "" || dispatch.Run == nil ||
+		evidence.RunID != dispatch.Run.RunID || evidence.RunAttempt != 1 {
 		return queueError("delivery_evidence_required", "Result requires scoped verified delivery receipts")
 	}
 	work.Barrier, work.Result, work.ResultCommitID = "verified", data, commit.ID
