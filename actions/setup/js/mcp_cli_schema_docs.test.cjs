@@ -27,8 +27,8 @@ describe("mcp_cli_schema_docs.cjs", () => {
     expect(signature).toContain("[--suggest <true|false>]");
 
     const recommended = renderToolRecommendedExample("safeoutputs", tool);
-    expect(recommended).toContain('--rationale "The report describes reproducible incorrect behavior."');
-    expect(recommended).toContain('--confidence "HIGH"');
+    expect(recommended).toContain('"rationale":"The report describes reproducible incorrect behavior."');
+    expect(recommended).toContain('"confidence":"HIGH"');
   });
 
   it("renders required intent fields when issue-intent is strict", () => {
@@ -100,9 +100,9 @@ describe("mcp_cli_schema_docs.cjs", () => {
     expect(signature).toContain("safeoutputs add_labels '<json object>'");
 
     const docs = renderSafeOutputsPromptDocs("safeoutputs", [tool]);
-    expect(docs).toContain('"name": "bug"');
-    expect(docs).toContain('"rationale": "The report describes reproducible incorrect behavior."');
-    expect(docs).toContain('"confidence": "HIGH"');
+    expect(docs).toContain('"name":"bug"');
+    expect(docs).toContain('"rationale":"The report describes reproducible incorrect behavior."');
+    expect(docs).toContain('"confidence":"HIGH"');
   });
 
   it("preserves mixed scalar type placeholders in signatures", () => {
@@ -152,7 +152,7 @@ describe("mcp_cli_schema_docs.cjs", () => {
     };
 
     const docs = renderSafeOutputsPromptDocs("safeoutputs", [tool]);
-    expect(docs).toContain('"name": "bug"');
+    expect(docs).toContain('"name":"bug"');
     expect(docs).not.toContain('"rationale":');
     expect(docs).not.toContain('"confidence":');
   });
@@ -173,7 +173,23 @@ describe("mcp_cli_schema_docs.cjs", () => {
     };
 
     const recommended = renderToolRecommendedExample("safeoutputs", tool);
-    expect(recommended).toContain("--issue_number 123");
-    expect(recommended).toContain("--milestone_number 1");
+    expect(recommended).toContain('"issue_number":123');
+    expect(recommended).toContain('"milestone_number":1');
+  });
+
+  it("renders single-quoted compact JSON with apostrophes and literal text preserved", () => {
+    const body = 'First line.\nIt\'s "ready"; literal \\n; café 日本語.';
+    const tool = {
+      name: "add_comment",
+      inputSchema: {
+        properties: { item_number: { type: "integer" }, body: { type: "string", enum: [body] } },
+        required: ["item_number", "body"],
+      },
+    };
+    const recommended = renderToolRecommendedExample("safeoutputs", tool, { multiline: true });
+    expect(recommended).not.toContain("\n");
+    expect(recommended).toContain("\\u0027");
+    const payload = recommended.match(/^safeoutputs add_comment '([^']+)'$/)[1];
+    expect(JSON.parse(payload)).toEqual({ item_number: 123, body });
   });
 });

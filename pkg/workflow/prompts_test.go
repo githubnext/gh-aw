@@ -368,8 +368,10 @@ func TestDailyFormalSpecVerifierDefinesConfiguredSafeOutputContract(t *testing.T
 	for _, expected := range []string{
 		"cli-proxy: true",
 		"direct safe-output MCP tools are not exposed",
-		"printf '%s' '<JSON>' | safeoutputs create_issue .",
-		`printf '%s' '{"reason":"<concrete blocker>"}' | safeoutputs report_incomplete .`,
+		"safeoutputs create_issue '<JSON>'",
+		"Stdin is also supported with `safeoutputs create_issue .`",
+		"prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion",
+		`safeoutputs report_incomplete '{"reason":"<concrete blocker>"}'`,
 		"Do not redirect it to a file.",
 	} {
 		if !strings.Contains(workflow, expected) {
