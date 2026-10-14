@@ -257,6 +257,7 @@ model CompletionOperation {
   claim_handle: Identity;
   run_id: Decimal;
   run_attempt: 1;
+  keep_open?: boolean;
 }
 @jsonSchema
 model Evidence {
@@ -424,6 +425,7 @@ model FinishParameters {
   dispatch_id: Identity;
   claim_handle: Identity;
   outcome: "completed" | "cancelled";
+  keep_open?: boolean;
 }
 @jsonSchema
 model OperationsParameters {
@@ -489,4 +491,5 @@ model WorkQueueAssignment {
 model WorkQueueFinishIntent {
   claim_handle?: Identity;
   outcome: "completed" | "cancelled";
+  keep_open?: boolean;
 }

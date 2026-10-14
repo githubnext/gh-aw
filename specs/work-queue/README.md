@@ -40,6 +40,66 @@ This directory retains executable specifications and formal evidence, not a
 second current user guide. The historical material below is model provenance,
 not supported deployment guidance.
 
+## Retained Claim completion model
+
+`FairWorkQueue.tla` models optional `keep_open: boolean` on the finish request
+and immutable Completion, defaulting to `FALSE`. Only `completed` may retain
+Work. The Claim becomes permanently completed and authorizes its effects once;
+the Work stays open behind a pending delivery barrier. Verified delivery makes
+that same Work available for a fresh Claim without publishing a Work Result or
+releasing DAG successors. Failed delivery keeps it blocked. The original native
+reservation survives either finish and delivery outcome until trusted termination;
+a fresh Claim may coexist with that reservation only within the normal capacity
+limits. `ClaimChargeCount` preserves every accepted Claim's fairness charge.
+
+The focused `KeepOpenSpec` uses two immutable singleton assignments and a
+two-node chain. The first Claim retains Work; the second can reclaim it after
+verified delivery and finish normally, producing a final completed Work and
+verified Result. `ProjectionSoundness` compares full replay with checkpoint
+suffix replay throughout, including historical per-Claim `keep_open` and delivery
+metadata after re-claim. The saved prefix remains a ghost proof variable: this
+checks projection equivalence, not physical pruning or JSON snapshot encoding.
+
+`IssueProjection.tla` abstracts the projector's completion decision through
+`ResultClosesWork`: its default is true, while retained configurations override it
+to false. Even verified retained effects and an admission-frozen close policy
+cannot close the backing Issue; summary projection remains allowed. This
+single-Claim abstraction does not model an Issue's subsequent final completion.
+
+| Configuration | Expected result |
+|---|---|
+| `FairKeepOpen.cfg` | Exhaust bounded `Safety`, including checkpoint replay equivalence. |
+| `KeepOpenReclaimWitness.cfg` | Reach a fresh Claim and checkpoint preserving the retained Claim metadata. |
+| `KeepOpenFinalWitness.cfg` | Reach final completed Work and Result after retained completion. |
+| `KeepOpenFailureWitness.cfg` | Reach failed retained delivery with Work still fenced. |
+| `KeepOpenReservationWitness.cfg` | Reach re-claim while the original native reservation remains bound. |
+| `BrokenKeepOpenGrant.cfg` | Reject a re-grant before verified delivery or after failure. |
+| `BrokenKeepOpenResult.cfg` | Reject a Result that would release successors for retained Work. |
+| `BrokenKeepOpenDelivery.cfg` | Reject availability without a verified effect receipt. |
+| `BrokenKeepOpenRelease.cfg` | Reject reservation release before trusted termination. |
+| `BrokenKeepOpenOutcome.cfg` | Reject `keep_open` on a cancelled Claim. |
+| `IssueKeepOpen.cfg`, `IssueKeepOpenWitness.cfg` | Check closure safety and witness allowed summary projection without closure. |
+| `IssueBrokenKeepOpenClose.cfg` | Reject closing the backing Issue for retained completion. |
+
+Witnesses check `Safety` (or the Issue safety invariants) before their
+deliberately false reachability invariant. They demonstrate bounded reachable
+states, not eventual delivery, fair repeated service, Git/API correctness, or
+runtime refinement. Retry-attempt/backoff reset after successful retention and
+explicit Work cancellation during pending delivery are outside this focused
+abstraction; in particular, it does not prove that a later receipt preserves an
+explicitly cancelled Work. Run these models through `check.sh` with
+`TLC_MODEL_FILTER=FairWorkQueue` or `TLC_MODEL_FILTER=IssueProjection`;
+`TLC_CONFIG_FILTER` selects an individual configuration.
+
+Focused verification with the documented official TLC 2.19 jar and Java 21
+exhausted 83,865 distinct `FairKeepOpen` safety states at depth 37 and 42
+`IssueKeepOpen` states at depth 7. All 13 new configurations returned their exact
+expected verdicts, including guarded witnesses and mutation controls. Prior
+`FairBatch`, `FairDAGChain`, `FairCheckpoint` (including `CheckpointProgress`),
+`IssueExisting`, `IssueCreated`, `IssueDefaultOpen`, and `IssuePRStaysOpen`
+configurations also passed. Reports remain in the ignored local validation
+cache; these results apply only to the bounded models, not live execution.
+
 ## Abandoned dispatcher reservation recovery
 
 `DispatchReservationRecovery.tla` starts with three granted singleton profiles:

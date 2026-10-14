@@ -28,6 +28,7 @@ const RUNTIME_TYPES = new Set([
   "firewall.http_access",
   "firewall.token_usage",
   "firewall.model_routing",
+  "model.inventory",
   "model_routing.outcome",
   "model_endpoint.mismatch",
   "firewall.steering",
@@ -201,6 +202,8 @@ function eventDetail(event) {
       return fields(data, ["stage", "routed", "outcome", "selectedModel", "selectedEffort", "router"]);
     case "model_routing.outcome":
       return fields(data, ["status", "wireModel", "effectiveEndpoint", "selectedEndpoint", "effort", "appliedEffort", "failureCode"]);
+    case "model.inventory":
+      return fields(data, ["endpoints", "modelsFetchComplete"]);
     case "model_endpoint.mismatch":
       return `${fields(data, ["category", "phase", "configured_model", "resolved_model", "wire_api", "wire_api_source", "supported_endpoints", "model", "endpoint"])} cause=${inline(data.detail)} fix=${inline(data.fix)}`;
     case "mcp.event":

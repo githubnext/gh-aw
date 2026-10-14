@@ -55,6 +55,27 @@ const trace = [
 ];
 
 describe("unified session publication views", () => {
+  it("renders model inventories with provider, full model list, and supported endpoints", () => {
+    const events = [
+      header,
+      event(
+        "model.inventory",
+        { endpoints: [{ provider: "copilot", models: ["gpt-5.6-luna", "claude-haiku-4.5"], routingModels: [{ modelId: "gpt-5.6-luna", supportedEndpoints: ["/responses"] }], token: "PRIVATE_TOKEN" }], modelsFetchComplete: false },
+        "firewall",
+        0
+      ),
+    ];
+    for (const output of [generatePlainTextSummary(events), generateCopilotCliStyleSummary(events), generateConversationMarkdown(events, { formatToolCallback: formatToolUse, formatInitCallback: formatInitializationSummary }).markdown]) {
+      expect(output).toContain("model.inventory");
+      expect(output).toContain("copilot");
+      expect(output).toContain("gpt-5.6-luna");
+      expect(output).toContain("claude-haiku-4.5");
+      expect(output).toContain("/responses");
+      expect(output).toContain("modelsFetchComplete=false");
+      expect(output).not.toContain("PRIVATE_TOKEN");
+    }
+  });
+
   it("displays task identity and observed errors without inventing tool completion", () => {
     const events = [header, event("tool.execution_update", { toolCallId: "shell", taskId: "background", taskType: "local_bash", status: "failed", error: "observed failure" }, "agent", 0)];
     for (const render of [generatePlainTextSummary, generateCopilotCliStyleSummary]) {

@@ -37,6 +37,20 @@ afterEach(() => {
 });
 
 describe("bounded credential-free work queue MCP", () => {
+  it("stages keep_open only for completed Claims and detects conflicting retry choices", () => {
+    const fixture = queueFixture({ granted: true, bound: true, count: 1 });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(process.cwd()), ".gh-aw-queue-keep-open-"));
+    directories.push(directory);
+    const filename = path.join(directory, "finish.jsonl");
+    const tool = createWorkQueueFinishTool({ snapshot: { worker: fixture.assignment, role: "worker" }, finishIntentPath: filename });
+    for (const keep_open of [null, "true", 1]) expect(() => tool.handler({ keep_open })).toThrow(/boolean/);
+    expect(() => tool.handler({ outcome: "cancelled", keep_open: true })).toThrow(/requires outcome completed/);
+    expect(fs.existsSync(filename)).toBe(false);
+    const staged = response(tool.handler({ keep_open: true }));
+    expect(response(tool.handler({ outcome: "completed", keep_open: true })).intent_id).toBe(staged.intent_id);
+    expect(() => tool.handler({ outcome: "completed" })).toThrow(/finish_conflict/);
+    expect(readStagedIntents(filename)[0].parameters).toEqual({ outcome: "completed", keep_open: true });
+  });
   it("supports the observer smoke read/explain protocol before queue initialization without any finish artifact", () => {
     const test = setup();
     fs.writeFileSync(test.snapshotPath, JSON.stringify({ ...test.envelope, sha: null, transactionLog: "", role: "observer" }));
