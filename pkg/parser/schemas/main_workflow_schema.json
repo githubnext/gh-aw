@@ -11307,17 +11307,6 @@
                       "additionalProperties": true
                     }
                   ]
-                },
-                "required-labels": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "All of these labels must be present on the target item for this operation to proceed"
-                },
-                "required-title-prefix": {
-                  "type": "string",
-                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false

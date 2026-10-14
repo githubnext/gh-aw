@@ -106,6 +106,8 @@ var issueHandlerRegistry = map[string]handlerBuilder{
 		c := cfg.SetIssueType
 		config := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddStringSlice("allowed", c.Allowed).
 			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddIfNotEmpty("target", c.Target).

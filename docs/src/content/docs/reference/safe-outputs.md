@@ -480,6 +480,8 @@ When enabled, the workflow completion notifier creates a new comment instead of 
 
 Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
 
+`required-labels` and `required-title-prefix` are not supported for `hide-comment`. Use `target` and `allowed-reasons` to restrict comment hiding.
+
 ```yaml wrap
 safe-outputs:
   hide-comment:
