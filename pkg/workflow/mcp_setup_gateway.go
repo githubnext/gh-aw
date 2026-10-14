@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"path"
 	"slices"
 	"sort"
 	"strconv"
@@ -69,7 +70,10 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	}
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubToolRaw, hasGitHub := tools["github"]
-	githubTool, _ := githubToolRaw.(map[string]any)
+	var githubTool map[string]any
+	if config, ok := githubToolRaw.(map[string]any); ok {
+		githubTool = config
+	}
 	if err := writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
 		engine:               engine,
 		workflowData:         workflowData,
@@ -134,7 +138,7 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
-		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
+		yaml.WriteString("          " + envVarName + ": " + mcpEnvVars[envVarName] + "\n")
 	}
 	// Write safe-outputs input env vars (sorted); these must also be present in the
 	// runner step environment so the docker -e flag can forward them to the container.
@@ -146,7 +150,7 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
-		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, safeOutputsInputEnvVars[envVarName])
+		yaml.WriteString("          " + envVarName + ": " + safeOutputsInputEnvVars[envVarName] + "\n")
 	}
 	// Use compiler-controlled transport names so special environment variables such
 	// as BASH_ENV cannot affect the host shell before the run script starts.
@@ -296,7 +300,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// server config always references them. Export empty defaults so Docker forwards
 	// defined values and strict gateway config expansion also works for other triggers.
 	for _, envVar := range optionalPRHeadEnvVars {
-		fmt.Fprintf(yaml, "          export %s=\"${%s:-}\"\n", envVar, envVar)
+		yaml.WriteString("          export " + envVar + "=\"${" + envVar + ":-}\"\n")
 	}
 	if enclavesEnabled(workflowData) {
 		yaml.WriteString("          AWF_ENCLAVE_MCP_CAPABILITY=$(openssl rand -hex 32)\n")
@@ -352,7 +356,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			// route, and is kept out of the primary agent's environment via --exclude-env.
 			// The pinned mcpg controller serves control operations under the fixed
 			// enclaveDelegationControlAPIBasePath, not a path keyed by controller name.
-			fmt.Fprintf(yaml, "          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:%d%s/%s\"\n", port+enclaveDelegationControlPortOffset, enclaveDelegationControlAPIBasePath, enclaveDynamicController)
+			yaml.WriteString("          export AWF_ENCLAVE_GITHUB_DELEGATION_CONTROL_ENDPOINT=\"http://127.0.0.1:" + strconv.Itoa(port+enclaveDelegationControlPortOffset) + path.Join(enclaveDelegationControlAPIBasePath, enclaveDynamicController) + "\"\n")
 		}
 		if enclaveGitHubIssuesEnabled(workflowData) {
 			yaml.WriteString("          AWF_ENCLAVE_GITHUB_MCP_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')\n")
@@ -363,7 +367,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 			}
 		}
 		yaml.WriteString("          # The eager checker runs inside start_mcp_gateway.cjs in this step.\n")
-		fmt.Fprintf(yaml, "          export %s=%q\n", enclaveMCPDeferredServersEnv, enclaveMCPServerName)
+		yaml.WriteString("          export " + enclaveMCPDeferredServersEnv + "=" + strconv.Quote(enclaveMCPServerName) + "\n")
 		// Masked values may be suppressed as GitHub Actions step outputs. Enclave host setup
 		// therefore carries the gateway agent ID through the same GITHUB_ENV channel as its other
 		// AWF-only handoffs; --exclude-env keeps it out of the primary agent.
@@ -654,15 +658,15 @@ func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGa
 // that never matches the real mounted path.
 func parseMCPGatewayAllowlistMount(mount string) (string, string, bool) {
 	mount = strings.ReplaceAll(mount, `\$`, "$")
-	parts := strings.SplitN(mount, ":", 3)
-	if len(parts) < 2 || parts[0] == "" {
+	source, destination, found := strings.Cut(mount, ":")
+	if !found || source == "" {
 		return "", "", false
 	}
 	mode := "rw"
-	if len(parts) == 3 && parts[2] == "ro" {
+	if _, specifiedMode, found := strings.Cut(destination, ":"); found && specifiedMode == "ro" {
 		mode = "ro"
 	}
-	return parts[0], mode, true
+	return source, mode, true
 }
 
 // collectMCPServerConfiguredMounts scans every configured MCP server (built-in
@@ -724,14 +728,16 @@ func extractMCPVolumeArgMounts(argsRaw any) []string {
 	}
 
 	var mounts []string
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
+	consumeNext := false
+	for _, arg := range args {
+		if consumeNext {
+			mounts = append(mounts, arg)
+			consumeNext = false
+			continue
+		}
 		switch {
 		case arg == "-v" || arg == "--volume":
-			if i+1 < len(args) {
-				mounts = append(mounts, args[i+1])
-				i++
-			}
+			consumeNext = true
 		case strings.HasPrefix(arg, "--volume="):
 			mounts = append(mounts, strings.TrimPrefix(arg, "--volume="))
 		case strings.HasPrefix(arg, "-v="):

@@ -9,6 +9,52 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestParseMCPGatewayAllowlistMount(t *testing.T) {
+	for _, tc := range []struct {
+		mount  string
+		source string
+		mode   string
+		ok     bool
+	}{
+		{"", "", "", false},
+		{"/source", "", "", false},
+		{":/destination:ro", "", "", false},
+		{"/source:/destination", "/source", "rw", true},
+		{"/source:/destination:ro", "/source", "ro", true},
+		{"/source:/destination:rw", "/source", "rw", true},
+		{"/source:/destination:ro:extra", "/source", "rw", true},
+		{"/source:", "/source", "rw", true},
+		{`\${RUNNER_TEMP}/home:/home:ro`, "${RUNNER_TEMP}/home", "ro", true},
+	} {
+		t.Run(tc.mount, func(t *testing.T) {
+			source, mode, ok := parseMCPGatewayAllowlistMount(tc.mount)
+			assert.Equal(t, tc.source, source)
+			assert.Equal(t, tc.mode, mode)
+			assert.Equal(t, tc.ok, ok)
+		})
+	}
+}
+
+func TestExtractMCPVolumeArgMounts(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args any
+		want []string
+	}{
+		{"nil", nil, nil},
+		{"empty", []string{}, nil},
+		{"trailing flag", []string{"--volume"}, nil},
+		{"separate flags", []string{"-v", "/one:/one:ro", "--volume", "/two:/two"}, []string{"/one:/one:ro", "/two:/two"}},
+		{"equals flags", []string{"--volume=/one:/one", "-v=/two:/two:rw"}, []string{"/one:/one", "/two:/two:rw"}},
+		{"consumed flag value", []string{"-v", "--volume", "/not-a-mount", "-v=/one:/one"}, []string{"--volume", "/one:/one"}},
+		{"filtered raw args", []any{"-v", 12, "/one:/one", "--other", "--volume"}, []string{"/one:/one"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, extractMCPVolumeArgMounts(tc.args))
+		})
+	}
+}
+
 // TestBuildMCPGatewayAllowedMountRoots verifies that the gateway's
 // MCP_GATEWAY_ALLOWED_MOUNT_ROOTS value grants read-write access to the host
 // paths our built-in MCP servers (safe-outputs, agentic-workflows) mount, so
