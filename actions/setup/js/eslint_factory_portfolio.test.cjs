@@ -16,17 +16,12 @@ import { readWorkQueuePolicyConfig } from "./work_queue_policy_config.cjs";
 import { bindWorkerAssignment } from "./work_queue_binding.cjs";
 import { authorizeWorkerClaim, reconcileWorkerClaim } from "./finish_work_queue_claim.cjs";
 import { reconcileDispatch } from "./work_queue_reconciler.cjs";
+import { compiledFactoryPolicyEnvironments, installFactoryNativeAPI } from "./eslint_factory_native.test_helpers.cjs";
 
 const repository = "owner/repo";
 const planOptions = { date: "2026-10-08", repository, repositoryId: "7" };
 const settings = JSON.parse(fs.readFileSync(new URL("../../../.github/workflows/aw.json", import.meta.url), "utf8")).work_queue;
 const policyOptions = { repository, ref: "a".repeat(40), settings };
-
-function compiledFactoryPolicyEnvironments(compiled) {
-  return [...compiled.matchAll(/(?:^ +GH_AW_WORK_QUEUE_POLICY(?:_PARTS|_[0-9]+)?: "[^\n]+"\n)+/gm)].map(([block]) =>
-    Object.fromEntries([...block.matchAll(/(GH_AW_WORK_QUEUE_POLICY(?:_PARTS|_[0-9]+)?): ("[^\n]+")/g)].map(([, name, value]) => [name, JSON.parse(value)]))
-  );
-}
 
 function ledger() {
   let state = newState();
@@ -174,10 +169,7 @@ describe("ESLint factory producer and dispatcher", () => {
     fs.mkdirSync(directory);
     const fixture = queueFixture({ granted: false, workerPrincipal: "12" });
     const fake = fakeGitHub();
-    const runs = new Map();
-    const tags = new Map();
-    const tagCreations = [];
-    const posts = [];
+    const { runs, tagCreations, posts, fileReads, workerFiles } = installFactoryNativeAPI(fake, fixture);
     const failures = [];
     const compiled = fs.readFileSync(new URL("../../../.github/workflows/eslint-factory-dispatcher.lock.yml", import.meta.url), "utf8");
     const configMatch = compiled.match(/GH_AW_WORK_QUEUE_CONTROL_CONFIG: ("[^\n]+")/);
@@ -186,64 +178,6 @@ describe("ESLint factory producer and dispatcher", () => {
     const [environment] = compiledFactoryPolicyEnvironments(compiled);
     expect(environment).toBeDefined();
     const policy = JSON.parse(readWorkQueuePolicyConfig(environment).replaceAll("${{ github.repository }}", REPOSITORY).replaceAll("${{ github.sha }}", REF));
-    fake.githubClient.rest.repos.get = async () => ({
-      status: 200,
-      data: { full_name: REPOSITORY, id: 7, default_branch: "main", size: 1, permissions: { push: true } },
-    });
-    const getRef = fake.githubClient.rest.git.getRef;
-    fake.githubClient.rest.git.getRef = async parameters => {
-      if (parameters.ref.startsWith("tags/")) {
-        const sha = tags.get(parameters.ref);
-        if (!sha) throw Object.assign(new Error("Not found"), { status: 404 });
-        return { status: 200, data: { ref: `refs/${parameters.ref}`, object: { type: "commit", sha } } };
-      }
-      const response = await getRef(parameters);
-      return { ...response, data: { ...response.data, ref: `refs/${parameters.ref}` } };
-    };
-    const createRef = fake.githubClient.rest.git.createRef;
-    fake.githubClient.rest.git.createRef = async parameters => {
-      if (!parameters.ref.startsWith("refs/tags/")) return createRef(parameters);
-      expect(parameters.ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
-      expect(parameters.sha).toBe(REF);
-      tagCreations.push(parameters);
-      tags.set(parameters.ref.slice("refs/".length), parameters.sha);
-      return { status: 201, data: {} };
-    };
-    fake.githubClient.rest.users = fixture.githubClient.rest.users;
-    fake.githubClient.rest.users.getByUsername = async ({ username }) => {
-      expect(username).toBe("github-actions[bot]");
-      return { status: 200, data: { id: "12", type: "Bot", login: username } };
-    };
-    fake.githubClient.auth = async () => ({ type: "token", token: "fixture-token" });
-    const workerFiles = ESLINT_WORKERS.flatMap(profile => [`.github/workflows/${profile}.md`, `.github/workflows/${profile}.lock.yml`]);
-    const fileReads = [];
-    fake.githubClient.rest.repos.getContent = async ({ path: filename, ref }) => {
-      expect(ref).toBe(REF);
-      expect(workerFiles).toContain(filename);
-      fileReads.push(filename);
-      const content = fs.readFileSync(new URL(`../../../${filename}`, import.meta.url));
-      return { data: { type: "file", path: filename, encoding: "base64", content: content.toString("base64") } };
-    };
-    fake.githubClient.rest.actions.getWorkflow = async ({ workflow_id }) => ({ data: { path: `.github/workflows/${workflow_id}`, state: "active" } });
-    fake.githubClient.rest.actions.getWorkflowRun = async ({ run_id }) => ({ status: 200, data: String(run_id) === "15" ? fixture.nativeRun(fixture.dispatcherContext) : runs.get(String(run_id)) });
-    fake.githubClient.rest.actions.getWorkflowRunAttempt = async ({ run_id }) => fake.githubClient.rest.actions.getWorkflowRun({ run_id });
-    fake.githubClient.rest.actions.createWorkflowDispatch = async parameters => {
-      const assignment = JSON.parse(parameters.inputs.work_queue_assignment);
-      const state = replayTransactions(fake.log());
-      expect(state.dispatches.get(assignment.dispatch_id).state).toBe("started");
-      expect(parameters.ref).toBe(`refs/tags/gh-aw/work-queue/${REF}`);
-      expect(assignment.claims).toHaveLength(1);
-      expect(parameters.workflow_id).toBe(`${assignment.worker_profile}.lock.yml`);
-      const id = String(42 + posts.length);
-      posts.push(parameters);
-      runs.set(id, {
-        ...fixture.nativeRun(fixture.workerContext),
-        id,
-        path: `.github/workflows/${parameters.workflow_id}`,
-        display_title: `gh-aw work-queue ${assignment.dispatch_id}`,
-      });
-      return { status: 200, data: { workflow_run_id: id, run_url: `https://api.github.com/repos/${REPOSITORY}/actions/runs/${id}`, html_url: `https://github.com/${REPOSITORY}/actions/runs/${id}` } };
-    };
     const core = { setOutput: () => {}, info: () => {}, setFailed: message => failures.push(message) };
     const options = {
       githubClient: fake.githubClient,
