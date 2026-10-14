@@ -59,3 +59,32 @@ func (c *Compiler) warnUnknownConfiguredModels(data *WorkflowData, markdownPath 
 		c.IncrementWarningCount()
 	}
 }
+
+// warnClaudeCopilotSettingsOverride warns when a Claude-on-Copilot workflow passes its
+// own --settings in engine.args, because gh-aw then keeps that value and does not add
+// the Copilot model-id map (modelOverrides) for Claude Code.
+func (c *Compiler) warnClaudeCopilotSettingsOverride(data *WorkflowData, markdownPath string) {
+	if data == nil {
+		return
+	}
+	if ResolveEngineID(data) == string(constants.ClaudeEngine) {
+		c.warnClaudeCopilotSettingsArgs("engine.args", data, markdownPath)
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		threatDetection := data.SafeOutputs.ThreatDetection
+		if td := threatDetection.EngineConfig; td != nil && td.ID == string(constants.ClaudeEngine) {
+			c.warnClaudeCopilotSettingsArgs("safe-outputs.threat-detection.engine.args", &WorkflowData{EngineConfig: td, Model: threatDetection.Model}, markdownPath)
+		}
+	}
+}
+
+func (c *Compiler) warnClaudeCopilotSettingsArgs(field string, data *WorkflowData, markdownPath string) {
+	if data.EngineConfig == nil || !claudeArgsHaveSettings(data.EngineConfig.Args) || !claudeUsesCopilotInference(data) {
+		return
+	}
+	message := field + " passes --settings, so the Copilot model-id map (modelOverrides) for Claude Code was not added. " +
+		"Add a modelOverrides entry that maps each Anthropic model id to its Copilot id (for example \"claude-haiku-4-5\": \"claude-haiku-4.5\") to your --settings value"
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		formatCompilerMessage(markdownPath, "warning", message)))
+	c.IncrementWarningCount()
+}
