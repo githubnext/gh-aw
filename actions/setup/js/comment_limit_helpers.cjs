@@ -57,9 +57,10 @@ function countMentionsOutsideCodeRegions(body) {
  * Per Safe Outputs specification requirement MR3, limits must be enforced before API calls.
  *
  * @param {string} body - Comment body to validate
+ * @param {{ maxLinks?: number, linkBody?: string }} [options] - Link limit and agent content, excluding trusted generated metadata
  * @throws {Error} When any limit is exceeded, with error code and details
  */
-function enforceCommentLimits(body) {
+function enforceCommentLimits(body, { maxLinks = MAX_LINKS, linkBody = body } = {}) {
   // Check body length - max limit exceeded check
   if (body.length > MAX_COMMENT_LENGTH) {
     throw new Error(`E006: Comment body exceeds maximum length of ${MAX_COMMENT_LENGTH} characters (got ${body.length}). Reduce the comment body to ${MAX_COMMENT_LENGTH} characters or fewer.`);
@@ -72,9 +73,9 @@ function enforceCommentLimits(body) {
   }
 
   // Count links (http:// and https:// URLs) - max limit exceeded check
-  const links = (body.match(/https?:\/\/[^\s]+/g) || []).length;
-  if (links > MAX_LINKS) {
-    throw new Error(`E008: Comment contains ${links} links, maximum is ${MAX_LINKS}. Reduce the number of URLs to ${MAX_LINKS} or fewer.`);
+  const links = (linkBody.match(/https?:\/\/[^\s]+/g) || []).length;
+  if (links > maxLinks) {
+    throw new Error(`E008: Comment contains ${links} links, maximum is ${maxLinks}. Reduce the number of URLs to ${maxLinks} or fewer.`);
   }
 }
 

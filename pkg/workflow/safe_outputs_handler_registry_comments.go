@@ -9,6 +9,7 @@ var commentHandlerRegistry = map[string]handlerBuilder{
 		c := cfg.AddComments
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfPositive("max_links", c.MaxLinks).
 			AddIfNotEmpty("target", c.Target).
 			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
 			AddTemplatableBool("replace_older_comments", c.ReplaceOlderComments).

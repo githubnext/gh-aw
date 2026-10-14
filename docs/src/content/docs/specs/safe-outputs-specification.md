@@ -2387,14 +2387,14 @@ Fields used for privileged transport metadata, including patch anchoring and upl
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
     "properties": {
       "body": {
         "type": "string",
-        "description": "Comment text in Markdown. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "description": "Comment text in Markdown. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). A footer (~200-500 characters) is automatically appended, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
       },
       "item_number": {
         "type": "number",
@@ -2437,9 +2437,11 @@ These extensions apply to safe-output processor messages for `add_comment` (incl
 |------------|-------|------------|----------------------|
 | Body length (complete comment including footer) | 65536 characters | E006 | "Comment body exceeds maximum length of 65536 characters (got 70000)" |
 | Mentions | 10 per comment | E007 | "Comment contains 15 mentions, maximum is 10" |
-| Links | 50 per comment | E008 | "Comment contains 60 links, maximum is 50" |
+| Links | `safe-outputs.add-comment.max-links` (default: 50) in agent content | E008 | "Comment contains 60 links, maximum is 50" |
 
 **Note**: The 65536 character limit applies to the final comment text including the automatically appended footer. Users should leave approximately 200-500 characters of headroom to accommodate the footer, which contains workflow attribution and installation instructions.
+
+The link limit counts URL occurrences, not distinct URLs, and excludes trusted generated footer and metadata links. `max-links` accepts a positive integer and is enforced at both tool invocation and posting time. Generated metadata remains subject to final-body length and mention limits.
 
 **Configuration Parameters**:
 
@@ -4892,13 +4894,13 @@ Tool descriptions (MCP tool schemas) MUST surface enforced constraints to the LL
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
+  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). Exceeding these limits will result in an immediate error with specific guidance.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "body": {
         "type": "string",
-        "description": "The comment text in Markdown format. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. A footer (~200-500 characters) is automatically appended, so leave adequate space. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "description": "The comment text in Markdown format. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. A footer (~200-500 characters) is automatically appended, so leave adequate space. Maximum 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
       }
     }
   }
@@ -4974,7 +4976,7 @@ Constraint limits defined in MCP tool descriptions MUST match the enforcement lo
 |------|-----------|-------|------------|
 | `add_comment` | Body length (complete comment with footer) | 65536 chars | E006 |
 | `add_comment` | Mentions | 10 | E007 |
-| `add_comment` | Links | 50 | E008 |
+| `add_comment` | Links in agent content (excluding generated metadata) | Configured `max-links`, default 50 | E008 |
 | `create_issue` | Title length | 256 chars | E009 |
 | `create_issue` | Body length (complete body with footer) | 65536 chars | E006 |
 | `create_pull_request` | Title length | 256 chars | E009 |

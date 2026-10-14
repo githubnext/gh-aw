@@ -91,6 +91,20 @@ describe("comment_limit_helpers", () => {
       expect(() => enforceCommentLimits(mixed)).toThrow(/E008.*51.*links/i);
     });
 
+    it("should enforce custom limits and count repeated URLs", () => {
+      const links = "https://example.com/screenshot ".repeat(75);
+      expect(() => enforceCommentLimits(links, { maxLinks: 75 })).not.toThrow();
+      expect(() => enforceCommentLimits(links, { maxLinks: 74 })).toThrow(/E008.*75.*maximum is 74/);
+      expect(() => enforceCommentLimits(links, { maxLinks: 10 })).toThrow(/E008.*maximum is 10/);
+    });
+
+    it("should exclude metadata links without exempting final length or mentions", () => {
+      const linkBody = "https://example.com/screenshot ".repeat(50);
+      expect(() => enforceCommentLimits(`${linkBody} https://example.com/footer`, { linkBody })).not.toThrow();
+      expect(() => enforceCommentLimits("a".repeat(MAX_COMMENT_LENGTH + 1), { linkBody })).toThrow(/E006/);
+      expect(() => enforceCommentLimits("@user ".repeat(11), { linkBody })).toThrow(/E007/);
+    });
+
     it("should include actual values in error messages", () => {
       const longBody = "a".repeat(70000);
       try {
