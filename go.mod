@@ -30,7 +30,7 @@ require (
 	// .golangci.yml.
 	golang.org/x/crypto v0.57.0
 	golang.org/x/mod v0.41.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.46.0
 	golang.org/x/tools v0.51.0
 	gonum.org/v1/gonum v0.17.0
