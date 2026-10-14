@@ -106,7 +106,7 @@ safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready
 
 Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. Prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion. Stdin support does not grant permission for additional commands or redirections, and quoting cannot guarantee acceptance by the engine's independent shell guard. Do not repeat a denied command or bypass the denial with an unapproved workaround.
 
-Report unavailable functionality with [`missing_tool`](../reference/safe-outputs.md) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
+Report unavailable functionality with [`missing_tool`](/gh-aw/reference/safe-outputs/) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
 
 Collect diagnostics with the repository's [debug.md guidance](https://github.com/github/gh-aw/blob/main/debug.md). Redact secrets from logs and configuration; do not dump the full environment or make a real safe-output call merely to test availability.
 
