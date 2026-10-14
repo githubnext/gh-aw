@@ -98,7 +98,13 @@ The workflow references a tool that isn't configured or the MCP server failed to
 
 For intermittent failures, compare one successful and one failing run from the same workflow and deployment. Retain both run URLs, the gh-aw and engine versions, the exact `sandbox:` block, and the generated lock-file image, mounts, and `PATH` configuration. Compare setup, MCP startup, CLI mounting, and agent launch logs. Different self-hosted runner images, custom sandbox images, missing mounts, or shell startup files that reset `PATH` are possible causes, not proof of a provisioning race.
 
-Check `command -v safeoutputs`, `command -v jq`, and `command -v node` in the **agent's shell**, not just in a runner setup step. Distinguish `python` from `python3`, and engine-native editing tools from shell executables such as `apply_patch`. If the CLI is unavailable, use direct safe-output MCP tools only when the engine exposes them. If only `jq` is unavailable, use the generated Node.js file-serialization fallback rather than hand-escaping a large body.
+Check `command -v safeoutputs` in the **agent's shell** when permitted, not just in a runner setup step. If the CLI is unavailable, use direct safe-output MCP tools only when the engine exposes them. CLI payloads do not require a separate serializer: pass one single-quoted JSON object, encoding newlines as `\n`, double quotes as `\"`, backslashes as `\\`, and apostrophes as `\u0027`. Unicode can remain literal.
+
+```bash
+safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.\nQuoted text: \"hello\".\nLiteral path: C:\\temp\\file.txt"}'
+```
+
+Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. Prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion. Stdin support does not grant permission for additional commands or redirections, and quoting cannot guarantee acceptance by the engine's independent shell guard. Do not repeat a denied command or bypass the denial with an unapproved workaround.
 
 Report unavailable functionality with [`missing_tool`](../reference/safe-outputs.md) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
 

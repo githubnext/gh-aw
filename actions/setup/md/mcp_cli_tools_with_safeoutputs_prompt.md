@@ -7,50 +7,17 @@ For `mcpscripts`, prefer its native functions when they are explicitly exposed i
 
 For `safeoutputs`, every successful call is a real write-intent declaration - do not use it for probing, auth checks, or placeholder payloads. Use `noop` or `report_incomplete` if not ready to emit the final action.
 
-Before using the examples below, check availability in the agent's shell with `command -v safeoutputs` and `command -v jq`. Runner setup logs do not establish availability inside the sandbox. If `safeoutputs` is missing, call the configured safe-output MCP tools directly only if the engine exposes them. Report unavailable functionality with `missing_tool` when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported transport is available, stop and report the missing command in the final response; do not claim the action was emitted or use authenticated GitHub commands as a substitute.
+Check `command -v safeoutputs` in the agent's shell when permitted; runner setup logs do not establish sandbox availability. If the CLI is missing, use a configured native safe-output function only if it is explicitly exposed in your tool inventory. Report unavailable functionality with `missing_tool` when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported transport is available, stop and report the missing command in the final response; do not claim the action was emitted or use authenticated GitHub commands as a substitute.
 
-For multiple or complex arguments, pass the JSON object inline as a single quoted argument — the binary comes first, so a malformed command still runs the CLI and reports an error:
+Pass the complete JSON object inline as one single-quoted shell argument. Inside JSON strings, encode newlines as `\n`, double quotes as `\"`, backslashes as `\\`, and apostrophes as `\u0027` so they do not end the shell quote. Unicode can remain literal. The binary comes first, so a malformed payload still runs the CLI and reports an error:
 ```bash
-safeoutputs add_comment '{"item_number":42,"body":"### Title\n\nBody."}'
+safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.\nQuoted text: \"hello\".\nLiteral path: C:\\temp\\file.txt"}'
 ```
-Alternatively, pipe a JSON object on stdin using `.` as the sentinel (prefer this only for large bodies built from files):
-```bash
-printf '{"item_number":42,"body":"### Title\n\nBody."}' | safeoutputs add_comment .
-# or read from a file: safeoutputs create_pull_request . < /tmp/payload.json
-```
-When piping, make sure the `|` is actually present: `printf '{...}' safeoutputs add_comment .` (no pipe) prints the JSON and exits 0 without ever running the CLI, so nothing is emitted.
+This preserves multiline content without auxiliary tools, pipelines, temporary files, or shell expansion. Adapt fields to the enabled tool's schema. Raw Markdown and `@filename` references are not JSON payloads.
 
-**Multi-line or long `body` content:** do NOT build the JSON payload with `printf`/`echo` embedding raw newlines or many escaped characters directly in the command line — the sandbox's shell command-injection guard may reject long or complex quoted arguments (reporting "expansion patterns"/"command substitution" even though none are present) and retrying the identical command will fail again. Instead, write the content to a temp file with a heredoc, then use `jq -Rs` to inject it as the `body` field:
-```bash
-cat <<'EOF' > /tmp/gh-aw/body.md
-Title
+Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. CLI proxying grants the mounted executable, not auxiliary commands, pipelines, file writes, or shell expansions. Stdin support does not grant permission for redirections. Prefer inline JSON; do not introduce helper tools to construct or submit it.
 
-Multi-line body content goes here.
-EOF
-jq -Rs '{title: "My title", body: .}' /tmp/gh-aw/body.md | safeoutputs create_discussion .
-```
-If a shell command is rejected for containing expansion patterns, do not retry the same command — switch to the heredoc + `jq -Rs` pattern above.
-
-If `jq` is missing, check `command -v node` and use Node.js to serialize the file instead. Do not substitute hand-escaped inline JSON for a large body. After writing `/tmp/gh-aw/body.md` as above:
-```bash
-node - /tmp/gh-aw/body.md <<'JS' > /tmp/gh-aw/payload.json
-const fs = require('node:fs');
-process.stdout.write(JSON.stringify({
-  title: 'My title',
-  body: fs.readFileSync(process.argv[2], 'utf8')
-}));
-JS
-```
-Only if serialization succeeds, submit it with `safeoutputs create_discussion . < /tmp/gh-aw/payload.json`. Adapt the fields to the enabled tool's schema. If neither `jq` nor `node` is available, use a configured direct MCP tool if exposed; otherwise call `missing_tool` when configured and reachable, describing the missing serializer. If that diagnostic cannot be emitted, stop and report the limitation in the final response. Do not retry commands that are not installed.
-
-To inject an entire local file as the `body` field without re-embedding its content in the model context, use `jq -Rs`:
-```bash
-jq -Rs --arg discussion_number "$DISCUSSION_NUMBER" \
-  '{discussion_number: ($discussion_number|tonumber), body: .}' \
-  discussion-body.md \
-  | safeoutputs update_discussion .
-```
-`jq -Rs` reads the file as a raw string (`-R`) and slurps it into a single JSON string value (`-s`), so `body` is always a valid JSON field. Piping `cat file | safeoutputs ...` does not populate `body` and will be rejected.
+If the sandbox rejects a command, do not repeat it or switch to an unapproved shell workaround. Use a native safe-output function only if explicitly exposed; otherwise call `safeoutputs report_incomplete` with inline JSON containing `reason` and optional `details` when reachable. If even that call is unavailable or denied, state the blocker in your final response; do not probe with real writes.
 
 The generated command syntax above is schema-derived from each enabled tool's final `inputSchema` and is the source of truth for required/optional parameters.
 Use `<server> --help` and `<server> <tool> --help` for the same schema-derived signatures and examples before calling any command.

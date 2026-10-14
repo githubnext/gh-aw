@@ -85,10 +85,12 @@ process.stdout.write(renderPrompt(parseConfig(env.GH_AW_PROMPT_CONFIG), env, './
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", output)
 	prompt := string(output)
-	for _, command := range []string{"safeoutputs", "jq", "node"} {
-		assert.Contains(t, prompt, "command -v "+command)
-	}
-	assert.Contains(t, prompt, "JSON.stringify")
+	assert.Contains(t, prompt, "command -v safeoutputs")
+	assert.Contains(t, prompt, "single-quoted")
+	assert.Contains(t, prompt, "Stdin is also supported")
+	assert.Contains(t, prompt, `safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.`)
+	assert.NotContains(t, prompt, "jq -Rs")
+	assert.NotContains(t, prompt, "command -v node")
 	assert.Contains(t, prompt, "no supported transport is available for this engine")
 	assert.Contains(t, prompt, "`missing_tool`")
 }
