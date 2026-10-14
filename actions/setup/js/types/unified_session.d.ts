@@ -194,6 +194,18 @@ export interface ModelRoutingOutcomeData {
   failureCode?: JsonValue;
 }
 
+export interface ModelInventoryData {
+  endpoints: {
+    provider: string;
+    models: string[];
+    routingModels?: {
+      modelId: string;
+      supportedEndpoints?: string[];
+    }[];
+  }[];
+  modelsFetchComplete?: boolean;
+}
+
 export interface McpObservationData {
   serverName?: JsonValue;
   direction?: JsonValue;
@@ -430,6 +442,7 @@ export interface CollectionData {
 
 /** Known essential payloads. Unknown native extensions remain open. */
 export interface UnifiedSessionEventDataMap {
+  "model.inventory": ModelInventoryData;
   "skill.inventory": SkillInventoryData;
   "skill.conflict": SkillConflictData;
   "skill.invoked": SkillInvokedData;

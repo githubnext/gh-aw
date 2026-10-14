@@ -168,6 +168,7 @@ const TASK_FIELDS = {
 
 /** @type {Record<string, Fields>} */
 const EVENT_FIELDS = {
+  "model.inventory": {},
   "plugin.installation": {
     plugin: ["plugin"],
     repository: ["repository"],
@@ -457,6 +458,37 @@ function normalizeUnifiedSessionEvent(event, phase) {
   const source = event.data;
   const known = Object.hasOwn(EVENT_FIELDS, event.type);
   const data = event.type === "mcp.configuration" ? normalizeMcpConfigurationData(source) : known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
+  if (event.type === "model.inventory") {
+    const endpoints = Array.isArray(source.endpoints)
+      ? source.endpoints
+      : source.providers && typeof source.providers === "object" && !Array.isArray(source.providers)
+        ? Object.entries(source.providers).map(([provider, entry]) => ({ ...entry, provider }))
+        : typeof source.provider === "string" && Array.isArray(source.models)
+          ? [source]
+          : [];
+    data.endpoints = endpoints
+      .filter(endpoint => endpoint && typeof endpoint === "object" && typeof endpoint.provider === "string")
+      .map(endpoint => ({
+        provider: endpoint.provider,
+        models: (Array.isArray(endpoint.models ?? endpoint.available_models ?? endpoint.detected_models ?? endpoint.model_ids ?? endpoint.availableModels)
+          ? (endpoint.models ?? endpoint.available_models ?? endpoint.detected_models ?? endpoint.model_ids ?? endpoint.availableModels)
+          : []
+        )
+          .map(model => (typeof model === "string" ? model : (model?.id ?? model?.name ?? model?.model)))
+          .filter(model => typeof model === "string"),
+        ...(Array.isArray(endpoint.routingModels ?? endpoint.routing_models)
+          ? {
+              routingModels: (endpoint.routingModels ?? endpoint.routing_models)
+                .filter(model => model && typeof (model.modelId ?? model.model_id) === "string")
+                .map(model => ({
+                  modelId: model.modelId ?? model.model_id,
+                  ...(Array.isArray(model.supportedEndpoints ?? model.supported_endpoints) ? { supportedEndpoints: (model.supportedEndpoints ?? model.supported_endpoints).filter(endpoint => typeof endpoint === "string") } : {}),
+                })),
+            }
+          : {}),
+      }));
+    if (typeof (source.modelsFetchComplete ?? source.models_fetch_complete) === "boolean") data.modelsFetchComplete = source.modelsFetchComplete ?? source.models_fetch_complete;
+  }
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {

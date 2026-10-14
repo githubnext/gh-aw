@@ -40,6 +40,81 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it.each(["agent", "detection"])("persists the complete AWF model inventory for the %s phase without credentials", phase => {
+    const prefix = phase === "agent" ? "" : "threat-detection/";
+    const models = Array.from({ length: 20 }, (_, index) => `model-${index}`);
+    const reflect = {
+      models_fetch_complete: false,
+      endpoints: [
+        {
+          provider: "copilot",
+          models,
+          routing_models: [{ model_id: "model-0", supported_endpoints: ["/responses", "ws:/responses"], apiKey: "PRIVATE_ROUTING_KEY" }],
+          headers: { authorization: "PRIVATE_TOKEN" },
+          base_url: "https://PRIVATE_URL",
+        },
+      ],
+      token: "PRIVATE_TOKEN",
+    };
+    write(`${prefix}agent/awf-reflect.json`, reflect);
+    write(`${prefix}sandbox/firewall/awf-reflect.json`, { endpoints: [{ provider: "stale", models: ["stale"] }] });
+    write(`${prefix}sandbox/firewall/models.json`, { providers: { copilot: { models: models.map(id => ({ id, apiKey: "PRIVATE_KEY" })), headers: { authorization: "PRIVATE_TOKEN" } } } });
+    const events = writeUnifiedSession({ rootDir: root });
+    expect(events.filter(event => event.type === "model.inventory")).toEqual([
+      {
+        type: "model.inventory",
+        data: { endpoints: [{ provider: "copilot", models, routingModels: [{ modelId: "model-0", supportedEndpoints: ["/responses", "ws:/responses"] }] }], modelsFetchComplete: false },
+        provenance: { component: "firewall", phase, path: `${prefix}agent/awf-reflect.json`, index: 0 },
+      },
+      {
+        type: "model.inventory",
+        data: { endpoints: [{ provider: "copilot", models }] },
+        provenance: { component: "firewall", phase, path: `${prefix}sandbox/firewall/models.json`, index: 0 },
+      },
+    ]);
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(persisted).not.toContain("stale");
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+  });
+
+  it.each([
+    { endpoints: [{ provider: "copilot", models: [{ id: "a" }, { name: "b" }, { model: "c" }, null, { id: { token: "PRIVATE_KEY" } }] }] },
+    { providers: { copilot: { available_models: ["a", "b", "c", false] } } },
+    { provider: "copilot", models: ["a", "b", "c", 42] },
+  ])("collects supported runtime model list shapes without opaque model metadata: %j", inventory => {
+    write("sandbox/firewall/models.json", inventory);
+    expect(collectUnifiedSession({ rootDir: root }).events.find(event => event.type === "model.inventory").data).toEqual({ endpoints: [{ provider: "copilot", models: ["a", "b", "c"] }] });
+  });
+
+  it("uses the firewall reflect copy when the agent copy is absent and preserves empty inventories", () => {
+    write("sandbox/firewall/awf-reflect.json", { endpoints: [], models_fetch_complete: true });
+    expect(collectUnifiedSession({ rootDir: root }).events.find(event => event.type === "model.inventory")).toMatchObject({
+      data: { endpoints: [], modelsFetchComplete: true },
+      provenance: { path: "sandbox/firewall/awf-reflect.json" },
+    });
+  });
+
+  it.each(["not-json", "null", "[]", "{}", '{"providers":[]}'])("warns about malformed model inventories: %s", content => {
+    write("sandbox/firewall/models.json", content);
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.some(event => event.type === "model.inventory")).toBe(false);
+    expect(warn).toHaveBeenCalled();
+    expect(events.some(event => event.type === "session.collection_warning" && event.data.path === "sandbox/firewall/models.json")).toBe(true);
+  });
+
+  it("does not invent or follow symlinked model inventory", () => {
+    expect(collectUnifiedSession({ rootDir: root }).events.some(event => event.type === "model.inventory")).toBe(false);
+    const target = write("private-models.json", { provider: "copilot", models: ["PRIVATE_MODEL"] });
+    fs.mkdirSync(path.join(root, "sandbox/firewall"), { recursive: true });
+    fs.symlinkSync(target, path.join(root, "sandbox/firewall/models.json"));
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.some(event => event.type === "model.inventory")).toBe(false);
+    expect(warn).toHaveBeenCalledWith("Unified session: symlink_not_read in sandbox/firewall/models.json");
+  });
+
   it.each(["plugin-installations.jsonl", "usage/plugin-installations.jsonl"])("persists installed plugins from %s without credentials or duplicate copies", sourcePath => {
     const installed = {
       timestamp: "2026-10-12T00:00:00Z",

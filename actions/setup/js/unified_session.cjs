@@ -480,6 +480,21 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     ["", "agent"],
     ["threat-detection/", "detection"],
   ]) {
+    const reflect = choose([`${prefix}agent/awf-reflect.json`, `${prefix}sandbox/firewall/awf-reflect.json`]);
+    const models = choose([`${prefix}sandbox/firewall/models.json`]);
+    for (const file of [reflect, models].filter(Boolean)) {
+      const inventory = records(file)[0];
+      if (
+        !inventory ||
+        typeof inventory !== "object" ||
+        Array.isArray(inventory) ||
+        !(Array.isArray(inventory.endpoints) || (inventory.providers && typeof inventory.providers === "object" && !Array.isArray(inventory.providers)) || (typeof inventory.provider === "string" && Array.isArray(inventory.models)))
+      ) {
+        report(file, "invalid_model_inventory", undefined);
+        continue;
+      }
+      sources.push({ component: "firewall", phase, path: path.relative(rootDir, file), events: [{ type: "model.inventory", data: inventory }] });
+    }
     const otel = choose([`${prefix}otel.jsonl`, `usage/${prefix}otel.jsonl`]);
     if (otel) add(otel, "otel", phase, undefined, "nanoseconds");
     for (const file of walk(path.join(rootDir, prefix, "mcp-logs"))) add(file, "mcp", phase, undefined);
