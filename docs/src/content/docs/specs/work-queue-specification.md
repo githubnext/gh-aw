@@ -2028,11 +2028,30 @@ Claim; an external resource node alone never grants worker execution or writes.
 
 Closing the exact Issue identified by Work's `subject` or immutable
 `backing_issue` binding is a **cancellation intent**, not evidence that the
-Work succeeded. The trusted closure path MUST verify the exact relationship,
-fresh queue labels, and current ledger prefix, then publish
+Work succeeded. Before reading workflow configuration or authenticating the
+native run, the trusted closure path MUST read the checked queue ledger through
+the GraphQL transport and match the event Issue's immutable identity exactly
+against a Work `subject` or `backing_issue`. A verified-absent queue reference
+is handled as an empty state and returns without candidate reads; it MUST NOT be
+replayed as an initialized ledger missing Policy. An initialized ledger MUST
+still contain valid Policy.
+An unrelated Issue MUST return without configuration, native-run
+authentication, or Issue REST reads. The checked ledger read is still required
+to establish that the Issue is unbound; transport and quota failures MUST
+propagate.
+
+For an exact candidate, the closure path MUST read configuration and authenticate
+the native run, then reuse the fresh GraphQL Issue preflight to verify that the
+Issue remains closed, its immutable identity still matches, and the required
+queue/status labels are present. It MUST NOT use event-time labels to reject a
+candidate, because the label projection can race with Issue closure, or make an
+additional REST Issue read for this preflight. The fresh eligibility and current
+ledger prefix MUST be rechecked by the compare-and-set writer before publishing
 `WorkCancellation` for nonterminal Work through the normal authenticated,
-compare-and-set queue writer. Closure MUST NOT publish a `Result`, infer
-Completion, or automatically stop a native worker. An active
+compare-and-set queue writer. Candidate configuration, authentication,
+preflight, and ledger transport or quota failures MUST propagate without retry
+or suppression. Closure MUST NOT publish a `Result`, infer Completion, or
+automatically stop a native worker. An active
 Claim loses future queue authority, but its native reservation remains until
 independent trusted termination/nonlaunch evidence permits `Release`.
 If Completion or an earlier WorkCancellation already won the ledger race,

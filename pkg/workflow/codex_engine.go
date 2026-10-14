@@ -109,7 +109,7 @@ func codexModelID(model string) string {
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	var secrets []string
 	provider := e.ResolveLLMProvider(workflowData)
-	if provider != LLMProviderGitHub || !hasCopilotRequestsWritePermission(workflowData) {
+	if !codexSkipsStaticSecret(provider, workflowData) {
 		secrets = append(secrets, llmProviderSecretNames(provider)...)
 	}
 	return append(append(secrets, collectCommonMCPSecrets(workflowData)...), fallbackProviderSecretNames(workflowData)...)
@@ -133,9 +133,20 @@ func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHub
 		EngineName:  "Codex",
 		DocsURL:     llmProviderDocsURL(provider),
 		Skip: func(workflowData *WorkflowData) bool {
-			return provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData)
+			return codexSkipsStaticSecret(provider, workflowData)
 		},
 	})
+}
+
+func codexSkipsStaticSecret(provider LLMProvider, workflowData *WorkflowData) bool {
+	return isCodexAzureOIDC(workflowData) ||
+		provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData)
+}
+
+// Entra token exchange is owned by the AWF sidecar, never by the Codex process.
+func isCodexAzureOIDC(workflowData *WorkflowData) bool {
+	return isAzureOIDCWithAWF(workflowData) &&
+		NewCodexEngine().ResolveLLMProvider(workflowData) == LLMProviderOpenAI
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -474,7 +485,7 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 		copilotToken := llmProviderSecretExpression(provider, workflowData)
 		env["COPILOT_GITHUB_TOKEN"] = copilotToken
 		env[constants.CopilotBYOKDummyAPIKeyEnvVar] = constants.CopilotBYOKDummyAPIKey
-	} else {
+	} else if !isCodexAzureOIDC(workflowData) {
 		openAIKey := llmProviderSecretExpression(provider, workflowData)
 		env["CODEX_API_KEY"] = openAIKey
 		env["OPENAI_API_KEY"] = openAIKey
@@ -503,6 +514,10 @@ func (e *CodexEngine) buildCodexExecutionEnv(workflowData *WorkflowData, firewal
 	applyCodexModelEnv(env, workflowData, modelConfigured, modelEnvVar)
 	applyEngineCwdEnv(env, workflowData)
 	applyEngineAndAgentEnv(env, workflowData, codexEngineLog)
+	if isCodexAzureOIDC(workflowData) {
+		// Non-secret launch policy; the harness also verifies fresh AWF reflection.
+		env["GH_AW_CODEX_OIDC_AUTH"] = "azure"
+	}
 	if !firewallEnabled && provider == LLMProviderOpenAI && workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
 		env["OPENAI_BASE_URL"] = "https://" + path.Join(workflowData.EngineConfig.APITarget, "v1")
 	}

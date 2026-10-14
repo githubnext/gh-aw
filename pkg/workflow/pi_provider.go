@@ -76,13 +76,18 @@ func piExecutionProvider(data *WorkflowData) string {
 func piProviderProfile(data *WorkflowData) universalLLMBackendProfile {
 	profile := piStaticProviderProfile(data)
 	if data != nil && data.EngineConfig != nil && data.EngineConfig.Auth != nil &&
-		data.EngineConfig.Auth.Type == "github-oidc" && isFirewallEnabled(data) {
+		data.EngineConfig.Auth.Type == "github-oidc" && isFirewallEnabled(data) &&
+		(data.EngineConfig.Auth.Provider != "azure" || isPiAzureOIDC(data)) {
 		for _, name := range profile.coreSecretNames {
 			delete(profile.env, name)
 		}
 		profile.coreSecretNames = nil
 	}
 	return profile
+}
+
+func isPiAzureOIDC(data *WorkflowData) bool {
+	return isAzureOIDCWithAWF(data) && resolvePiBackend(data) == UniversalLLMBackendCodex
 }
 
 func piStaticProviderProfile(data *WorkflowData) universalLLMBackendProfile {

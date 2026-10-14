@@ -136,6 +136,8 @@ The MCP server exposes these workflow-management tools:
 | `update` | Update sourced workflows and check for gh-aw updates. | `workflows`, `major`, `force` | Updated workflow files and version checks. |
 | `fix` | Apply automatic codemod-style fixes. | `workflows`, `write`, `list_codemods` | Dry-run or written fixes. |
 
+Workflow and run positional parameters must not start with `-`; use the tool's named parameters for options. For a local workflow filename beginning with `-`, supply a path prefixed with `./`. The `add` tool's `name` is a filename without an extension, not a path: `/`, `\`, and `..` are rejected. Workflow destinations must remain within the selected workflow directory, including when existing files are symlinks.
+
 > [!NOTE]
 > The `actionlint`, `zizmor`, and `poutine` scanners used by `compile` prefer compatible local binaries on `PATH` (actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6), falling back to Docker otherwise. Docker-based scanners, including `grant`, pull images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.
 

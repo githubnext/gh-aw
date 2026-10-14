@@ -32,7 +32,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { fetchAWFReflect, getCatalogModelEntry, normalizeReflectProviderName, REFLECT_PROVIDER_ALIASES, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
+const { fetchAWFReflect, getCatalogModelEntry, normalizeReflectProviderName, REFLECT_PROVIDER_ALIASES, resolveProviderEndpointFromReflect, hasAzureOIDCProviderEndpoint } = require("./awf_reflect.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { loadPiSDK, nativePiProvider, parsePiConfig, stagePiArtifacts } = require("./pi_runtime.cjs");
@@ -387,6 +387,10 @@ async function main(options = {}) {
     } catch (error) {
       logger(`warning: /reflect fetch failed: ${getErrorMessage(error)}`);
     }
+  }
+
+  if (process.env.GH_AW_PI_AZURE_OIDC_AUTH === "azure" && (process.env.AWF_REFLECT_ENABLED !== "1" || provider !== "openai" || !hasAzureOIDCProviderEndpoint(reflectData, provider))) {
+    throw new Error("Pi Azure OIDC requires a fresh AWF /reflect response with a configured OpenAI endpoint using github-oidc/azure; refusing to start");
   }
 
   /** @type {any} */

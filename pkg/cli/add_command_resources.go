@@ -89,6 +89,9 @@ func addResourceFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracke
 // addActionWorkflowWithTracking installs a raw GitHub Actions YAML workflow file (.yml)
 // directly to the target directory without any frontmatter processing or compilation.
 func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, githubWorkflowsDir, workflowName string) error {
+	if err := validateAddedWorkflowDestination(githubWorkflowsDir, workflowName, ".yml"); err != nil {
+		return err
+	}
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".yml")
 
 	addLog.Printf("Adding action workflow: dest=%s, content_size=%d bytes", destFile, len(resolved.Content))

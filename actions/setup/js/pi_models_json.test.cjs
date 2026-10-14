@@ -865,6 +865,51 @@ describe("pi_models_json.cjs", () => {
       expect(fetch).toHaveBeenCalled();
     });
 
+    it("requires fresh Azure OIDC reflection before writing an OpenAI gateway config", async () => {
+      process.env.GH_AW_PI_MODEL_ID = "gpt-5.4";
+      process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "AWF_AZURE_OIDC";
+      process.env.GH_AW_PI_GATEWAY_FALLBACK_PORT = "10000";
+      process.env.GH_AW_LLM_PROVIDER = "openai";
+      process.env.GH_AW_PI_AZURE_OIDC_AUTH = "azure";
+      process.env.AWF_REFLECT_ENABLED = "1";
+      process.env.PI_CODING_AGENT_DIR = tmpDir;
+
+      const reflectData = {
+        endpoints: [{ provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, base_url: "http://api-proxy:10000" }],
+      };
+      await piModelsJson.main({
+        fetchReflect: async () => ({ ok: true, reflectData }),
+        loadSDK,
+      });
+
+      const written = JSON.parse(fs.readFileSync(path.join(tmpDir, "models.json"), "utf8"));
+      expect(written.providers["aw-gateway"].apiKey).toBe("awf-proxy");
+      expect(written.providers["aw-gateway"].baseUrl).toBe("http://api-proxy:10000");
+    });
+
+    it.each([
+      ["missing reflection", undefined, null],
+      ["wrong auth", "1", { endpoints: [{ provider: "openai", configured: true, auth_type: "static-key", port: 10000 }] }],
+      ["missing endpoint", "1", { endpoints: [{ provider: "anthropic", configured: true, auth_type: "github-oidc/azure", port: 10001 }] }],
+    ])("refuses Azure OIDC startup with %s", async (_name, reflectEnabled, reflectData) => {
+      process.env.GH_AW_PI_MODEL_ID = "gpt-5.4";
+      process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "AWF_AZURE_OIDC";
+      process.env.GH_AW_PI_GATEWAY_FALLBACK_PORT = "10000";
+      process.env.GH_AW_LLM_PROVIDER = "openai";
+      process.env.GH_AW_PI_AZURE_OIDC_AUTH = "azure";
+      if (reflectEnabled) process.env.AWF_REFLECT_ENABLED = reflectEnabled;
+      else delete process.env.AWF_REFLECT_ENABLED;
+      process.env.PI_CODING_AGENT_DIR = tmpDir;
+
+      await expect(
+        piModelsJson.main({
+          fetchReflect: async () => ({ ok: Boolean(reflectData), reflectData }),
+          loadSDK,
+        })
+      ).rejects.toThrow("Pi Azure OIDC requires a fresh AWF /reflect response");
+      expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+    });
+
     it("routes an advertised Responses-only Copilot model before Pi starts", async () => {
       process.env.GH_AW_PI_MODEL_ID = "gpt-5.5";
       process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "COPILOT_GITHUB_TOKEN";
