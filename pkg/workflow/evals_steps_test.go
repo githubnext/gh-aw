@@ -101,7 +101,7 @@ func TestEvalsExecutionEvidence(t *testing.T) {
 }
 
 func TestEvalsOTLPEnvExcludedFromSandbox(t *testing.T) {
-	for _, engineID := range []string{"copilot", "claude", "codex"} {
+	for _, engineID := range []string{"copilot", "claude", "codex", "pi"} {
 		for _, tt := range []struct {
 			name   string
 			env    string
@@ -109,6 +109,7 @@ func TestEvalsOTLPEnvExcludedFromSandbox(t *testing.T) {
 			want   bool
 		}{
 			{name: "configured endpoint", env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n", want: true},
+			{name: "multiple endpoints", env: "env:\n  GH_AW_OTLP_ENDPOINTS: '[{\"url\":\"https://traces.example.com\",\"headers\":\"Authorization=synthetic-token\"}]'\n  GH_AW_OTLP_ALL_HEADERS: Authorization=synthetic-token\n", want: true},
 			{name: "no endpoint", env: "env:\n  OTHER: value\n"},
 			{name: "dry run", env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n", dryRun: true},
 		} {
@@ -123,7 +124,12 @@ func TestEvalsOTLPEnvExcludedFromSandbox(t *testing.T) {
 				if !strings.Contains(steps, "--env-all") {
 					t.Fatal("evals must execute through AWF")
 				}
-				for _, name := range otlpSandboxExcludedEnvVarNames {
+				for _, name := range []string{
+					"OTEL_EXPORTER_OTLP_ENDPOINT",
+					"OTEL_EXPORTER_OTLP_HEADERS",
+					"GH_AW_OTLP_ENDPOINTS",
+					"GH_AW_OTLP_ALL_HEADERS",
+				} {
 					wantCount := 0
 					if tt.want {
 						wantCount = 1

@@ -15,7 +15,7 @@ import (
 func TestRuntimeCheckoutAllowPrivateReposParsing(t *testing.T) {
 	for _, value := range []any{true, false, nil, "true", 1, "${{ vars.ALLOW_PRIVATE_REPOS }}"} {
 		cfg, err := checkoutConfigFromMap(map[string]any{
-			"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "allow-private-repos": value,
+			"repo": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*", "allow-private-repos": value,
 		})
 		if allowed, ok := value.(bool); ok {
 			require.NoError(t, err)
@@ -26,10 +26,10 @@ func TestRuntimeCheckoutAllowPrivateReposParsing(t *testing.T) {
 		}
 	}
 	for _, allowed := range []bool{false, true} {
-		_, err := checkoutConfigFromMap(map[string]any{"repository": "org/a", "allow-private-repos": allowed})
+		_, err := checkoutConfigFromMap(map[string]any{"multi": true, "repository": "org/a", "allow-private-repos": allowed})
 		require.ErrorContains(t, err, "checkout.allow-private-repos requires checkout.allowed-repos")
 		_, err = NewCompiler().CompileToYAML(&WorkflowData{
-			CheckoutConfigs: []*CheckoutConfig{{Repository: "org/a", AllowPrivateRepos: &allowed}},
+			CheckoutConfigs: []*CheckoutConfig{{Multi: true, Repository: "org/a", AllowPrivateRepos: &allowed}},
 		}, filepath.Join(t.TempDir(), "worker.md"))
 		require.ErrorContains(t, err, "checkout.allow-private-repos requires checkout.allowed-repos")
 	}
@@ -54,7 +54,7 @@ func TestRuntimeCheckoutAllowPrivateReposMerging(t *testing.T) {
 			var configs []*CheckoutConfig
 			for _, value := range tt.values {
 				configs = append(configs, &CheckoutConfig{
-					Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}, AllowPrivateRepos: value,
+					Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}, AllowPrivateRepos: value,
 				})
 			}
 			manager := NewCheckoutManager(configs)
@@ -81,7 +81,7 @@ func TestCompileRuntimeCheckoutImportedPrivatePolicy(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			checkout := "checkout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n"
+			checkout := "checkout:\n  multi: true\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n"
 			mainCheckout, importedCheckout := checkout, checkout
 			if tt.main != "" {
 				mainCheckout += "  allow-private-repos: " + tt.main + "\n"

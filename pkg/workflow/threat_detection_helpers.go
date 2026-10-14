@@ -322,7 +322,9 @@ func inheritedDetectionModel(data *WorkflowData, detectionEngineID string) strin
 }
 
 // defaultDetectionModel preserves an explicit compiler override, but lets runtime
-// organization/repository variables override the built-in detection default.
+// organization/repository variables override the built-in detection default. The fallback
+// was accidentally removed from inline detection in a93e36ea4; sharing it here keeps inline
+// and external detection from diverging again.
 func defaultDetectionModel(engine CodingAgentEngine) string {
 	if model := compilerenv.ResolveDefaultDetectionModel(""); model != "" {
 		return model

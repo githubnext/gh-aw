@@ -24,7 +24,8 @@ on:
 engine: copilot
 timeout-minutes: 5
 checkout:
-  - repository: ${{ github.event.inputs.trigger_ref }}
+  - multi: true
+    repository: ${{ github.event.inputs.trigger_ref }}
     path: targets
     allowed-repos: ["org/*"]
 safe-outputs:

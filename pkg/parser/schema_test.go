@@ -26,6 +26,21 @@ func TestValidateMainWorkflowFrontmatter_CheckoutAllowPrivateRepos(t *testing.T)
 	}
 }
 
+func TestValidateMainWorkflowFrontmatter_CheckoutMulti(t *testing.T) {
+	for _, value := range []any{true, false, nil, "true", 1, "${{ vars.MULTI }}"} {
+		checkout := map[string]any{"multi": value, "repo": "${{ vars.REPO }}"}
+		for _, config := range []any{checkout, []any{checkout}} {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on": "workflow_dispatch", "engine": "copilot", "checkout": config,
+			}, "workflow.md")
+			_, valid := value.(bool)
+			if (err == nil) != valid {
+				t.Fatalf("multi=%v: validation error = %v, valid %t", value, err, valid)
+			}
+		}
+	}
+}
+
 func TestValidateMainWorkflowFrontmatter_CheckoutMaxRepos(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
