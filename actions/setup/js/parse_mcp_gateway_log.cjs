@@ -848,13 +848,16 @@ function generateMcpRateLimitSummary(jsonlContent) {
   }
   if (rows.length === 0) return "";
   return [
-    "### MCP rate limits (HTTP 429)",
+    "<details>",
+    "<summary>MCP rate limits (HTTP 429)</summary>",
     "",
     "| Server | Tool | Retry hint |",
     "|--------|------|------------|",
     ...new Set(rows),
     "",
     "Retry hints are reported by the server, not a guarantee that the next request will succeed.",
+    "",
+    "</details>",
     "",
   ].join("\n");
 }

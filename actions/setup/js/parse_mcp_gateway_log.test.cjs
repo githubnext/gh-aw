@@ -44,8 +44,10 @@ describe("parse_mcp_gateway_log", () => {
       const entries = [request(), response(`failed to search code with query '${"private-query".repeat(20)}': GET https://api.github.com/search/code?q=private-query: 429 try again in ${duration}`)];
       const summary = generateMcpRateLimitSummary(jsonl(entries));
       expect(summary).toContain("MCP rate limits (HTTP 429)");
+      expect(summary).toContain("<details>\n<summary>MCP rate limits (HTTP 429)</summary>");
       expect(summary).toContain("<code>search_code</code>");
       expect(summary).toContain(`try again in ${duration}`);
+      expect(summary).toContain("</details>");
       expect(summary).not.toContain("private-query");
       expect(summary).not.toContain("https://");
       const rpcSummary = generateRpcMessagesSummary(parseRpcMessagesJsonl(jsonl(entries)), []);
