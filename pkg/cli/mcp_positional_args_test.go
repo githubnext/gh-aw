@@ -131,7 +131,7 @@ func TestMCPPositionalArgsPreserveValidInputs(t *testing.T) {
 		{"fix", map[string]any{"list_codemods": true}},
 		{"compile", map[string]any{"workflows": []string{"work-flow", "./-workflow.md"}}},
 		{"compile", map[string]any{}},
-		{"mcp-inspect", map[string]any{"workflow_file": "./-workflow.md", "server": "github", "tool": "get_issue"}},
+		{"mcp-inspect", map[string]any{"workflow_file": "workflow.md"}},
 		{"mcp-inspect", map[string]any{}},
 		{"audit", map[string]any{"run_ids_or_urls": []string{"123", "https://github.com/owner/repo/actions/runs/456"}}},
 		{"audit", map[string]any{"run_id": 123}},

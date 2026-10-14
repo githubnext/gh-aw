@@ -108,7 +108,7 @@ engine: copilot
 	absBinaryPath := binaryPath
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 
-	cmd := exec.CommandContext(ctx, absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
+	cmd := exec.CommandContext(ctx, absBinaryPath, "mcp-server", "--allow-write-tools", "--cmd", absBinaryPath)
 	cmd.Dir = tmpDir
 	cmd.Env = os.Environ()
 
