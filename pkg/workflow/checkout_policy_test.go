@@ -25,7 +25,7 @@ func TestRuntimeCheckoutAllowedRepoPolicyProvenance(t *testing.T) {
 			require.NoError(t, err)
 			for _, policy := range []any{value, []any{"org/*", value}} {
 				cfg, err := checkoutConfigFromMap(map[string]any{
-					"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": policy,
+					"repo": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": policy,
 				})
 				require.NoError(t, err)
 				assert.Contains(t, cfg.AllowedRepos, value)
@@ -48,13 +48,13 @@ func TestRuntimeCheckoutAllowedRepoPolicyProvenance(t *testing.T) {
 		t.Run("untrusted/"+value, func(t *testing.T) {
 			for _, policy := range []any{value, []any{"org/*", value}} {
 				_, err := checkoutConfigFromMap(map[string]any{
-					"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": policy,
+					"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": policy,
 				})
 				require.ErrorContains(t, err, "direct repository or organization variable reference")
 			}
 			_, err := NewCompiler().CompileToYAML(&WorkflowData{CheckoutConfigs: []*CheckoutConfig{{
 				Repository: "${{ inputs.repos }}", Path: "targets", PathExplicit: true,
-				AllowedRepos: []string{"org/*", value},
+				Multi: true, AllowedRepos: []string{"org/*", value},
 			}}}, filepath.Join(t.TempDir(), "worker.md"))
 			require.ErrorContains(t, err, "direct repository or organization variable reference")
 		})
@@ -68,7 +68,7 @@ func TestCompileRuntimeCheckoutPolicyProvenance(t *testing.T) {
 		t.Run(policy, func(t *testing.T) {
 			dir := t.TempDir()
 			file := filepath.Join(dir, "worker.md")
-			checkout := "checkout:\n  repo: ${{ inputs.repos }}\n  path: targets\n  allowed-repos: " + strconv.Quote(policy) + "\n"
+			checkout := "checkout:\n  multi: true\n  repo: ${{ inputs.repos }}\n  path: targets\n  allowed-repos: " + strconv.Quote(policy) + "\n"
 			content := "---\non: workflow_dispatch\nengine: copilot\n" + checkout + "---\nProcess selected repositories.\n"
 			require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
 			err := NewCompiler().CompileWorkflow(file)

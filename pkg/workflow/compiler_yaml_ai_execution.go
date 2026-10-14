@@ -285,7 +285,7 @@ func isOTLPEnabled(data *WorkflowData) bool {
 	if data == nil || data.DryRun {
 		return false
 	}
-	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT")
+	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT") || strings.Contains(data.Env, "GH_AW_OTLP_ENDPOINTS")
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output

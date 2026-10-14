@@ -5270,11 +5270,13 @@ When resolution fails, the error returned to the agent MUST identify the request
 
 #### 9.6.1 Runtime Repository-List Checkouts
 
-These requirements apply to `checkout:` entries with `allowed-repos`, including those consumed by `create_pull_request` and `push_to_pull_request_branch`. The [Checkout Behavior Specification](/gh-aw/specs/checkout-behavior-specification/#runtime-repository-lists) defines the complete parsing and merge contract. Checkout authorization and safe-output target authorization are separate: permission to check out a repository MUST NOT grant permission to write to it.
+The multi-repository requirements in this subsection apply only to `checkout:` entries with literal `multi: true`, including those consumed by `create_pull_request` and `push_to_pull_request_branch`. The [Checkout Behavior Specification](/gh-aw/specs/checkout-behavior-specification/#runtime-repository-lists) defines the complete parsing and merge contract. Checkout authorization and safe-output target authorization are separate: permission to check out a repository MUST NOT grant permission to write to it.
 
 **Requirement RCR8: Trusted Policy and Explicit Selection**
 
-Repository-selection expressions in `repository` or its `repo` alias MUST require `checkout.allowed-repos` at compilation. The standalone `${{ github.repository }}` expression without an allowlist MUST retain ordinary single-checkout behavior; compound expressions MUST NOT inherit that exception. Repository selectors MUST NOT contain wildcards. Policies MAY contain scoped wildcards but MUST NOT permit every repository. Policy expressions MUST be direct trusted configuration-variable references, such as `${{ vars.ALLOWED_REPOS }}` or `${{ vars['ALLOWED_REPOS'] }}`; caller-controlled and computed policy expressions MUST fail compilation. Expression results MUST be treated as data, not executable script text.
+Only literal `multi: true` MUST enable repository-list expansion; selectors and `allowed-repos` alone MUST NOT enable it. With multi omitted or false, an explicit `repository` or `repo` MUST resolve to exactly one `owner/repo` slug, validated before checkout in both agent and safe-output jobs. Empty, malformed, wildcard, or multiple resolved slugs, including duplicates, MUST fail. Single-repository expressions MUST NOT require the multi-mode allowlist, visibility preflight, private-target opt-in, non-root prefix, or explicit App scope; normal LFS, submodule, `current`, and `wiki` behavior MUST remain available. Multi-only policy fields MUST NOT constrain these checkouts. Single and multi entries MUST NOT merge across modes.
+
+With `multi: true`, every repository selector MUST require `checkout.allowed-repos` at compilation, including a literal or the standalone `${{ github.repository }}` expression. Repository selectors MUST NOT contain wildcards. Policies MAY contain scoped wildcards but MUST NOT permit every repository. Policy expressions MUST be direct trusted configuration-variable references, such as `${{ vars.ALLOWED_REPOS }}` or `${{ vars['ALLOWED_REPOS'] }}`; caller-controlled and computed policy expressions MUST fail compilation. Expression results MUST be treated as data, not executable script text. These checkout mode choices MUST NOT weaken any safe-output write-target authorization or other independent workflow security control.
 
 **Requirement RCR9: Complete, Bounded Preflight**
 
@@ -5308,7 +5310,7 @@ Staged safe-output processing MUST NOT emit runtime checkout, checkout-App, or m
 
 #### 9.6.2 Bounded Formal Reference Model
 
-[`RuntimeRepositoryCheckout.tla`](https://github.com/github/gh-aw/blob/main/specs/workflow-security/RuntimeRepositoryCheckout.tla) models the compiler decision, complete-batch preflight, job-local finalization, manifest-before-consumer ordering, credential-source precedence, staged isolation, and known-failure reporting. The existing workflow-security checker runs exhaustive bounded safety checks, deliberate guard mutations, and reachability witnesses. This is not a proof of expression parsing, wildcard matching, Git internals, filesystem confinement, GitHub token grants, or arbitrary privileged scripts; those obligations remain covered by compiler/runtime conformance tests.
+[`RuntimeRepositoryCheckout.tla`](https://github.com/github/gh-aw/blob/main/specs/workflow-security/RuntimeRepositoryCheckout.tla) models explicit multi-mode classification, single-repository runtime cardinality validation, the compiler decision, complete-batch preflight, job-local finalization, manifest-before-consumer ordering, credential-source precedence, staged isolation, and known-failure reporting. The existing workflow-security checker runs exhaustive bounded safety checks, deliberate guard mutations, and reachability witnesses. This is not a proof of expression parsing, wildcard matching, Git internals, filesystem confinement, GitHub token grants, or arbitrary privileged scripts; those obligations remain covered by compiler/runtime conformance tests.
 
 ### 9.7 Private-to-Public Flow Containment
 
@@ -6199,6 +6201,8 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 
 - **Added**: PTI-001–007 for captured patch/bundle bytes, nonblocking regular-file checks, private snapshots, bounded integrity-check cost, trusted transformations, permanent retry classification, restricted Git cleanup, and safe diagnostics.
 - **Added**: Runtime regression mappings and a bounded transport lifecycle TLA+ model; no new compiler rule or token permission is introduced.
+- Scoped RCR8-RCR15 multi-repository controls to literal `multi: true`; required single-selector runtime validation in both jobs when omitted/false, without list restrictions or changes to write authorization.
+- Extended the bounded checkout model with explicit mode, single-selector rejection, negative controls, and reachability witnesses.
 
 **Version 1.29.11** (2026-10-14):
 

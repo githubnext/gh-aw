@@ -59,6 +59,8 @@ WITNESS_SETTINGS = {
     "temporary-credentials": {"checkout_mode": "force-clean"},
 }
 RUNTIME_CHECKOUT_MUTATIONS = {
+    "implicit-multi": "ExplicitMultiMode",
+    "single-selector-bypass": "SingleRepositoryOnly",
     "untrusted-policy": "PolicyProvenance",
     "missing-allowlist": "MandatoryAllowlist",
     "selector-wildcard": "ExplicitSelector",
@@ -82,6 +84,8 @@ RUNTIME_CHECKOUT_MUTATIONS = {
     "failure-no-jobs": "CheckoutFailureReported",
 }
 RUNTIME_CHECKOUT_WITNESSES = {
+    "single-expression": "NoSingleExpression",
+    "single-unrestricted-features": "NoSingleUnrestrictedFeatures",
     "checkout": "NoRuntimeCheckout",
     "deep-manifest": "NoDeepManifestConsumer",
     "failure": "NoKnownCheckoutFailure",
