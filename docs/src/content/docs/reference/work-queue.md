@@ -355,6 +355,10 @@ namespaces. `DEBUG=work-queue:store,work-queue:dispatch` selects components;
 patterns support `*`, with comma or whitespace separators.
 `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` enables all queue events,
 including when a GitHub Actions run is re-run with debug logging.
+Each emitted event ends with `+Nms`, the monotonic elapsed time since the previous
+emitted event in the same namespace within that process. The first event uses
+`+0ms`; suppressed events do not reset the interval. Always-visible queue
+diagnostics and failures use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
 `reconciler`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe

@@ -2,6 +2,10 @@
 "use strict";
 
 const { createLogger } = require("./mcp_logger.cjs");
+const { performance } = require("node:perf_hooks");
+
+/** @type {Map<string, number>} */
+const lastEmittedAt = new Map();
 
 /** @param {string} namespace */
 function debugEnabled(namespace) {
@@ -32,7 +36,11 @@ function createWorkQueueLogger(component) {
   /** @param {string} event @param {Record<string, unknown>} [fields] */
   function diagnostic(event, fields = {}) {
     const metadata = Object.entries(fields).filter(([, value]) => typeof value === "boolean" || (typeof value === "number" && Number.isSafeInteger(value) && value >= 0));
-    logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`)].join(" "));
+    const now = performance.now();
+    const previous = lastEmittedAt.get(namespace) ?? now;
+    const elapsed = Math.max(0, Math.round(now - previous));
+    logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`), `+${elapsed}ms`].join(" "));
+    lastEmittedAt.set(namespace, now);
   }
   /** @param {string} event @param {Record<string, unknown>} [fields] */
   function debug(event, fields = {}) {

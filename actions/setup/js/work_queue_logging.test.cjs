@@ -6,6 +6,7 @@ const { genesis, submission, producer } = require("./work_queue_test_helpers.cjs
 const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
 const { planDispatch } = require("./work_queue_scheduler.cjs");
 const { replayTransactions } = require("./work_queue_replay.cjs");
+const { performance } = require("node:perf_hooks");
 
 describe("privacy-preserving work queue logging", () => {
   let stderr;
@@ -72,9 +73,42 @@ describe("privacy-preserving work queue logging", () => {
       fractional: 0.5,
       huge: Number.MAX_SAFE_INTEGER + 1,
     });
-    expect(output()).toMatch(/\[\d{4}-\d{2}-\d{2}T.*Z\] \[work-queue:store\] candidate.checked operations=2 reused=false\n/);
+    expect(output()).toMatch(/\[\d{4}-\d{2}-\d{2}T.*Z\] \[work-queue:store\] candidate.checked operations=2 reused=false \+\d+ms\n/);
     expect(output()).not.toContain(secret);
     expect(toString).not.toHaveBeenCalled();
+  });
+
+  it("measures monotonic deltas per namespace across logger instances and emission types", () => {
+    vi.stubEnv("DEBUG", "work-queue:*");
+    const clock = vi.spyOn(performance, "now");
+    clock.mockReturnValue(100);
+    const first = createWorkQueueLogger("timing");
+    first.debug("first");
+    clock.mockReturnValue(125);
+    createWorkQueueLogger("other-timing").diagnostic("independent");
+    clock.mockReturnValue(142);
+    createWorkQueueLogger("timing").diagnostic("second");
+    clock.mockReturnValue(150);
+    first.failure("third", { status: 503 }, true);
+    expect(output()).toContain("[work-queue:timing] first +0ms\n");
+    expect(output()).toContain("[work-queue:other-timing] independent +0ms\n");
+    expect(output()).toContain("[work-queue:timing] second +42ms\n");
+    expect(output()).toContain("[work-queue:timing] third failed=true http_status=503 +8ms\n");
+  });
+
+  it("does not advance the delta clock for suppressed events or use wall-clock time", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(100);
+    const logger = createWorkQueueLogger("suppressed-timing");
+    logger.diagnostic("first");
+    clock.mockReturnValue(110);
+    logger.debug("suppressed");
+    logger.failure("suppressed.failure", new Error("private"));
+    vi.spyOn(Date, "now").mockReturnValue(-1000);
+    clock.mockReturnValue(130);
+    logger.failure("visible.failure", { status: 500 }, true);
+    expect(output()).toContain("first +0ms\n");
+    expect(output()).toContain("visible.failure failed=true http_status=500 +30ms\n");
+    expect(output()).not.toContain("suppressed.failure");
   });
 
   it("does not log error messages, stack traces, causes, headers or responses", () => {
