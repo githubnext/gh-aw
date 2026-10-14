@@ -24,26 +24,31 @@ func agenticEngineWordValue(source string, word *syntax.Word) string {
 	if value := word.Lit(); value != "" {
 		return value
 	}
-	if len(word.Parts) == 1 {
-		switch part := word.Parts[0].(type) { //nolint:uncheckedsliceindex // The single-element length is checked above.
-		case *syntax.SglQuoted:
-			return part.Value
-		case *syntax.DblQuoted:
-			var value strings.Builder
-			for _, quotedPart := range part.Parts {
-				switch quotedPart := quotedPart.(type) {
-				case *syntax.Lit:
-					value.WriteString(quotedPart.Value)
-				case *syntax.SglQuoted:
-					value.WriteString(quotedPart.Value)
-				default:
-					return agenticEngineWordSource(source, word)
-				}
-			}
-			return value.String()
-		}
+	if value, ok := agenticEngineLiteralWordParts(word.Parts); ok {
+		return value
 	}
 	return agenticEngineWordSource(source, word)
+}
+
+func agenticEngineLiteralWordParts(parts []syntax.WordPart) (string, bool) {
+	var value strings.Builder
+	for _, part := range parts {
+		switch part := part.(type) {
+		case *syntax.Lit:
+			value.WriteString(part.Value)
+		case *syntax.SglQuoted:
+			value.WriteString(part.Value)
+		case *syntax.DblQuoted:
+			quotedValue, ok := agenticEngineLiteralWordParts(part.Parts)
+			if !ok {
+				return "", false
+			}
+			value.WriteString(quotedValue)
+		default:
+			return "", false
+		}
+	}
+	return value.String(), true
 }
 
 func agenticEngineWordSource(source string, word *syntax.Word) string {
@@ -151,8 +156,15 @@ func agenticEngineCommandInvokes(words []string, depth int) bool {
 	switch command {
 	case "env":
 		for i, arg := range args {
-			if (arg == "-S" || arg == "--split-string") && i+1 < len(args) {
-				return agenticEngineScriptInvokes(args[i+1], depth+1) //nolint:uncheckedsliceindex // The condition checks i+1 against len(args).
+			switch {
+			case arg == "-S" || arg == "--split-string":
+				if i+1 < len(args) {
+					return agenticEngineScriptInvokes(args[i+1], depth+1) //nolint:uncheckedsliceindex // The condition checks i+1 against len(args).
+				}
+			case strings.HasPrefix(arg, "-S") && len(arg) > 2:
+				return agenticEngineScriptInvokes(arg[2:], depth+1)
+			case strings.HasPrefix(arg, "--split-string="):
+				return agenticEngineScriptInvokes(strings.TrimPrefix(arg, "--split-string="), depth+1)
 			}
 		}
 		index := agenticEngineWrappedCommandIndex(command, args)
