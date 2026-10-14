@@ -1,6 +1,6 @@
 // @ts-check
 
-const { getGitHubAPIQuota, getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
+const { getGitHubAPIQuota, getGitHubAPIDiagnostic, getSanitizedGitHubAPICause } = require("./github_api_diagnostics.cjs");
 
 const SAFE_HEADERS = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-used", "x-ratelimit-reset", "x-ratelimit-resource", "retry-after"];
 const API_READ_OPERATIONS = Object.freeze({
@@ -69,13 +69,14 @@ function createAPIBudget(reserve = 100) {
   let requests = 0;
   let latest = {};
   const budget = {
-    observe(response) {
+    observe(response, cause = undefined) {
       requests++;
       latest = safeResponseHeaders(response.headers);
       const remaining = latest["x-ratelimit-remaining"];
       const limited = response.status === 429 || (response.status === 403 && (remaining === "0" || latest["retry-after"] != null));
       if (limited || (remaining != null && Number(remaining) <= reserve)) {
-        const error = Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP" });
+        const sanitizedCause = getSanitizedGitHubAPICause(cause);
+        const error = Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP", ...(sanitizedCause ? { cause: sanitizedCause } : {}) });
         const diagnostic = getGitHubAPIDiagnostic(error);
         if (diagnostic) error.message += `: ${diagnostic.message}`;
         throw error;
@@ -92,7 +93,7 @@ function createAPIBudget(reserve = 100) {
           try {
             response = await operation();
           } catch (error) {
-            if (observe && error?.response) budget.observe(error.response);
+            if (observe && error?.response) budget.observe(error.response, error);
             throw error;
           }
           if (observe) budget.observe(response);

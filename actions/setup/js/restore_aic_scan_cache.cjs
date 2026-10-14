@@ -117,8 +117,9 @@ async function mainWithPaths(cachePath = AIC_SCAN_CACHE_FILE_PATH, options = {})
   } catch (error) {
     const diagnostic = getGitHubAPIDiagnostic(error);
     const failure = getAPIReadFailure(error);
-    if (diagnostic && failure) {
-      const message = `Daily AIC snapshot restore stopped at ${failure.operation} after ${failure.attempts} attempt(s): ${diagnostic.message}. Accounting remains unverified; agent startup is blocked.`;
+    if (failure) {
+      const detail = diagnostic?.message ?? `GitHub API read failed (HTTP ${failure.status ?? "unknown"}; reason=${failure.reason})`;
+      const message = `Daily AIC snapshot restore stopped at ${failure.operation} after ${failure.attempts} attempt(s): ${detail}. Accounting remains unverified; agent startup is blocked.`;
       core.info(`[daily-aic-cache] ${message}`);
       if (core.summary) {
         try {

@@ -559,6 +559,43 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
+  it("main() keeps wrapped quota failures classified and blocks unknown accounting", async () => {
+    const outputs = {};
+    const quotaError = httpError(403, "API rate limit exceeded for installation; private-payload");
+    quotaError.response.headers = { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1791972360" };
+    const wrapped = new Error("unable to download artifact: private-payload", { cause: quotaError });
+    const getCurrent = vi.fn().mockRejectedValue(wrapped);
+    global.core = {
+      setOutput: (key, value) => {
+        outputs[key] = value;
+      },
+      setFailed: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+    };
+    global.github = { rest: { actions: { getWorkflowRun: getCurrent } } };
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "1000";
+    process.env.GH_AW_GITHUB_TOKEN = "synthetic";
+    try {
+      await runMain();
+      expect(outputs.daily_ai_credits_guardrail_status).toBe("transient_error");
+      expect(outputs.daily_ai_credits_total).toBe("");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("current_run read stopped");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("quota_exhausted");
+      expect(outputs.daily_ai_credits_guardrail_error).toContain("reset=2026-10-14T10:06:00.000Z");
+      expect(global.core.setFailed).toHaveBeenCalledWith(outputs.daily_ai_credits_guardrail_error);
+      expect(getCurrent).toHaveBeenCalledOnce();
+      expect(JSON.stringify([outputs, global.core.info.mock.calls, global.core.setFailed.mock.calls])).not.toContain("private-payload");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
+
   it("main() counts business requests instead of unrelated rate-limit snapshots", async () => {
     // The unrelated quota endpoint must not supply the business-request budget.
     const coreInfos = [];

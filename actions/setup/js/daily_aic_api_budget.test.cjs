@@ -1,8 +1,10 @@
 import { createRequire } from "node:module";
+import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { API_READ_OPERATIONS, apiError, createAPIBudget, isTransientError, retryNotBefore, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -77,6 +79,69 @@ describe("bounded daily AIC read retries", () => {
     expect(request).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
     expect(global.core.info).toHaveBeenCalledWith(`[daily-workflow-aic] Stopped daily AIC read: {"attempts":1,"status":${status},"reason":"quota_stop","requests":1,"operation":"unknown"}`);
+  });
+
+  it("classifies a synthetic HTTP 403 reserve stop without permission evidence as quota_reserve", () => {
+    let stopped;
+    try {
+      createAPIBudget(100).observe(response(403, { "x-ratelimit-remaining": "50" }));
+    } catch (error) {
+      stopped = error;
+    }
+    expect(stopped).toMatchObject({ code: "DAILY_AIC_QUOTA_STOP", status: 403 });
+    expect(getGitHubAPIDiagnostic(stopped)).toMatchObject({ quota: true, classification: "quota_reserve" });
+  });
+
+  it.each([
+    [401, "Bad credentials", "50", "authentication_failed"],
+    [403, "Resource not accessible by integration", "50", "permission_denied"],
+    [403, "Resource not accessible by integration", "0", "permission_denied"],
+    [403, "API rate limit exceeded for installation", "0", "quota_exhausted"],
+    [403, "Unspecified error", "50", "quota_reserve"],
+  ])("preserves original HTTP %i access evidence while stopping quota-restricted reads", async (status, message, remaining, classification) => {
+    const original = apiError(status, { "x-ratelimit-remaining": remaining }, `${message}; secret-test-value`);
+    const request = vi.fn().mockRejectedValue(original);
+    const stopped = await createAPIBudget()
+      .request(request)
+      .catch(error => error);
+    expect(stopped).toMatchObject({ code: "DAILY_AIC_QUOTA_STOP", status });
+    expect(getGitHubAPIDiagnostic(stopped)).toMatchObject({ quota: true, classification });
+    if (classification === "quota_exhausted" || classification === "quota_reserve") {
+      expect(stopped.cause).toBeUndefined();
+    } else {
+      expect(stopped.cause).not.toBe(original);
+      expect(stopped.cause).toMatchObject({ status, message: status === 401 ? "Bad credentials" : "Permission denied" });
+      expect(Object.keys(stopped.cause)).toEqual(["status"]);
+    }
+    expect(request).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+    const logs = global.core.info.mock.calls.flat().join("\n");
+    expect(logs).toContain(`GitHub API ${classification}`);
+    expect(logs).toContain('"reason":"quota_stop"');
+    expect(logs).not.toContain("secret-test-value");
+  });
+
+  it.each([
+    [401, "Bad credentials", "authentication_failed"],
+    [403, "Resource not accessible by integration", "permission_denied"],
+    [403, "Resource not accessible by personal access token", "permission_denied"],
+    [403, "API rate limit exceeded", "quota_exhausted"],
+  ])("never exposes original HTTP %i error properties during terminal inspection", async (status, message, classification) => {
+    const original = apiError(status, { "x-ratelimit-remaining": "0" }, `${message}; secret-message-value`);
+    original.request = { url: "https://example.invalid/?token=secret-url-value", headers: { authorization: "secret-request-header-value" }, body: "secret-request-body-value" };
+    original.response.headers.authorization = "secret-response-header-value";
+    original.response.headers.location = "https://example.invalid/?token=secret-location-value";
+    original.response.body = "secret-response-body-value";
+    original.cause = new Error("secret-nested-cause-value");
+    const stopped = await createAPIBudget()
+      .request(() => Promise.reject(original))
+      .catch(error => error);
+    expect(stopped).toMatchObject({ code: "DAILY_AIC_QUOTA_STOP", status });
+    expect(getGitHubAPIDiagnostic(stopped)).toMatchObject({ quota: true, classification });
+    const terminal = inspect(stopped, { depth: null, showHidden: true });
+    expect(terminal).not.toMatch(/secret-[\w-]+-value|example\.invalid/);
+    expect(terminal).toContain("DAILY_AIC_QUOTA_STOP");
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("does not retry a server error with an explicit retry restriction", async () => {

@@ -406,6 +406,7 @@ describe("dismiss_pull_request_review", () => {
     [403, { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "15000", "x-ratelimit-used": "15000", "x-ratelimit-reset": "1791972360" }, "API rate limit exceeded for installation", "quota_exhausted"],
     [403, {}, "API rate limit exceeded for installation", "rate_limited"],
     [403, {}, "Resource not accessible by integration", "permission_denied"],
+    [403, { "x-ratelimit-remaining": "0" }, "Resource not accessible by integration", "permission_denied"],
     [401, {}, "Bad credentials", "authentication_failed"],
   ])("reports the failed review-read boundary and %s classification without an API payload", async (status, headers, message, classification) => {
     mockGetReview.mockRejectedValueOnce(Object.assign(new Error(`${message}; secret-test-value`), { status, response: { headers } }));
