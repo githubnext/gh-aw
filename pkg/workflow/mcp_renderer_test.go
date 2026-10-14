@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -472,14 +473,16 @@ func TestRenderAgenticWorkflowsMCP_RunnerOwnership(t *testing.T) {
 					// The generated config is written by the runner's unquoted heredoc,
 					// before the gateway starts its nested producer container.
 					cmd := exec.Command("bash", "-e", "-c", "cat <<GH_AW_TEST_CONFIG\n"+config+"GH_AW_TEST_CONFIG\n")
-					cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + t.TempDir(), "GITHUB_WORKSPACE=" + t.TempDir()}
+					home := "/runner/job-temp/gh-aw/aw-mcp-home.test"
+					cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=/runner/job-temp", "GITHUB_WORKSPACE=/runner/workspace", agenticWorkflowsMCPHomeEnv + "=" + home}
 					output, err := cmd.CombinedOutput()
 					if err != nil {
 						t.Fatalf("expand runner config: %v: %s", err, output)
 					}
 					type serverConfig struct {
-						Args []string          `json:"args" toml:"args"`
-						Env  map[string]string `json:"env" toml:"env"`
+						Args   []string          `json:"args" toml:"args"`
+						Env    map[string]string `json:"env" toml:"env"`
+						Mounts []string          `json:"mounts" toml:"mounts"`
 					}
 					var server serverConfig
 					if format == "json" {
@@ -501,8 +504,14 @@ func TestRenderAgenticWorkflowsMCP_RunnerOwnership(t *testing.T) {
 					if len(server.Args) < 2 || server.Args[len(server.Args)-2] != "--user" || server.Args[len(server.Args)-1] != expected {
 						t.Fatalf("producer must use host UID/GID %s to share private artifacts with redaction, got %q", expected, server.Args)
 					}
-					if server.Env["HOME"] != "/tmp/gh-aw/aw-mcp/home" {
+					if server.Env["HOME"] != home {
 						t.Fatalf("numeric UID producer needs a runner-owned home, got %q", server.Env["HOME"])
+					}
+					if !strings.Contains(strings.Join(server.Mounts, "\n"), home+":"+home+":rw") {
+						t.Fatalf("producer needs a dedicated daemon-visible writable home mount, got %q", server.Mounts)
+					}
+					if strings.Contains(strings.Join(server.Mounts, "\n"), "/runner/job-temp:/runner/job-temp") {
+						t.Fatal("must not mount the entire runner-temp directory")
 					}
 				})
 			}
@@ -515,29 +524,154 @@ func TestAgenticWorkflowsMCPPrivateHome(t *testing.T) {
 		t.Run(fmt.Sprintf("enabled=%v", enabled), func(t *testing.T) {
 			var setup strings.Builder
 			generateAgenticWorkflowsInstallStep(&Compiler{}, &setup, enabled, &WorkflowData{})
-			command := "(umask 077 && mkdir -p /tmp/gh-aw/aw-mcp/home)"
-			if strings.Contains(setup.String(), command) != enabled {
+			command := agenticWorkflowsMCPHomeSetupScript()
+			if strings.Contains(setup.String(), strings.ReplaceAll(command, "\n", "\n          ")) != enabled {
 				t.Fatal("private home preparation must be scoped to the agentic-workflows producer")
 			}
 			if !enabled {
 				return
 			}
-			home := filepath.Join(t.TempDir(), "home")
-			cmd := exec.Command("bash", "-e", "-c", "umask 022\n"+strings.ReplaceAll(command, "/tmp/gh-aw/aw-mcp/home", shellEscapeArg(home)))
-			if output, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("prepare private producer home: %v: %s", err, output)
+		})
+	}
+	root, err := os.MkdirTemp(".", "mcp-home-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(filepath.Join(root, "runner temp", "gh-aw", "aw-mcp", "home"), 0o755)
+		if err := os.RemoveAll(root); err != nil {
+			t.Errorf("remove test-owned home fixtures: %v", err)
+		}
+	})
+	root, err = filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runnerTemp := filepath.Join(root, "runner temp")
+	parent := filepath.Join(runnerTemp, "gh-aw")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldHome := filepath.Join(parent, "aw-mcp", "home")
+	if err := os.MkdirAll(oldHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldHome, "stale"), []byte("old job"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	envFile := filepath.Join(root, "github-env")
+	prepare := func(runnerTemp string) (string, error) {
+		cmd := exec.Command("bash", "-e", "-c", "umask 022\n"+agenticWorkflowsMCPHomeSetupScript())
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + runnerTemp, "GITHUB_ENV=" + envFile}
+		output, err := cmd.CombinedOutput()
+		return string(output), err
+	}
+	for iteration := range 2 {
+		if iteration == 1 {
+			if err := os.Chmod(oldHome, 0o555); err != nil {
+				t.Fatal(err)
 			}
-			info, err := os.Stat(home)
+		}
+		if output, err := prepare(runnerTemp); err != nil {
+			t.Fatalf("prepare private home: %v: %s", err, output)
+		}
+	}
+	published, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(published)), "\n")
+	if len(lines) != 2 || lines[0] == lines[1] {
+		t.Fatalf("each setup must publish a fresh home: %q", published)
+	}
+	for _, line := range lines {
+		home := strings.TrimPrefix(line, agenticWorkflowsMCPHomeEnv+"=")
+		if filepath.Dir(home) != parent {
+			t.Fatalf("home must be job-scoped: %q", home)
+		}
+		info, err := os.Lstat(home)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stat := info.Sys().(*syscall.Stat_t)
+		if !info.IsDir() || info.Mode().Perm() != 0o700 || stat.Uid != uint32(os.Getuid()) || stat.Gid != uint32(os.Getgid()) {
+			t.Fatalf("home must be private and runner-owned: mode=%v uid=%d gid=%d", info.Mode(), stat.Uid, stat.Gid)
+		}
+		if _, err := os.Stat(filepath.Join(home, "stale")); !os.IsNotExist(err) {
+			t.Fatal("home reused state from previous job")
+		}
+		cmd := exec.Command("bash", "-e", "-c", `umask 077; printf '{}' > "$HOME/config.json"`)
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("numeric runner must write HOME: %v: %s", err, output)
+		}
+		info, err = os.Stat(filepath.Join(home, "config.json"))
+		if err != nil || info.Mode().Perm() != 0o600 {
+			t.Fatalf("private home files must remain owner-only: %v", err)
+		}
+	}
+	info, err := os.Stat(oldHome)
+	if err != nil || info.Mode().Perm() != 0o555 {
+		t.Fatal("preexisting inaccessible home must remain untouched")
+	}
+	stale, err := os.ReadFile(filepath.Join(oldHome, "stale"))
+	if err != nil || string(stale) != "old job" {
+		t.Fatal("setup must not delete or rewrite stale home state")
+	}
+	for _, tc := range []struct{ name, runnerTemp string }{
+		{"runner-temp", filepath.Join(root, "linked-temp")},
+		{"runtime-parent", filepath.Join(root, "linked-runtime")},
+		{"ancestor", filepath.Join(root, "linked-ancestor", "runner temp")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			switch tc.name {
+			case "runner-temp":
+				err = os.Symlink(runnerTemp, tc.runnerTemp)
+			case "runtime-parent":
+				err = os.Mkdir(tc.runnerTemp, 0o755)
+				if err == nil {
+					err = os.Symlink(parent, filepath.Join(tc.runnerTemp, "gh-aw"))
+				}
+			case "ancestor":
+				err = os.Symlink(root, filepath.Join(root, "linked-ancestor"))
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != 0o700 {
-				t.Fatalf("producer home must remain private, got %o", info.Mode().Perm())
-			}
-			if err := os.WriteFile(filepath.Join(home, "config.json"), []byte("{}"), 0o600); err != nil {
-				t.Fatalf("runner must be able to write producer home: %v", err)
+			if output, err := prepare(tc.runnerTemp); err == nil || !strings.Contains(output, "must not traverse symlinks") {
+				t.Fatalf("symlink path must fail closed: %v: %s", err, output)
 			}
 		})
+	}
+	publishedAfter, err := os.ReadFile(envFile)
+	if err != nil || string(publishedAfter) != string(published) {
+		t.Fatal("rejected paths must not publish a home")
+	}
+}
+
+func TestAgenticWorkflowsMCPPrivateHomeGatewayPolicy(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		var setup strings.Builder
+		data := &WorkflowData{SandboxConfig: &SandboxConfig{MCP: &MCPGatewayRuntimeConfig{}}}
+		err := generateMCPGatewaySetup(&setup, nil, nil, NewCopilotEngine(), data, enabled, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		policy := `export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS="${MCP_GATEWAY_ALLOWED_MOUNT_ROOTS},` + agenticWorkflowsMCPHome + `:rw"`
+		if strings.Contains(setup.String(), policy) != enabled {
+			t.Fatal("gateway must allow the private writable home only when the producer is enabled")
+		}
+		if enabled {
+			cmd := exec.Command("bash", "-e", "-c", policy+"\n"+`printf '%s' "$MCP_GATEWAY_ALLOWED_MOUNT_ROOTS"`)
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=/runner/job-temp/gh-aw:ro", agenticWorkflowsMCPHomeEnv + "=/runner/job-temp/gh-aw/aw-mcp-home.test"}
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("expand private-home mount policy: %v: %s", err, output)
+			}
+			if string(output) != "/runner/job-temp/gh-aw:ro,/runner/job-temp/gh-aw/aw-mcp-home.test:rw" {
+				t.Fatalf("runtime tree must stay read-only while the dedicated home is writable: %s", output)
+			}
+		}
 	}
 }
 

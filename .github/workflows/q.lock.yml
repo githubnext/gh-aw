@@ -755,7 +755,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Copy gh-aw binary for MCP Server
         run: |
-          (umask 077 && mkdir -p /tmp/gh-aw/aw-mcp/home)
+          set -euo pipefail
+          home_parent="${RUNNER_TEMP:?}/gh-aw"
+          if [[ "$home_parent" != /* || "$home_parent" == */../* || "$home_parent" == */./* || "$home_parent" == *$'\n'* || "$home_parent" == *$'\r'* || ! -d "$home_parent" ]]; then
+            echo "::error::Agentic workflows MCP home requires an absolute runner-temp runtime directory" >&2
+            exit 1
+          fi
+          check_path="$home_parent"
+          while [[ "$check_path" != / ]]; do
+            if [[ -L "$check_path" ]]; then
+              echo "::error::Agentic workflows MCP home must not traverse symlinks" >&2
+              exit 1
+            fi
+            check_path="$(dirname -- "$check_path")"
+          done
+          GH_AW_AGENTIC_WORKFLOWS_MCP_HOME="$(umask 077 && mktemp -d -- "$home_parent/aw-mcp-home.XXXXXXXXXX")"
+          printf '%s=%s\n' 'GH_AW_AGENTIC_WORKFLOWS_MCP_HOME' "$GH_AW_AGENTIC_WORKFLOWS_MCP_HOME" >> "${GITHUB_ENV:?}"
           bash "${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh"
       - name: Prepare Safe Outputs Directories
         run: |
@@ -1028,6 +1043,7 @@ jobs:
 
           export GH_AW_ENGINE="copilot"
           export GH_AW_MCP_CLI_SERVERS='["agenticworkflows","safeoutputs"]'
+          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS="${MCP_GATEWAY_ALLOWED_MOUNT_ROOTS},${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:rw"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
@@ -1035,17 +1051,17 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ca02477e494ab1c6_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_31b779430d208630_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
                 "type": "stdio",
                 "container": "localhost/gh-aw:dev",
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw", "${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:rw"],
                 "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"],
                 "env": {
                   "DEBUG": "*",
-                  "HOME": "/tmp/gh-aw/aw-mcp/home",
+                  "HOME": "${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}",
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"
@@ -1114,7 +1130,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ca02477e494ab1c6_EOF
+          GH_AW_MCP_CONFIG_31b779430d208630_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

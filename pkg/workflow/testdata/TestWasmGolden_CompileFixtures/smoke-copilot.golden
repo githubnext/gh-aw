@@ -579,6 +579,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Copy gh-aw binary for MCP Server
         run: |
+          set -euo pipefail
+          home_parent="${RUNNER_TEMP:?}/gh-aw"
+          if [[ "$home_parent" != /* || "$home_parent" == */../* || "$home_parent" == */./* || "$home_parent" == *$'\n'* || "$home_parent" == *$'\r'* || ! -d "$home_parent" ]]; then
+            echo "::error::Agentic workflows MCP home requires an absolute runner-temp runtime directory" >&2
+            exit 1
+          fi
+          check_path="$home_parent"
+          while [[ "$check_path" != / ]]; do
+            if [[ -L "$check_path" ]]; then
+              echo "::error::Agentic workflows MCP home must not traverse symlinks" >&2
+              exit 1
+            fi
+            check_path="$(dirname -- "$check_path")"
+          done
+          GH_AW_AGENTIC_WORKFLOWS_MCP_HOME="$(umask 077 && mktemp -d -- "$home_parent/aw-mcp-home.XXXXXXXXXX")"
+          printf '%s=%s\n' 'GH_AW_AGENTIC_WORKFLOWS_MCP_HOME' "$GH_AW_AGENTIC_WORKFLOWS_MCP_HOME" >> "${GITHUB_ENV:?}"
           bash "${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh"
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -617,6 +633,7 @@ jobs:
           export DEBUG="*"
 
           export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS="${MCP_GATEWAY_ALLOWED_MOUNT_ROOTS},${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:rw"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
@@ -630,10 +647,11 @@ jobs:
               "agenticworkflows": {
                 "type": "stdio",
                 "container": "localhost/gh-aw:dev",
-                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
-                "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"],
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw", "${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}:rw"],
+                "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"],
                 "env": {
                   "DEBUG": "*",
+                  "HOME": "${GH_AW_AGENTIC_WORKFLOWS_MCP_HOME}",
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"

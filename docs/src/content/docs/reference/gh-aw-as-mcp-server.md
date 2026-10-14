@@ -7,7 +7,7 @@ sidebar:
 
 The `gh aw mcp-server` command exposes GitHub Agentic Workflows CLI commands as MCP tools, allowing chat systems and workflows to manage agentic workflows programmatically.
 
-In compiled workflows, the built-in `agentic-workflows` MCP container runs with the runner's UID and GID and a private, runner-owned home directory at `/tmp/gh-aw/aw-mcp/home`. Downloaded logs and audit files retain owner-only permissions while remaining readable by the runner's secret-redaction step before artifact upload.
+In compiled workflows, the built-in `agentic-workflows` MCP container runs with the runner's UID and GID and a fresh, private, runner-owned home directory under `$RUNNER_TEMP/gh-aw/aw-mcp-home.*`. Setup rejects symlinked parent paths and publishes the directory as `GH_AW_AGENTIC_WORKFLOWS_MCP_HOME`. The directory is mounted writable at the same absolute path inside the container; the rest of the runtime tree stays read-only. Downloaded logs and audit files retain owner-only permissions while remaining readable by the runner's secret-redaction step before artifact upload.
 
 Tool options are selected through named MCP parameters, not CLI flags embedded in workflow names, workflow specifications, or run IDs/URLs. Except for the `logs` tool's `workflow_name`, positional values beginning with `-` return an invalid-parameters error before the command executes. The `logs` tool passes workflow names unchanged after a CLI `--` boundary, so names such as `-nightly` remain valid and cannot override options. For a local workflow file whose name begins with `-`, use a relative path such as `./-workflow.md`.
 

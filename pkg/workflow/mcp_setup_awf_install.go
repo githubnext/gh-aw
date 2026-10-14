@@ -28,8 +28,29 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 	}
 	yaml.WriteString("      - name: Copy gh-aw binary for MCP Server\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          (umask 077 && mkdir -p " + agenticWorkflowsMCPHome + ")\n")
+	for line := range strings.SplitSeq(agenticWorkflowsMCPHomeSetupScript(), "\n") {
+		yaml.WriteString("          " + line + "\n")
+	}
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh\"\n")
+}
+
+func agenticWorkflowsMCPHomeSetupScript() string {
+	return `set -euo pipefail
+home_parent="${RUNNER_TEMP:?}/gh-aw"
+if [[ "$home_parent" != /* || "$home_parent" == */../* || "$home_parent" == */./* || "$home_parent" == *$'\n'* || "$home_parent" == *$'\r'* || ! -d "$home_parent" ]]; then
+  echo "::error::Agentic workflows MCP home requires an absolute runner-temp runtime directory" >&2
+  exit 1
+fi
+check_path="$home_parent"
+while [[ "$check_path" != / ]]; do
+  if [[ -L "$check_path" ]]; then
+    echo "::error::Agentic workflows MCP home must not traverse symlinks" >&2
+    exit 1
+  fi
+  check_path="$(dirname -- "$check_path")"
+done
+` + agenticWorkflowsMCPHomeEnv + `="$(umask 077 && mktemp -d -- "$home_parent/aw-mcp-home.XXXXXXXXXX")"
+printf '%s=%s\n' '` + agenticWorkflowsMCPHomeEnv + `' "$` + agenticWorkflowsMCPHomeEnv + `" >> "${GITHUB_ENV:?}"`
 }
 
 func resolveAgenticWorkflowsCLIVersion(c *Compiler, workflowData *WorkflowData) string {

@@ -12,7 +12,9 @@ Compiled agentic workflows start the built-in `agentic-workflows` MCP server ins
 
 ### Decision
 
-We will run the built-in `agentic-workflows` MCP container with the runner's numeric identity by appending `--user $(id -u):$(id -g)` to the Docker runtime args, resolved in the host-side configuration heredoc rather than inside the nested container. Because a numeric UID with no matching `/etc/passwd` entry would otherwise fall back to `/root`, we also set `HOME=/tmp/gh-aw/aw-mcp/home` for the container and pre-create that directory with `umask 077` in the "Copy gh-aw binary for MCP Server" install step. This is applied consistently to both the JSON (`renderAgenticWorkflowsMCPConfigWithOptions`) and TOML (`renderAgenticWorkflowsTOML`) renderers so development and release modes behave identically.
+The built-in `agentic-workflows` MCP container runs with the runner's numeric identity by appending `--user $(id -u):$(id -g)` to the Docker runtime args, resolved in the host-side configuration heredoc rather than inside the nested container. Because a numeric UID with no matching `/etc/passwd` entry would otherwise fall back to `/root`, the "Copy gh-aw binary for MCP Server" install step creates a fresh `0700` home with `mktemp -d` under `$RUNNER_TEMP/gh-aw/aw-mcp-home.*`. Setup rejects symlinked parent paths and publishes the path through `GITHUB_ENV` as `GH_AW_AGENTIC_WORKFLOWS_MCP_HOME`, without deleting, changing ownership, or reusing a previous home.
+
+Both the JSON (`renderAgenticWorkflowsMCPConfigWithOptions`) and TOML (`renderAgenticWorkflowsTOML`) renderers resolve this variable in the runner-side configuration heredoc, setting `HOME` and a dedicated writable bind mount to the same absolute path in development and release modes. The gateway's mount policy permits writing only to that fresh home; the existing runtime-tree mount remains read-only. Keeping the host path unchanged also allows nested Docker to mount it from the daemon-visible runner-temp volume on ARC/DinD runners.
 
 ### Alternatives Considered
 
@@ -31,10 +33,11 @@ Compute the identity at container start instead of in the host heredoc. Rejected
 ### Consequences
 
 #### Positive
-- The host secret-redaction step can read MCP-produced logs and audit files, so workflows no longer fail closed and lose their diagnostics.
+- The host secret-redaction step can read MCP-produced logs and audit files, avoiding ownership-related failures while retaining fail-closed handling of any remaining redaction errors.
 - Owner-only (`0600`/`0700`) permissions and fail-closed removal of unsanitized artifacts are preserved — no broadening of access.
 - Files left in the workspace are runner-owned, so subsequent cleanup, upload, and cache steps behave normally.
-- JSON and TOML renderers now share a single `agenticWorkflowsMCPHome` constant, keeping development and release modes in sync.
+- JSON and TOML renderers share the same home environment-variable and mount contract, keeping development and release modes in sync.
+- Each setup uses a fresh home, so stale, public, or root-owned legacy homes cannot affect the current job.
 
 #### Negative
 - The container now runs with a numeric UID that has no `/etc/passwd` entry; any tooling inside the image that resolves the current user by name may misbehave and requires the explicit `HOME` workaround.
@@ -43,7 +46,7 @@ Compute the identity at container start instead of in the host heredoc. Rejected
 - All 44 affected workflow lock files had to be regenerated, enlarging the diff and creating a rebase/merge-conflict surface for concurrent PRs.
 
 #### Neutral
-- `HOME` is pinned to a gh-aw-owned path under `/tmp/gh-aw/`, which becomes part of the implicit contract of the built-in MCP container.
+- `HOME` is job-scoped under `$RUNNER_TEMP/gh-aw/` and cleaned by the runner's normal job cleanup; no shared fixed home or whole-runner-temp writable mount is introduced.
 - Pricing and detection configuration are unchanged; this is strictly a runtime-identity and filesystem-ownership change.
 - Regression coverage was added at three levels: Go tests for configuration expansion and private-home preparation, compiled MCP/import behaviour tests, and a private-file case in `redact_secrets.test.cjs`.
 

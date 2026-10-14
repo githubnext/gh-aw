@@ -85,6 +85,10 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	}); err != nil {
 		return err
 	}
+	if hasAgenticWorkflows {
+		// Grant only the fresh private home write access, not the runtime tree.
+		yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"${MCP_GATEWAY_ALLOWED_MOUNT_ROOTS}," + agenticWorkflowsMCPHome + ":rw\"\n")
+	}
 	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
 		engine:                  engine,
 		workflowData:            workflowData,

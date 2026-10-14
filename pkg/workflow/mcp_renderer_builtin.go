@@ -12,7 +12,9 @@ import (
 var mcpRendererBuiltinLog = logger.New("workflow:mcp_renderer_builtin")
 
 const workQueueMCPServerEntrypoint = "${RUNNER_TEMP}/gh-aw/actions/work_queue_mcp_server.cjs"
-const agenticWorkflowsMCPHome = "/tmp/gh-aw/aw-mcp/home"
+const agenticWorkflowsMCPHomeEnv = "GH_AW_AGENTIC_WORKFLOWS_MCP_HOME"
+const agenticWorkflowsMCPHome = "${" + agenticWorkflowsMCPHomeEnv + "}"
+const agenticWorkflowsMCPHomeMount = agenticWorkflowsMCPHome + ":" + agenticWorkflowsMCPHome + ":rw"
 
 // RenderWorkQueueMCP mounts the activation snapshot read-only; only participants
 // receive a writable intent directory. The server has no Git client or credentials.
@@ -271,6 +273,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	}
 
 	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	mounts = append(mounts, agenticWorkflowsMCPHomeMount)
 	containerImage = resolveGatewayContainerFromMappings(containerImage, r.options.ContainerPinMappings)
 
 	yaml.WriteString("          container = \"" + containerImage + "\"\n")
@@ -480,6 +483,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	}
 
 	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	mounts = append(mounts, agenticWorkflowsMCPHomeMount)
 	containerImage = resolveGatewayContainerFromMappings(containerImage, containerPinMappings)
 
 	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
