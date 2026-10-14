@@ -175,10 +175,13 @@ When `head-repo` is set, the preferred model is an ephemeral upstream-based bran
 **Experimental:** Cross-run continuation and checkpoint chaining are under
 development; their configuration and behavior may change.
 
-Use the [work-queue continuation helper](/gh-aw/reference/work-queue/#continuing-a-task-across-runs)
-to stage a dependent child Work item. It preserves the task's declared effect
-contract and resource scope; the child waits for the predecessor's verified
-Result. The handoff does not itself persist code or authorize a PR write.
+Use [keep-open Claim completion](/gh-aw/reference/work-queue/#continuing-a-task-across-runs)
+to retain the same Work for another run. `work_queue_continue` delegates to
+`work_queue_claim_finish` with `outcome: "completed"` and `keep_open: true`.
+Verified delivery gates the next Claim; the backing Issue stays open and
+successor Work remains blocked. Save progress and handoff notes through the
+Claim's declared outputs; keeping Work open does not itself persist code or
+authorize a PR write.
 
 End-to-end integration of code checkpoints and final `create_pull_request` or
 `push_to_pull_request_branch` delivery with this helper is still under development.

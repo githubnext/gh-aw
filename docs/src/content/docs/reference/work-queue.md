@@ -389,7 +389,7 @@ only within its authority; this does not authorize arbitrary resource writes.
 | --- | --- |
 | `work_queue_read`, `work_queue_explain` | Inspect the immutable snapshot. Predictions may be stale; sorting changes only the display order. |
 | `work_queue_submit` | Stage immutable task or graph plans within size and installed scheduling limits. |
-| `work_queue_continue` | Worker-only helper that stages one dependent continuation Work with a bounded handoff. |
+| `work_queue_continue` | Worker-only shorthand for finishing the current Claim with `outcome: "completed"` and `keep_open: true`. |
 | `work_queue_dispatch_next` | Request the next assignments from a pool, within a specified limit. The scheduler selects the Work and target. |
 | `work_queue_claim_finish` | Stage a `completed` or `cancelled` finish intent for an original Claim, optionally retaining Work with `keep_open: true`. |
 
@@ -403,31 +403,32 @@ When `<mcp-clis>` lists the runtime wrapper, the invocation is
 development; their configuration and behavior may change. Queue workers expose
 `work_queue_continue`, so enabling a worker emits an experimental-feature notice.
 
-`work_queue_continue` stages a `work_queue_submit` intent for a new Work item,
-not another Claim on the same Work. The child depends on the current Work and
-retains its task payload, effect contract, resource scope, subject, and worker
-profile. Trusted admission inherits the parent's pool, priority, and fairness
-key. The helper accepts `handoff` and, for a multi-Claim assignment,
-`claim_handle`; it does not accept scheduling or target overrides.
+When another run is needed, persist progress and handoff notes through the
+current Claim's declared outputs, then call
+`work_queue_claim_finish` with `{"outcome":"completed","keep_open":true}`.
+`work_queue_continue` is a worker-only shorthand for the same finish intent.
+It accepts only `claim_handle`, required for an originally multi-Claim
+assignment; it does not accept a handoff, scheduling overrides, or a hop budget.
 
-The child's `work_queue_continuation` payload records the root Work,
-predecessor Work, hop number, and handoff. The helper permits three continuation
-hops and validates lineage against native worker-created Work records, not
-agent-supplied hop counters. Repeating the same request within a Claim reuses
-the staged intent; changing its handoff fails with a conflict.
+The same Work and backing Issue remain open. Its immutable task, effect contract,
+resource scope, scheduling entitlement, and worker profile are preserved without
+creating a dependent child Work. Trusted processing completes this Claim and
+verifies its delivery before normal queue policy can grant another Claim.
+Successor Work stays blocked until a later Claim finishes the Work without
+`keep_open`. A failed or uncertain delivery prevents another grant; it never
+reopens the settled Claim's effect authority.
 
-Publish checkpoint effects through the current Claim's declared delivery
-contract, then stage `work_queue_claim_finish` with `outcome: "completed"`.
-The contract must permit the `work_queue_submit` control as well as any
-checkpoint effects. A handoff does not itself save repository changes or
-verify a checkpoint. The child stays blocked until independent readback
-verifies every required effect and publishes the predecessor's Result.
-The existing scheduler then selects the child using normal queue policy;
-the helper does not dispatch a workflow or maintain a separate ledger.
+Repeating the helper or an identical direct keep-open finish reuses the staged
+intent. A conflicting terminal or cancelled finish fails. No `work_queue_submit`
+control permission is needed to retain Work, and no workflow is dispatched by
+the helper. The native queue does not impose the former helper's three-child
+hop limit; successful retained rounds do not consume the failure-retry budget.
+Finish with `keep_open` omitted or false when the task is complete.
 
 #### Reusing a verified code checkpoint
 
-A `git_tree` Claim adapter can set `git-tree.checkpoint-output` to the fixed
+Previously admitted dependent continuation Work remains readable. For that
+legacy path, a `git_tree` Claim adapter can set `git-tree.checkpoint-output` to the fixed
 output name that publishes code checkpoints. Initial Work uses the configured
 `base-revision`. Continuation Work instead uses that output from its immediate
 predecessor's verified Result as the base for the next immutable Claim branch.
@@ -460,8 +461,9 @@ It uses the verified commit SHA even if the predecessor's branch is later remove
 Each hop still writes a new Claim-specific branch and independently verifies
 the full cumulative tree. A final `git_tree` adapter with `pull-request: true`
 can use the same checkpoint selector and namespace to deliver that cumulative
-tree as a PR. The helper does not yet automatically check out checkpoints in
-the agent workspace, and built-in `create_pull_request` /
+tree as a PR. The keep-open helper does not create these legacy child records.
+Automatic reuse of a retained Claim's checkpoint and checkout in
+the agent workspace are not yet implemented; built-in `create_pull_request` /
 `push_to_pull_request_branch` integration remains separate work.
 
 ### Claim-scoped effects and delivery

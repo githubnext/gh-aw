@@ -7,7 +7,6 @@ const path = require("node:path");
 const { createHash } = require("node:crypto");
 const { main: writeSnapshot } = require("./write_work_queue_snapshot.cjs");
 const { createWorkQueueFinishTool, createWorkQueueSubmitTool, loadWorkQueueSnapshot } = require("./work_queue_mcp_server.cjs");
-const { createWorkQueueContinuationTool, prepareWorkQueueContinuation } = require("./work_queue_continuation.cjs");
 const { authorizeWorkerClaim, finalizeWorkerResults, reconcileWorkerClaim } = require("./finish_work_queue_claim.cjs");
 const { inheritWorkerSubmission, intentContext, processWorkQueueIntents } = require("./work_queue_dispatch.cjs");
 const { authenticatePublisher } = require("./work_queue_native.cjs");
@@ -59,7 +58,7 @@ function sourceHashes() {
 
 function registerTests({ describe, it }) {
   describe("integrated original-worker child capability", () => {
-    for (const mode of ["submit", "continue"]) {
+    for (const mode of ["submit", "legacy-continuation-submit"]) {
       it(`case192 ${mode} publishes worker22 children before Result, rejects fresh controls after Result, and recovers accepted requests with only producer11 registered`, async () => {
         const hashes = sourceHashes();
         console.log(`case192_source_sha256=${JSON.stringify(hashes)}`);
@@ -129,16 +128,16 @@ function registerTests({ describe, it }) {
           const member = assignment.claims[0];
           const loaded = loadWorkQueueSnapshot(options.snapshotPath);
           const runtime = { ...options, assignment, intentOrigin: originOutput };
-          let parameters = {
+          const parameters = {
             nodes: [{ graph_id: "g1", node_key: "case192-child", payload: { task: "inherited child", effect_contract: { kind: "none" } }, depends_on: [{ kind: "work", work_id: member.work_id }] }],
           };
-          const staged = JSON.parse(
-            (mode === "continue"
-              ? createWorkQueueContinuationTool(loaded, options).handler({ handoff: "Resume the inherited task after verifying this checkpoint." })
-              : createWorkQueueSubmitTool(loaded, { ...options, createIntentId: () => "case192-child" }).handler(parameters)
-            ).content[0].text
-          );
-          if (mode === "continue") parameters = readStagedIntents(options.intentPath)[0].parameters;
+          if (mode === "legacy-continuation-submit") {
+            parameters.nodes[0].payload = {
+              ...parameters.nodes[0].payload,
+              work_queue_continuation: { root_work_id: member.work_id, previous_work_id: member.work_id, hop: 1, handoff: "Legacy dependent checkpoint." },
+            };
+          }
+          const staged = JSON.parse(createWorkQueueSubmitTool(loaded, { ...options, createIntentId: () => "case192-child" }).handler(parameters).content[0].text);
           assert.equal(staged.status, "staged");
           assert.equal(staged.claim_handle, member.handle);
           assert.equal(fake.log().length, fixture.transactions.length + 1);
@@ -229,15 +228,7 @@ function registerTests({ describe, it }) {
           state = replayTransactions(fake.log());
           assert.equal(state.works.get(member.work_id).barrier, "verified");
           assert.equal(explainWork(state, childId, Date.now()).readiness.ready, true);
-          if (mode === "continue") {
-            const child = state.works.get(childId);
-            const planningSnapshot = { ...loaded, projection: state, worker: { ...assignment, claims: [{ ...member, work_id: childId, work: child.payload }] } };
-            const next = prepareWorkQueueContinuation(planningSnapshot, { handoff: "Resume after the next verified checkpoint." });
-            assert.equal(next.nodes[0].payload.work_queue_continuation.hop, 2);
-            assert.equal(next.nodes[0].payload.work_queue_continuation.root_work_id, member.work_id);
-            assert.deepEqual(next.nodes[0].depends_on, [{ kind: "work", work_id: childId }]);
-            assert.throws(() => prepareWorkQueueContinuation(planningSnapshot, { handoff: "Resume." }, 1), /continuation_hop_limit/);
-          }
+          if (mode === "legacy-continuation-submit") assert.equal(state.works.get(childId).payload.work_queue_continuation.previous_work_id, member.work_id);
           assert.equal(state.dispatches.get(assignment.dispatch_id).released, false);
           assert.deepEqual(Object.keys(state.policy.producers), ["11"]);
           const beforeRecovery = canonical(fake.log());

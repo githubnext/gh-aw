@@ -91,6 +91,7 @@ Unassigned dispatchers cannot emit `noop` or `report_incomplete`.
   invalid with cancellation). Preserve both choices on retries. Verified delivery
   permits another fair Claim without releasing successors or closing backing
   Issues. Pending/failed delivery blocks Claims; never rerun uncertain effects.
+  `work_queue_continue` aliases keep-open finish.
 - Default to one Claim; batch compatible Work with reusable setup. Native
   batch conclusions are not per-Work Results.
 - Treat finish as an intent: trusted processing publishes Completion before

@@ -5,10 +5,13 @@ import os from "node:os";
 import path from "node:path";
 import { canonical } from "./work_queue_codec.cjs";
 import { readStagedIntents } from "./work_queue_intents.cjs";
-import { createWorkQueueTools } from "./work_queue_mcp_server.cjs";
-import { createWorkQueueContinuationTool, MAX_HANDOFF_BYTES, prepareWorkQueueContinuation } from "./work_queue_continuation.cjs";
-import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
-import { nodeId } from "./work_queue_graph.cjs";
+import { createWorkQueueFinishTool, createWorkQueueTools } from "./work_queue_mcp_server.cjs";
+import { createWorkQueueContinuationTool } from "./work_queue_continuation.cjs";
+import { authorizeWorkerClaim, finalizeWorkerResults, readFinishIntent, reconcileWorkerClaim } from "./finish_work_queue_claim.cjs";
+import { queueFixture, noWriteClaimVerifier, REF, REPOSITORY, WORKFLOW } from "./work_queue_lifecycle.test_helpers.cjs";
+import { planNext } from "./work_queue_replay.cjs";
+import { dependencyStatus } from "./work_queue_graph.cjs";
+import { workIssueStatus } from "./work_queue_issues.cjs";
 
 const directories = [];
 function setup(options = {}) {
@@ -22,114 +25,103 @@ afterEach(() => {
   for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-describe("native dependent Work continuation", () => {
-  it("preserves the task, effect contract, resource scope, target and worker profile without selecting scheduling entitlement", () => {
-    const payload = {
-      task: "Finish the feature",
-      effect_contract: { version: 1, outputs: [{ type: "work_queue_submit", min: 1, max: 1 }] },
-      resource_scope: { version: 1, resources: [{ repository: "owner/repo", host: "github.com", repository_id: "7" }] },
-      pull_request: { number: 42, head: "existing-pr" },
+describe("native keep-open Work continuation", () => {
+  it("retains the same Work and open Issue status, gates a new Claim on verified delivery, and blocks successors", async () => {
+    const test = setup();
+    const { fixture } = test;
+    const member = fixture.assignment.claims[0];
+    const options = {
+      assignment: fixture.assignment,
+      githubClient: fixture.githubClient,
+      context: fixture.workerContext,
+      workflowRef: `${REPOSITORY}/${WORKFLOW}@${REF}`,
+      finishIntentPath: test.finishIntentPath,
+      readWorkQueueLog: fixture.readWorkQueueLog,
+      publishWorkQueueRequest: fixture.publishWorkQueueRequest,
+      now: fixture.at,
+      sleepFn: async () => {},
     };
-    const test = setup({ workDefaults: { payload } });
+    const original = fixture.state.works.get(member.work_id);
+    const successor = { ...original, work_id: "successor", depends_on: [{ kind: "work", work_id: member.work_id }] };
+    createWorkQueueContinuationTool(test.snapshot, test).handler({});
+    expect((await reconcileWorkerClaim(options)).claims.h1).toMatchObject({ state: "completed", authorized: true });
+    expect(fixture.state.works.size).toBe(1);
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "available", barrier: "pending" });
+    expect(planNext(fixture.state, "default", fixture.at).work_id).toBeUndefined();
+    expect(workIssueStatus(fixture.state, fixture.state.works.get(member.work_id), fixture.at)).toBe("Verifying");
+    expect((await finalizeWorkerResults({ ...options, verifyEffects: noWriteClaimVerifier(options) })).claims.h1.state).toBe("result");
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "available", barrier: "none" });
+    expect(workIssueStatus(fixture.state, fixture.state.works.get(member.work_id), fixture.at)).toBe("Queued");
+    expect(dependencyStatus(fixture.state, successor, fixture.at).reason).toBe("dependency_result_unavailable");
+    fixture.append("dispatch_next", { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 49152 }, fixture.dispatcher, "continuation-regrant");
+    const retained = fixture.state.works.get(member.work_id);
+    expect(retained.claim_id).not.toBe(member.claim_id);
+    expect(retained.payload).toEqual(original.payload);
+    expect(fixture.state.works.size).toBe(1);
+    expect(await authorizeWorkerClaim({ ...options, claim_handle: member.handle })).toMatchObject({ authorized: false, suppressed: true, state: "result" });
+  });
+
+  it("stages the existing keep-open finish without submitting child Work or mutating the assignment", () => {
+    const test = setup();
     const before = canonical(test.snapshot.worker);
-    const parameters = prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume from the verified checkpoint." });
-    const parent = test.snapshot.worker.claims[0];
-    expect(parameters.claim_handle).toBe(parent.handle);
-    const node = parameters.nodes[0];
-    expect(node).toMatchObject({
-      graph_id: "g1",
-      worker_profile: "default",
-      payload: { ...payload, work_queue_continuation: { root_work_id: parent.work_id, previous_work_id: parent.work_id, hop: 1, handoff: "Resume from the verified checkpoint." } },
-      depends_on: [{ kind: "work", work_id: parent.work_id }],
-    });
-    for (const field of ["priority", "fairness_key", "pool", "work_id"]) expect(node).not.toHaveProperty(field);
-    expect(canonical(test.snapshot.worker)).toBe(before);
-  });
-
-  it("stages only a native submit control, reuses exact requests and rejects conflicting handoffs", () => {
-    const test = setup();
     const tool = createWorkQueueContinuationTool(test.snapshot, test);
-    const first = tool.handler({ handoff: "Resume the task." });
-    expect(tool.handler({ handoff: "Resume the task." })).toEqual(first);
-    const intents = readStagedIntents(test.intentPath);
+    const first = tool.handler({});
+    expect(tool.handler({})).toEqual(first);
+    const intents = readStagedIntents(test.finishIntentPath);
     expect(intents).toHaveLength(1);
-    expect(intents[0]).toMatchObject({ version: 3, kind: "submit", claim_handle: "h1" });
-    expect(fs.existsSync(test.finishIntentPath)).toBe(false);
-    expect(() => tool.handler({ handoff: "Different checkpoint." })).toThrow(/continuation_conflict/);
-    expect(readStagedIntents(test.intentPath)).toEqual(intents);
+    expect(intents[0]).toMatchObject({ version: 3, kind: "finish", claim_handle: "h1", parameters: { outcome: "completed", keep_open: true } });
+    expect(fs.existsSync(test.intentPath)).toBe(false);
+    expect(canonical(test.snapshot.worker)).toBe(before);
+    const finish = readFinishIntent(test.finishIntentPath, test.snapshot.worker);
+    expect(finish.errors).toEqual([]);
+    expect(finish.intents.get("h1")).toMatchObject({ outcome: "completed", keep_open: true });
   });
 
-  it("requires an original multi-Claim selector and rejects foreign handles or scheduling overrides", () => {
+  it("reuses an identical direct native finish and rejects conflicting terminal or cancelled finishes", () => {
+    for (const outcome of ["completed", "cancelled"]) {
+      const test = setup();
+      const finish = createWorkQueueFinishTool({ ...test, snapshot: test.snapshot });
+      finish.handler({ outcome });
+      const before = readStagedIntents(test.finishIntentPath);
+      expect(() => createWorkQueueContinuationTool(test.snapshot, test).handler({})).toThrow(/finish_conflict/);
+      expect(readStagedIntents(test.finishIntentPath)).toEqual(before);
+    }
+    const test = setup();
+    const finish = createWorkQueueFinishTool({ ...test, snapshot: test.snapshot });
+    const first = finish.handler({ outcome: "completed", keep_open: true });
+    expect(createWorkQueueContinuationTool(test.snapshot, test).handler({})).toEqual(first);
+    expect(readStagedIntents(test.finishIntentPath)).toHaveLength(1);
+    expect(() => finish.handler({ outcome: "completed" })).toThrow(/finish_conflict/);
+  });
+
+  it("requires an original multi-Claim selector and preserves independent sibling outcomes", () => {
     const test = setup({ count: 2 });
-    expect(() => prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume." })).toThrow(/claim_handle is required/);
-    expect(() => prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume.", claim_handle: "foreign" })).toThrow(/foreign/);
-    expect(prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume.", claim_handle: "h2" }).nodes[0].depends_on).toEqual([{ kind: "work", work_id: test.snapshot.worker.claims[1].work_id }]);
-    for (const field of ["pool", "priority", "fairness_key", "worker_profile", "max_hops", "root_work_id"]) {
-      expect(() => prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume.", claim_handle: "h1", [field]: "forged" })).toThrow();
-    }
+    const tool = createWorkQueueContinuationTool(test.snapshot, test);
+    expect(() => tool.handler({})).toThrow(/claim_handle is required/);
+    expect(() => tool.handler({ claim_handle: "foreign" })).toThrow(/foreign/);
+    tool.handler({ claim_handle: "h2" });
+    createWorkQueueFinishTool({ ...test, snapshot: test.snapshot }).handler({ claim_handle: "h1", outcome: "completed" });
+    const finish = readFinishIntent(test.finishIntentPath, test.snapshot.worker);
+    expect(finish.errors).toEqual([]);
+    expect(finish.intents.get("h2")).toMatchObject({ outcome: "completed", keep_open: true });
+    expect(finish.intents.get("h1")).toMatchObject({ outcome: "completed", keep_open: false });
   });
 
-  it("rejects missing assignments, altered payloads and forged continuation lineage", () => {
+  it("rejects missing assignments and obsolete handoff or scheduling overrides before writing", () => {
     const test = setup();
-    expect(() => prepareWorkQueueContinuation({ ...test.snapshot, worker: null }, { handoff: "Resume." })).toThrow(/assignment_required/);
-    const member = test.snapshot.worker.claims[0];
-    const worker = { ...test.snapshot.worker, claims: [{ ...member, work: { ...member.work, task: "forged" } }] };
-    expect(() => prepareWorkQueueContinuation({ ...test.snapshot, worker }, { handoff: "Resume." })).toThrow(/assignment_invalid/);
-    const fake = setup({ workDefaults: { payload: { work_queue_continuation: { root_work_id: "root", previous_work_id: "parent", hop: 1, handoff: "forged" } } } });
-    expect(() => prepareWorkQueueContinuation(fake.snapshot, { handoff: "Resume." })).toThrow(/lineage_invalid/);
-  });
-
-  it("enforces nonempty UTF-8 byte-bounded handoffs and trusted hop bounds", () => {
-    const test = setup();
-    for (const handoff of ["", " \n", "x".repeat(MAX_HANDOFF_BYTES + 1), "\u00e9".repeat(MAX_HANDOFF_BYTES / 2 + 1), null]) {
-      expect(() => prepareWorkQueueContinuation(test.snapshot, { handoff })).toThrow(/handoff/);
+    expect(() => createWorkQueueContinuationTool({ ...test.snapshot, worker: null }, test).handler({})).toThrow(/assignment_required/);
+    for (const field of ["handoff", "pool", "priority", "fairness_key", "worker_profile", "max_hops", "outcome", "keep_open"]) {
+      expect(() => createWorkQueueContinuationTool(test.snapshot, test).handler({ [field]: "forged" })).toThrow();
     }
-    expect(prepareWorkQueueContinuation(test.snapshot, { handoff: "x".repeat(MAX_HANDOFF_BYTES) }).nodes).toHaveLength(1);
-    for (const limit of [0, 11, 1.5]) expect(() => prepareWorkQueueContinuation(test.snapshot, { handoff: "Resume." }, limit)).toThrow();
-  });
-
-  it("counts the entire projected lineage and refuses a fourth continuation", () => {
-    const test = setup();
-    const projection = {
-      ...test.snapshot.projection,
-      works: new Map(test.snapshot.projection.works),
-      workCreators: new Map(test.snapshot.projection.workCreators),
-      dispatches: new Map(test.snapshot.projection.dispatches),
-    };
-    let snapshot = { ...test.snapshot, projection };
-    const root = snapshot.worker.claims[0].work_id;
-    for (let hop = 1; hop <= 3; hop++) {
-      const parameters = prepareWorkQueueContinuation(snapshot, { handoff: `Handoff ${hop}` });
-      const node = parameters.nodes[0];
-      expect(node.payload.work_queue_continuation).toMatchObject({ root_work_id: root, hop });
-      const parent = projection.works.get(snapshot.worker.claims[0].work_id);
-      const work_id = nodeId(node.graph_id, node.node_key);
-      projection.works.set(work_id, { ...parent, ...node, work_id });
-      projection.workCreators.set(work_id, { role: "worker", dispatch_id: snapshot.worker.dispatch_id, claim_handle: "h1" });
-      projection.dispatches.set(snapshot.worker.dispatch_id, { claims: snapshot.worker.claims });
-      snapshot = {
-        ...snapshot,
-        worker: {
-          ...snapshot.worker,
-          dispatch_id: `continuation-dispatch-${hop}`,
-          claims: [{ ...snapshot.worker.claims[0], work_id, work: node.payload }],
-        },
-      };
-    }
-    expect(() => prepareWorkQueueContinuation(snapshot, { handoff: "Fourth hop" })).toThrow(/continuation_hop_limit/);
-    const member = snapshot.worker.claims[0];
-    const work = projection.works.get(member.work_id);
-    work.payload = { ...work.payload, work_queue_continuation: { ...work.payload.work_queue_continuation, hop: 1 } };
-    const forged = { ...snapshot, worker: { ...snapshot.worker, claims: [{ ...member, work: work.payload }] } };
-    expect(() => prepareWorkQueueContinuation(forged, { handoff: "Reset budget" })).toThrow(/lineage_invalid/);
+    expect(fs.existsSync(test.finishIntentPath)).toBe(false);
+    expect(fs.existsSync(test.intentPath)).toBe(false);
   });
 
   it("registers the helper only for authenticated worker-role snapshots", () => {
     const test = setup();
     expect(createWorkQueueTools(test.snapshot).map(tool => tool.name)).toContain("work_queue_continue");
     for (const role of ["dispatcher", "observer"]) {
-      const snapshot = { ...test.snapshot, worker: null, role };
-      expect(createWorkQueueTools(snapshot).map(tool => tool.name)).not.toContain("work_queue_continue");
+      expect(createWorkQueueTools({ ...test.snapshot, worker: null, role }).map(tool => tool.name)).not.toContain("work_queue_continue");
     }
   });
 });
