@@ -162,6 +162,7 @@ jobs:
           EXISTING_DOCKERFILE_HASH: ${{ steps.published.outputs.dockerfile_hash }}
           IMAGE_EXISTS: ${{ steps.published.outputs.image_exists }}
           IN_COOLDOWN: ${{ steps.upstream.outputs.in_cooldown }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -188,6 +189,9 @@ jobs:
           elif [ "$EXISTING_DOCKERFILE_HASH" != "$CURRENT_DOCKERFILE_HASH" ]; then
             should_push=true
             reason="Container Dockerfile changed"
+          elif [ "$TRIGGER_EVENT" = "schedule" ] || [ "$TRIGGER_EVENT" = "workflow_dispatch" ]; then
+            should_push=true
+            reason="Refresh runtime packages on scheduled or manual publish"
           fi
 
           echo "Decision: should_push=${should_push}"
@@ -213,6 +217,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           pull: true
           push: true
+          # apk/npm fixes can change without a new base digest or Dockerfile.
+          no-cache: true
           build-args: |
             NODE_IMAGE=${{ steps.upstream.outputs.base_image }}
             NODE_IMAGE_DIGEST=${{ steps.upstream.outputs.digest }}
