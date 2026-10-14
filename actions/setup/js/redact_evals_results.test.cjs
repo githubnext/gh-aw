@@ -103,4 +103,24 @@ describe("redact_evals_results.cjs", () => {
     expect(JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf8")).question).toBe("***");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
+
+  it("reports multiple lingering OTLP credentials without claiming an inaccurate count", async () => {
+    const passwords = ["synthetic-otlp-password-one", "synthetic-otlp-password-two", "12345678"];
+    const endpoints = passwords.map(password => ({
+      url: "https://traces.example.com",
+      headers: `Authorization=Basic ${Buffer.from(`123456:${password}`).toString("base64")}`,
+    }));
+    vi.stubEnv("GH_AW_OTLP_ENDPOINTS", JSON.stringify(endpoints));
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify({ questions: passwords.slice(0, 2) }) + "\n12345678\n", "utf8");
+
+    module.verifyRedaction();
+
+    expect(mockCore.setFailed).toHaveBeenCalledExactlyOnceWith(`Secret redaction verification failed for ${OUTPUT_PATH}: unredacted values remain`);
+    mockCore.setFailed.mockClear();
+    await module.main();
+    const content = fs.readFileSync(OUTPUT_PATH, "utf8");
+    for (const password of passwords) expect(content).not.toContain(password);
+    expect(JSON.parse(content.trim().split("\n")[1])).toBe("***");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
 });

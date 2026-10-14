@@ -1,6 +1,6 @@
 // @ts-check
 
-const { getAuthorizationSecretValues, getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
+const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
 
 /**
  * Escape a value for a GitHub Actions workflow command payload.
@@ -39,9 +39,4 @@ function maskSecret(value) {
   }
 }
 
-/** @param {string} value */
-function maskAuthorizationValue(value) {
-  for (const secret of getAuthorizationSecretValues(value)) maskSecret(secret);
-}
-
-module.exports = { escapeWorkflowCommandValue, maskSecret, maskAuthorizationValue, getOTLPSecretValues };
+module.exports = { escapeWorkflowCommandValue, maskSecret, getOTLPSecretValues };

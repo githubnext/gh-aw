@@ -38,10 +38,10 @@ function verifyRedaction() {
     throw new Error(`Failed to read file ${EVALS_OUTPUT_PATH}: ${String(err)}`, { cause: err });
   }
   const secretValues = getSecretValues();
-  const lingeringRedactions = redactBuiltInPatterns(content).redactionCount + redactSecrets(content, secretValues).redactionCount + (redactArtifactMaskedValues(content, getOTLPSecretValues()) !== content ? 1 : 0);
+  const hasLingeringSecrets = redactBuiltInPatterns(content).redactionCount > 0 || redactSecrets(content, secretValues).redactionCount > 0 || redactArtifactMaskedValues(content, getOTLPSecretValues()) !== content;
 
-  if (lingeringRedactions > 0) {
-    core.setFailed(`Secret redaction verification failed for ${EVALS_OUTPUT_PATH}: ${lingeringRedactions} unredacted value(s) remain`);
+  if (hasLingeringSecrets) {
+    core.setFailed(`Secret redaction verification failed for ${EVALS_OUTPUT_PATH}: unredacted values remain`);
   }
 }
 
