@@ -38,6 +38,11 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
 
 const REASONING_EFFORT_VALUES = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
 
+/**
+ * @param {unknown} reasoningEffort
+ * @param {string|null} [model]
+ * @returns {string|null}
+ */
 function resolveReasoningEffort(reasoningEffort, model = null) {
   if (reasoningEffort == null) return null;
 
