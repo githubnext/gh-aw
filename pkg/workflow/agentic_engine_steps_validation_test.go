@@ -178,6 +178,125 @@ func TestValidateAgenticEngineSteps(t *testing.T) {
 	}
 }
 
+func TestAgenticEngineSecretReferences(t *testing.T) {
+	secretNames := agenticEngineSecretNames(NewEngineRegistry())
+	assert.Contains(t, secretNames, "COPILOT_GITHUB_TOKEN")
+	assert.Contains(t, secretNames, "ANTHROPIC_API_KEY")
+	assert.Contains(t, secretNames, "OPENAI_API_KEY")
+	assert.Contains(t, secretNames, "GEMINI_API_KEY")
+
+	for _, tc := range []struct {
+		name string
+		job  map[string]any
+		want bool
+	}{
+		{
+			name: "step environment",
+			job: map[string]any{"steps": []any{
+				map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.ANTHROPIC_API_KEY }}"}},
+			}},
+			want: true,
+		},
+		{
+			name: "job environment",
+			job:  map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}"}},
+			want: true,
+		},
+		{
+			name: "combined references",
+			job: map[string]any{"steps": []any{
+				map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.CUSTOM_TOKEN || secrets.OPENAI_API_KEY }}"}},
+			}},
+			want: true,
+		},
+		{
+			name: "bracket reference",
+			job: map[string]any{"steps": []any{
+				map[string]any{"env": map[string]any{"TOKEN": `${{ secrets['GEMINI_API_KEY'] }}`}},
+			}},
+			want: true,
+		},
+		{
+			name: "unrelated secret",
+			job: map[string]any{"steps": []any{
+				map[string]any{"env": map[string]any{"TOKEN": "${{ secrets.CUSTOM_TOKEN }}"}},
+			}},
+			want: false,
+		},
+		{
+			name: "text outside expression",
+			job: map[string]any{"steps": []any{
+				map[string]any{"run": "echo secrets.ANTHROPIC_API_KEY"},
+			}},
+			want: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, jobReferencesAgenticEngineSecret(tc.job, secretNames) ||
+				referencesAgenticEngineSecret(tc.job["steps"], secretNames))
+		})
+	}
+	catalogFetch := map[string]any{
+		"env": map[string]any{"ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}"},
+		"run": "curl https://api.anthropic.com/v1/models",
+	}
+	assert.True(t, stepUsesProviderModelCatalogAPI(catalogFetch))
+	assert.False(t, stepReferencesAgenticEngineSecret(catalogFetch, secretNames))
+}
+
+func TestValidateAgenticEngineSecrets(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		job       map[string]any
+		strict    bool
+		wantError bool
+		warnings  int
+	}{
+		{
+			name: "strict job-level credential",
+			job: map[string]any{
+				"env":   map[string]any{"TOKEN": "${{ secrets.ANTHROPIC_API_KEY }}"},
+				"steps": []any{map[string]any{"run": "echo ready"}},
+			},
+			strict:    true,
+			wantError: true,
+		},
+		{
+			name: "non-strict step credential",
+			job: map[string]any{"steps": []any{
+				map[string]any{
+					"env": map[string]any{"TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}"},
+					"run": "echo ready",
+				},
+			}},
+			warnings: 1,
+		},
+		{
+			name: "unrelated secret",
+			job: map[string]any{"steps": []any{
+				map[string]any{
+					"env": map[string]any{"TOKEN": "${{ secrets.CUSTOM_TOKEN }}"},
+					"run": "echo ready",
+				},
+			}},
+			strict: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewCompiler()
+			workflow := map[string]any{"jobs": map[string]any{"custom": tc.job}}
+			err := c.validateAgenticEngineSteps(workflow, tc.strict, "test.md")
+			if tc.wantError {
+				require.ErrorContains(t, err, "agentic engine credential")
+				require.ErrorContains(t, err, `job "custom"`)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.warnings, c.warningCount)
+		})
+	}
+}
+
 func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -194,6 +313,8 @@ func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 		{"activation augmentation", "jobs:\n  activation:\n    steps:\n      - run: copilot -p test\n", "", false, true},
 		{"control keyword", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: if copilot -p test; then echo ok; fi\n", "", false, true},
 		{"shell wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: /bin/bash -lc 'copilot -p test'\n", "", false, true},
+		{"job-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: ${{ secrets.ANTHROPIC_API_KEY }}\n    steps:\n      - run: echo ready\n", "", false, true},
+		{"step-level engine credential", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - env:\n          TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}\n        run: echo ready\n", "", false, true},
 		{"arithmetic data", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $((pi + 1))\n", "", false, false},
 		{"heredoc data after command", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo ready; cat <<EOF\n          copilot -p test\n          EOF\n", "", false, false},
 	} {
