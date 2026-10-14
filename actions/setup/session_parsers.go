@@ -9,6 +9,7 @@ import "embed"
 //go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
+//go:embed js/disk_usage.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
 //go:embed js/parse_claude_log.cjs js/parse_codex_log.cjs js/parse_copilot_log.cjs js/parse_gemini_log.cjs
 //go:embed js/parse_custom_log.cjs js/parse_pi_log.cjs js/parse_opencode_log.cjs js/parse_goose_log.cjs
