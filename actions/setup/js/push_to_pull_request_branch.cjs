@@ -20,7 +20,7 @@ const { POLICY_FILE_PROTECTION_DENIED_REASON_CODE } = require("./error_codes.cjs
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
@@ -121,7 +121,7 @@ function parsePositiveInteger(value) {
  * @returns {Promise<string[]>}
  */
 async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef, conflictedFiles = []) {
-  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], gitOptions);
+  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], offlineGitOptions(gitOptions));
   return [...new Set([...bundleDiffResult.stdout.split("\0").filter(Boolean), ...conflictedFiles])];
 }
 
@@ -141,7 +141,7 @@ async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, tru
   const fallback = { ref: oldHead, conflictedFiles: [] };
   if (!trustedBase) return fallback;
   try {
-    const opts = { ...gitOptions, ignoreReturnCode: true };
+    const opts = { ...offlineGitOptions(gitOptions), ignoreReturnCode: true };
     const oldAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", oldHead, candidate], opts);
     const baseAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, candidate], opts);
     const alreadyMerged = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, oldHead], opts);
@@ -164,20 +164,38 @@ async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, tru
   return fallback;
 }
 
-async function fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits, logPrefix = "") {
-  core.warning(`${logPrefix}bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-  core.info(`${logPrefix}fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-  // Use --filter=blob:none only when the local repo is already shallow or sparse —
-  // in a full clone we already have all blobs and must not convert the repo to a
-  // partial clone (which would trigger lazy blob fetches on later operations).
-  const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
-  const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
-  const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
-  if (useBlobFilter) {
-    core.info(`${logPrefix}using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)`);
+/**
+ * Resolve exactly one trusted base branch tip without transferring objects.
+ * The target checkout's origin credentials must remain in effect, not the fork
+ * token temporarily installed for PR-head operations.
+ *
+ * @param {{ getExecOutput: Function }} exec
+ * @param {Object} gitOptions
+ * @param {unknown} baseRef
+ * @returns {Promise<string>}
+ */
+async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
+  if (typeof baseRef !== "string" || !baseRef) {
+    core.debug("Bundle validation: base branch metadata unavailable; using PR-head validation");
+    return "";
   }
-  await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
-  core.info(`${logPrefix}fetched prerequisite commits from origin successfully`);
+  const ref = `refs/heads/${baseRef}`;
+  const opts = { ...gitOptions, env: { ...process.env, ...gitOptions.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never", GIT_ASKPASS: "/bin/echo" }, silent: true, ignoreReturnCode: true };
+  try {
+    const valid = await exec.getExecOutput("git", ["check-ref-format", ref], { ...offlineGitOptions(gitOptions), ignoreReturnCode: true });
+    if (valid.exitCode !== 0) throw new Error("Invalid base ref");
+    const result = await exec.getExecOutput("git", ["ls-remote", "--refs", "--exit-code", "origin", ref], opts);
+    const lines = result.stdout.trim().split("\n");
+    const fields = lines[0].split("\t");
+    if (result.exitCode === 0 && lines.length === 1 && fields.length === 2 && /^[0-9a-f]{40}$/.test(fields[0]) && fields[1] === ref) {
+      core.debug("Bundle validation: pinned trusted base branch tip from remote metadata");
+      return fields[0];
+    }
+  } catch {
+    // Neither command errors nor remote diagnostics are safe to log.
+  }
+  core.warning("Unable to resolve trusted PR base metadata; using PR-head validation");
+  return "";
 }
 
 /**
@@ -1092,110 +1110,37 @@ async function main(config = {}) {
       }
 
       if (hasBundleFile) {
-        // Bundle transport: fetch commits directly from the bundle file.
+        // Bundle transport: import commits directly from the local bundle file.
         // This preserves merge commit topology and per-commit metadata.
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
-          // Resolve from GitHub metadata and fetch from the target checkout's
-          // origin, never from agent-supplied refs or patch headers.
-          let trustedBase = "";
-          const baseSha = pullRequest.base?.sha;
-          if (!signedCommits && typeof baseSha === "string" && /^[0-9a-f]{40}$/.test(baseSha)) {
-            try {
-              await exec.exec("git", ["fetch", "origin", baseSha], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
-              trustedBase = baseSha;
-            } catch (baseFetchError) {
-              core.warning(`Unable to fetch trusted PR base; using PR-head validation: ${getErrorMessage(baseFetchError)}`);
-            }
-          }
+          const trustedBase = signedCommits ? "" : await resolveTrustedBaseTip(exec, baseGitOpts, pullRequest.base?.ref);
+          const bundleGitOpts = offlineGitOptions(baseGitOpts);
           await ensureFullHistoryForBundle(
             exec,
             {
               env: { ...process.env, ...gitAuthEnv },
               ...baseGitOpts,
             },
-            { baseRef: branchName, bundleFilePath }
+            { bundleFilePath, allowFullHistoryFetch: config.allow_full_history_fetch === true }
           );
 
-          // Fetch from bundle into a temporary ref.
-          // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
-          // exec() only throws "The process '...' failed with exit code 1" which loses the
-          // "lacks these prerequisite commits" text needed for the recovery path below.
-          const bundleFetchRef = `refs/heads/${branchName}:${bundleRef}`;
-          const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
-          if (initialBundleFetch.exitCode !== 0) {
-            const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
-
-            // Recovery path for bundle prerequisite failures: fetch missing prerequisite
-            // commit objects, then retry with the original bundle ref.
-            // This handles the race where main advanced between agent-time and safe_outputs-time:
-            // the bundle's base commit may not be reachable from a fetch-depth:1 shallow clone
-            // (e.g. when the commit is on a ref not in the fetch refspec).
-            const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
-            if (prerequisiteCommits.length > 0) {
-              await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits);
-              await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
-              core.info("Bundle fetch retry succeeded after prerequisite recovery");
-            } else {
-              core.warning(`Bundle fetch from refs/heads/${branchName} failed: ${initialFetchErrorOutput}; resolving source ref from bundle heads`);
-              const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath], baseGitOpts);
-              const bundleHeads = bundleHeadsOutput
-                .split("\n")
-                .map(line => line.trim().split(/\s+/))
-                // Bundles produced here advertise SHA-1 object IDs; reject malformed entries.
-                .filter(parts => parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && parts[1]);
-              const branchRefChecks = await Promise.all(
-                bundleHeads
-                  .filter(([, ref]) => ref.startsWith("refs/heads/"))
-                  .map(async ([, ref]) => ({
-                    ref,
-                    isValid: (await exec.getExecOutput("git", ["check-ref-format", ref], { ...baseGitOpts, ignoreReturnCode: true })).exitCode === 0,
-                  }))
-              );
-              const branchRefs = branchRefChecks.filter(({ isValid }) => isValid).map(({ ref }) => ref);
-
-              let bundleSourceRef;
-              if (branchRefs.length === 1) {
-                bundleSourceRef = branchRefs[0];
-              } else if (branchRefs.length === 0) {
-                const headRefs = bundleHeads.filter(([, ref]) => ref === "HEAD");
-                if (headRefs.length !== 1) {
-                  throw new Error(`Failed to resolve bundle source ref from list-heads: expected exactly 1 HEAD entry, found ${headRefs.length}`);
-                }
-                bundleSourceRef = "HEAD";
-              } else {
-                throw new Error(`Failed to resolve bundle source ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
-              }
-
-              core.info(`Fetching resolved bundle source ${bundleSourceRef} into ${bundleRef}`);
-              const resolvedBundleFetchRef = `${bundleSourceRef}:${bundleRef}`;
-              const resolvedBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
-              if (resolvedBundleFetch.exitCode !== 0) {
-                const resolvedFetchErrorOutput = resolvedBundleFetch.stderr || `exit code ${resolvedBundleFetch.exitCode}`;
-                const resolvedPrerequisiteCommits = extractBundlePrerequisiteCommits(resolvedFetchErrorOutput);
-                if (resolvedPrerequisiteCommits.length === 0) {
-                  throw new Error(`Failed to fetch resolved bundle source ${bundleSourceRef}: ${resolvedFetchErrorOutput}`);
-                }
-
-                await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, resolvedPrerequisiteCommits, "[resolved] ");
-                await exec.exec("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], baseGitOpts);
-                core.info("Resolved bundle fetch retry succeeded after prerequisite recovery");
-              }
-            }
-          }
-          core.info(`Fetched bundle to ${bundleRef}`);
+          await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);
+          core.info(`Imported local bundle to ${bundleRef}`);
           const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
           const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;
           if (trustedBaseInValidationBase) {
-            core.info(`Bundle validation baseline includes trusted base ${trustedBase}: ${validationBaseRef}`);
+            core.info("Bundle validation baseline includes trusted base changes");
+          } else {
+            core.info("Bundle validation baseline uses PR head");
           }
           const agentHistoryExclusions = [rangeBaseRef];
           if (trustedBaseInValidationBase) agentHistoryExclusions.push(trustedBase);
           if (deferBundleValidation) {
-            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
+            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
             const validation = validatePatch(agentPatchStream.stdout);
             if (validation.error) return validation.error;
             if (validation.fallbackFiles.length) return await createProtectedFilesFallbackIssue(validation.fallbackFiles);
@@ -1207,15 +1152,15 @@ async function main(config = {}) {
           // patch artifact under-detects files (for example, merge-resolution
           // content preserved only by the bundle transport).
           {
-            let bundleFiles = await getBundlePreApplyFiles(exec, baseGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
+            let bundleFiles = await getBundlePreApplyFiles(exec, bundleGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
             if (deferBundleValidation) {
-              const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
+              const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               if (octopus.stdout.trim()) {
                 return { success: false, error: "Cannot validate agent-created octopus merge commits in the bundle. Use two-parent merges instead." };
               }
               // Preserve protection for agent commits that change then revert a
               // file, without attributing trusted base-branch commits to the agent.
-              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", ...agentHistoryExclusions], baseGitOpts);
+              const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
             }
             if (bundleFiles.length > 0) {
@@ -1247,7 +1192,7 @@ async function main(config = {}) {
             updateRefArgs.push(remoteHeadBeforePatch);
           }
           await exec.exec("git", updateRefArgs, baseGitOpts);
-          await exec.exec("git", ["reset", "--hard"], baseGitOpts);
+          await exec.exec("git", ["reset", "--hard"], bundleGitOpts);
           core.info(`Updated branch to bundle tip from ${bundleRef}`);
 
           // Clean up the temporary ref
@@ -1381,7 +1326,7 @@ async function main(config = {}) {
       // (see github/agentic-workflows#539)
       let agentChangedFiles = [];
       {
-        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${validationBaseRef}..HEAD`], baseGitOpts);
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${validationBaseRef}..HEAD`], hasBundleFile ? offlineGitOptions(baseGitOpts) : baseGitOpts);
         const actualFiles = [...new Set([...diffResult.stdout.split("\0").filter(Boolean), ...validationConflictFiles])];
         agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
@@ -1853,4 +1798,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip };

@@ -25,6 +25,7 @@ var pullRequestHandlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("ignore_missing_branch_failure", c.IgnoreMissingBranchFailure).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
+			AddIfTrue("allow_full_history_fetch", c.AllowFullHistoryFetch).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
@@ -228,6 +229,7 @@ func buildCreatePullRequestHandlerConfig(cfg *SafeOutputsConfig) map[string]any 
 	}
 	c := cfg.CreatePullRequests
 	builder := newCreatePullRequestHandlerConfigBuilder(cfg, c)
+	builder.AddIfTrue("allow_full_history_fetch", c.AllowFullHistoryFetch)
 	// Stacked pull requests are enabled by default; only emit the flag when disabled
 	// (e.g. GitHub Enterprise Server instances without stacked pull request support).
 	if !isStackedPullRequestsEnabled(c) {

@@ -435,7 +435,23 @@ branch name (see [issue #37835](https://github.com/github/gh-aw/issues/37835)).
 
 By default, pushes are replayed through GitHub's signed commit API because `signed-commits: true` means signed commits are required. Set `signed-commits: false` only for repositories that do not require signed commits; this uses direct `git push` and can preserve merge commits that the signed commit API cannot represent. This field is supported by both `create-pull-request` and `push-to-pull-request-branch`.
 
-For unsigned bundle pushes that newly incorporate the PR base commit fetched by the handler, patch-size, changed-content-size, and protected-file checks compare against a validation-only merge of the old PR head and that trusted base. Unmodified base-branch changes are excluded; agent changes and conflict resolutions remain subject to the checks. Agent-created octopus merges (three or more parents) are rejected in this mode because their resolution changes cannot be validated with Git's remerge diffs. If the trusted baseline cannot be established, checks use the old PR head. Staged mode retains offline patch-preview checks. The push remains append-only: merge an already-fetched base ref rather than rebasing existing PR commits.
+For unsigned bundle pushes, the handler pins the current PR base branch tip using an exact-ref, metadata-only `git ls-remote` against the target checkout's origin, with that checkout's credentials rather than a fork-head token. It does not fetch objects to establish this optional baseline. After local bundle import, patch-size, changed-content-size, and protected-file checks can compare against a validation-only merge of the old PR head and that trusted tip when the necessary objects and ancestry are locally available. Unmodified base-branch changes are excluded; agent changes and conflict resolutions remain subject to the checks. Agent-created octopus merges (three or more parents) are rejected because their resolution changes cannot be validated with Git's remerge diffs.
+
+Local bundle import and optional ancestry/tree inspection deny all Git transports, including promisor lazy downloads. This uses `GIT_ALLOW_PROTOCOL` as well as `GIT_NO_LAZY_FETCH`, so it does not depend on newer Git versions recognizing the latter. Missing credentials, unavailable history or blobs, and unsupported `merge-tree` retain conservative PR-head validation; they never cause an optional baseline fetch. A newer base tip not merged into the candidate also retains PR-head validation; workflow-start SHAs and agent metadata are not alternate provenance sources. Staged mode retains offline patch-preview checks. The push remains append-only: merge an already-provisioned base ref rather than rebasing existing PR commits.
+
+### Bundle prerequisites and history downloads
+
+`create-pull-request` and `push-to-pull-request-branch` import bundles without automatic prerequisite downloads by default. A missing prerequisite fails with guidance to provision the required objects in the target checkout, or explicitly enable recovery:
+
+```yaml wrap
+safe-outputs:
+  push-to-pull-request-branch:
+    allow-full-history-fetch: true
+```
+
+**This opt-in permits unbounded downloads**, including `--unshallow` and fetch-by-SHA. Commit depth, an exact SHA, and `blob:none` are not byte limits. Prefer configuring the required refs and history during authenticated [`checkout:`](/gh-aw/reference/checkout/) instead, using credentials for each target repository. Choose checkout depth deliberately for the repository; full history can be prohibitively expensive in a large monorepo. A bundle whose prerequisites and required content are already present needs no recovery, including in shallow checkouts. Partial clones may fail locally when required content is absent, even if the commit object exists.
+
+`allow-full-history-fetch` is configured independently under `safe-outputs.create-pull-request` or `safe-outputs.push-to-pull-request-branch`. Both default to `false` and accept only a literal boolean. The setting affects that handler's bundle prerequisite recovery, not optional baseline discovery, ordinary PR-head fetch/push operations, or other network paths. Recovery authentication failures use fixed diagnostics without printing credentials or raw remote errors.
 
 ### Cross-repo usage
 

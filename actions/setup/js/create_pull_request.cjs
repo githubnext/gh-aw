@@ -39,7 +39,7 @@ const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { createOrUpdatePullRequest } = require("./create_or_update_pull_request.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions, getBundlePrerequisites, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
@@ -222,137 +222,31 @@ function parseAutoMergeConfig(value) {
 
 /**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
- * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
+ * Import through a temporary ref before updating a branch that may be checked out.
  *
  * @param {string} bundleFilePath - Path to the bundle file
  * @param {string} branchName - Target branch name
  * @param {string} originalAgentBranch - Original source branch name from the agent, if different
  * @param {{ exec: Function, getExecOutput: Function }} execApi - GitHub Actions exec API
- * @param {string} [baseBranch] - Base branch name (used for iterative shallow-clone deepening)
+ * @param {boolean} [allowFullHistoryFetch=false] - Explicit opt-in to unbounded prerequisite recovery.
  * @returns {Promise<void>}
  */
-async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi, baseBranch) {
-  let bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
+async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, execApi, allowFullHistoryFetch = false) {
+  const bundleBranchRef = `refs/heads/${originalAgentBranch || branchName}`;
   const bundleTargetRef = `refs/heads/${branchName}`;
   const bundleTempRef = createBundleTempRef(branchName);
 
   try {
-    await ensureFullHistoryForBundle(execApi, {}, { baseRef: baseBranch, bundleFilePath });
+    await ensureFullHistoryForBundle(execApi, {}, { bundleFilePath, allowFullHistoryFetch });
     core.info(`Applying bundle ${bundleFilePath} to ${bundleTargetRef} using temp ref ${bundleTempRef} from ${bundleBranchRef}`);
 
-    // Fetch from bundle into a temporary ref, then update the target branch.
-    // bundleBranchRef is the source ref inside the bundle (typically refs/heads/<agent-branch>).
-    // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
-    // exec() only throws "The process '...' failed with exit code 1" which loses the
-    // "lacks these prerequisite commits" text needed for the recovery path below.
-    core.info(`Attempting bundle fetch from ${bundleBranchRef} into ${bundleTempRef}`);
-    const initialBundleFetch = await execApi.getExecOutput("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`], { ignoreReturnCode: true });
-    if (initialBundleFetch.exitCode !== 0) {
-      const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
-
-      // Recovery path for bundle prerequisite failures: fetch missing prerequisite
-      // commit objects, then retry with the original bundle ref.
-      // This handles the race where main advanced between agent-time and safe_outputs-time:
-      // the bundle's base commit may not be reachable from a fetch-depth:1 shallow clone
-      // (e.g. when the commit is on a ref not in the fetch refspec).
-      const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
-      if (prerequisiteCommits.length > 0) {
-        core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-        core.info(`Prerequisite commits: ${summarizeListForLog(prerequisiteCommits)}`);
-        core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-        // Use --filter=blob:none only when the local repo is already shallow or sparse —
-        // in a full clone we already have all blobs and must not convert the repo to a
-        // partial clone (which would trigger lazy blob fetches on later operations).
-        const useBlobFilter = await isShallowOrSparseCheckout(execApi);
-        const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
-        if (useBlobFilter) {
-          core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
-        }
-        await execApi.exec("git", prerequisiteFetchArgs);
-        core.info("Fetched prerequisite commits from origin successfully");
-        try {
-          core.info(`Retrying bundle fetch from ${bundleBranchRef} into ${bundleTempRef} after prerequisite recovery`);
-          await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
-          core.info("Bundle fetch retry succeeded after prerequisite recovery");
-        } catch (retryError) {
-          throw new Error(`Bundle fetch failed after fetching ${prerequisiteCommits.length} prerequisite commit(s): ${getErrorMessage(retryError)}`, { cause: retryError });
-        }
-      } else {
-        // Fallback: resolve the source ref directly from the bundle contents.
-        // Some agents may emit a JSONL branch name that differs from the ref embedded in the bundle.
-        core.warning(`Bundle fetch with ${bundleBranchRef} failed: ${initialFetchErrorOutput}; resolving branch ref from bundle heads`);
-        core.info(`Inspecting bundle heads from ${bundleFilePath}`);
-        const { stdout: bundleHeadsOutput } = await execApi.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
-        const branchRefs = bundleHeadsOutput
-          .split("\n")
-          .map(line => line.trim().split(/\s+/)[1] || "")
-          .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
-        core.info(`Bundle list-heads returned ${branchRefs.length} candidate branch ref(s): ${summarizeListForLog(branchRefs)}`);
-
-        if (branchRefs.length === 1) {
-          bundleBranchRef = branchRefs[0];
-          core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
-          core.info(`Fetching resolved bundle ref ${bundleBranchRef} into ${bundleTempRef}`);
-          await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
-        } else if (branchRefs.length === 0) {
-          // Bundle contains only HEAD (no refs/heads/* entry). This happens when the
-          // agent created the bundle with `git bundle create <file> HEAD` rather than
-          // including a named branch ref.  Fetch using the HEAD refspec directly so
-          // the bundle objects become accessible, then point the temp ref at them.
-          const headLine = bundleHeadsOutput
-            .split("\n")
-            .map(line => line.trim())
-            .find(line => /^[0-9a-f]{40}\s+HEAD$/.test(line));
-          if (headLine) {
-            core.info(`Bundle has no refs/heads entries; fetching HEAD directly into ${bundleTempRef}`);
-            // Use getExecOutput with ignoreReturnCode so we can read actual stderr
-            // and perform prerequisite recovery before failing — same pattern as the
-            // initial bundle fetch above.  When the agent ran on a non-default branch
-            // the bundle prerequisite is that branch tip, which isn't reachable from
-            // the local main-only checkout, so a bare exec() would throw and lose the
-            // "lacks these prerequisite commits" text needed for recovery.
-            const headBundleFetch = await execApi.getExecOutput("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`], { ignoreReturnCode: true });
-            if (headBundleFetch.exitCode !== 0) {
-              const headFetchErrorOutput = headBundleFetch.stderr || `exit code ${headBundleFetch.exitCode}`;
-              const headPrereqCommits = extractBundlePrerequisiteCommits(headFetchErrorOutput);
-              if (headPrereqCommits.length > 0) {
-                core.warning(`HEAD bundle fetch failed due to ${headPrereqCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-                core.info(`Prerequisite commits: ${summarizeListForLog(headPrereqCommits)}`);
-                const useBlobFilter = await isShallowOrSparseCheckout(execApi);
-                const headPrereqFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...headPrereqCommits] : ["fetch", "origin", ...headPrereqCommits];
-                if (useBlobFilter) {
-                  core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
-                }
-                await execApi.exec("git", headPrereqFetchArgs);
-                core.info("Fetched HEAD bundle prerequisite commits from origin successfully");
-                try {
-                  core.info(`Retrying HEAD bundle fetch into ${bundleTempRef} after prerequisite recovery`);
-                  await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
-                  core.info("HEAD bundle fetch retry succeeded after prerequisite recovery");
-                } catch (retryError) {
-                  const retryErrorMessage = getErrorMessage(retryError);
-                  throw new Error(`HEAD bundle fetch failed after fetching ${headPrereqCommits.length} prerequisite commit(s): ${retryErrorMessage}`, {
-                    cause: retryError,
-                  });
-                }
-              } else {
-                throw new Error(`Failed to apply HEAD-only bundle: ${headFetchErrorOutput}`);
-              }
-            }
-          } else {
-            throw new Error(`Failed to resolve bundle branch ref from list-heads: bundle contains no refs/heads entries and no HEAD ref`);
-          }
-        } else {
-          throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
-        }
-      }
-    }
-    core.info(`Fetched bundle to ${bundleTempRef}`);
+    await importLocalBundle(execApi, bundleFilePath, bundleBranchRef, bundleTempRef);
+    core.info(`Imported local bundle to ${bundleTempRef}`);
     await execApi.exec("git", ["update-ref", bundleTargetRef, bundleTempRef]);
     core.info(`Created local branch ${branchName} from bundle`);
-    await execApi.exec("git", ["checkout", branchName]);
+    await execApi.exec("git", ["checkout", branchName], offlineGitOptions());
     // Ensure the working tree matches the new HEAD in case checkout left any index/working tree drift.
-    await execApi.exec("git", ["reset", "--hard"]);
+    await execApi.exec("git", ["reset", "--hard"], offlineGitOptions());
     core.info(`Checked out branch ${branchName} from bundle`);
   } finally {
     try {
@@ -395,7 +289,7 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
         // fall back cleanly rather than letting linearizeRangeAsCommit abort mid-run.
         const prereqSha = prereqs[0];
         try {
-          const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${prereqSha}^{commit}`], { ignoreReturnCode: true, silent: true });
+          const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${prereqSha}^{commit}`], { ...offlineGitOptions(), ignoreReturnCode: true });
           if (exitCode === 0) {
             baseRef = prereqSha;
             core.info(`Using bundle prerequisite commit ${baseRef} as linearization base (avoids including base-branch drift)`);
@@ -1812,10 +1706,10 @@ async function main(config = {}) {
         // unlike git format-patch which flattens history and drops merge resolution content.
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         try {
-          await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec, baseBranch);
+          await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec, config.allow_full_history_fetch === true);
         } catch (bundleError) {
           core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
-          return { success: false, error: "Failed to apply bundle" };
+          return { success: false, error: `Failed to apply bundle: ${getErrorMessage(bundleError)}` };
         }
 
         // Push the commits from the bundle to the remote branch
