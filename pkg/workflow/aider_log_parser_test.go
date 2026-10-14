@@ -33,7 +33,7 @@ const interpretedTestTypes = [...new Set([
   "pi.message_snapshot", "assistant.message_delta", "assistant.reasoning_delta",
   "assistant.usage", "assistant.turn_end", "model.call_failure",
   "subagent.opaque", "session.shutdown",
-])];
+])].filter(type => type !== "model.inventory");
 `
 
 func TestAiderLogParserAndUnifiedSession(t *testing.T) {

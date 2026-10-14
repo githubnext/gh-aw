@@ -33,6 +33,7 @@ describe("daily MCP concurrency workflow tool contract", () => {
       expect(existsSync(resolve(root, file))).toBe(true);
       expect(prompt).toContain(file.split("/").at(-1));
     }
+    expect(prompt).toContain("Read `pkg/workflow/js/safe_outputs_tools.json` with native `view`");
     expect(prompt).toContain("verify the implementation path with native `glob`");
     expect(prompt).toContain("Do not assume a tool named `<tool_name>` has a file named `<tool_name>.cjs`");
     expect(prompt).not.toContain("~32 tools");
