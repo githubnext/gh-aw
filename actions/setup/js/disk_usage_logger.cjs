@@ -3,143 +3,273 @@
 const fs = require("fs");
 const path = require("path");
 const childProcess = require("child_process");
-const { DISK_USAGE_JSONL_PATH, TMP_GH_AW_PATH } = require("./constants.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { TMP_GH_AW_PATH } = require("./constants.cjs");
+const { spaceBand, inodeBand, normalizeDiskUsage, diskTimestamp, diskWarning, diskErrorCode, sanitizeDiskDiagnostics, openDiskDirectory, openDiskFile, closeDiskFile, removeDiskControl } = require("./disk_usage.cjs");
 
 const SAMPLE_INTERVAL_MS = 30_000;
 const MAX_MONITOR_DURATION_MS = 72 * 60 * 60 * 1000;
+const MAX_TELEMETRY_BYTES = 16 * 1024 * 1024;
 
-/** @param {string} message */
-function warning(message) {
-  console.warn(`::warning::disk_usage_logger: ${message}`);
-}
-
-/** @returns {string} */
-function controlPath() {
-  if (!process.env.RUNNER_TEMP) throw new Error("RUNNER_TEMP is required for disk monitoring");
-  // The agent cannot modify the runner-side setup tree to control the monitor.
-  return path.join(process.env.RUNNER_TEMP, "gh-aw", "disk-usage-monitor");
-}
-
-/**
- * Snapshot filesystem capacity without scanning files or invoking external tools.
- * Resource labels, rather than directory contents or environment values, are logged.
- * @param {string} operation
- * @returns {boolean}
- */
-function logDiskUsage(operation) {
-  const resources = [
-    ["root", path.parse(process.cwd()).root],
-    ["runtime", TMP_GH_AW_PATH],
-    ["workspace", process.env.GITHUB_WORKSPACE],
-    ["runner_temp", process.env.RUNNER_TEMP],
-  ];
-  const timestamp = new Date().toISOString();
-  const entries = [];
-  for (const [resource, directory] of resources) {
-    if (!directory) continue;
-    try {
-      const stats = fs.statfsSync(directory);
-      const totalBytes = stats.blocks * stats.bsize;
-      const freeBytes = stats.bfree * stats.bsize;
-      const availableBytes = stats.bavail * stats.bsize;
-      if (![totalBytes, freeBytes, availableBytes, stats.files, stats.ffree].every(value => Number.isSafeInteger(value) && value >= 0)) {
-        throw new Error("filesystem statistics exceed the supported non-negative integer range");
-      }
-      entries.push({
-        timestamp,
-        source: "statfs",
-        operation,
-        resource,
-        totalBytes,
-        freeBytes,
-        availableBytes,
-        usedBytes: totalBytes - freeBytes,
-        // Filesystems that do not report inode capacity return zero.
-        totalInodes: stats.files || null,
-        freeInodes: stats.files ? stats.ffree : null,
-      });
-    } catch (error) {
-      warning(`failed to sample ${resource}: ${getErrorMessage(error)}`);
-    }
-  }
-  if (entries.length === 0) return false;
+/** @returns {{fd: number, anchor: string}} */
+function controlDirectory() {
+  if (!process.env.RUNNER_TEMP) throw new Error("runner temp unavailable");
+  const temp = openDiskDirectory(process.env.RUNNER_TEMP);
   try {
-    fs.mkdirSync(path.dirname(DISK_USAGE_JSONL_PATH), { recursive: true });
-    fs.appendFileSync(DISK_USAGE_JSONL_PATH, entries.map(entry => JSON.stringify(entry) + "\n").join(""));
+    const directory = path.join(temp.anchor, "gh-aw");
+    try {
+      fs.mkdirSync(directory, { mode: 0o700 });
+    } catch (error) {
+      if (diskErrorCode(error) !== "EEXIST") throw error;
+    }
+    return openDiskDirectory(directory);
+  } finally {
+    closeDiskFile(temp.fd);
+  }
+}
+
+/** @param {string} operation @returns {boolean} */
+function logDiskUsage(operation) {
+  let directory;
+  let output;
+  try {
+    if (!["setup", "interval", "shutdown"].includes(operation)) throw new Error("invalid operation");
+    const resources = [
+      ["root", path.parse(process.cwd()).root],
+      ["runtime", TMP_GH_AW_PATH],
+      ["workspace", process.env.GITHUB_WORKSPACE],
+      ["runner_temp", process.env.RUNNER_TEMP],
+    ];
+    const timestamp = new Date().toISOString();
+    const entries = [];
+    for (const [resource, location] of resources) {
+      if (!location) continue;
+      let availableSpaceBand = "unavailable";
+      let inodeHeadroom = "unavailable";
+      try {
+        // statfs follows legitimate directory symlinks; no target names are persisted.
+        const stats = fs.statfsSync(location);
+        const available = stats.bavail * stats.bsize;
+        if (!Number.isSafeInteger(stats.bsize) || stats.bsize <= 0 || ![available, stats.files, stats.ffree].every(value => Number.isSafeInteger(value) && value >= 0) || stats.ffree > stats.files) throw new Error("invalid statistics");
+        availableSpaceBand = spaceBand(available);
+        inodeHeadroom = inodeBand(stats.files, stats.ffree);
+      } catch (error) {
+        diskWarning(`failed to sample ${resource}`, error);
+      }
+      entries.push({ timestamp, source: "statfs", operation, resource, availableSpaceBand, inodeHeadroom });
+    }
+    directory = openDiskDirectory(TMP_GH_AW_PATH);
+    output = openDiskFile(path.join(directory.anchor, "disk_usage.jsonl"), fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND);
+    const content = entries.map(entry => JSON.stringify(entry) + "\n").join("");
+    if (fs.fstatSync(output).size + Buffer.byteLength(content) > MAX_TELEMETRY_BYTES) {
+      diskWarning("telemetry size limit reached");
+      return false;
+    }
+    fs.writeFileSync(output, content);
     return true;
   } catch (error) {
-    warning(`failed to write disk usage: ${getErrorMessage(error)}`);
+    diskWarning("failed to write disk usage", error);
     return false;
+  } finally {
+    closeDiskFile(output);
+    closeDiskFile(directory?.fd);
   }
 }
 
 /** @returns {void} */
 function startDiskUsageMonitor() {
-  const control = controlPath();
-  if (fs.existsSync(control)) {
-    warning("disk monitor is already running");
-    return;
-  }
-  fs.mkdirSync(path.dirname(control), { recursive: true });
-  if (!logDiskUsage("setup")) return;
-  // Do not retain credentials in the long-lived sampler's environment.
-  const env = Object.fromEntries(["RUNNER_TEMP", "GITHUB_WORKSPACE", "RUNNER_TRACKING_ID"].flatMap(key => (process.env[key] === undefined ? [] : [[key, process.env[key]]])));
-  const log = fs.openSync(path.join(TMP_GH_AW_PATH, "disk_usage_monitor.log"), "a");
+  let directory;
+  let control;
+  let runtime;
+  let output;
+  let log;
+  let claimed = false;
+  let launched = false;
   try {
-    fs.writeFileSync(control, "");
-    const child = childProcess.spawn(process.execPath, [__filename, "monitor"], { detached: true, stdio: ["ignore", log, log], env });
+    directory = controlDirectory();
+    control = path.join(directory.anchor, "disk-usage-monitor");
+    const fd = openDiskFile(control, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL);
+    claimed = true;
+    closeDiskFile(fd);
+    runtime = openDiskDirectory(TMP_GH_AW_PATH);
+    output = openDiskFile(path.join(runtime.anchor, "disk_usage.jsonl"), fs.constants.O_WRONLY | fs.constants.O_CREAT);
+    fs.ftruncateSync(output, 0);
+    closeDiskFile(output);
+    output = undefined;
+    if (!logDiskUsage("setup")) return;
+    log = openDiskFile(path.join(runtime.anchor, "disk_usage_monitor.log"), fs.constants.O_WRONLY | fs.constants.O_CREAT);
+    fs.ftruncateSync(log, 0);
+    const env = Object.fromEntries(["RUNNER_TEMP", "GITHUB_WORKSPACE", "RUNNER_TRACKING_ID"].flatMap(key => (process.env[key] === undefined ? [] : [[key, process.env[key]]])));
+    const child = childProcess.spawn(process.execPath, [__filename, "monitor"], { detached: true, stdio: ["ignore", log, "ignore"], env });
+    child.on("exit", code => {
+      if (code !== 0) diskWarning("disk monitor exited unexpectedly");
+    });
     child.on("error", error => {
-      fs.rmSync(control, { force: true });
-      warning(`failed to start disk monitor: ${getErrorMessage(error)}`);
+      diskWarning("failed to start disk monitor", error);
+      let cleanup;
+      try {
+        cleanup = controlDirectory();
+        removeDiskControl(path.join(cleanup.anchor, "disk-usage-monitor"));
+      } catch (cleanupError) {
+        diskWarning("failed to clean up monitor control", cleanupError);
+      } finally {
+        closeDiskFile(cleanup?.fd);
+      }
     });
     child.unref();
+    launched = true;
   } catch (error) {
-    fs.rmSync(control, { force: true });
-    throw error;
+    diskWarning("failed to start disk monitor", error);
   } finally {
-    fs.closeSync(log);
+    if (claimed && !launched && control) removeDiskControl(control);
+    closeDiskFile(log);
+    closeDiskFile(output);
+    closeDiskFile(runtime?.fd);
+    closeDiskFile(directory?.fd);
   }
 }
 
-/**
- * The stop request is a file, not a PID supplied by the agent. The worker
- * acknowledges shutdown by removing it before artifact redaction/upload.
- * @returns {Promise<void>}
- */
+/** @returns {Promise<void>} */
 async function stopDiskUsageMonitor() {
-  const control = controlPath();
-  if (!fs.existsSync(control)) return;
-  fs.writeFileSync(control, "stop");
-  const deadline = Date.now() + 5000;
-  while (fs.existsSync(control) && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 100));
+  let directory;
+  let fd;
+  let control;
+  try {
+    directory = controlDirectory();
+    control = path.join(directory.anchor, "disk-usage-monitor");
+    try {
+      fd = openDiskFile(control, fs.constants.O_WRONLY);
+    } catch (error) {
+      if (diskErrorCode(error) === "ENOENT") return;
+      throw error;
+    }
+    logDiskUsage("shutdown");
+    fs.writeFileSync(fd, "stop");
+    const deadline = Date.now() + 5000;
+    while (fs.fstatSync(fd).nlink !== 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
+    if (fs.fstatSync(fd).nlink !== 0) diskWarning("disk monitor did not acknowledge shutdown within 5 seconds");
+  } catch (error) {
+    diskWarning("failed to stop disk monitor", error);
+    if (control) removeDiskControl(control);
+  } finally {
+    closeDiskFile(fd);
+    closeDiskFile(directory?.fd);
+    collectDiskUsageArtifact(false);
   }
-  if (fs.existsSync(control)) warning("disk monitor did not acknowledge shutdown within 5 seconds");
 }
 
 /** @returns {void} */
 function runDiskUsageMonitor() {
-  const control = controlPath();
+  let directory;
+  let fd;
+  let watcher;
+  let timer;
+  let finished = false;
   const startedAt = Date.now();
-  let sampledAt = startedAt;
-  const timer = setInterval(() => {
+  const finish = (sample = false) => {
+    if (finished) return;
+    finished = true;
+    clearInterval(timer);
     try {
-      const stopping = !fs.existsSync(control) || fs.readFileSync(control, "utf8") === "stop" || Date.now() - startedAt >= MAX_MONITOR_DURATION_MS;
-      if (stopping) {
-        logDiskUsage("shutdown");
-        fs.rmSync(control, { force: true });
-        clearInterval(timer);
-      } else if (Date.now() - sampledAt >= SAMPLE_INTERVAL_MS) {
-        logDiskUsage("interval");
-        sampledAt = Date.now();
-      }
+      watcher?.close();
     } catch (error) {
-      warning(`disk monitor failed: ${getErrorMessage(error)}`);
-      clearInterval(timer);
-      fs.rmSync(control, { force: true });
+      diskWarning("failed to close monitor watcher", error);
     }
-  }, 1000);
+    if (sample) logDiskUsage("shutdown");
+    if (directory) removeDiskControl(path.join(directory.anchor, "disk-usage-monitor"));
+    closeDiskFile(fd);
+    closeDiskFile(directory?.fd);
+  };
+  const check = () => {
+    try {
+      const buffer = Buffer.alloc(4);
+      const size = fs.readSync(fd, buffer, 0, 4, 0);
+      if (fs.fstatSync(fd).nlink === 0 || buffer.toString("utf8", 0, size) === "stop") finish();
+      else if (Date.now() - startedAt >= MAX_MONITOR_DURATION_MS) finish(true);
+    } catch (error) {
+      diskWarning("disk monitor control unavailable", error);
+      finish();
+    }
+  };
+  try {
+    directory = controlDirectory();
+    fd = openDiskFile(path.join(directory.anchor, "disk-usage-monitor"), fs.constants.O_RDONLY);
+    watcher = fs.watch(`/proc/self/fd/${fd}`, check);
+    watcher.on("error", error => {
+      diskWarning("disk monitor watcher unavailable", error);
+      finish();
+    });
+    timer = setInterval(() => {
+      check();
+      if (!finished && !logDiskUsage("interval")) finish();
+    }, SAMPLE_INTERVAL_MS);
+    check();
+  } catch (error) {
+    diskWarning("failed to run disk monitor", error);
+    finish();
+  }
+}
+
+/** Sanitize both primary/fallback and usage artifacts; never copy raw legacy data.
+ * @param {boolean} [copyToUsage]
+ * @returns {void}
+ */
+function collectDiskUsageArtifact(copyToUsage = true) {
+  let directory;
+  let source;
+  let usage;
+  let destination;
+  try {
+    directory = openDiskDirectory(TMP_GH_AW_PATH);
+    try {
+      source = openDiskFile(path.join(directory.anchor, "disk_usage.jsonl"), fs.constants.O_RDWR);
+    } catch (error) {
+      if (diskErrorCode(error) === "ENOENT") return;
+      throw error;
+    }
+    if (fs.fstatSync(source).size > MAX_TELEMETRY_BYTES) throw new Error("telemetry size limit");
+    const entries = [];
+    for (const line of fs.readFileSync(source, "utf8").split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      try {
+        const record = JSON.parse(line);
+        const data = normalizeDiskUsage(record);
+        if (!data) throw new Error("invalid disk record");
+        const timestamp = diskTimestamp(record.timestamp);
+        entries.push({ ...(timestamp ? { timestamp } : {}), ...data });
+      } catch (error) {
+        diskWarning("discarded invalid disk record", error);
+      }
+    }
+    const content = entries.map(entry => JSON.stringify(entry) + "\n").join("");
+    fs.ftruncateSync(source, 0);
+    fs.writeSync(source, content, 0, "utf8");
+    if (!copyToUsage) return;
+    usage = openDiskDirectory(path.join(directory.anchor, "usage"));
+    destination = openDiskFile(path.join(usage.anchor, "disk_usage.jsonl"), fs.constants.O_WRONLY | fs.constants.O_CREAT);
+    fs.ftruncateSync(destination, 0);
+    fs.writeFileSync(destination, content);
+  } catch (error) {
+    diskWarning("failed to collect disk usage artifact", error);
+  } finally {
+    if (directory) {
+      let diagnostic;
+      try {
+        diagnostic = openDiskFile(path.join(directory.anchor, "disk_usage_monitor.log"), fs.constants.O_RDWR);
+        if (fs.fstatSync(diagnostic).size > MAX_TELEMETRY_BYTES) throw new Error("diagnostic size limit");
+        const content = sanitizeDiskDiagnostics(fs.readFileSync(diagnostic, "utf8"));
+        fs.ftruncateSync(diagnostic, 0);
+        fs.writeSync(diagnostic, content, 0, "utf8");
+      } catch (error) {
+        if (diskErrorCode(error) !== "ENOENT") diskWarning("failed to sanitize monitor diagnostics", error);
+      } finally {
+        closeDiskFile(diagnostic);
+      }
+    }
+    closeDiskFile(destination);
+    closeDiskFile(usage?.fd);
+    closeDiskFile(source);
+    closeDiskFile(directory?.fd);
+  }
 }
 
 if (require.main === module) {
@@ -155,14 +285,16 @@ if (require.main === module) {
         case "monitor":
           runDiskUsageMonitor();
           break;
+        case "collect":
+          collectDiskUsageArtifact();
+          break;
         default:
-          throw new Error("expected start, stop, or monitor");
+          diskWarning("invalid monitor operation");
       }
     } catch (error) {
-      warning(getErrorMessage(error));
-      process.exitCode = 1;
+      diskWarning("monitor unavailable", error);
     }
   })();
 }
 
-module.exports = { logDiskUsage, startDiskUsageMonitor, stopDiskUsageMonitor, runDiskUsageMonitor, SAMPLE_INTERVAL_MS };
+module.exports = { logDiskUsage, startDiskUsageMonitor, stopDiskUsageMonitor, runDiskUsageMonitor, collectDiskUsageArtifact, SAMPLE_INTERVAL_MS };

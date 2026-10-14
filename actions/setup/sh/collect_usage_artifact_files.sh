@@ -78,7 +78,14 @@ done
 if [ -f /tmp/gh-aw/agent/graders/grader_manifest.json ]; then mkdir -p /tmp/gh-aw/usage/graders && cp /tmp/gh-aw/agent/graders/grader_manifest.json /tmp/gh-aw/usage/graders/grader_manifest.json || true; fi
 if [ -f /tmp/gh-aw/agent/graders/grader_results.json ]; then mkdir -p /tmp/gh-aw/usage/graders && cp /tmp/gh-aw/agent/graders/grader_results.json /tmp/gh-aw/usage/graders/grader_results.json || true; fi
 if [ -f /tmp/gh-aw/github_rate_limits.jsonl ]; then cp /tmp/gh-aw/github_rate_limits.jsonl /tmp/gh-aw/usage/github_rate_limits.jsonl || true; fi
-if [ -f /tmp/gh-aw/disk_usage.jsonl ]; then cp /tmp/gh-aw/disk_usage.jsonl /tmp/gh-aw/usage/disk_usage.jsonl; fi
+if [ -f /tmp/gh-aw/disk_usage.jsonl ]; then
+  if command -v node >/dev/null 2>&1 && [ -n "${RUNNER_TEMP:-}" ]; then
+    node "${RUNNER_TEMP}/gh-aw/actions/disk_usage_logger.cjs" collect 2>/dev/null ||
+      echo "::warning::Failed to collect disk capacity telemetry"
+  else
+    echo "::warning::Disk capacity telemetry collector unavailable"
+  fi
+fi
 
 # Agent token usage (ascending priority — authoritative source wins even when empty).
 if [ -s /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl ]; then cp /tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl /tmp/gh-aw/usage/agent/token_usage.jsonl || true; fi

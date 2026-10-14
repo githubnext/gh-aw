@@ -21,7 +21,7 @@ set -e
 DESTINATION="${INPUT_DESTINATION:-${RUNNER_TEMP}/gh-aw/actions}"
 
 if command -v node &>/dev/null && [ -f "${DESTINATION}/disk_usage_logger.cjs" ]; then
-  node "${DESTINATION}/disk_usage_logger.cjs" stop || echo "::warning::Failed to stop disk space monitoring"
+  node "${DESTINATION}/disk_usage_logger.cjs" stop 2>/dev/null || echo "::warning::Failed to stop disk space monitoring"
 fi
 
 # Send OTLP job conclusion span (non-fatal).

@@ -86,8 +86,8 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
   try {
     const { stopDiskUsageMonitor } = require(path.join(__dirname, "js", "disk_usage_logger.cjs"));
     await stopDiskUsageMonitor();
-  } catch (error) {
-    console.warn(`::warning::Failed to stop disk space monitoring: ${error.message}`);
+  } catch {
+    console.warn("::warning::Failed to stop disk space monitoring (UNAVAILABLE)");
   }
 
   // Send a gh-aw.<jobName>.conclusion span to the configured OTLP endpoint, if any.

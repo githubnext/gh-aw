@@ -155,7 +155,7 @@ func TestLogsStorageLimitPrunesNonEssentialAgentData(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(runDir, "usage", "summary.json"), []byte("{}"), 0o600))
 	diskUsageFile := filepath.Join(runDir, "agent", constants.DiskUsageFilename.String())
 	require.NoError(t, os.MkdirAll(filepath.Dir(diskUsageFile), 0o755))
-	require.NoError(t, os.WriteFile(diskUsageFile, []byte("{\"availableBytes\":0}\n"), 0o600))
+	require.NoError(t, os.WriteFile(diskUsageFile, []byte("{\"availableSpaceBand\":\"exhausted\"}\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(runDir, filepath.Base(constants.AgentStdioLogPath)), []byte("log"), 0o600))
 	require.NoError(t, markArtifactDownloaded(runDir, string(ArtifactSetAll)))
 	require.NoError(t, markArtifactDownloaded(runDir, constants.AgentArtifactName.String()))

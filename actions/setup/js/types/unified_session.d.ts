@@ -428,15 +428,11 @@ export interface CollectionWarningData {
 }
 
 export interface RunnerDiskUsageData {
-  source?: string;
-  operation?: string;
-  resource?: string;
-  totalBytes?: number;
-  freeBytes?: number;
-  availableBytes?: number;
-  usedBytes?: number;
-  totalInodes?: number | null;
-  freeInodes?: number | null;
+  source?: "statfs";
+  operation?: "setup" | "interval" | "shutdown";
+  resource?: "root" | "runtime" | "workspace" | "runner_temp";
+  availableSpaceBand?: "exhausted" | "critical" | "low" | "healthy" | "unavailable";
+  inodeHeadroom?: "exhausted" | "low" | "healthy" | "unavailable";
 }
 
 export interface CollectionData {

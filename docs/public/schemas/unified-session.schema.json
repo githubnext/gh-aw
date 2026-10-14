@@ -864,15 +864,11 @@
     "RunnerDiskUsageData": {
       "type": "object",
       "properties": {
-        "source": { "type": "string" },
-        "operation": { "type": "string" },
-        "resource": { "type": "string" },
-        "totalBytes": { "type": "number" },
-        "freeBytes": { "type": "number" },
-        "availableBytes": { "type": "number" },
-        "usedBytes": { "type": "number" },
-        "totalInodes": { "type": ["number", "null"] },
-        "freeInodes": { "type": ["number", "null"] }
+        "source": { "type": "string", "const": "statfs" },
+        "operation": { "type": "string", "enum": ["setup", "interval", "shutdown"] },
+        "resource": { "type": "string", "enum": ["root", "runtime", "workspace", "runner_temp"] },
+        "availableSpaceBand": { "type": "string", "enum": ["exhausted", "critical", "low", "healthy", "unavailable"] },
+        "inodeHeadroom": { "type": "string", "enum": ["exhausted", "low", "healthy", "unavailable"] }
       },
       "additionalProperties": false
     },

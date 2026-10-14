@@ -362,12 +362,8 @@ const EVENT_FIELDS = {
     source: ["source"],
     operation: ["operation"],
     resource: ["resource"],
-    totalBytes: ["totalBytes"],
-    freeBytes: ["freeBytes"],
-    availableBytes: ["availableBytes"],
-    usedBytes: ["usedBytes"],
-    totalInodes: ["totalInodes"],
-    freeInodes: ["freeInodes"],
+    availableSpaceBand: ["availableSpaceBand"],
+    inodeHeadroom: ["inodeHeadroom"],
   },
   "execution.result": { outcome: ["outcome"], conclusion: ["conclusion"], exitCode: ["exitCode", "exit_code"], durationMs: ["durationMs", "duration_ms"], startedAt: ["startedAt", "started_at"], finishedAt: ["finishedAt", "finished_at"] },
   "detection.result": {
@@ -532,6 +528,11 @@ function normalizeModelInventoryData(value) {
  * @returns {SessionEvent}
  */
 function normalizeUnifiedSessionEvent(event, phase) {
+  if (event.type === "runner.disk_usage") {
+    const { normalizeDiskUsage, diskTimestamp } = require("./disk_usage.cjs");
+    const timestamp = diskTimestamp(event.timestamp);
+    return { type: event.type, data: normalizeDiskUsage(event.data) ?? {}, ...(timestamp ? { timestamp } : {}) };
+  }
   /** @type {any} */
   const source = event.data;
   const known = Object.hasOwn(EVENT_FIELDS, event.type);

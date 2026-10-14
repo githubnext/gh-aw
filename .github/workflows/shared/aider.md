@@ -433,7 +433,7 @@ engine:
           "model_endpoint.mismatch",
           "safe_output.request", "safe_output.result", "safe_output.error",
           "experiment.state", "experiment.assignment", "grader.manifest", "grader.result",
-          "eval.result", "github_api.rate_limit", "usage.report", "execution.result",
+          "eval.result", "github_api.rate_limit", "runner.disk_usage", "usage.report", "execution.result",
           "guardrail.daily_aic", "guard.tool_denials_exceeded", "workflow.info",
           "workflow.run_started", "workflow.run_updated", "workflow.run_settled",
           "dynamicWorkflows.task_started", "dynamicWorkflows.task_progress",

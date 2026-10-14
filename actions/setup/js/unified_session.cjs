@@ -526,7 +526,6 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     [["evals/evals.jsonl", "evals.jsonl", "usage/evals.jsonl"], "eval", "evals", "eval.result"],
     [["agent_usage.jsonl", "usage/agent_usage.jsonl"], "usage", "agent", "usage.report"],
     [["github_rate_limits.jsonl", "usage/github_rate_limits.jsonl"], "github_api", "workflow", "github_api.rate_limit"],
-    [["disk_usage.jsonl", "usage/disk_usage.jsonl"], "runner", "agent", "runner.disk_usage"],
     [["plugin-installations.jsonl", "usage/plugin-installations.jsonl"], "plugin", "agent", "plugin.installation"],
     [["threat-detection/detection_usage.jsonl", "detection_usage.jsonl", "usage/detection_usage.jsonl"], "usage", "detection", "usage.report"],
     [["evals/evals_token_usage.jsonl", "evals_token_usage.jsonl", "usage/evals/token_usage.jsonl"], "usage", "evals", "usage.report"],
@@ -536,6 +535,54 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     // The sanitized conclusion result includes job outcomes as well as structured or inline verdicts.
     [["usage/detection/detection_result.json", "threat-detection/detection_result.json"], "detection", "detection", "detection.result"],
   ];
+  for (const candidate of ["disk_usage.jsonl", "usage/disk_usage.jsonl"]) {
+    const file = path.join(rootDir, candidate);
+    const { normalizeDiskUsage, diskTimestamp, diskErrorCode, openDiskDirectory, openDiskFile, closeDiskFile } = require("./disk_usage.cjs");
+    let directory;
+    let usage;
+    let fd;
+    let present = false;
+    try {
+      // Absence needs no platform warning; data is read only after descriptor-
+      // anchored non-following opens, independently of this metadata check.
+      fs.lstatSync(file);
+      present = true;
+      directory = openDiskDirectory(rootDir);
+      if (candidate.startsWith("usage/")) usage = openDiskDirectory(path.join(directory.anchor, "usage"));
+      fd = openDiskFile(path.join((usage ?? directory).anchor, "disk_usage.jsonl"), fs.constants.O_RDONLY);
+      if (fs.fstatSync(fd).size > 16 * 1024 * 1024) {
+        report(file, "disk_usage_size_limit", undefined);
+        continue;
+      }
+      /** @type {SessionEvent[]} */
+      const events = [];
+      for (const [index, line] of fs.readFileSync(fd, "utf8").split(/\r?\n/).entries()) {
+        if (!line.trim()) continue;
+        let record;
+        try {
+          record = JSON.parse(line);
+        } catch {
+          report(file, "malformed_jsonl", index + 1);
+          continue;
+        }
+        const data = normalizeDiskUsage(record);
+        if (!data) {
+          report(file, "invalid_disk_usage", undefined);
+          continue;
+        }
+        const timestamp = diskTimestamp(record.timestamp);
+        events.push({ type: "runner.disk_usage", data, ...(timestamp ? { timestamp } : {}) });
+      }
+      sources.push({ component: "runner", phase: "agent", path: candidate, events });
+      break;
+    } catch (error) {
+      if (present || diskErrorCode(error) !== "ENOENT") report(file, "disk_usage_unavailable", undefined);
+    } finally {
+      closeDiskFile(fd);
+      closeDiskFile(usage?.fd);
+      closeDiskFile(directory?.fd);
+    }
+  }
   const mismatchFile = path.join(rootDir, "agent/model-endpoint-mismatch.json");
   if (exists(mismatchFile)) {
     try {

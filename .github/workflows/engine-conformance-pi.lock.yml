@@ -1067,7 +1067,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          node "$RUNNER_TEMP/gh-aw/actions/disk_usage_logger.cjs" stop
+          node "$RUNNER_TEMP/gh-aw/actions/disk_usage_logger.cjs" stop 2>/dev/null || echo "::warning::Failed to stop disk space monitoring"
       - name: Redact secrets in logs
         id: redact_secrets
         if: always()

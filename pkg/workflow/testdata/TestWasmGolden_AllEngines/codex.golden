@@ -669,6 +669,11 @@ jobs:
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
+      - name: Stop disk space monitoring
+        if: always()
+        continue-on-error: true
+        run: |
+          node "$RUNNER_TEMP/gh-aw/actions/disk_usage_logger.cjs" stop 2>/dev/null || echo "::warning::Failed to stop disk space monitoring"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -768,6 +773,8 @@ jobs:
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
+            /tmp/gh-aw/disk_usage.jsonl
+            /tmp/gh-aw/disk_usage_monitor.log
             /tmp/gh-aw/awf-config.json
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/sandbox/firewall/audit/

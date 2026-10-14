@@ -581,7 +581,7 @@ fi
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
 if [ "${INPUT_JOB_NAME:-}" = "agent" ]; then
-  node "${DESTINATION}/disk_usage_logger.cjs" start || echo "::warning::Failed to start disk space monitoring"
+  node "${DESTINATION}/disk_usage_logger.cjs" start 2>/dev/null || echo "::warning::Failed to start disk space monitoring"
 fi
 
 # Send OTLP job setup span when configured (non-fatal).

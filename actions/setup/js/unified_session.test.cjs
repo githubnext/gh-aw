@@ -7,6 +7,7 @@ import { serializeSessionArtifact, writeSessionArtifact } from "./session_artifa
 import { normalizeUnifiedSessionEvent } from "./unified_session_payload.cjs";
 
 const req = require;
+const diskUsage = req("./disk_usage.cjs");
 const { writeDetectionUsageResult } = req("./generate_usage_activity_summary.cjs");
 const { parseCustomLog } = req("./parse_custom_log.cjs");
 const { success: piSuccess } = req("./fixtures/pi_ci_stream.cjs");
@@ -25,6 +26,13 @@ describe("Unified conclusion session", () => {
     process.env.GITHUB_RUN_ATTEMPT = "2";
     originalCore = global.core;
     global.core = { info: vi.fn(), warning: vi.fn() };
+    // Collector tests exercise parsing with descriptor-safe files on every OS.
+    // Monitor tests separately exercise Linux descriptor anchors and refusal
+    // when those anchors are unavailable.
+    vi.spyOn(diskUsage, "openDiskDirectory").mockImplementation(directory => ({
+      fd: fs.openSync(directory, fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW),
+      anchor: directory,
+    }));
   });
   afterEach(() => {
     process.env = originalEnv;
@@ -996,18 +1004,88 @@ describe("Unified conclusion session", () => {
   });
 
   it.each(["disk_usage.jsonl", "usage/disk_usage.jsonl"])("collects disk capacity observations from %s without duplicating copies or retaining opaque fields", file => {
-    const record = { timestamp: "2026-10-14T16:00:00Z", source: "statfs", operation: "interval", resource: "runtime", totalBytes: 100, freeBytes: 20, availableBytes: 0, usedBytes: 80, totalInodes: 50, freeInodes: 0 };
+    const record = {
+      timestamp: "2026-10-14T16:00:00Z",
+      source: "statfs",
+      operation: "interval",
+      resource: "runtime",
+      availableSpaceBand: "exhausted",
+      inodeHeadroom: "exhausted",
+      totalBytes: 987654321,
+      availableBytes: 123456789,
+      freeInodes: 456789,
+      path: "/PRIVATE/target",
+    };
     write(file, [{ ...record, env: { GH_TOKEN: "PRIVATE_TOKEN" } }]);
     if (file === "disk_usage.jsonl") write("usage/disk_usage.jsonl", [record]);
     const events = writeUnifiedSession({ rootDir: root }).filter(event => event.type === "runner.disk_usage");
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
       timestamp: record.timestamp,
-      data: { availableBytes: 0, freeInodes: 0 },
+      data: { availableSpaceBand: "exhausted", inodeHeadroom: "exhausted" },
       provenance: { component: "runner", phase: "agent", path: file },
     });
     expect(events[0].data).not.toHaveProperty("env");
+    for (const key of ["totalBytes", "availableBytes", "freeInodes", "path"]) expect(events[0].data).not.toHaveProperty(key);
     expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("PRIVATE_TOKEN");
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("/PRIVATE");
+  });
+
+  it.each(["read", "open"])("isolates unavailable disk telemetry during %s and falls back to the usage copy", failure => {
+    const primary = write("disk_usage.jsonl", [{ operation: "interval", resource: "runtime" }]);
+    write("usage/disk_usage.jsonl", [{ operation: "interval", resource: "runtime", availableSpaceBand: "low" }]);
+    write("agent-session.jsonl", [{ type: "assistant.message", data: { content: "agent succeeded" } }]);
+    const method = failure === "read" ? "readFileSync" : "openSync";
+    const original = fs[method];
+    let injected = false;
+    vi.spyOn(fs, method).mockImplementation((file, ...args) => {
+      if (!injected && (failure === "read" ? typeof file === "number" : String(file) === primary)) {
+        injected = true;
+        throw new Error("EACCES /PRIVATE/target 123456789");
+      }
+      return original(file, ...args);
+    });
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.find(event => event.type === "assistant.message").data.content).toBe("agent succeeded");
+    expect(events.find(event => event.type === "runner.disk_usage")).toMatchObject({ data: { availableSpaceBand: "low" }, provenance: { path: "usage/disk_usage.jsonl" } });
+    expect(warn).toHaveBeenCalledWith("Unified session: disk_usage_unavailable in disk_usage.jsonl");
+    expect(JSON.stringify(events)).not.toContain("/PRIVATE");
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("123456789");
+  });
+
+  it("malformed and legacy precise disk records cannot fail session collection or disclose capacities", () => {
+    write("disk_usage.jsonl", 'invalid /PRIVATE/target\nnull\n{"operation":"interval","resource":"runtime","availableBytes":123456789,"freeInodes":456789}\n{"resource":"/PRIVATE/target","operation":"interval"}\n');
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.find(event => event.type === "runner.disk_usage").data).toMatchObject({ availableSpaceBand: "unavailable", inodeHeadroom: "unavailable" });
+    expect(warn).toHaveBeenCalled();
+    for (const value of ["/PRIVATE", "123456789", "456789", "availableBytes", "freeInodes"]) expect(JSON.stringify(events)).not.toContain(value);
+  });
+
+  it("projects native disk telemetry through the same privacy allowlist", () => {
+    const event = normalizeUnifiedSessionEvent(
+      {
+        type: "runner.disk_usage",
+        timestamp: "/PRIVATE/target",
+        id: "/PRIVATE/id",
+        data: { source: "/PRIVATE/device", operation: "interval", resource: "workspace", availableSpaceBand: "healthy", totalBytes: 123456789, path: "/PRIVATE/path" },
+      },
+      "agent"
+    );
+    expect(event).toEqual({ type: "runner.disk_usage", data: { source: "statfs", operation: "interval", resource: "workspace", availableSpaceBand: "healthy", inodeHeadroom: "unavailable" } });
+  });
+
+  it.each(["file", "directory"])("does not read telemetry through an attacker-controlled %s symlink", kind => {
+    const privateFile = write("private/disk_usage.jsonl", [{ resource: "runtime", operation: "interval", availableSpaceBand: "healthy", availableBytes: 123456789, path: "/PRIVATE/target" }]);
+    if (kind === "file") fs.symlinkSync(privateFile, path.join(root, "disk_usage.jsonl"));
+    else fs.symlinkSync(path.dirname(privateFile), path.join(root, "usage"));
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.some(event => event.type === "runner.disk_usage")).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("disk_usage_unavailable"));
+    expect(JSON.stringify(events)).not.toContain("/PRIVATE");
+    expect(JSON.stringify(events)).not.toContain("123456789");
   });
 
   it("resolves detection and eval AIC per observation without adding overlapping checkpoints", () => {
