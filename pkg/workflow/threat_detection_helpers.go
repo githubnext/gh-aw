@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var threatLog = logger.New("workflow:threat_detection")
@@ -318,4 +319,22 @@ func inheritedDetectionModel(data *WorkflowData, detectionEngineID string) strin
 		return data.Model
 	}
 	return ""
+}
+
+// defaultDetectionModel preserves an explicit compiler override, but lets runtime
+// organization/repository variables override the built-in detection default.
+func defaultDetectionModel(engine CodingAgentEngine) string {
+	if model := compilerenv.ResolveDefaultDetectionModel(""); model != "" {
+		return model
+	}
+	model := engine.GetDefaultDetectionModel()
+	if model == "" {
+		model = "detection"
+	}
+	suffix := strings.ToUpper(engine.GetID())
+	return compilerenv.BuildModelOverrideExpression(
+		"GH_AW_MODEL_DETECTION_"+suffix,
+		"GH_AW_DEFAULT_MODEL_"+suffix,
+		model,
+	)
 }

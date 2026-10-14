@@ -310,7 +310,10 @@ these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
 | `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
-| `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+
+For both inline and external detection, an explicit `safe-outputs.threat-detection.engine.model` takes precedence over the inherited workflow model. If neither is configured, a compile-time `GH_AW_DEFAULT_DETECTION_MODEL` override takes precedence; otherwise detection uses `vars.GH_AW_MODEL_DETECTION_<ENGINE>`, then `vars.GH_AW_DEFAULT_MODEL_<ENGINE>`, then the built-in `detection` alias. These variables use the resolved detection engine, which can differ from the main workflow engine.
+
+The `detection` alias is resolved by the firewall at runtime and is not a pinned model. Use an explicit detection model or a model override variable to select a specific model. This does not change the [threat detection failure policy](/gh-aw/reference/threat-detection/).
 
 Set a model override as an organization variable:
 

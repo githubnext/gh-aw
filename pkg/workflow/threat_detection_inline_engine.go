@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // buildDetectionEngineExecutionStep creates the engine execution step for inline threat detection.
@@ -80,19 +79,8 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
 	}
 
-	// Apply enterprise and engine default detection models when no model was explicitly configured.
-	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
-	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
-	// This was accidentally removed in commit a93e36ea4 while fixing engine.agent propagation.
 	if resolvedDetectionModel == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
-			resolvedDetectionModel = defaultModel
-		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
-			resolvedDetectionModel = defaultModel
-		}
-	}
-	if resolvedDetectionModel == "" {
-		resolvedDetectionModel = "detection"
+		resolvedDetectionModel = defaultDetectionModel(engine)
 	}
 
 	// Inherit APITarget for GHE/custom endpoints only when the engine IDs match.
