@@ -25,14 +25,60 @@ function setup(count = 3, fixtureOptions = {}) {
   };
   return { fixture, options };
 }
-function finish(options, handle, outcome, id = `${handle}:${outcome}`) {
-  fs.appendFileSync(options.finishIntentPath, `${JSON.stringify({ version: 3, kind: "finish", intent_id: id, parameters: { outcome }, ...(handle === undefined ? {} : { claim_handle: handle }) })}\n`);
+function finish(options, handle, outcome, id = `${handle}:${outcome}`, keep_open = undefined) {
+  fs.appendFileSync(
+    options.finishIntentPath,
+    `${JSON.stringify({ version: 3, kind: "finish", intent_id: id, parameters: { outcome, ...(keep_open === undefined ? {} : { keep_open }) }, ...(handle === undefined ? {} : { claim_handle: handle }) })}\n`
+  );
 }
 afterEach(() => {
   for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
 describe("independent trusted Claim finalization", () => {
+  it("finalizes retained Claims once without completing Work and suppresses their historical effects after regrant", async () => {
+    const { fixture, options } = setup(3);
+    finish(options, "h1", "completed", "retained", true);
+    finish(options, "h2", "completed");
+    finish(options, "h3", "cancelled");
+    const result = await reconcileWorkerClaim(options);
+    expect(result.claims.h1).toMatchObject({ state: "completed", authorized: true });
+    expect(result.claims.h2).toMatchObject({ state: "completed", authorized: true });
+    expect(result.claims.h3).toMatchObject({ state: "cancelled", authorized: false });
+    const member = fixture.assignment.claims[0];
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "available", barrier: "pending" });
+    expect(await authorizeWorkerClaim({ ...options, claim_handle: "h1" })).toMatchObject({ authorized: true });
+    expect((await finalizeWorkerResults({ ...options, verifyEffects: noWriteClaimVerifier(options) })).claims.h1).toMatchObject({ state: "result" });
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "available", barrier: "none" });
+    fixture.append("dispatch_next", { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 49152 }, fixture.dispatcher, "retained-regrant");
+    expect(fixture.state.works.get(member.work_id).claim_id).not.toBe(member.claim_id);
+    expect(await authorizeWorkerClaim({ ...options, claim_handle: "h1" })).toMatchObject({ authorized: false, suppressed: true, state: "result" });
+    expect((await reconcileWorkerClaim(options)).claims.h1).toMatchObject({ state: "result", authorized: false });
+    const verify = vi.fn();
+    expect((await finalizeWorkerResults({ ...options, verifyEffects: verify })).claims.h1).toMatchObject({ state: "result" });
+    expect(verify).not.toHaveBeenCalled();
+    fs.writeFileSync(options.finishIntentPath, "");
+    finish(options, "h1", "completed", "conflicting-retained", false);
+    expect((await reconcileWorkerClaim(options)).claims.h1).toMatchObject({ state: "blocked", authorized: false });
+  });
+
+  it.each([null, 1, "true"])("rejects invalid keep_open finish intent %j", keepOpen => {
+    const { options } = setup(1);
+    finish(options, "h1", "completed", "invalid", keepOpen);
+    expect(readFinishIntent(options.finishIntentPath, options.assignment).errors).toHaveLength(1);
+  });
+
+  it("normalizes absent/false finish choices but rejects true/cancelled and conflicting choices", () => {
+    const { options } = setup(1);
+    finish(options, "h1", "completed", "absent");
+    finish(options, "h1", "completed", "explicit", false);
+    expect(readFinishIntent(options.finishIntentPath, options.assignment).errors).toEqual([]);
+    finish(options, "h1", "completed", "conflict", true);
+    expect(readFinishIntent(options.finishIntentPath, options.assignment).intents.size).toBe(0);
+    fs.writeFileSync(options.finishIntentPath, "");
+    finish(options, "h1", "cancelled", "cancel-retained", true);
+    expect(readFinishIntent(options.finishIntentPath, options.assignment).errors).toHaveLength(1);
+  });
   it("exports an unassigned no-effect wrapup without reading or publishing a queue", async () => {
     const core = { setOutput: vi.fn(), info: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } };
     const readWorkQueueLog = vi.fn(() => {

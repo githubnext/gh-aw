@@ -71,6 +71,16 @@ run_model FairDAGForward "" Invariant 0 FairWorkQueue
 run_model FairDAGFork "" Invariant 0 FairWorkQueue
 run_model FairDAGGitHub "" Invariant 0 FairWorkQueue
 run_model FairGitHubDependencies "" Invariant 0 FairWorkQueue
+run_model FairKeepOpen "" Invariant 0 FairWorkQueue
+run_model BrokenKeepOpenGrant RetainedFinishSafety Invariant 12 FairWorkQueue
+run_model BrokenKeepOpenResult RetainedFinishSafety Invariant 12 FairWorkQueue
+run_model BrokenKeepOpenDelivery RetainedFinishSafety Invariant 12 FairWorkQueue
+run_model BrokenKeepOpenRelease RunReleaseAuthority Invariant 12 FairWorkQueue
+run_model BrokenKeepOpenOutcome RetainedFinishSafety Invariant 12 FairWorkQueue
+run_model KeepOpenReclaimWitness NoRetainedReclaim Invariant 12 FairWorkQueue
+run_model KeepOpenFinalWitness NoRetainedFinalCompletion Invariant 12 FairWorkQueue
+run_model KeepOpenFailureWitness NoRetainedFailure Invariant 12 FairWorkQueue
+run_model KeepOpenReservationWitness NoRetainedLiveReservation Invariant 12 FairWorkQueue
 run_model BrokenBatchSelection DecisionValidity Invariant 12 FairWorkQueue
 run_model BrokenClaimEffects EffectAuthorization Invariant 12 FairWorkQueue
 run_model BrokenAssignmentHandle ClaimClosureAuthority Invariant 12 FairWorkQueue
@@ -132,6 +142,9 @@ run_model IssueExisting "" Invariant 0 IssueProjection
 run_model IssueCreated "" Invariant 0 IssueProjection
 run_model IssueDefaultOpen "" Invariant 0 IssueProjection
 run_model IssuePRStaysOpen "" Invariant 0 IssueProjection
+run_model IssueKeepOpen "" Invariant 0 IssueProjection
+run_model IssueKeepOpenWitness NoRetainedProjection Invariant 12 IssueProjection
+run_model IssueBrokenKeepOpenClose ClosureAuthority Invariant 12 IssueProjection
 run_model IssueBrokenUnowned AdmissionAuthority Invariant 12 IssueProjection
 run_model IssueBrokenPayloadClose ClosureAuthority Invariant 12 IssueProjection
 run_model IssueBrokenRetry SingleCreation Invariant 12 IssueProjection

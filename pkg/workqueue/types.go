@@ -297,6 +297,7 @@ type FinishParameters struct {
 	DispatchID  string `json:"dispatch_id"`
 	ClaimHandle string `json:"claim_handle"`
 	Outcome     string `json:"outcome"`
+	KeepOpen    bool   `json:"keep_open,omitempty"`
 }
 
 type OperationsParameters struct {
@@ -352,6 +353,8 @@ type ClaimState struct {
 	CancellationReason string `json:"cancellation_reason,omitempty"`
 	RetryNotBefore     int64  `json:"retry_not_before,omitempty"`
 	IssueComment       string `json:"issue_comment,omitempty"`
+	KeepOpen           bool   `json:"keep_open,omitempty"`
+	Barrier            string `json:"barrier,omitempty"`
 }
 
 type DispatchState struct {

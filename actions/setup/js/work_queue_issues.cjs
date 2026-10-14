@@ -67,7 +67,7 @@ function workIssueStatus(state, work, at) {
     const outputs = work.result?.outputs;
     return Array.isArray(outputs) && outputs.some(output => output.resource?.kind === "pull_request" || output.type === "create_pull_request") ? "Needs review" : "Done";
   }
-  if (work.state === "completed") return "Verifying";
+  if (work.state === "completed" || work.barrier === "pending") return "Verifying";
   if (work.state === "claimed") {
     const dispatch = state.dispatches.get(state.claims.get(work.claim_id)?.dispatch_id);
     return dispatch?.state === "bound" && dispatch.run?.run_attempt === 1 ? "Running" : "Assigned";
@@ -132,7 +132,7 @@ function claimBody(state, claim, at, diagnostics = []) {
       claim_id: claim.claim_id,
       claim_handle: claim.handle,
       run_url: runLink(dispatch.run),
-      outcome: `${claim.state}${ownResult && claim.state === "completed" ? `; ${workIssueStatus(state, work, at)}` : ""}`,
+      outcome: `${claim.state}${claim.keep_open ? `; Work kept open; delivery ${claim.barrier}` : ownResult && claim.state === "completed" ? `; ${workIssueStatus(state, work, at)}` : ""}`,
       diagnostics: [...(claim.cancellation_reason ? [`Reason: ${claim.cancellation_reason}`] : []), ...diagnostics].join("\n"),
     },
     dispatch.run

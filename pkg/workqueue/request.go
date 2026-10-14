@@ -69,6 +69,15 @@ func validateRequestOrigin(actor Actor, request Request) error {
 	if err := validateActorOrigin(actor); err != nil {
 		return err
 	}
+	if request.Kind == "finish" {
+		var params FinishParameters
+		if err := json.Unmarshal(request.Parameters, &params); err != nil {
+			return err
+		}
+		if params.KeepOpen && params.Outcome != "completed" {
+			return queueError("request_invalid", "keep_open requires outcome completed")
+		}
+	}
 	if request.Kind == "dispatch_next" {
 		var params DispatchParameters
 		if err := json.Unmarshal(request.Parameters, &params); err != nil {

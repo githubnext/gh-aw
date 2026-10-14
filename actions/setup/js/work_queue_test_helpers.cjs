@@ -73,11 +73,11 @@ function workerActor(state, dispatchId, handle = "h1") {
   return { role: "worker", principal: run.principal, repository: run.repository, workflow: run.workflow, run_id: run.run_id, run_attempt: 1, dispatch_id: dispatchId, claim_handle: handle };
 }
 
-function finish(log, dispatchId, handle, outcome, { id = `finish-${handle}`, at = 40 } = {}) {
+function finish(log, dispatchId, handle, outcome, { id = `finish-${handle}`, at = 40, keep_open = false } = {}) {
   const { finishOperations } = require("./work_queue_replay.cjs");
   const state = replayTransactions(log);
   const actor = workerActor(state, dispatchId, handle);
-  const parameters = { dispatch_id: dispatchId, claim_handle: handle, outcome };
+  const parameters = { dispatch_id: dispatchId, claim_handle: handle, outcome, ...(keep_open ? { keep_open: true } : {}) };
   const request = newRequest(`request-${id}`, "finish", actor, parameters);
   return commit(state.tip, id, "finish", actor, parameters, finishOperations(state, request, actor, at), at, state.policy_epoch);
 }
