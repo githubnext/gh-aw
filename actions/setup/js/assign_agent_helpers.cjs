@@ -4,6 +4,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
+const { loadModelsJson } = require("./model_costs.cjs");
 
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues.
@@ -39,11 +40,27 @@ const AGENT_NAME_BY_LOGIN = Object.fromEntries(Object.entries(AGENT_LOGIN_NAMES)
 const REASONING_EFFORT_VALUES = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
 
 /**
+ * @param {string|null} model
+ * @param {Record<string, any>|null} [modelsJson]
+ * @returns {string[]|null}
+ */
+function getModelSupportedReasoningEfforts(model, modelsJson = loadModelsJson()) {
+  if (!model || typeof model !== "string") return null;
+  const [providerInput, modelInput] = model.includes("/") ? [model.slice(0, model.lastIndexOf("/")), model.slice(model.lastIndexOf("/") + 1)] : ["github-copilot", model];
+  const provider = ["copilot", "github", "github_models"].includes(providerInput.toLowerCase()) ? "github-copilot" : providerInput.toLowerCase();
+  const models = modelsJson?.providers?.[provider]?.models;
+  if (!models || typeof models !== "object") return null;
+  const modelEntry = Object.entries(models).find(([name]) => name.toLowerCase() === modelInput.trim().toLowerCase())?.[1];
+  return Array.isArray(modelEntry?.supported_reasoning_efforts) ? modelEntry.supported_reasoning_efforts : null;
+}
+
+/**
  * @param {unknown} reasoningEffort
  * @param {string|null} [model]
+ * @param {Record<string, any>|null} [modelsJson]
  * @returns {string|null}
  */
-function resolveReasoningEffort(reasoningEffort, model = null) {
+function resolveReasoningEffort(reasoningEffort, model = null, modelsJson) {
   if (reasoningEffort == null) return null;
 
   const normalizedEffort = typeof reasoningEffort === "string" ? reasoningEffort.trim().toLowerCase() : null;
@@ -51,7 +68,8 @@ function resolveReasoningEffort(reasoningEffort, model = null) {
     core.warning(`Ignoring reasoning-effort: expected one of ${[...REASONING_EFFORT_VALUES].join(", ")}.`);
     return null;
   }
-  if (model === "gemini-3.8-flash") {
+  const supportedEfforts = getModelSupportedReasoningEfforts(model, modelsJson);
+  if (supportedEfforts && !supportedEfforts.some(effort => typeof effort === "string" && effort.trim().toLowerCase() === normalizedEffort)) {
     core.warning(`Ignoring reasoning-effort for model '${model}': reasoning effort is not supported. The model default will be used.`);
     return null;
   }

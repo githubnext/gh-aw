@@ -1121,6 +1121,8 @@ refresh-models-json:
 	trap 'rm -f "$$tmp" "$$src"' EXIT; \
 	curl -fsSL "$(MODELS_DEV_MODELS_JSON_URL)" -o "$$src"; \
 	jq '{providers: ((.providers // {}) | with_entries(select(.key | test("^(anthropic|openai|github-copilot)$$"))) | with_entries(.value |= {models: ((.models // {}) | with_entries(.value |= ({cost: ((.cost // {}) | with_entries(select(.value != null and ((.value | type) == "number" or (.value | type) == "string"))) | with_entries(if (.value | type) == "number" then .value |= (./1000000 | tostring) else . end))} + (if (.provider_type | type) == "string" then {provider_type: .provider_type} else {} end) + (if (.wire_api | type) == "string" then {wire_api: .wire_api} elif (.wireApi | type) == "string" then {wire_api: .wireApi} else {} end))) )}))}' "$$src" > "$$tmp"; \
+	jq --slurpfile existing pkg/cli/data/models.json '.providers |= with_entries(.key as $$provider | .value.models |= with_entries(.key as $$model | .value += (if ($$existing[0].providers[$$provider].models[$$model].supported_reasoning_efforts? | type) == "array" then {supported_reasoning_efforts: $$existing[0].providers[$$provider].models[$$model].supported_reasoning_efforts} else {} end)))' "$$tmp" > "$$src"; \
+	mv "$$src" "$$tmp"; \
 	cp "$$tmp" pkg/cli/data/models.json; \
 	cp "$$tmp" actions/setup/js/models.json; \
 	echo "✓ Refreshed pkg/cli/data/models.json and actions/setup/js/models.json (catalog providers: anthropic, openai, github-copilot)"

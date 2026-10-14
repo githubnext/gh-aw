@@ -574,7 +574,23 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockCore.warning).not.toHaveBeenCalled();
     });
 
-    it("should forward reasoning effort without enforcing model capabilities", async () => {
+    it("should honor reasoning-effort capabilities from model metadata", () => {
+      const modelsJson = {
+        providers: {
+          "github-copilot": {
+            models: {
+              "test-model": { supported_reasoning_efforts: ["low", "medium"] },
+            },
+          },
+        },
+      };
+
+      expect(resolveReasoningEffort("medium", "test-model", modelsJson)).toBe("medium");
+      expect(resolveReasoningEffort("high", "test-model", modelsJson)).toBeNull();
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+    });
+
+    it("should forward reasoning effort for models without capability metadata", async () => {
       const mockRequest = vi.fn().mockResolvedValue({ status: 201 });
       const restClient = { request: mockRequest };
 

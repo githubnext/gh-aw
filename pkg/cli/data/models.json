@@ -483,7 +483,8 @@
             "cache_read": "7.5e-08"
           },
           "provider_type": "openai",
-          "wire_api": "completions"
+          "wire_api": "completions",
+          "supported_reasoning_efforts": []
         },
         "gpt-4.1": {
           "cost": {
