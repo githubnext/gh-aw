@@ -149,6 +149,8 @@ The agent's commits are packaged as a **git bundle** and uploaded as an Actions 
 
 If the base branch advances between agent start and `safe_outputs` apply, the PR is created slightly behind the current base — normal behavior the author can address with a rebase. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
 
+If the default branch advances between activation and the agent checkout, configuration restoration keeps the newer checkout's config folders and root instruction files when HEAD exactly matches its local default-branch remote-tracking ref. It does not overwrite them with the older activation snapshot. PR or feature-branch checkouts and checkouts without that local ref retain snapshot restoration; no additional fetch is required.
+
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
 :::caution[Shallow checkout and large monorepos]

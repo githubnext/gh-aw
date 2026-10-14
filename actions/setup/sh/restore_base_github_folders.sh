@@ -24,6 +24,8 @@ set +o histexpand
 #                          (e.g. ".agents .claude .codex .gemini .github")
 #   GH_AW_AGENT_FILES    - space-separated list of root files to restore
 #                          (e.g. "AGENTS.md CLAUDE.md GEMINI.md")
+#   DEFAULT_BRANCH      - trusted repository default branch supplied by the
+#                          compiler for workflows with safe outputs
 #
 # Exit codes:
 #   0 - Success
@@ -37,6 +39,19 @@ SRC="/tmp/gh-aw/base"
 # These must match the values used in save_base_github_folders.sh.
 IFS=' ' read -ra FOLDERS <<< "${GH_AW_AGENT_FOLDERS:-}"
 IFS=' ' read -ra ROOT_FILES <<< "${GH_AW_AGENT_FILES:-}"
+
+# A trusted base checkout may have advanced since activation. Replacing its config
+# with the old snapshot would turn concurrent base changes into agent-authored
+# reverts. Only an exact commit match is sufficient; a PR head can also descend
+# from the base. Missing refs (including checkout-disabled runs) retain restoration.
+if [ -n "${DEFAULT_BRANCH:-}" ] &&
+  HEAD_SHA=$(git -C "${WORKSPACE}" rev-parse --verify 'HEAD^{commit}' 2>/dev/null) &&
+  BASE_SHA=$(git -C "${WORKSPACE}" rev-parse --verify "refs/remotes/origin/${DEFAULT_BRANCH}^{commit}" 2>/dev/null) &&
+  [ "${HEAD_SHA}" = "${BASE_SHA}" ]; then
+  echo "Keeping agent config folders from the checked-out trusted base commit ${HEAD_SHA}"
+  FOLDERS=()
+  ROOT_FILES=()
+fi
 
 for FOLDER in "${FOLDERS[@]+"${FOLDERS[@]}"}"; do
   SNAPSHOT="${SRC}/${FOLDER}"

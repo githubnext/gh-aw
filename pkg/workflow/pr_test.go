@@ -425,6 +425,104 @@ func TestCanRestoreAgentConfigFolders(t *testing.T) {
 	}
 }
 
+func TestRestoreConfigWhenBaseAdvances(t *testing.T) {
+	restoreScript, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "sh", "restore_base_github_folders.sh"))
+	require.NoError(t, err)
+	for _, mode := range []string{"trusted base", "PR head", "missing base ref", "missing default branch input"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			workspace := filepath.Join(root, "workspace")
+			base := filepath.Join(root, "base")
+			require.NoError(t, os.MkdirAll(workspace, 0755))
+			git := func(args ...string) string {
+				t.Helper()
+				cmd := exec.Command("git", args...)
+				cmd.Dir = workspace
+				cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(output))
+				return strings.TrimSpace(string(output))
+			}
+			write := func(name, content string) {
+				t.Helper()
+				dest := filepath.Join(workspace, name)
+				require.NoError(t, os.MkdirAll(filepath.Dir(dest), 0755))
+				require.NoError(t, os.WriteFile(dest, []byte(content), 0644))
+			}
+			git("init", "-q")
+			git("config", "user.name", "Test")
+			git("config", "user.email", "test@example.com")
+			git("config", "commit.gpgsign", "false")
+			write(".github/workflows/publish.yml", "original workflow\n")
+			write(".claude/removed.md", "original config\n")
+			write("AGENTS.md", "original instructions\n")
+			write("result.txt", "before\n")
+			git("add", ".")
+			git("commit", "-qm", "Activation base A")
+			require.NoError(t, os.MkdirAll(filepath.Join(base, ".github", "workflows"), 0755))
+			require.NoError(t, os.MkdirAll(filepath.Join(base, ".claude"), 0755))
+			require.NoError(t, os.WriteFile(filepath.Join(base, ".github", "workflows", "publish.yml"), []byte("original workflow\n"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(base, ".claude", "removed.md"), []byte("original config\n"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(base, "AGENTS.md"), []byte("original instructions\n"), 0644))
+
+			write(".github/workflows/publish.yml", "original workflow\nconcurrent base step\n")
+			write(".claude/new.md", "concurrent config\n")
+			require.NoError(t, os.Remove(filepath.Join(workspace, ".claude", "removed.md")))
+			require.NoError(t, os.Remove(filepath.Join(workspace, "AGENTS.md")))
+			git("add", "-A")
+			git("commit", "-qm", "Concurrent base B")
+			baseSHA := git("rev-parse", "HEAD")
+			defaultBranch := "main"
+			if mode != "missing base ref" {
+				git("update-ref", "refs/remotes/origin/"+defaultBranch, baseSHA)
+			}
+			if mode == "PR head" {
+				// An ancestor match would incorrectly trust this PR's config.
+				git("checkout", "-qb", "untrusted-pr")
+				write(".github/workflows/publish.yml", "untrusted workflow\n")
+				write(".claude/injected.md", "untrusted config\n")
+				write("AGENTS.md", "untrusted instructions\n")
+				git("add", "-A")
+				git("commit", "-qm", "Untrusted PR")
+			}
+			write(".mcp.json", `{"mcpServers":{"untrusted":{}}}`)
+			scriptPath := filepath.Join(root, "restore.sh")
+			isolatedScript := strings.ReplaceAll(string(restoreScript), `SRC="/tmp/gh-aw/base"`, "SRC="+shellEscapeArg(base))
+			require.NoError(t, os.WriteFile(scriptPath, []byte(isolatedScript), 0644))
+			if mode == "missing default branch input" {
+				defaultBranch = ""
+			}
+			cmd := exec.Command("bash", scriptPath)
+			cmd.Env = append(os.Environ(),
+				"GITHUB_WORKSPACE="+workspace,
+				"GH_AW_AGENT_FOLDERS=.github .claude",
+				"GH_AW_AGENT_FILES=AGENTS.md",
+				"DEFAULT_BRANCH="+defaultBranch,
+			)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, string(output))
+			assert.NoFileExists(t, filepath.Join(workspace, ".mcp.json"))
+			if mode == "trusted base" {
+				assert.Contains(t, string(output), "checked-out trusted base commit")
+				assert.Empty(t, git("status", "--porcelain"))
+				write("result.txt", "agent result\n")
+				git("add", "-A")
+				git("commit", "-qm", "Agent change")
+				assert.Equal(t, baseSHA, git("rev-parse", "HEAD^"))
+				assert.Equal(t, "result.txt", git("diff", "--name-only", baseSHA, "HEAD"))
+			} else {
+				content, err := os.ReadFile(filepath.Join(workspace, ".github", "workflows", "publish.yml"))
+				require.NoError(t, err)
+				assert.Equal(t, "original workflow\n", string(content))
+				assert.FileExists(t, filepath.Join(workspace, ".claude", "removed.md"))
+				assert.NoFileExists(t, filepath.Join(workspace, ".claude", "new.md"))
+				assert.NoFileExists(t, filepath.Join(workspace, ".claude", "injected.md"))
+				assert.FileExists(t, filepath.Join(workspace, "AGENTS.md"))
+			}
+		})
+	}
+}
+
 func TestEngineConfigRestorePrecedesAgentSteps(t *testing.T) {
 	enabled, disabled := true, false
 	for _, engineID := range []string{"claude", "copilot"} {
