@@ -72,8 +72,7 @@ describe("generate_usage_artifacts.cjs", () => {
     expect(summary).toContain("### Conversation");
     expect(summary).toContain("detection.result jobResult=success conclusion=success");
     expect(summary).not.toContain("assembly-secret-fixture");
-    expect(summary.match(/^### Unified session$/gm)).toHaveLength(1);
-    expect(summary).not.toContain("<summary>Unified session</summary>");
+    expect(summary.match(/<summary>Unified session<\/summary>/g)).toHaveLength(1);
     expect(core.info).toHaveBeenCalledWith(expect.stringContaining("=== Unified session ==="));
     expect(core.warning).not.toHaveBeenCalled();
   });

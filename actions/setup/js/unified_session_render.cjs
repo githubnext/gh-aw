@@ -407,8 +407,9 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     }
   }
   lines.push("", ...traceLines);
+  const preamble = markdown ? "<details><summary>Unified session</summary>\n\n" : "";
+  const tail = markdown ? "\n\n</details>" : "";
   if (!markdown) return boundSummaryLines(lines, maxBytes, maxLineBytes).join("\n").replace(/::/g, ": :");
-  const preamble = "### Unified session\n\n";
   const sections = [
     { title: "Session overview", collapsed: true, lines: overview },
     {
@@ -435,7 +436,7 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     const transcript = `${fence}text\n${content.join("\n")}\n${fence}\n\n`;
     return section.collapsed ? `<details><summary>${section.title}</summary>\n\n${transcript}</details>\n\n` : `### ${section.title}\n\n${transcript}`;
   };
-  const shellBytes = Buffer.byteLength(preamble + bounded.map(section => block(section, [])).join(""), "utf8");
+  const shellBytes = Buffer.byteLength(preamble + tail + bounded.map(section => block(section, [])).join(""), "utf8");
   let remaining = maxBytes - shellBytes;
   const fallback = "Unified session summary omitted: remaining step-summary byte limit reached.\n";
   if (remaining < 512) return Buffer.byteLength(fallback, "utf8") <= maxBytes ? fallback : "";
@@ -451,7 +452,7 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
     contentBySection.set(section, content);
   }
   const blocks = bounded.map(section => block(section, contentBySection.get(section)));
-  return preamble + blocks.join("");
+  return preamble + blocks.join("") + tail;
 }
 
 /** @param {string} filePath @returns {Promise<void>} */

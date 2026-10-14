@@ -1419,13 +1419,14 @@ envelope's target `agentId` does not identify the emitting caller. Readers must
 not invent parent tool IDs to distinguish these scopes; a view containing only
 one nested scope can select that scope's initialization and accounting explicitly.
 
-Actions publishes this view once under a top-level `Unified session` heading,
+Actions publishes this view once in a top-level `Unified session` disclosure,
 using a fenced CLI-style transcript like the Claude conversation summary rather
-than a Markdown table. Source-local conversations with paired tool outcomes are
-visible without opening a disclosure; per-source statistics and the full
-chronological timeline remain in separate, collapsed disclosures without an
-enclosing disclosure. Gateway diagnostics do not append a second unified event
-timeline.
+than a Markdown table. Opening the disclosure shows source-local conversations
+with paired tool outcomes; per-source statistics and the full chronological
+timeline remain in separate, collapsed disclosures. The log parser does not wrap
+this view in an additional `Agentic Conversation` disclosure. Gateway diagnostics
+do not append a second unified event timeline, and the disclosure does not repeat
+its title as a standalone heading.
 
 | Observation | Unified display projection |
 | --- | --- |
