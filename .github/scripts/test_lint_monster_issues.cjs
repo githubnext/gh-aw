@@ -190,3 +190,48 @@ test("an API failure fails closed instead of writing an empty create plan", asyn
   );
   assert.equal(fs.existsSync(outputPath), false);
 });
+
+async function collectEmptyIssues(outputPath) {
+  return collectIssues({
+    github: {
+      rest: { issues: { listForRepo() {} } },
+      async paginate() {
+        return [];
+      },
+    },
+    context: { repo: { owner: "github", repo: "gh-aw" } },
+    core: { info() {} },
+    outputPath,
+  });
+}
+
+test("inventory replaces a destination symlink without overwriting its target", async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lint-monster-issues-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const outside = path.join(dir, "outside.json");
+  fs.writeFileSync(outside, "do-not-touch");
+  const outputPath = path.join(dir, "issues.json");
+  fs.symlinkSync(outside, outputPath);
+
+  const plan = await collectEmptyIssues(outputPath);
+
+  assert.equal(fs.readFileSync(outside, "utf8"), "do-not-touch");
+  assert.equal(fs.lstatSync(outputPath).isSymbolicLink(), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), plan);
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  assert.ok(fs.readFileSync(outputPath, "utf8").endsWith("\n"));
+});
+
+test("inventory rejects symlinked ancestors without creating files through them", async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lint-monster-issues-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const outside = path.join(dir, "outside");
+  fs.mkdirSync(outside);
+  const linked = path.join(dir, "linked");
+  fs.symlinkSync(outside, linked, "dir");
+  const outputPath = path.join(linked, "agent", "issues.json");
+
+  await assert.rejects(collectEmptyIssues(outputPath), /symlinked component/);
+
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
