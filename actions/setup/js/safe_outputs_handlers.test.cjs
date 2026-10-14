@@ -1775,6 +1775,8 @@ describe("safe_outputs_handlers", () => {
         expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
         expect(mockAppendSafeOutput.mock.calls[0][0].base_commit).toBe(targetBase);
         expect(mockAppendSafeOutput.mock.calls[0][0].base_branch).toBe(baseBranch);
+        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: environment target differs from workflow repository; resolving checkout for validated target test-owner/test-repo");
+        expect(mockServer.debug).toHaveBeenCalledWith(`create_pull_request: patch context repo=test-owner/test-repo, cwd=${targetRepoDir}, baseBranch=${baseBranch}`);
         if (bundlePath) {
           execSync(`git bundle verify "${bundlePath}" && git fetch "${bundlePath}" feature/release-notes:refs/heads/verify-bundle`, { cwd: targetRepoDir, stdio: "pipe" });
           expect(execSync("git show verify-bundle:README.md", { cwd: targetRepoDir, stdio: "pipe" }).toString()).toBe("release local only\n");
@@ -1813,6 +1815,7 @@ describe("safe_outputs_handlers", () => {
         });
         expect(result.isError).toBe(true);
         expect(JSON.parse(result.content[0].text).error).toContain("Repository 'test-owner/missing-repo' not found in workspace");
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Failed to find repo checkout: Repository 'test-owner/missing-repo' not found in workspace"));
         expect(mockAppendSafeOutput).not.toHaveBeenCalled();
       } finally {
         delete process.env.GH_AW_TARGET_REPO_SLUG;
@@ -1832,6 +1835,7 @@ describe("safe_outputs_handlers", () => {
         });
         expect(result.isError).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
+        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: environment target matches workflow repository; no cross-repo checkout hint needed");
       } finally {
         delete process.env.GH_AW_TARGET_REPO_SLUG;
       }

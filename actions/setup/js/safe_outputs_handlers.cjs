@@ -915,6 +915,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const envTargetSlug = (process.env.GH_AW_TARGET_REPO_SLUG || "").trim();
     const workflowRepo = (process.env.GITHUB_REPOSITORY || "").trim().toLowerCase();
     const envSlugIsSideRepo = envTargetSlug && envTargetSlug.toLowerCase() !== workflowRepo;
+    if (envSlugIsSideRepo) {
+      server.debug(`create_pull_request: environment target differs from workflow repository; resolving checkout for validated target ${repoResult.repo}`);
+    } else if (envTargetSlug) {
+      server.debug("create_pull_request: environment target matches workflow repository; no cross-repo checkout hint needed");
+    }
     const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || prConfig["target-repo"] || envSlugIsSideRepo;
     if (hasExplicitTargetRepoHint && !repoCwd) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
@@ -971,6 +976,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This makes the safe output "self-describing" and fixes checkout for events
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
+    server.debug(`create_pull_request: patch context repo=${repoResult.repo}, cwd=${repoCwd || process.env.GITHUB_WORKSPACE || process.cwd()}, baseBranch=${baseBranch}`);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
