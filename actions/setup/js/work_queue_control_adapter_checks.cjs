@@ -758,7 +758,6 @@ async function verifyCompiledDispatchIdentity(input) {
       auth: async () => ({ type: "token", token: "protected-selected-token" }),
       hook: { before() {} },
       rest: {
-        git: fixture.githubClient.rest.git,
         users: { getByUsername: identity, getAuthenticated: identity },
         repos: fixture.githubClient.rest.repos,
         git: {
