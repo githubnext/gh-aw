@@ -12,7 +12,8 @@ import (
 
 // Match command positions rather than arbitrary mentions in step names or messages.
 // This is a static check for recognizable CLI usage, not a shell interpreter.
-const engineCommandStart = `(?:^|[;&|]|\$\(|\x60)[ \t]*(?:\([ \t]*)*(?:(?:sudo|env|time|timeout|npx)[ \t]+(?:--?[A-Za-z-]+(?:=[^ \t\n]+)?[ \t]+)*|(?:exec|command|then|do)[ \t]+(?:--[ \t]+)?|(?:npm|pnpm|yarn|bun)[ \t]+(?:exec|dlx|x)[ \t]+(?:--[ \t]+)?|(?:bash|sh)[ \t]+-c[ \t]+["']?|[A-Za-z_][A-Za-z0-9_]*=[^ \t\n]+[ \t]+|[0-9]+[smh]?[ \t]+)*`
+const engineShellCommand = `(?:[^ \t\n;"'|&()]*[/\\])?(?:bash|sh)[ \t]+(?:(?:--(?:login|noprofile|norc|posix)|[-+][abefhkmnptuvxBCEHPTilsrD]+)[ \t]+)*-[abefhkmnptuvxBCEHPTilsrD]*c[abefhkmnptuvxBCEHPTilsrD]*[ \t]+(?:--[ \t]+)?`
+const engineCommandStart = `(?:^|[;&|]|\$\(|\x60)[ \t]*(?:\([ \t]*|(?:sudo|env|time|timeout|npx)[ \t]+(?:--?[A-Za-z-]+(?:=[^ \t\n]+)?[ \t]+)*|(?:exec|command|if|elif|while|until|then|do|!)[ \t]+(?:--[ \t]+)?|(?:npm|pnpm|yarn|bun)[ \t]+(?:exec|dlx|x)[ \t]+(?:--[ \t]+)?|` + engineShellCommand + `["']?|[A-Za-z_][A-Za-z0-9_]*=[^ \t\n]+[ \t]+|[0-9]+[smh]?[ \t]+)*`
 
 var (
 	agenticEngineCommandPattern   = regexp.MustCompile(`(?mi)` + engineCommandStart + `["']?(?:[^ \t\n;"'|&()]*[/\\])?(?:copilot|claude|codex|gemini|agy|pi)(?:\.exe)?["']?(?:[ \t\n;|&()]|$)`)
@@ -21,8 +22,29 @@ var (
 	agenticEngineInstallerPattern = regexp.MustCompile(`(?mi)` + engineCommandStart +
 		`(?:curl|wget|brew)[ \t]+[^\n;&|]*(?:github\.com/github/copilot-cli/(?:releases|raw)|raw\.githubusercontent\.com/github/copilot-cli/|claude\.ai/install\.(?:sh|ps1)|(?:install[ \t]+(?:--cask[ \t]+)?)(?:copilot-cli|claude-code|codex)(?:[\s;|&]|$))`)
 	engineDataHeredocPattern = regexp.MustCompile(`(?mi)` + engineCommandStart + `(?:cat|tee)[ \t]+`)
-	engineShellScriptPattern = regexp.MustCompile(`(?mi)` + engineCommandStart + `(?:bash|sh)[ \t]+-c[ \t]+('[^']*'|"(?:\\.|[^"\\])*")`)
+	engineShellScriptPattern = regexp.MustCompile(`(?mi)` + engineCommandStart + engineShellCommand + `('[^']*'|"(?:\\.|[^"\\])*")`)
 )
+
+func engineDataHeredocHeader(header string) string {
+	// Keep ambiguous bodies visible when several heredocs share a header.
+	if strings.Count(header, "<<") != 1 {
+		return ""
+	}
+	for _, location := range engineDataHeredocPattern.FindAllStringIndex(header, -1) {
+		command := header[location[1]:] //nolint:uncheckedsliceindex // FindAllStringIndex returns pairs of valid offsets.
+		if strings.Contains(command, "|") {
+			continue
+		}
+		separators := strings.NewReplacer(">&", "__", "<&", "__", "&>", "__").Replace(command)
+		if end := strings.IndexAny(separators, ";&"); end >= 0 {
+			command = command[:end]
+		}
+		if strings.Contains(command, "<<") {
+			return command
+		}
+	}
+	return ""
+}
 
 // Preserve substitutions in unquoted data heredocs, but not literal example commands.
 // Heredocs consumed by an interpreter or a pipeline remain subject to detection.
@@ -30,12 +52,7 @@ func maskEngineDataHeredocs(run string) string {
 	lines := strings.Split(run, "\n")
 	for i := 0; i < len(lines); i++ {
 		line := lines[i] //nolint:uncheckedsliceindex // The nonnegative cursor is loop-bounded.
-		header := maskEngineNonExecutableText(line)
-		location := engineDataHeredocPattern.FindStringIndex(header)
-		if len(location) != 2 || strings.ContainsAny(header, ";|&") {
-			continue
-		}
-		header = header[location[0]:] //nolint:uncheckedsliceindex // FindStringIndex returned exactly two offsets.
+		header := engineDataHeredocHeader(maskEngineNonExecutableText(line))
 		if delim, ok := detectHeredocDelimiter(header); ok {
 			_, after, _ := strings.Cut(header, "<<")
 			after = strings.TrimSpace(strings.TrimPrefix(after, "-"))
@@ -59,6 +76,7 @@ func maskEngineDataHeredocs(run string) string {
 
 type engineSubstitution struct {
 	quote, closing byte
+	arithmetic     bool
 }
 
 func updateEngineSubstitution(ch, quote byte, substitutions []engineSubstitution) (byte, []engineSubstitution) {
@@ -71,13 +89,24 @@ func updateEngineSubstitution(ch, quote byte, substitutions []engineSubstitution
 			return last.quote, substitutions[:len(substitutions)-1]
 		}
 		if ch == '(' {
-			return 0, append(substitutions, engineSubstitution{0, ')'})
+			return 0, append(substitutions, engineSubstitution{closing: ')', arithmetic: last.arithmetic})
 		}
 	}
 	if ch == '`' {
-		return 0, append(substitutions, engineSubstitution{quote, '`'})
+		return 0, append(substitutions, engineSubstitution{quote: quote, closing: '`'})
 	}
 	return quote, substitutions
+}
+
+func startEngineSubstitution(run string, masked []byte, i int, quote byte, substitutions []engineSubstitution) ([]engineSubstitution, int) {
+	if i+2 < len(run) && run[i+2] == '(' { //nolint:uncheckedsliceindex // The caller provides a nonnegative cursor and i+2 is bounded.
+		substitutions = append(substitutions,
+			engineSubstitution{quote: quote, closing: ')', arithmetic: true},
+			engineSubstitution{closing: ')', arithmetic: true})
+		copy(masked[i:i+3], "___")
+		return substitutions, i + 2
+	}
+	return append(substitutions, engineSubstitution{quote: quote, closing: ')'}), i + 1
 }
 
 // Mask separators in quoted text and comments so they cannot create command
@@ -113,10 +142,12 @@ func maskEngineText(run string, quote byte, heredoc bool) string {
 			continue
 		}
 		if quote != '\'' && ch == '$' && i+1 < len(run) && run[i+1] == '(' { //nolint:uncheckedsliceindex // i+1 is explicitly bounded.
-			substitutions = append(substitutions, engineSubstitution{quote, ')'})
+			substitutions, i = startEngineSubstitution(run, masked, i, quote, substitutions)
 			quote = 0
-			i++
 			continue
+		}
+		if len(substitutions) > 0 && substitutions[len(substitutions)-1].arithmetic && ch != '`' { //nolint:uncheckedsliceindex // The substitution stack is nonempty.
+			masked[i] = '_' //nolint:uncheckedsliceindex // masked has the same length as run and i is loop-bounded.
 		}
 		quote, substitutions = updateEngineSubstitution(ch, quote, substitutions)
 		if ch == '`' && quote != '\'' {

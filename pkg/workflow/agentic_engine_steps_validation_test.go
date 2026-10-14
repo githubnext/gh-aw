@@ -37,12 +37,36 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		{"bash -c 'copilot -p test'", true},
 		{"bash -c 'echo ready && copilot -p test'", true},
 		{`sh -c "echo ready; codex exec test"`, true},
+		{"bash -lc 'copilot -p test'", true},
+		{"/bin/bash -c 'copilot -p test'", true},
+		{"/usr/bin/sh -ec 'echo ready; codex exec test'", true},
+		{"bash -l -xc 'echo ready; copilot -p test'", true},
+		{`/bin/bash --login -c "echo ready; codex exec test"`, true},
+		{`/bin/bash -lc 'echo "Example: setup; copilot -p test"'`, false},
+		{`echo "/bin/bash -lc 'copilot -p test'"`, false},
 		{"echo ready && copilot -p test", true},
 		{"result=$(copilot -p test)", true},
 		{`echo "$(copilot -p test)"`, true},
 		{"echo \"`copilot -p test`\"", true},
+		{"echo $((pi + 1))", false},
+		{`echo "$((pi + (copilot * 2)))"`, false},
+		{"echo $((\npi + 1\n))", false},
+		{"echo $((1 + $(copilot -p test)))", true},
+		{`echo "$((1 + $(copilot -p test)))"`, true},
+		{"echo $((1 + `copilot -p test`))", true},
+		{"echo $((pi + 1)); copilot -p test", true},
 		{"(copilot -p test)", true},
 		{"if true; then copilot -p test; fi", true},
+		{"if copilot -p test; then echo ok; fi", true},
+		{"if false; then echo no; elif claude -p test; then echo ok; fi", true},
+		{"while codex exec test; do echo ok; done", true},
+		{"until gemini -p test; do echo ok; done", true},
+		{"! copilot -p test", true},
+		{"if ! (copilot -p test); then echo ok; fi", true},
+		{"if npm install -g @github/copilot; then echo ok; fi", true},
+		{"! command -v copilot", false},
+		{"echo 'if copilot -p test; then echo ok; fi'", false},
+		{"echo if copilot -p test", false},
 		{"npm install -g @github/copilot", true},
 		{"npm i --prefix /tmp/engine @github/copilot@1.0.0", true},
 		{"pnpm add -g @anthropic-ai/claude-code", true},
@@ -71,6 +95,20 @@ func TestStepInvokesAgenticEngine(t *testing.T) {
 		{"npm install other # @github/copilot", false},
 		{"cat > example.txt <<'EOF'\ncopilot -p test\nEOF", false},
 		{"cat <<EOF\ncopilot -p test\nEOF", false},
+		{"echo ready; cat <<EOF\ncopilot -p test\nEOF", false},
+		{"echo ready && cat <<'EOF'\ncopilot -p test\nEOF", false},
+		{"echo ready | tee <<EOF\ncopilot -p test\nEOF", false},
+		{"cat /dev/null; cat <<EOF\ncopilot -p test\nEOF", false},
+		{"cat <<EOF; echo ready\ncopilot -p test\nEOF", false},
+		{"echo ready; cat <<EOF\n$(copilot -p test)\nEOF", true},
+		{"echo ready; cat <<'EOF'\n$(copilot -p test)\nEOF", false},
+		{"echo ready; cat <<EOF | bash\ncopilot -p test\nEOF", true},
+		{"echo ready; cat <<EOF 2>&1 | bash\ncopilot -p test\nEOF", true},
+		{"echo ready; cat <<EOF 2>&1\ncopilot -p test\nEOF", false},
+		{"echo ready; cat <<EOF &>example.txt\ncopilot -p test\nEOF", false},
+		{"bash <<SCRIPT; cat <<DATA\ncopilot -p test\nSCRIPT\nhello\nDATA", true},
+		{"(cat <<EOF; :) | bash\ncopilot -p test\nEOF", true},
+		{"echo ready; cat <<EOF\ncopilot -p test\nEOF\ncopilot -p test", true},
 		{"cat <<EOF\n$(copilot -p test)\nEOF", true},
 		{"cat <<EOF\n$(echo $(date); copilot -p test)\nEOF", true},
 		{"cat <<EOF\n'$(echo $(date); copilot -p test)'\nEOF", true},
@@ -154,6 +192,10 @@ func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 		{"safe output steps", "safe-outputs:\n  create-issue:\n  steps:\n    - run: npm install -g @github/copilot\n", "", false, true},
 		{"safe output custom job", "safe-outputs:\n  jobs:\n    review:\n      runs-on: ubuntu-latest\n      steps:\n        - run: copilot -p test\n", "", false, true},
 		{"activation augmentation", "jobs:\n  activation:\n    steps:\n      - run: copilot -p test\n", "", false, true},
+		{"control keyword", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: if copilot -p test; then echo ok; fi\n", "", false, true},
+		{"shell wrapper", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: /bin/bash -lc 'copilot -p test'\n", "", false, true},
+		{"arithmetic data", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $((pi + 1))\n", "", false, false},
+		{"heredoc data after command", "jobs:\n  custom:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo ready; cat <<EOF\n          copilot -p test\n          EOF\n", "", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -172,7 +214,11 @@ func TestAgenticEngineStepsAtCompileTime(t *testing.T) {
 				assert.True(t, os.IsNotExist(statErr), "rejected workflows must not emit a lock file")
 			} else {
 				require.NoError(t, err)
-				assert.Positive(t, c.warningCount)
+				if tc.strict == "strict: false\n" {
+					assert.Positive(t, c.warningCount)
+				} else {
+					assert.Zero(t, c.warningCount)
+				}
 				_, statErr := os.Stat(strings.TrimSuffix(path, ".md") + ".lock.yml")
 				require.NoError(t, statErr)
 			}
