@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { createRequire } from "node:module";
-import { authorizeWorkerClaim, finalizeWorkerResults, main, readFinishIntent, reconcileWorkerClaim, verifyWithinBudget } from "./finish_work_queue_claim.cjs";
+import { authorizeWorkerClaim, finalizeWorkerResults, main, readFinishIntent, reconcileWorkerClaim, renderSummary, verifyWithinBudget } from "./finish_work_queue_claim.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { queueFixture, noWriteClaimVerifier, REF, REPOSITORY, WORKFLOW, DISPATCHER } from "./work_queue_lifecycle.test_helpers.cjs";
 
@@ -36,6 +36,15 @@ afterEach(() => {
 });
 
 describe("independent trusted Claim finalization", () => {
+  it.each([{}, { h1: { authorized: true }, h2: { authorized: false } }])("collapses reconciliation with two empty lines before subsequent Markdown: %j", claims => {
+    const summary = renderSummary({ claims });
+    expect(summary).toMatch(/^<details>\n<summary>Work queue reconciliation<\/summary>\n\n### Independent Claim reconciliation\n\n/);
+    expect(summary).not.toContain("<details open");
+    expect(summary).toMatch(/<\/details>\n\n\n$/);
+    expect(summary + "### Next section").toContain("</details>\n\n\n### Next section");
+    expect(summary).toContain(`${Object.values(claims).filter(claim => claim.authorized).length} Claims may process scoped effects`);
+  });
+
   it("finalizes retained Claims once without completing Work and suppresses their historical effects after regrant", async () => {
     const { fixture, options } = setup(3);
     finish(options, "h1", "completed", "retained", true);

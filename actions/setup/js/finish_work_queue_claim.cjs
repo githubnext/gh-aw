@@ -416,7 +416,7 @@ async function finalizeWorkerResults(options = {}) {
 
 function renderSummary(result) {
   const states = typeof result === "object" ? Object.values(result.claims || {}) : [];
-  return `## Work queue reconciliation\n\n<details>\n<summary>Show independent Claim reconciliation</summary>\n\n${states.filter(state => state.authorized).length} Claims may process scoped effects; ${states.filter(state => !state.authorized).length} Claims are cancelled, settled or blocked. Completion is not a verified Result. Shared native capacity remains reserved until exact terminal/nonlaunch evidence.\n\n</details>\n`;
+  return `<details>\n<summary>Work queue reconciliation</summary>\n\n### Independent Claim reconciliation\n\n${states.filter(state => state.authorized).length} Claims may process scoped effects; ${states.filter(state => !state.authorized).length} Claims are cancelled, settled or blocked. Completion is not a verified Result. Shared native capacity remains reserved until exact terminal/nonlaunch evidence.\n\n</details>\n\n\n`;
 }
 
 async function main(options = {}) {
