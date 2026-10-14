@@ -71,8 +71,11 @@ work-queue work_queue_read '{"pool":"default","limit":32}'
 
 Use the advertised MCP tools directly when wrappers are not available.
 
-The prepared cohort is submitted whether the queue is initialized or absent,
-with `{"nodes": <the plan.nodes array>}` before requesting any grants. Date-keyed
+The trusted preparation step has already staged the prepared cohort, whether
+the queue is initialized or absent, with `{"nodes": <the plan.nodes array>}`
+before its dispatch request. Do not call `work_queue_submit` or
+`work_queue_dispatch_next` again; read and explain the snapshot and staged plan
+only. Date-keyed
 graph/node identities make repeated submissions on the same UTC day idempotent,
 including manual runs and reruns. Do not change stored task payloads on retries
 or replace admitted Work. AW authorizes trusted participants; the installed
