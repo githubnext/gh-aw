@@ -29,7 +29,7 @@ set +o histexpand
 #   $RUNNER_TEMP/gh-aw/                     - runner temp gh-aw directory
 #
 # Common cache directories (node_modules, __pycache__, .cache, vendor, .npm, .yarn,
-# .pnpm-store, site-packages, .bundle) are excluded to keep the listing concise.
+# .pnpm-store, site-packages, .bundle, tool-cache) are excluded to keep the listing concise.
 # Exclusions use -prune so find does not descend into excluded trees.
 #
 # Environment variables (set automatically by GitHub Actions):
@@ -69,6 +69,7 @@ list_dir() {
       -o -name '.pnpm-store' \
       -o -name 'site-packages' \
       -o -name '.bundle' \
+      -o -name 'tool-cache' \
     \) -prune \
     -o -print \
     2>/dev/null || echo "(not found)"

@@ -401,4 +401,25 @@ describe("dismiss_pull_request_review", () => {
     expect(result.error).toContain("Internal Server Error");
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [403, { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "15000", "x-ratelimit-used": "15000", "x-ratelimit-reset": "1791972360" }, "API rate limit exceeded for installation", "quota_exhausted"],
+    [403, {}, "API rate limit exceeded for installation", "rate_limited"],
+    [403, {}, "Resource not accessible by integration", "permission_denied"],
+    [403, { "x-ratelimit-remaining": "0" }, "Resource not accessible by integration", "permission_denied"],
+    [401, {}, "Bad credentials", "authentication_failed"],
+  ])("reports the failed review-read boundary and %s classification without an API payload", async (status, headers, message, classification) => {
+    mockGetReview.mockRejectedValueOnce(Object.assign(new Error(`${message}; secret-test-value`), { status, response: { headers } }));
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E099: Failed to fetch review 123 on test-owner/test-repo#42");
+    expect(result.error).toContain(`GitHub API ${classification}`);
+    expect(result.error).not.toContain("secret-test-value");
+    expect(mockGetReview).toHaveBeenCalledOnce();
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
 });

@@ -4,13 +4,14 @@
 const { TextDecoder } = require("node:util");
 const { createHash } = require("node:crypto");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("store");
-const { canonical, identity, integer, queueError } = require("./work_queue_codec.cjs");
+const { canonical, digest, identity, integer, queueError } = require("./work_queue_codec.cjs");
 const { actorFromContext, validatePolicy, validateRequestRole, validateTrustedContext } = require("./work_queue_policy.cjs");
 const { assignmentsForRequest } = require("./work_queue_scheduler.cjs");
 const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
 const { verifyWorkerRoute, verifyWorkerRoutes } = require("./work_queue_provisioning.cjs");
 const { serializeDeployments } = require("./work_queue_deployment.cjs");
 const { writeWorkQueueUpdateSummary } = require("./work_queue_summary_renderer.cjs");
+const { queueAuthenticationScope } = require("./work_queue_auth_cache.cjs");
 const {
   appendCommit,
   causalChain,
@@ -34,6 +35,10 @@ const WORK_QUEUE_LOG_PATH = "work-queue.jsonl";
 const LEGACY_BRANCHES = ["dispatch-coordinator", "gh-aw-work-queue"];
 const LEGACY_LOGS = ["dispatch-work-coordinator.jsonl"];
 const DEFAULT_MAX_RETRIES = 5;
+/** @type {WeakMap<object, {scope: object, proofs: Set<string>}>} */
+const verifiedCheckpointHistory = new WeakMap();
+/** @type {WeakMap<object, {scope: object, repository: string, sha: string, treeSha: string, contents: string}>} */
+const verifiedQueueContents = new WeakMap();
 
 /** @typedef {{githubClient: Parameters<typeof verifyRepository>[0], owner: string, repo: string, branch?: string, core?: import("./work_queue_summary_renderer.cjs").SummaryCore & {info(message: string): void}}} QueueReadOptions */
 
@@ -128,7 +133,23 @@ async function readWorkQueueLog({ githubClient, owner, repo, branch = WORK_QUEUE
 }
 
 async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = true) {
-  const { githubClient, owner, repo, branch, repository, coreApi } = options;
+  const { githubClient, branch, repository, coreApi } = options;
+  const scope = await queueAuthenticationScope(githubClient);
+  const previous = verifiedQueueContents.get(githubClient);
+  if (!scope || previous?.scope !== scope) verifiedQueueContents.delete(githubClient);
+  const cached = scope && previous?.scope === scope ? previous : undefined;
+  const immutable = cached && cached.repository === repository.full_name.toLowerCase() && cached.sha === sha ? cached : await readQueueContentsAtSHA(options, sha);
+  const { treeSha, contents } = immutable;
+  const { state, checkpointRecovered } = await replayVerifiedQueueLog(options, sha, contents, verify, recover);
+  const transactions = state.transactions;
+  const bytes = Buffer.byteLength(contents, "utf8");
+  if (verify && scope && bytes <= 4 * 1024 * 1024 && (await queueAuthenticationScope(githubClient)) === scope) verifiedQueueContents.set(githubClient, { scope, repository: repository.full_name.toLowerCase(), sha, treeSha, contents });
+  coreApi?.info(`Work queue: validated ${transactions.length} causal commits`);
+  log.debug("ledger.read.complete", { bytes, transactions: transactions.length, works: state.works.size, claims: state.claims.size });
+  return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH, ...(checkpointRecovered ? { checkpointRecovered: true } : {}) };
+}
+
+async function readQueueContentsAtSHA({ githubClient, owner, repo }, sha) {
   const commit = await githubClient.rest.git.getCommit({ owner, repo, commit_sha: sha });
   const treeSha = commit?.data?.tree?.sha;
   if (typeof treeSha !== "string" || !treeSha) throw queueError("ledger_invalid", "queue commit has no tree");
@@ -155,11 +176,7 @@ async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = tru
   } catch {
     throw queueError("ledger_invalid", "queue blob contains malformed UTF-8");
   }
-  const { state, checkpointRecovered } = await replayVerifiedQueueLog(options, sha, contents, verify, recover);
-  const transactions = state.transactions;
-  coreApi?.info(`Work queue: validated ${transactions.length} causal commits`);
-  log.debug("ledger.read.complete", { bytes: bytes.length, transactions: transactions.length, works: state.works.size, claims: state.claims.size });
-  return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH, ...(checkpointRecovered ? { checkpointRecovered: true } : {}) };
+  return { treeSha, contents };
 }
 
 async function replayVerifiedQueueLog(options, sha, contents, verify = true, recover = true) {
@@ -207,10 +224,20 @@ async function verifyCheckpointGitHistory(options, head, root) {
   const { githubClient, owner, repo } = options;
   const invalid = () => queueError("checkpoint_invalid", "checkpoint does not match its Git parent history");
   const visited = new Set();
-  while (root?.operations?.[0]?.kind === "Checkpoint") {
+  const scope = await queueAuthenticationScope(githubClient);
+  const cached = verifiedCheckpointHistory.get(githubClient);
+  if (!scope || cached?.scope !== scope) verifiedCheckpointHistory.delete(githubClient);
+  const verified = scope && cached?.scope === scope ? cached.proofs : new Set();
+  const pending = new Set();
+  verification: while (root?.operations?.[0]?.kind === "Checkpoint") {
     const checkpoint = root.operations[0];
+    const checkpointDigest = digest(root);
     let current = head;
     for (;;) {
+      // Reuse immutable proofs only within a registered, unchanged static authentication.
+      const proof = `${owner.toLowerCase()}/${repo.toLowerCase()}:${current}:${checkpointDigest}`;
+      if (verified.has(proof)) break verification;
+      pending.add(proof);
       if (visited.has(current)) throw invalid();
       visited.add(current);
       const commit = await githubClient.rest.git.getCommit({ owner, repo, commit_sha: current });
@@ -219,6 +246,7 @@ async function verifyCheckpointGitHistory(options, head, root) {
       const parent = parents[0].sha;
       const previous = await readVerifiedQueueAtSHA({ ...options, coreApi: undefined }, parent, false);
       if (previous.transactions[0]?.id === root.id) {
+        if (canonical(previous.transactions[0]) !== canonical(root)) throw invalid();
         current = parent;
         continue;
       }
@@ -236,6 +264,15 @@ async function verifyCheckpointGitHistory(options, head, root) {
       break;
     }
   }
+  if (!scope || (await queueAuthenticationScope(githubClient)) !== scope) return;
+  for (const proof of pending) {
+    verified.add(proof);
+    if (verified.size > 128) {
+      const oldest = verified.values().next().value;
+      if (oldest !== undefined) verified.delete(oldest);
+    }
+  }
+  verifiedCheckpointHistory.set(githubClient, { scope, proofs: verified });
 }
 
 function stableRequestResult(current, request, actor) {

@@ -992,9 +992,11 @@ gh aw mcp-server --port 8080          # HTTP server with SSE
 gh aw mcp-server --validate-actor     # Enable actor validation
 ```
 
-**Options:** `--port/-p` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
+**Options:** `--port/-p` (HTTP server port), `--cmd` (custom subprocess command), `--allow-write-tools` (enable workflow-writing tools for trusted clients), `--validate-actor` (enforce actor validation for logs, audit, audit-diff, and enabled workflow-writing tools)
 
-**Available Tools:** status, compile, logs, audit, audit-diff, checks, mcp-inspect, add, update, fix
+**Available Tools:** status, compile, logs, audit, checks, work-queue (read-only), mcp-inspect, add, update, fix
+
+Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default. Enable them with `--allow-write-tools` only for trusted MCP clients and workflow sources.
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

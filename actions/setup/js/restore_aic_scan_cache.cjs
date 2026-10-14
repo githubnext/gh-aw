@@ -7,7 +7,8 @@ const path = require("path");
 const { MAX_RESTORE_RUNS, MAX_RESTORE_PAGES, SCAN_WINDOW_MS } = require("./constants.cjs");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { AIC_SCAN_CACHE_FILE_PATH, AIC_SCAN_CACHE_ARTIFACT_NAME, readScanCache } = require("./daily_aic_cache_helpers.cjs");
-const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, isQuotaError, safeResponseHeaders } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, isQuotaError, safeResponseHeaders, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 
 function isTrustedProducer(run, current, repository, defaultBranch) {
   if (run.workflow_id !== current.workflow_id || run.path !== current.path || run.repository?.full_name !== repository) return false;
@@ -113,6 +114,24 @@ async function mainWithPaths(cachePath = AIC_SCAN_CACHE_FILE_PATH, options = {})
   const budget = createAPIBudget();
   try {
     await restoreWithBudget(cachePath, options, budget);
+  } catch (error) {
+    const diagnostic = getGitHubAPIDiagnostic(error);
+    const failure = getAPIReadFailure(error);
+    if (failure) {
+      const detail = diagnostic?.message ?? `GitHub API read failed (HTTP ${failure.status ?? "unknown"}; reason=${failure.reason})`;
+      const message = `Daily AIC snapshot restore stopped at ${failure.operation} after ${failure.attempts} attempt(s): ${detail}. Accounting remains unverified; agent startup is blocked.`;
+      core.info(`[daily-aic-cache] ${message}`);
+      if (core.summary) {
+        try {
+          await core.summary.addRaw(`### Daily AIC snapshot restore blocked\n\n${message}\n`).write();
+        } catch {
+          core.warning("Failed to write daily AIC snapshot restore failure summary.");
+        }
+      }
+    }
+    const retryAt = retryNotBefore(error?.response?.headers, Date.now(), isQuotaError(error));
+    if (retryAt) core.info(`[daily-aic-cache] No further API requests before ${retryAt}`);
+    throw error;
   } finally {
     core.info(`[daily-aic-cache] GitHub API rate limit level: ${JSON.stringify(budget.snapshot())}`);
   }
@@ -121,13 +140,7 @@ async function mainWithPaths(cachePath = AIC_SCAN_CACHE_FILE_PATH, options = {})
 async function main() {
   const { shouldSkipDailyAICGuardrail } = require("./check_daily_aic_workflow_guardrail.cjs");
   if (shouldSkipDailyAICGuardrail()) return;
-  try {
-    await mainWithPaths();
-  } catch (error) {
-    const retryAt = retryNotBefore(error?.response?.headers, Date.now(), isQuotaError(error));
-    if (retryAt) core.info(`[daily-aic-cache] No further API requests before ${retryAt}`);
-    throw error;
-  }
+  await mainWithPaths();
 }
 
 module.exports = { main, mainWithPaths, isTrustedProducer };
