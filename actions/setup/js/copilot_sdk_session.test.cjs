@@ -34,6 +34,87 @@ describe("copilot_sdk_session runtime configuration", () => {
     vi.restoreAllMocks();
   });
 
+  // Sanitized final message from run 38513316902: the SDK resolved normally,
+  // but this runtime-generated message was not an executed task or model answer.
+  const filteredMessage = {
+    type: "assistant.message",
+    data: { content: "The model returned no content because the response was blocked by content filtering.", rte: true, toolRequests: [] },
+  };
+
+  it.each(["event", "result", "idle-timeout", "partial-output"])("fails a content-filtered main response via %s without inventing task output", async mode => {
+    let handler;
+    const disconnect = vi.fn().mockResolvedValue(undefined);
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const logger = vi.fn();
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = stop;
+      createSession = async () => ({
+        sessionId: `filtered-${mode}`,
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => {
+          if (mode === "partial-output") handler({ type: "assistant.message", data: { content: "Starting the task." } });
+          if (mode !== "result") handler(filteredMessage);
+          if (mode === "idle-timeout" || mode === "partial-output") throw new Error("Timeout after 100ms waiting for session.idle");
+          return filteredMessage;
+        },
+        disconnect,
+      });
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger,
+      workingDirectory: base,
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result).toMatchObject({ exitCode: 1, hasOutput: mode === "partial-output" });
+    expect(result.output).not.toContain(filteredMessage.data.content);
+    const captured = fs
+      .readFileSync(path.join(base, `filtered-${mode}/events.jsonl`), "utf8")
+      .trim()
+      .split("\n")
+      .map(JSON.parse);
+    expect(captured.filter(event => event.type === "assistant.message" && event.data.rte)).toEqual([filteredMessage]);
+    expect(captured).toContainEqual(expect.objectContaining({ type: "session.error", data: expect.objectContaining({ errorType: "sdk_driver", code: "content_filter" }) }));
+    expect(normalizeCopilotSession(captured).find(event => event.type === "assistant.refusal").data.reason).toBe("content_filter");
+    expect(logger.mock.calls.flat().some(message => message.includes("treating as completed"))).toBe(false);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([{}, { rte: false }, { rte: true, parentToolCallId: "child" }])("does not fail ordinary quoted text or a nested filtered response %j", context => {
+    const message = { ...filteredMessage, data: { content: filteredMessage.data.content, ...context } };
+    let handler;
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "not-main-filter",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => {
+          handler(message);
+          return { type: "assistant.message", data: { content: "Task completed." } };
+        },
+        disconnect: async () => {},
+      });
+    }
+    return runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    }).then(result => expect(result.exitCode).toBe(0));
+  });
+
   it("resolves engine.cwd against the workspace rather than the driver process directory", async () => {
     vi.stubEnv("GITHUB_WORKSPACE", "/w");
     vi.stubEnv("GH_AW_ENGINE_CWD", "packages/app");

@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
 const { agentErrorSummaryText } = require("./agent_execution.cjs");
+const { sessionContext } = require("./agent_session.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactDiagnosticText, redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -202,6 +203,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   let toolDenialLimitExceeded = false;
   let executionCategories = [];
   let executionErrorCodes = [];
+  let contentFiltered = false;
   for (const event of events) {
     if (event.type === "agent.execution" && event.provenance.component === "execution" && event.provenance.phase === "agent" && event.data.exitCode > 0) {
       // A CLI parse error itself makes the bridge exit non-zero; preserve that more specific cause.
@@ -215,7 +217,11 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     if (event.provenance.component !== "agent") continue;
     /** @type {any} */
     const data = event.data;
-    if (event.type === "tool.execution_start") {
+    const context = sessionContext(event);
+    if (event.type === "assistant.refusal" && data.reason === "content_filter" && context.agentId === undefined && !context.parentToolUseId) {
+      contentFiltered = true;
+      diagnostics.add("The model response was blocked by content filtering; task completion could not be confirmed.");
+    } else if (event.type === "tool.execution_start") {
       lastToolCallStatus = "started (completion not recorded)";
       lastToolExitCode = undefined;
     } else if (event.type === "tool.execution_complete") {
@@ -284,7 +290,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const engineErrorType = engineSummary.match(/\(([a-z][a-z0-9_]*)\)/)?.[1] || "";
   const errorCodes = executionErrorCodes.filter(code => Number.isSafeInteger(code) && code >= 400 && code <= 599);
   const isPromptExhaustion = executionCategories.some(category => PROMPT_EXHAUSTION_ERROR_CATEGORIES.has(category));
-  const isRequestRejection = ["invalid_safe_outputs", "safeoutputs_cli_error"].includes(reason) || executionCategories.some(category => REQUEST_REJECTION_ERROR_CATEGORIES.has(category)) || errorCodes.some(code => code >= 400 && code < 500);
+  const isRequestRejection =
+    contentFiltered || ["invalid_safe_outputs", "safeoutputs_cli_error"].includes(reason) || executionCategories.some(category => REQUEST_REJECTION_ERROR_CATEGORIES.has(category)) || errorCodes.some(code => code >= 400 && code < 500);
   // Crash categories can be inferred from exit codes alone; they do not establish an outage.
   const isEngineOutage = executionCategories.some(category => ["agentic_engine_timeout", "capi_server_error"].includes(category)) || errorCodes.some(code => code >= 500);
   // Missing completion and nonzero driver exits are observed outcomes, not evidence of budget exhaustion or an outage.

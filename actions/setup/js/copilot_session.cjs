@@ -54,6 +54,19 @@ function copilotSessionContext(event) {
 }
 
 /**
+ * Copilot marks its synthesized content-filter message as a runtime error (rte).
+ * The text alone is not evidence: an ordinary answer may quote the same message.
+ * @param {any} data
+ * @returns {import("./types/agent_session").AssistantRefusalData | undefined}
+ */
+function getCopilotMessageRefusal(data) {
+  if (data?.rte === true && data.content === "The model returned no content because the response was blocked by content filtering.") {
+    return { reason: "content_filter", content: data.content };
+  }
+  return getMessageRefusal(data, typeof data?.finishReason === "string" ? data.finishReason : undefined);
+}
+
+/**
  * Remove only complete identified copies in the same observed session.
  * Conflicting/reused IDs and unidentified observations remain independent evidence.
  * @param {SessionEvent[]} fallback
@@ -95,7 +108,7 @@ function normalizeCopilotSession(entries) {
     const context = copilotSessionContext(event);
     if (context.parentToolUseId !== undefined && sessionContext(event).parentToolUseId === undefined) event.data.parentToolUseId = context.parentToolUseId;
     if (event.type !== "assistant.message") continue;
-    const refusal = getMessageRefusal(event.data, typeof event.data.finishReason === "string" ? event.data.finishReason : undefined);
+    const refusal = getCopilotMessageRefusal(event.data);
     if (refusal) source[index] = createSessionEvent(event, "assistant.refusal", refusal);
   }
   /** @type {SessionEvent[]} */
@@ -388,4 +401,4 @@ function copilotUsage(data) {
   return usage;
 }
 
-module.exports = { hasCopilotConversation, hasMalformedJsonl, copilotSessionContext, deduplicateCopilotFallback, normalizeCopilotSession };
+module.exports = { hasCopilotConversation, hasMalformedJsonl, copilotSessionContext, getCopilotMessageRefusal, deduplicateCopilotFallback, normalizeCopilotSession };

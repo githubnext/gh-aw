@@ -269,6 +269,22 @@ describe("Copilot scoped partial and snapshot evidence (synthetic)", () => {
     expect(normalizeCopilotSession(JSON.parse(JSON.stringify(events)))).toEqual(JSON.parse(JSON.stringify(events)));
   });
 
+  it("maps the observed SDK runtime content-filter message without mistaking a quote for a refusal", () => {
+    const content = "The model returned no content because the response was blocked by content filtering.";
+    const records = [
+      { type: "assistant.message", id: "filtered", data: { content, rte: true, apiCallId: "filtered", toolRequests: [] } },
+      { type: "assistant.usage", data: { apiCallId: "filtered", finishReason: "content_filter", outputTokens: 0 } },
+      { type: "assistant.message", id: "quoted", data: { content } },
+      { type: "assistant.message", id: "other-runtime-error", data: { content: "Some other runtime error.", rte: true } },
+    ];
+    const original = structuredClone(records);
+    const events = normalizeCopilotSession(records);
+    expect(events.filter(event => event.type === "assistant.refusal")).toMatchObject([{ id: "filtered", data: { reason: "content_filter", content, rte: true } }]);
+    expect(events.filter(event => event.type === "assistant.message").map(event => event.id)).toEqual(["quoted", "other-runtime-error"]);
+    expect(records).toEqual(original);
+    expect(normalizeCopilotSession(JSON.parse(JSON.stringify(events)))).toEqual(JSON.parse(JSON.stringify(events)));
+  });
+
   it("retains reasoning fragments and scopes message snapshots to the same child and session", () => {
     const records = [
       { type: "session.start", data: { sessionId: "root" } },
