@@ -1,5 +1,4 @@
-const fs = require("node:fs");
-const path = require("node:path");
+const { writeFileSecure } = require("./secure_write.cjs");
 
 const CATEGORIES = [
   { key: "indexing", title: "Guard direct slice and string indexing", legacy: /\b(indexing|indexed (access|values)|bounds checks)\b/i },
@@ -62,8 +61,7 @@ async function collectIssues({ github, context, core, outputPath = "/tmp/gh-aw/a
     persistent_body: persistentBody(issue.body || ""),
     assignees: (issue.assignees || []).map(assignee => assignee.login),
   }));
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(plan, null, 2)}\n`);
+  writeFileSecure(outputPath, `${JSON.stringify(plan, null, 2)}\n`);
   core.info(`Found ${plan.open_issues.length} open LintMonster issues; category inventory is complete.`);
   return plan;
 }
