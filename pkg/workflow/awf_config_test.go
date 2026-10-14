@@ -2123,6 +2123,11 @@ func TestValidateAWFConfigJSON_AllowsFilesystemAllowWrite(t *testing.T) {
 	require.NoError(t, err, "filesystem.allowWrite should pass AWF config schema validation")
 }
 
+func TestValidateAWFConfigJSON_CloudHypervisorScratchMiB(t *testing.T) {
+	require.NoError(t, validateAWFConfigJSON(`{"cloudHypervisor":{"scratchMib":512}}`))
+	require.Error(t, validateAWFConfigJSON(`{"cloudHypervisor":{"scratchMib":0}}`))
+}
+
 func TestValidateAWFConfigJSON_RejectsUnknownContainerRuntime(t *testing.T) {
 	err := validateAWFConfigJSON(`{"container":{"containerRuntime":"runc"}}`)
 	require.Error(t, err, "container.containerRuntime must only accept enum values; unknown runtime \"runc\" should be rejected")

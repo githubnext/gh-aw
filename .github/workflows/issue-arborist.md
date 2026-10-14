@@ -73,6 +73,7 @@ safe-outputs:
     group: true
   link-sub-issue:
     max: 50
+    target: "*"
   create-discussion:
     expires: 1d
     title-prefix: "[Issue Arborist] "
