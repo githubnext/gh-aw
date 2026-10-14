@@ -82,3 +82,5 @@
 {"id":"recommendations_produced","question":"Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?","answer":"YES","model":"evals","timestamp":"2026-10-09T15:03:17.549Z","runid":"37948034133"}
 {"id":"high_aic_workflow_identified","question":"Did the agent identify a high-AIC workflow and audit its recent runs?","answer":"YES","model":"evals","timestamp":"2026-10-12T15:07:53.393Z","runid":"38267257007"}
 {"id":"recommendations_produced","question":"Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?","answer":"YES","model":"evals","timestamp":"2026-10-12T15:07:53.393Z","runid":"38267257007"}
+{"id":"high_aic_workflow_identified","question":"Did the agent identify a high-AIC workflow and audit its recent runs?","answer":"YES","model":"evals","timestamp":"2026-10-14T15:00:55.363Z","runid":"38584592890"}
+{"id":"recommendations_produced","question":"Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?","answer":"YES","model":"evals","timestamp":"2026-10-14T15:00:55.363Z","runid":"38584592890"}
