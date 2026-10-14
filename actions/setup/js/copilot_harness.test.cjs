@@ -14,6 +14,7 @@ const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
   classifyCopilotFailure,
+  isCopilotContentFilterError,
   extractTokenCountFromOutput,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
@@ -134,6 +135,29 @@ function withTemporaryPromptTemplate(prefix, sourceTemplateDir, promptDirResolve
 }
 
 describe("copilot_harness.cjs", () => {
+  describe("SDK content-filter rejection", () => {
+    const content = "The model returned no content because the response was blocked by content filtering.";
+    it("classifies the observed runtime rejection and stops partial-execution retries", () => {
+      const output = JSON.stringify({ type: "assistant.message", data: { content, rte: true, toolRequests: [] } });
+      expect(isCopilotContentFilterError(output)).toBe(true);
+      expect(classifyCopilotFailure({ hasOutput: true, isContentFiltered: true, tokenCount: 27719 })).toBe("content_filter");
+      expect(shouldRetryFailedExecution({ exitCode: 1, hasOutput: true, output, attempt: 0, maxRetries: 3 })).toBe(false);
+    });
+
+    it.each([
+      { type: "assistant.message", data: { content } },
+      { type: "assistant.message", data: { content, rte: false } },
+      { type: "user.message", data: { content, rte: true } },
+      { type: "assistant.message", data: { content: "Some other runtime error.", rte: true } },
+      { type: "assistant.message", data: { content, rte: true, parentToolCallId: "child" } },
+      { type: "assistant.message", agentId: "child", data: { content, rte: true } },
+    ])("does not stop retries on quoted, unrelated or nested evidence %j", event => {
+      const output = JSON.stringify(event);
+      expect(isCopilotContentFilterError(output)).toBe(false);
+      expect(shouldRetryFailedExecution({ exitCode: 1, hasOutput: true, output, attempt: 0, maxRetries: 3 })).toBe(true);
+    });
+  });
+
   describe("AWF task-level model routing", () => {
     const routingEnvKeys = ["GH_AW_MODEL_ROUTING", "GH_AW_COPILOT_ROUTING_EFFORT", "GH_AW_TMP_DIR", "COPILOT_MODEL", "COPILOT_PROVIDER_WIRE_API"];
     const originalRoutingEnv = Object.fromEntries(routingEnvKeys.map(key => [key, process.env[key]]));
@@ -2921,6 +2945,35 @@ process.stdin.on("end", () => fs.writeFileSync(process.env.COPILOT_HARNESS_STUB_
   });
 
   describe("noop pre-flight and retry guard", () => {
+    it.each([false, true])("keeps a content-filter rejection failed without retries even when noop is written: %s", writeNoop => {
+      const tempDir = makeHarnessTempDir("copilot-filtered-retry-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+fs.appendFileSync(process.env.COPILOT_HARNESS_STUB_CALLS, "attempt\\n");
+if (${writeNoop}) fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify({type:"noop",message:"nothing to do"}) + "\\n");
+process.stderr.write(JSON.stringify({type:"assistant.message",data:{content:"The model returned no content because the response was blocked by content filtering.",rte:true,toolRequests:[]}}) + "\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "test rejection handling", "utf8");
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+      expect(result.status).toBe(1);
+      expect(fs.readFileSync(callsPath, "utf8")).toBe("attempt\n");
+      expect(result.stderr).toContain("failureClass=content_filter");
+      expect(result.stderr).toContain("model response blocked by content filtering — not retrying");
+      expect(result.stderr).not.toContain("treating as success");
+    });
+
     it("skips the agent when a noop is already in safe-outputs before the run", () => {
       const tempDir = makeHarnessTempDir("copilot-noop-preflight-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");

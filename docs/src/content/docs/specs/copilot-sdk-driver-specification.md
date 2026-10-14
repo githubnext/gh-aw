@@ -398,6 +398,15 @@ The session result object SHOULD include:
 - Output-presence indicator
 - Duration in milliseconds
 
+The built-in driver treats a main-session content-filter rejection as failure,
+even when `sendAndWait` resolves normally. Copilot's synthesized message requires
+both `rte: true` and the exact runtime content-filter text; quoted text alone is
+not rejection evidence. The rejection is retained as `assistant.refusal` in the
+canonical session, not counted as task output, and cannot qualify for idle-timeout
+success recovery. The harness stops retries, and an absent terminal safe output
+is classified as `request_rejection`, not an intentional noop or task success.
+Nested-agent refusals do not independently establish main-session rejection.
+
 ### 7.3 Cleanup
 
 The implementation MUST perform best-effort cleanup of event streams, session handles, and client handles regardless of success or failure.
