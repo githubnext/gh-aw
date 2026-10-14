@@ -449,31 +449,9 @@ diff /tmp/gh-aw/agent/before.txt /tmp/gh-aw/agent/after.txt
 
 ### 4.6 Edge Cases for Compile
 
-Test error handling:
+Malformed YAML frontmatter, invalid tool configurations, and missing imports require synthetic fixtures and are **out of scope** for this tester's trusted repository workflow sample. Do not create fixtures, modify selected workflows to induce errors, or compile downloaded content.
 
-#### Edge Case A: Malformed Markdown
-```
-Create a test workflow with invalid YAML frontmatter
-Attempt to compile it
-```
-
-**Expected**: Clear error message with line number
-
-#### Edge Case B: Invalid Tool Configuration
-```
-Create a test workflow with non-existent tool
-Attempt to compile it
-```
-
-**Expected**: Validation error identifying the invalid tool
-
-#### Edge Case C: Missing Imports
-```
-Create a test workflow that imports a non-existent file
-Attempt to compile it  
-```
-
-**Expected**: Error indicating missing import file
+Use `report_incomplete` to record these three skipped edge cases and the trusted-target restriction. Do not count them as passing tests or claim complete compile error-handling coverage.
 
 ### 4.7 Document Compile Test Results
 

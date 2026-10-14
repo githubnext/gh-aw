@@ -76,7 +76,7 @@ type ToolsConfig struct {
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
 	Edit             *EditToolConfig             `yaml:"edit,omitempty"`
 	Playwright       *PlaywrightToolConfig       `yaml:"playwright,omitempty"`
-	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
+	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty" json:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	DriveMemory      *DriveMemoryToolConfig      `yaml:"drive-memory,omitempty"`
 	CommentMemory    *CommentMemoryToolConfig    `yaml:"comment-memory,omitempty"`
@@ -99,6 +99,26 @@ type ToolsConfig struct {
 	// Raw map for backwards compatibility
 	raw            map[string]any
 	ledgerParseErr error
+}
+
+// UnmarshalJSON preserves the boolean, null, and object forms of agentic-workflows.
+func (t *ToolsConfig) UnmarshalJSON(data []byte) error {
+	type toolsConfigAlias ToolsConfig
+	decoded := struct {
+		*toolsConfigAlias
+		AgenticWorkflows json.RawMessage `json:"agentic-workflows"`
+	}{toolsConfigAlias: (*toolsConfigAlias)(t)}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	if len(decoded.AgenticWorkflows) > 0 {
+		var value any
+		if err := json.Unmarshal(decoded.AgenticWorkflows, &value); err != nil {
+			return err
+		}
+		t.AgenticWorkflows = parseAgenticWorkflowsTool(value)
+	}
+	return nil
 }
 
 // Tools is a type alias for ToolsConfig for backward compatibility.
@@ -491,8 +511,8 @@ type EditToolConfig struct {
 
 // AgenticWorkflowsToolConfig represents the configuration for the agentic-workflows tool
 type AgenticWorkflowsToolConfig struct {
-	Enabled         bool `yaml:"-"`
-	AllowWriteTools bool `yaml:"allow-write-tools,omitempty"`
+	Enabled         bool `yaml:"-" json:"-"`
+	AllowWriteTools bool `yaml:"allow-write-tools,omitempty" json:"allow-write-tools,omitempty"`
 }
 
 // CacheMemoryToolConfig represents the configuration for cache-memory
