@@ -78,6 +78,7 @@ function hasRateLimitIndicator(messageLower) {
  * @returns {boolean} True if the error is transient and should be retried
  */
 function isTransientError(error) {
+  if (error?.code === "ERR_TRANSPORT_INTEGRITY") return false;
   const errorMsg = getErrorMessage(error);
   const errorMsgLower = errorMsg.trimStart().toLowerCase();
   const status = error?.response?.status ?? error?.status ?? null;

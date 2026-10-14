@@ -146,7 +146,8 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
     const result = await run();
     expect(applied).toBe(patchContent);
     expect(result.error).toContain("SECURITY:");
-    expect(global.exec.exec.mock.calls.filter(([, args]) => args[0] === "am")).toHaveLength(1);
+    expect(global.exec.exec.mock.calls.filter(([, args]) => args[0] === "am" && args[1] === "--3way")).toHaveLength(1);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--abort"], expect.objectContaining({ cwd: expect.any(String) }));
     assertNoRemoteSideEffects();
   });
 

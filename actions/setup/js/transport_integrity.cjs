@@ -4,11 +4,17 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
+const READ_FLAGS = fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK;
 
 class TransportIntegrityError extends Error {
-  constructor(filePath, cause = undefined) {
-    super(`SECURITY: Safe-output transport changed after capture: ${filePath}`, { cause });
+  /** @param {unknown} [cause] */
+  constructor(filePath, cause = undefined, operation = "verify", reason = "artifact changed") {
+    const systemCode = cause && typeof cause === "object" && "code" in cause && typeof cause.code === "string" && /^E[A-Z0-9]+$/.test(cause.code) ? ` (${cause.code})` : "";
+    super(`SECURITY: Safe-output transport changed after capture: ${filePath}; ${operation}: ${reason}${systemCode}`, { cause });
     this.name = "TransportIntegrityError";
+    this.code = "ERR_TRANSPORT_INTEGRITY";
+    this.operation = operation;
+    this.reason = reason;
   }
 }
 
@@ -19,52 +25,67 @@ const digest = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
  * the agent-writable originals, so checking a hash cannot race with git's open().
  */
 function createTransportIntegrity() {
-  /** @type {Map<string, { bytes: Buffer, hash: string, dev: number, ino: number, snapshot?: string }>} */
+  /** @typedef {{hash: string, dev: number, ino: number, size: number}} FileIdentity */
+  /** @type {Map<string, FileIdentity & {bytes: Buffer, snapshot?: FileIdentity & {path: string}}>} */
   const inputs = new Map();
+  /** @type {Map<string, () => Promise<unknown>>} */
+  const cleanups = new Map();
   let directory = "";
   /** @type {TransportIntegrityError | null} */
   let failure = null;
 
-  function fail(filePath, cause = undefined) {
-    failure ||= new TransportIntegrityError(filePath, cause);
+  /** @returns {never} */
+  function fail(filePath, cause = undefined, operation = "verify", reason = "unable to read artifact") {
+    failure ||= new TransportIntegrityError(filePath, cause, operation, reason);
     throw failure;
   }
 
   function captureOptional(filePath) {
     if (!filePath || inputs.has(filePath)) return;
     try {
-      const fd = fs.openSync(filePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      const fd = fs.openSync(filePath, READ_FLAGS);
       try {
         const stat = fs.fstatSync(fd);
-        if (!stat.isFile()) fail(filePath);
+        if (!stat.isFile()) fail(filePath, undefined, "capture", "not a regular file");
         const bytes = fs.readFileSync(fd);
-        inputs.set(filePath, { bytes, hash: digest(bytes), dev: stat.dev, ino: stat.ino });
+        inputs.set(filePath, { bytes, hash: digest(bytes), dev: stat.dev, ino: stat.ino, size: stat.size });
       } finally {
         fs.closeSync(fd);
       }
-    } catch {
+    } catch (error) {
       // A resolved canonical path was present. Losing access to it must not be
       // interpreted as an absent/empty patch (including allow-empty handlers).
-      fail(filePath);
+      fail(filePath, error, "capture");
+    }
+  }
+
+  /** @param {FileIdentity} identity */
+  function verifyFile(filePath, identity, contents) {
+    try {
+      const fd = fs.openSync(filePath, READ_FLAGS);
+      try {
+        const stat = fs.fstatSync(fd);
+        if (!stat.isFile()) fail(filePath, undefined, "verify", "not a regular file");
+        if (stat.dev !== identity.dev || stat.ino !== identity.ino) fail(filePath, undefined, "verify", "file identity changed");
+        if (stat.size !== identity.size || (contents && digest(fs.readFileSync(fd)) !== identity.hash)) fail(filePath, undefined, "verify", "content changed");
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch (error) {
+      fail(filePath, error);
+    }
+  }
+
+  function checkUnchanged(contents) {
+    if (failure) throw failure;
+    for (const [filePath, input] of inputs) {
+      verifyFile(filePath, input, contents);
+      if (input.snapshot) verifyFile(input.snapshot.path, input.snapshot, contents);
     }
   }
 
   function assertUnchanged() {
-    if (failure) throw failure;
-    for (const [filePath, input] of inputs) {
-      try {
-        const fd = fs.openSync(filePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
-        try {
-          const stat = fs.fstatSync(fd);
-          if (!stat.isFile() || stat.dev !== input.dev || stat.ino !== input.ino || digest(fs.readFileSync(fd)) !== input.hash) fail(filePath);
-        } finally {
-          fs.closeSync(fd);
-        }
-        if (input.snapshot && digest(fs.readFileSync(input.snapshot)) !== digest(input.bytes)) fail(filePath);
-      } catch {
-        fail(filePath);
-      }
-    }
+    checkUnchanged(true);
   }
 
   function read(filePath) {
@@ -85,13 +106,15 @@ function createTransportIntegrity() {
           directory = fs.mkdtempSync(path.join(os.tmpdir(), ".gh-aw-transport-"));
           fs.chmodSync(directory, 0o700);
         }
-        input.snapshot = path.join(directory, path.basename(filePath));
-        fs.writeFileSync(input.snapshot, input.bytes, { mode: 0o400, flag: "wx" });
+        const snapshotPath = path.join(directory, path.basename(filePath));
+        fs.writeFileSync(snapshotPath, input.bytes, { mode: 0o400, flag: "wx" });
+        const stat = fs.statSync(snapshotPath);
+        input.snapshot = { path: snapshotPath, hash: digest(input.bytes), dev: stat.dev, ino: stat.ino, size: stat.size };
       }
     } catch (error) {
-      fail(filePath, error);
+      fail(filePath, error, "snapshot", "unable to create snapshot");
     }
-    return input.snapshot;
+    return input.snapshot.path;
   }
 
   // Only trusted transformations of previously captured validation bytes belong
@@ -102,9 +125,9 @@ function createTransportIntegrity() {
     if (!input) throw new Error(`No captured transport file: ${filePath}`);
     if (input.snapshot) {
       try {
-        fs.unlinkSync(input.snapshot);
+        fs.unlinkSync(input.snapshot.path);
       } catch (error) {
-        fail(filePath, error);
+        fail(filePath, error, "transform", "unable to remove snapshot");
       }
       input.snapshot = undefined;
     }
@@ -115,18 +138,64 @@ function createTransportIntegrity() {
     const guarded = { ...execApi };
     for (const method of ["exec", "getExecOutput"]) {
       guarded[method] = async (command, args = [], ...options) => {
-        assertUnchanged();
+        const cleanupKey = cleanupArgs => JSON.stringify([options[0]?.cwd || process.cwd(), cleanupArgs]);
+        const key = cleanupKey(args);
+        // Only cleanup registered by this guard may bypass a sticky failure.
+        if (command === "git" && cleanups.has(key)) {
+          const result = await execApi[method](command, args, ...options);
+          if ((method === "exec" ? result : result.exitCode) === 0) cleanups.delete(key);
+          return result;
+        }
+        const usesTransport = command === "git" && args.some(arg => inputs.has(arg));
+        const verifyContents = usesTransport || (command === "git" && args[0] === "push");
+        // Full byte checks remain mandatory at reads, application, publication,
+        // and handler completion. Unrelated local commands only check identity.
+        checkUnchanged(verifyContents);
         const stableArgs = command === "git" ? args.map(arg => (inputs.has(arg) ? snapshot(arg) : arg)) : args;
+        const cleanupOptions = [{ ...options[0], cwd: options[0]?.cwd || process.cwd() }, ...options.slice(1)];
+        let amCleanupKey;
+        if (usesTransport && args[0] === "am" && args[1] === "--3way") {
+          amCleanupKey = cleanupKey(["am", "--abort"]);
+          cleanups.set(amCleanupKey, () => execApi.exec("git", ["am", "--abort"], ...cleanupOptions));
+        }
+        if (usesTransport && args[0] === "fetch") {
+          for (const refspec of args.slice(2)) {
+            const ref = refspec.split(":")[1];
+            if (ref?.startsWith("refs/bundles/")) {
+              const cleanup = ["update-ref", "-d", ref];
+              cleanups.set(cleanupKey(cleanup), () => execApi.exec("git", cleanup, ...cleanupOptions));
+            }
+          }
+        }
         try {
-          return await execApi[method](command, stableArgs, ...options);
+          const result = await execApi[method](command, stableArgs, ...options);
+          if ((method === "exec" ? result : result.exitCode) === 0) {
+            if (amCleanupKey) cleanups.delete(amCleanupKey);
+            if (command === "git" && args[0] === "am" && args[1] === "--continue") cleanups.delete(cleanupKey(["am", "--abort"]));
+          }
+          return result;
         } finally {
-          // Also detect changes made while git was running, before any push/API
-          // side effects, including when the command itself failed.
-          assertUnchanged();
+          // Detect identity changes immediately; apply/push commands also
+          // recheck bytes, including when the command itself failed.
+          checkUnchanged(verifyContents);
         }
       };
     }
     return guarded;
+  }
+
+  async function cleanup() {
+    const errors = [];
+    for (const run of cleanups.values()) {
+      try {
+        const exitCode = await run();
+        if (typeof exitCode === "number" && exitCode !== 0) throw new Error(`Git cleanup exited with code ${exitCode}`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    cleanups.clear();
+    if (errors.length) throw new AggregateError(errors, "Failed to clean up safe-output Git state", { cause: failure });
   }
 
   function dispose() {
@@ -137,7 +206,18 @@ function createTransportIntegrity() {
     }
   }
 
-  return { captureOptional, read, transform, assertUnchanged, guardExec, dispose };
+  return {
+    captureOptional,
+    read,
+    transform,
+    assertUnchanged,
+    guardExec,
+    cleanup,
+    dispose,
+    get failure() {
+      return failure;
+    },
+  };
 }
 
 function withTransportIntegrity(handler) {
@@ -148,10 +228,16 @@ function withTransportIntegrity(handler) {
       transport.assertUnchanged();
       return result;
     } catch (error) {
-      if (!(error instanceof TransportIntegrityError)) throw error;
-      return { success: false, error: error.message };
+      const integrityError = transport.failure || (error instanceof TransportIntegrityError ? error : null);
+      if (!integrityError) throw error;
+      if (typeof core !== "undefined") core.error(integrityError.message);
+      return { success: false, error: integrityError.message, error_type: integrityError.code };
     } finally {
-      transport.dispose();
+      try {
+        await transport.cleanup();
+      } finally {
+        transport.dispose();
+      }
     }
   };
 }
