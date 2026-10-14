@@ -1741,6 +1741,14 @@ The canonical, schema-defined intermediate representation of an agent run's exec
 
 A catalog of non-built-in, importable grader definitions under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
 
+### Work Queue (`tools.work-queue`)
+
+A native, Git-backed queue for fair scheduling of [Work](#claim-work-queue) with immutable task dependency graphs. Its only source of authority is the `work-queue.jsonl` transaction log. The first accepted producer or dispatcher submission initializes the queue with a Policy and Work; Issues and pull requests can be dependency nodes but cannot store the queue. Distinct from the lightweight issue-checklist approach in [WorkQueueOps](#workqueueops). See [Work Queues](/gh-aw/reference/work-queue/) and the [specification](/gh-aw/specs/work-queue-specification/).
+
+### Claim (Work Queue)
+
+Authorization for one attempt at a Work item in a native [work queue](#work-queue-toolswork-queue), identified by its original `claim_handle`. Worker effects are scoped to the Claim, and a Result is recorded only after independently verified delivery of those effects. See [Work Queues](/gh-aw/reference/work-queue/).
+
 ## Operational Patterns
 
 Operational patterns (suffixed with "-Ops") are established workflow architectures for common automation scenarios. Each pattern addresses specific use cases with recommended triggers, tools, and safe outputs.
