@@ -1,31 +1,32 @@
 {
-  "date": "2026-09-27",
-  "window_start": "2026-09-26T08:12:59Z",
-  "window_end": "2026-09-27T08:12:59Z",
-  "themes": [
-    "safe_outputs_reliability_variance",
-    "agent_failure_containment",
-    "high_throughput_triage_baseline"
-  ],
-  "carry_forward_questions": [
-    "Does failure investigator continue to neutralize recurrent agent_logic failures over the next 24h?",
-    "Do integration-heavy workflows reduce report_incomplete frequency after updater cycles?",
-    "Can high-token failing workflows be pruned or constrained earlier via detection guards?"
-  ],
-  "representative_runs": [
-    36269159251,
-    36283212457,
-    36276480781,
-    36304004654
-  ],
-  "last_run_date": "2026-09-28",
+  "last_run_date": "2026-10-14",
   "last_window": {
-    "start": "2026-09-27T08:00:00Z",
-    "end": "2026-09-28T08:00:00Z"
+    "start": "2026-10-13T08:00:00Z",
+    "end": "2026-10-14T08:00:00Z"
+  },
+  "observed_window": {
+    "start": "2026-10-13T19:33:36Z",
+    "end": "2026-10-14T07:55:02Z",
+    "coverage": "partial; additional logs fetch remained count-limited",
+    "run_records": 294,
+    "detailed_summaries": 277
   },
   "key_themes": [
-    "scheduled failure investigation as stabilizer",
-    "high baseline success in core recurring workflows",
-    "persistent auth/integration friction pockets"
+    "failure-to-investigation closure loop remains mixed",
+    "publication-boundary repair loop has one merged and two open fixes",
+    "review-and-revision loop remains prospective"
+  ],
+  "carry_forward_questions": [
+    "Did Issue Arborist succeed after merged PR #68623?",
+    "Do PRs #68625, #68626 and #68628 merge and improve hosted runs?",
+    "Does Daily Go Test Parallelizer stay successful after its five failures?"
+  ],
+  "representative_runs": [
+    38478313671,
+    38469476854,
+    38502082778,
+    38516088692,
+    38516167447,
+    38511328806
   ]
 }
