@@ -1,11 +1,67 @@
 import hashlib
 import json
+import os
 from pathlib import Path
+import re
 import tempfile
 import sys
 import unittest
+from unittest.mock import patch
 
+import check
 from check import MUTATIONS, ROOT, check_compiled_workflows, check_result, concretize, normalize_trace
+
+
+class RuntimePinTest(unittest.TestCase):
+    def test_release_pin_matches_workflow_and_documentation(self):
+        expected = "0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9"
+        self.assertEqual(check.JAR_SHA256, expected)
+        workflow = (ROOT.parents[1] / ".github/workflows/daily-workflow-security-model.md").read_text()
+        self.assertIn("https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar",
+                      workflow)
+        match = re.search(
+            r"printf '%s  %s\\n' \\\n\s+([a-f0-9]{64}) \\\n"
+            r'\s+"\$tools/tla2tools\.jar" \| sha256sum --check --strict',
+            workflow,
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group(1), expected)
+        self.assertIn(expected, (ROOT / "README.md").read_text())
+
+    def test_missing_or_mismatched_jar_fails_before_execution(self):
+        for present in [False, True]:
+            with self.subTest(present=present), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                jar = root / "tla2tools.jar"
+                if present:
+                    jar.write_bytes(b"not the pinned TLA+ runtime")
+                results = root / "results"
+                with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                     patch.object(sys, "argv", ["check.py", "--results", str(results)]), \
+                     patch.object(check, "run_case") as run_case, \
+                     patch("sys.stderr"):
+                    with self.assertRaises(SystemExit) as error:
+                        check.main()
+                self.assertEqual(error.exception.code, 2)
+                run_case.assert_not_called()
+                self.assertFalse(results.exists())
+
+    def test_matching_jar_reaches_model_checker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "tla2tools.jar"
+            jar.write_bytes(b"local runtime fixture")
+            results = root / "results"
+            digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(sys, "argv", ["check.py", "--results", str(results)]), \
+                 patch.object(check, "JAR_SHA256", digest), \
+                 patch.object(check, "run_case", side_effect=RuntimeError("fixture boundary")) as run_case:
+                with self.assertRaisesRegex(RuntimeError, "fixture boundary"):
+                    check.main()
+            run_case.assert_called_once()
+            self.assertEqual(run_case.call_args.args[1], jar.resolve())
+            self.assertTrue(results.is_dir())
 
 
 class ResultContractTest(unittest.TestCase):
