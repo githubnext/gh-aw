@@ -1,53 +1,55 @@
 # ADR-68806: Make PR bundle history recovery explicit and validate bundles offline
 
 **Date**: 2026-10-14
-**Status**: Draft
-**Deciders**: Unknown (PR #68806 authored by @pelikhan)
+**Status**: Proposed
+**Deciders**: PR #68806 maintainers (author: @pelikhan)
 
 ---
 
 ### Context
 
-Safe-output pull-request handlers (`create_pull_request` and `push_to_pull_request_branch`) import agent-produced Git bundles and validate them before publishing. A previous change (#68717, reverted in #68795) made these handlers recover missing history automatically by fetching, deepening, or unshallowing the repository. In shallow or partially-cloned monorepo checkouts that escalation can trigger effectively unbounded object downloads, and it does so implicitly on a path that runs with checkout credentials. At the same time, validation still needs a trusted baseline (the base-branch tip) and access to enough local history and content to run protected-file, transient-history, octopus-merge, patch-size, and expanded-content checks. The handlers must therefore keep validating correctly in shallow checkouts without silently fetching objects to do so.
+Safe-output pull-request handlers (`create_pull_request` and `push_to_pull_request_branch`) import agent-produced Git bundles and validate their prerequisites, history, and changed content before publishing. [PR #68717](https://github.com/github/gh-aw/pull/68717), merged as [96b2d13](https://github.com/github/gh-aw/commit/96b2d13e5d3abe1240deed2a93f7b26db7d2a8e0), changed the push handler to fetch the live base-branch tip from the target checkout's origin so validation could distinguish trusted base changes from agent changes; automatic bundle-prerequisite recovery already existed. [PR #68795](https://github.com/github/gh-aw/pull/68795), commit [392e085](https://github.com/github/gh-aw/commit/392e085cc15345c181314bb6841184fc99ce34d4), reverted that change because fetching the live tip in massive shallow monorepos could download unrestricted reachable history. Partial clones also risk implicit downloads during local object inspection, while fork PRs may require prerequisites available only from the head repository under different credentials. The design must preserve validation without implicit object downloads, distinguish target-base provenance from head-history recovery, and make any potentially unbounded recovery a deliberate choice.
 
 ### Decision
 
-We will make history recovery an explicit, per-handler opt-in and make bundle validation offline by default. Trusted base tips are resolved with a metadata-only, exact-ref `git ls-remote --refs --exit-code` using the target-checkout credentials (never fork-head credentials), with the returned SHA validated and pinned; no object fetch is ever performed to establish an optional baseline. Bundles are imported with `git bundle unbundle` under `GIT_ALLOW_PROTOCOL=""` and `GIT_NO_LAZY_FETCH=1`, so import, prerequisite checks, and ancestry/tree inspection cannot reach the network even on Git versions that ignore lazy-fetch suppression. When trusted metadata or local history/content is insufficient, validation falls back conservatively to PR-head validation, and missing required content fails rather than bypassing a check. Automatic fetch/deepen/unshallow escalation is removed from both handlers and replaced by an `allow-full-history-fetch` boolean that lives on each applicable handler (not on the global `safe-outputs` object), defaults to `false`, and accepts only literal booleans. The primary driver is security and cost predictability: network access and unbounded downloads must be a deliberate, locally-scoped configuration choice.
+History recovery will require `allow-full-history-fetch: true` on the specific `create-pull-request` or `push-to-pull-request-branch` handler; this default-false option accepts only literal booleans, not strings or expressions, and is not a global `safe-outputs` setting. The opt-in explicitly permits potentially unbounded prerequisite fetch and unshallow downloads, so authenticated provisioning of the necessary objects before validation is preferred.
+
+Trusted base-tip discovery will always use a validated, exact `refs/heads/` ref and metadata-only `git ls-remote --refs --exit-code` against the trusted target origin with its own credentials, pinning the validated returned SHA; neither setting of the opt-in permits an object fetch solely to establish this optional baseline. Explicit prerequisite recovery for a fork PR will instead use the validated PR head remote and its head credentials, keeping recovery authentication separate from target-origin baseline authentication; head metadata, bundle metadata, and workflow-start SHAs do not independently establish a trusted base.
+
+Bundle import via `git bundle unbundle`, prerequisite checks, optional baseline ancestry/tree inspection, and the push handler's bundle diff/history checks will use `GIT_ALLOW_PROTOCOL=""` together with `GIT_NO_LAZY_FETCH=1`, so protocol denial also blocks implicit lazy downloads on Git versions that do not honor lazy-fetch suppression. If trusted metadata or local ancestry cannot establish the optional baseline, the push handler will conservatively retain PR-head validation without excluding unverified base history; missing objects required for validation will fail rather than bypass checks. The primary drivers are credential isolation and avoiding implicit download costs, not a byte limit or a fully network-free handler.
 
 ### Alternatives Considered
 
-#### Alternative 1: Restore automatic prerequisite recovery with bounds (depth limits, blob filters, fetch-by-SHA)
+#### Alternative 1: Keep automatic recovery and live base-tip fetching with depth limits, blob filters, or exact SHAs
 
-This is the reverted #68717 approach, optionally constrained by `--depth`, `--filter=blob:none`, or fetching exact SHAs. It was considered because it keeps shallow checkouts working with zero configuration. It was rejected because none of those knobs is a byte bound — a depth-limited or filtered fetch in a large monorepo can still transfer arbitrarily much — and because implicit network access on a credentialed handler path is exactly the behaviour the revert was meant to stop.
+Retain the convenience of automatic prerequisite recovery and restore the live-tip fetch from #68717, reducing transfer with `--depth`, `--filter=blob:none`, or exact-SHA requests. These controls can reduce some fetches, but none is a byte bound: a wide commit can contain many objects, filtered clones may later download missing content, and fetching an exact commit can include its reachable history. This alternative does not remove the implicit-download risk that motivated #68795.
 
 #### Alternative 2: A single global `safe-outputs.allow-full-history-fetch` flag
 
-One top-level switch would be simpler to document and to set once per workflow. It was rejected because it couples two independently risky handlers: enabling recovery for `create-pull-request` would silently enable it for `push-to-pull-request-branch` as well. Per-handler settings keep the blast radius of the opt-in scoped to the handler that actually needs it, and the schema change (`pkg/parser/schemas/main_workflow_schema.json`) rejects the global/string/expression forms explicitly.
+One top-level switch would be simpler to document and set once per workflow. It would, however, enable recovery for both publishing handlers even when only one needs it. Per-handler settings make the download authorization explicit at each consumer, at the cost of repeated configuration when both handlers require recovery.
 
 #### Alternative 3: Always require a deep (non-shallow) checkout for bundle-publishing workflows
 
-Documenting "use `fetch-depth: 0`" and failing otherwise would remove recovery logic entirely. It was rejected as too blunt: many shallow checkouts already contain the required objects and validate fine offline, and forcing full clones would impose the worst-case download cost on every run instead of only on the runs that need it.
+Requiring `fetch-depth: 0` for every publishing workflow would simplify history handling, but unnecessarily downloads history when a shallow checkout and its bundle already contain the required objects. Full history alone also does not guarantee that partial-clone blobs or fork-only prerequisites are present. Authenticated, repository-aware provisioning remains the preferred operational approach; the opt-in is retained for workflows that need handler-side recovery rather than imposing a deep checkout on all workflows.
 
 ### Consequences
 
 #### Positive
-- Bundle import and validation perform no network I/O by default, so a malicious or malformed bundle cannot induce fetches with checkout credentials.
-- Download cost becomes predictable: unbounded history transfer only happens when a maintainer sets `allow-full-history-fetch: true` on a specific handler.
-- Baseline discovery is metadata-only and pinned to an exact ref, eliminating object transfer for optional baselines and removing fork-head credential use from the trusted path.
-- Errors are actionable and credential-safe: they explain how to provision objects during authenticated checkout or how to enable the opt-in, using fixed diagnostics without raw command output.
+- Bundle import and local validation do not fetch objects implicitly, including from partial-clone promisor remotes.
+- Metadata-only base discovery preserves trusted target-origin provenance without downloading optional baseline objects or borrowing fork-head credentials.
+- Per-handler authorization makes potentially unbounded recovery explicit; diagnostics can direct maintainers to authenticated provisioning or the opt-in without exposing raw remote errors.
 
 #### Negative
-- Partial clones can now fail offline when required blobs/trees are absent even though the commit objects exist, turning a previously self-healing case into a workflow failure that needs configuration.
-- Conservative fallback to PR-head validation means some runs validate against a weaker baseline than the true merge base, reducing the precision of history-based checks.
-- The opt-in adds configuration surface duplicated across two handlers, so maintainers can enable it on one handler and still hit failures on the other.
-- `GIT_ALLOW_PROTOCOL=""` plus `GIT_NO_LAZY_FETCH=1` must be threaded through every Git invocation on these paths; any future call site that forgets them silently reopens the network hole.
+- Shallow or partial checkouts can fail when required commits, trees, or blobs are missing, replacing automatic recovery with an explicit provisioning decision.
+- Conservative PR-head fallback can count legitimate base-branch changes as agent changes and reject a valid base merge; it intentionally does not relax protected-file or history checks.
+- Opted-in recovery has no promised byte bound and can still be expensive or fail when the selected remote or credentials cannot supply the prerequisites. Fork-aware remote selection and credential separation add implementation and regression-test complexity.
+- Both handlers need their own opt-in, and future local Git inspection calls must preserve the offline environment to avoid reintroducing implicit downloads.
 
 #### Neutral
-- Shallow checkouts with locally available prerequisites behave exactly as before; shallow boundaries are unchanged.
-- Workflow-start SHAs and agent-supplied metadata are explicitly not treated as trusted provenance.
-- Ordinary PR-head fetch/push and the existing signed-push recovery path are out of scope for this change.
-- The change spans JS handlers (`actions/setup/js/`), Go compiler/registry code (`pkg/workflow/`), the workflow JSON schema (`pkg/parser/schemas/`), and reference docs, so the new option is validated at compile time as well as at run time.
+- A shallow checkout is not itself an error if required objects and checks are available locally; offline validation does not deepen or unshallow it.
+- Metadata discovery, ordinary PR-head fetch/push, and existing signed-push recovery are separate from offline bundle validation. This decision does not claim that the complete handler performs no network I/O or that the option bounds all handler transfers.
+- The option must remain consistent across the JS handlers, Go configuration/compiler/registry, workflow schema, tests, and reference documentation.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*This proposal records the reviewed implementation contract for PR #68806. Maintainer acceptance remains pending.*

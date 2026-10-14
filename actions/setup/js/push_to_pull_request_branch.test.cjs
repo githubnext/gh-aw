@@ -2964,6 +2964,98 @@ index 0000000..abc1234
       }
     });
 
+    it.each([
+      { fork: false, failRecovery: false },
+      { fork: true, failRecovery: false },
+      { fork: true, failRecovery: true },
+    ])("scopes opted-in bundle recovery to PR-head credentials without changing target metadata (fork: $fork, failure: $failRecovery)", async ({ fork, failRecovery }) => {
+      const bundlePath = canonicalBundlePath("feature-branch");
+      createPatchFile("feature-branch", "small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+      const prerequisite = "b".repeat(40);
+      const candidate = "c".repeat(40);
+      const targetHeader = "Authorization: basic synthetic-target-checkout";
+      const headToken = "synthetic-head-token";
+      const headHeader = `Authorization: basic ${Buffer.from(`x-access-token:${headToken}`).toString("base64")}`;
+      const headRepo = fork ? "test-owner/automation-fork" : "test-owner/test-repo";
+      const remote = fork ? "https://github.com/test-owner/automation-fork.git" : "origin";
+      const head = { ref: "feature-branch", repo: { full_name: headRepo, fork } };
+      mockContext.payload.pull_request.head = head;
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: { head, base: { ref: "main", repo: { full_name: "test-owner/test-repo" } }, title: "Recovery PR", labels: [] },
+      });
+      let header = targetHeader;
+      let recovered = false;
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockResolvedValue(candidate);
+      mockExec.exec.mockImplementation(async (_cmd, args, options) => {
+        if (args[0] === "config" && args.includes("--replace-all")) {
+          expect(options.silent).toBe(true);
+          header = args.at(-1);
+        }
+        return 0;
+      });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args, options) => {
+        if (args[0] === "config") {
+          if (args.includes("--get-all")) return { exitCode: 0, stdout: header ? `${header}\n` : "", stderr: "" };
+          if (args.includes("--unset-all")) header = "";
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        if (args[0] === "ls-remote") {
+          if (args.includes("--refs")) {
+            expect(header).toBe(targetHeader);
+            expect(args).toEqual(["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"]);
+            return { exitCode: 0, stdout: `${"a".repeat(40)}\trefs/heads/main\n`, stderr: "" };
+          }
+          return { exitCode: 0, stdout: `${prerequisite}\trefs/heads/feature-branch\n`, stderr: "" };
+        }
+        if (args[0] === "bundle") {
+          expect(options.env.GIT_ALLOW_PROTOCOL).toBe("");
+          expect(header).toBe(targetHeader);
+          return args[1] === "verify" ? { exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${prerequisite}\n` } : { exitCode: 0, stdout: `${candidate} HEAD\n`, stderr: "" };
+        }
+        if (args[0] === "cat-file") return { exitCode: recovered ? 0 : 1, stdout: "", stderr: "" };
+        if (args[0] === "rev-parse") return { exitCode: 0, stdout: args[1] === "--is-shallow-repository" ? "true\n" : `${prerequisite}\n`, stderr: "" };
+        if (args[0] === "fetch") {
+          expect(args.includes(remote)).toBe(true);
+          expect(header).toBe(headHeader);
+          expect(options.silent).toBe(true);
+          if (failRecovery) return { exitCode: 128, stdout: "", stderr: `synthetic private remote diagnostic ${headToken}` };
+          if (args[1] !== "--unshallow") recovered = true;
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      try {
+        const module = await loadModule();
+        const handler = await module.main({
+          signed_commits: false,
+          allow_full_history_fetch: true,
+          "head-repo": headRepo,
+          "head-github-token": headToken,
+          allowed_repos: ["test-owner/test-repo", headRepo],
+        });
+        const result = await handler({ branch: "feature-branch" }, {});
+        expect(result.success).toBe(!failRecovery);
+        expect(recovered).toBe(!failRecovery);
+        expect(header).toBe(targetHeader);
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "--unshallow", remote], expect.any(Object));
+        if (failRecovery) {
+          expect(result.error).toContain("Explicit bundle history recovery failed");
+          expect(result.error).not.toContain("synthetic");
+          expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "bundle" && args[1] === "unbundle")).toBe(false);
+        } else {
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", remote, prerequisite], expect.any(Object));
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "unbundle", bundlePath], expect.objectContaining({ env: expect.objectContaining({ GIT_ALLOW_PROTOCOL: "", GIT_NO_LAZY_FETCH: "1" }) }));
+        }
+        const logs = JSON.stringify([mockCore.info.mock.calls, mockCore.warning.mock.calls, mockCore.error.mock.calls, mockCore.debug.mock.calls]);
+        expect(logs).not.toContain(headToken);
+        expect(logs).not.toContain(headHeader);
+        expect(logs).not.toContain(targetHeader);
+        expect(logs).not.toContain("synthetic private remote diagnostic");
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should squash merge commits into a single regular commit before pushSignedCommits", async () => {
       // Scenario: agent ran `git merge origin/main` producing a merge commit.
       // The handler must detect the merge commit in the range and perform a

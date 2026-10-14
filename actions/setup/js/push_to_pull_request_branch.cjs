@@ -1123,7 +1123,12 @@ async function main(config = {}) {
               env: { ...process.env, ...gitAuthEnv },
               ...baseGitOpts,
             },
-            { bundleFilePath, allowFullHistoryFetch: config.allow_full_history_fetch === true }
+            {
+              bundleFilePath,
+              allowFullHistoryFetch: config.allow_full_history_fetch === true,
+              remote: branchRemoteName,
+              withRecoveryCredentials: fetch => withGitHubHostToken(headGitHubToken, fetch, baseGitOpts.cwd),
+            }
           );
 
           await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);

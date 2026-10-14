@@ -193,6 +193,37 @@ describe("offline bundle transport with real Git", () => {
     await importLocalBundle(exec, bundle, "HEAD", "refs/bundles/test");
   });
 
+  it.each([false, true])("recovers fork-only prerequisites from the selected head remote (shallow target: %s)", async shallowTarget => {
+    const fork = path.join(root, "fork");
+    git(root, ["clone", source, fork]);
+    git(fork, ["config", "user.name", "Bundle Test"]);
+    git(fork, ["config", "user.email", "bundle@example.com"]);
+    git(fork, ["checkout", "-b", "feature"]);
+    fs.writeFileSync(path.join(fork, "fork.txt"), "fork-only prerequisite\n");
+    git(fork, ["add", "."]);
+    git(fork, ["commit", "-m", "fork-only"]);
+    const prerequisite = git(fork, ["rev-parse", "HEAD"]);
+    fs.writeFileSync(path.join(fork, "agent.txt"), "agent\n");
+    git(fork, ["add", "."]);
+    git(fork, ["commit", "-m", "agent"]);
+    const candidate = git(fork, ["rev-parse", "HEAD"]);
+    const bundle = path.join(root, "fork.bundle");
+    git(fork, ["bundle", "create", bundle, "feature", `^${prerequisite}`]);
+    git(fork, ["reset", "--hard", prerequisite]);
+    // The candidate exists only in the bundle; its prerequisite only in the fork.
+    const target = path.join(root, "target");
+    git(root, ["clone", ...(shallowTarget ? ["--depth=1"] : []), `file://${source}`, target]);
+    const exec = execApi(target);
+    const remote = `file://${fork}`;
+    await expect(ensureFullHistoryForBundle(exec, {}, { bundleFilePath: bundle, remote })).rejects.toThrow("disabled by default");
+    expect(exec.calls.some(args => args[0] === "fetch")).toBe(false);
+    await ensureFullHistoryForBundle(exec, {}, { bundleFilePath: bundle, allowFullHistoryFetch: true, remote });
+    expect(exec.calls.filter(args => args[0] === "fetch").every(args => args.includes(remote) && !args.includes("origin"))).toBe(true);
+    await importLocalBundle(exec, bundle, "refs/heads/feature", "refs/bundles/fork");
+    expect(git(target, ["rev-parse", "refs/bundles/fork"])).toBe(candidate);
+    expect(git(target, ["remote", "get-url", "origin"])).toBe(`file://${source}`);
+  });
+
   it("uses only target-checkout credentials for metadata and falls back silently when unavailable", async () => {
     const tip = git(source, ["rev-parse", "HEAD"]);
     const requests = [];
@@ -261,7 +292,7 @@ describe("offline bundle transport with real Git", () => {
     const exec = execApi(empty);
     const run = exec.getExecOutput;
     exec.getExecOutput = vi.fn((command, args, options) => (args[0] === "fetch" ? Promise.resolve({ exitCode: 128, stdout: "", stderr: "synthetic private diagnostic" }) : run(command, args, options)));
-    await expect(ensureFullHistoryForBundle(exec, {}, { bundleFilePath: bundle, allowFullHistoryFetch: true })).rejects.toThrow("Provision the required objects during authenticated checkout with credentials for the target repository.");
+    await expect(ensureFullHistoryForBundle(exec, {}, { bundleFilePath: bundle, allowFullHistoryFetch: true })).rejects.toThrow("Provision the required objects during authenticated checkout with credentials for the recovery repository.");
     expect(exec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", prerequisite], expect.objectContaining({ silent: true }));
     expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("synthetic");
   });

@@ -559,6 +559,7 @@ describe("git_helpers.cjs", () => {
 
     it("should skip deepening when bundle declares no prerequisites", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const withRecoveryCredentials = vi.fn();
       const execApi = {
         getExecOutput: vi.fn().mockImplementation((cmd, args) => {
           if (args[0] === "rev-parse") return Promise.resolve({ stdout: "true\n" });
@@ -570,14 +571,16 @@ describe("git_helpers.cjs", () => {
         exec: vi.fn().mockResolvedValue(0),
       };
 
-      await ensureFullHistoryForBundle(execApi, {}, { baseRef: "main", bundleFilePath: "/tmp/test.bundle" });
+      await ensureFullHistoryForBundle(execApi, {}, { bundleFilePath: "/tmp/test.bundle", allowFullHistoryFetch: true, withRecoveryCredentials });
 
       expect(execApi.exec).not.toHaveBeenCalled();
+      expect(withRecoveryCredentials).not.toHaveBeenCalled();
     });
 
     it("should skip fetching when prereqs are already present locally", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const prereq = "b".repeat(40);
+      const withRecoveryCredentials = vi.fn();
       const execApi = {
         getExecOutput: vi.fn().mockImplementation((cmd, args) => {
           if (args[0] === "rev-parse") return Promise.resolve({ stdout: "true\n" });
@@ -592,9 +595,82 @@ describe("git_helpers.cjs", () => {
         exec: vi.fn().mockResolvedValue(0),
       };
 
-      await ensureFullHistoryForBundle(execApi, {}, { baseRef: "main", bundleFilePath: "/tmp/test.bundle" });
+      await ensureFullHistoryForBundle(execApi, {}, { bundleFilePath: "/tmp/test.bundle", allowFullHistoryFetch: true, withRecoveryCredentials });
 
       expect(execApi.exec).not.toHaveBeenCalled();
+      expect(withRecoveryCredentials).not.toHaveBeenCalled();
+    });
+
+    it.each(["true", "false"])("uses the selected recovery remote and credential scope (shallow: %s)", async shallow => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const prereq = "d".repeat(40);
+      const remote = "https://github.com/test-owner/automation-fork.git";
+      let recovered = false;
+      let credentialScope = false;
+      const execApi = {
+        getExecOutput: vi.fn(async (_cmd, args, opts) => {
+          if (args[0] === "bundle") return { exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${prereq}\n` };
+          if (args[0] === "cat-file") {
+            expect(opts.env.GIT_ALLOW_PROTOCOL).toBe("");
+            return { exitCode: recovered ? 0 : 1, stdout: "", stderr: "" };
+          }
+          if (args[0] === "rev-parse") return { exitCode: 0, stdout: shallow, stderr: "" };
+          if (args[0] === "fetch") {
+            expect(credentialScope).toBe(true);
+            expect(opts.silent).toBe(true);
+            // A fork-only prerequisite can still be absent after unshallowing.
+            if (args[1] === remote) recovered = true;
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          throw new Error("Unexpected command");
+        }),
+      };
+      const withRecoveryCredentials = vi.fn(async fetch => {
+        credentialScope = true;
+        try {
+          await fetch();
+        } finally {
+          credentialScope = false;
+        }
+      });
+      await ensureFullHistoryForBundle(execApi, {}, { bundleFilePath: "test.bundle", allowFullHistoryFetch: true, remote, withRecoveryCredentials });
+      expect(withRecoveryCredentials).toHaveBeenCalledOnce();
+      expect(credentialScope).toBe(false);
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["fetch", remote, prereq], expect.any(Object));
+      const unshallowCalls = execApi.getExecOutput.mock.calls.filter(([, args]) => args.includes("--unshallow"));
+      expect(unshallowCalls.map(([, args]) => args)).toEqual(shallow === "true" ? [["fetch", "--unshallow", remote]] : []);
+      expect(execApi.getExecOutput.mock.calls.some(([, args]) => args.includes("origin"))).toBe(false);
+    });
+
+    it.each([false, undefined, "true", 1])("never opens recovery credentials without literal opt-in (%s)", async allowFullHistoryFetch => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const withRecoveryCredentials = vi.fn();
+      const execApi = {
+        getExecOutput: vi.fn(async (_cmd, args) => ({ exitCode: 1, stdout: "", stderr: args[0] === "bundle" ? `The bundle requires this ref:\n${"e".repeat(40)}\n` : "" })),
+      };
+      await expect(ensureFullHistoryForBundle(execApi, {}, { bundleFilePath: "test.bundle", allowFullHistoryFetch, remote: "fork", withRecoveryCredentials })).rejects.toThrow("disabled by default");
+      expect(withRecoveryCredentials).not.toHaveBeenCalled();
+      expect(execApi.getExecOutput.mock.calls.some(([, args]) => args[0] === "fetch")).toBe(false);
+    });
+
+    it("redacts credential-scope failures during opted-in recovery", async () => {
+      const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn(async (_cmd, args) => ({ exitCode: 1, stdout: "", stderr: args[0] === "bundle" ? `The bundle requires this ref:\n${"e".repeat(40)}\n` : "" })),
+      };
+      await expect(
+        ensureFullHistoryForBundle(
+          execApi,
+          {},
+          {
+            bundleFilePath: "test.bundle",
+            allowFullHistoryFetch: true,
+            withRecoveryCredentials: async () => {
+              throw new Error("synthetic private credential");
+            },
+          }
+        )
+      ).rejects.toThrow("Explicit bundle history recovery failed. Provision the required objects during authenticated checkout with credentials for the recovery repository.");
     });
   });
 

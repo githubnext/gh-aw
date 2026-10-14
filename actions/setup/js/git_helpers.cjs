@@ -581,13 +581,14 @@ async function findMissingObjects(execApi, shas, options = {}) {
  * @param {{ getExecOutput: Function, exec: Function }} execApi - Exec API to run git commands.
  * @param {Object} [options] - Options passed through to exec calls.
  * @param {Object} [deepenOptions]
- * @param {string} [deepenOptions.baseRef] - Kept for existing callers.
  * @param {string} [deepenOptions.bundleFilePath] - Path to the bundle file whose prerequisites must become reachable.
  * @param {boolean} [deepenOptions.allowFullHistoryFetch=false] - Explicit opt-in to potentially unbounded recovery downloads.
+ * @param {string} [deepenOptions.remote="origin"] - Trusted handler-selected repository supplying prerequisites.
+ * @param {(fetch: () => Promise<void>) => Promise<void>} [deepenOptions.withRecoveryCredentials] - Scope head-repository credentials to recovery only.
  * @returns {Promise<void>}
  */
 async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions = {}) {
-  const { bundleFilePath, allowFullHistoryFetch = false } = deepenOptions || {};
+  const { bundleFilePath, allowFullHistoryFetch = false, remote = "origin", withRecoveryCredentials = fetch => fetch() } = deepenOptions || {};
   if (!bundleFilePath) throw new Error("A local bundle path is required to check prerequisites; no history was fetched.");
 
   const prereqs = await getBundlePrerequisites(execApi, bundleFilePath, options);
@@ -606,20 +607,22 @@ async function ensureFullHistoryForBundle(execApi, options = {}, deepenOptions =
   core.warning("Bundle history recovery explicitly enabled; this may download the entire repository history without a byte limit");
   const fetchOptions = { ...options, silent: true, ignoreReturnCode: true };
   try {
-    const shallow = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], { ...offlineGitOptions(options), ignoreReturnCode: true });
-    if (shallow.exitCode !== 0) throw new Error("Shallow status unavailable");
-    if (shallow.stdout.trim() === "true") {
-      const unshallow = await execApi.getExecOutput("git", ["fetch", "--unshallow", "origin"], fetchOptions);
-      if (unshallow.exitCode !== 0) throw new Error("History fetch failed");
-    }
-    missing = await findMissingObjects(execApi, prereqs, options);
-    if (missing.length > 0) {
-      const fetch = await execApi.getExecOutput("git", ["fetch", "origin", ...missing], fetchOptions);
-      if (fetch.exitCode !== 0) throw new Error("Prerequisite fetch failed");
-    }
+    await withRecoveryCredentials(async () => {
+      const shallow = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], { ...offlineGitOptions(options), ignoreReturnCode: true });
+      if (shallow.exitCode !== 0) throw new Error("Shallow status unavailable");
+      if (shallow.stdout.trim() === "true") {
+        const unshallow = await execApi.getExecOutput("git", ["fetch", "--unshallow", remote], fetchOptions);
+        if (unshallow.exitCode !== 0) throw new Error("History fetch failed");
+      }
+      missing = await findMissingObjects(execApi, prereqs, options);
+      if (missing.length > 0) {
+        const fetch = await execApi.getExecOutput("git", ["fetch", remote, ...missing], fetchOptions);
+        if (fetch.exitCode !== 0) throw new Error("Prerequisite fetch failed");
+      }
+    });
     missing = await findMissingObjects(execApi, prereqs, options);
   } catch {
-    throw new Error("Explicit bundle history recovery failed. Provision the required objects during authenticated checkout with credentials for the target repository.");
+    throw new Error("Explicit bundle history recovery failed. Provision the required objects during authenticated checkout with credentials for the recovery repository.");
   }
   if (missing.length > 0) throw new Error("Bundle prerequisites remain unavailable after explicit history recovery. Provision the required objects during authenticated checkout.");
 }
