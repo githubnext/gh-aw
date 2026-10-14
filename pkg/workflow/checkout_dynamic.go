@@ -26,7 +26,8 @@ func generateDynamicCheckoutSteps(entry *resolvedCheckout, index int, keepCreden
 	env := buildDynamicCheckoutEnvironment(entry, index, keepCredentials, pushToken, getActionPin)
 	prepare := buildDynamicCheckoutScriptStep("Validate runtime checkout repositories", "prepare", "await prepare({ core, github, getOctokit });", index, env, getActionPin)
 	checkout := fmt.Sprintf("      - name: Checkout runtime repositories (%d)\n        uses: ./.gh-aw/checkouts/%d\n        env:\n%s", index, index, env)
-	finish := buildDynamicCheckoutScriptStep("Finalize runtime checkouts", "finish", "await finish();", index, env, getActionPin)
+	finish := buildDynamicCheckoutScriptStep("Finalize runtime checkouts", "finish",
+		fmt.Sprintf("await finish({ cleanCredentials: %t });", !keepCredentials), index, env, getActionPin)
 	steps := []string{prepare, checkout}
 	if entry.cleanCreds && !keepCredentials {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())

@@ -23669,14 +23669,17 @@ checkout:
   pull-request: true
 
   # Repository to checkout in owner/repo format, or a newline-separated list when
-  # allowed-repos is set. Expressions require allowed-repos and must resolve to
-  # explicit repository names. Wildcards are not supported. Defaults to the
-  # current repository.
+  # allowed-repos is set. Expressions require allowed-repos except for the
+  # standalone ${{ github.repository }} expression, which retains normal
+  # single-repository checkout behavior without an allowlist or path prefix.
+  # Expressions must resolve to explicit repository names. Wildcards are not
+  # supported. Defaults to the current repository.
   # (optional)
   repository: "example-value"
 
   # Alias for repository. Specify only one of repo and repository. Expressions
-  # require allowed-repos. Wildcards are not supported.
+  # require allowed-repos except for the standalone ${{ github.repository }}
+  # expression. Wildcards are not supported.
   # (optional)
   repo: "example-value"
 

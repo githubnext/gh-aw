@@ -69,7 +69,8 @@ func TestRuntimeCheckoutRepositoryWildcards(t *testing.T) {
 
 func TestCompileRuntimeCheckoutRequiresAllowlist(t *testing.T) {
 	for _, field := range []string{"repository", "repo"} {
-		for _, value := range []string{"${{ inputs.repos }}", "${{ github.repository }}", "org/${{ vars.REPO }}", "${{\n  vars.REPOS\n}}"} {
+		for _, value := range []string{"${{ inputs.repos }}", "org/${{ vars.REPO }}", "${{\n  vars.REPOS\n}}",
+			"${{ github.repository || inputs.repos }}", "${{ github.repository }}\norg/other", "${{ github.repository }}/other"} {
 			t.Run(field+"/"+value, func(t *testing.T) {
 				_, err := checkoutConfigFromMap(map[string]any{field: value, "path": "targets"})
 				require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
@@ -78,7 +79,7 @@ func TestCompileRuntimeCheckoutRequiresAllowlist(t *testing.T) {
 		t.Run(field+"/compiler", func(t *testing.T) {
 			dir := t.TempDir()
 			file := filepath.Join(dir, "worker.md")
-			content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  " + field + ": ${{ github.repository }}\n  path: targets\n---\nProcess selected repositories.\n"
+			content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  " + field + ": ${{ vars.REPOS }}\n  path: targets\n---\nProcess selected repositories.\n"
 			require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
 			err := NewCompiler().CompileWorkflow(file)
 			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
@@ -86,11 +87,39 @@ func TestCompileRuntimeCheckoutRequiresAllowlist(t *testing.T) {
 			_, err = NewCompiler().ParseWorkflowString(content, file)
 			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
 			_, err = NewCompiler().CompileToYAML(&WorkflowData{
-				CheckoutConfigs: []*CheckoutConfig{{Repository: "${{ github.repository }}", Path: "targets", PathExplicit: true}},
+				CheckoutConfigs: []*CheckoutConfig{{Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true}},
 			}, file)
 			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
 		})
 	}
+}
+
+func TestRuntimeCheckoutWorkflowRepositoryException(t *testing.T) {
+	for _, field := range []string{"repository", "repo"} {
+		t.Run(field, func(t *testing.T) {
+			for _, value := range []string{"${{ github.repository }}", "${{github.repository}}", " ${{\n github.repository\n}} \n"} {
+				cfg, err := checkoutConfigFromMap(map[string]any{field: value})
+				require.NoError(t, err)
+				assert.Empty(t, cfg.AllowedRepos)
+				assert.False(t, cfg.PathExplicit, "the hosting-repository expression must not require a prefix")
+				assert.Empty(t, dynamicCheckoutFailureOutput([]*CheckoutConfig{cfg}), "this remains a static single-repository checkout")
+			}
+			dir := t.TempDir()
+			file := filepath.Join(dir, "worker.md")
+			content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  " + field + ": ${{ github.repository }}\n---\nProcess the workflow repository.\n"
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
+			require.NoError(t, NewCompiler().CompileWorkflow(file))
+			lock, err := os.ReadFile(filepath.Join(dir, "worker.lock.yml"))
+			require.NoError(t, err)
+			assert.NotContains(t, string(lock), "checkout_dynamic.cjs")
+			data, err := NewCompiler().ParseWorkflowString(content, file)
+			require.NoError(t, err)
+			_, err = NewCompiler().CompileToYAML(data, file)
+			require.NoError(t, err)
+		})
+	}
+	_, err := checkoutConfigFromMap(map[string]any{"repo": "${{ github.repository }}", "allowed-repos": "org/*"})
+	require.ErrorContains(t, err, "literal, non-root path prefix", "explicit allowlists still opt into runtime expansion")
 }
 
 func TestCompileRuntimeCheckoutRejectsInvalidImportedAllowlist(t *testing.T) {
@@ -160,6 +189,7 @@ func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_ALLOWED_REPOS: "org/*"`)
 	assert.Contains(t, steps, "GH_AW_DYNAMIC_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "false"`)
+	assert.Contains(t, steps, "await finish({ cleanCredentials: true });")
 	assert.NotContains(t, steps, "repository: ${{ inputs.repos }}")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_CHECKOUT_ACTION: "actions/checkout@`+strings.Repeat("a", 40)+`"`)
 	assert.Empty(t, manager.credentialSubrepositories())
@@ -170,11 +200,19 @@ func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	manager.SetKeepCredentialsForPush(true)
 	steps = strings.Join(manager.GenerateAdditionalCheckoutSteps(pin), "")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "true"`)
+	assert.Contains(t, steps, "await finish({ cleanCredentials: false });", "safe-output write credentials must remain available")
 	prompt := buildCheckoutsPromptContent([]*CheckoutConfig{{
 		Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"},
 	}})
 	assert.Contains(t, prompt, "targets/<owner>/<repo>")
 	assert.NotContains(t, prompt, "${{ inputs.repos }}")
+
+	manager = NewCheckoutManager([]*CheckoutConfig{{
+		Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}, CleanGitCredentials: true,
+	}})
+	steps = strings.Join(manager.GenerateAdditionalCheckoutSteps(pin), "")
+	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "true"`)
+	assert.Contains(t, steps, "await finish({ cleanCredentials: true });", "persisted agent credentials must be cleaned using explicit checkout paths")
 }
 
 func TestCompileRuntimeCheckout(t *testing.T) {

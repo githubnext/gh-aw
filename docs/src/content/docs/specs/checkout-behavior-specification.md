@@ -92,7 +92,11 @@ Each entry MAY define: `repository`, `ref`, `path`, `github-token` (or legacy `t
 
 `repo` MUST be accepted as an alias for `repository`; specifying both MUST fail.
 Any GitHub Actions expression in `repository` or `repo` MUST require
-`allowed-repos` at compile time, even for a single selected repository.
+`allowed-repos` at compile time, even for a single selected repository, except
+the standalone `${{ github.repository }}` expression. Without `allowed-repos`,
+that expression MUST retain normal single-repository checkout behavior and MUST
+NOT require a path prefix. Whitespace within the expression MAY vary; combining
+it with other expressions or literal values MUST NOT qualify for the exception.
 `repository` and `repo` MUST select explicit repository names, not wildcard
 patterns. Literal repository wildcards MUST fail at compile time, and wildcard
 values in expression-resolved lists MUST fail at runtime. Wildcards MUST only
@@ -123,6 +127,10 @@ Runtime lists MUST NOT support `current: true` or `wiki: true`. GitHub App auth
 MUST specify its installation owner and repository scope explicitly. The agent
 and safe_outputs jobs MUST use identical expanded checkout paths, and the
 checkout manifest MUST record each expanded repository and default branch.
+Before agent execution, finalization MUST explicitly clean and verify the git
+configs of every validated runtime checkout and its submodules, independent of
+workspace discovery depth. Missing or unverifiable configs MUST fail closed.
+Safe-output jobs MUST retain their intended authenticated-write credentials.
 
 ### 3.2 Entry Merge Rules
 

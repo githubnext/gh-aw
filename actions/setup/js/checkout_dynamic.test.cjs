@@ -276,6 +276,110 @@ describe("runtime repository checkout", () => {
     expect(parseRepositories("org/a\nORG/A")).toEqual(["org/a"]);
   });
 
+  function installCredentialHelpers(cleaner) {
+    const actions = path.join(runnerTemp, "gh-aw", "actions");
+    fs.mkdirSync(actions, { recursive: true });
+    for (const name of ["clean_git_credentials.sh", "verify_git_credentials.sh"]) {
+      fs.copyFileSync(path.join(__dirname, "..", "sh", name), path.join(actions, name));
+    }
+    if (cleaner) fs.writeFileSync(path.join(actions, "clean_git_credentials.sh"), cleaner);
+    // The production runner has GNU realpath; adapt existing paths for macOS tests.
+    const bin = path.join(temp, "bin");
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, "realpath"), '#!/usr/bin/env node\nprocess.stdout.write(require("fs").realpathSync(process.argv.at(-1)) + "\\n");\n', { mode: 0o755 });
+    vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH}`);
+    vi.stubEnv("GIT_CONFIG_GLOBAL", "/dev/null");
+    vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
+  }
+
+  it("cleans and verifies real persisted credential includes beyond discovery depth, including nested submodules", async () => {
+    const prefix = Array(12).fill("nested").join("/");
+    vi.stubEnv("GH_AW_DYNAMIC_PREFIX", prefix);
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    vi.stubEnv("GH_AW_DYNAMIC_PERSIST", "true");
+    const [entry] = await prepare(runtime);
+    installCredentialHelpers();
+    const target = path.join(workspace, entry.path);
+    execFileSync("git", ["init", "--quiet", target], { stdio: ["ignore", "pipe", "pipe"] });
+    const gitDir = path.join(target, ".git");
+    const module = path.join(gitDir, "modules", ...Array(8).fill("nested"), "child");
+    execFileSync("git", ["init", "--bare", "--quiet", module], { stdio: ["ignore", "pipe", "pipe"] });
+    const includes = [];
+    for (const [index, dir] of [gitDir, module].entries()) {
+      const include = path.join(fs.realpathSync(runnerTemp), `git-credentials-${index}.config`);
+      includes.push(include);
+      fs.writeFileSync(include, "[http]\nextraheader = Authorization: test-only-checkout-token\n");
+      const config = path.join(dir, "config");
+      execFileSync("git", ["config", "--file", config, `includeIf.gitdir:${fs.realpathSync(dir)}.path`, include]);
+      expect(fs.readFileSync(config, "utf8")).toContain("git-credentials-");
+    }
+    expect(path.relative(workspace, path.join(gitDir, "config")).split(path.sep)).toHaveLength(16);
+    await finish({ cleanCredentials: true });
+    for (const dir of [gitDir, module]) {
+      expect(fs.readFileSync(path.join(dir, "config"), "utf8")).not.toContain("git-credentials-");
+    }
+    for (const include of includes) expect(fs.existsSync(include)).toBe(false);
+    expect(fs.existsSync(path.join(workspace, ".gh-aw/checkouts/0"))).toBe(false);
+  }, 30000);
+
+  it.each(["exit 7", "exit 0"])("fails closed when explicit cleanup returns '%s' but credentials remain", async cleaner => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    vi.stubEnv("GH_AW_DYNAMIC_FETCH_COUNT", "1");
+    vi.stubEnv("GH_AW_DYNAMIC_FETCH_0", "main");
+    const [entry] = await prepare(runtime);
+    installCredentialHelpers(`#!/usr/bin/env bash\n${cleaner}\n`);
+    const target = path.join(workspace, entry.path);
+    execFileSync("git", ["init", "--quiet", target], { stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["-C", target, "config", "http.extraheader", "Authorization: test-only-checkout-token"]);
+    const runGit = vi.fn();
+    await expect(finish({ cleanCredentials: true, runGit })).rejects.toThrow("Unable to clean and verify runtime checkout credentials; refusing agent execution");
+    expect(runGit).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(workspace, ".gh-aw/checkouts/0/action.yml"))).toBe(true);
+  });
+
+  it("fails closed when an expected checkout is missing even if filesystem discovery would find no configs", async () => {
+    await prepare(runtime);
+    await expect(finish({ cleanCredentials: true })).rejects.toThrow("Unable to clean and verify runtime checkout credentials; refusing agent execution");
+  });
+
+  it("fails closed when the trusted cleanup helpers are unavailable", async () => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    const [entry] = await prepare(runtime);
+    execFileSync("git", ["init", "--quiet", path.join(workspace, entry.path)], { stdio: ["ignore", "pipe", "pipe"] });
+    await expect(finish({ cleanCredentials: true })).rejects.toThrow("Unable to clean and verify runtime checkout credentials; refusing agent execution");
+  });
+
+  it.each(["missing-config", "symlink-config", "symlink-modules"])("fails closed for an unverifiable checkout: %s", async invalid => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    const [entry] = await prepare(runtime);
+    const target = path.join(workspace, entry.path);
+    execFileSync("git", ["init", "--quiet", target], { stdio: ["ignore", "pipe", "pipe"] });
+    const config = path.join(target, ".git", "config");
+    if (invalid === "symlink-modules") {
+      fs.symlinkSync(path.join(temp, "missing"), path.join(target, ".git", "modules"));
+    } else {
+      fs.unlinkSync(config);
+      if (invalid === "symlink-config") {
+        const other = path.join(temp, "config");
+        fs.writeFileSync(other, "[http]\nextraheader = Authorization: test-only-checkout-token\n");
+        fs.symlinkSync(other, config);
+      }
+    }
+    await expect(finish({ cleanCredentials: true })).rejects.toThrow("Unable to clean and verify runtime checkout credentials; refusing agent execution");
+    expect(fs.existsSync(path.join(workspace, ".gh-aw/checkouts/0/action.yml"))).toBe(true);
+  });
+
+  it("preserves persisted credentials when finalizing a safe-output checkout", async () => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    vi.stubEnv("GH_AW_DYNAMIC_PERSIST", "true");
+    const [entry] = await prepare(runtime);
+    const target = path.join(workspace, entry.path);
+    execFileSync("git", ["init", "--quiet", target], { stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", ["-C", target, "config", "http.extraheader", "Authorization: test-only-checkout-token"]);
+    await finish({ cleanCredentials: false });
+    expect(fs.readFileSync(path.join(target, ".git/config"), "utf8")).toContain("test-only-checkout-token");
+  });
+
   it("fetches real local git history and removes sparse partial-clone markers", async () => {
     vi.stubEnv("GIT_CONFIG_GLOBAL", "/dev/null");
     vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");

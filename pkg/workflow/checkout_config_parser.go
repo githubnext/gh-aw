@@ -345,10 +345,11 @@ func validateRuntimeCheckoutConfig(cfg *CheckoutConfig) error {
 	if strings.ContainsAny(ExpressionPatternDotAll.ReplaceAllString(cfg.Repository, ""), "*?[]") {
 		return errors.New("checkout.repository (or repo) must specify explicit owner/repo names; wildcards are only supported in checkout.allowed-repos")
 	}
-	if containsExpression(cfg.Repository) && len(cfg.AllowedRepos) == 0 {
-		return errors.New("checkout.repository (or repo) expressions require checkout.allowed-repos; specify allowed repository patterns such as owner/*")
+	isWorkflowRepository := matchesGitHubExpression(cfg.Repository, "github.repository")
+	if containsExpression(cfg.Repository) && !isWorkflowRepository && len(cfg.AllowedRepos) == 0 {
+		return errors.New("checkout.repository (or repo) expressions require checkout.allowed-repos unless the value is only ${{ github.repository }}; specify allowed repository patterns such as owner/*")
 	}
-	if strings.ContainsAny(cfg.Repository, "\r\n") && len(cfg.AllowedRepos) == 0 {
+	if strings.ContainsAny(cfg.Repository, "\r\n") && !isWorkflowRepository && len(cfg.AllowedRepos) == 0 {
 		return errors.New("repository-list checkout requires allowed-repos; specify allowed repository patterns such as owner/*")
 	}
 	if len(cfg.AllowedRepos) > 0 {

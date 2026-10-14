@@ -220,7 +220,47 @@ async function prepareCheckouts({ github, getOctokit }, token) {
 }
 
 /**
- * @param {{ runGit?: (args: string[], options: import('child_process').ExecFileSyncOptionsWithStringEncoding) => string }} [options]
+ * @param {string} dir
+ * @param {string} runnerTemp
+ */
+function cleanCheckoutCredentials(dir, runnerTemp) {
+  try {
+    const gitDir = path.join(dir, ".git");
+    if (!fs.lstatSync(gitDir).isDirectory() || fs.lstatSync(gitDir).isSymbolicLink()) {
+      throw new Error("Runtime checkout must have a regular .git directory");
+    }
+    const configs = [path.join(gitDir, "config")];
+    const modules = path.join(gitDir, "modules");
+    const pending = fs.readdirSync(gitDir).includes("modules") ? [modules] : [];
+    while (pending.length) {
+      const current = pending.pop();
+      if (!current) throw new Error("Missing runtime checkout submodule directory");
+      if (fs.lstatSync(current).isSymbolicLink()) throw new Error("Runtime checkout submodule configs must not use symlinks");
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const file = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) throw new Error("Runtime checkout submodule configs must not use symlinks");
+        if (entry.isDirectory()) pending.push(file);
+        else if (entry.name === "config") configs.push(file);
+      }
+    }
+    for (const config of configs) {
+      const stat = fs.lstatSync(config);
+      if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Runtime checkout must have a regular git config");
+      for (const script of ["clean_git_credentials.sh", "verify_git_credentials.sh"]) {
+        execFileSync("bash", [path.join(runnerTemp, "gh-aw", "actions", script), config], {
+          env: process.env,
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: getSetupTimeoutMs("gitBranch"),
+        });
+      }
+    }
+  } catch {
+    throw new Error("Unable to clean and verify runtime checkout credentials; refusing agent execution");
+  }
+}
+
+/**
+ * @param {{ cleanCredentials?: boolean, runGit?: (args: string[], options: import('child_process').ExecFileSyncOptionsWithStringEncoding) => string }} [options]
  */
 async function finish(options = {}) {
   const config = readConfig();
@@ -249,6 +289,7 @@ async function finish(options = {}) {
   if (server.protocol !== "https:" || server.username || server.password) throw new Error("Runtime checkout requires an HTTPS GitHub server");
   for (const entry of entries) {
     const dir = workspacePath(config.workspace, entry.path);
+    if (options.cleanCredentials) cleanCheckoutCredentials(dir, config.runnerTemp);
     const run = (/** @type {string[]} */ args, authenticated = false, allowMissingKey = false) => {
       const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
       if (authenticated) {
