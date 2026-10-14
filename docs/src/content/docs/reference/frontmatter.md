@@ -661,7 +661,7 @@ Each runtime takes a required `version` string plus optional `action-repo` and `
 |---------|----------------|---------------------|
 | `node` | 24 | `actions/setup-node@v7` |
 | `python` | 3.12 | `actions/setup-python@v5` |
-| `go` | 1.25 | `actions/setup-go@v5` |
+| `go` | Root `go.mod`, or 1.26 if absent | `actions/setup-go@v7` |
 | `uv` | latest | `astral-sh/setup-uv@v5` |
 | `bun` | 1.1 | `oven-sh/setup-bun@v2` |
 | `deno` | 2.x | `denoland/setup-deno@v2` |
@@ -684,6 +684,8 @@ runtimes:
 ```
 
 Omitted runtimes use the defaults above. Runtimes from imported shared workflows are merged with your workflow's configuration.
+
+When Go is required and `runtimes.go.version` is omitted, the generated setup step uses `go-version-file: go.mod` if the repository root contains that file. An explicit `runtimes.go.version` takes precedence.
 
 ### `run-install-scripts`
 
