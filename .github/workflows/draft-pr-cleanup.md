@@ -22,12 +22,11 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  cli-proxy: false
   github:
     mode: local
     toolsets: [pull_requests, repos]
-  bash:
-    - "jq *"
+  bash: false
 safe-outputs:
   add-labels:
     max: 20  # Up to 20 stale draft labels per run
@@ -91,10 +90,10 @@ A draft PR is considered "inactive" if it has had no:
 
 ### Step 1: Query All Open Draft PRs
 
-Use GitHub tools to fetch all open draft pull requests:
+Use the native GitHub MCP `search_pull_requests` tool with structured arguments to fetch all open draft pull requests. Scope the query to `${{ github.repository }}`, request at most 20 results per page, and follow pagination until all results are reviewed:
 
 ```
-Query: is:pr is:open is:draft
+Query: repo:${{ github.repository }} is:pr is:open is:draft
 ```
 
 Get the following details for each draft PR:
@@ -104,6 +103,8 @@ Get the following details for each draft PR:
 - Labels (especially exemption labels)
 - Comments count and timestamps
 - Review activity
+
+Use the exposed GitHub read tools for missing details. Interpret returned JSON and timestamps in your analysis; Bash and shell pipelines are disabled. Never invoke the `github` or `safeoutputs` CLI.
 
 ### Step 2: Calculate Inactivity Period
 
@@ -138,19 +139,17 @@ Classify each draft PR into one of these categories:
 
 For each PR classified as "Warning":
 
-**Add `stale-draft` label** using `add_labels` tool:
+**Add `stale-draft` label** using the native `add_labels` safe-output tool with these arguments:
 ```json
 {
-  "type": "add_labels",
   "labels": ["stale-draft"],
   "item_number": <pr_number>
 }
 ```
 
-**Add warning comment** using `add_comment` tool:
+**Add warning comment** using the native `add_comment` safe-output tool with these arguments:
 ```json
 {
-  "type": "add_comment",
   "item_number": <pr_number>,
   "body": "👋 This draft PR has been inactive for 10 days and will be automatically closed in 4 days unless there is new activity.\n\n**To prevent auto-closure:**\n- Push a new commit\n- Add a comment to show work is continuing\n- Add the `keep-draft` label if this needs to stay open longer\n- Mark as ready for review if it's complete\n\n**Why this policy?**\nWe're implementing this to keep the PR list manageable and help maintainers focus on active work. Closed PRs can always be reopened if work continues.\n\n*Automated by Draft PR Cleanup workflow*"
 }
@@ -160,10 +159,9 @@ For each PR classified as "Warning":
 
 For each PR classified as "Ready to Close":
 
-**Close the PR** using `close_pull_request` tool:
+**Close the PR** using the native `close_pull_request` safe-output tool with these arguments:
 ```json
 {
-  "type": "close_pull_request",
   "item_number": <pr_number>,
   "comment": "🧹 Closing this draft PR due to 14+ days of inactivity.\n\n**This is not a rejection!** Feel free to:\n- Reopen this PR if you continue working on it\n- Create a new PR with updated changes\n- Add the `keep-draft` label before reopening if you need more time\n\n**Why was this closed?**\nWe're keeping the PR list manageable by automatically closing inactive drafts. This helps maintainers focus on active work and improves triage efficiency.\n\nThank you for your contribution! 🙏\n\n*Automated by Draft PR Cleanup workflow*"
 }
@@ -230,6 +228,9 @@ Create a summary of actions taken:
 - Thank contributors for their work
 
 ### Safe Execution
+- Discover native tool names and schemas before calling them; pass argument objects directly, without a `type` envelope.
+- After a denied or unavailable required call, stop that operation. Call the native `report_incomplete` safe-output tool with the tool name, blocked phase, and unprocessed PR numbers. Do not retry with shell syntax or another write route.
+- If the complete review needs no actions, call native `noop` with the reviewed count. A partial or blocked review is not a successful no-op.
 - Respect safe-output limits (max 20 comments, 10 closures per run)
 - If limits are reached, prioritize oldest/most inactive PRs
 - Never close PRs with exemption labels
@@ -238,7 +239,7 @@ Create a summary of actions taken:
 ### Edge Cases
 - **PR with mixed signals**: If has activity but also old commits, use most recent activity
 - **PR just marked as draft**: Check PR creation date, not draft conversion date
-- **PR with `stale-draft` but recent activity**: Remove `stale-draft` label if activity < 10 days
+- **PR with `stale-draft` but recent activity**: Skip cleanup and note the outdated label in the summary. Label removal is not enabled; do not attempt it through another API.
 - **Bot-created PRs**: Apply same rules, but consider if bot is still active
 
 ### Success Metrics
