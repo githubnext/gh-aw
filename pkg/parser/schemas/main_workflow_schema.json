@@ -3206,6 +3206,12 @@
           "default": false,
           "description": "Internal hidden feature. Replace the agentic step with the deterministic safe-outputs samples replay driver for this workflow, exactly as the hidden `gh aw compile --use-samples` flag does globally. Use it for workflows that are designed around `safe-outputs.*.samples` so a plain `gh aw compile` keeps producing the samples-mode lock file. Threat detection is force-disabled when enabled.",
           "examples": [true, false]
+        },
+        "dangerously-allow-roles-read-and-pull-request-target": {
+          "type": "boolean",
+          "default": false,
+          "description": "Suppress the non-strict warning when pull_request_target is combined with on.roles containing read or all. Strict mode still rejects this configuration.",
+          "examples": [true, false]
         }
       },
       "examples": [

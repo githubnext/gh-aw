@@ -708,6 +708,61 @@ Analyze the pull request.
 	}
 }
 
+func TestPullRequestTargetRoleValidationFeatureOptOut(t *testing.T) {
+	tests := []struct {
+		name         string
+		strict       bool
+		cliStrict    bool
+		featureValue string
+		wantError    string
+		wantWarnings int
+	}{
+		{"feature suppresses non-strict warning", false, false, "true", "", 0},
+		{"false does not suppress non-strict warning", false, false, "false", "", 1},
+		{"string true is rejected by schema", false, false, "'true'", "got string, want boolean", 0},
+		{"strict mode rejects despite feature", true, false, "true", "on.roles containing 'all' or 'read'", 0},
+		{"CLI strict mode rejects despite feature", false, true, "true", "on.roles containing 'all' or 'read'", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := fmt.Sprintf(`---
+strict: %t
+on:
+  pull_request_target:
+    acknowledge-risk: true
+  roles: read
+checkout: false
+features:
+  dangerously-allow-roles-read-and-pull-request-target: %s
+tools:
+  github: false
+---
+
+# Role validation
+Analyze the pull request.
+`, tt.strict, tt.featureValue)
+			mdFile := filepath.Join(testutil.TempDir(t, "prt-role-feature-opt-out"), "workflow.md")
+			if err := os.WriteFile(mdFile, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			compiler := NewCompiler()
+			compiler.SetStrictMode(tt.cliStrict)
+			compiler.SetNoEmit(true)
+			err := compiler.CompileWorkflow(mdFile)
+			if tt.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+					t.Fatalf("Expected error containing %q, got %v", tt.wantError, err)
+				}
+			} else if err != nil {
+				t.Fatalf("Unexpected compilation error: %v", err)
+			}
+			if compiler.GetWarningCount() != tt.wantWarnings {
+				t.Errorf("Expected %d warnings, got %d", tt.wantWarnings, compiler.GetWarningCount())
+			}
+		})
+	}
+}
+
 func TestAllowedPullRequestTargetCheckoutFailsClosed(t *testing.T) {
 	t.Parallel()
 	for _, cfg := range []*CheckoutConfig{

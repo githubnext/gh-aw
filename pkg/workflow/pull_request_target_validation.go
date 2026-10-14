@@ -43,6 +43,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -117,8 +118,12 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		if effectiveStrictMode {
 			return formatCompilerError(markdownPath, "error", message, nil)
 		}
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-		c.IncrementWarningCount()
+		if !dangerouslyAllowsRolesReadAndPullRequestTarget(workflowData) {
+			message += "\nTo suppress this warning in non-strict mode only, set " +
+				"features.dangerously-allow-roles-read-and-pull-request-target: true."
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+			c.IncrementWarningCount()
+		}
 		break
 	}
 	var acknowledged bool
@@ -196,6 +201,15 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	c.IncrementWarningCount()
 
 	return nil
+}
+
+func dangerouslyAllowsRolesReadAndPullRequestTarget(workflowData *WorkflowData) bool {
+	value, found := getFeatureValueCaseInsensitive(
+		workflowData.Features,
+		string(constants.DangerouslyAllowRolesReadAndPullRequestTargetFeatureFlag),
+	)
+	enabled, isBoolean := value.(bool)
+	return found && isBoolean && enabled
 }
 
 func hasOnlyTrustedPullRequestTargetCheckouts(configs []*CheckoutConfig, allowedCheckouts []any) bool {
