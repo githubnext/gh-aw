@@ -526,6 +526,7 @@ func hasHandlerManagerTypes(data *WorkflowData) bool {
 		data.SafeOutputs.LinearUpdateIssue != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
+		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.CloseIssues != nil ||
 		data.SafeOutputs.CloseDiscussions != nil ||
 		data.SafeOutputs.AddLabels != nil ||

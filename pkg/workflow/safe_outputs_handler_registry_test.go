@@ -172,6 +172,21 @@ func TestMergeHandlerMapsKeepsFirstDuplicateKey(t *testing.T) {
 	}
 }
 
+func TestHideCommentHasNoFilterConfig(t *testing.T) {
+	configType := reflect.TypeFor[HideCommentConfig]()
+	for _, field := range []string{"RequiredLabels", "RequiredTitlePrefix"} {
+		if _, exists := configType.FieldByName(field); exists {
+			t.Fatalf("hide-comment advertises unsupported filter %s", field)
+		}
+	}
+	config := handlerRegistry["hide_comment"](&SafeOutputsConfig{HideComment: &HideCommentConfig{}})
+	for _, key := range []string{"required_labels", "required_title_prefix"} {
+		if _, exists := config[key]; exists {
+			t.Fatalf("hide-comment serializes unsupported filter %s", key)
+		}
+	}
+}
+
 func TestResolveHandlerGitHubToken(t *testing.T) {
 	app := &GitHubAppConfig{}
 

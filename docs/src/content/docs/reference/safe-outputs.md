@@ -483,6 +483,8 @@ When enabled, the workflow completion notifier creates a new comment instead of 
 
 Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
 
+`required-labels` and `required-title-prefix` are not supported for `hide-comment`. Use `target` and `allowed-reasons` to restrict comment hiding.
+
 ```yaml wrap
 safe-outputs:
   hide-comment:
@@ -2221,6 +2223,8 @@ The `footer-install` template renders the install instructions that follow the f
 ## Staged Mode
 
 Staged mode lets you preview what safe outputs a workflow would create without actually creating anything. Every write operation is skipped; instead, a 🎭-labelled preview appears in the GitHub Actions step summary.
+
+Staged handlers can still read target data to validate filters such as `required-labels` and `required-title-prefix`. The compiler grants the read permissions these lookups require, including for GitHub App tokens, without granting write permissions for staged handlers.
 
 Enable it globally by adding `staged: true` to the `safe-outputs:` block:
 
