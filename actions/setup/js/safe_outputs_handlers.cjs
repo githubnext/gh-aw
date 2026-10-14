@@ -912,7 +912,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Using configured patch_workspace_path for create_pull_request: ${patchWorkspacePath} -> ${repoCwd}`);
     }
 
-    if (((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) && !repoCwd) {
+    const envTargetSlug = (process.env.GH_AW_TARGET_REPO_SLUG || "").trim();
+    const workflowRepo = (process.env.GITHUB_REPOSITORY || "").trim().toLowerCase();
+    const envSlugIsSideRepo = envTargetSlug && envTargetSlug.toLowerCase() !== workflowRepo;
+    const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || prConfig["target-repo"] || envSlugIsSideRepo;
+    if (hasExplicitTargetRepoHint && !repoCwd) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
       // between the raw user input and the normalized/qualified repo name
       repoSlug = repoResult.repo;

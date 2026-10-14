@@ -156,11 +156,13 @@ When `allowed-repos` is specified:
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
-### Checkout Requirement for `push-to-pull-request-branch`
+### Checkout Requirement for Pull Request Outputs
 
-Unlike other safe output types, `push-to-pull-request-branch` with `target-repo` requires the target repository to be **checked out into the workflow workspace**. You can use either a `checkout:` frontmatter entry with a `path:` specified or a custom `steps:` entry that clones the repository under `$GITHUB_WORKSPACE`. Without a checkout, the agent has no local git history to create and push a patch from.
+Unlike other safe output types, `create-pull-request` and `push-to-pull-request-branch` with a cross-repository target require the target repository to be **checked out into the workflow workspace**. This also applies when the target is resolved from `GH_AW_TARGET_REPO_SLUG`. You can use either a `checkout:` frontmatter entry with a `path:` specified or a custom `steps:` entry that clones the repository under `$GITHUB_WORKSPACE`. Without a target checkout, these handlers return an error instead of generating a patch from the workflow repository.
 
 Safe outputs first consult the checkout manifest produced by `checkout:` entries, then fall back to scanning `$GITHUB_WORKSPACE` for git repositories and matching them by `remote.origin.url`.
+
+Commit changes in the target checkout against the intended target base branch. Reading a target file through GitHub tools and copying it into the workflow repository does not establish that base: Git treats the copy as a new file even if it already exists in the target repository. `git am --3way` cannot turn that new-file patch into a modification without an original target blob.
 
 See the [Scheduled Push to Pull Request Branch](#example-scheduled-push-to-pull-request-branch) example and the [Push to PR Branch cross-repo usage](/gh-aw/reference/safe-outputs-pull-requests/#cross-repo-usage) documentation for a complete setup.
 

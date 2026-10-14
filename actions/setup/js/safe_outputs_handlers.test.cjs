@@ -1731,6 +1731,111 @@ describe("safe_outputs_handlers", () => {
         delete process.env.GH_AW_TARGET_REPO_SLUG;
       }
     });
+
+    it.each([
+      ["am", "main"],
+      ["bundle", "main"],
+      ["am", "release-1.12.x"],
+      ["bundle", "release-1.12.x"],
+    ])("should generate %s transport against target base %s in the environment-resolved checkout, not the workflow tree", async (patchFormat, baseBranch) => {
+      const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      const targetBase = execSync(`git merge-base origin/${baseBranch} HEAD`, { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
+      execSync("git checkout -b feature/release-notes", { cwd: targetRepoDir, stdio: "pipe" });
+
+      execSync("git init -b main && git config user.email test@example.com && git config user.name Test", { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "workflow.txt"), "workflow repository\n");
+      execSync("git add workflow.txt && git commit -m 'Workflow base'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      const workflowBase = execSync("git rev-parse HEAD", { cwd: testWorkspaceDir, stdio: "pipe" }).toString().trim();
+      execSync(`git update-ref refs/remotes/origin/main ${workflowBase} && git update-ref refs/remotes/origin/release-1.12.x ${workflowBase} && git checkout -b feature/release-notes`, { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "README.md"), "release local only\n");
+      execSync("git add README.md && git commit -m 'Copy target file into workflow repo'", { cwd: testWorkspaceDir, stdio: "pipe" });
+
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: { base_branch: baseBranch, patch_format: patchFormat },
+      });
+      let patchPath;
+      let bundlePath;
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "feature/release-notes",
+          title: "Update target release notes",
+          body: "Update the existing target file without replacing its base.",
+        });
+        expect(result.isError).toBeUndefined();
+        const response = JSON.parse(result.content[0].text);
+        patchPath = response.patch.path;
+        bundlePath = response.bundle?.path;
+        const patch = fs.readFileSync(patchPath, "utf8");
+        expect(patch).toContain(`X-GH-AW-Base-Commit: ${targetBase}`);
+        expect(patch).not.toContain("new file mode");
+        expect(patch).toContain(baseBranch === "main" ? "-base" : "-release tracked");
+        expect(patch).toContain("+release local only");
+        expect(patch).not.toContain("Copy target file into workflow repo");
+        expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
+        expect(mockAppendSafeOutput.mock.calls[0][0].base_commit).toBe(targetBase);
+        expect(mockAppendSafeOutput.mock.calls[0][0].base_branch).toBe(baseBranch);
+        if (bundlePath) {
+          execSync(`git bundle verify "${bundlePath}" && git fetch "${bundlePath}" feature/release-notes:refs/heads/verify-bundle`, { cwd: targetRepoDir, stdio: "pipe" });
+          expect(execSync("git show verify-bundle:README.md", { cwd: targetRepoDir, stdio: "pipe" }).toString()).toBe("release local only\n");
+          expect(execSync(`git merge-base origin/${baseBranch} verify-bundle`, { cwd: targetRepoDir, stdio: "pipe" }).toString().trim()).toBe(targetBase);
+        }
+
+        execSync(`git checkout -b verify-patch origin/${baseBranch}`, { cwd: targetRepoDir, stdio: "pipe" });
+        execSync(`git am --3way "${patchPath}"`, { cwd: targetRepoDir, stdio: "pipe" });
+        expect(fs.readFileSync(path.join(targetRepoDir, "README.md"), "utf8")).toBe("release local only\n");
+        if (baseBranch === "main") {
+          expect(fs.readFileSync(path.join(targetRepoDir, "MAIN_ONLY.md"), "utf8")).toBe("main only\n");
+        } else {
+          expect(fs.existsSync(path.join(targetRepoDir, "MAIN_ONLY.md"))).toBe(false);
+        }
+        expect(fs.readFileSync(path.join(testWorkspaceDir, "README.md"), "utf8")).toBe("release local only\n");
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+        if (patchPath) fs.rmSync(patchPath, { force: true });
+        if (bundlePath) fs.rmSync(bundlePath, { force: true });
+      }
+    });
+
+    it("should reject an environment-resolved cross-repo PR when the target checkout is missing", async () => {
+      execSync("git init -b main && git config user.email test@example.com && git config user.name Test", { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "README.md"), "copied target file\n");
+      execSync("git add README.md && git commit -m 'Copied target file' && git checkout -b feature/release-notes", { cwd: testWorkspaceDir, stdio: "pipe" });
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/missing-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: { base_branch: "main", patch_format: "am" },
+      });
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "feature/release-notes",
+          title: "Update release notes",
+          body: "Update the target repository's release notes.",
+        });
+        expect(result.isError).toBe(true);
+        expect(JSON.parse(result.content[0].text).error).toContain("Repository 'test-owner/missing-repo' not found in workspace");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
+
+    it("should not require cross-repo checkout discovery when the environment target matches the workflow repository", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "OWNER/REPO";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: { base_branch: "main", allow_empty: true },
+      });
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "feature/release-notes",
+          title: "Update release notes",
+          body: "Update the workflow repository's release notes.",
+        });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
