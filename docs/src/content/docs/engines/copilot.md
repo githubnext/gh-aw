@@ -51,6 +51,12 @@ Analyze the repository and create a concise daily status report covering:
 
 Copilot supports the broadest set of `gh-aw` engine-specific features: native custom-agent selection with `engine.agent`, custom harnesses, `max-continuations`, bare mode, and per-command bash allowlisting. Offline BYOK mode disables its native web tools. Compilation rejects `tools.web-search` and CLI-mode `tools.web-fetch`; configure an MCP server instead. SDK mode (`engine.copilot-sdk: true`) supports `tools.web-fetch` through a custom proxy-aware implementation. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
 
+### Sandboxed GPT Responses workflows
+
+Sandboxed Copilot GPT models use the Responses API. Use `gh-aw-firewall` v0.28.25 or newer: earlier API proxies can replay an `apply_patch` tool call with a `ctc_*` item ID, which the Responses endpoint rejects because it requires an `fc*` ID. The fix normalizes the replayed item ID while preserving the paired tool-call ID; it does not change GPT model routing.
+
+Upgrade the `gh-aw` compiler and recompile the workflow so its checked-in `.lock.yml` uses the updated firewall and harness. The current Copilot harness classifies this specific ID-schema error as non-retryable; older compiled workflows do not gain that behavior until they are recompiled with a release that includes the guard.
+
 ### Dynamic workflows
 
 Copilot CLI [dynamic workflows](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-dynamic-workflows) are experimental and disabled by default. Enable them explicitly with `engine.dynamic-workflows: true`. The compiler emits `Using experimental feature: copilot.dynamic-workflows` only when enabled; batch compilation includes their usage in the experimental-feature summary.
