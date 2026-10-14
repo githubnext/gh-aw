@@ -11,6 +11,28 @@ code execution. Follow [debugger restrictions](debug-agentic-workflow.md).
 PASS grants no dispatch permission; retain scanners, isolation, credential
 restrictions and human live-validation gates.
 
+## Experimental Features
+
+Experimental features are allowed in debug/dry-run reviews after explicit user
+confirmation. Identify the workflow and experimental features, explain their
+notices and relevant risks, and ask the user to confirm acceptance before adding
+`--allow-experimental`. Record the confirmation and its scope in session artifacts.
+No response, autopilot mode, a request to change this guidance, or live-debug
+session authorization alone counts as acceptance. If confirmation is unavailable
+or declined, omit the flag and continue static diagnosis; do not bypass a blocked
+dry-run gate.
+
+After confirmation, run `gh aw compile WORKFLOW --dry-run --allow-experimental`,
+retaining any environment/scanner options and all other required checks. Reuse
+confirmation only for the same workflow and accepted experimental features in the
+current session; ask again when that scope changes.
+
+The flag acknowledges only built-in experimental-feature notices, not compiler
+security warnings. Keep accepted notice counts visible in the dry-run summary;
+other warnings, security findings and scanner failures remain fatal. Experimental
+acceptance does not exempt enabled `dangerously-*` entries or grant live execution,
+upload or policy-installation authorization.
+
 ## Dry-Run Dangerous Features
 
 In dry-run mode, enabled `dangerously-*` entries authored in workflow Markdown

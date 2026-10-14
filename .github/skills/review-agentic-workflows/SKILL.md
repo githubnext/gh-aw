@@ -110,6 +110,15 @@ files, preserving diagnostic outputs, and checking for concurrent edits.
 Restore pre-existing user changes exactly; never use a broad worktree reset.
 See the [snapshot/restore rules](../../aw/debug-security-review.md#compile-only-validation).
 
+Experimental features alone are not a security finding. Ask for explicit user
+confirmation of the workflow's experimental features and notices before adding
+`--allow-experimental` to the dry-run compile command; without confirmation,
+omit the flag. Follow the shared
+[experimental-feature gate](../../aw/debug-security-review.md#experimental-features).
+Retain all other checks: security warnings, scanner failures and enabled
+`dangerously-*` configuration remain blocking. Acceptance grants no live
+execution authorization.
+
 Fail review on compilation errors or High/Critical security findings unless explicitly justified.
 
 ### 3) Enforce security best practices

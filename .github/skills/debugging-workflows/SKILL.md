@@ -559,9 +559,21 @@ gh aw logs --firewall
 
 ### Diagnostic and Development Compilation
 
+Experimental features are allowed after explicit user confirmation. Ask the user
+to accept the workflow's experimental features and notices, then add
+`--allow-experimental` to the dry-run compile command while retaining all other
+checks. Without confirmation, omit the flag; autopilot mode and live-debug session
+authorization alone do not supply acceptance. Follow the shared
+[experimental-feature gate](../../aw/debug-security-review.md#experimental-features).
+This accepts built-in feature notices only, not security warnings or
+`dangerously-*` configuration, and grants no live execution authorization.
+
 ```bash
 # Strict/staged development compilation; Docker-based checks are optional
 gh aw compile <workflow> --dry-run
+
+# Only after explicit user confirmation of experimental features and notices
+gh aw compile <workflow> --dry-run --allow-experimental
 
 # Recommended when using a reviewed test environment
 gh aw compile <workflow> --dry-run --environment gh-aw-debug

@@ -80,6 +80,47 @@ class GuidanceTests(unittest.TestCase):
                     "debug-security-review.md#annotated-markdown-change-overview", text
                 )
 
+    def test_experimental_debug_features_require_confirmation(self):
+        gate = (ROOT / ".github/aw/debug-security-review.md").read_text()
+        section = " ".join(
+            gate.split("## Experimental Features\n", 1)[1].split("\n## ", 1)[0].split()
+        )
+        for required in (
+            "explicit user confirmation",
+            "ask the user to confirm acceptance before adding `--allow-experimental`",
+            "Record the confirmation and its scope",
+            "No response, autopilot mode",
+            "live-debug session authorization alone",
+            "unavailable or declined, omit the flag",
+            "gh aw compile WORKFLOW --dry-run --allow-experimental",
+            "retaining any environment/scanner options",
+            "ask again when that scope changes",
+            "only built-in experimental-feature notices",
+            "not compiler security warnings",
+            "other warnings, security findings and scanner failures remain fatal",
+            "does not exempt enabled `dangerously-*` entries",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, section)
+
+        for path in (
+            DEBUG_GUIDE,
+            ROOT / ".github/skills/debugging-workflows/SKILL.md",
+            ROOT / ".github/skills/review-agentic-workflows/SKILL.md",
+        ):
+            with self.subTest(path=path):
+                text = " ".join(path.read_text().split())
+                self.assertIn("debug-security-review.md#experimental-features", text)
+                self.assertIn("Without confirmation, omit the flag".lower(), text.lower())
+                self.assertIn("`--allow-experimental`", text)
+                self.assertIn("Ask", text)
+
+        dangerous = gate.split("## Dry-Run Dangerous Features\n", 1)[1].split(
+            "\n## ", 1
+        )[0]
+        self.assertIn("are prohibited", dangerous)
+        self.assertIn("Do not silently", dangerous)
+
     def test_customer_case_remedy_order(self):
         case = FIXTURES["model_mismatch"]
         self.assertIn("v0.89.21", case["lock_header"])

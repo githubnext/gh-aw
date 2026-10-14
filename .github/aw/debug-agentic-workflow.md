@@ -147,8 +147,13 @@ checks as unverified, not passed. Without Docker, use a native `shellcheck` bina
 for the required run-step linting. Findings or failures from requested checks still
 fail the dry-run gate.
 
-With explicit user acceptance of experimental-feature notices, add
-`--allow-experimental`. Only built-in feature notices are acknowledged;
+Ask the user to confirm acceptance of the workflow's experimental features and
+their notices before adding `--allow-experimental`, following the shared
+[experimental-feature gate](debug-security-review.md#experimental-features).
+Without confirmation, omit the flag; autopilot mode and live-debug session
+authorization alone do not supply acceptance. After confirmation, add the flag
+to the dry-run command, retaining environment/scanner options and required checks.
+Only built-in feature notices are acknowledged;
 their warning counts remain visible in the dry-run summary. Other warnings,
 security findings, and scanner failures remain fatal. This opt-in grants no
 live execution or policy-installation authorization.
