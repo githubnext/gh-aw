@@ -3,6 +3,8 @@ import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
 import { useExecutionProvenanceFixture } from "./test_execution_provenance.js";
+import { getPatchPathForBranch, getPatchPathForBranchInRepo } from "./git_patch_utils.cjs";
+import { getBundlePathForBranch, getBundlePathForBranchInRepo } from "./generate_git_bundle.cjs";
 
 useExecutionProvenanceFixture();
 const require = createRequire(import.meta.url);
@@ -108,6 +110,56 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
     expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
     expect(global.exec.exec.mock.calls.some(([, args]) => args[0] === "push")).toBe(false);
   }
+
+  it.each(["duplicate patch", "duplicate bundle", "split namespace"])("rejects ambiguous %s before Git, API calls, or fallbacks", async kind => {
+    const branch = `ambiguous-${path.basename(directory)}`;
+    const files = [
+      kind === "duplicate bundle" ? getBundlePathForBranchInRepo(branch, "test-owner/test-repo") : getPatchPathForBranchInRepo(branch, "test-owner/test-repo"),
+      kind === "duplicate bundle" ? getBundlePathForBranch(branch) : getPatchPathForBranch(branch),
+    ];
+    if (kind === "split namespace") files[1] = getBundlePathForBranch(branch);
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    try {
+      for (const file of files) fs.writeFileSync(file, patchContent);
+      require("./resolve_transport_paths.cjs").resolveTransportPaths = originalResolver;
+      delete require.cache[require.resolve(`./${handlerName}.cjs`)];
+      const { main } = require(`./${handlerName}.cjs`);
+      const handler = await main({ base_branch: "main", allow_empty: true, fallback_as_issue: true });
+      const result = await handler({ branch, title: "Test", body: "Body", repo: "test-repo" }, {});
+      expect(result).toEqual(expect.objectContaining({ success: false, error_type: "ERR_TRANSPORT_INTEGRITY", error: expect.stringContaining("ambiguous transport candidates") }));
+      expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("resolve: ambiguous transport candidates"));
+      expect(global.exec.exec).not.toHaveBeenCalled();
+      expect(global.exec.getExecOutput).not.toHaveBeenCalled();
+      assertNoRemoteSideEffects();
+    } finally {
+      for (const file of files) fs.rmSync(file, { force: true });
+    }
+  });
+
+  it.each([undefined, "test-repo", " test-owner/test-repo "])("resolves repo %s with the qualified authorized slug before applying", async repo => {
+    const branch = `qualified-${path.basename(directory)}`;
+    const file = getPatchPathForBranchInRepo(branch, "test-owner/test-repo");
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    try {
+      fs.writeFileSync(file, patchContent);
+      const resolve = vi.fn(originalResolver);
+      require("./resolve_transport_paths.cjs").resolveTransportPaths = resolve;
+      delete require.cache[require.resolve(`./${handlerName}.cjs`)];
+      const { main } = require(`./${handlerName}.cjs`);
+      const handler = await main({ base_branch: "main", signed_commits: false });
+      global.exec.exec.mockImplementation(async () => {
+        fs.unlinkSync(file);
+        return 0;
+      });
+      const result = await handler({ branch, repo, title: "Test", body: "Body" }, {});
+      expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ repo }), "test-owner/test-repo");
+      expect(result.error_type).toBe("ERR_TRANSPORT_INTEGRITY");
+      expect(global.exec.exec).toHaveBeenCalled();
+      assertNoRemoteSideEffects();
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
+  });
 
   it.each(["same-size mutation", "replacement", "deletion"])("fails closed on patch %s after validation", async attack => {
     let attacked = false;

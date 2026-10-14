@@ -11,6 +11,8 @@ from check import JAR_SHA256, ROOT, check_result
 
 
 FAULTS = {
+    "unqualified-producer": "QualifiedRepository",
+    "ambiguous-selection": "UnambiguousResolution",
     "blocking-open": "NonblockingOpen",
     "reopen-original": "StableConsumption",
     "rebaseline": "OriginalBaseline",

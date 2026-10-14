@@ -1,22 +1,24 @@
 ------------------------- MODULE SafeOutputTransport -------------------------
-EXTENDS Naturals, Sequences
+EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS Fault, Transport
 ASSUME Transport \in {"patch", "bundle"}
 ASSUME Fault \in {"none", "blocking-open", "reopen-original", "rebaseline",
                   "skip-publication-check", "retry-integrity",
                   "cleanup-blocked", "cleanup-error-hidden", "unsafe-diagnostics",
-                  "redundant-hashing"}
+                  "redundant-hashing", "unqualified-producer", "ambiguous-selection"}
 
 \* Byte classes abstract collision-free digests, not Git's or the OS's parser.
 VARIABLE s
 vars == <<s>>
-Stages == {"capture", "validate", "apply", "conflict", "publish", "complete",
+Stages == {"resolve", "capture", "validate", "apply", "conflict", "publish", "complete",
            "failed", "done"}
 Resources == {"am-state", "bundle-ref"}
 
 Init ==
-    s = [stage |-> "capture", original |-> 0, identity |-> 0,
+    s = [stage |-> "resolve", original |-> 0, identity |-> 0,
+         producerRepo |-> IF Fault = "unqualified-producer" THEN "bare" ELSE "owner/repo",
+         consumerRepo |-> "owner/repo", namespaces |-> {}, resolved |-> FALSE,
          regular |-> TRUE, captured |-> 0, capturedIdentity |-> 0,
          trusted |-> 0, snapshot |-> 0, snapshotExists |-> FALSE,
          transformed |-> FALSE, mutated |-> FALSE, localChecked |-> FALSE,
@@ -43,6 +45,13 @@ Capture ==
        ELSE s' = [s EXCEPT !.stage = "validate", !.captured = s.original,
                           !.capturedIdentity = s.identity, !.trusted = s.original,
                           !.lastEvent = "Capture"]
+
+Resolve(namespaces) ==
+    /\ s.stage = "resolve"
+    /\ namespaces \in {{"qualified"}, {"legacy"}, {"qualified", "legacy"}}
+    /\ IF Cardinality(namespaces) > 1 /\ Fault # "ambiguous-selection" THEN Reject
+       ELSE s' = [s EXCEPT !.stage = "capture", !.namespaces = namespaces,
+                          !.resolved = TRUE, !.lastEvent = "Resolve"]
 
 Mutate(kind) ==
     /\ s.stage \in {"capture", "validate", "apply", "conflict", "publish", "complete"}
@@ -123,6 +132,8 @@ Cleanup(success) ==
            !.lastEvent = IF error THEN "CleanupFailure" ELSE "Cleanup"]
 
 Next ==
+    \/ \E namespaces \in {{"qualified"}, {"legacy"}, {"qualified", "legacy"}}:
+           Resolve(namespaces)
     \/ Capture \/ Transform \/ Validate \/ LocalCommand \/ CheckConflict \/ Complete
     \/ \E kind \in {"bytes", "identity", "fifo", "snapshot"}: Mutate(kind)
     \/ \E success \in BOOLEAN: Apply(success) \/ Publish(success) \/ Cleanup(success)
@@ -131,6 +142,8 @@ Spec == Init /\ [][Next]_vars
 
 TypeOK ==
     /\ s.stage \in Stages
+    /\ s.producerRepo \in {"bare", "owner/repo"} /\ s.consumerRepo = "owner/repo"
+    /\ s.namespaces \subseteq {"qualified", "legacy"} /\ s.resolved \in BOOLEAN
     /\ s.original \in 0..1 /\ s.captured \in 0..1
     /\ s.identity \in 0..1 /\ s.capturedIdentity \in 0..1
     /\ s.trusted \in 0..2 /\ s.snapshot \in 0..2
@@ -145,7 +158,9 @@ TypeOK ==
     /\ s.writes \subseteq [verified: BOOLEAN, failed: BOOLEAN]
 
 StableConsumption == \A a \in s.applied: a.bytes = a.validated
-OriginalBaseline == s.stage # "capture" => s.captured = 0
+QualifiedRepository == s.resolved => s.producerRepo = s.consumerRepo
+UnambiguousResolution == s.resolved => Cardinality(s.namespaces) = 1
+OriginalBaseline == s.stage \notin {"resolve", "capture"} => s.captured = 0
 PublicationIntegrity == \A w \in s.writes: w.verified /\ ~w.failed
 PermanentFailure == s.permanentRetries = 0
 NonblockingOpen == ~s.blocked

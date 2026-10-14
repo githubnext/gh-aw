@@ -2610,7 +2610,7 @@ These requirements apply to `create_pull_request` and `push_to_pull_request_bran
 
 These requirements apply to `create_pull_request` and `push_to_pull_request_branch`, including unsigned delivery, bundle recovery, signed delivery, PR/issue publication retries, and optional CI-trigger commits. They bind handler-time policy validation and Git consumption to captured bytes; capture alone does not establish policy approval or detection provenance.
 
-**PTI-001 — Trusted capture**: The privileged handler MUST derive canonical transport paths from the validated branch and repository rather than agent-supplied paths. For each resolved patch or bundle, it MUST capture raw bytes, a cryptographic digest, and descriptor-verified device/inode identity. Opens MUST reject symlinks and nonregular files without blocking on FIFOs. Missing or unreadable resolved artifacts MUST fail closed, including in allow-empty mode.
+**PTI-001 — Trusted capture**: Producer and consumer MUST derive canonical transport paths from the same validated branch and fully qualified, authorized target repository slug, not raw agent-supplied repository/path values or the head repository of a fork-backed delivery. Bare names and surrounding whitespace MUST be normalized by repository authorization before path resolution. Producers MUST qualify filenames even for the implicit workflow repository. Consumers MAY accept a unique legacy unqualified namespace, but MUST reject multiple matching namespaces before capture or side effects, including duplicate patches/bundles and a patch in one namespace paired with a bundle in another. They MUST NOT search another default repository after resolving an explicit target. For each resolved patch or bundle, the handler MUST capture raw bytes, a cryptographic digest, and descriptor-verified device/inode identity. Opens MUST reject symlinks and nonregular files without blocking on FIFOs. Missing or unreadable resolved artifacts MUST fail closed, including in allow-empty mode.
 
 **PTI-002 — Stable consumption**: Git operations that consume a captured path MUST receive a private, read-only snapshot outside the checkout, not the agent-writable original. A bundle's verification, head discovery, imports, and recovery retries MUST use the same snapshot unless a trusted transformation explicitly replaces it. Capture and snapshots MUST preserve raw bytes, including non-UTF-8 data.
 
@@ -2628,7 +2628,7 @@ These requirements apply to `create_pull_request` and `push_to_pull_request_bran
 
 | Requirement | Implementation | Regression evidence |
 |---|---|---|
-| PTI-001–004 | `resolve_transport_paths.cjs`, `transport_integrity.cjs`, both PR handlers | `resolve_transport_paths.test.cjs`, `transport_integrity.test.cjs`, `transport_integrity_handlers.test.cjs` |
+| PTI-001–004 | `safe_outputs_handlers.cjs`, `resolve_transport_paths.cjs`, `transport_integrity.cjs`, both PR handlers | `safe_outputs_handlers.test.cjs` producer/consumer round trips; `resolve_transport_paths.test.cjs`, `transport_integrity.test.cjs`, `transport_integrity_handlers.test.cjs` |
 | PTI-003 cost bound | Lightweight local checks and cached snapshot digests | An 8 MiB bundle and 100 unrelated commands require zero full-file reads and hashes; subsequent publication still rejects same-size mutation |
 | PTI-005 | `error_recovery.cjs`, `create_or_update_pull_request.cjs`, guarded publication callbacks | `error_recovery.test.cjs`, `create_or_update_pull_request.test.cjs`; real typed errors with network/timeout/rate-limit paths |
 | PTI-006–007 | Registered cleanup and structured diagnostics in `transport_integrity.cjs` | `transport_integrity_git.test.cjs` verifies real Git refs and conflict rollback; helper tests cover checkout pinning, failed cleanup, cause retention, and safe logging |
@@ -6200,6 +6200,7 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 **Version 1.29.12** (2026-10-14):
 
 - **Added**: PTI-001–007 for captured patch/bundle bytes, nonblocking regular-file checks, private snapshots, bounded integrity-check cost, trusted transformations, permanent retry classification, restricted Git cleanup, and safe diagnostics.
+- **Specified**: Producer/consumer qualified repository identity and fail-closed ambiguous namespace selection, including mixed patch/bundle namespaces and unique legacy compatibility.
 - **Added**: Runtime regression mappings and a bounded transport lifecycle TLA+ model; no new compiler rule or token permission is introduced.
 - Scoped RCR8-RCR15 multi-repository controls to literal `multi: true`; required single-selector runtime validation in both jobs when omitted/false, without list restrictions or changes to write authorization.
 - Extended the bounded checkout model with explicit mode, single-selector rejection, negative controls, and reachability witnesses.

@@ -1,95 +1,80 @@
 // @ts-check
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import crypto from "crypto";
 import fs from "fs";
-
 import { resolveTransportPaths } from "./resolve_transport_paths.cjs";
+import { getPatchPathForBranch, getPatchPathForBranchInRepo } from "./git_patch_utils.cjs";
+import { getBundlePathForBranch, getBundlePathForBranchInRepo } from "./generate_git_bundle.cjs";
 
+let branch;
+const created = new Set();
 beforeEach(() => {
-  // git_patch_utils.cjs hardcodes /tmp/gh-aw
   fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+  branch = `resolve-${crypto.randomUUID()}`;
+});
+afterEach(() => {
+  for (const file of created) fs.rmSync(file, { force: true });
+  created.clear();
 });
 
+function write(kind, repo = undefined) {
+  const file = kind === "patch" ? (repo ? getPatchPathForBranchInRepo(branch, repo) : getPatchPathForBranch(branch)) : repo ? getBundlePathForBranchInRepo(branch, repo) : getBundlePathForBranch(branch);
+  created.add(file);
+  fs.writeFileSync(file, `${kind} content`);
+  return file;
+}
+
 describe("resolveTransportPaths", () => {
-  it("returns undefined values when message has no branch", () => {
-    const result = resolveTransportPaths({}, "owner/repo");
-    expect(result.patchPath).toBeUndefined();
-    expect(result.bundlePath).toBeUndefined();
+  it("returns undefined values when message has no branch or no files exist", () => {
+    expect(resolveTransportPaths({}, "owner/repo")).toEqual({ patchPath: undefined, bundlePath: undefined });
+    expect(resolveTransportPaths({ branch }, "owner/repo")).toEqual({ patchPath: undefined, bundlePath: undefined });
   });
 
-  it("recovers single-repo patch path from branch when not present on the message", () => {
-    const branch = `resolve-test-${Date.now()}`;
-    const expectedPatch = `/tmp/gh-aw/aw-${branch}.patch`;
-    const expectedBundle = `/tmp/gh-aw/aw-${branch}.bundle`;
-    fs.writeFileSync(expectedPatch, "patch-content");
-    fs.writeFileSync(expectedBundle, "bundle-content");
-    try {
-      const result = resolveTransportPaths({ branch }, undefined);
-      expect(result.patchPath).toBe(expectedPatch);
-      expect(result.bundlePath).toBe(expectedBundle);
-    } finally {
-      fs.rmSync(expectedPatch, { force: true });
-      fs.rmSync(expectedBundle, { force: true });
+  it.each([undefined, "owner/repo"])("accepts a unique legacy namespace with target %s", repo => {
+    const patchPath = write("patch");
+    const bundlePath = write("bundle");
+    expect(resolveTransportPaths({ branch }, repo)).toEqual({ patchPath, bundlePath });
+  });
+
+  it.each(["repo", " owner/repo ", undefined])("uses only the validated qualified slug, not raw repo %s", repo => {
+    const patchPath = write("patch", "owner/repo");
+    const bundlePath = write("bundle", "owner/repo");
+    write("patch", "repo");
+    write("bundle", "owner/different");
+    expect(resolveTransportPaths({ branch, repo, patch: "/untrusted.patch", bundle: "/untrusted.bundle" }, "owner/repo")).toEqual({ patchPath, bundlePath });
+  });
+
+  it.each(["patch", "bundle"])("accepts a single qualified %s without its companion", kind => {
+    const file = write(kind, "owner/repo");
+    expect(resolveTransportPaths({ branch }, "owner/repo")).toEqual({
+      patchPath: kind === "patch" ? file : undefined,
+      bundlePath: kind === "bundle" ? file : undefined,
+    });
+  });
+
+  it.each([
+    ["patch", "patch"],
+    ["bundle", "bundle"],
+    ["patch", "bundle"],
+    ["bundle", "patch"],
+  ])("rejects qualified %s plus legacy %s instead of preferring or mixing them", (qualifiedKind, legacyKind) => {
+    write(qualifiedKind, "owner/repo");
+    write(legacyKind);
+    expect(() => resolveTransportPaths({ branch }, "owner/repo")).toThrow(expect.objectContaining({ code: "ERR_TRANSPORT_INTEGRITY", operation: "resolve", reason: "ambiguous transport candidates" }));
+  });
+
+  it("rejects duplicate complete namespaces even when their contents are identical", () => {
+    for (const repo of [undefined, "owner/repo"]) {
+      write("patch", repo);
+      write("bundle", repo);
     }
+    expect(() => resolveTransportPaths({ branch }, "owner/repo")).toThrow("ambiguous transport candidates");
   });
 
-  it("prefers multi-repo path from message.repo when that file exists", () => {
-    const branch = `resolve-multi-${Date.now()}`;
-    const repo = "owner/repo";
-    const sanitizedRepo = "owner-repo";
-    const expectedPatch = `/tmp/gh-aw/aw-${sanitizedRepo}-${branch}.patch`;
-    fs.writeFileSync(expectedPatch, "patch-content");
-    try {
-      const result = resolveTransportPaths({ branch, repo }, undefined);
-      expect(result.patchPath).toBe(expectedPatch);
-    } finally {
-      fs.rmSync(expectedPatch, { force: true });
-    }
-  });
-
-  it("falls back to defaultTargetRepo when message.repo is absent", () => {
-    const branch = `resolve-default-${Date.now()}`;
-    const repo = "owner/defaultrepo";
-    const sanitizedRepo = "owner-defaultrepo";
-    const expectedPatch = `/tmp/gh-aw/aw-${sanitizedRepo}-${branch}.patch`;
-    fs.writeFileSync(expectedPatch, "patch-content");
-    try {
-      const result = resolveTransportPaths({ branch }, repo);
-      expect(result.patchPath).toBe(expectedPatch);
-    } finally {
-      fs.rmSync(expectedPatch, { force: true });
-    }
-  });
-
-  it("falls back to single-repo path when neither multi-repo candidate exists", () => {
-    const branch = `resolve-fallback-${Date.now()}`;
-    const expectedPatch = `/tmp/gh-aw/aw-${branch}.patch`;
-    fs.writeFileSync(expectedPatch, "patch-content");
-    try {
-      const result = resolveTransportPaths({ branch, repo: "owner/nonexistent" }, "owner/alsoNo");
-      expect(result.patchPath).toBe(expectedPatch);
-    } finally {
-      fs.rmSync(expectedPatch, { force: true });
-    }
-  });
-
-  it("returns undefined when no candidate file exists on disk", () => {
-    const branch = `resolve-missing-${Date.now()}`;
-    const result = resolveTransportPaths({ branch }, "owner/repo");
-    expect(result.patchPath).toBeUndefined();
-    expect(result.bundlePath).toBeUndefined();
-  });
-
-  it("recovers bundle path independently of patch path", () => {
-    const branch = `resolve-bundle-only-${Date.now()}`;
-    const expectedBundle = `/tmp/gh-aw/aw-${branch}.bundle`;
-    fs.writeFileSync(expectedBundle, "bundle-content");
-    try {
-      const result = resolveTransportPaths({ branch }, undefined);
-      expect(result.patchPath).toBeUndefined();
-      expect(result.bundlePath).toBe(expectedBundle);
-    } finally {
-      fs.rmSync(expectedBundle, { force: true });
-    }
+  it("does not use a different repository's artifacts as a fallback", () => {
+    write("patch", "owner/default");
+    write("bundle", "owner/default");
+    expect(resolveTransportPaths({ branch, repo: "other" }, "owner/other")).toEqual({ patchPath: undefined, bundlePath: undefined });
   });
 });

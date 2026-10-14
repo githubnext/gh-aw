@@ -462,10 +462,17 @@ async function main(config = {}) {
 
     processedCount++;
 
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "push to PR branch");
+    if (!repoResult.success) {
+      return { success: false, error: repoResult.error };
+    }
+    const itemRepo = repoResult.repo;
+    const repoParts = repoResult.repoParts;
+
     // Determine the patch and bundle file paths. The MCP server sets these on
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
-    const transportPaths = resolveTransportPaths(message, defaultTargetRepo);
+    const transportPaths = resolveTransportPaths(message, itemRepo);
     transport.captureOptional(transportPaths.patchPath);
     transport.captureOptional(transportPaths.bundlePath);
     const patchFilePath = transportPaths.patchPath;
@@ -699,15 +706,6 @@ async function main(config = {}) {
     if (!pullNumber) {
       return { success: false, error: "Pull request number is required but not found" };
     }
-
-    // Resolve and validate target repository
-    // For cross-repo scenarios, the PR may be in a different repository than the workflow
-    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "push to PR branch");
-    if (!repoResult.success) {
-      return { success: false, error: repoResult.error };
-    }
-    const itemRepo = repoResult.repo;
-    const repoParts = repoResult.repoParts;
 
     core.info(`Target repository: ${itemRepo}`);
 

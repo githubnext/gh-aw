@@ -4,6 +4,9 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { createHandlers, hasUpdatePullRequestFields } from "./safe_outputs_handlers.cjs";
+import { resolveTransportPaths } from "./resolve_transport_paths.cjs";
+import { getPatchPathForBranchInRepo } from "./git_patch_utils.cjs";
+import { getBundlePathForBranchInRepo } from "./generate_git_bundle.cjs";
 import {
   looksLikeExploratoryBranch,
   normalizeProbeValue,
@@ -1014,6 +1017,51 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("requires pull_request_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  describe.each([
+    ["create_pull_request", "createPullRequestHandler"],
+    ["push_to_pull_request_branch", "pushToPullRequestBranchHandler"],
+  ])("%s producer/consumer repository identity", (type, handlerName) => {
+    it.each([
+      { name: "implicit workflow repository", repo: undefined, target: undefined },
+      { name: "bare repository name", repo: "test-repo", target: undefined },
+      { name: "padded qualified repository", repo: " test-owner/test-repo ", target: undefined },
+      { name: "explicit repository overriding the default", repo: "test-repo", target: "test-owner/default" },
+      { name: "fork-backed head repository", repo: undefined, target: undefined, head: "automation/fork" },
+    ])("round-trips $name through qualified patch and bundle paths", async ({ repo, target, head }) => {
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GITHUB_BASE_REF = "main";
+      const branch = `transport-${crypto.randomUUID()}`;
+      const patchPath = getPatchPathForBranchInRepo(branch, "test-owner/test-repo");
+      const bundlePath = getBundlePathForBranchInRepo(branch, "test-owner/test-repo");
+      try {
+        execSync("git init -b main && git config user.email test@example.com && git config user.name Test", { cwd: testWorkspaceDir, stdio: "pipe" });
+        fs.writeFileSync(path.join(testWorkspaceDir, "file.txt"), "base\n");
+        execSync("git add file.txt && git commit -m base", { cwd: testWorkspaceDir, stdio: "pipe" });
+        const base = execSync("git rev-parse HEAD", { cwd: testWorkspaceDir, stdio: "pipe" }).toString().trim();
+        execSync(`git checkout -b ${branch} && git remote add origin https://github.com/test-owner/test-repo.git && git update-ref refs/remotes/origin/main ${base} && git update-ref refs/remotes/origin/${branch} ${base}`, {
+          cwd: testWorkspaceDir,
+          stdio: "pipe",
+        });
+        fs.writeFileSync(path.join(testWorkspaceDir, "file.txt"), "changed\n");
+        execSync("git add file.txt && git commit -m change", { cwd: testWorkspaceDir, stdio: "pipe" });
+        const producer = createHandlers(mockServer, mockAppendSafeOutput, {
+          [type]: { base_branch: "main", patch_format: "bundle", "target-repo": target, "head-repo": head, allowed_repos: ["test-owner/test-repo"] },
+        });
+        const result = await producer[handlerName]({ repo, branch, title: "Transport changes", body: "Changes", pull_request_number: 123 });
+        expect(result.isError, result.content[0].text).not.toBe(true);
+        const response = JSON.parse(result.content[0].text);
+        expect(response.patch.path).toBe(patchPath);
+        expect(response.bundle.path).toBe(bundlePath);
+        const entry = mockAppendSafeOutput.mock.calls[0][0];
+        expect(resolveTransportPaths(entry, "test-owner/test-repo")).toEqual({ patchPath, bundlePath });
+      } finally {
+        fs.rmSync(patchPath, { force: true });
+        fs.rmSync(bundlePath, { force: true });
+        delete process.env.GITHUB_BASE_REF;
+      }
     });
   });
 

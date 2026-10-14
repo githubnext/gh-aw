@@ -110,6 +110,11 @@ model with the runtime contract in Safe Outputs
 [PTI-001–007](../../docs/src/content/docs/specs/safe-outputs-specification.md#patch-and-bundle-transport-integrity-requirements).
 It separates original bytes/identity, captured baselines, trusted transformed
 bytes, private snapshots, applied bytes, and publication-time verification.
+Resolution requires producer/consumer agreement on the qualified repository
+and a single qualified or legacy namespace for the patch/bundle pair; ambiguity
+fails before capture. Namespaces abstract exact shared filename derivation;
+real-Git producer/consumer round trips cover bare, padded, implicit, overridden,
+and fork-backed target repository cases.
 One adversarial mutation may change bytes, identity, regular-file status, or
 an existing snapshot between boundaries; FIFO replacement also occurs before
 capture. Rate-limited
@@ -138,6 +143,8 @@ only `Fault` and requires TLC exit code 12 with the corresponding invariant:
 
 | Fault | Expected invariant |
 |---|---|
+| `unqualified-producer` | `QualifiedRepository` |
+| `ambiguous-selection` | `UnambiguousResolution` |
 | `blocking-open` | `NonblockingOpen` |
 | `reopen-original` | `StableConsumption` |
 | `rebaseline` | `OriginalBaseline` |

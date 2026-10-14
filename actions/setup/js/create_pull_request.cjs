@@ -1021,10 +1021,17 @@ async function main(config = {}) {
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
 
+    const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
+    if (!repoResult.success) {
+      core.warning(`Skipping pull request: ${repoResult.error}`);
+      return { success: false, error: repoResult.error };
+    }
+    const { repo: itemRepo, repoParts } = repoResult;
+
     // Determine the patch and bundle file paths. The MCP server sets these on
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
-    const transportPaths = resolveTransportPaths(pullRequestItem, defaultTargetRepo);
+    const transportPaths = resolveTransportPaths(pullRequestItem, itemRepo);
     transport.captureOptional(transportPaths.patchPath);
     transport.captureOptional(transportPaths.bundlePath);
     const patchFilePath = transportPaths.patchPath;
@@ -1035,16 +1042,6 @@ async function main(config = {}) {
     if (bundleFilePath) {
       core.info(`Bundle file path: ${bundleFilePath}`);
     }
-    // Resolve and validate target repository
-    const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
-    if (!repoResult.success) {
-      core.warning(`Skipping pull request: ${repoResult.error}`);
-      return {
-        success: false,
-        error: repoResult.error,
-      };
-    }
-    const { repo: itemRepo, repoParts } = repoResult;
     const allowedMentionAliases = await resolveMentionsForItem(context, githubClient, core, config.mentions, defaultMentionAliases, defaultTargetRepo, repoResult);
     core.info(`Target repository: ${itemRepo}`);
     let pushRepo = itemRepo;
