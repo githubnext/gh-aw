@@ -42,6 +42,7 @@ const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_age
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
+const { withTransportIntegrity } = require("./transport_integrity.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
 const {
   MANAGED_FALLBACK_ISSUE_LABEL,
@@ -451,9 +452,10 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
  * @param {string} body - Issue body
  * @param {string[]} labels - Issue labels
  * @param {string[] | null} assignees - Sanitized assignees (null = omit field)
+ * @param {() => void} assertUnchanged - Check captured transport before each publication attempt
  * @returns {Promise<{data: any, issueRepoParts: {owner: string, repo: string}}>}
  */
-async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees) {
+async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees, assertUnchanged) {
   body = appendExecutionProvenance(body, process.env.GH_AW_WORKFLOW_NAME || "Workflow", "");
   if (body.length > MAX_GITHUB_BODY_LENGTH) {
     throw new Error(`Fallback issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
@@ -485,9 +487,11 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
   const triedOwnerRepos = new Set();
   const innerCreate = async () => {
     try {
+      assertUnchanged();
       const response = await githubClient.rest.issues.create(payload);
       return { ...response, issueRepoParts: { owner: payload.owner, repo: payload.repo } };
     } catch (error) {
+      assertUnchanged();
       const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
       const message = getErrorMessage(error).toLowerCase();
       const isAssigneeError = status === 422 && (message.includes("assignee") || message.includes("assignees") || message.includes("unprocessable"));
@@ -662,6 +666,7 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
  * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @param {string} [options.cwd] - Optional working directory for git operations; scopes git config overrides to the correct checkout.
+ * @param {() => void} [options.assertTransportUnchanged]
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
@@ -676,11 +681,13 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
     } else {
       checkResult = await checkRemoteBranch();
     }
+    options.assertTransportUnchanged?.();
     const { stdout } = checkResult;
     if (stdout.trim()) {
       remoteBranchExists = true;
     }
   } catch (checkError) {
+    options.assertTransportUnchanged?.();
     core.info(`Remote branch check failed (non-fatal): ${getErrorMessage(checkError)}`);
   }
 
@@ -713,9 +720,11 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
     core.warning(`Remote branch ${branchName} already exists - reusing it (recreate-ref enabled, force-deleting remote ref)`);
     let deleteBlocked = false;
     try {
+      options.assertTransportUnchanged?.();
       await githubClient.rest.git.deleteRef({ owner, repo, ref: `heads/${branchName}` });
       core.info(`Deleted remote branch ${branchName} to reuse it`);
     } catch (deleteError) {
+      options.assertTransportUnchanged?.();
       /** @type {any} */
       const err = deleteError;
       const status = err && typeof err === "object" ? err.status : undefined;
@@ -982,7 +991,8 @@ async function main(config = {}) {
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status and PR details
    */
-  return async function handleCreatePullRequest(message, resolvedTemporaryIds) {
+  return withTransportIntegrity(async function handleCreatePullRequest(message, resolvedTemporaryIds, transport) {
+    const exec = transport.guardExec(globalThis.exec);
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping create_pull_request: max count of ${maxCount} reached`);
@@ -1009,6 +1019,8 @@ async function main(config = {}) {
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
     const transportPaths = resolveTransportPaths(pullRequestItem, defaultTargetRepo);
+    transport.captureOptional(transportPaths.patchPath);
+    transport.captureOptional(transportPaths.bundlePath);
     const patchFilePath = transportPaths.patchPath;
     core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
 
@@ -1234,6 +1246,7 @@ async function main(config = {}) {
       // Check if patch file exists and has valid content.
       // Always require patch content for policy enforcement, even when bundle transport
       // is used for apply-time commit transport.
+      transport.assertUnchanged();
       const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
       const applyTransport = hasBundleFile ? "bundle" : "patch";
       core.info(`Apply transport mode: ${applyTransport} (bundle file present: ${hasBundleFile})`);
@@ -1281,7 +1294,7 @@ async function main(config = {}) {
       let isEmpty = true;
       if (hasPatchFile) {
         try {
-          patchContent = fs.readFileSync(patchFilePath, "utf8");
+          patchContent = transport.read(patchFilePath).toString("utf8");
         } catch (err) {
           throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
         }
@@ -1325,7 +1338,8 @@ async function main(config = {}) {
         });
 
         try {
-          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees);
+          transport.assertUnchanged();
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, fallbackTitle, fallbackBody, fallbackLabels, configAssignees, transport.assertUnchanged);
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
           await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue", { activationCommentLinks });
@@ -1484,7 +1498,7 @@ async function main(config = {}) {
         if (patchFilePath && fs.existsSync(patchFilePath)) {
           let patchStats;
           try {
-            patchStats = fs.readFileSync(patchFilePath, "utf8");
+            patchStats = transport.read(patchFilePath).toString("utf8");
           } catch (err) {
             throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
           }
@@ -1814,6 +1828,7 @@ async function main(config = {}) {
         try {
           await applyBundleToBranch(bundleFilePath, branchName, originalAgentBranch, exec, baseBranch);
         } catch (bundleError) {
+          transport.assertUnchanged();
           core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
           return { success: false, error: "Failed to apply bundle" };
         }
@@ -1825,7 +1840,9 @@ async function main(config = {}) {
         {
           const forkCwd = process.cwd();
           const runBundlePush = async () => {
+            transport.assertUnchanged();
             branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+              assertTransportUnchanged: transport.assertUnchanged,
               recreateRef,
               githubClient: pushGithubClient,
               owner: pushRepoParts.owner,
@@ -1835,7 +1852,9 @@ async function main(config = {}) {
               cwd: forkCwd,
             });
 
+            transport.assertUnchanged();
             await pushSignedCommits({
+              assertTransportUnchanged: transport.assertUnchanged,
               githubClient: pushGithubClient,
               owner: pushRepoParts.owner,
               repo: pushRepoParts.repo,
@@ -1863,6 +1882,7 @@ async function main(config = {}) {
               core.info("Could not count new commits - extra empty commit will be skipped");
             }
           } catch (initialPushError) {
+            transport.assertUnchanged();
             /** @type {unknown} */
             let pushError = initialPushError;
             let pushRecovered = false;
@@ -1875,8 +1895,10 @@ async function main(config = {}) {
                 await rewriteBundleBranchAsSingleCommit(baseBranch, exec, bundleFilePath, {
                   excludedFiles: Array.isArray(config.excluded_files) ? config.excluded_files : [],
                 });
-                const runRetryPush = async () =>
-                  pushSignedCommits({
+                const runRetryPush = async () => {
+                  transport.assertUnchanged();
+                  return pushSignedCommits({
+                    assertTransportUnchanged: transport.assertUnchanged,
                     githubClient: pushGithubClient,
                     owner: pushRepoParts.owner,
                     repo: pushRepoParts.repo,
@@ -1890,6 +1912,7 @@ async function main(config = {}) {
                     currentRepo: itemRepo,
                     validationConfig: config,
                   });
+                };
                 await runRetryPush();
                 core.info("Changes pushed to branch after bundle rewrite retry");
 
@@ -1902,6 +1925,7 @@ async function main(config = {}) {
                 }
                 pushRecovered = true;
               } catch (retryPushError) {
+                transport.assertUnchanged();
                 pushError = retryPushError;
               }
             }
@@ -1969,7 +1993,8 @@ gh pr create --title ${shellQuote(title)} --base ${shellQuote(baseBranch)} --hea
 ${issueSafeFallbackFooter}`;
 
                 try {
-                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+                  transport.assertUnchanged();
+                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees, transport.assertUnchanged);
 
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
                   await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
@@ -2046,7 +2071,7 @@ ${issueSafeFallbackFooter}`;
             if (patchContent !== originalPatchContent) {
               core.info("Resolved temporary ID references in patch content");
               try {
-                fs.writeFileSync(patchFilePath, patchContent, "utf8");
+                transport.transform(patchFilePath, () => Buffer.from(patchContent, "utf8"));
               } catch (err) {
                 throw new Error(`Failed to write file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
               }
@@ -2071,6 +2096,7 @@ ${issueSafeFallbackFooter}`;
             core.info("Patch applied successfully");
             patchApplied = true;
           } catch (patchError) {
+            transport.assertUnchanged();
             core.error(`Failed to apply patch with --3way: ${getErrorMessage(patchError)}`);
 
             const recoveredFromAddAddConflict = await tryRecoverGitAmAddAddConflict(exec);
@@ -2150,6 +2176,7 @@ ${issueSafeFallbackFooter}`;
                     await capturePostApplyBaseRef();
                     await exec.exec("git", ["am", "--3way", patchFilePath]);
                   } catch (fallbackPatchError) {
+                    transport.assertUnchanged();
                     core.warning(`Fallback git am --3way failed: ${getErrorMessage(fallbackPatchError)}`);
                     const recoveredFallback = await tryRecoverGitAmAddAddConflict(exec);
                     if (!recoveredFallback.recovered) {
@@ -2170,6 +2197,7 @@ ${issueSafeFallbackFooter}`;
                   patchApplied = true;
                 }
               } catch (fallbackError) {
+                transport.assertUnchanged();
                 core.warning(`Fallback to original base commit failed: ${getErrorMessage(fallbackError)}`);
               }
             }
@@ -2220,7 +2248,9 @@ ${issueSafeFallbackFooter}`;
           {
             const forkCwd = process.cwd();
             const runPatchPush = async () => {
+              transport.assertUnchanged();
               branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+                assertTransportUnchanged: transport.assertUnchanged,
                 recreateRef,
                 githubClient: pushGithubClient,
                 owner: pushRepoParts.owner,
@@ -2230,7 +2260,9 @@ ${issueSafeFallbackFooter}`;
                 cwd: forkCwd,
               });
 
+              transport.assertUnchanged();
               await pushSignedCommits({
+                assertTransportUnchanged: transport.assertUnchanged,
                 githubClient: pushGithubClient,
                 owner: pushRepoParts.owner,
                 repo: pushRepoParts.repo,
@@ -2260,6 +2292,7 @@ ${issueSafeFallbackFooter}`;
                 core.info("Could not count new commits - extra empty commit will be skipped");
               }
             } catch (pushError) {
+              transport.assertUnchanged();
               // Push failed - create fallback issue instead of PR (if fallback is enabled)
               core.error(`Git push failed: ${getErrorMessage(pushError)}`);
 
@@ -2290,7 +2323,7 @@ ${issueSafeFallbackFooter}`;
                 if (patchFilePath && fs.existsSync(patchFilePath)) {
                   let patchContent;
                   try {
-                    patchContent = fs.readFileSync(patchFilePath, "utf8");
+                    patchContent = transport.read(patchFilePath).toString("utf8");
                   } catch (err) {
                     throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
                   }
@@ -2341,7 +2374,8 @@ ${patchPreview}
 ${issueSafeFallbackFooter}`;
 
                 try {
-                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+                  transport.assertUnchanged();
+                  const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees, transport.assertUnchanged);
 
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
                   await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
@@ -2401,7 +2435,9 @@ ${issueSafeFallbackFooter}`;
 
               const forkCwd = process.cwd();
               const runEmptyPush = async () => {
+                transport.assertUnchanged();
                 branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+                  assertTransportUnchanged: transport.assertUnchanged,
                   recreateRef,
                   githubClient: pushGithubClient,
                   owner: pushRepoParts.owner,
@@ -2411,7 +2447,9 @@ ${issueSafeFallbackFooter}`;
                   cwd: forkCwd,
                 });
 
+                transport.assertUnchanged();
                 await pushSignedCommits({
+                  assertTransportUnchanged: transport.assertUnchanged,
                   githubClient: pushGithubClient,
                   owner: pushRepoParts.owner,
                   repo: pushRepoParts.repo,
@@ -2439,6 +2477,7 @@ ${issueSafeFallbackFooter}`;
                 core.info("Could not count new commits - extra empty commit will be skipped");
               }
             } catch (pushError) {
+              transport.assertUnchanged();
               const error = `Failed to push empty branch: ${getErrorMessage(pushError)}`;
               core.error(error);
               return {
@@ -2516,7 +2555,8 @@ ${issueSafeFallbackFooter}`;
         }
 
         try {
-          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          transport.assertUnchanged();
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees, transport.assertUnchanged);
 
           core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
 
@@ -2566,6 +2606,7 @@ ${issueSafeFallbackFooter}`;
         if (body.length > MAX_GITHUB_BODY_LENGTH) {
           throw new Error(`Pull request body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
         }
+        transport.assertUnchanged();
         const { data: pullRequest } = await createOrUpdatePullRequest({
           githubClient,
           repoParts,
@@ -2788,7 +2829,9 @@ ${issueSafeFallbackFooter}`;
         // This works around the GITHUB_TOKEN limitation where pushes don't trigger CI events.
         // Restricting to exactly 1 new commit prevents the CI trigger token being used on
         // multi-commit branches where workflow files may have been iteratively modified.
+        transport.assertUnchanged();
         const ciTriggerResult = await pushExtraEmptyCommit({
+          assertTransportUnchanged: transport.assertUnchanged,
           branchName,
           repoOwner: pushRepoParts.owner,
           repoName: pushRepoParts.repo,
@@ -2812,6 +2855,7 @@ ${issueSafeFallbackFooter}`;
           head_repo: pushRepo,
         };
       } catch (prError) {
+        transport.assertUnchanged();
         const errorMessage = getErrorMessage(prError);
         core.warning(`Failed to create pull request: ${errorMessage}`);
 
@@ -2831,7 +2875,7 @@ ${issueSafeFallbackFooter}`;
           if (patchFilePath && fs.existsSync(patchFilePath)) {
             let patchContent;
             try {
-              patchContent = fs.readFileSync(patchFilePath, "utf8");
+              patchContent = transport.read(patchFilePath).toString("utf8");
             } catch (err) {
               throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
             }
@@ -2849,7 +2893,8 @@ ${issueSafeFallbackFooter}`;
           });
 
           try {
-            const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+            transport.assertUnchanged();
+            const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees, transport.assertUnchanged);
 
             core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
             await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
@@ -2897,7 +2942,7 @@ ${issueSafeFallbackFooter}`;
         if (patchFilePath && fs.existsSync(patchFilePath)) {
           let patchContent;
           try {
-            patchContent = fs.readFileSync(patchFilePath, "utf8");
+            patchContent = transport.read(patchFilePath).toString("utf8");
           } catch (err) {
             throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
           }
@@ -2923,7 +2968,8 @@ ${patchPreview}
 ${issueSafeFallbackFooter}`;
 
         try {
-          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+          transport.assertUnchanged();
+          const { data: issue, issueRepoParts } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees, transport.assertUnchanged);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
           await assignCopilotToFallbackIssueIfEnabled(issueRepoParts.owner, issueRepoParts.repo, issue.number);
@@ -2958,7 +3004,7 @@ ${issueSafeFallbackFooter}`;
         process.chdir(originalCwd);
       }
     }
-  }; // End of handleCreatePullRequest
+  }); // End of handleCreatePullRequest
 } // End of main
 
 module.exports = {

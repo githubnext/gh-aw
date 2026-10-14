@@ -36,6 +36,12 @@ function canonicalBundlePath(branch, repo) {
   createdTransportPaths.add(p);
   return p;
 }
+function isBundleSnapshot(candidate, original) {
+  return typeof candidate === "string" && path.basename(candidate) === path.basename(original) && path.basename(path.dirname(candidate)).startsWith(".gh-aw-transport-");
+}
+function bundleSnapshot(original) {
+  return expect.stringMatching(new RegExp(`\\.gh-aw-transport-[^/]+/${path.basename(original).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+}
 function cleanupCanonicalTransports() {
   for (const p of createdTransportPaths) {
     try {
@@ -606,7 +612,7 @@ index 0000000..abc1234
     expect(result.success).toBe(true);
     // Initial bundle fetch is now via getExecOutput (with ignoreReturnCode: true) rather than exec,
     // so the bundle fetch appears in getExecOutput.mock.calls.
-    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     if (!bundleFetchCall) {
       throw new Error("expected bundle fetch call via getExecOutput");
     }
@@ -835,10 +841,10 @@ index 0000000..abc1234
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
       // Initial bundle fetch via getExecOutput with ignoreReturnCode: the JSONL branch ref is missing
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
         return Promise.resolve({ exitCode: 1, stderr: "fatal: couldn't find remote ref refs/heads/ops-review-may09-2026", stdout: "" });
       }
-      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && isBundleSnapshot(args[2], bundlePath)) {
         return Promise.resolve({
           exitCode: 0,
           stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa refs/heads/main\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n",
@@ -856,8 +862,8 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "ops-review-may09-2026" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
-    const resolvedFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && args[2].startsWith("refs/heads/main:"));
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundleSnapshot(bundlePath)]);
+    const resolvedFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("refs/heads/main:"));
     if (!resolvedFetchCall) {
       throw new Error("expected resolved bundle fetch call");
     }
@@ -895,15 +901,15 @@ index 0000000..abc1234
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
       // Initial bundle fetch (refs/heads/* refspec) fails because the JSONL branch ref is absent
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
         return Promise.resolve({ exitCode: 1, stderr: "fatal: couldn't find remote ref refs/heads/docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", stdout: "" });
       }
       // HEAD-based bundle fetch (fallback path) succeeds — no prerequisite errors
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
         return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       }
       // Bundle contains only HEAD — no refs/heads/* entry (the bug scenario)
-      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && isBundleSnapshot(args[2], bundlePath)) {
         return Promise.resolve({
           exitCode: 0,
           stdout: "ac85f4047717ec43c931d750575f5251c45dc705 HEAD\n",
@@ -921,11 +927,11 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6" }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundleSnapshot(bundlePath)]);
     // HEAD-based bundle fetch is now performed via getExecOutput (ignoreReturnCode: true)
     // so the code can distinguish prerequisite errors from other failures.
     const headFetchCall = global.exec.getExecOutput.mock.calls.find(
-      ([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:") && opts && opts.ignoreReturnCode
+      ([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && typeof args[2] === "string" && args[2].startsWith("HEAD:") && opts && opts.ignoreReturnCode
     );
     if (!headFetchCall) {
       throw new Error("expected HEAD-based bundle fetch call via getExecOutput");
@@ -972,15 +978,15 @@ index 0000000..abc1234
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
       // Initial bundle fetch (named ref) fails — bundle only has HEAD
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
         return Promise.resolve({ exitCode: 1, stderr: `fatal: couldn't find remote ref refs/heads/${branchName}`, stdout: "" });
       }
       // HEAD-based bundle fetch fails because prerequisite (feature-branch tip) is missing
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${featureBranchTip}`, stdout: "" });
       }
       // Bundle contains only HEAD — no refs/heads/* entry
-      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && isBundleSnapshot(args[2], bundlePath)) {
         return Promise.resolve({
           exitCode: 0,
           stdout: `ac85f4047717ec43c931d750575f5251c45dc705 HEAD\n`,
@@ -1001,7 +1007,7 @@ index 0000000..abc1234
     // Feature-branch tip prerequisite is fetched from origin
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", featureBranchTip]);
     // After prerequisite recovery, HEAD bundle is retried via exec
-    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:"));
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && typeof args[2] === "string" && args[2].startsWith("HEAD:"));
     expect(bundleRetryFetchCalls.length).toBe(1);
   });
 
@@ -1038,13 +1044,13 @@ index 0000000..abc1234
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("refs/heads/")) {
         return Promise.resolve({ exitCode: 1, stderr: `fatal: couldn't find remote ref refs/heads/${branchName}`, stdout: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${featureBranchTip}`, stdout: "" });
       }
-      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && isBundleSnapshot(args[2], bundlePath)) {
         return Promise.resolve({
           exitCode: 0,
           stdout: `ac85f4047717ec43c931d750575f5251c45dc705 HEAD\n`,
@@ -1058,7 +1064,7 @@ index 0000000..abc1234
     });
 
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && typeof args[2] === "string" && args[2].startsWith("HEAD:")) {
         throw new Error("fatal: failed to read HEAD-only bundle");
       }
       return Promise.resolve(0);
@@ -1107,7 +1113,7 @@ index 0000000..abc1234
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
       }
       if (cmd === "git" && args && args[0] === "ls-remote") {
@@ -1124,9 +1130,9 @@ index 0000000..abc1234
     // Prerequisites are fetched from origin via exec with --filter=blob:none to avoid downloading blobs
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha]);
     // Retry bundle fetch is via exec (only the retry, not the initial attempt which was getExecOutput)
-    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     expect(bundleRetryFetchCalls.length).toBe(1);
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundleSnapshot(bundlePath)]);
   });
 
   it("should fetch all prerequisite commits in a single origin fetch and retry bundle fetch", async () => {
@@ -1161,7 +1167,7 @@ index 0000000..abc1234
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha1}\nerror: ${missingSha2}`, stdout: "" });
       }
       if (cmd === "git" && args && args[0] === "ls-remote") {
@@ -1176,9 +1182,9 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2]);
-    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     expect(bundleRetryFetchCalls.length).toBe(1);
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundleSnapshot(bundlePath)]);
   });
 
   it("should fail when fetching prerequisite commits from origin fails", async () => {
@@ -1212,7 +1218,7 @@ index 0000000..abc1234
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
       }
       if (cmd === "git" && args && args[0] === "ls-remote") {
@@ -1235,7 +1241,7 @@ index 0000000..abc1234
     expect(result.error).toBe("Failed to apply bundle");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Failed to apply bundle: fatal: couldn't connect to 'origin'"));
     // No retry bundle fetch via exec — failed at prerequisite origin fetch
-    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     expect(bundleRetryFetchCalls.length).toBe(0);
   });
 
@@ -1270,7 +1276,7 @@ index 0000000..abc1234
       if (cmd === "git" && args[0] === "rev-list") {
         return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
       }
-      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+      if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
         return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
       }
       if (cmd === "git" && args && args[0] === "ls-remote") {
@@ -1279,7 +1285,7 @@ index 0000000..abc1234
       return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
     });
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath) {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath)) {
         throw new Error("fatal: failed to read bundle");
       }
       return Promise.resolve(0);
@@ -1292,7 +1298,7 @@ index 0000000..abc1234
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply bundle");
     expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Bundle fetch failed after fetching 1 prerequisite commit(s): fatal: failed to read bundle"));
-    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     expect(bundleRetryFetchCalls.length).toBe(1);
   });
 
@@ -1325,8 +1331,8 @@ index 0000000..abc1234
 
     expect(result.success).toBe(true);
     // The initial bundle fetch uses getExecOutput (not exec.exec) — ensure it never uses the direct branch refspec
-    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", bundlePath, "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"], expect.anything());
-    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
+    expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", bundleSnapshot(bundlePath), "refs/heads/autoloop/perf-comparison:refs/heads/autoloop/perf-comparison"], expect.anything());
+    const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
     if (!bundleFetchCall) {
       throw new Error("expected bundle fetch call");
     }
@@ -4857,40 +4863,31 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
   }
 
   it("should create a fallback issue when E003 fires and fallback_as_issue is true (default)", async () => {
-    const patchPath = getPatchPathForBranch("data/refresh");
-    const runtimeFs = require("fs");
-    const originalExistsSync = runtimeFs.existsSync.bind(runtimeFs);
-    const originalReadFileSync = runtimeFs.readFileSync.bind(runtimeFs);
-    const existsSpy = vi.spyOn(runtimeFs, "existsSync").mockImplementation(file => String(file) === patchPath || originalExistsSync(file));
-    const readSpy = vi.spyOn(runtimeFs, "readFileSync").mockImplementation((file, ...args) => (String(file) === patchPath ? buildOversizedPatch(101) : originalReadFileSync(file, ...args)));
-    try {
-      const { main } = require("./create_pull_request.cjs");
-      const handler = await main({});
-      const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
+    const patchPath = canonicalPatchPath("data/refresh");
+    fs.writeFileSync(patchPath, buildOversizedPatch(101));
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Data refresh PR", body: "Daily update", branch: "data/refresh" }, {});
 
-      expect(result.success).toBe(true);
-      expect(result.fallback_used).toBe(true);
-      expect(result.issue_number).toBe(55);
+    expect(result.success).toBe(true);
+    expect(result.fallback_used).toBe(true);
+    expect(result.issue_number).toBe(55);
 
-      // A fallback issue should have been created
-      expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-      const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    // A fallback issue should have been created
+    expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
 
-      // The body should contain the E003 error message and the actionable fix
-      expect(issueCall.body).toContain("E003");
-      expectExecutionProvenance(issueCall.body);
-      expect(issueCall.body).toContain("max-patch-files");
+    // The body should contain the E003 error message and the actionable fix
+    expect(issueCall.body).toContain("E003");
+    expectExecutionProvenance(issueCall.body);
+    expect(issueCall.body).toContain("max-patch-files");
 
-      // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
-      expect(issueCall.body).toContain("max-patch-files: 101");
-      expect(issueCall.body).not.toContain("max-patch-files: 200");
+    // The suggested limit must be >= the actual file count (101), not maxFiles * 2 (200)
+    expect(issueCall.body).toContain("max-patch-files: 101");
+    expect(issueCall.body).not.toContain("max-patch-files: 200");
 
-      // PR creation should NOT have been attempted
-      expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
-    } finally {
-      existsSpy.mockRestore();
-      readSpy.mockRestore();
-    }
+    // PR creation should NOT have been attempted
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
   });
 
   it("should use the actual received file count (not maxFiles*2) as the suggested limit", async () => {
