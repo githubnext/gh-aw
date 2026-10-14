@@ -8,7 +8,7 @@ const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs
 const { sessionContext } = require("./agent_session.cjs");
 const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./parse_mcp_gateway_log.cjs");
+const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
