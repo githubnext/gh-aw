@@ -73,7 +73,7 @@ function enforceCommentLimits(body, { maxLinks = MAX_LINKS, linkBody = body } = 
   }
 
   // Count links (http:// and https:// URLs) - max limit exceeded check
-  const links = (linkBody.match(/https?:\/\/[^\s]+/g) || []).length;
+  const links = (linkBody.match(/https?:\/\/(?=\S)/g) || []).length;
   if (links > maxLinks) {
     throw new Error(`E008: Comment contains ${links} links, maximum is ${maxLinks}. Reduce the number of URLs to ${maxLinks} or fewer.`);
   }

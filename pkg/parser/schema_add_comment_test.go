@@ -37,4 +37,18 @@ func TestAddCommentMaxLinksSchema(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("alongside other add-comment options", func(t *testing.T) {
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+			"on": "workflow_dispatch",
+			"safe-outputs": map[string]any{
+				"add-comment": map[string]any{
+					"max-links": 100,
+					"max":       2,
+					"target":    "triggering",
+				},
+			},
+		}, "workflow.md")
+		require.NoError(t, err)
+	})
 }
