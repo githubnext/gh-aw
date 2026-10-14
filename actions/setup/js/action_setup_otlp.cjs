@@ -18,6 +18,8 @@ require("./shim.cjs");
  *   GITHUB_OUTPUT   – path to the GitHub Actions output file
  *   GITHUB_ENV      – path to the GitHub Actions env file
  *   INPUT_*         – standard GitHub Actions input env vars (read by sendJobSetupSpan)
+ *   OTLP header credentials are masked, including decoded Basic-auth passwords,
+ *   before span export or subsequent workflow steps can print them.
  *
  * Environment variables written:
  *   GITHUB_AW_OTEL_TRACE_ID        – resolved trace ID (for cross-job correlation)
@@ -29,7 +31,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
-const { maskSecret } = require("./actions_secret_masking.cjs");
+const { maskSecret, maskAuthorizationValue } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -116,7 +118,7 @@ function getPrimaryOTLPEndpoint(endpointsRaw) {
  * @returns {Promise<void>}
  */
 async function run() {
-  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints } = require("./send_otlp_span.cjs");
+  const { sendJobSetupSpan, isValidTraceId, isValidSpanId, parseOTLPEndpoints, parseOTLPHeaders } = require("./send_otlp_span.cjs");
 
   const rawStartMs = process.env.SETUP_START_MS;
   const parsedMs = /^\d+$/.test(rawStartMs ?? "") ? Number(rawStartMs) : NaN;
@@ -165,6 +167,11 @@ async function run() {
 
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
+  for (const headers of [process.env.OTEL_EXPORTER_OTLP_HEADERS, process.env.GH_AW_OTLP_ALL_HEADERS, ...parsedEndpoints.map(endpoint => endpoint.headers)]) {
+    for (const value of Object.values(parseOTLPHeaders(headers || ""))) {
+      maskAuthorizationValue(value);
+    }
+  }
   if (endpoints) {
     const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
     const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";

@@ -77,6 +77,7 @@ describe("action_setup_otlp.cjs", () => {
       INPUT_OTLP_OIDC_TOKEN: process.env.INPUT_OTLP_OIDC_TOKEN,
       GH_AW_OTLP_ENDPOINTS: process.env.GH_AW_OTLP_ENDPOINTS,
       OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
+      GH_AW_OTLP_ALL_HEADERS: process.env.GH_AW_OTLP_ALL_HEADERS,
     };
 
     delete process.env.GH_AW_OTLP_ENDPOINTS;
@@ -90,6 +91,7 @@ describe("action_setup_otlp.cjs", () => {
     delete process.env.INPUT_OTLP_OIDC_TOKEN;
     delete process.env["INPUT_OTLP_OIDC_TOKEN"];
     delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+    delete process.env.GH_AW_OTLP_ALL_HEADERS;
     process.env.GITHUB_OUTPUT = outputFile;
     process.env.GITHUB_ENV = envFile;
   });
@@ -110,6 +112,27 @@ describe("action_setup_otlp.cjs", () => {
 
   it("should export run as a function", () => {
     expect(typeof run).toBe("function");
+  });
+
+  it("masks decoded OTLP credentials before sending spans without changing configured headers", async () => {
+    const password = "synthetic-grafana-cloud-token";
+    const basic = `Basic ${Buffer.from(`123456:${password}`).toString("base64")}`;
+    const headers = `Authorization=${basic}`;
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://grafana.example.com", headers }]);
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer synthetic-primary-token";
+    process.env.GH_AW_OTLP_ALL_HEADERS = "x-sentry-auth=synthetic-consolidated-token";
+    mockSendJobSetupSpan.mockImplementationOnce(async () => {
+      expect(mockCore.setSecret).toHaveBeenCalledWith(password);
+      expect(mockCore.setSecret).toHaveBeenCalledWith("synthetic-primary-token");
+      expect(mockCore.setSecret).toHaveBeenCalledWith("synthetic-consolidated-token");
+      return { traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID };
+    });
+
+    await run();
+
+    expect(JSON.parse(process.env.GH_AW_OTLP_ENDPOINTS || "[]")[0].headers).toBe(headers);
+    expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=Bearer synthetic-primary-token");
+    expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(password);
   });
 
   describe("when GH_AW_OTLP_ENDPOINTS is not set", () => {

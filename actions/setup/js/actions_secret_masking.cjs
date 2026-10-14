@@ -37,4 +37,23 @@ function maskSecret(value) {
   }
 }
 
-module.exports = { escapeWorkflowCommandValue, maskSecret };
+/**
+ * Mask header credentials even when tools print them without their auth scheme
+ * or decode a Basic-auth password from a stored, encoded secret.
+ * @param {string} value
+ */
+function maskAuthorizationValue(value) {
+  maskSecret(value);
+  const match = /^(Basic|Bearer)\s+(.+)$/i.exec(value.trim());
+  if (!match) return;
+  const credential = match[2].trim();
+  maskSecret(credential);
+  if (match[1].toLowerCase() !== "basic" || !/^[A-Za-z0-9+/]+={0,2}$/.test(credential)) return;
+  const decoded = Buffer.from(credential, "base64").toString("utf8");
+  const separator = decoded.indexOf(":");
+  if (separator < 0) return;
+  maskSecret(decoded);
+  maskSecret(decoded.slice(separator + 1));
+}
+
+module.exports = { escapeWorkflowCommandValue, maskSecret, maskAuthorizationValue };

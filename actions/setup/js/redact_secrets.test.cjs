@@ -30,6 +30,16 @@ global.core = mockCore;
 const redactScript = fs.readFileSync(path.join(__dirname, "redact_secrets.cjs"), "utf8");
 describe("redact_secrets.cjs", () => {
   let tempDir, ambientPathsSpy;
+  it("redacts decoded Grafana Cloud tokens even without an exact-value secret", () => {
+    const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+    const token = "glc_" + Buffer.from(JSON.stringify({ example: "synthetic-test-only" })).toString("base64");
+    const result = redactBuiltInPatterns(`curl --user 123456:${token}\n${token}`);
+
+    expect(result.content).not.toContain(token);
+    expect(result.redactionCount).toBe(2);
+    expect(result.detectedPatterns).toContain("Grafana Cloud API Token");
+    expect(redactBuiltInPatterns("glc_short placeholder")).toMatchObject({ content: "glc_short placeholder", redactionCount: 0 });
+  });
   (beforeEach(() => {
     const exists = fs.existsSync;
     ambientPathsSpy = vi.spyOn(fs, "existsSync").mockImplementation(file => (String(file) === "/tmp/gh-aw" || String(file).startsWith("/tmp/gh-aw/") ? false : exists(file)));

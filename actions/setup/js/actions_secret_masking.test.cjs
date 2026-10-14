@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { escapeWorkflowCommandValue, maskSecret } = require("./actions_secret_masking.cjs");
+const { escapeWorkflowCommandValue, maskSecret, maskAuthorizationValue } = require("./actions_secret_masking.cjs");
 
 describe("actions_secret_masking.cjs", () => {
   let originalCore;
@@ -84,5 +84,38 @@ describe("actions_secret_masking.cjs", () => {
 
   it("escapes workflow command payloads", () => {
     expect(escapeWorkflowCommandValue("a%b\rc\n")).toBe("a%25b%0Dc%0A");
+  });
+
+  it("masks Basic credentials in both encoded and decoded forms without masking the username", () => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+    const password = "synthetic-grafana-password";
+    const decoded = `123456:${password}`;
+    const encoded = Buffer.from(decoded).toString("base64");
+
+    maskAuthorizationValue(`Basic ${encoded}`);
+
+    expect(setSecret.mock.calls).toEqual([[`Basic ${encoded}`], [encoded], [decoded], [password]]);
+    expect(setSecret).not.toHaveBeenCalledWith("123456");
+  });
+
+  it("masks bare Bearer credentials case-insensitively", () => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+
+    maskAuthorizationValue("bearer synthetic-bearer-token");
+
+    expect(setSecret.mock.calls).toEqual([["bearer synthetic-bearer-token"], ["synthetic-bearer-token"]]);
+  });
+
+  it.each(["Basic not-base64!", "Basic bm8tY29sb24=", "custom-header-value"])("masks %s without inventing decoded credentials", value => {
+    const setSecret = vi.fn();
+    global.core = { setSecret };
+
+    maskAuthorizationValue(value);
+
+    expect(setSecret).toHaveBeenCalledWith(value);
+    expect(setSecret).not.toHaveBeenCalledWith("");
+    expect(setSecret).not.toHaveBeenCalledWith("no-colon");
   });
 });
