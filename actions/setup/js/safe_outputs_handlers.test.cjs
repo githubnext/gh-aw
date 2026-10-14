@@ -1018,6 +1018,10 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createPullRequestHandler", () => {
+    beforeEach(() => {
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    });
+
     /**
      * Creates a side-repo checkout where:
      * - main is the default branch
@@ -1673,6 +1677,7 @@ describe("safe_outputs_handlers", () => {
 
     it("should use side-repo origin/HEAD base branch so patch includes branch commits since main", async () => {
       const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      process.env.GITHUB_REPOSITORY = "owner/repo";
 
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: {
@@ -1732,6 +1737,90 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should route to the resolved same-repository target when an environment target is overridden", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/side-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allowed_repos: ["test-owner/test-repo"],
+          allow_empty: true,
+        },
+      });
+
+      try {
+        const result = await handlers.createPullRequestHandler({
+          repo: "test-owner/test-repo",
+          branch: "feature/release-notes",
+          title: "Update workflow repository",
+          body: "Prepare a same-repository pull request.",
+        });
+
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
+        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: resolved target matches workflow repository; no cross-repo checkout needed");
+        expect(mockServer.debug).not.toHaveBeenCalledWith(expect.stringContaining("Multi-repo mode: looking for checkout"));
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
+
+    it("should use the target checkout for patch_workspace_path when its checkout identity is omitted", async () => {
+      const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      process.env.GITHUB_REPOSITORY = "owner/repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          patch_workspace_path: "target-repo",
+          base_branch: "main",
+          patch_format: "am",
+        },
+      });
+
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "release-1.12.x",
+          title: "Update release notes",
+          body: "Use the target repository checkout.",
+        });
+
+        expect(result.isError).toBeUndefined();
+        expect(mockServer.debug).toHaveBeenCalledWith(`Found repo checkout at: ${targetRepoDir}`);
+        const response = JSON.parse(result.content[0].text);
+        const patch = fs.readFileSync(response.patch.path, "utf8");
+        expect(patch).toContain("-base");
+        expect(patch).not.toContain("new file mode");
+        fs.rmSync(response.patch.path, { force: true });
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
+
+    it("should reject a workflow patch workspace when the environment target checkout is missing", async () => {
+      fs.mkdirSync(path.join(testWorkspaceDir, "source"), { recursive: true });
+      process.env.GITHUB_REPOSITORY = "owner/repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/missing-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          patch_workspace_path: "source",
+          base_branch: "main",
+          allow_empty: true,
+        },
+      });
+
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "feature/release-notes",
+          title: "Update release notes",
+          body: "The target checkout is required.",
+        });
+
+        expect(result.isError).toBe(true);
+        expect(JSON.parse(result.content[0].text).error).toContain("Repository 'test-owner/missing-repo' not found in workspace");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
+
     it.each([
       ["am", "main"],
       ["bundle", "main"],
@@ -1739,6 +1828,7 @@ describe("safe_outputs_handlers", () => {
       ["bundle", "release-1.12.x"],
     ])("should generate %s transport against target base %s in the environment-resolved checkout, not the workflow tree", async (patchFormat, baseBranch) => {
       const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       const targetBase = execSync(`git merge-base origin/${baseBranch} HEAD`, { cwd: targetRepoDir, stdio: "pipe" }).toString().trim();
       execSync("git checkout -b feature/release-notes", { cwd: targetRepoDir, stdio: "pipe" });
 
@@ -1775,7 +1865,7 @@ describe("safe_outputs_handlers", () => {
         expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
         expect(mockAppendSafeOutput.mock.calls[0][0].base_commit).toBe(targetBase);
         expect(mockAppendSafeOutput.mock.calls[0][0].base_branch).toBe(baseBranch);
-        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: environment target differs from workflow repository; resolving checkout for validated target test-owner/test-repo");
+        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: resolved target test-owner/test-repo differs from workflow repository; requiring its checkout");
         expect(mockServer.debug).toHaveBeenCalledWith(`create_pull_request: patch context repo=test-owner/test-repo, cwd=${targetRepoDir}, baseBranch=${baseBranch}`);
         if (bundlePath) {
           execSync(`git bundle verify "${bundlePath}" && git fetch "${bundlePath}" feature/release-notes:refs/heads/verify-bundle`, { cwd: targetRepoDir, stdio: "pipe" });
@@ -1823,6 +1913,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should not require cross-repo checkout discovery when the environment target matches the workflow repository", async () => {
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       process.env.GH_AW_TARGET_REPO_SLUG = "OWNER/REPO";
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: { base_branch: "main", allow_empty: true },
@@ -1835,7 +1926,7 @@ describe("safe_outputs_handlers", () => {
         });
         expect(result.isError).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledOnce();
-        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: environment target matches workflow repository; no cross-repo checkout hint needed");
+        expect(mockServer.debug).toHaveBeenCalledWith("create_pull_request: resolved target matches workflow repository; no cross-repo checkout needed");
       } finally {
         delete process.env.GH_AW_TARGET_REPO_SLUG;
       }
@@ -1850,6 +1941,7 @@ describe("safe_outputs_handlers", () => {
     // downstream patch-generation behavior they actually want to exercise.
     beforeEach(() => {
       process.env.GITHUB_REF_NAME = "feature-branch";
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
     });
 
     afterEach(() => {
@@ -1857,6 +1949,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     function createSideRepoWithTrackedAndLocalCommits() {
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo");
       fs.mkdirSync(targetRepoDir, { recursive: true });
 
@@ -2043,6 +2136,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should return error when repo checkout is not found for explicit repo", async () => {
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       const result = await handlers.pushToPullRequestBranchHandler({
         branch: "main",
         repo: "test-owner/test-repo",
@@ -2057,6 +2151,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should return error when configured target-repo checkout is not found and entry.repo is not set", async () => {
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       const configWithTarget = {
         push_to_pull_request_branch: { "target-repo": "test-owner/test-repo" },
       };
@@ -2101,6 +2196,7 @@ describe("safe_outputs_handlers", () => {
 
     it("should detect branch from GH_AW_TARGET_REPO_SLUG checkout when target-repo is not configured", async () => {
       const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
       process.env.GITHUB_BASE_REF = "main";
       execSync("git init -b main", { cwd: testWorkspaceDir, stdio: "pipe" });
@@ -2517,6 +2613,7 @@ describe("safe_outputs_handlers", () => {
      * now the default transport, this succeeds without requiring an auto-switch.
      */
     function createSideRepoWithMergeCommitInIncrementalRange() {
+      process.env.GITHUB_REPOSITORY = "owner/repo";
       const targetRepoDir = path.join(testWorkspaceDir, "target-repo-merge");
       fs.mkdirSync(targetRepoDir, { recursive: true });
 
