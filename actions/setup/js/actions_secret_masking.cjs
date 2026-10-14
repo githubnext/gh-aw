@@ -37,4 +37,27 @@ function maskSecret(value) {
   }
 }
 
-module.exports = { escapeWorkflowCommandValue, maskSecret };
+/**
+ * Mask header credentials even when tools print them without their auth scheme
+ * or decode a Basic-auth password from a stored, encoded secret.
+ * Skip each value shorter than four characters to avoid masking unrelated output,
+ * matching the OTLP shell masking minimum in mask_otlp_common.sh.
+ * @param {string} value
+ */
+function maskAuthorizationValue(value) {
+  const minMaskLength = 4;
+  if (value.length >= minMaskLength) maskSecret(value);
+  const match = /^(Basic|Bearer)\s+(.+)$/i.exec(value.trim());
+  if (!match) return;
+  const credential = match[2].trim();
+  if (credential.length >= minMaskLength) maskSecret(credential);
+  if (match[1].toLowerCase() !== "basic" || !/^[A-Za-z0-9+/]+={0,2}$/.test(credential)) return;
+  const decoded = Buffer.from(credential, "base64").toString("utf8");
+  const separator = decoded.indexOf(":");
+  if (separator < 0) return;
+  if (decoded.length >= minMaskLength) maskSecret(decoded);
+  const password = decoded.slice(separator + 1);
+  if (password.length >= minMaskLength) maskSecret(password);
+}
+
+module.exports = { escapeWorkflowCommandValue, maskSecret, maskAuthorizationValue };

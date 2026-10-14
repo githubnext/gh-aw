@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -15,6 +17,93 @@ var compilerWorkflowHelpersLog = logger.New("workflow:compiler_workflow_helpers"
 func ContainsCheckout(customSteps string) bool {
 	_, found := findFirstCheckoutStepIndex(customSteps)
 	return found
+}
+
+// customCheckoutHasRootGoMod checks the first checkout, where runtime setup is inserted.
+func customCheckoutHasRootGoMod(customSteps string) bool {
+	return checkoutStepsHaveRootGoMod(customSteps, true)
+}
+
+func checkoutStepsHaveRootGoMod(checkoutSteps string, firstCheckoutOnly bool) bool {
+	var wrapper struct {
+		Steps []struct {
+			Uses string `yaml:"uses"`
+			If   any    `yaml:"if"`
+			With struct {
+				Path           string `yaml:"path"`
+				Repository     string `yaml:"repository"`
+				Ref            string `yaml:"ref"`
+				SparseCheckout string `yaml:"sparse-checkout"`
+				ConeMode       string `yaml:"sparse-checkout-cone-mode"`
+			} `yaml:"with"`
+		} `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(checkoutSteps), &wrapper); err != nil || len(wrapper.Steps) == 0 {
+		if err := yaml.Unmarshal([]byte(checkoutSteps), &wrapper.Steps); err != nil {
+			return false
+		}
+	}
+	hasRootGoMod := false
+	for _, step := range wrapper.Steps {
+		if !isCheckoutActionReference(step.Uses) {
+			continue
+		}
+		atRoot := step.With.Path == "" || filepath.Clean(step.With.Path) == "."
+		if atRoot || firstCheckoutOnly {
+			repository := strings.Join(strings.Fields(step.With.Repository), "")
+			hasRootGoMod = atRoot &&
+				(repository == "" || repository == "${{github.repository}}") &&
+				step.If == nil && step.With.Ref == "" &&
+				sparseCheckoutIncludesRootGoMod(step.With.SparseCheckout, step.With.ConeMode)
+		}
+		if firstCheckoutOnly {
+			break
+		}
+	}
+	return hasRootGoMod
+}
+
+func sparseCheckoutIncludesRootGoMod(patterns, coneMode string) bool {
+	if coneMode == "" {
+		return true
+	}
+	cone, err := strconv.ParseBool(coneMode)
+	if err != nil {
+		return false
+	}
+	if cone {
+		return true
+	}
+	if strings.Contains(patterns, "${{") {
+		return false
+	}
+	if patterns == "" {
+		return true
+	}
+	included := false
+	for pattern := range strings.SplitSeq(patterns, "\n") {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" || strings.HasPrefix(pattern, "#") {
+			continue
+		}
+		// Git supports character classes that path.Match cannot interpret.
+		if strings.Contains(pattern, "[:") || strings.Contains(pattern, "[!") {
+			return false
+		}
+		excluded := strings.HasPrefix(pattern, "!")
+		pattern = strings.TrimPrefix(strings.TrimPrefix(pattern, "!"), "/")
+		for strings.HasPrefix(pattern, "**/") {
+			pattern = strings.TrimPrefix(pattern, "**/")
+		}
+		matches, err := path.Match(pattern, "go.mod")
+		if err != nil {
+			return false
+		}
+		if matches {
+			included = !excluded
+		}
+	}
+	return included
 }
 
 // findLastCheckoutStepIndex returns the zero-based index of the last
