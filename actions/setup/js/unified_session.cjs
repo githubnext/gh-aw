@@ -526,6 +526,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     [["evals/evals.jsonl", "evals.jsonl", "usage/evals.jsonl"], "eval", "evals", "eval.result"],
     [["agent_usage.jsonl", "usage/agent_usage.jsonl"], "usage", "agent", "usage.report"],
     [["github_rate_limits.jsonl", "usage/github_rate_limits.jsonl"], "github_api", "workflow", "github_api.rate_limit"],
+    [["disk_usage.jsonl", "usage/disk_usage.jsonl"], "runner", "agent", "runner.disk_usage"],
     [["plugin-installations.jsonl", "usage/plugin-installations.jsonl"], "plugin", "agent", "plugin.installation"],
     [["threat-detection/detection_usage.jsonl", "detection_usage.jsonl", "usage/detection_usage.jsonl"], "usage", "detection", "usage.report"],
     [["evals/evals_token_usage.jsonl", "evals_token_usage.jsonl", "usage/evals/token_usage.jsonl"], "usage", "evals", "usage.report"],

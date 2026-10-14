@@ -162,6 +162,9 @@ const GradersDirSlash = GradersDir + "/"
 // captured during github.rest API calls, enabling post-run analysis of rate-limit consumption.
 const GithubRateLimitsFilename Filename = "github_rate_limits.jsonl"
 
+// DiskUsageFilename records periodic runner filesystem capacity snapshots.
+const DiskUsageFilename Filename = "disk_usage.jsonl"
+
 // OtelJsonlFilename is the filename of the OTLP span mirror written to /tmp/gh-aw/
 // by send_otlp_span.cjs. Each line is a full OTLP/HTTP JSON traces payload.
 // Included in the agent artifact so spans are available without a live collector.

@@ -427,6 +427,18 @@ export interface CollectionWarningData {
   [key: string]: unknown;
 }
 
+export interface RunnerDiskUsageData {
+  source?: string;
+  operation?: string;
+  resource?: string;
+  totalBytes?: number;
+  freeBytes?: number;
+  availableBytes?: number;
+  usedBytes?: number;
+  totalInodes?: number | null;
+  freeInodes?: number | null;
+}
+
 export interface CollectionData {
   sources: {
     component: string;
@@ -565,6 +577,7 @@ export interface UnifiedSessionEventDataMap {
   "workflow.info": WorkflowInfoData;
   "plugin.installation": PluginInstallationData;
   "github_api.rate_limit": GitHubApiRateLimitData;
+  "runner.disk_usage": RunnerDiskUsageData;
   "session.collection_warning": CollectionWarningData;
   "session.collection": CollectionData;
 }

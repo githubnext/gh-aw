@@ -83,6 +83,13 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
 // Wrap everything in an async IIFE so that the OTLP span is fully sent before
 // the cleanup deletes /tmp/gh-aw/ (which contains aw_info.json and otel.jsonl).
 (async () => {
+  try {
+    const { stopDiskUsageMonitor } = require(path.join(__dirname, "js", "disk_usage_logger.cjs"));
+    await stopDiskUsageMonitor();
+  } catch (error) {
+    console.warn(`::warning::Failed to stop disk space monitoring: ${error.message}`);
+  }
+
   // Send a gh-aw.<jobName>.conclusion span to the configured OTLP endpoint, if any.
   // Delegates to action_conclusion_otlp.cjs so that script mode (clean.sh) and
   // dev/release mode share the same implementation.  Non-fatal: errors are
@@ -141,11 +148,7 @@ function listTmpGhAwFiles(tmpDir, maxDepth, maxFiles) {
       continue;
     }
 
-    const awfChrootCleanupResult = spawnSync(
-      "sudo",
-      ["find", "/tmp", "-maxdepth", "1", "-name", pattern, "-type", "d", "-exec", "rm", "-rf", "--", "{}", "+"],
-      { stdio: "inherit" }
-    );
+    const awfChrootCleanupResult = spawnSync("sudo", ["find", "/tmp", "-maxdepth", "1", "-name", pattern, "-type", "d", "-exec", "rm", "-rf", "--", "{}", "+"], { stdio: "inherit" });
     if (awfChrootCleanupResult.status === 0) {
       const awfChrootNoun = awfChrootDirs.length === 1 ? "directory" : "directories";
       console.log(`Cleaned up ${awfChrootDirs.length} /tmp/${pattern} ${awfChrootNoun}`);

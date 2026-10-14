@@ -995,6 +995,21 @@ describe("Unified conclusion session", () => {
     expect(collectUnifiedSession({ rootDir: root }).events.filter(event => event.type === "github_api.rate_limit")).toHaveLength(2);
   });
 
+  it.each(["disk_usage.jsonl", "usage/disk_usage.jsonl"])("collects disk capacity observations from %s without duplicating copies or retaining opaque fields", file => {
+    const record = { timestamp: "2026-10-14T16:00:00Z", source: "statfs", operation: "interval", resource: "runtime", totalBytes: 100, freeBytes: 20, availableBytes: 0, usedBytes: 80, totalInodes: 50, freeInodes: 0 };
+    write(file, [{ ...record, env: { GH_TOKEN: "PRIVATE_TOKEN" } }]);
+    if (file === "disk_usage.jsonl") write("usage/disk_usage.jsonl", [record]);
+    const events = writeUnifiedSession({ rootDir: root }).filter(event => event.type === "runner.disk_usage");
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      timestamp: record.timestamp,
+      data: { availableBytes: 0, freeInodes: 0 },
+      provenance: { component: "runner", phase: "agent", path: file },
+    });
+    expect(events[0].data).not.toHaveProperty("env");
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).not.toContain("PRIVATE_TOKEN");
+  });
+
   it("resolves detection and eval AIC per observation without adding overlapping checkpoints", () => {
     write("threat-detection/detection_usage.jsonl", [
       { provider: "openai", model: "gpt-4o-mini", input_tokens: 1000, output_tokens: 100 },

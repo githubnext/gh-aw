@@ -151,10 +151,19 @@ The unified `agent` artifact contains agent job outputs:
 - Agent execution logs
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
+- Runner disk capacity snapshots (`disk_usage.jsonl`) and sampler diagnostics (`disk_usage_monitor.log`)
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `sandbox/firewall/logs/api-proxy-logs/`. When AWF records include valid `ai_credits_this_response` and `ai_credits_total` values, the summary preserves those reported values instead of repricing the tokens.
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
 
 The AWF API proxy log directory may also contain `token-usage.jsonl` and `model-routing.jsonl`. Both are available to `gh aw audit` and `gh aw logs` in supported artifact layouts.
+
+### Disk capacity snapshots
+
+The agent job samples filesystem capacity after setup, every 30 seconds during builds, downloads, and agent execution, and once at shutdown before log redaction and artifact upload. Each JSONL record contains `timestamp`, `source: "statfs"`, `operation` (`setup`, `interval`, or `shutdown`), and a `resource` label (`root`, `runtime`, `workspace`, or `runner_temp`). Resources on the same filesystem intentionally report the same capacity.
+
+`totalBytes`, `freeBytes`, `availableBytes`, and `usedBytes` describe filesystem capacity, not the size of an individual directory. `availableBytes` excludes blocks reserved from unprivileged users. `totalInodes` and `freeInodes` distinguish inode exhaustion from byte exhaustion; both are `null` when the filesystem does not report inode capacity. Measurements do not scan directory contents, delete files, or enforce disk limits.
+
+Snapshots are also included in `agent-output-fallback` when that artifact is enabled, copied into `usage/disk_usage.jsonl`, and represented as `runner.disk_usage` events in the unified session. Sampling and write errors produce warnings rather than failing the agent job. A runner crash can still prevent artifact upload, so absent telemetry is not evidence of sufficient disk space.
 
 ## `agent-output-fallback`
 

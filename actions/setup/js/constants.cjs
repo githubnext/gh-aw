@@ -139,6 +139,8 @@ const OTEL_JSONL_PATH = `${TMP_GH_AW_PATH}/otel.jsonl`;
  */
 const GITHUB_RATE_LIMITS_JSONL_PATH = `${TMP_GH_AW_PATH}/github_rate_limits.jsonl`;
 
+const DISK_USAGE_JSONL_PATH = `${TMP_GH_AW_PATH}/disk_usage.jsonl`;
+
 /**
  * Filename of the threat detection log written by the detection engine via tee.
  * The detection copilot's stdout (containing THREAT_DETECTION_RESULT) is piped
@@ -203,6 +205,7 @@ module.exports = {
   SAFE_OUTPUT_ERRORS_FILE_PATH,
   OTEL_JSONL_PATH,
   GITHUB_RATE_LIMITS_JSONL_PATH,
+  DISK_USAGE_JSONL_PATH,
   DETECTION_LOG_FILENAME,
   DETECTION_RESULT_FILENAME,
   DEFAULT_MCP_CALL_WATCHDOG_MS,

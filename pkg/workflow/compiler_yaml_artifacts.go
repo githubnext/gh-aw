@@ -91,6 +91,8 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 		agentExecutionExitCodePath,
 		constants.TmpGhAwDirSlash + "agent_usage.jsonl",
 		constants.TmpGhAwDirSlash + "agent_usage.json",
+		constants.TmpGhAwDirSlash + constants.DiskUsageFilename.String(),
+		constants.TmpGhAwDirSlash + "disk_usage_monitor.log",
 		constants.TmpGhAwDirSlash + "agent/model-endpoint-mismatch.json",
 		constants.TmpGhAwDirSlash + "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl",
 		constants.TmpGhAwDirSlash + "sandbox/firewall-audit-logs/api-proxy-logs/model-routing.jsonl",

@@ -125,6 +125,7 @@
       { "if": { "properties": { "type": { "const": "plugin.installation" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/PluginInstallationData" } } } },
       { "if": { "properties": { "type": { "const": "prompt.system" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/Pick%3CMessageData%2C%22content%22%3E" } } } },
       { "if": { "properties": { "type": { "const": "prompt.user" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/Pick%3CMessageData%2C%22content%22%3E" } } } },
+      { "if": { "properties": { "type": { "const": "runner.disk_usage" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/RunnerDiskUsageData" } } } },
       { "if": { "properties": { "type": { "const": "safe_output.error" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SafeOutputErrorData" } } } },
       { "if": { "properties": { "type": { "const": "safe_output.request" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SafeOutputData" } } } },
       { "if": { "properties": { "type": { "const": "safe_output.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/SafeOutputData" } } } },
@@ -860,6 +861,21 @@
       "additionalProperties": false
     },
     "Record<string,JsonValue>": { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } },
+    "RunnerDiskUsageData": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "operation": { "type": "string" },
+        "resource": { "type": "string" },
+        "totalBytes": { "type": "number" },
+        "freeBytes": { "type": "number" },
+        "availableBytes": { "type": "number" },
+        "usedBytes": { "type": "number" },
+        "totalInodes": { "type": ["number", "null"] },
+        "freeInodes": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
     "RuntimeObservationData": {
       "type": "object",
       "properties": {

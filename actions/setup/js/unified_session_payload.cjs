@@ -358,6 +358,17 @@ const EVENT_FIELDS = {
     delayMs: ["delayMs", "delay_ms"],
     status: ["status"],
   },
+  "runner.disk_usage": {
+    source: ["source"],
+    operation: ["operation"],
+    resource: ["resource"],
+    totalBytes: ["totalBytes"],
+    freeBytes: ["freeBytes"],
+    availableBytes: ["availableBytes"],
+    usedBytes: ["usedBytes"],
+    totalInodes: ["totalInodes"],
+    freeInodes: ["freeInodes"],
+  },
   "execution.result": { outcome: ["outcome"], conclusion: ["conclusion"], exitCode: ["exitCode", "exit_code"], durationMs: ["durationMs", "duration_ms"], startedAt: ["startedAt", "started_at"], finishedAt: ["finishedAt", "finished_at"] },
   "detection.result": {
     jobResult: ["jobResult", "job_result"],

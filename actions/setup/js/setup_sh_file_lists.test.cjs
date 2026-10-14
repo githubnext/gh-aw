@@ -37,6 +37,14 @@ describe("setup.sh Copilot runtime files", () => {
     expect(getDirectLocalRequires("copilot_harness.cjs")).toContain("copilot_routing_effort.cjs");
     expect(getDirectLocalRequires("copilot_sdk_driver.cjs")).toContain("copilot_routing_effort.cjs");
   });
+
+  it("starts disk sampling for the agent job before setup completes and stops it in both cleanup modes", () => {
+    expect(setupShContent).toContain('if [ "${INPUT_JOB_NAME:-}" = "agent" ]; then');
+    expect(setupShContent).toContain('node "${DESTINATION}/disk_usage_logger.cjs" start');
+    expect(readFileSync(resolve(__dirname, "../clean.sh"), "utf8")).toContain('node "${DESTINATION}/disk_usage_logger.cjs" stop');
+    const post = readFileSync(resolve(__dirname, "../post.js"), "utf8");
+    expect(post.indexOf("await stopDiskUsageMonitor()")).toBeLessThan(post.indexOf('const tmpDir = "/tmp/gh-aw"'));
+  });
 });
 
 /**

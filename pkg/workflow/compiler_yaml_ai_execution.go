@@ -722,6 +722,12 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
+	yaml.WriteString("      - name: Stop disk space monitoring\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          node \"$RUNNER_TEMP/gh-aw/actions/disk_usage_logger.cjs\" stop\n")
+
 	if hasSafeJobArtifactPaths(data) || isWorkQueueEnabled(data) {
 		c.generateTrackedSecretRedactionStep(yaml, yaml.String(), data)
 	} else {
