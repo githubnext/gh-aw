@@ -17,6 +17,7 @@ const {
   getRpcMessageType,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
+  generateMcpRateLimitSummary,
   printAllGatewayFiles,
   parseTokenUsageJsonl,
   generateTokenUsageSummary,
@@ -26,6 +27,112 @@ const {
 } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
+  describe("MCP rate-limit diagnostics", () => {
+    const request = (server_id = "github", name = "search_code", id = 1) => ({
+      event: "rpc_request",
+      server_id,
+      payload: { id, method: "tools/call", params: { name, arguments: { query: "private-query" } } },
+    });
+    const response = (message, server_id = "github", id = 1) => ({
+      event: "rpc_response",
+      server_id,
+      payload: { id, result: { isError: true, content: [{ type: "text", text: message }] } },
+    });
+    const jsonl = entries => entries.map(entry => JSON.stringify(entry)).join("\n");
+
+    test.each(["216.007769ms", "719.5s", "10.2s", "1m30s"])("preserves the server retry hint %s without query text", duration => {
+      const entries = [request(), response(`failed to search code with query '${"private-query".repeat(20)}': GET https://api.github.com/search/code?q=private-query: 429 try again in ${duration}`)];
+      const summary = generateMcpRateLimitSummary(jsonl(entries));
+      expect(summary).toContain("MCP rate limits (HTTP 429)");
+      expect(summary).toContain("<code>search_code</code>");
+      expect(summary).toContain(`try again in ${duration}`);
+      expect(summary).not.toContain("private-query");
+      expect(summary).not.toContain("https://");
+      const rpcSummary = generateRpcMessagesSummary(parseRpcMessagesJsonl(jsonl(entries)), []);
+      expect(rpcSummary).toContain(`error | HTTP 429: try again in ${duration}`);
+    });
+
+    test("handles JSON-RPC errors, absent hints, and Retry-After", () => {
+      const entries = [request(), { event: "rpc_response", server_id: "github", payload: { id: 1, error: { code: -32603, message: "HTTP 429 Too Many Requests; Retry-After: 60" } } }, response("HTTP 429 Too Many Requests")];
+      const summary = generateMcpRateLimitSummary(jsonl(entries));
+      expect(summary).toContain("Retry-After: 60s");
+      expect(summary).toContain("No retry hint provided");
+    });
+
+    test("matches request IDs per server and escapes tool labels", () => {
+      const entries = [request(), request("other", "<img src=x>|tool"), response("429 try again in 2s", "other")];
+      const summary = generateMcpRateLimitSummary(jsonl(entries));
+      expect(summary).toContain("&lt;img src=x&gt;\\|tool");
+      expect(summary).not.toContain("<img");
+      expect(summary).not.toContain("search_code");
+    });
+
+    test("ignores successful content, request arguments, and non-429 errors", () => {
+      const success = response("documentation about HTTP 429 try again in 719s");
+      success.payload.result.isError = false;
+      const entries = [
+        request(),
+        success,
+        response("HTTP 403 Forbidden"),
+        response("failed to search code with query '429': HTTP 422"),
+        response("failed to search code with query 'HTTP 429 try again in 7s': GET https://api.github.com/search/code?q=429: 422 Validation Failed"),
+        { event: "tool_call", tool_name: "search_code", message: "429 try again in 2s", status: "success" },
+      ];
+      expect(generateMcpRateLimitSummary(jsonl(entries) + "\n{broken\n")).toBe("");
+      expect(generateMcpRateLimitSummary("")).toBe("");
+    });
+
+    test("handles legacy gateway tool errors", () => {
+      const entry = { event: "tool_call", server_name: "github", tool_name: "search_code", error: "429 try again in 719.5s" };
+      expect(generateMcpRateLimitSummary(jsonl([entry]))).toContain("<code>search_code</code> | try again in 719.5s");
+    });
+
+    test.each(["gateway.jsonl", "rpc-messages.jsonl", "both", "legacy"])("surfaces 429s with %s logs", async filename => {
+      const prefix = "/tmp/gh-aw/mcp-logs/";
+      const files = {
+        [prefix + "gateway.md"]: "# Gateway Summary\n",
+        [prefix + filename]: jsonl([request(), response("429 try again in 216.007769ms")]),
+      };
+      if (filename === "both") {
+        files[prefix + "gateway.jsonl"] = jsonl([{ event: "tool_call", server_name: "github", tool_name: "search_code", error: "429 try again in 216.007769ms" }]);
+        files[prefix + "rpc-messages.jsonl"] = jsonl([request()]);
+      } else if (filename === "legacy") {
+        delete files[prefix + "gateway.md"];
+        files[prefix + "gateway.jsonl"] = jsonl([{ event: "tool_call", server_name: "github", tool_name: "search_code", error: "429 try again in 216.007769ms" }]);
+        files[prefix + "gateway.log"] = "Gateway started";
+      }
+      const existsSync = fs.existsSync;
+      const readFileSync = fs.readFileSync;
+      const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(file => (String(file).startsWith("/tmp/gh-aw/") ? Object.hasOwn(files, String(file)) : existsSync(file)));
+      const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((file, options) => files[String(file)] ?? readFileSync(file, options));
+      const previousCore = global.core;
+      const mockCore = {
+        info: vi.fn(),
+        debug: vi.fn(),
+        startGroup: vi.fn(),
+        endGroup: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        setFailed: vi.fn(),
+        setOutput: vi.fn(),
+        summary: { addRaw: vi.fn(), write: vi.fn().mockResolvedValue(undefined) },
+      };
+      global.core = mockCore;
+      try {
+        await require("./parse_mcp_gateway_log.cjs").main();
+        expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("try again in 216.007769ms"));
+        if (filename !== "legacy") expect(mockCore.summary.addRaw).toHaveBeenCalledWith("# Gateway Summary\n");
+        expect(mockCore.summary.write).toHaveBeenCalledOnce();
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("MCP tools returned HTTP 429"));
+        expect(mockCore.setOutput).toHaveBeenCalledWith("ai_credits_rate_limit_error", "false");
+      } finally {
+        existsSpy.mockRestore();
+        readSpy.mockRestore();
+        global.core = previousCore;
+      }
+    });
+  });
+
   test("flushes gateway diagnostics without appending a duplicate unified timeline", async () => {
     const existsSync = fs.existsSync;
     const readFileSync = fs.readFileSync;

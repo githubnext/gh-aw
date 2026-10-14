@@ -788,11 +788,83 @@ function formatRpcInlineCodeLabel(value) {
 }
 
 /**
+ * Extract only the status and retry duration, never query text or URLs.
+ * @param {string} message
+ * @returns {string|null}
+ */
+function getMcpRateLimitHint(message) {
+  const status = Array.from(message.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi)).at(-1);
+  if (!status || status[1] !== "429") return null;
+  const diagnostic = message.slice(status.index);
+  const duration = diagnostic.match(/\btry again in\s+((?:\d+(?:\.\d+)?(?:ns|µs|μs|us|ms|s|m|h))+)/i);
+  if (duration) return `try again in ${duration[1]}`;
+  const retryAfter = diagnostic.match(/\bretry-after\s*[:=]\s*(\d+(?:\.\d+)?)\b/i);
+  return retryAfter ? `Retry-After: ${retryAfter[1]}s` : "No retry hint provided";
+}
+
+/**
+ * @param {Object} entry
+ * @returns {string|null}
+ */
+function getRpcRateLimitHint(entry) {
+  const payload = entry.payload;
+  if (payload?.error && typeof payload.error.message === "string") {
+    return getMcpRateLimitHint(payload.error.message);
+  }
+  if (payload?.result?.isError === true && Array.isArray(payload.result.content)) {
+    for (const block of payload.result.content) {
+      if (block?.type === "text" && typeof block.text === "string") {
+        const hint = getMcpRateLimitHint(block.text);
+        if (hint !== null) return hint;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Surface failed MCP calls separately from successful content that quotes 429s.
+ * @param {string} jsonlContent
+ * @returns {string}
+ */
+function generateMcpRateLimitSummary(jsonlContent) {
+  const { requests, responses, other } = parseRpcMessagesJsonl(jsonlContent);
+  /** @param {Object} entry */
+  const requestKey = entry => JSON.stringify([entry.server_id, entry.payload?.id]);
+  const tools = new Map(requests.filter(entry => entry.payload?.method === "tools/call" && entry.payload?.id != null).map(entry => [requestKey(entry), getRpcRequestLabel(entry)]));
+  const rows = [];
+  for (const response of responses) {
+    const hint = getRpcRateLimitHint(response);
+    if (hint !== null) {
+      rows.push(buildRpcSummaryRow([formatRpcInlineCodeLabel(response.server_id), formatRpcInlineCodeLabel(tools.get(requestKey(response)) || "unknown"), hint]));
+    }
+  }
+  for (const entry of other) {
+    if (entry.type !== "tool_call" || typeof entry.error !== "string") continue;
+    const hint = getMcpRateLimitHint(entry.error);
+    if (hint !== null) rows.push(buildRpcSummaryRow([formatRpcInlineCodeLabel(entry.server_name), formatRpcInlineCodeLabel(entry.tool_name), hint]));
+  }
+  if (rows.length === 0) return "";
+  return [
+    "### MCP rate limits (HTTP 429)",
+    "",
+    "| Server | Tool | Retry hint |",
+    "|--------|------|------------|",
+    ...new Set(rows),
+    "",
+    "Retry hints are reported by the server, not a guarantee that the next request will succeed.",
+    "",
+  ].join("\n");
+}
+
+/**
  * Summarizes an MCP RESPONSE entry for table rendering.
  * @param {Object} entry
  * @returns {{status: string, details: string}}
  */
 function summarizeRpcResponseEntry(entry) {
+  const rateLimitHint = getRpcRateLimitHint(entry);
+  if (rateLimitHint !== null) return { status: "error", details: `HTTP 429: ${rateLimitHint}` };
   const payload = entry.payload && typeof entry.payload === "object" ? entry.payload : {};
   const error = payload.error && typeof payload.error === "object" ? payload.error : null;
   if (error) {
@@ -806,6 +878,7 @@ function summarizeRpcResponseEntry(entry) {
 
   const result = payload.result;
   if (result && typeof result === "object") {
+    if (result.isError === true) return { status: "error", details: "Tool returned an error" };
     if (Array.isArray(result.tools)) {
       return {
         status: "ok",
@@ -1019,8 +1092,10 @@ async function main() {
     let modelAliasResolutionEvents = [];
     /** @type {any} */
     let rpcMessagesContent = null;
+    let gatewayJsonlContent = "";
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
+      gatewayJsonlContent = jsonlContent;
       core.info(`Found gateway.jsonl (${jsonlContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
@@ -1060,6 +1135,16 @@ async function main() {
       }
     } else {
       core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
+    }
+
+    // RPC responses remain useful even when gateway.md or gateway.jsonl is present.
+    if (rpcMessagesContent === null && fs.existsSync(rpcMessagesPath)) {
+      rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
+    }
+    const rateLimitSummary = generateMcpRateLimitSummary(`${gatewayJsonlContent}\n${rpcMessagesContent || ""}`);
+    if (rateLimitSummary) {
+      core.warning("MCP tools returned HTTP 429; see the MCP rate limits summary for retry hints.");
+      core.summary.addRaw(rateLimitSummary);
     }
 
     // Always scan authoritative text logs for AI credits signals before selecting
@@ -1187,6 +1272,7 @@ async function main() {
     }
     setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
     setUnknownModelAICreditsOutput(core, unknownModelAICredits);
+    await writeStepSummaryWithTokenUsage(core);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
@@ -1311,6 +1397,7 @@ if (typeof module !== "undefined" && module.exports) {
     getRpcMessageType,
     getRpcRequestLabel,
     generateRpcMessagesSummary,
+    generateMcpRateLimitSummary,
     printAllGatewayFiles,
     parseTokenUsageJsonl,
     generateTokenUsageSummary,

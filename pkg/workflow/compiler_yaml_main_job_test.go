@@ -1075,6 +1075,75 @@ func TestGenerateMainJobStepsStepOrdering(t *testing.T) {
 
 	// Should not error - step ordering should be valid
 	require.NoError(t, err, "step ordering validation should pass")
+
+	output := yaml.String()
+	start := strings.Index(output, "- name: Log GitHub rate limits at agent start")
+	execution := strings.Index(output, "id: agentic_execution")
+	end := strings.Index(output, "- name: Log GitHub rate limits at agent end")
+	upload := strings.Index(output, "uses: actions/upload-artifact@")
+	require.NotEqual(t, -1, start)
+	require.NotEqual(t, -1, execution)
+	require.NotEqual(t, -1, end)
+	require.NotEqual(t, -1, upload)
+	require.Less(t, start, execution)
+	require.Less(t, execution, end)
+	require.Less(t, end, upload)
+	assert.True(t, strings.HasPrefix(output[start:], "- name: Log GitHub rate limits at agent start\n        continue-on-error: true\n"))
+	assert.True(t, strings.HasPrefix(output[end:], "- name: Log GitHub rate limits at agent end\n        if: always()\n        continue-on-error: true\n"),
+		"the end snapshot itself must run even after agent failure, not just a later collection step")
+	detection := strings.Index(output, "- name: Detect agent errors")
+	require.NotEqual(t, -1, detection)
+	assert.Less(t, end, detection, "capture the agent's final quota before post-agent error handling")
+	assert.Contains(t, output[upload:], "/tmp/gh-aw/github_rate_limits.jsonl")
+}
+
+func TestGenerateAgentRateLimitSnapshotStepTokenPrecedence(t *testing.T) {
+	t.Parallel()
+
+	defaultToken := "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+	customToken := "${{ secrets.CUSTOM_MCP_TOKEN }}"
+	appToken := "${{ steps.github-mcp-app-token.outputs.token }}"
+	tests := []struct {
+		name  string
+		tools map[string]any
+		token string
+	}{
+		{name: "default magic secrets", tools: map[string]any{"github": nil}, token: defaultToken},
+		{name: "without GitHub tool", token: defaultToken},
+		{name: "disabled GitHub tool", tools: map[string]any{"github": false}, token: defaultToken},
+		{name: "configured token", tools: map[string]any{"github": map[string]any{"github-token": customToken}}, token: customToken},
+		{name: "app overrides configured token", tools: map[string]any{"github": map[string]any{
+			"github-token": customToken,
+			"github-app":   map[string]any{"client-id": "${{ vars.APP_ID }}", "private-key": "${{ secrets.APP_KEY }}"},
+		}}, token: appToken},
+		{name: "optional app configured fallback", tools: map[string]any{"github": map[string]any{
+			"github-token": customToken,
+			"github-app":   map[string]any{"client-id": "${{ vars.APP_ID }}", "private-key": "${{ secrets.APP_KEY }}", "ignore-if-missing": true},
+		}}, token: "${{ steps.github-mcp-app-token.outputs.token || secrets.CUSTOM_MCP_TOKEN }}"},
+		{name: "optional app magic fallback", tools: map[string]any{"github": map[string]any{
+			"github-app": map[string]any{"client-id": "${{ vars.APP_ID }}", "private-key": "${{ secrets.APP_KEY }}", "ignore-if-missing": true},
+		}}, token: "${{ steps.github-mcp-app-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			for _, phase := range []string{"start", "end"} {
+				var yaml strings.Builder
+				NewCompiler().generateAgentRateLimitSnapshotStep(&yaml, &WorkflowData{Tools: tt.tools}, phase)
+				output := yaml.String()
+				assert.Contains(t, output, "github-token: "+tt.token+"\n")
+				assert.Contains(t, output, "uses: actions/github-script@")
+				assert.Contains(t, output, "continue-on-error: true")
+				assert.Contains(t, output, "github_rate_limit_logger.cjs")
+				assert.Contains(t, output, "await fetchAndLogRateLimit(github, 'agent_"+phase+"', true);")
+				if phase == "end" {
+					assert.Contains(t, output, "if: always()")
+				} else {
+					assert.NotContains(t, output, "if: always()")
+				}
+			}
+		})
+	}
 }
 
 // TestShouldAddCheckoutStepEdgeCases tests edge cases for checkout step detection
