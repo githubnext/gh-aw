@@ -319,6 +319,7 @@ const known = [
   {type:"tool.execution_complete", data:{toolCallId:"tool", success:false, output:0}},
   {type:"session.result", data:{numTurns:0, totalCostUsd:0, usage:{input_tokens:0}, errors:[]}},
   {type:"session.error", data:{errorType:"RateLimitError", content:"provider failure"}},
+  {type:"model.inventory", data:{endpoints:[{provider:"openai", models:["openai/auto"]}]}},
   {type:"agent.execution", data:{categories:[], errorCodes:[], errorTypes:[]}},
   {type:"detection.result", data:{promptInjection:false}},
   {type:"session.format", data:{version:1}},
