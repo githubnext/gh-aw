@@ -23,6 +23,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
+	deferrerrorunchecked "github.com/github/gh-aw/pkg/linters/deferred-error-unchecked"
 	"github.com/github/gh-aw/pkg/linters/errorfwrapv"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errortypeassertion"
@@ -107,13 +108,13 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 81 analyzer
+// "Public API > Subpackages" table. The README documents 82 analyzer
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
 // Spec (README "Public API > Subpackages"):
 //
-//	appendbytestring, appendoneelement, blankassigncomma, bufferresetbeforereuse, bufioscannererunchecked, bytesbufferstring, bytescomparestring, closeerrorunchecked, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
+//	appendbytestring, appendoneelement, blankassigncomma, bufferresetbeforereuse, bufioscannererunchecked, bytesbufferstring, bytescomparestring, closeerrorunchecked, contextcancelnotdeferred, ctxbackground, deferinloop, deferrerrorunchecked, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintferrorunchecked, fprintlnsprintf,
 //	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, goroutineresourceleak, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, manualpathconcat, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
@@ -134,6 +135,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
 		{"ctxbackground", ctxbackground.Analyzer},
 		{"deferinloop", deferinloop.Analyzer},
+		{"deferrerrorunchecked", deferrerrorunchecked.Analyzer},
 		{"errorfwrapv", errorfwrapv.Analyzer},
 		{"excessivefuncparams", excessivefuncparams.Analyzer},
 		{"errormessage", errormessage.Analyzer},
