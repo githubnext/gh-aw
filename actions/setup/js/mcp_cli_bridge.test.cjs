@@ -824,6 +824,24 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(output).toContain("--field_2*");
   });
 
+  it("documents inline JSON escaping and stdin without helper recommendations", () => {
+    showToolHelp("safeoutputs", "add_comment", [
+      {
+        name: "add_comment",
+        inputSchema: {
+          properties: { item_number: { type: "integer" }, body: { type: "string" } },
+          required: ["item_number", "body"],
+        },
+      },
+    ]);
+    const output = stdoutChunks.join("");
+    expect(output).toContain("Stdin is also supported");
+    expect(output).toContain("reads a JSON object");
+    expect(output).toContain("\\u0027");
+    expect(output).not.toMatch(/\bjq\b|\bnode\b|printf|<<|payload\.json/);
+    expect(output).toMatch(/Recommended:\nsafeoutputs add_comment '\{/);
+  });
+
   it("does not truncate command help when options exactly fit the line budget", () => {
     const properties = {};
     for (let i = 1; i <= 13; i++) {

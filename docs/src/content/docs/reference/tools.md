@@ -222,11 +222,13 @@ tools:
 With CLI mounting enabled, workflow-accessible servers such as `safeoutputs` and `mcpscripts` are wrapped as executables:
 
 ```bash
-safeoutputs add_comment --item_number 42 --body "Analysis complete"
+safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.\nQuoted text: \"hello\".\nLiteral path: C:\\temp\\file.txt"}'
 mcpscripts mcpscripts-gh --args "issue list --limit 5"
 ```
 
-For `add_comment`, use `--item_number` rather than `--issue_number`; schema validation strips the latter. CLI mounting changes only the agent-facing interface: the MCP gateway still starts normally, but mounted servers are removed from the MCP tool list and accessed via shell. This can reduce token use from large tool schemas and simplify prompts when shell-style invocation is preferred.
+For `add_comment`, use `item_number` rather than `issue_number`; schema validation strips the latter. Prefer one single-quoted JSON object argument for safe outputs. Inside JSON strings, encode newlines as `\n`, double quotes as `\"`, backslashes as `\\`, and apostrophes as `\u0027`; Unicode can remain literal. Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. This does not grant permission for helper commands or redirections. No auxiliary tools, pipelines, temporary files, or shell expansion are needed for inline JSON.
+
+CLI mounting changes only the agent-facing interface: the MCP gateway still starts normally, but mounted servers are removed from the MCP tool list and accessed via shell. This can reduce token use from large tool schemas and simplify prompts when shell-style invocation is preferred.
 
 Defaults to `false`.
 
