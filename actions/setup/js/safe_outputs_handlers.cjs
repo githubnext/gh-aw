@@ -19,7 +19,7 @@ const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo, isSideRepoTarget, patchWorkspaceTargetsRepo } = require("./repo_helpers.cjs");
 const { generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
 const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
@@ -889,7 +889,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     let repoSlug = null;
     const patchWorkspacePath = typeof prConfig.patch_workspace_path === "string" ? prConfig.patch_workspace_path.trim() : "";
     const currentCheckoutRepo = typeof prConfig.current_checkout_repo === "string" ? prConfig.current_checkout_repo.trim() : "";
-    const patchWorkspaceMatchesTargetRepo = patchWorkspacePath && (!currentCheckoutRepo || currentCheckoutRepo === repoResult.repo);
+    const patchWorkspaceMatchesTargetRepo = patchWorkspacePath && patchWorkspaceTargetsRepo(repoResult.repo, currentCheckoutRepo);
 
     if (patchWorkspaceMatchesTargetRepo) {
       const patchWorkspaceResult = resolvePatchWorkspacePath(patchWorkspacePath);
@@ -912,7 +912,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Using configured patch_workspace_path for create_pull_request: ${patchWorkspacePath} -> ${repoCwd}`);
     }
 
-    if (((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) && !repoCwd) {
+    const targetIsSideRepo = isSideRepoTarget(repoResult.repo);
+    if (targetIsSideRepo) {
+      server.debug(`create_pull_request: resolved target ${repoResult.repo} differs from workflow repository; requiring its checkout`);
+    } else {
+      server.debug("create_pull_request: resolved target matches workflow repository; no cross-repo checkout needed");
+    }
+    if (targetIsSideRepo && !repoCwd) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
       // between the raw user input and the normalized/qualified repo name
       repoSlug = repoResult.repo;
@@ -967,6 +973,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This makes the safe output "self-describing" and fixes checkout for events
     // like issue_comment on PRs targeting non-default branches.
     entry.base_branch = baseBranch;
+    server.debug(`create_pull_request: patch context repo=${repoResult.repo}, cwd=${repoCwd || process.env.GITHUB_WORKSPACE || process.cwd()}, baseBranch=${baseBranch}`);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -1332,7 +1339,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const itemRepo = repoResult.repo;
     const pushPatchWorkspacePath = typeof pushConfig.patch_workspace_path === "string" ? pushConfig.patch_workspace_path.trim() : "";
     const pushCurrentCheckoutRepo = typeof pushConfig.current_checkout_repo === "string" ? pushConfig.current_checkout_repo.trim() : "";
-    const pushPatchWorkspaceMatchesTargetRepo = pushPatchWorkspacePath && (!pushCurrentCheckoutRepo || pushCurrentCheckoutRepo === itemRepo);
+    const pushPatchWorkspaceMatchesTargetRepo = pushPatchWorkspacePath && patchWorkspaceTargetsRepo(itemRepo, pushCurrentCheckoutRepo);
 
     if (pushPatchWorkspaceMatchesTargetRepo) {
       const patchWorkspaceResult = resolvePatchWorkspacePath(pushPatchWorkspacePath);
@@ -1355,14 +1362,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Using configured patch_workspace_path for push_to_pull_request_branch: ${pushPatchWorkspacePath} -> ${repoCwd}`);
     }
 
-    const envTargetSlug = (process.env.GH_AW_TARGET_REPO_SLUG || "").trim();
-    const currentRepo = (process.env.GITHUB_REPOSITORY || "").toLowerCase();
-    const envSlugIsSideRepo = envTargetSlug && envTargetSlug.toLowerCase() !== currentRepo;
-    if (envTargetSlug && !envSlugIsSideRepo) {
-      server.debug(`GH_AW_TARGET_REPO_SLUG (${envTargetSlug}) matches current repo; not using as side-repo checkout hint for push_to_pull_request_branch`);
-    }
-    const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || pushConfig["target-repo"] || envSlugIsSideRepo;
-    if (hasExplicitTargetRepoHint && !repoCwd) {
+    const targetIsSideRepo = isSideRepoTarget(itemRepo);
+    if (targetIsSideRepo && !repoCwd) {
       server.debug(`Looking for checkout of target repo: ${itemRepo}`);
       const checkoutResult = findRepoCheckout(itemRepo);
       if (!checkoutResult.success) {
