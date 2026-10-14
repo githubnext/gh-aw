@@ -2526,6 +2526,53 @@ index 0000000..abc1234
       expect(mockCore.debug.mock.calls.flat().join(" ")).not.toContain("only-conflict.txt");
     });
 
+    it.each([
+      ["missing", undefined, false],
+      ["empty", "", false],
+      ["missing", undefined, true],
+      ["empty", "", true],
+    ])("uses PR-head validation for a %s base ref (%s; oversized: %s)", async (_name, baseRef, oversized) => {
+      const branch = "missing-base-ref";
+      const agentPatch = oversized ? "x".repeat(4096) : "small patch\n";
+      createPatchFile(branch, agentPatch);
+      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
+      const pr = (await mockGithub.rest.pulls.get()).data;
+      pr.base.ref = baseRef;
+      process.env.GITHUB_SHA = "b".repeat(40);
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+        if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: agentPatch, stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      const pushModule = require("./push_signed_commits.cjs");
+      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
+      try {
+        const module = await loadModule();
+        const handler = await module.main({ max_patch_size: 1, signed_commits: false });
+        const result = await handler({ branch, diff_size: 0 }, {});
+        if (oversized) {
+          expect(result.success).toBe(false);
+          expect(result.error).toContain("Patch size");
+          expect(pushSpy).not.toHaveBeenCalled();
+        } else {
+          expect(result.success).toBe(true);
+          expect(pushSpy).toHaveBeenCalled();
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", "remote-head..refs/bundles/push-feature-branch"], expect.any(Object));
+        }
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith(
+          "git",
+          ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", "refs/bundles/push-feature-branch", "--not", "remote-head"],
+          expect.any(Object)
+        );
+        expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "fetch" && args.some(arg => arg.startsWith("refs/heads/")))).toBe(false);
+        expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" || args[0] === "merge-tree" || args.includes("FETCH_HEAD^{commit}"))).toBe(false);
+        expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: trusted-base resolution skipped because base branch metadata is unavailable");
+        expect(mockCore.info).toHaveBeenCalledWith("Bundle validation baseline uses PR head");
+      } finally {
+        pushSpy.mockRestore();
+      }
+    });
+
     it("retains the preview size limit when the trusted base fetch fails", async () => {
       const branch = "merge-base-fetch-fails";
       createPatchFile(branch, "x".repeat(4096));
