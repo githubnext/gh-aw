@@ -40,6 +40,21 @@ function readManifestEntriesFromEnv() {
       token: process.env[`GH_AW_CHECKOUT_TOKEN_${i}`] || "",
     });
   }
+  const dynamicIndexes = process.env.GH_AW_DYNAMIC_CHECKOUT_INDEXES;
+  if (dynamicIndexes) {
+    const runnerTemp = process.env.RUNNER_TEMP;
+    if (!runnerTemp) throw new Error("RUNNER_TEMP is required to read runtime checkout plans");
+    for (const index of dynamicIndexes.split(",")) {
+      if (!/^\d+$/.test(index)) throw new Error("Runtime checkout manifest index must be a non-negative integer");
+      const planPath = path.join(runnerTemp, "gh-aw", "dynamic-checkouts", `${index}.json`);
+      try {
+        const plan = parseManifestEntries(fs.readFileSync(planPath, "utf8"));
+        entries.push(...plan);
+      } catch (error) {
+        throw new Error("Unable to read runtime checkouts for the checkout manifest", { cause: error });
+      }
+    }
+  }
   return entries;
 }
 
@@ -136,12 +151,14 @@ function buildCheckoutManifest(entries, options = {}) {
       continue;
     }
     const checkoutPath = String(entry.path || "");
-    const defaultBranch = resolveDefaultBranch(repository, checkoutPath, {
-      workspace: options.workspace,
-      runGit,
-      runGH,
-      checkoutToken: entry.token || "",
-    });
+    const defaultBranch =
+      entry.default_branch ||
+      resolveDefaultBranch(repository, checkoutPath, {
+        workspace: options.workspace,
+        runGit,
+        runGH,
+        checkoutToken: entry.token || "",
+      });
     manifest[repository.toLowerCase()] = {
       repository,
       path: checkoutPath,

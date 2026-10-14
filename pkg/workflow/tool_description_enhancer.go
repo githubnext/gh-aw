@@ -323,6 +323,9 @@ func markPullRequestAsReadyForReviewConstraints(config *MarkPullRequestAsReadyFo
 func addCommentConstraints(config *AddCommentsConfig) []string {
 	constraints := buildConstraints(config, func(config *AddCommentsConfig, constraints *[]string) {
 		appendMaxConstraint(constraints, config.Max, "Maximum %d comment(s) can be added.")
+		if config.MaxLinks > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Maximum %d link(s) in the comment body, excluding generated metadata.", config.MaxLinks))
+		}
 		appendTargetConstraint(constraints, config.Target)
 		appendStringConstraint(constraints, config.TargetRepoSlug, "Comments will be added in repository %q.")
 		if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {

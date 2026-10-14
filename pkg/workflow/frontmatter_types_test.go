@@ -1999,7 +1999,7 @@ func TestParseFrontmatterConfigCheckoutDisabled(t *testing.T) {
 		}
 	})
 
-	t.Run("checkout: true is not a valid value (treated as object)", func(t *testing.T) {
+	t.Run("checkout: true is rejected", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":     "test-workflow",
 			"engine":   "claude",
@@ -2007,13 +2007,8 @@ func TestParseFrontmatterConfigCheckoutDisabled(t *testing.T) {
 		}
 
 		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// checkout: true is not recognized as a disable flag; CheckoutDisabled stays false
-		if config.CheckoutDisabled {
-			t.Error("CheckoutDisabled should be false when checkout: true is set")
-		}
+		require.ErrorContains(t, err, "checkout must be an object or an array of objects")
+		assert.Nil(t, config)
 	})
 
 	t.Run("checkout object leaves CheckoutDisabled false", func(t *testing.T) {

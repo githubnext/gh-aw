@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { scanDailyAIC } = require("./daily_aic_scan.cjs");
 const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 const { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
 const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
 
@@ -843,7 +844,8 @@ async function main(options = {}) {
     const reason = readFailure
       ? `${readFailure.operation} read stopped (${readFailure.status ? `HTTP ${readFailure.status}` : "transport or read error"}; attempts: ${readFailure.attempts}; reason: ${readFailure.reason}). Accounting remains unverified; agent startup is blocked.`
       : getErrorMessage(error);
-    const message = `Daily workflow AI Credits are unknown: ${reason}`;
+    const diagnostic = getGitHubAPIDiagnostic(error);
+    const message = `Daily workflow AI Credits are unknown: ${reason}${diagnostic ? ` ${diagnostic.message}` : ""}`;
     core.setOutput("daily_ai_credits_guardrail_status", status);
     core.setOutput("daily_ai_credits_guardrail_error", message);
     logDailyGuardrail("AIC inspection failed", { status, error: readFailure || getErrorMessage(error) });

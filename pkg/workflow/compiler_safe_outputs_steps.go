@@ -58,6 +58,11 @@ func prepareSharedPRCheckout(data *WorkflowData) (*CheckoutManager, string) {
 	// persisted checkout credential and the push remote agree on a single token.
 	prCheckoutToken, _ := resolvePRCheckoutToken(data.SafeOutputs, checkoutMgr)
 	checkoutMgr.SetPushToken(resolveStaticCheckoutToken(data.SafeOutputs, checkoutMgr))
+	// Runtime checkouts are not revisited by GenerateConfigureGitCredentialsSteps.
+	// Resolve the shared PR auth without selecting another entry's scoped write app;
+	// dynamicCheckoutToken applies each runtime entry's own auth first.
+	dynamicPushToken, _ := resolvePRCheckoutToken(data.SafeOutputs, nil)
+	checkoutMgr.SetDynamicPushToken(dynamicPushToken)
 
 	// The default workspace checkout is skipped below when permissions.contents: none
 	// signals a target-only checkout; suppress its app-token minting step too.
@@ -101,6 +106,10 @@ func (c *Compiler) buildSharedPRCheckoutLayout(data *WorkflowData, checkoutMgr *
 	// Additional (cross-repo / subdirectory) checkouts (identical to the agent job).
 	steps = append(steps, injectStepCondition(
 		checkoutMgr.GenerateAdditionalCheckoutSteps(c.getActionPin),
+		condition,
+	)...)
+	steps = append(steps, injectStepCondition(
+		checkoutMgr.GenerateCheckoutManifestStep(c.getActionPin),
 		condition,
 	)...)
 
@@ -178,7 +187,7 @@ func (c *Compiler) addAppTokenMintingSteps(data *WorkflowData) []string {
 		if handlerApp == nil || handler.PermissionBuilder == nil {
 			continue
 		}
-		handlerPermissions := handler.PermissionBuilder(data.SafeOutputs)
+		handlerPermissions := computeSafeOutputHandlerPermissions(data.SafeOutputs, handler)
 		if handlerPermissions == nil {
 			continue
 		}

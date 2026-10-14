@@ -6,6 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 const { resolveTarget, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -247,7 +248,7 @@ async function main(config = {}) {
             repo: `${owner}/${repo}`,
           };
         }
-        throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ${getErrorMessage(getReviewError)}`, {
+        throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ${getGitHubAPIDiagnostic(getReviewError)?.message || getErrorMessage(getReviewError)}`, {
           cause: getReviewError,
         });
       }

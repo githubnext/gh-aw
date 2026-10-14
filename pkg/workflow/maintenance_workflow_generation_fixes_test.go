@@ -169,3 +169,12 @@ func TestMaintenanceDisabledOperationIsNotReportedComplete(t *testing.T) {
 	require.NotContains(t, generated, "inputs.operation == 'validate'")
 	require.Contains(t, generated, "inputs.operation == 'create_labels'")
 }
+
+func TestMaintenanceSecretValidationUsesLatestNodeAction(t *testing.T) {
+	generated := buildMaintenanceSecretValidationJob(buildMaintenanceWorkflowYAMLOptions{
+		runsOnValue: "ubuntu-latest",
+	}, "./actions/setup")
+
+	require.Contains(t, generated, "uses: "+getActionPin("actions/setup-node"))
+	require.NotContains(t, generated, "39370e3970a6d050c480ffad4ff0ed4d3fdee5af")
+}

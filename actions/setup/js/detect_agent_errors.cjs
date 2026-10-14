@@ -49,9 +49,8 @@
  *     expansion patterns (command substitution, indirect expansion, parameter
  *     transformation, etc.), e.g. "...could enable arbitrary code execution.
  *     Please rewrite the command without these expansion patterns." This can
- *     misfire on benign multi-line `printf`/`safeoutputs` CLI invocations; agents
- *     should switch to the `jq -Rs` file-piping pattern instead of retrying the
- *     same command verbatim.
+ *     misfire on benign quoted payloads. Agents must not repeat the denied
+ *     command or bypass the guard with an unapproved shell workaround.
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -322,9 +321,7 @@ async function main({ rootDir = process.env.GH_AW_TMP_DIR || "/tmp/gh-aw" } = {}
     process.stderr.write(`[detect-agent-errors] Detected missing model pricing: model "${results.missingModelPricingModelName}" has no AI credits pricing configured\n`);
   }
   if (results.shellExpansionGuardRejected) {
-    process.stderr.write(
-      "[detect-agent-errors] Detected sandbox shell expansion guard rejection: a shell command was rejected for dangerous bash expansion patterns; use the jq -Rs file-piping pattern for multi-line safeoutputs CLI bodies instead of retrying\n"
-    );
+    process.stderr.write("[detect-agent-errors] Detected sandbox shell expansion guard rejection: do not repeat the denied command or bypass it with unapproved shell helpers; use an exposed native safe-output tool or report the blocker\n");
   }
 
   writeOutputs(results);

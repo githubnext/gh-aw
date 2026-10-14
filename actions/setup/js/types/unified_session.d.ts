@@ -218,6 +218,8 @@ export interface McpObservationData {
   inputSize?: JsonValue;
   outputSize?: JsonValue;
   status?: JsonValue;
+  httpStatus?: number;
+  retryHint?: string;
   reason?: JsonValue;
   error?: JsonValue;
 }

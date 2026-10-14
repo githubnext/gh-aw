@@ -60,11 +60,11 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
 skills:
-- mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/diagnosing-bugs@49dd158d1076134a641b33efb035946536778336
+- mattpocock/skills/tdd@49dd158d1076134a641b33efb035946536778336
+- mattpocock/skills/improve-codebase-architecture@49dd158d1076134a641b33efb035946536778336
+- mattpocock/skills/grill-with-docs@49dd158d1076134a641b33efb035946536778336
+- mattpocock/skills/codebase-design@49dd158d1076134a641b33efb035946536778336
 # Raised from 15m: skill-driven PR reviews on larger diffs were hitting the
 # engine step's hard timeout mid-review (not a hang) - see #66819.
 timeout-minutes: 30

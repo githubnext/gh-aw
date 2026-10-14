@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -116,6 +117,30 @@ func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]Git
 
 	if err := c.validateCustomSetupUVCache(data.CustomSteps); err != nil {
 		return nil, false, err
+	}
+
+	// Prefer the repository's Go version unless the workflow specifies one.
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	var checkoutSteps strings.Builder
+	if c.shouldAddCheckoutStep(data) {
+		for _, step := range checkoutMgr.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin) {
+			checkoutSteps.WriteString(step)
+		}
+	}
+	for _, step := range checkoutMgr.GenerateAdditionalCheckoutSteps(c.getActionPin) {
+		checkoutSteps.WriteString(step)
+	}
+	hasCheckout := checkoutStepsHaveRootGoMod(checkoutSteps.String(), false)
+	if ContainsCheckout(data.CustomSteps) && !c.shouldAddCheckoutStep(data) {
+		hasCheckout = customCheckoutHasRootGoMod(data.CustomSteps)
+	}
+	for i := range runtimeRequirements {
+		req := &runtimeRequirements[i]
+		if req.Runtime.ID == "go" && req.Version == "" && req.GoModFile == "" && c.gitRoot != "" && hasCheckout {
+			if info, err := os.Stat(filepath.Join(c.gitRoot, "go.mod")); err == nil && info.Mode().IsRegular() {
+				req.GoModFile = "go.mod"
+			}
+		}
 	}
 
 	// Generate runtime setup steps (after filtering out user-customized ones)

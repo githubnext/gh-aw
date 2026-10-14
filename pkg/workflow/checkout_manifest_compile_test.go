@@ -25,7 +25,8 @@ engine: copilot
 timeout-minutes: 5
 checkout:
   - repository: ${{ github.event.inputs.trigger_ref }}
-    current: true
+    path: targets
+    allowed-repos: ["org/*"]
 safe-outputs:
   noop:
     report-as-issue: false
@@ -46,7 +47,8 @@ Do nothing.
 	require.Contains(t, lock, "name: Build checkout manifest for safe-outputs handlers")
 	require.Contains(t, lock, "uses: actions/github-script")
 	require.Contains(t, lock, "build_checkout_manifest.cjs")
-	require.Contains(t, lock, "GH_AW_CHECKOUT_REPO_0: ${{ github.event.inputs.trigger_ref }}")
+	require.Contains(t, lock, `GH_AW_DYNAMIC_CHECKOUT_INDEXES: "0"`)
+	require.Contains(t, lock, `GH_AW_DYNAMIC_REPOSITORIES: "${{ github.event.inputs.trigger_ref }}"`)
 	require.NotContains(t, lock, "repo='${{ github.event.inputs.trigger_ref }}'")
 	require.NotContains(t, lock, "Build checkout manifest for safe-outputs handlers\n        run: |", "manifest step must not use run block")
 }

@@ -2577,11 +2577,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Also auto-generates a temporary_id if not provided and returns it to the agent
    */
   const addCommentHandler = args => {
+    const addCommentConfig = getSafeOutputsToolConfig(config, "add_comment");
     // Validate comment constraints before appending to safe outputs
     // This provides early feedback per Requirement MCE1 (Early Validation)
     try {
       const body = (args && args.body) || "";
-      enforceCommentLimits(body);
+      enforceCommentLimits(body, { maxLinks: addCommentConfig.max_links ?? addCommentConfig["max-links"] });
     } catch (error) {
       // Return validation error with specific constraint violation details
       // Per Requirement MCE3 (Actionable Error Responses)
@@ -2596,7 +2597,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // reply_to_id is a discussion-only field; its presence unambiguously means the
     // agent is targeting a GitHub Discussion.  Guard here (MCP phase) so the agent
     // gets immediate, actionable feedback rather than a late failure at execution time.
-    const addCommentConfig = getSafeOutputsToolConfig(config, "add_comment");
     const discussionsEnabled = addCommentConfig.discussions === true;
     const hasReplyToId = args?.reply_to_id != null && String(args.reply_to_id).trim() !== "";
     if (hasReplyToId && !discussionsEnabled) {

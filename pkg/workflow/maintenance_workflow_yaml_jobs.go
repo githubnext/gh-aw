@@ -780,7 +780,7 @@ func buildMaintenanceSecretValidationJob(opts buildMaintenanceWorkflowYAMLOption
 `)
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	b.WriteString(`      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: ` + getCachedActionPinFromResolver("actions/setup-node", opts.resolver) + `
         with:
           node-version: '22'
 

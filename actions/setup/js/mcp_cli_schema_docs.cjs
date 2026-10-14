@@ -284,12 +284,13 @@ function renderToolRecommendedExample(serverName, tool, options = {}) {
     return a.localeCompare(b);
   });
 
-  if (shouldUseJsonMode(schema)) {
+  if (serverName === "safeoutputs" || shouldUseJsonMode(schema)) {
     const payload = {};
     for (const key of orderedKeys) {
       payload[key] = exampleValueForKey(key, properties[key]);
     }
-    return `${serverName} ${tool.name} '${JSON.stringify(payload, null, 2)}'`;
+    const json = JSON.stringify(payload, null, serverName === "safeoutputs" ? undefined : 2).replaceAll("'", "\\u0027");
+    return `${serverName} ${tool.name} '${json}'`;
   }
 
   const segments = [];

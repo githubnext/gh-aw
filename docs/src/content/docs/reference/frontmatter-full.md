@@ -17563,17 +17563,6 @@ safe-outputs:
     samples:
       {}
 
-    # All of these labels must be present on the target item for this operation to
-    # proceed
-    # (optional)
-    required-labels: []
-      # Array of strings
-
-    # The target item's title must start with this prefix for this operation to
-    # proceed
-    # (optional)
-    required-title-prefix: "example-value"
-
   # Enable AI agents to set or clear the type of GitHub issues. Use an empty string
   # to clear the current type.
   # (optional)
@@ -23684,9 +23673,52 @@ checkout:
   # (optional)
   pull-request: true
 
-  # Repository to checkout in owner/repo format. Defaults to the current repository.
+  # Repository to checkout in owner/repo format, or a newline-separated list when
+  # allowed-repos is set. Expressions require allowed-repos except for the
+  # standalone ${{ github.repository }} expression, which retains normal
+  # single-repository checkout behavior without an allowlist or path prefix.
+  # Expressions must resolve to explicit repository names. Wildcards are not
+  # supported. Defaults to the current repository.
   # (optional)
   repository: "example-value"
+
+  # Alias for repository. Specify only one of repo and repository. Expressions
+  # require allowed-repos except for the standalone ${{ github.repository }}
+  # expression. Wildcards are not supported.
+  # (optional)
+  repo: "example-value"
+
+  # Required allowlist for runtime repository-list expansion. Accepts
+  # newline-separated patterns, an array, or a whole GitHub Actions expression
+  # directly referencing a repository or organization configuration variable (e.g.
+  # ${{ vars.ALLOWED_REPOS }} or ${{ vars['ALLOWED_REPOS'] }}). Caller-controlled
+  # contexts, dynamic indexing, and composite or mixed expressions are rejected.
+  # Supports scoped wildcard patterns such as owner/* or */repo, but not
+  # unrestricted wildcards such as * or */*. The path is a literal prefix;
+  # repositories are placed under prefix/owner/repo.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: string
+  allowed-repos: "example-value"
+
+  # Format 2: array
+  allowed-repos: []
+    # Array items: string
+
+  # Allow private or internal targets in a runtime repository list only when the
+  # hosting workflow repository is private or internal. Requires allowed-repos and a
+  # literal boolean. Defaults to false. Public hosting repositories always reject
+  # non-public targets, even when true. Every merged entry must explicitly opt in.
+  # (optional)
+  allow-private-repos: true
+
+  # Maximum number of unique repositories per runtime checkout entry. Requires
+  # allowed-repos. Defaults to 10. Oversized lists fail before metadata requests or
+  # checkout; matching and deduplication are case-insensitive. Merged entries use
+  # the smallest effective limit, including the default for omitted values.
+  # (optional)
+  max-repos: 1
 
   # Branch, tag, or SHA to checkout. Defaults to the ref that triggered the
   # workflow.
@@ -23709,7 +23741,9 @@ checkout:
   sparse-checkout: "example-value"
 
   # Controls submodule checkout. Use "recursive" for all submodules, "true" for
-  # immediate submodules, or "false" to skip.
+  # immediate submodules, or "false" to skip. Runtime repository-list checkouts with
+  # allowed-repos require false or omission because submodule URLs can bypass the
+  # allowlist.
   # (optional)
   # Accepted formats:
 
@@ -23719,7 +23753,9 @@ checkout:
   # Format 2: boolean
   submodules: true
 
-  # Whether to download Git LFS objects. Defaults to false.
+  # Whether to download Git LFS objects. Defaults to false. Runtime repository-list
+  # checkouts with allowed-repos reject lfs: true because repository-controlled LFS
+  # endpoints can bypass the allowlist.
   # (optional)
   lfs: true
 

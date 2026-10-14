@@ -8,6 +8,7 @@ import { parseDocument } from "./work_queue_yaml.cjs";
 
 const require = createRequire(import.meta.url);
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
+const { parseToolArgs } = require("./mcp_cli_bridge.cjs");
 const root = resolve(import.meta.dirname, "../../..");
 const names = ["draft-pr-cleanup", "instructions-janitor", "daily-mcp-concurrency-analysis"];
 const readWorkflow = name => {
@@ -25,6 +26,36 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it("round-trips documented multiline CLI examples without helper commands", () => {
+    const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(safeoutputs:*)"] }, () => ({ kind: "approve-once" }));
+    const expected = { item_number: 42, body: '### Result\n\nIt\'s ready.\nQuoted text: "hello".\nLiteral path: C:\\temp\\file.txt' };
+    const schema = { item_number: { type: "integer" }, body: { type: "string" } };
+    for (const name of ["mcp_cli_tools_with_safeoutputs_prompt", "safe_outputs_cli_only_transport_prompt", "shell_expansion_guard_rejected"]) {
+      const prompt = readFileSync(resolve(root, `actions/setup/md/${name}.md`), "utf8");
+      expect(prompt).not.toMatch(/\bjq\b|\bnode\b|printf|<<|payload\.json/);
+      expect(prompt).toContain("Stdin is also supported");
+      const example = prompt.match(/```bash\n(safeoutputs add_comment '[^\n]+')\n```/)[1];
+      expect(handler({ kind: "shell", commands: [], fullCommandText: example })).toEqual({ kind: "approve-once" });
+      const result = spawnSync("bash", ["-c", 'safeoutputs() { printf "%s\\0" "$@"; }\n' + example], { encoding: "utf8" });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      const argv = result.stdout.split("\0").slice(0, -1);
+      expect(argv[0]).toBe("add_comment");
+      expect(parseToolArgs(argv.slice(1), schema).args).toEqual(expected);
+    }
+    expect(parseToolArgs(["."], schema, JSON.stringify(expected)).args).toEqual(expected);
+    expect(handler({ kind: "shell", commands: [], fullCommandText: "jq -Rs '{body: .}' body.md | safeoutputs add_comment ." }).kind).toBe("reject");
+  });
+
+  it("preserves arbitrary inline JSON text without a second escape pass", () => {
+    const schema = { body: { type: "string" } };
+    for (const body of ["", " \nindented\n ", 'café 日本語 😀\n"quotes" and apostrophe\'s', "Literal \\n and \\t; path C:\\new\\report.md", "Long paragraph.\n".repeat(1000)]) {
+      const payload = JSON.stringify({ body }).replaceAll("'", "\\u0027");
+      expect(parseToolArgs([payload], schema).args).toEqual({ body });
+      expect(parseToolArgs(["."], schema, payload).args).toEqual({ body });
+    }
+  });
+
   it.each(names)("%s retains native MCP registration without widening authorization", name => {
     const { workflow, prompt, lock, manifest } = readWorkflow(name);
     expect(workflow.tools["cli-proxy"]).toBe(false);

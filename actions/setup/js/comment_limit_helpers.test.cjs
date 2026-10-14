@@ -91,6 +91,29 @@ describe("comment_limit_helpers", () => {
       expect(() => enforceCommentLimits(mixed)).toThrow(/E008.*51.*links/i);
     });
 
+    it("should enforce custom limits and count repeated URLs", () => {
+      const links = "https://example.com/screenshot ".repeat(75);
+      expect(() => enforceCommentLimits(links, { maxLinks: 75 })).not.toThrow();
+      expect(() => enforceCommentLimits(links, { maxLinks: 74 })).toThrow(/E008.*75.*maximum is 74/);
+      expect(() => enforceCommentLimits(links, { maxLinks: 10 })).toThrow(/E008.*maximum is 10/);
+    });
+
+    it.each(["[a](https://a.example)[b](https://b.example)", "[a](https://example.com)[b](https://example.com)", "https://a.examplehttp://b.example"])("should count adjacent URL occurrences in %s", body => {
+      expect(() => enforceCommentLimits(body, { maxLinks: 2 })).not.toThrow();
+      expect(() => enforceCommentLimits(body, { maxLinks: 1 })).toThrow(/E008.*2 links.*maximum is 1/);
+    });
+
+    it("should not count URL schemes without a non-whitespace suffix", () => {
+      expect(() => enforceCommentLimits("https:// http://\nhttps://", { maxLinks: 0 })).not.toThrow();
+    });
+
+    it("should exclude metadata links without exempting final length or mentions", () => {
+      const linkBody = "https://example.com/screenshot ".repeat(50);
+      expect(() => enforceCommentLimits(`${linkBody} https://example.com/footer`, { linkBody })).not.toThrow();
+      expect(() => enforceCommentLimits("a".repeat(MAX_COMMENT_LENGTH + 1), { linkBody })).toThrow(/E006/);
+      expect(() => enforceCommentLimits("@user ".repeat(11), { linkBody })).toThrow(/E007/);
+    });
+
     it("should include actual values in error messages", () => {
       const longBody = "a".repeat(70000);
       try {

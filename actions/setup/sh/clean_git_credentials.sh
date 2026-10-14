@@ -102,6 +102,14 @@ clean_git_config() {
 # Get the workspace directory (defaults to current GITHUB_WORKSPACE)
 WORKSPACE="${GITHUB_WORKSPACE:-.}"
 
+# Explicit checkout configs must not depend on bounded workspace discovery.
+if [ "$#" -gt 0 ]; then
+  for git_config in "$@"; do
+    clean_git_config "${git_config}"
+  done
+  exit 0
+fi
+
 # Collect all git config files to clean from workspace and /tmp/.
 # Includes both repository configs and submodule configs under .git/modules/**/config.
 # Use maxdepth 15 as a conservative cap to cover deeply nested submodules
