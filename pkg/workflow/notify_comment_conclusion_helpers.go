@@ -67,6 +67,14 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	if isModelRoutingEnabled(data) || data.EngineConfig != nil && data.EngineConfig.ID == string(constants.CopilotEngine) {
+		steps = append(steps,
+			"      - name: Restore runtime model metadata\n",
+			"        if: always()\n",
+			"        run: |\n",
+			"          if [ -f /tmp/gh-aw/runtime/aw_info.json ]; then cp /tmp/gh-aw/runtime/aw_info.json /tmp/gh-aw/aw_info.json; fi\n",
+		)
+	}
 	// Download the detection artifact (when threat detection is enabled) so its firewall
 	// proxy/audit logs (collected under threat-detection/sandbox/firewall/ by
 	// buildCopyDetectionFirewallLogsStep) land at the paths collect_usage_artifact_files.sh

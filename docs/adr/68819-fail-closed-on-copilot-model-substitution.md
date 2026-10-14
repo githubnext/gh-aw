@@ -1,47 +1,64 @@
 # ADR-68819: Fail closed when the Copilot CLI substitutes the configured model
 
 **Date**: 2026-10-14
-**Status**: Draft
-**Deciders**: Unknown (PR #68819, authored by @pelikhan)
+**Status**: Accepted
+**Deciders**: @pelikhan (PR #68819)
 
 ---
 
 ### Context
 
-gh-aw lets a workflow pin an exact model (for example `copilot/gemini-...`) for the Copilot engine. Two paths could silently diverge from that configuration. First, AWF alias resolution (`actions/setup/js/resolve_model_alias.cjs`) conflated two very different failures: a successfully fetched catalog that contains no matching model, and a catalog fetch that failed outright — both surfaced as a generic engine outage. Second, on the native direct-CLI path the Copilot CLI can start with a different model than the one requested (Gemini silently downgraded to Claude) and the run would still succeed, producing results attributed to a model the author never selected. The related upstream limitation (#66894) is that Copilot/CAPI may not offer a policy-enabled model to the `agentic-workflows` integration at all, even when the standalone CLI and the bundled static catalog list it. Log and audit output (`pkg/cli/logs_models.go`) also had only one notion of "the model", so substitution was invisible after the fact.
+gh-aw lets a workflow select a concrete model or a model alias for the Copilot engine. Two paths could obscure a different selection. First, AWF alias resolution (`actions/setup/js/resolve_model_alias.cjs`) conflated a successfully retrieved catalog with no matching model and a failed catalog retrieval. Second, the native Copilot CLI could report a different startup model than requested while the run still succeeded and its metadata retained the requested model.
+
+[Issue #66894](https://github.com/github/gh-aw/issues/66894) documents an upstream access boundary: a model enabled by organization policy and offered to the standalone CLI may not be offered to the `agentic-workflows` integration. Neither the bundled model catalog nor compilation proves runtime integration access. gh-aw can resolve against the workflow's live catalog and inspect the native CLI's model-selection events; those events report the CLI's selection, not independently verified upstream inference identity.
 
 ### Decision
 
-We will fail closed on model substitution rather than continue on a substituted model. Concretely: a new `actions/setup/js/copilot_model_selection.cjs` module tails only session events appended by the current native main-agent attempt, compares the observed model identifier against the resolved one, and terminates the CLI without retrying when they differ (including the quick-exit case); alias resolution now distinguishes "configured model unavailable" from "catalog retrieval failed" and reports an unavailable-model *configuration* error; `aw_info.json` records configured, resolved, and observed effective models separately so logs and audit attribution stay accurate; and the compiler (`pkg/workflow/configured_model_validation.go`) emits a compile-time warning — not an error — when Gemini is configured against Copilot's GitHub integration. The primary driver is correctness of attribution: a run that did not use the configured model must not be reported as a successful run of that model.
+Fail the native main-agent attempt when the CLI reports a concrete model different from the resolved selection. Resolve explicit CLI model arguments before alias and endpoint preprocessing. `actions/setup/js/copilot_model_selection.cjs` reads only newly appended events from the invocation's exact session ID, excludes subagent records, and compares startup selection and main-assistant model identifiers. Continuation retries retain that exact session; fresh retries use a new session. Comparison normalizes Copilot provider prefixes and ignores query parameters that configure reasoning rather than model identity. A mismatch terminates a running CLI or overrides an otherwise successful quick exit, and is not retried. An intentional `auto` selection is not treated as substitution.
+
+For known aliases, distinguish `model_unavailable` from `catalog_unavailable`. After resolution fails, an unavailable-model diagnosis requires that no configured candidate provider has a failed model-catalog fetch; an unrelated provider's populated catalog is insufficient evidence. A failed relevant fetch remains a retrieval failure. A bounded refresh is retained, and an initial established unavailability diagnosis is preserved if the refresh fails. No unresolved known alias is forwarded to the CLI.
+
+Record configured, resolved, and native-observed model identifiers separately in `aw_info.json`, and use observed selection in logs and audit attribution when present. An unavailable model before execution has no effective model. Preserve authorized AWF fallback attribution precedence; native startup substitution is not authorization to use a fallback. Publish a post-agent parser snapshot through the agent artifact and `workflow.info` so conclusion jobs and downloaded logs retain selection status, including an intentionally empty model, instead of restoring the activation snapshot.
+
+The host parser overwrites `runtime/aw_info.json` after agent process termination. Collectors prefer this post-agent publication and do not promote `agent/aw_info.json` to authoritative workflow metadata. The runtime directory is not outside the shared writable sandbox mount; publication and provenance prevent stale activation or untrusted agent-output file preference, not adversarial tampering with the shared source or native session events. Unsandboxed execution retains its existing lack of filesystem isolation.
+
+The compiler emits a warning, not an error, for the `gemini-*` family using Copilot's GitHub integration without an explicit provider base URL. The bare `gemini` engine-name meta-alias maps to `agent` and does not warrant a Gemini-family warning. Runtime expressions and explicit BYOK configurations are not rejected by this check.
+
+Integration access policy remains upstream. This decision does not change the integration ID, bypass access controls, enable Gemini for that integration, or establish the identity of the model serving inference behind Copilot/CAPI.
 
 ### Alternatives Considered
 
 #### Alternative 1: Warn on substitution and let the run continue
 
-The observer could log a warning and allow the CLI to proceed on the fallback model, keeping runs green while the upstream integration gap is resolved. It was rejected because the failure mode this PR addresses is precisely a *silent* success: a tolerated substitution leaves cost, capability, and output attributed to a model the workflow never selected, and gives the author no signal that their pin is ineffective. Failing closed was chosen even though it converts previously "passing" runs into explicit failures.
+The observer could log a warning and allow a different native selection to proceed. This would keep runs green, but tolerate a model the workflow did not select. Rejecting an observed mismatch makes the selection failure explicit even though it converts previously passing runs into failures.
 
 #### Alternative 2: Reject unavailable Gemini/Copilot model configurations at compile time
 
-Since `warnCopilotIntegrationModelAvailability` already detects a Gemini model configured for Copilot's GitHub integration, the compiler could hard-error and never generate the lock file. It was rejected because the bundled static pricing/model catalog does not describe runtime integration access — it can be stale in both directions — and a hard error would break legitimate BYOK configurations (explicit `CopilotProviderBaseURL`) and any model that Copilot later enables. The compile-time check therefore stays a warning and the authoritative decision is deferred to the runtime observer. A third option, changing the integration ID to one that does offer Gemini, was rejected outright as a policy-bypass workaround.
+The compiler could prohibit Gemini-family selections for Copilot's GitHub integration. A static catalog cannot establish live access, and a permanent prohibition would reject models later enabled upstream. The check stays advisory; live-catalog resolution and native selection observation provide separate runtime evidence. Explicit BYOK is outside this warning's scope.
+
+#### Alternative 3: Change the integration ID to obtain broader model access
+
+Using the standalone CLI's integration identity could evade the access boundary described in the issue. This is rejected as a policy bypass. Missing integration access must be enabled by Copilot/CAPI, not worked around by gh-aw.
+
+#### Alternative 4: Treat native events as proof of upstream inference identity
+
+The native observer sees CLI session records, not a trusted attestation from the inference service. Reporting its selection as verified upstream identity would overstate the available evidence. Native-observed attribution is retained with this limitation.
 
 ### Consequences
 
 #### Positive
-- A configured model is now either honoured or the run fails loudly; no result is ever attributed to a silently substituted model.
-- Operators get a distinct, actionable "configured model unavailable" configuration error instead of a generic engine-outage message, while the bounded catalog refresh is retained.
-- `aw_info.json` carries configured, resolved, and observed effective model metadata, so `gh aw logs` and audit output remain accurate after the fact.
-- A compile-time warning surfaces the likely Gemini/`agentic-workflows` integration gap before a run is ever dispatched.
+- An observed native model mismatch cannot be reported as a successful attempt using the requested model.
+- Operators get separate actionable diagnoses for unavailable configured models and incomplete catalog retrieval, with a bounded refresh.
+- Metadata and logs distinguish author intent, alias resolution, and native-observed selection instead of conflating them.
+- An advisory warning surfaces the Gemini-family integration access concern without permanently prohibiting valid future configurations.
 
 #### Negative
-- Workflows that previously completed on a substituted model will now fail, and because substitution is terminal and not retried the failure is immediate and unrecoverable within the run.
-- Detection depends on parsing newly appended Copilot CLI session events from a set of candidate `session-state` directories; an upstream change to that event format or layout silently degrades the guard to a no-op (false negatives).
-- Adds a second notion of "model" (resolved vs observed) that every consumer of `aw_info.json`, logs, and audit output must now understand.
+- Workflows that previously completed despite an observed native substitution now fail without retrying that mismatch.
+- Detection depends on CLI event formats, locations, and emitted model identifiers. Missing or unrecognized model events do not independently establish upstream identity; a matching native event also cannot exclude substitution behind Copilot/CAPI.
+- The post-agent snapshot and session provenance identify the publication path, not an adversarial attestation. The default sandbox exposes the shared temporary directory, and unsandboxed execution has no filesystem isolation; this decision does not establish tamper-proof session or metadata storage.
+- Consumers of model metadata must distinguish configured, resolved, and observed identifiers, and retain existing behavior when observation metadata is absent.
 
 #### Neutral
-- The observer deliberately ignores cached sessions, subagents, SDK mode, and the threat-detection phase, so the guard applies only to the native main-agent attempt.
+- The observer excludes historical events, subagents, SDK mode, and the threat-detection phase; this guard applies only to native main-agent attempts.
 - Lock-file model metadata remains explicitly compile-time configuration and is not rewritten with the observed model.
-- The upstream Copilot/CAPI limitation (no Gemini for the `agentic-workflows` integration) and the separately reported Gemini BYOK `refusal: null` replay failure are unchanged by this decision; authorized AWF fallback precedence is preserved.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+- Upstream integration access and the separately reported Gemini BYOK `refusal: null` replay failure are unchanged; authorized AWF fallback precedence is preserved.

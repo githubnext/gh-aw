@@ -29,13 +29,17 @@ function recordCopilotModelSelection(selection, env = process.env) {
 }
 
 /**
- * Observe only records appended during this attempt, not cached sessions or subagents.
+ * Observe only the invocation's exact session and newly appended records, not other sessions or subagents.
  * Native CLI startup fallback is not an authorized AWF fallback.
- * @param {{ configuredModel: string, resolvedModel: string, env?: NodeJS.ProcessEnv, sessionDirs?: string[], logger?: (message: string) => void }} options
+ * @param {{ configuredModel: string, resolvedModel: string, sessionId?: string, env?: NodeJS.ProcessEnv, sessionDirs?: string[], logger?: (message: string) => void }} options
  */
-function createCopilotModelObserver({ configuredModel, resolvedModel, env = process.env, sessionDirs, logger = () => {} }) {
+function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId, env = process.env, sessionDirs, logger = () => {} }) {
   const root = env.GH_AW_TMP_DIR || "/tmp/gh-aw";
-  const directories = sessionDirs || [path.join(env.HOME || os.homedir(), ".copilot/session-state"), path.join(root, "sandbox/agent/session-state"), path.join(root, "sandbox/agent/logs/copilot-session-state")];
+  const directories = sessionDirs || [
+    path.join(env.COPILOT_HOME || path.join(env.HOME || os.homedir(), ".copilot"), "session-state"),
+    path.join(root, "sandbox/agent/session-state"),
+    path.join(root, "sandbox/agent/logs/copilot-session-state"),
+  ];
   /** @type {Map<string, number>} */
   const offsets = new Map();
   /** @type {Map<string, string>} */
@@ -44,21 +48,20 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, env = proc
   let observedModel = "";
   const expected = modelID(resolvedModel);
   if (!expected || (env.GH_AW_PHASE && env.GH_AW_PHASE !== "agent")) return { check: () => "" };
+  if (!sessionId || !/^[a-z0-9_-]+$/i.test(sessionId)) throw new Error("Copilot model verification requires an exact invocation session ID");
+  const ownedSessionId = sessionId;
 
   function eventFiles() {
     const files = new Set();
     for (const directory of directories) {
-      let entries;
+      const file = path.join(directory, ownedSessionId, "events.jsonl");
       try {
-        entries = fs.readdirSync(directory, { withFileTypes: true });
+        fs.statSync(file);
       } catch (error) {
         if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") continue;
         throw error;
       }
-      for (const entry of entries) {
-        const file = entry.isDirectory() ? path.join(directory, entry.name, "events.jsonl") : entry.name === "events.jsonl" ? path.join(directory, entry.name) : "";
-        if (file && fs.existsSync(file)) files.add(file);
-      }
+      files.add(file);
     }
     return files;
   }
@@ -99,7 +102,7 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, env = proc
             continue; // Native logs can contain incomplete or non-JSON records.
           }
           const context = copilotSessionContext(event);
-          if (context.agentId !== undefined || context.parentToolUseId) continue;
+          if (context.agentId !== undefined || context.parentToolUseId || (context.sessionId !== undefined && context.sessionId !== ownedSessionId)) continue;
           const model = modelID(event.type === "session.model_change" && event.data?.source === "startup" ? event.data.newModel : event.type === "assistant.message" ? event.data?.model : "");
           if (!model || model === observedModel) continue;
           observedModel = model;

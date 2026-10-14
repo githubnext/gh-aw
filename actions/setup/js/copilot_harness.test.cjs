@@ -34,6 +34,10 @@ const {
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
+  isModelNotSupportedError,
+  resolveCopilotInvocationModel,
+  applyCopilotInvocationModel,
+  prepareCopilotModelSession,
   isAuthenticationFailedError,
   isConnectionRefusedError,
   shouldRetryFirstConnectionRefused,
@@ -74,6 +78,37 @@ const {
   resolveLongRunTokenThreshold,
   computeStartupRetryEligible,
 } = require("./copilot_harness.cjs");
+
+describe("native invocation model and session selection", () => {
+  const sessionId = "aabbccdd-1122-3344-5566-778899aabbcc";
+  it.each([["--model", "gpt-6.1-sol"], ["--model=gpt-6.1-sol"]])("uses model arguments over the environment default (%j)", (...args) => {
+    expect(resolveCopilotInvocationModel(args, "claude-sonnet-5")).toEqual({ model: "gpt-6.1-sol", hasOverride: true });
+    expect(applyCopilotInvocationModel(args, "gpt-6.1-sol")).toEqual(args);
+  });
+  it("rewrites aliases in both native argument forms after resolution", () => {
+    expect(applyCopilotInvocationModel(["--model", "sol", "--model=sol?effort=high"], "gpt-6.1-sol")).toEqual(["--model", "gpt-6.1-sol", "--model=gpt-6.1-sol"]);
+  });
+  it("does not interpret prompt values or arguments after the option delimiter as overrides", () => {
+    expect(resolveCopilotInvocationModel(["--prompt", "--model=gpt-6.1-sol", "--", "--model", "sol"], "claude-sonnet-5")).toEqual({ model: "claude-sonnet-5", hasOverride: false });
+  });
+  it("rejects malformed or conflicting model arguments before invoking the CLI", () => {
+    expect(() => resolveCopilotInvocationModel(["--model"], "claude-sonnet-5")).toThrow("non-empty");
+    expect(() => resolveCopilotInvocationModel(["--model", "sol", "--model=gemini"], "claude-sonnet-5")).toThrow("Conflicting");
+  });
+  it("assigns an exact fresh session and reuses only that session for continuation", () => {
+    const fresh = prepareCopilotModelSession(["--prompt", "Hello"], undefined);
+    expect(fresh.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(fresh.args).toEqual(["--prompt", "Hello", "--session-id", fresh.sessionId]);
+    expect(prepareCopilotModelSession(["--prompt", "Hello"], fresh.sessionId)).toEqual(fresh);
+    expect(prepareCopilotModelSession(["--prompt", "Hello"], undefined).sessionId).not.toBe(fresh.sessionId);
+  });
+  it.each([["--session-id", sessionId], [`--session-id=${sessionId}`], ["--resume", sessionId], [`--resume=${sessionId}`], ["-r", sessionId]])("binds an explicit exact session selector (%j)", (...args) => {
+    expect(prepareCopilotModelSession(args, undefined)).toEqual({ args, sessionId });
+  });
+  it.each([["--continue"], ["--resume", "named-session"], ["--resume=prefix"], ["--connect"], ["--session-id", "../other"]])("rejects ambiguous session selection instead of observing shared telemetry (%j)", (...args) => {
+    expect(() => prepareCopilotModelSession(args, undefined)).toThrow("Copilot model verification requires");
+  });
+});
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
 
@@ -1622,7 +1657,6 @@ describe("copilot_harness.cjs", () => {
   describe("MCP policy error prevents retry", () => {
     // Inline the same retry logic as the driver, including MCP policy check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
-    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
     const MAX_RETRIES = 3;
 
     /**
@@ -1635,7 +1669,7 @@ describe("copilot_harness.cjs", () => {
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
       // Model-not-supported errors are persistent — never retry
-      if (MODEL_NOT_SUPPORTED_PATTERN.test(result.output)) return false;
+      if (isModelNotSupportedError(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -1666,11 +1700,14 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("model-not-supported detection pattern", () => {
-    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
-
     it("matches the exact error from the issue report", () => {
       const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+      expect(isModelNotSupportedError(errorOutput)).toBe(true);
+    });
+
+    it("does not veto retries for ordinary tool model text followed by a transient 400", () => {
+      expect(isModelNotSupportedError('Tool output: model "foo" not found\nExecution failed: CAPIError: 400 Bad Request')).toBe(false);
+      expect(isModelNotSupportedError("No model available. Check policy enablement under GitHub Settings > Copilot")).toBe(true);
     });
 
     describe("copilot output detection + workflow outputs", () => {
@@ -1727,17 +1764,17 @@ describe("copilot_harness.cjs", () => {
 
     it("matches when embedded in larger log output", () => {
       const log = "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output";
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
+      expect(isModelNotSupportedError(log)).toBe(true);
     });
 
     it("does not match other CAPIError 400 errors", () => {
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(isModelNotSupportedError("CAPIError: 400 Bad Request")).toBe(false);
     });
 
     it("does not match unrelated errors", () => {
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
-      expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
+      expect(isModelNotSupportedError("Access denied by policy settings")).toBe(false);
+      expect(isModelNotSupportedError("MCP servers were blocked by policy: 'github'")).toBe(false);
+      expect(isModelNotSupportedError("")).toBe(false);
     });
   });
 

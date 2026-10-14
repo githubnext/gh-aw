@@ -20,6 +20,24 @@ function validateModelIdentifier(value) {
   return value;
 }
 
+function requestedModelIdentifier(value) {
+  return validateModelIdentifier(typeof value === "string" ? value.split("?")[0] : value);
+}
+
+function observedSelectionModel(info, fallbackModel) {
+  const selection = info.model_selection;
+  switch (selection?.status) {
+    case "unavailable":
+      return "";
+    case "substituted":
+      return validateModelIdentifier(selection.effective_model);
+    case "observed":
+      return fallbackModel || validateModelIdentifier(selection.effective_model);
+    default:
+      return null;
+  }
+}
+
 function readFallbackMetadata(filePath) {
   try {
     return JSON.parse(require("fs").readFileSync(filePath, "utf8"));
@@ -37,7 +55,7 @@ function recordFallbackModel(model, env, infoPath) {
   const info = fs.existsSync(infoPath) ? readFallbackMetadata(infoPath) : {};
   const phase = env.GH_AW_PHASE || "agent";
   if (phase === "agent") {
-    info.model = model;
+    info.model = observedSelectionModel(info, model) ?? model;
     info.fallback_model = model;
   } else {
     info[`${phase}_fallback_model`] = model;
@@ -74,7 +92,7 @@ function recordModelRouting(routing, env = process.env, infoPath = `${env.GH_AW_
 
   const fs = require("fs");
   const info = fs.existsSync(infoPath) ? readFallbackMetadata(infoPath) : {};
-  const requestedModel = validateModelIdentifier(info.requested_model || info.model || env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL);
+  const requestedModel = requestedModelIdentifier(info.requested_model || info.model || env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL);
   const modelRouting = {
     status: routing.status,
     source: "awf-routing",
@@ -96,7 +114,7 @@ function recordModelRouting(routing, env = process.env, infoPath = `${env.GH_AW_
   }
   info.model_routing = modelRouting;
   if (routing.status === "selected") {
-    info.model = wireModel;
+    info.model = observedSelectionModel(info, validateModelIdentifier(info.fallback_model)) ?? wireModel;
     info.routed_model = wireModel;
   }
   try {
@@ -121,7 +139,7 @@ function getModelRouting(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp/gh-aw"
     wire_model: validateModelIdentifier(routing.wire_model),
     effort: validateRoutingEffort(routing.effort) || "",
     applied_effort: validateRoutingEffort(routing.applied_effort) || "",
-    requested_model: validateModelIdentifier(info.requested_model),
+    requested_model: requestedModelIdentifier(info.requested_model),
   };
 }
 
@@ -298,16 +316,15 @@ function resolveEffectiveModel(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp/
   const configuredModel = validateModelIdentifier(env.GH_AW_ENGINE_MODEL);
   const fs = require("fs");
   const info = fs.existsSync(infoPath) ? readFallbackMetadata(infoPath) : {};
-  const selection = phase === "agent" ? info.model_selection : info[`${phase}_model_selection`];
-  const observed = ["observed", "substituted", "unavailable"].includes(selection?.status);
-  const model = observed
-    ? (selection.status === "observed" && fallbackModel) || validateModelIdentifier(selection.effective_model)
-    : fallbackModel || (routing ? (routing.status === "selected" ? routedModel || primaryModel || configuredModel : "") : configuredModel);
+  const selection = phase === "agent" ? info.model_selection : null;
+  const observedModel = phase === "agent" ? observedSelectionModel(info, fallbackModel) : null;
+  const observed = observedModel !== null;
+  const model = observedModel ?? (fallbackModel || (routing ? (routing.status === "selected" ? routedModel || primaryModel || configuredModel : "") : configuredModel));
   return {
     model,
     fallbackModel,
     routing,
-    requestedModel: validateModelIdentifier(observed ? info.requested_model || selection.configured_model : routing?.requested_model || (routing ? env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL : "")),
+    requestedModel: requestedModelIdentifier(observed ? info.requested_model || selection.configured_model : routing?.requested_model || (routing ? env.GH_AW_INFO_MODEL || env.GH_AW_ENGINE_MODEL : "")),
     effort: routing?.status === "selected" ? routing.applied_effort || routing.effort : "",
   };
 }

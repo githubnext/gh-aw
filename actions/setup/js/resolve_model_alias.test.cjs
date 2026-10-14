@@ -128,6 +128,102 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("claude-sonnet-4.6");
   });
 
+  it.each(["copilot", "github-copilot"])("preserves retrieval failure for a partial catalog with failed %s models", provider => {
+    const options = {
+      configuredModel: "gemini-3.8-flash?effort=high",
+      aliasMap: { "gemini-3.8-flash": ["copilot/gemini-3.8-flash"] },
+      reflectData: {
+        endpoints: [
+          { configured: true, provider, models: null },
+          { configured: true, provider: "openai", models: ["gpt-4.1"] },
+        ],
+      },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "catalog_unavailable" }));
+    options.reflectData.endpoints[0].models = [];
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "model_unavailable" }));
+  });
+
+  it("checks candidate providers through nested aliases without looping on cycles", () => {
+    const options = {
+      configuredModel: "nested",
+      aliasMap: { nested: ["cycle", "gemini-flash"], cycle: ["nested"], "gemini-flash": ["copilot/gemini-*flash*"] },
+      reflectData: {
+        endpoints: [
+          { configured: true, provider: "copilot", models: null },
+          { configured: true, provider: "openai", models: ["gpt-4.1"] },
+        ],
+      },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "catalog_unavailable" }));
+  });
+
+  it("requires complete retrieval from all configured candidate providers before diagnosing unavailability", () => {
+    const options = {
+      configuredModel: "gemini-flash",
+      aliasMap: { "gemini-flash": ["copilot/gemini-*flash*", "google/gemini-*flash*"] },
+      reflectData: {
+        endpoints: [
+          { configured: true, provider: "copilot", models: ["claude-sonnet-5"] },
+          { configured: true, provider: "google" },
+        ],
+      },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "catalog_unavailable" }));
+  });
+
+  it("treats failed configured providers as relevant to unqualified alias candidates", () => {
+    const options = {
+      configuredModel: "custom",
+      aliasMap: { custom: ["gemini-*flash*"] },
+      reflectData: {
+        endpoints: [
+          { configured: true, provider: "copilot", models: null },
+          { configured: true, provider: "openai", models: ["gpt-4.1"] },
+        ],
+      },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "catalog_unavailable" }));
+  });
+
+  it("ignores failed unrelated and unconfigured provider catalogs", () => {
+    const options = {
+      configuredModel: "gemini-flash",
+      aliasMap: { "gemini-flash": ["copilot/gemini-*flash*"] },
+      reflectData: {
+        endpoints: [
+          { configured: true, provider: "copilot", models: ["claude-sonnet-5"] },
+          { configured: true, provider: "openai", models: null },
+          { configured: false, provider: "copilot", models: null },
+        ],
+      },
+    };
+    expect(() => resolveConfiguredCopilotModel(options)).toThrow(expect.objectContaining({ reason: "model_unavailable" }));
+  });
+
+  it("still resolves available candidates when another candidate provider fetch failed", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "gpt-5",
+      aliasMap: ALIAS_MAP,
+      reflectData: {
+        endpoints: [
+          { configured: true, provider: "copilot", models: null },
+          { configured: true, provider: "openai", models: ["gpt-5.4"] },
+        ],
+      },
+    });
+    expect(resolved).toBe("openai/gpt-5.4");
+  });
+
+  it("resolves the bare gemini engine-name meta-alias to a non-Gemini agent model", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "gemini",
+      aliasMap: ALIAS_MAP,
+      reflectData: { endpoints: [{ configured: true, provider: "copilot", models: ["claude-sonnet-5"] }] },
+    });
+    expect(resolved).toBe("claude-sonnet-5");
+  });
+
   it("resolveConfiguredCopilotModel normalizes provider-qualified concrete id without alias map", () => {
     const resolved = resolveConfiguredCopilotModel({
       configuredModel: "copilot/claude-haiku-4.5",

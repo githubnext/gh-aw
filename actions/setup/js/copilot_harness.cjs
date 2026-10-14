@@ -100,7 +100,7 @@ const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
 const { resolveConfiguredCopilotModel, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
-const { MODEL_NOT_SUPPORTED_PATTERN } = require("./agent_error_patterns.cjs");
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
 
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
@@ -333,6 +333,79 @@ function isMCPPolicyError(output) {
  */
 function isModelNotSupportedError(output) {
   return MODEL_NOT_SUPPORTED_PATTERN.test(output);
+}
+
+/**
+ * Resolve native command-line model overrides before alias and endpoint inference.
+ * @param {string[]} args
+ * @param {string} defaultModel
+ */
+function resolveCopilotInvocationModel(args, defaultModel) {
+  let model = defaultModel;
+  let hasOverride = false;
+  for (let i = 0; i < args.length && args[i] !== "--"; i++) {
+    if (args[i] === "--prompt" || args[i] === "-p") {
+      i++;
+      continue;
+    }
+    if (args[i] !== "--model" && !args[i].startsWith("--model=")) continue;
+    const value = args[i] === "--model" ? args[++i] : args[i].slice("--model=".length);
+    if (!value?.trim() || value.startsWith("-")) throw new Error("Copilot --model requires a non-empty model value");
+    if (hasOverride && model !== value.trim()) throw new Error("Conflicting Copilot --model arguments; specify one invocation model");
+    model = value.trim();
+    hasOverride = true;
+  }
+  return { model, hasOverride };
+}
+
+/** @param {string[]} args @param {string} resolvedModel */
+function applyCopilotInvocationModel(args, resolvedModel) {
+  const result = [];
+  let options = true;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--") options = false;
+    if (options && (args[i] === "--prompt" || args[i] === "-p")) {
+      result.push(args[i], args[++i]);
+      continue;
+    }
+    if (options && args[i] === "--model") {
+      result.push("--model", resolvedModel);
+      i++;
+    } else result.push(options && args[i].startsWith("--model=") ? `--model=${resolvedModel}` : args[i]);
+  }
+  return result;
+}
+
+/** Bind native observation and retries to an exact CLI session, never shared-HOME recency.
+ * The pinned CLI's --session-id resumes existing UUIDs and creates only missing UUIDs.
+ * @param {string[]} args
+ * @param {string | undefined} continuedSessionId
+ */
+function prepareCopilotModelSession(args, continuedSessionId) {
+  let sessionId = "";
+  let selector = false;
+  for (let i = 0; i < args.length && args[i] !== "--"; i++) {
+    if (args[i] === "--prompt" || args[i] === "-p") {
+      i++;
+      continue;
+    }
+    if (args[i] === "--continue" || args[i] === "--connect" || args[i].startsWith("--connect=")) {
+      throw new Error("Copilot model verification requires an exact --session-id UUID instead of --continue or --connect");
+    }
+    if (["--session-id", "--resume", "-r"].includes(args[i]) || /^(?:--session-id|--resume)=/.test(args[i])) {
+      if (selector) throw new Error("Conflicting Copilot session selectors; specify one exact --session-id UUID");
+      selector = true;
+      sessionId = args[i].includes("=") ? args[i].slice(args[i].indexOf("=") + 1) : args[++i];
+      if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(sessionId || "")) {
+        throw new Error("Copilot model verification requires an exact session UUID; resume names and ID prefixes are ambiguous");
+      }
+    }
+  }
+  if (selector) return { args, sessionId };
+  sessionId = continuedSessionId || require("crypto").randomUUID();
+  const delimiter = args.indexOf("--");
+  const position = delimiter < 0 ? args.length : delimiter;
+  return { args: [...args.slice(0, position), "--session-id", sessionId, ...args.slice(position)], sessionId };
 }
 
 /**
@@ -1208,6 +1281,8 @@ async function main() {
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
   /** @type {any} */
   let awfReflectData = null;
+  const invocationModel = copilotSDKMode ? null : resolveCopilotInvocationModel(resolvedArgs, process.env.COPILOT_MODEL || "");
+  if (invocationModel?.hasOverride) process.env.COPILOT_MODEL = invocationModel.model;
   const configuredCopilotModel = process.env.COPILOT_MODEL || "";
   const configuredWireAPI = process.env.COPILOT_PROVIDER_WIRE_API;
   const modelRoutingRequired = process.env.GH_AW_MODEL_ROUTING === "1";
@@ -1246,6 +1321,7 @@ async function main() {
         return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
       },
     });
+    if (invocationModel?.hasOverride) resolvedArgs = applyCopilotInvocationModel(resolvedArgs, process.env.COPILOT_MODEL || "");
   }
   if (!copilotSDKMode) {
     try {
@@ -1378,6 +1454,8 @@ async function main() {
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
+  /** @type {string | undefined} */
+  let nativeModelSessionId;
   let modelNotSupportedReflectRetryAttempted = false;
   // Once set to true, --continue is never re-enabled for the remainder of this run.
   // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
@@ -1440,12 +1518,20 @@ async function main() {
         softTimeoutGuard,
         getRetryMode: () => (!copilotSDKMode && useContinueOnRetry ? "--continue" : "fresh run"),
         runAttempt: async attempt => {
-          // Add --continue flag on CLI retries so the copilot session continues from where it left off
-          const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+          // Verified native retries resume the exact UUID; other CLI paths retain --continue.
+          let currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+          const verifyModel = !copilotSDKMode && (!process.env.GH_AW_PHASE || process.env.GH_AW_PHASE === "agent") && Boolean(process.env.COPILOT_MODEL);
+          let sessionId;
+          if (verifyModel) {
+            const session = prepareCopilotModelSession(resolvedArgs, attempt > 0 && useContinueOnRetry ? nativeModelSessionId : undefined);
+            currentArgs = session.args;
+            sessionId = session.sessionId;
+            nativeModelSessionId = sessionId;
+          }
 
           // Redact --prompt / -p value from logs to avoid leaking prompt content
           const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-          const modelObserver = copilotSDKMode ? { check: () => "" } : createCopilotModelObserver({ configuredModel: configuredCopilotModel, resolvedModel: process.env.COPILOT_MODEL || "", logger: log });
+          const modelObserver = !verifyModel ? { check: () => "" } : createCopilotModelObserver({ configuredModel: configuredCopilotModel, resolvedModel: process.env.COPILOT_MODEL || "", sessionId, logger: log });
           // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
           // already started the sidecar; the driver only opens an SDK client connection.
           const result = await runProcess({
@@ -1893,6 +1979,10 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     isDetectionPhase,
+    isModelNotSupportedError,
+    resolveCopilotInvocationModel,
+    applyCopilotInvocationModel,
+    prepareCopilotModelSession,
     computeStartupRetryEligible,
     isHTTP400ResponseError,
     isToolCallIdSchemaError,

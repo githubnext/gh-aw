@@ -56,7 +56,8 @@ func TestWarnCopilotIntegrationModelAvailability(t *testing.T) {
 		{name: "Gemini", model: "gemini-3.8-flash", engine: "copilot", wantWarning: true},
 		{name: "provider qualified with effort", model: "copilot/gemini-3.8-flash?effort=high", engine: "copilot", wantWarning: true},
 		{name: "github-copilot prefix", model: "github-copilot/gemini-3.7-flash", engine: "copilot", wantWarning: true},
-		{name: "Gemini alias", model: "gemini", engine: "copilot", wantWarning: true},
+		{name: "engine-name meta-alias", model: "gemini", engine: "copilot"},
+		{name: "engine-name meta-alias with effort", model: "gemini?effort=high", engine: "copilot"},
 		{name: "runtime model", model: "${{ inputs.model }}", engine: "copilot"},
 		{name: "other engine", model: "gemini-3.8-flash", engine: "pi"},
 		{name: "Google provider", model: "google/gemini-3.8-flash", engine: "copilot"},
@@ -89,6 +90,7 @@ func TestWarnCopilotIntegrationModelAvailability(t *testing.T) {
 		})
 	}
 }
+
 func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 	type testCase struct {
 		name        string

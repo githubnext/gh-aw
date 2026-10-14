@@ -490,9 +490,7 @@ func (w *cachedLogsJSONLWriter) appendRun(run ProcessedRun, includeAudit bool) e
 				runData.SafeOutputs = audit.CreatedItems
 			}
 		}
-		if awInfo, err := parseAwInfo(filepath.Join(run.Run.LogsPath, "aw_info.json"), false); err == nil {
-			runData.AwInfo = awInfo
-		}
+		runData.AwInfo = mergeSessionModelRoutingAwInfo(run.Run.LogsPath, loadAwInfoForEngineConfig(run.Run.LogsPath))
 	}
 	record, err := json.Marshal(cachedLogsJSONLRecord{
 		SchemaVersion: cachedLogsJSONLSchemaVersion,

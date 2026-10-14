@@ -12,19 +12,37 @@ import (
 )
 
 type sessionWorkflowInfo struct {
-	EngineID       string                      `json:"engineId"`
-	Model          string                      `json:"model"`
-	RequestedModel string                      `json:"requestedModel"`
-	CLIVersion     string                      `json:"cliVersion"`
-	AWFVersion     string                      `json:"awfVersion"`
-	MCPGVersion    string                      `json:"mcpgVersion"`
-	AgentVersion   string                      `json:"agentVersion"`
-	TriggerType    string                      `json:"triggerType"`
-	Workflow       string                      `json:"workflow"`
-	Repository     string                      `json:"repository"`
-	RunID          NumericID                   `json:"runId"`
-	DryRun         bool                        `json:"dryRun"`
-	ModelRouting   *sessionModelRoutingPayload `json:"modelRouting"`
+	EngineID       string                        `json:"engineId"`
+	Model          string                        `json:"model"`
+	RequestedModel string                        `json:"requestedModel"`
+	CLIVersion     string                        `json:"cliVersion"`
+	AWFVersion     string                        `json:"awfVersion"`
+	MCPGVersion    string                        `json:"mcpgVersion"`
+	AgentVersion   string                        `json:"agentVersion"`
+	TriggerType    string                        `json:"triggerType"`
+	Workflow       string                        `json:"workflow"`
+	Repository     string                        `json:"repository"`
+	RunID          NumericID                     `json:"runId"`
+	DryRun         bool                          `json:"dryRun"`
+	ModelRouting   *sessionModelRoutingPayload   `json:"modelRouting"`
+	ModelSelection *sessionModelSelectionPayload `json:"modelSelection"`
+}
+
+type sessionModelSelectionPayload struct {
+	Status          string `json:"status"`
+	ConfiguredModel string `json:"configuredModel"`
+	ResolvedModel   string `json:"resolvedModel"`
+	EffectiveModel  string `json:"effectiveModel"`
+}
+
+func (selection *sessionModelSelectionPayload) awInfo() *AwInfoModelSelection {
+	if selection == nil {
+		return nil
+	}
+	return &AwInfoModelSelection{
+		Status: selection.Status, ConfiguredModel: selection.ConfiguredModel,
+		ResolvedModel: selection.ResolvedModel, EffectiveModel: selection.EffectiveModel,
+	}
 }
 
 type sessionModelRoutingPayload struct {
@@ -162,6 +180,7 @@ func decodeSessionModelRoutingEvent(line []byte, lineNumber int, attribution *se
 	switch {
 	case event.Type == "workflow.info" && event.Provenance.Component == "workflow" &&
 		(event.Provenance.Path == "aw_info.json" ||
+			(event.Provenance.Path == "runtime/aw_info.json" && event.Provenance.Phase == "agent") ||
 			event.Provenance.Path == "activation/aw_info.json" ||
 			event.Provenance.Path == "usage/aw_info.json"):
 		var info sessionWorkflowInfo
@@ -287,5 +306,6 @@ func (attribution *sessionModelRoutingAttribution) awInfo() *AwInfo {
 		DryRun:         workflow.DryRun,
 		EventName:      workflow.TriggerType,
 		ModelRouting:   attribution.modelRouting(),
+		ModelSelection: workflow.ModelSelection.awInfo(),
 	}
 }

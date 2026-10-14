@@ -21,7 +21,7 @@ func (c *Compiler) warnCopilotIntegrationModelAvailability(data *WorkflowData, m
 	}
 	model, _, _ = strings.Cut(model, "?")
 	model = strings.TrimPrefix(strings.TrimPrefix(model, "github-copilot/"), "copilot/")
-	if !strings.HasPrefix(model, "gemini-") && model != "gemini" {
+	if !strings.HasPrefix(model, "gemini-") {
 		return
 	}
 	message := fmt.Sprintf("Copilot model %q may not be available to the agentic-workflows integration, even when enabled by organization policy and available in the standalone Copilot CLI. The bundled model catalog does not guarantee integration access. Select a model in the workflow's live catalog; enabling missing Gemini models for agentic-workflows requires Copilot API support", data.Model)
