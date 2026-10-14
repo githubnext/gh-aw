@@ -169,4 +169,24 @@ describe("workflow native MCP permission alignment", () => {
     expect(prompt).not.toContain("For `mcpscripts`, always use the CLI commands above");
     expect(prompt).toContain("A CLI example does not grant permission");
   });
+
+  it("keeps safe-output payload guidance independent of auxiliary shell commands", () => {
+    for (const name of ["mcp_cli_tools_with_safeoutputs_prompt", "safe_outputs_prompt", "shell_expansion_guard_rejected"]) {
+      const prompt = readFileSync(resolve(root, `actions/setup/md/${name}.md`), "utf8");
+      expect(prompt).not.toMatch(/\bjq\b|\bnode\b|<<['"]?EOF|printf .*safeoutputs/);
+      expect(prompt).toContain("JSON object");
+      expect(prompt).toContain("`\\n`");
+    }
+    const prompt = readFileSync(resolve(root, "actions/setup/md/mcp_cli_tools_with_safeoutputs_prompt.md"), "utf8");
+    expect(prompt).toContain("not auxiliary commands, pipelines, file writes, or shell expansions");
+    expect(prompt).toContain("do not repeat it or switch to an unapproved shell workaround");
+    expect(prompt).toContain("safeoutputs report_incomplete");
+
+    const example = prompt.match(/```bash\n([^\n]+)\n```/)[1];
+    const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(safeoutputs:*)"] }, () => ({ kind: "approve-once" }));
+    expect(handler({ kind: "shell", commands: [], fullCommandText: example })).toEqual({ kind: "approve-once" });
+    const payload = JSON.parse(example.match(/^safeoutputs add_comment '(.+)'$/)[1]);
+    expect(payload).toEqual({ item_number: 42, body: "### Title\n\nBody." });
+    expect(handler({ kind: "shell", commands: [], fullCommandText: "jq -Rs '{body: .}' body.md | safeoutputs add_comment ." }).kind).toBe("reject");
+  });
 });
