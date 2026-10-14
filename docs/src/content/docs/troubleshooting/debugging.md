@@ -100,6 +100,8 @@ For intermittent failures, compare one successful and one failing run from the s
 
 Check `command -v safeoutputs`, `command -v jq`, and `command -v node` in the **agent's shell**, not just in a runner setup step. Distinguish `python` from `python3`, and engine-native editing tools from shell executables such as `apply_patch`. If the CLI is unavailable, use direct safe-output MCP tools only when the engine exposes them. If only `jq` is unavailable, use the generated Node.js file-serialization fallback rather than hand-escaping a large body.
 
+Report unavailable functionality with [`missing_tool`](../reference/safe-outputs.md) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
+
 Collect diagnostics with the repository's [debug.md guidance](https://github.com/github/gh-aw/blob/main/debug.md). Redact secrets from logs and configuration; do not dump the full environment or make a real safe-output call merely to test availability.
 
 ### Network / Firewall Blocks

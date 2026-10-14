@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -15,18 +16,50 @@ import (
 )
 
 func TestSafeOutputsCLIPromptChecksToolAvailability(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", mcpCLIToolsWithSafeOutputsPromptFile))
-	require.NoError(t, err)
-	content := string(data)
-
-	for _, command := range []string{"safeoutputs", "jq", "node"} {
-		assert.Contains(t, content, "command -v "+command)
+	for _, file := range []string{mcpCLIToolsWithSafeOutputsPromptFile, safeOutputsCLIOnlyTransportPromptFile} {
+		t.Run(file, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", file))
+			require.NoError(t, err)
+			content := string(data)
+			for _, command := range []string{"safeoutputs", "jq", "node"} {
+				assert.Contains(t, content, "command -v "+command)
+			}
+			assert.Contains(t, strings.ToLower(content), "no supported transport is available")
+			assert.Contains(t, content, "Only if serialization succeeds")
+			assert.Contains(t, content, "Do not substitute hand-escaped inline JSON for a large body")
+			assert.Contains(t, strings.ToLower(content), "do not claim the action was emitted")
+			assert.Contains(t, content, "`missing_tool`")
+			assert.Contains(t, strings.ToLower(content), "reserve `report_incomplete`")
+		})
 	}
-	assert.Contains(t, content, "only if the engine exposes them")
-	assert.Contains(t, content, "If no supported transport is available, stop")
-	assert.Contains(t, content, "Only if serialization succeeds")
-	assert.Contains(t, content, "Do not substitute hand-escaped inline JSON for a large body")
-	assert.Contains(t, content, "do not claim the action was emitted")
+}
+
+func extractNodeFallback(t *testing.T, content string) string {
+	t.Helper()
+	heredoc := regexp.MustCompile(`(?m)<<\s*'([^']+)'[^\n]*\n`)
+	for _, match := range heredoc.FindAllStringSubmatchIndex(content, -1) {
+		delimiter := content[match[2]:match[3]]
+		script, _, found := strings.Cut(content[match[1]:], "\n"+delimiter+"\n")
+		if found && strings.Contains(script, "JSON.stringify") && strings.Contains(script, "readFileSync") {
+			return script
+		}
+	}
+	t.Fatal("prompt should include a terminated Node.js serialization heredoc")
+	return ""
+}
+
+func TestExtractNodeFallbackIgnoresShellFormatting(t *testing.T) {
+	script := "process.stdout.write(JSON.stringify(fs.readFileSync(process.argv[2], 'utf8')));"
+	for _, header := range []string{
+		"node - /tmp/body.md <<'JS' > /tmp/payload.json\n",
+		"node - ./body.md > ./result.json << 'SERIALIZE'\n",
+	} {
+		delimiter := "JS"
+		if strings.Contains(header, "SERIALIZE") {
+			delimiter = "SERIALIZE"
+		}
+		assert.Equal(t, script, extractNodeFallback(t, header+script+"\n"+delimiter+"\n"))
+	}
 }
 
 func TestSafeOutputsCLIPromptNodeFallbackPreservesBody(t *testing.T) {
@@ -34,27 +67,27 @@ func TestSafeOutputsCLIPromptNodeFallbackPreservesBody(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not installed")
 	}
-	data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", mcpCLIToolsWithSafeOutputsPromptFile))
-	require.NoError(t, err)
-	_, script, found := strings.Cut(string(data), "<<'JS' > /tmp/gh-aw/payload.json\n")
-	require.True(t, found, "prompt should include the Node.js fallback")
-	script, _, found = strings.Cut(script, "\nJS\n")
-	require.True(t, found, "fallback heredoc should be terminated")
-
-	for name, body := range map[string]string{
-		"empty": "",
-		"large": strings.Repeat("Unicode: café 日本語\n\"quotes\" \\\\ ${HOME} `command`\r\n", 200),
-	} {
-		t.Run(name, func(t *testing.T) {
-			bodyPath := filepath.Join(t.TempDir(), "body.md")
-			require.NoError(t, os.WriteFile(bodyPath, []byte(body), 0600))
-			cmd := exec.Command(node, "-", bodyPath)
-			cmd.Stdin = strings.NewReader(script)
-			output, err := cmd.Output()
+	for _, file := range []string{mcpCLIToolsWithSafeOutputsPromptFile, safeOutputsCLIOnlyTransportPromptFile} {
+		t.Run(file, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", file))
 			require.NoError(t, err)
-			var payload map[string]string
-			require.NoError(t, json.Unmarshal(output, &payload))
-			assert.Equal(t, map[string]string{"title": "My title", "body": body}, payload)
+			script := extractNodeFallback(t, string(data))
+			for name, body := range map[string]string{
+				"empty": "",
+				"large": strings.Repeat("Unicode: café 日本語\n\"quotes\" \\\\ ${HOME} `command`\r\n", 200),
+			} {
+				t.Run(name, func(t *testing.T) {
+					bodyPath := filepath.Join(t.TempDir(), "body.md")
+					require.NoError(t, os.WriteFile(bodyPath, []byte(body), 0600))
+					cmd := exec.Command(node, "-", bodyPath)
+					cmd.Stdin = strings.NewReader(script)
+					output, err := cmd.Output()
+					require.NoError(t, err)
+					var payload map[string]string
+					require.NoError(t, json.Unmarshal(output, &payload))
+					assert.Equal(t, map[string]string{"title": "My title", "body": body}, payload)
+				})
+			}
 		})
 	}
 }

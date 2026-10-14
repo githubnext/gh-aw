@@ -3,13 +3,17 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 )
 
 // TestPiSafeOutputsPromptStatesCLIIsOnlyTransportIntegration verifies that a compiled
@@ -49,6 +53,44 @@ Fix the bug and open a pull request.
 		"CLI-proxy Pi workflows must load the CLI-only safe-output transport prompt")
 	assert.NotContains(t, compiled, safeOutputsMCPTransportPromptFile,
 		"CLI-proxy Pi workflows must not load the MCP-safe-output transport prompt")
+
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Name string            `yaml:"name"`
+				Env  map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal(compiledBytes, &workflow))
+	var promptEnv map[string]string
+	for _, job := range workflow.Jobs {
+		for _, step := range job.Steps {
+			if step.Name == "Create prompt with built-in context" {
+				promptEnv = step.Env
+			}
+		}
+	}
+	require.NotNil(t, promptEnv, "compiled workflow should include the prompt creation step")
+	env, err := json.Marshal(promptEnv)
+	require.NoError(t, err)
+	cmd := exec.Command("node", "-e", `
+const fs = require('node:fs');
+const { parseConfig, renderPrompt } = require('./actions/setup/js/create_prompt.cjs');
+const env = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(renderPrompt(parseConfig(env.GH_AW_PROMPT_CONFIG), env, './actions/setup/md'));
+`)
+	cmd.Dir = filepath.Join("..", "..")
+	cmd.Stdin = strings.NewReader(string(env))
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	prompt := string(output)
+	for _, command := range []string{"safeoutputs", "jq", "node"} {
+		assert.Contains(t, prompt, "command -v "+command)
+	}
+	assert.Contains(t, prompt, "JSON.stringify")
+	assert.Contains(t, prompt, "no supported transport is available for this engine")
+	assert.Contains(t, prompt, "`missing_tool`")
 }
 
 func TestPiSafeOutputsPromptUsesMCPTransportIntegration(t *testing.T) {
