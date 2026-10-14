@@ -1713,14 +1713,14 @@
   },
   {
     "name": "link_sub_issue",
-    "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items.",
+    "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. The workflow's `link-sub-issue: target:` configuration controls the parent: `triggering` (the default) uses the triggering issue and ignores `parent_issue_number`; a fixed target uses the configured issue number; only `target: '*'` uses `parent_issue_number`. Scheduled and workflow_dispatch workflows must configure `target: '*'` to select parent issues explicitly, or configure a fixed parent target. The tool fails when `target: triggering` has no triggering issue.",
     "inputSchema": {
       "type": "object",
       "required": ["parent_issue_number", "sub_issue_number"],
       "properties": {
         "parent_issue_number": {
           "type": ["number", "string"],
-          "description": "The parent issue number to link the sub-issue to. This is the numeric ID from the GitHub URL (e.g., 100 in github.com/owner/repo/issues/100).",
+          "description": "The parent issue number or temporary ID of a newly created parent issue. This is the numeric ID from the GitHub URL (e.g., 100 in github.com/owner/repo/issues/100). Only effective when the workflow configures `link-sub-issue: target: '*'`; ignored for triggering or fixed targets.",
           "x-synonyms": ["parentIssueNumber"]
         },
         "sub_issue_number": {

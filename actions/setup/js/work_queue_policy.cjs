@@ -196,7 +196,7 @@ function claimAuthority(state, claimId, actor, requireCompletion) {
   const authority = bindingAuthority(state, claimId, actor);
   const { claim, work } = authority;
   const expected = requireCompletion ? "completed" : "open";
-  if (work.claim_id !== claimId || claim.state !== expected || work.state !== (requireCompletion ? "completed" : "claimed")) throw queueError("claim_ineffective", `frozen Claim must be ${expected}`);
+  if (work.claim_id !== claimId || claim.state !== expected || (requireCompletion ? work.state !== "completed" && !claim.keep_open : work.state !== "claimed")) throw queueError("claim_ineffective", `frozen Claim must be ${expected}`);
   if (requireCompletion && work.barrier === "failed") throw queueError("claim_effects_unauthorized", "terminal DeliveryFailure cannot authorize effects again");
   return authority;
 }
@@ -208,7 +208,7 @@ function workerContinuationAuthority(state, actor) {
   if (!member) throw queueError("claim_scope_invalid", "worker control intent is outside original assignment");
   const authority = bindingAuthority(state, member.claim_id, actor);
   const { claim, work } = authority;
-  if (work.claim_id !== claim.claim_id || claim.state !== "completed" || work.state !== "completed" || work.barrier !== "pending")
+  if (work.claim_id !== claim.claim_id || claim.state !== "completed" || (work.state !== "completed" && !claim.keep_open) || work.barrier !== "pending")
     throw queueError("claim_effects_unauthorized", "Claim-scoped queue continuation requires its original completed Work with pending delivery");
   return authority;
 }

@@ -167,7 +167,7 @@ func nativeDeliveryClaim(ctx context.Context, branch Branch, state Projection, s
 	work := state.Works[claim.WorkID]
 	dispatch := state.Dispatches[claim.DispatchID]
 	if work == nil || dispatch == nil || dispatch.Run == nil || claim.State != "completed" ||
-		work.State != "completed" || work.ClaimID != claim.ClaimID || work.Barrier != "pending" {
+		(work.State != "completed" && !claim.KeepOpen) || work.ClaimID != claim.ClaimID || work.Barrier != "pending" {
 		return nativeDeliveryContext{}, false, nil
 	}
 	if err := validateDeliveryContract(work.Payload); err != nil {

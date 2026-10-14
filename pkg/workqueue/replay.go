@@ -310,14 +310,26 @@ func (state *Projection) replayCancellation(operation Operation, kind string, co
 }
 
 func (state *Projection) replayTerminalResult(operation Operation, kind string, commit QueueCommit) error {
-	var value WorkDefinition
+	var value struct {
+		WorkID  string `json:"work_id"`
+		ClaimID string `json:"claim_id"`
+	}
 	if err := json.Unmarshal(operation, &value); err != nil {
 		return err
+	}
+	if previous := state.TerminalBarriers[value.ClaimID]; previous != nil {
+		if sameJSON(previous, operation) {
+			return nil
+		}
+		return queueError("delivery_barrier_conflict", "Result and DeliveryFailure are immutable and exclusive")
 	}
 	if err := state.settleResult(operation, commit, kind == "DeliveryFailure"); err != nil {
 		return err
 	}
 	state.TerminalBarriers[value.WorkID] = operation
+	if claim := state.Claims[value.ClaimID]; claim != nil && claim.KeepOpen {
+		state.TerminalBarriers[value.ClaimID] = operation
+	}
 	return nil
 }
 
@@ -425,7 +437,7 @@ func (state *Projection) replayClaimPrefix(commit QueueCommit, firstClaim, ordin
 
 func (state *Projection) accountReplayCommit(commit QueueCommit, hasAdmission, hasObservations bool) error {
 	for _, work := range state.Works {
-		if work.State == "available" && work.Attempts >= state.Policy.Pools[work.Pool].Retry.MaxAttempts {
+		if work.State == "available" && work.ClaimID == "" && work.Attempts >= state.Policy.Pools[work.Pool].Retry.MaxAttempts {
 			return queueError("retry_exhausted", "cancel exhausted Work in the same recovery commit")
 		}
 	}
@@ -637,15 +649,22 @@ func populateFinishCandidate(state Projection, commit *QueueCommit, decision Dec
 		return decision, false, err
 	}
 	if claim.State == params.Outcome {
+		if params.Outcome == "completed" && claim.KeepOpen != params.KeepOpen {
+			return decision, false, queueError("completion_conflict", "keep_open differs from durable Completion")
+		}
 		decision.Reason = "already_" + params.Outcome
 		return decision, true, nil
 	}
 	if params.Outcome == "completed" {
-		if err := appendOperation(&commit.Operations, map[string]any{
+		completion := map[string]any{
 			"kind": "Completion", "work_id": claim.WorkID, "claim_id": claim.ClaimID,
 			"dispatch_id": params.DispatchID, "claim_handle": params.ClaimHandle,
 			"run_id": commit.Actor.RunID, "run_attempt": 1,
-		}); err != nil {
+		}
+		if params.KeepOpen {
+			completion["keep_open"] = true
+		}
+		if err := appendOperation(&commit.Operations, completion); err != nil {
 			return decision, false, err
 		}
 	} else {

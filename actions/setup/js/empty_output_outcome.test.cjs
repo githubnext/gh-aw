@@ -41,6 +41,33 @@ describe("empty output outcome", () => {
     expect(details).not.toContain("Retry attempts observed: 0");
   });
 
+  it.each([0, 1])("classifies the observed SDK runtime content filter as request rejection despite exit %s", exitCode => {
+    fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "copilot" }));
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
+    writeEvents([
+      { type: "session.start", data: { sessionId: "observed-sdk-session" } },
+      { type: "assistant.message", data: { content: "The model returned no content because the response was blocked by content filtering.", rte: true, toolRequests: [] } },
+    ]);
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome).toMatchObject({ type: "report_incomplete", failureCause: "request_rejection", driverExitCode: exitCode, retryCount: 0 });
+    expect(outcome.details).toContain("The model response was blocked by content filtering");
+    expect(outcome.details).not.toContain("ensure the workflow emits");
+    expect(outcome.details).not.toContain("Token budget state: exceeded");
+  });
+
+  it.each([
+    { data: { content: "The model returned no content because the response was blocked by content filtering." } },
+    { agentId: "child", data: { content: "The model returned no content because the response was blocked by content filtering.", rte: true } },
+    { data: { content: "The model returned no content because the response was blocked by content filtering.", rte: true, parentToolCallId: "child" } },
+  ])("does not attribute quoted or nested refusals to a main-session rejection %j", fields => {
+    fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "copilot" }));
+    writeEvents([
+      { type: "session.start", data: { sessionId: "observed-sdk-session" } },
+      { type: "assistant.message", ...fields },
+    ]);
+    expect(buildEmptyOutputOutcome([], rootDir).failureCause).toBe("missing_terminal_safe_output");
+  });
+
   it("does not treat an empty persistence file as safe-output telemetry", () => {
     fs.writeFileSync(path.join(rootDir, "safeoutputs.jsonl"), "");
     const { details } = buildEmptyOutputOutcome([], rootDir);

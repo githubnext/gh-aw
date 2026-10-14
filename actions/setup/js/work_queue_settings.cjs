@@ -24,8 +24,10 @@ function integer(value, property, maximum) {
   return value;
 }
 
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
+
 function validKey(value, maximum, allowEmpty = false) {
-  return (allowEmpty || value !== "") && Buffer.byteLength(value, "utf8") <= maximum && !/\p{Cc}/u.test(value) && !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value);
+  return (allowEmpty || value !== "") && Buffer.byteLength(value, "utf8") <= maximum && !/\p{Cc}/u.test(value) && !LONE_SURROGATE.test(value);
 }
 
 function retrySettings(value, property, defaults) {
@@ -36,30 +38,23 @@ function retrySettings(value, property, defaults) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} maximum
+ * @returns {boolean}
+ */
+function validLiteral(value, maximum) {
+  return typeof value === "string" && !/^\p{White_Space}*$/u.test(value) && Buffer.byteLength(value, "utf8") <= maximum && !value.includes("${{") && !/\p{Cc}/u.test(value) && !LONE_SURROGATE.test(value);
+}
+
 function issuesSettings(value) {
   if (value === false) return undefined;
   if (value === true) return { label: "work", title_prefix: "[work queue]" };
   const fields = object(value, "work_queue.issues", ["label", "title_prefix"]);
   const label = Object.hasOwn(fields, "label") ? fields.label : "work";
-  if (
-    typeof label !== "string" ||
-    /^\p{White_Space}*$/u.test(label) ||
-    Buffer.byteLength(label, "utf8") > 33 ||
-    label.includes("${{") ||
-    /\p{Cc}/u.test(label) ||
-    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(label)
-  )
-    throw settingsError("work_queue.issues.label", "must be a nonblank literal of at most 33 UTF-8 bytes without control characters or expressions");
+  if (!validLiteral(label, 33)) throw settingsError("work_queue.issues.label", "must be a nonblank literal of at most 33 UTF-8 bytes without control characters or expressions");
   const titlePrefix = Object.hasOwn(fields, "title_prefix") ? fields.title_prefix : "[work queue]";
-  if (
-    typeof titlePrefix !== "string" ||
-    /^\p{White_Space}*$/u.test(titlePrefix) ||
-    Buffer.byteLength(titlePrefix, "utf8") > 80 ||
-    titlePrefix.includes("${{") ||
-    /\p{Cc}/u.test(titlePrefix) ||
-    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(titlePrefix)
-  )
-    throw settingsError("work_queue.issues.title_prefix", "must be a nonblank literal of at most 80 UTF-8 bytes without control characters or expressions");
+  if (!validLiteral(titlePrefix, 80)) throw settingsError("work_queue.issues.title_prefix", "must be a nonblank literal of at most 80 UTF-8 bytes without control characters or expressions");
   return { label, title_prefix: titlePrefix };
 }
 

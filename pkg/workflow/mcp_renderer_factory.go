@@ -149,14 +149,19 @@ func renderStandardJSONMCPConfig(
 func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeCopilotFields, inlineArgs bool) func(bool) *MCPConfigRendererUnified {
 	mcpRenderingLog.Printf("Building MCP renderer factory: format=%s, copilotFields=%t, inlineArgs=%t", format, includeCopilotFields, inlineArgs)
 	return func(isLast bool) *MCPConfigRendererUnified {
+		allowWrites := false
+		if workflowData != nil {
+			allowWrites = parseAgenticWorkflowsTool(workflowData.Tools["agentic-workflows"]).AllowWriteTools
+		}
 		return NewMCPConfigRenderer(MCPRendererOptions{
-			IncludeCopilotFields:   includeCopilotFields,
-			InlineArgs:             inlineArgs,
-			Format:                 format,
-			IsLast:                 isLast,
-			ActionMode:             GetActionModeFromWorkflowData(workflowData),
-			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
-			ContainerPinMappings:   workflowData.getContainerPinMappings(),
+			AllowAgenticWorkflowWrites: allowWrites,
+			IncludeCopilotFields:       includeCopilotFields,
+			InlineArgs:                 inlineArgs,
+			Format:                     format,
+			IsLast:                     isLast,
+			ActionMode:                 GetActionModeFromWorkflowData(workflowData),
+			WriteSinkGuardPolicies:     deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+			ContainerPinMappings:       workflowData.getContainerPinMappings(),
 		})
 	}
 }

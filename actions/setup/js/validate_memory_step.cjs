@@ -63,6 +63,7 @@ function validateMemoryStep(core, options) {
       memoryDir,
       memoryId,
       kind: options.kind,
+      phase: "upload",
       timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || "30"),
     });
     if (result.stdout) {
@@ -99,6 +100,7 @@ function validateRepoMemoryBaseline(core) {
       memoryDir,
       memoryId,
       kind: "repo",
+      phase: "baseline",
       timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || "30"),
     });
   } catch (error) {

@@ -6,7 +6,7 @@ const { isSessionEvent } = require("./agent_session.cjs");
 const { hasCopilotConversation, deduplicateCopilotFallback, normalizeCopilotSession } = require("./copilot_session.cjs");
 const { collectAddMaskedValues, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { normalizeUnifiedSessionEvent, evalResultRunId } = require("./unified_session_payload.cjs");
+const { normalizeUnifiedSessionEvent, normalizeModelInventoryData, evalResultRunId } = require("./unified_session_payload.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAgentExecution, parseAgentExitCode, validateAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { normalizeEngineLogEntries, normalizeEngineSessionEvents, parseEngineLog } = require("./engine_log_parser.cjs");
@@ -176,6 +176,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     }
   };
   const recordCache = new Map();
+  const malformedJsonSources = new Set();
   /** @type {Map<string, number[]>} */
   const recordLines = new Map();
   const records = file => {
@@ -189,6 +190,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
         return values;
       } catch {
         report(file, "malformed_json", undefined);
+        malformedJsonSources.add(file);
         recordCache.set(file, []);
         return [];
       }
@@ -480,6 +482,21 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     ["", "agent"],
     ["threat-detection/", "detection"],
   ]) {
+    for (const candidates of [[`${prefix}agent/awf-reflect.json`, `${prefix}sandbox/firewall/awf-reflect.json`], [`${prefix}sandbox/firewall/models.json`]]) {
+      for (const candidate of candidates) {
+        const file = path.join(rootDir, candidate);
+        if (!exists(file)) continue;
+        const input = records(file);
+        if (!input.length && malformedJsonSources.has(file)) continue;
+        const inventory = normalizeModelInventoryData(input[0]);
+        if (inventory === undefined) {
+          report(file, "invalid_model_inventory", undefined);
+          continue;
+        }
+        sources.push({ component: "firewall", phase, path: path.relative(rootDir, file), events: [{ type: "model.inventory", data: { ...inventory } }] });
+        break;
+      }
+    }
     const otel = choose([`${prefix}otel.jsonl`, `usage/${prefix}otel.jsonl`]);
     if (otel) add(otel, "otel", phase, undefined, "nanoseconds");
     for (const file of walk(path.join(rootDir, prefix, "mcp-logs"))) add(file, "mcp", phase, undefined);

@@ -38,6 +38,8 @@ const mockCore = {
     let tempDir, handler;
     beforeEach(async () => {
       vi.clearAllMocks();
+      mockContext.eventName = "workflow_dispatch";
+      delete mockContext.payload.issue;
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "link-sub-issue-test-"));
       // Load the handler module
       const { main } = require(path.join(process.cwd(), "link_sub_issue.cjs"));
@@ -52,6 +54,8 @@ const mockCore = {
       });
     });
     afterEach(() => {
+      mockContext.eventName = "workflow_dispatch";
+      delete mockContext.payload.issue;
       if (tempDir && fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { recursive: true });
       }
@@ -104,6 +108,71 @@ const mockCore = {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
       expect(mockGithub.graphql).toHaveBeenLastCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
       expect(mockCore.info).toHaveBeenCalledWith("Successfully linked issue #50 as sub-issue of #100");
+    });
+    it.each([
+      ["schedule", 100],
+      ["schedule", "aw_goinc14"],
+      ["workflow_dispatch", 100],
+      ["workflow_dispatch", "aw_goinc14"],
+      ["issues", 100],
+      ["issues", "aw_goinc14"],
+    ])("should use an explicit parent %s / %s with wildcard targeting", async (eventName, parentIssueNumber) => {
+      mockContext.eventName = eventName;
+      if (eventName === "issues") {
+        mockContext.payload.issue = { number: 999 };
+      }
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({});
+
+      const result = await handler({ type: "link_sub_issue", parent_issue_number: parentIssueNumber, sub_issue_number: 50 }, { aw_goinc14: { repo: "testowner/testrepo", number: 100 } });
+
+      expect(result).toMatchObject({ success: true, parent_issue_number: 100, sub_issue_number: 50 });
+      expect(mockGithub.rest.issues.get).toHaveBeenNthCalledWith(1, { owner: "testowner", repo: "testrepo", issue_number: 100 });
+      expect(mockGithub.graphql).toHaveBeenLastCalledWith(expect.stringContaining("addSubIssue"), { parentId: "I_parent_100", subIssueId: "I_sub_50" });
+    });
+    it.each([
+      ["schedule", undefined],
+      ["schedule", "triggering"],
+      ["workflow_dispatch", undefined],
+      ["workflow_dispatch", "triggering"],
+    ])("should reject triggering targeting without issue context (%s / %s)", async (eventName, target) => {
+      mockContext.eventName = eventName;
+      const { main } = require(path.join(process.cwd(), "link_sub_issue.cjs"));
+      const triggeringHandler = await main({ max: 5, target });
+
+      const result = await triggeringHandler({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Target is "triggering" but not running in issue context');
+      expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
+    });
+    it.each([undefined, "triggering"])("should retain the triggering issue as parent (%s)", async target => {
+      mockContext.eventName = "issues";
+      mockContext.payload.issue = { number: 999 };
+      const { main } = require(path.join(process.cwd(), "link_sub_issue.cjs"));
+      const triggeringHandler = await main({ max: 5, target });
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 999, title: "Triggering Issue", node_id: "I_parent_999", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({});
+
+      const result = await triggeringHandler({ type: "link_sub_issue", parent_issue_number: "aw_unresolved", sub_issue_number: 50 }, {});
+
+      expect(result).toMatchObject({ success: true, parent_issue_number: 999, sub_issue_number: 50 });
+      expect(mockGithub.rest.issues.get).toHaveBeenNthCalledWith(1, { owner: "testowner", repo: "testrepo", issue_number: 999 });
+    });
+    it.each([undefined, 0, -1, "invalid"])("should reject an invalid explicit parent on schedule (%s)", async parentIssueNumber => {
+      mockContext.eventName = "schedule";
+
+      const result = await handler({ type: "link_sub_issue", parent_issue_number: parentIssueNumber, sub_issue_number: 50 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeTruthy();
+      expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
+      expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
     it("should continue with linking if parent check query fails", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };

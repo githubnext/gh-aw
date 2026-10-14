@@ -222,7 +222,7 @@ func TestAgenticWorkflowsMCPWithGuardPoliciesJSON(t *testing.T) {
 	}
 
 	var output strings.Builder
-	renderAgenticWorkflowsMCPConfigWithOptions(&output, true, false, ActionModeRelease, guardPolicies, nil)
+	renderAgenticWorkflowsMCPConfigWithOptions(&output, true, false, ActionModeRelease, guardPolicies, nil, false)
 
 	result := output.String()
 	assert.Contains(t, result, "\"guard-policies\"", "agentic-workflows should have guard-policies in JSON")

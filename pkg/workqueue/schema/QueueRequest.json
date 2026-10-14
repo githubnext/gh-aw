@@ -164,6 +164,9 @@
         "dispatch_id": {
           "$ref": "#/$defs/Identity"
         },
+        "keep_open": {
+          "type": "boolean"
+        },
         "kind": {
           "const": "Completion"
         },
@@ -485,6 +488,9 @@
         },
         "dispatch_id": {
           "$ref": "#/$defs/Identity"
+        },
+        "keep_open": {
+          "type": "boolean"
         },
         "outcome": {
           "anyOf": [

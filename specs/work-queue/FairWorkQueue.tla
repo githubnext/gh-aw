@@ -55,7 +55,8 @@ Stride(k) == IF k = 1 THEN 1 ELSE 2
 Min(a) == CHOOSE x \in a : \A y \in a : x <= y
 Max(a, b) == IF a >= b THEN a ELSE b
 Last(s) == s[Len(s)]
-Op(k, g, c, v) == [kind |-> k, group |-> g, claim |-> c, value |-> v]
+Op(k, g, c, v) ==
+    [kind |-> k, group |-> g, claim |-> c, value |-> v, keep_open |-> FALSE]
 Members(s, g) == {s.members[g][i] : i \in 1..Len(s.members[g])}
 OpenClaims(s) == {c \in Claims : s.cs[c] = "open"}
 OpenRuns(s) == {g \in Groups : s.run[g] \in {"reserved", "started", "bound", "terminal"}}
@@ -107,6 +108,8 @@ Empty ==
      cp |-> [p \in 1..2 |-> 0], kp |-> [p \in 1..2 |-> [k \in 1..2 |-> 0]],
      cv |-> 0, kv |-> [p \in 1..2 |-> 0], ca |-> {},
      ka |-> [p \in 1..2 |-> {}], charges |-> [k \in 1..2 |-> 0],
+     keep_open |-> [c \in Claims |-> FALSE],
+     delivery |-> [c \in Claims |-> "none"],
      results |-> {}, external |-> [e \in 1..2 |-> "unknown"],
      raw |-> [e \in 1..2 |-> "unavailable"], reads |-> [e \in 1..2 |-> 0]]
 ApplyOp(s, t, position) ==
@@ -124,8 +127,15 @@ ApplyOp(s, t, position) ==
                  !.kp[p][k] = @ + Stride(k), !.charges[k] = @ + 1]
        [] t.kind = "Close" ->
             [s EXCEPT !.cs[c] = t.value,
-                 !.ws[w] = IF t.value = "completed" THEN "completed" ELSE "available",
+                 !.keep_open[c] = t.keep_open,
+                 !.delivery[c] = IF t.keep_open THEN "pending" ELSE "none",
+                 !.ws[w] = IF t.keep_open THEN "retained_pending"
+                           ELSE IF t.value = "completed" THEN "completed" ELSE "available",
                  !.owner[w] = IF t.value = "completed" THEN c ELSE 0]
+       [] t.kind = "RetainedDelivered" ->
+            [s EXCEPT !.delivery[c] = "verified", !.ws[w] = "available", !.owner[w] = 0]
+       [] t.kind = "RetainedFailed" ->
+            [s EXCEPT !.delivery[c] = "failed", !.ws[w] = "retained_failed"]
        [] t.kind = "Started" -> [s EXCEPT !.run[g] = "started"]
        [] t.kind = "Bound" -> [s EXCEPT !.run[g] = "bound"]
        [] t.kind = "Terminated" -> [s EXCEPT !.run[g] = "terminal"]
@@ -163,6 +173,7 @@ ValidOps(s, ops) ==
 \* Observe abstracts a trusted exact-resource GitHub metadata read.
 \* One group abstracts one approved worker profile and its actual bound run.
 \* Claims are individually charged; a group's native run slot survives closure.
+\* retained_pending/retained_failed classify still-open Work's delivery barrier.
 VARIABLES log, head, pending, worker, intents, handled, authorized, effects, completed,
           projection, checkpoint, checkpointPending, checkpointConflicts
 vars == <<log, head, pending, worker, intents, handled, authorized, effects, completed,
@@ -225,10 +236,13 @@ Bind(g) ==
     /\ State.run[g] = "started" /\ AppendOps(<<Op("Bound", g, 0, 0)>>)
     /\ worker' = [worker EXCEPT ![g] = "agent"]
     /\ UNCHANGED <<pending, intents, handled, authorized, effects, completed>>
-FinishIntent(g, c, outcome) ==
+Finish(g, c, outcome, keep_open) ==
+    /\ outcome \in {"completed", "cancelled"}
+    /\ keep_open \in BOOLEAN /\ (keep_open => outcome = "completed")
     /\ worker[g] = "agent" /\ c \in Members(State, g) /\ intents[c] = "none"
-    /\ intents' = [intents EXCEPT ![c] = outcome]
+    /\ intents' = [intents EXCEPT ![c] = IF keep_open THEN "keep_open" ELSE outcome]
     /\ UNCHANGED <<log, head, pending, worker, handled, authorized, effects, completed>>
+FinishIntent(g, c, outcome) == Finish(g, c, outcome, FALSE)
 BeginFinalize(g) ==
     /\ worker[g] = "agent" /\ worker' = [worker EXCEPT ![g] = "finalizing"]
     /\ UNCHANGED <<log, head, pending, intents, handled, authorized, effects, completed>>
@@ -236,8 +250,9 @@ Finalize(g, c) ==
     /\ worker[g] = "finalizing" /\ State.run[g] = "bound"
     /\ c \in Members(State, g) /\ c \notin handled /\ State.cs[c] = "open"
     /\ State.owner[WorkOf(c)] = c
-    /\ LET outcome == IF intents[c] = "completed" THEN "completed" ELSE "cancelled"
-       IN /\ AppendOps(<<Op("Close", g, c, outcome)>>)
+    /\ LET outcome == IF intents[c] \in {"completed", "keep_open"} THEN "completed" ELSE "cancelled"
+       IN /\ AppendOps(<<[Op("Close", g, c, outcome) EXCEPT
+                            !.keep_open = intents[c] = "keep_open"]>>)
           /\ completed' = IF outcome = "completed" THEN completed \cup {c} ELSE completed
           /\ authorized' = IF outcome = "completed" THEN authorized \cup {c} ELSE authorized
     /\ handled' = handled \cup {c}
@@ -248,14 +263,29 @@ Effect(g, c) ==
     /\ effects' = Append(effects, <<g, c, "pending">>)
     /\ UNCHANGED <<log, head, pending, worker, intents, handled, authorized, completed>>
 VerifyDelivery(g, c) ==
-    /\ worker[g] = "finalizing" /\ State.run[g] = "bound" /\ c \in authorized
+    /\ c \in authorized
+    /\ ((worker[g] = "finalizing" /\ State.run[g] = "bound")
+        \/ (State.keep_open[c] /\ worker[g] = "terminal"
+            /\ State.run[g] \in {"terminal", "released"}))
     /\ \E i \in 1..Len(effects) :
          /\ effects[i] = <<g, c, "pending">>
          /\ effects' = [effects EXCEPT ![i] = <<g, c, "verified">>]
-    /\ UNCHANGED <<log, head, pending, worker, intents, handled, authorized, completed>>
+    /\ IF State.keep_open[c]
+       THEN /\ State.delivery[c] = "pending"
+            /\ AppendOps(<<Op("RetainedDelivered", g, c, 0)>>)
+       ELSE UNCHANGED <<log, head>>
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, completed>>
+FailRetainedDelivery(g, c) ==
+    /\ c \in authorized /\ State.keep_open[c] /\ State.delivery[c] = "pending"
+    /\ \E i \in 1..Len(effects) :
+         /\ effects[i] = <<g, c, "pending">>
+         /\ effects' = [effects EXCEPT ![i] = <<g, c, "failed">>]
+    /\ AppendOps(<<Op("RetainedFailed", g, c, 0)>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, completed>>
 PublishResult(g, c) ==
     /\ worker[g] = "finalizing" /\ State.run[g] = "bound"
     /\ c \in Members(State, g) /\ State.cs[c] = "completed"
+    /\ ~State.keep_open[c]
     /\ WorkOf(c) \notin State.results
     /\ \E i \in 1..Len(effects) : effects[i] = <<g, c, "verified">>
     /\ AppendOps(<<Op("Result", g, c, 0)>>)
@@ -263,6 +293,7 @@ PublishResult(g, c) ==
 RepairResult(g, c) ==
     /\ worker[g] = "terminal" /\ State.run[g] \in {"terminal", "released"}
     /\ c \in Members(State, g) /\ State.cs[c] = "completed"
+    /\ ~State.keep_open[c]
     /\ WorkOf(c) \notin State.results
     /\ \E i \in 1..Len(effects) : effects[i] = <<g, c, "verified">>
     /\ AppendOps(<<Op("Result", g, c, 0)>>)
@@ -405,7 +436,8 @@ ExternalTruth ==
     \A e \in Resources : State.external[e] = NormalizeResource(e, State.raw[e])
 TypeOK ==
     /\ head \in Nat \ {0} /\ log # <<>>
-    /\ State.ws \in [Works -> {"absent", "available", "claimed", "completed"}]
+    /\ State.ws \in [Works -> {"absent", "available", "claimed", "completed",
+                              "retained_pending", "retained_failed"}]
     /\ State.cs \in [Claims -> {"absent", "open", "completed", "cancelled"}]
     /\ State.run \in [Groups -> {"absent", "reserved", "started", "bound", "terminal", "released"}]
     /\ State.owner \in [Works -> Claims \cup {0}]
@@ -413,7 +445,9 @@ TypeOK ==
     /\ State.cv \in Nat /\ State.kv \in [1..2 -> Nat]
     /\ State.charges \in [1..2 -> Nat]
     /\ worker \in [Groups -> {"waiting", "agent", "finalizing", "terminal"}]
-    /\ intents \in [Claims -> {"none", "completed", "cancelled"}]
+    /\ intents \in [Claims -> {"none", "completed", "cancelled", "keep_open"}]
+    /\ State.keep_open \in [Claims -> BOOLEAN]
+    /\ State.delivery \in [Claims -> {"none", "pending", "verified", "failed"}]
     /\ handled \subseteq Claims /\ authorized \subseteq completed
     /\ completed \subseteq Claims
     /\ State.results \subseteq Works
@@ -447,13 +481,24 @@ EffectAuthorization ==
        LET g == effects[i][1] c == effects[i][2]
        IN /\ g = GroupOf(c) /\ c \in authorized /\ State.cs[c] = "completed"
 TerminalPersistence == \A c \in completed : State.cs[c] = "completed"
+RetainedFinishSafety ==
+    /\ \A c \in Claims : State.keep_open[c] =>
+         /\ State.cs[c] = "completed" /\ c \in authorized
+         /\ (State.delivery[c] \in {"pending", "failed"} =>
+              /\ State.owner[WorkOf(c)] = c
+              /\ State.ws[WorkOf(c)] =
+                   IF State.delivery[c] = "pending" THEN "retained_pending" ELSE "retained_failed"
+              /\ WorkOf(c) \notin State.results)
+         /\ (State.delivery[c] = "verified" =>
+              \E i \in 1..Len(effects) : effects[i] = <<GroupOf(c), c, "verified">>)
+    /\ \A w \in State.results : ~State.keep_open[State.owner[w]]
 Safety == ProjectionSoundness /\ TypeOK /\ DAGValidity /\ CausalChain /\ DecisionValidity /\ Capacity /\ ClaimChargeCount /\ RequestOnce
           /\ AssignmentIntegrity /\ NoDuplicateEffects
           /\ ClaimClosureAuthority
           /\ RunReleaseAuthority
           /\ DependencyAuthorization /\ ResultAuthority /\ ResultEffectSoundness
           /\ ExternalAuthorization /\ ExternalTruth
-          /\ EffectAuthorization /\ TerminalPersistence /\ Ownership
+          /\ EffectAuthorization /\ TerminalPersistence /\ Ownership /\ RetainedFinishSafety
           /\ DefaultFIFO /\ StrictPriority
 NoBatchedAssignment == \A g \in Groups : Len(State.members[g]) <= 1
 NoPartialCompletion ==
@@ -544,4 +589,68 @@ BrokenProjection ==
     /\ UNCHANGED <<log, head, pending, worker, intents, handled, authorized, effects,
                    completed, checkpoint, checkpointPending, checkpointConflicts>>
 BrokenProjectionSpec == Init /\ [][Next \/ BrokenProjection]_vars
+
+\* Two immutable assignments exercise retained completion, re-claim, and final completion.
+\* Work 2 depends on Work 1: retained delivery must never release that successor.
+KeepOpenNext ==
+    \/ \E g \in Groups :
+         (Prepare(g) /\ (g = 1 \/ State.delivery[1] = "verified"))
+         \/ Push(g) \/ Retry(g) \/ Launch(g) \/ Bind(g)
+         \/ (BeginFinalize(g) /\ \A c \in Members(State, g) : intents[c] # "none")
+         \/ Terminate(g) \/ Release(g)
+    \/ \E g \in Groups, c \in Claims :
+         Finish(g, c, "completed", g = 1) \/ Finalize(g, c) \/ Effect(g, c)
+         \/ VerifyDelivery(g, c) \/ FailRetainedDelivery(g, c)
+         \/ PublishResult(g, c) \/ RepairResult(g, c)
+KeepOpenCheckpointNext ==
+    Projected(KeepOpenNext)
+    \/ (PrepareCheckpoint /\ State.keep_open[1])
+    \/ RetryCheckpoint \/ Checkpointed(PublishCheckpoint)
+KeepOpenSpec == Init /\ [][KeepOpenCheckpointNext]_vars
+NoRetainedReclaim ==
+    ~(State.keep_open[1] /\ State.delivery[1] = "verified"
+      /\ State.cs[ClaimOf(2, 1)] # "absent"
+      /\ checkpointPending.phase = "done" /\ checkpoint.state.keep_open[1]
+      /\ checkpoint.state.ws[1] = "available"
+      /\ checkpoint.state.cs[ClaimOf(2, 1)] = "absent")
+NoRetainedFinalCompletion ==
+    ~(State.keep_open[1] /\ State.ws[1] = "completed" /\ 1 \in State.results
+      /\ checkpointPending.phase = "done" /\ checkpoint.state.keep_open[1]
+      /\ checkpoint.state.ws[1] = "available"
+      /\ checkpoint.state.cs[ClaimOf(2, 1)] = "absent")
+NoRetainedFailure == State.delivery[1] # "failed"
+NoRetainedLiveReservation ==
+    ~(State.delivery[1] = "verified" /\ State.run[1] = "bound"
+      /\ State.cs[ClaimOf(2, 1)] = "open")
+BrokenRetainedGrant ==
+    /\ State.keep_open[1] /\ State.delivery[1] \in {"pending", "failed"}
+    /\ State.cs[ClaimOf(2, 1)] = "absent"
+    /\ AppendOps(<<Op("Claim", 2, ClaimOf(2, 1), 0)>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, effects, completed>>
+BrokenRetainedResult ==
+    /\ State.keep_open[1] /\ 1 \notin State.results
+    /\ AppendOps(<<Op("Result", 1, 1, 0)>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, effects, completed>>
+BrokenRetainedDelivery ==
+    /\ State.keep_open[1] /\ State.delivery[1] = "pending"
+    /\ AppendOps(<<Op("RetainedDelivered", 1, 1, 0)>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, effects, completed>>
+BrokenRetainedRelease ==
+    /\ State.keep_open[1] /\ State.run[1] = "bound"
+    /\ AppendOps(<<Op("Release", 1, 0, 0)>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, effects, completed>>
+BrokenRetainedOutcome ==
+    /\ State.cs[1] = "open" /\ State.run[1] = "bound"
+    /\ AppendOps(<<[Op("Close", 1, 1, "cancelled") EXCEPT !.keep_open = TRUE]>>)
+    /\ UNCHANGED <<pending, worker, intents, handled, authorized, effects, completed>>
+BrokenRetainedGrantSpec ==
+    Init /\ [][KeepOpenCheckpointNext \/ Projected(BrokenRetainedGrant)]_vars
+BrokenRetainedResultSpec ==
+    Init /\ [][KeepOpenCheckpointNext \/ Projected(BrokenRetainedResult)]_vars
+BrokenRetainedDeliverySpec ==
+    Init /\ [][KeepOpenCheckpointNext \/ Projected(BrokenRetainedDelivery)]_vars
+BrokenRetainedReleaseSpec ==
+    Init /\ [][KeepOpenCheckpointNext \/ Projected(BrokenRetainedRelease)]_vars
+BrokenRetainedOutcomeSpec ==
+    Init /\ [][KeepOpenCheckpointNext \/ Projected(BrokenRetainedOutcome)]_vars
 =================================================================
