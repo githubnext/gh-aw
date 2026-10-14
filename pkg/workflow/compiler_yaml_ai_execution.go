@@ -16,6 +16,9 @@ const (
 )
 
 func (c *Compiler) generateAgentRateLimitSnapshotStep(yaml *strings.Builder, data *WorkflowData, phase string) {
+	if data == nil || data.ParsedTools == nil || data.ParsedTools.GitHub == nil {
+		return
+	}
 	// Reuse the MCP resolver so App, configured token, and magic-secret precedence
 	// observe the same identity as the GitHub MCP server.
 	token := collectMCPEnvironmentVariables(data.Tools, []string{"github"}, data, false)["GITHUB_MCP_SERVER_TOKEN"]

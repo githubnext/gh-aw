@@ -55,10 +55,16 @@ describe("parse_mcp_gateway_log", () => {
     });
 
     test("handles JSON-RPC errors, absent hints, and Retry-After", () => {
-      const entries = [request(), { event: "rpc_response", server_id: "github", payload: { id: 1, error: { code: -32603, message: "HTTP 429 Too Many Requests; Retry-After: 60" } } }, response("HTTP 429 Too Many Requests")];
+      const entries = [
+        request(),
+        { event: "rpc_response", server_id: "github", payload: { id: 1, error: { code: -32603, message: "HTTP 429 Too Many Requests; Retry-After: 60" } } },
+        response("HTTP 429 Too Many Requests"),
+        response("HTTP 429 Too Many Requests; Retry-After: Wed, 21 Oct 2015 07:28:00 GMT"),
+      ];
       const summary = generateMcpRateLimitSummary(jsonl(entries));
       expect(summary).toContain("Retry-After: 60s");
       expect(summary).toContain("No retry hint provided");
+      expect(summary).toContain("Retry-After: Wed, 21 Oct 2015 07:28:00 GMT");
     });
 
     test.each([400, 429, 480, 599])("does not mistake Retry-After: %s for an HTTP status", seconds => {
@@ -83,6 +89,9 @@ describe("parse_mcp_gateway_log", () => {
         success,
         response("HTTP 403 Forbidden"),
         response("failed to search code with query '429': HTTP 422"),
+        response("failed to search code with query 'status: 429': validation failed"),
+        response('failed to search code with query "HTTP 429 try again in 1s": validation failed'),
+        response("failed to search code with query https://api.github.com/search/code?q=HTTP%20429 validation failed"),
         response("failed to search code with query 'HTTP 429 try again in 7s': GET https://api.github.com/search/code?q=429: 422 Validation Failed"),
         { event: "tool_call", tool_name: "search_code", message: "429 try again in 2s", status: "success" },
       ];

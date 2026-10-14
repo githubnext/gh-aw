@@ -793,15 +793,20 @@ function formatRpcInlineCodeLabel(value) {
  * @returns {string|null}
  */
 function getMcpRateLimitHint(message) {
-  const status = Array.from(message.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi))
-    .filter(match => !/\bretry-after\s*$/i.test(message.slice(0, match.index)))
-    .at(-1);
-  if (!status || status[1] !== "429") return null;
-  const diagnostic = message.slice(status.index);
+  const unquotedMessage = message.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, match => " ".repeat(match.length));
+  const requestStatuses = Array.from(unquotedMessage.matchAll(/\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+https?:\/\/\S*?:\s+([45]\d{2})\b/gi)).map(match => ({ index: match.index + match[0].lastIndexOf(match[1]), code: match[1] }));
+  const diagnosticMessage = unquotedMessage.replace(/https?:\/\/\S+/gi, match => " ".repeat(match.length));
+  const statuses = Array.from(diagnosticMessage.matchAll(/(?:^|\bHTTP(?:\/[\d.]+)?\s+|\bstatus(?:\s+code)?\s*[:=]?\s*|:\s+)([45]\d{2})\b/gi))
+    .filter(match => !/\bretry-after\s*$/i.test(diagnosticMessage.slice(0, match.index)))
+    .map(match => ({ index: match.index + match[0].lastIndexOf(match[1]), code: match[1] }));
+  const status = [...statuses, ...requestStatuses].sort((first, second) => first.index - second.index).at(-1);
+  if (!status || status.code !== "429") return null;
+  const diagnostic = diagnosticMessage.slice(status.index);
   const duration = diagnostic.match(/\btry again in\s+((?:\d+(?:\.\d+)?(?:ns|µs|μs|us|ms|s|m|h))+)/i);
   if (duration) return `try again in ${duration[1]}`;
-  const retryAfter = diagnostic.match(/\bretry-after\s*[:=]\s*(\d+(?:\.\d+)?)\b/i);
-  return retryAfter ? `Retry-After: ${retryAfter[1]}s` : "No retry hint provided";
+  const retryAfter = diagnostic.match(/\bretry-after\s*[:=]\s*(\d+(?:\.\d+)?|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+GMT)\b/i);
+  if (!retryAfter) return "No retry hint provided";
+  return /^\d/.test(retryAfter[1]) ? `Retry-After: ${retryAfter[1]}s` : `Retry-After: ${retryAfter[1]}`;
 }
 
 /**
