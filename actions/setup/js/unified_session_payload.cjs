@@ -7,6 +7,7 @@ const { COPILOT_WORKFLOW_EVENT_FIELDS } = require("./copilot_workflow_events.cjs
 const { DYNAMIC_WORKFLOW_EVENT_TYPES } = require("./dynamic_workflow_session.cjs");
 const { sessionContext } = require("./agent_session.cjs");
 const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -447,6 +448,72 @@ function resolveUsageAic(source, data, usage) {
 }
 
 /**
+ * Validate and project inventory formats together so collectors cannot accept
+ * malformed snapshots that would otherwise look like genuinely empty inventories.
+ * @param {any} value
+ * @returns {import("./types/unified_session").ModelInventoryData | undefined}
+ */
+function normalizeModelInventoryData(value) {
+  const isObject = entry => entry !== null && typeof entry === "object" && !Array.isArray(entry);
+  const isIdentifier = entry => typeof entry === "string" && entry.trim().length > 0;
+  const firstField = (entry, names) => names.map(name => entry[name]).find(field => field !== undefined);
+  const normalizeRouting = entries => {
+    if (!Array.isArray(entries)) return undefined;
+    const result = [];
+    for (const entry of entries) {
+      if (!isObject(entry)) return undefined;
+      const modelId = firstField(entry, ["modelId", "model_id"]);
+      const supportedEndpoints = firstField(entry, ["supportedEndpoints", "supported_endpoints"]);
+      if (!isIdentifier(modelId) || (supportedEndpoints !== undefined && (!Array.isArray(supportedEndpoints) || !supportedEndpoints.every(isIdentifier)))) return undefined;
+      result.push({ modelId, ...(supportedEndpoints !== undefined ? { supportedEndpoints: [...supportedEndpoints] } : {}) });
+    }
+    return result;
+  };
+  if (!isObject(value)) return undefined;
+  let entries;
+  if (value.endpoints !== undefined) {
+    if (!Array.isArray(value.endpoints)) return undefined;
+    entries = value.endpoints;
+  } else if (value.providers !== undefined) {
+    if (!isObject(value.providers)) return undefined;
+    entries = [];
+    for (const [provider, entry] of Object.entries(value.providers)) {
+      if (!isObject(entry)) return undefined;
+      entries.push({ ...entry, provider });
+    }
+  } else if (value.provider !== undefined) {
+    entries = [value];
+  } else {
+    return undefined;
+  }
+  const topRouting = firstField(value, ["routingModels", "routing_models"]);
+  const topRoutingModels = topRouting === undefined ? undefined : normalizeRouting(topRouting);
+  if (topRouting !== undefined && topRoutingModels === undefined) return undefined;
+  /** @type {import("./types/unified_session").ModelInventoryData["endpoints"]} */
+  const endpoints = [];
+  for (const entry of entries) {
+    if (!isObject(entry) || !isIdentifier(entry.provider)) return undefined;
+    const rawModels = firstField(entry, ["models", "available_models", "detected_models", "model_ids", "availableModels"]);
+    // AWF uses null for unconfigured endpoints and pending model fetches.
+    const models = rawModels === null && typeof entry.configured === "boolean" ? [] : rawModels;
+    if (!Array.isArray(models)) return undefined;
+    const modelIds = [];
+    for (const model of models) {
+      const id = typeof model === "string" ? model : isObject(model) ? firstField(model, ["id", "name", "model"]) : undefined;
+      if (!isIdentifier(id)) return undefined;
+      modelIds.push(id);
+    }
+    const endpointRouting = firstField(entry, ["routingModels", "routing_models"]);
+    const routingModels = endpointRouting === undefined ? topRoutingModels : normalizeRouting(endpointRouting);
+    if (endpointRouting !== undefined && routingModels === undefined) return undefined;
+    endpoints.push({ provider: entry.provider, models: modelIds, ...(routingModels !== undefined ? { routingModels: structuredClone(routingModels) } : {}) });
+  }
+  const modelsFetchComplete = firstField(value, ["modelsFetchComplete", "models_fetch_complete"]);
+  if (modelsFetchComplete !== undefined && typeof modelsFetchComplete !== "boolean") return undefined;
+  return { endpoints, ...(modelsFetchComplete !== undefined ? { modelsFetchComplete } : {}) };
+}
+
+/**
  * Compact known payloads without truncating text or changing native parser traces.
  * Unknown extension data remains opaque for forward compatibility.
  * @param {SessionEvent} event
@@ -459,35 +526,9 @@ function normalizeUnifiedSessionEvent(event, phase) {
   const known = Object.hasOwn(EVENT_FIELDS, event.type);
   const data = event.type === "mcp.configuration" ? normalizeMcpConfigurationData(source) : known ? selectFields(source, EVENT_FIELDS[event.type]) : structuredClone(source);
   if (event.type === "model.inventory") {
-    const endpoints = Array.isArray(source.endpoints)
-      ? source.endpoints
-      : source.providers && typeof source.providers === "object" && !Array.isArray(source.providers)
-        ? Object.entries(source.providers).map(([provider, entry]) => ({ ...entry, provider }))
-        : typeof source.provider === "string" && Array.isArray(source.models)
-          ? [source]
-          : [];
-    data.endpoints = endpoints
-      .filter(endpoint => endpoint && typeof endpoint === "object" && typeof endpoint.provider === "string")
-      .map(endpoint => ({
-        provider: endpoint.provider,
-        models: (Array.isArray(endpoint.models ?? endpoint.available_models ?? endpoint.detected_models ?? endpoint.model_ids ?? endpoint.availableModels)
-          ? (endpoint.models ?? endpoint.available_models ?? endpoint.detected_models ?? endpoint.model_ids ?? endpoint.availableModels)
-          : []
-        )
-          .map(model => (typeof model === "string" ? model : (model?.id ?? model?.name ?? model?.model)))
-          .filter(model => typeof model === "string"),
-        ...(Array.isArray(endpoint.routingModels ?? endpoint.routing_models)
-          ? {
-              routingModels: (endpoint.routingModels ?? endpoint.routing_models)
-                .filter(model => model && typeof (model.modelId ?? model.model_id) === "string")
-                .map(model => ({
-                  modelId: model.modelId ?? model.model_id,
-                  ...(Array.isArray(model.supportedEndpoints ?? model.supported_endpoints) ? { supportedEndpoints: (model.supportedEndpoints ?? model.supported_endpoints).filter(endpoint => typeof endpoint === "string") } : {}),
-                })),
-            }
-          : {}),
-      }));
-    if (typeof (source.modelsFetchComplete ?? source.models_fetch_complete) === "boolean") data.modelsFetchComplete = source.modelsFetchComplete ?? source.models_fetch_complete;
+    const inventory = normalizeModelInventoryData(source);
+    if (inventory === undefined) throw new Error(`${ERR_VALIDATION}: Model inventory snapshot must contain valid endpoint model collections`);
+    Object.assign(data, inventory);
   }
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
@@ -617,4 +658,4 @@ function normalizeUnifiedSessionEvent(event, phase) {
   };
 }
 
-module.exports = { normalizeUnifiedSessionEvent, evalResultRunId };
+module.exports = { normalizeUnifiedSessionEvent, normalizeModelInventoryData, evalResultRunId };

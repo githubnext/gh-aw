@@ -78,14 +78,13 @@ describe("Unified conclusion session", () => {
     expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
   });
 
-  it.each([
-    { endpoints: [{ provider: "copilot", models: [{ id: "a" }, { name: "b" }, { model: "c" }, null, { id: { token: "PRIVATE_KEY" } }] }] },
-    { providers: { copilot: { available_models: ["a", "b", "c", false] } } },
-    { provider: "copilot", models: ["a", "b", "c", 42] },
-  ])("collects supported runtime model list shapes without opaque model metadata: %j", inventory => {
-    write("sandbox/firewall/models.json", inventory);
-    expect(collectUnifiedSession({ rootDir: root }).events.find(event => event.type === "model.inventory").data).toEqual({ endpoints: [{ provider: "copilot", models: ["a", "b", "c"] }] });
-  });
+  it.each([{ endpoints: [{ provider: "copilot", models: [{ id: "a" }, { name: "b" }, { model: "c" }] }] }, { providers: { copilot: { available_models: ["a", "b", "c"] } } }, { provider: "copilot", models: ["a", "b", "c"] }])(
+    "collects supported runtime model list shapes without opaque model metadata: %j",
+    inventory => {
+      write("sandbox/firewall/models.json", inventory);
+      expect(collectUnifiedSession({ rootDir: root }).events.find(event => event.type === "model.inventory").data).toEqual({ endpoints: [{ provider: "copilot", models: ["a", "b", "c"] }] });
+    }
+  );
 
   it("uses the firewall reflect copy when the agent copy is absent and preserves empty inventories", () => {
     write("sandbox/firewall/awf-reflect.json", { endpoints: [], models_fetch_complete: true });
@@ -95,13 +94,103 @@ describe("Unified conclusion session", () => {
     });
   });
 
-  it.each(["not-json", "null", "[]", "{}", '{"providers":[]}'])("warns about malformed model inventories: %s", content => {
+  it.each([
+    "not-json",
+    "null",
+    "[]",
+    "{}",
+    '{"providers":[]}',
+    '{"endpoints":[null]}',
+    '{"endpoints":[{"provider":42,"models":[]}]}',
+    '{"endpoints":[{"provider":"copilot","models":{}}]}',
+    '{"endpoints":[{"provider":"copilot","models":null}]}',
+    '{"endpoints":[{"provider":"copilot","models":[{"id":{}}]}]}',
+    '{"providers":{"copilot":null}}',
+    '{"providers":{"copilot":{"models":["a",false]}}}',
+    '{"provider":"copilot","models":["a",42]}',
+    '{"endpoints":[{"provider":"copilot","models":[],"routing_models":[{"model_id":42}]}]}',
+  ])("warns once and skips malformed model inventories: %s", content => {
     write("sandbox/firewall/models.json", content);
     const warn = vi.fn();
     const { events } = collectUnifiedSession({ rootDir: root, warn });
     expect(events.some(event => event.type === "model.inventory")).toBe(false);
-    expect(warn).toHaveBeenCalled();
-    expect(events.some(event => event.type === "session.collection_warning" && event.data.path === "sandbox/firewall/models.json")).toBe(true);
+    const code = content === "not-json" ? "malformed_json" : "invalid_model_inventory";
+    expect(warn).toHaveBeenCalledExactlyOnceWith(`Unified session: ${code} in sandbox/firewall/models.json`);
+    expect(events.filter(event => event.type === "session.collection_warning").map(event => event.data)).toEqual([{ path: "sandbox/firewall/models.json", code }]);
+  });
+
+  it.each(["agent", "detection"])("falls back after corrupt or invalid preferred reflect inventories in the %s phase", phase => {
+    const prefix = phase === "agent" ? "" : "threat-detection/";
+    const fallback = { endpoints: [{ provider: "copilot", models: ["fallback"], routing_models: [{ model_id: "fallback", supported_endpoints: ["/responses"] }] }], models_fetch_complete: true };
+    write(`${prefix}sandbox/firewall/awf-reflect.json`, fallback);
+    write(`${prefix}sandbox/firewall/models.json`, { provider: "copilot", models: ["runtime"] });
+    for (const [preferred, code] of [
+      ["not-json", "malformed_json"],
+      [{ endpoints: [{ provider: "copilot", models: "invalid" }] }, "invalid_model_inventory"],
+    ]) {
+      write(`${prefix}agent/awf-reflect.json`, preferred);
+      const warn = vi.fn();
+      const { events } = collectUnifiedSession({ rootDir: root, warn });
+      expect(events.filter(event => event.type === "model.inventory")).toEqual([
+        {
+          type: "model.inventory",
+          data: { endpoints: [{ provider: "copilot", models: ["fallback"], routingModels: [{ modelId: "fallback", supportedEndpoints: ["/responses"] }] }], modelsFetchComplete: true },
+          provenance: { component: "firewall", phase, path: `${prefix}sandbox/firewall/awf-reflect.json`, index: 0 },
+        },
+        {
+          type: "model.inventory",
+          data: { endpoints: [{ provider: "copilot", models: ["runtime"] }] },
+          provenance: { component: "firewall", phase, path: `${prefix}sandbox/firewall/models.json`, index: 0 },
+        },
+      ]);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(`Unified session: ${code} in ${prefix}agent/awf-reflect.json`);
+      expect(events.filter(event => event.type === "session.collection_warning").map(event => event.data)).toEqual([{ path: `${prefix}agent/awf-reflect.json`, code }]);
+    }
+  });
+
+  it.each([
+    [
+      { endpoints: [], models_fetch_complete: true },
+      { endpoints: [], modelsFetchComplete: true },
+    ],
+    [{ providers: {} }, { endpoints: [] }],
+    [{ provider: "copilot", models: [] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+    [{ endpoints: [{ provider: "copilot", configured: false, models: null }] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+  ])("keeps genuine empty or unconfigured preferred inventories instead of stale mirrors: %j", (inventory, expected) => {
+    write("agent/awf-reflect.json", inventory);
+    write("sandbox/firewall/awf-reflect.json", { endpoints: [{ provider: "stale", models: ["stale"] }] });
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.filter(event => event.type === "model.inventory")).toEqual([{ type: "model.inventory", data: expected, provenance: { component: "firewall", phase: "agent", path: "agent/awf-reflect.json", index: 0 } }]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("stops at the valid preferred reflect copy without reading a corrupt mirror", () => {
+    write("agent/awf-reflect.json", { endpoints: [{ provider: "copilot", models: ["preferred"] }] });
+    write("sandbox/firewall/awf-reflect.json", "not-json");
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.filter(event => event.type === "model.inventory")).toEqual([
+      {
+        type: "model.inventory",
+        data: { endpoints: [{ provider: "copilot", models: ["preferred"] }] },
+        provenance: { component: "firewall", phase: "agent", path: "agent/awf-reflect.json", index: 0 },
+      },
+    ]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("skips a symlinked preferred reflect copy and uses the safe fallback", () => {
+    const target = write("private-reflect.json", { endpoints: [{ provider: "private", models: ["PRIVATE_MODEL"] }] });
+    fs.mkdirSync(path.join(root, "agent"), { recursive: true });
+    fs.symlinkSync(target, path.join(root, "agent/awf-reflect.json"));
+    write("sandbox/firewall/awf-reflect.json", { endpoints: [] });
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, warn });
+    expect(events.filter(event => event.type === "model.inventory")).toEqual([
+      { type: "model.inventory", data: { endpoints: [] }, provenance: { component: "firewall", phase: "agent", path: "sandbox/firewall/awf-reflect.json", index: 0 } },
+    ]);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: symlink_not_read in agent/awf-reflect.json");
   });
 
   it("does not invent or follow symlinked model inventory", () => {
