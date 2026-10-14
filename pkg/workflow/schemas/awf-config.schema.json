@@ -906,6 +906,12 @@
           "default": 512,
           "description": "Guest memory in MiB."
         },
+        "scratchMib": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "Optional primary guest /tmp tmpfs capacity in MiB; omitted preserves rootfs storage. Enclave scratch limits remain fixed."
+        },
         "apiTimeoutMs": {
           "type": "integer",
           "minimum": 1,
