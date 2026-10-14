@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.9<br>
+**Version**: 1.29.10<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-12<br>
+**Publication Date**: 2026-10-14<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -567,7 +567,7 @@ This specification addresses five primary threat scenarios:
 
 | Layer | Mechanism | Effectiveness |
 |-------|-----------|---------------|
-| **Manifest precedence** | Compiler-emitted checkout manifest is consulted before any workspace scan | High for declared checkouts |
+| **Manifest precedence** | Each checkout job builds its manifest after finalization; handlers consult it before any workspace scan | High for declared checkouts |
 | **Scan confinement** | Discovery scans only under `$GITHUB_WORKSPACE`; manifest paths that are absolute or escape the workspace root are rejected | High |
 | **Scoped trust** | `safe.directory` is injected per invocation for the single `git config --get remote.origin.url` read instead of mutating process-wide git trust | High |
 | **Read-only discovery** | Discovery invokes only `git config --get`, which does not run hooks, pagers, or filesystem-monitor processes | High |
@@ -5209,7 +5209,7 @@ Safe outputs that operate on a local git tree (`create_pull_request`, `push_to_p
 
 **Requirement RCR1: Manifest Precedence**
 
-The compiler-emitted checkout manifest MUST be consulted first. A workspace scan MUST be attempted only when no usable manifest entry exists for the target slug.
+The checkout manifest emitted by the trusted compiler/runtime checkout pipeline MUST be consulted first. A workspace scan MUST be attempted only when no usable manifest entry exists for the target slug. Runtime-expanded entries MUST be recorded by the job that creates the checkouts, rather than inferred from a bounded filesystem scan or an agent-supplied checkout map.
 
 **Requirement RCR2: Workspace Confinement**
 
@@ -5225,7 +5225,7 @@ Discovery MUST use git commands that neither execute repository-supplied program
 
 **Requirement RCR5: Remote Host Constraint**
 
-A scanned repository MUST be bound to an `owner/repo` slug only when its `remote.origin.url` names the GitHub instance the workflow runs against (the host of `GITHUB_SERVER_URL`, or `github.com`). Remotes on any other host MUST be ignored by the scan, so that a planted repository configuration cannot claim an allowlisted slug. Manifest entries are exempt because they are compiler-generated.
+A scanned repository MUST be bound to an `owner/repo` slug only when its `remote.origin.url` names the GitHub instance the workflow runs against (the host of `GITHUB_SERVER_URL`, or `github.com`). Remotes on any other host MUST be ignored by the scan, so that a planted repository configuration cannot claim an allowlisted slug. Manifest entries are exempt because they originate in the trusted checkout pipeline; runtime entries MUST first pass the metadata and authorization checks below.
 
 **Requirement RCR6: Allowlist Precedence**
 
@@ -5234,6 +5234,46 @@ Cross-repository allowlist validation (SP6, SP7) MUST succeed before a discovery
 **Requirement RCR7: Non-Disclosing Failures**
 
 When resolution fails, the error returned to the agent MUST identify the requested slug and the supported remediation (a `checkout:` entry or a workspace clone) and MUST NOT include scanned filesystem paths or credentials.
+
+#### 9.6.1 Runtime Repository-List Checkouts
+
+These requirements apply to `checkout:` entries with `allowed-repos`, including those consumed by `create_pull_request` and `push_to_pull_request_branch`. The [Checkout Behavior Specification](/gh-aw/specs/checkout-behavior-specification/#runtime-repository-lists) defines the complete parsing and merge contract. Checkout authorization and safe-output target authorization are separate: permission to check out a repository MUST NOT grant permission to write to it.
+
+**Requirement RCR8: Trusted Policy and Explicit Selection**
+
+Repository-selection expressions in `repository` or its `repo` alias MUST require `checkout.allowed-repos` at compilation. The standalone `${{ github.repository }}` expression without an allowlist MUST retain ordinary single-checkout behavior; compound expressions MUST NOT inherit that exception. Repository selectors MUST NOT contain wildcards. Policies MAY contain scoped wildcards but MUST NOT permit every repository. Policy expressions MUST be direct trusted configuration-variable references, such as `${{ vars.ALLOWED_REPOS }}` or `${{ vars['ALLOWED_REPOS'] }}`; caller-controlled and computed policy expressions MUST fail compilation. Expression results MUST be treated as data, not executable script text.
+
+**Requirement RCR9: Complete, Bounded Preflight**
+
+Selected newline-separated slugs MUST be deduplicated case-insensitively. Each entry MUST enforce its positive literal `max-repos` limit, defaulting to 10, before metadata requests or checkout generation; oversized lists MUST fail in full rather than truncate. An empty selection MUST NOT expand to the allowed set. The entire selected batch MUST pass allowlist, canonical-name, metadata, visibility, and path checks before any selected checkout begins. Canonical names returned by GitHub MUST be revalidated against the policy. Public hosting repositories MUST NOT check out private or internal targets, regardless of token access or `private-to-public-flows` settings. Unverifiable host or target metadata MUST fail closed.
+
+**Requirement RCR10: Job-Local Finalized Manifests**
+
+Agent and safe-output checkout jobs MUST derive `<prefix>/<canonical-owner>/<canonical-repo>` paths from a literal, non-root prefix and MUST build their own `${RUNNER_TEMP}/gh-aw/safeoutputs/checkout-manifest.json` after finalization. Each runtime manifest entry MUST contain its validated repository, workspace-relative path, and default branch. When the checkout branch runs, manifest construction MUST precede agent execution or repository-targeting handlers and MUST use the same condition as checkout preparation. Deep prefixes MUST remain resolvable through the manifest independently of workspace scan depth. The privileged job MUST NOT trust a manifest supplied or modified by the agent.
+
+**Requirement RCR11: Entry Authentication and Privileged Fallback**
+
+Runtime safe-output checkouts MUST preserve explicit per-entry PAT, read-App, and safe-output-App precedence, including configured missing-key fallbacks. Entries without an explicit credential MUST use the effective PR checkout fallback, including operation-specific PATs and the global safe-output App/PAT flow. That fallback MUST be resolved independently of other entries' scoped App credentials; fork-only `head-github-token` credentials MUST NOT become shared upstream credentials. Target metadata, checkout, and configured follow-up fetches MUST use the selected entry credential. Agent setup MUST NOT acquire safe-output-only App credentials. Static and hosting-repository checkout authentication MUST remain unchanged.
+
+**Requirement RCR12: No Secondary Repository Fetches**
+
+Runtime lists MUST reject enabled LFS and submodules at compilation and runtime, irrespective of host visibility. Generated actions MUST hardcode `lfs: false` and `submodules: false`; configured follow-up fetches MUST explicitly pass `--no-recurse-submodules`, including when repository-local Git configuration requests recursion. Repository `.gitmodules` content MUST remain unchanged. These guarantees cover generated checkout/finalization steps, not independently invoked tooling.
+
+**Requirement RCR13: Credential Finalization Boundary**
+
+Before agent execution, finalization MUST explicitly clean and independently verify the Git configuration of every validated runtime checkout and any nested submodule Git configuration, including deep prefixes outside discovery bounds. Missing configurations, symlinked configuration paths, failed cleanup, and residual credentials MUST fail closed before the engine starts. Safe-output finalization MUST retain the intended authenticated-write credentials within the trusted job instead of applying agent credential stripping.
+
+**Requirement RCR14: Trusted Failure Reporting**
+
+Preparation and finalization failures MUST record a controlled checkout diagnostic and fail the checkout job. When agent failure reporting is enabled, the conclusion handler MUST include known agent or safe-output checkout failures in the failure issue, even when no agent jobs were recorded. Unexpected underlying errors MUST produce generic controlled diagnostics; credentials and arbitrary dependency error text MUST NOT be copied into failure issues.
+
+**Requirement RCR15: Staged Checkout Isolation**
+
+Staged safe-output processing MUST NOT emit runtime checkout, checkout-App, or manifest steps that depend on skipped checkout preparation. Preview handlers MUST NOT perform checkout-backed writes. Compilation MUST still enforce the checkout policy contract.
+
+#### 9.6.2 Bounded Formal Reference Model
+
+[`RuntimeRepositoryCheckout.tla`](https://github.com/github/gh-aw/blob/main/specs/workflow-security/RuntimeRepositoryCheckout.tla) models the compiler decision, complete-batch preflight, job-local finalization, manifest-before-consumer ordering, credential-source precedence, staged isolation, and known-failure reporting. The existing workflow-security checker runs exhaustive bounded safety checks, deliberate guard mutations, and reachability witnesses. This is not a proof of expression parsing, wildcard matching, Git internals, filesystem confinement, GitHub token grants, or arbitrary privileged scripts; those obligations remain covered by compiler/runtime conformance tests.
 
 ### 9.7 Private-to-Public Flow Containment
 
@@ -6119,6 +6159,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.10** (2026-10-14):
+
+- **Specified**: Runtime repository-list policy provenance, bounded batch preflight, public-host visibility isolation, job-local finalized manifests, and effective safe-output checkout authentication.
+- **Specified**: Secondary-fetch restrictions, verified agent credential cleanup, staged checkout isolation, and trusted failure reporting even without recorded agent jobs.
+- **Added**: Bounded TLA+ reference-model coverage for the runtime checkout and safe-output boundary.
 
 **Version 1.29.9** (2026-10-12):
 

@@ -58,6 +58,34 @@ WITNESS_SETTINGS = {
     "cleanup-failure": {"checkout_mode": "force-clean"},
     "temporary-credentials": {"checkout_mode": "force-clean"},
 }
+RUNTIME_CHECKOUT_MUTATIONS = {
+    "untrusted-policy": "PolicyProvenance",
+    "missing-allowlist": "MandatoryAllowlist",
+    "selector-wildcard": "ExplicitSelector",
+    "unrestricted-policy": "ScopedPolicy",
+    "raw-allowlist": "SelectedRepositoriesAllowed",
+    "repository-limit": "BoundedSelection",
+    "canonical-allowlist": "CanonicalRepositoriesAllowed",
+    "visibility": "VisibilityIsolation",
+    "path-bypass": "ValidatedPathsSafe",
+    "partial-preflight": "BatchValidatedBeforeCheckout",
+    "recursive-fetch": "NoSecondaryReads",
+    "cleanup-fail-open": "AgentCredentialsCleared",
+    "manifest-omitted": "ManifestPrecedesConsumers",
+    "fallback-token": "EntryAuthentication",
+    "neighbor-token": "EntryAuthentication",
+    "write-credentials-stripped": "PrivilegedCredentialsRetained",
+    "write-allowlist": "SafeOutputAuthorization",
+    "staged-checkout": "StagedIsolation",
+    "failure-no-jobs": "CheckoutFailureReported",
+}
+RUNTIME_CHECKOUT_WITNESSES = {
+    "checkout": "NoRuntimeCheckout",
+    "deep-manifest": "NoDeepManifestConsumer",
+    "failure": "NoKnownCheckoutFailure",
+    "hosting-exception": "NoHostingException",
+    "private-host": "NoPrivateHostCheckout",
+}
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
     "persist-credentials": "Compiler mutation: actions/checkout persists its entry token.",
@@ -149,10 +177,11 @@ def concretize(fault, invariant, destination, trace):
 
 def run_case(java, jar, results, name, fault="none", profile="sparse",
              invariant=None, witness=False, effect="issue", detection_policy="required",
-             detection_enabled=True, checkout_mode="transient", artifact_mode="plain"):
+             detection_enabled=True, checkout_mode="transient", artifact_mode="plain",
+             model="CompiledWorkflow"):
     destination = results / name
     destination.mkdir()
-    config = (ROOT / "CompiledWorkflow.cfg").read_text()
+    config = (ROOT / f"{model}.cfg").read_text()
     config = config.replace('Fault = "none"', f'Fault = "{fault}"')
     config = config.replace('Profile = "sparse"', f'Profile = "{profile}"')
     config = config.replace('Effect = "issue"', f'Effect = "{effect}"')
@@ -163,8 +192,8 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
     if witness:
         config += f"\nINVARIANT {invariant}\n"
     (destination / "model.cfg").write_text(config)
-    (destination / "CompiledWorkflow.tla").write_text(
-        (ROOT / "CompiledWorkflow.tla").read_text()
+    (destination / f"{model}.tla").write_text(
+        (ROOT / f"{model}.tla").read_text()
     )
     command = [
         java, "-XX:+UseParallelGC", "-Xmx1g", "-cp", str(jar), "tlc2.TLC",
@@ -173,7 +202,7 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
     ]
     if invariant:
         command += ["-dumpTrace", "json", str(destination / "tlc-trace.json")]
-    command += ["CompiledWorkflow.tla"]
+    command += [f"{model}.tla"]
     (destination / "command.json").write_text(
         json.dumps({"cwd": str(destination), "argv": command}, indent=2) + "\n"
     )
@@ -196,17 +225,25 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
             (destination / "events.txt").write_text(
                 "\n".join(state["s"]["lastEvent"] for state in trace["states"]) + "\n"
             )
-            if fault != "none":
+            if fault != "none" and model == "CompiledWorkflow":
                 concretize(fault, invariant, destination, trace)
+            elif fault != "none":
+                (destination / "counterexample.json").write_text(json.dumps(
+                    {"classification": "synthetic-negative-control", "model": model,
+                     "fault": fault, "invariant": invariant, "trace": "trace.json",
+                     "confirmed_product_bug": False}, indent=2) + "\n")
     except (RuntimeError, ValueError, OSError) as error:
         raise RuntimeError(f"{name}: {error}; see {destination / 'TLC.log'}") from error
     print(f"{name}: expected result ({counts['distinct']} distinct states)", flush=True)
-    return {"case": name, "fault": fault, "profile": profile,
-            "effect": effect, "expected_violation": invariant,
-            "detection_policy": detection_policy, "detection_enabled": detection_enabled,
-            "checkout_mode": checkout_mode, "artifact_mode": artifact_mode,
-            "model_sha256": hashlib.sha256((destination / "CompiledWorkflow.tla").read_bytes()).hexdigest(),
-            "config_sha256": hashlib.sha256(config.encode()).hexdigest(), **counts}
+    report = {"case": name, "model": model, "fault": fault,
+              "expected_violation": invariant,
+              "model_sha256": hashlib.sha256((destination / f"{model}.tla").read_bytes()).hexdigest(),
+              "config_sha256": hashlib.sha256(config.encode()).hexdigest(), **counts}
+    if model == "CompiledWorkflow":
+        report.update({"profile": profile, "effect": effect,
+                       "detection_policy": detection_policy, "detection_enabled": detection_enabled,
+                       "checkout_mode": checkout_mode, "artifact_mode": artifact_mode})
+    return report
 
 
 def check_sources(compiler, results):
@@ -342,15 +379,26 @@ def main():
         cases.append(run_case(java, jar, results, name, invariant=invariant, witness=True,
                               effect=WITNESS_EFFECTS.get(name, "issue"),
                               **WITNESS_SETTINGS.get(name, {})))
-    current_hash = hashlib.sha256((ROOT / "CompiledWorkflow.tla").read_bytes()).hexdigest()
-    if any(case["model_sha256"] != current_hash for case in cases):
+    cases.append(run_case(java, jar, results, "secure-runtime-checkout",
+                          model="RuntimeRepositoryCheckout"))
+    for fault, invariant in RUNTIME_CHECKOUT_MUTATIONS.items():
+        cases.append(run_case(java, jar, results, f"runtime-checkout-{fault}", fault,
+                              invariant=invariant, model="RuntimeRepositoryCheckout"))
+    for name, invariant in RUNTIME_CHECKOUT_WITNESSES.items():
+        cases.append(run_case(java, jar, results, f"runtime-checkout-{name}",
+                              invariant=invariant, witness=True,
+                              model="RuntimeRepositoryCheckout"))
+    current_hashes = {model: hashlib.sha256((ROOT / f"{model}.tla").read_bytes()).hexdigest()
+                      for model in {case["model"] for case in cases}}
+    if any(case["model_sha256"] != current_hashes[case["model"]] for case in cases):
         raise RuntimeError("Model changed during checking; reports do not describe one snapshot")
     if args.compiler:
         check_sources(args.compiler, results)
     if args.verifier:
         check_compiled_workflows(args.verifier, args.compiled_workflows, results)
     (results / "results.json").write_text(
-        json.dumps({"model": "CompiledWorkflow", "bounded": True,
+        json.dumps({"model": "CompiledWorkflow",
+                    "additional_models": ["RuntimeRepositoryCheckout"], "bounded": True,
                     "jar_sha256": JAR_SHA256, "cases": cases}, indent=2) + "\n"
     )
     if args.write_examples:
