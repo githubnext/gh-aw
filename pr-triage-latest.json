@@ -1,46 +1,31 @@
 {
-  "run_date": "2026-10-14T12:34:23Z",
-  "run_id": "38564583722",
+  "run_date": "2026-10-14T18:35:13Z",
+  "run_id": "38615396379",
   "source": "pr-triage-agent",
-  "eligible_total": 3,
-  "cooldown_skipped": 0,
-  "open_copilot_prs": 3,
+  "eligible_total": 2,
+  "cooldown_skipped": 3,
+  "open_copilot_prs": 5,
   "category_counts": {
-    "bug": 2,
-    "feature": 1
+    "feature": 1,
+    "bug": 1
   },
   "risk_counts": {
-    "high": 2,
+    "high": 1,
     "medium": 1
   },
   "priority_counts": {
-    "high": 2,
+    "high": 1,
     "medium": 1
   },
   "action_counts": {
     "auto_merge": 0,
     "fast_track": 0,
-    "batch_review": 2,
+    "batch_review": 1,
     "defer": 0,
     "close": 1
   },
   "batches": [],
   "selected_candidates": [
-    {
-      "number": 68579,
-      "title": "Detect agentic engine execution outside the agent job",
-      "category": "bug",
-      "risk": "high",
-      "priority_score": 80,
-      "score_breakdown": {
-        "impact": 42,
-        "urgency": 25,
-        "quality": 13
-      },
-      "action": "batch_review",
-      "review_state": "COMMENTED",
-      "ci_state": "passing"
-    },
     {
       "number": 68315,
       "title": "[Experimental] Long-running agentic work across multiple runs",
@@ -54,7 +39,7 @@
       },
       "action": "batch_review",
       "review_state": "COMMENTED",
-      "ci_state": "passing"
+      "ci_state": "unknown"
     },
     {
       "number": 56568,
@@ -74,19 +59,6 @@
   ],
   "prs": [
     {
-      "number": 68579,
-      "title": "Detect agentic engine execution outside the agent job",
-      "state": "open",
-      "user": "Copilot",
-      "draft": false,
-      "category": "bug",
-      "risk": "high",
-      "priority_score": 80,
-      "action": "batch_review",
-      "review_state": "COMMENTED",
-      "ci_state": "passing"
-    },
-    {
       "number": 68315,
       "title": "[Experimental] Long-running agentic work across multiple runs",
       "state": "open",
@@ -97,7 +69,7 @@
       "priority_score": 82,
       "action": "batch_review",
       "review_state": "COMMENTED",
-      "ci_state": "passing"
+      "ci_state": "unknown"
     },
     {
       "number": 56568,
@@ -112,5 +84,11 @@
       "review_state": "CHANGES_REQUESTED",
       "ci_state": "unknown"
     }
-  ]
+  ],
+  "cooldown_skipped_prs": [
+    68732,
+    68728,
+    68717
+  ],
+  "notes": "Eligible PRs are those older than 1 hour and authored by app/github-copilot; three newer Copilot PRs were skipped under the cooldown policy."
 }
