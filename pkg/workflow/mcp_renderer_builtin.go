@@ -12,6 +12,7 @@ import (
 var mcpRendererBuiltinLog = logger.New("workflow:mcp_renderer_builtin")
 
 const workQueueMCPServerEntrypoint = "${RUNNER_TEMP}/gh-aw/actions/work_queue_mcp_server.cjs"
+const agenticWorkflowsMCPHome = "/tmp/gh-aw/aw-mcp/home"
 
 // RenderWorkQueueMCP mounts the activation snapshot read-only; only participants
 // receive a writable intent directory. The server has no Git client or credentials.
@@ -303,6 +304,10 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	}
 	yaml.WriteString("]\n")
 
+	// Resolve the host identity while the configuration heredoc is written.
+	// Private audit/log files must remain readable by the host redactor.
+	yaml.WriteString("          args = [\"--user\", \"$(id -u):$(id -g)\"]\n")
+	yaml.WriteString("          env = { HOME = \"" + agenticWorkflowsMCPHome + "\" }\n")
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
 
@@ -432,7 +437,8 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		value     string
 		isLiteral bool
 	}{
-		{"DEBUG", "*", true},                              // Literal value "*"
+		{"DEBUG", "*", true}, // Literal value "*"
+		{"HOME", agenticWorkflowsMCPHome, true},
 		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},           // Variable reference (gh CLI auto-sets GH_TOKEN from GITHUB_TOKEN if needed)
 		{"GITHUB_ACTOR", "GITHUB_ACTOR", false},           // Variable reference for actor-based access control
 		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false}, // Variable reference for repository context
@@ -510,8 +516,10 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	// Add Docker runtime args:
 	// - --network host: Enables network access for GitHub API calls (gh CLI needs api.github.com)
 	// - -w: Sets working directory to workspace for .github/workflows folder resolution
+	// Resolve the runner UID/GID in the host heredoc, not inside the nested container.
+	// Owner-only audit/log files then remain readable by the host redactor.
 	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-	yaml.WriteString("                \"args\": [\"--network\", \"host\", \"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
+	yaml.WriteString("                \"args\": [\"--network\", \"host\", \"-w\", \"\\${GITHUB_WORKSPACE}\", \"--user\", \"$(id -u):$(id -g)\"],\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.

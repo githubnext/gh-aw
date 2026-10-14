@@ -114,11 +114,11 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"agenticworkflows": {`,
 				`"type": "stdio"`,
-				`"container": "localhost/gh-aw:dev"`,                          // Dev mode uses locally built image
-				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
-				`"DEBUG": "*"`,                                                // Literal value for debug logging
+				`"container": "localhost/gh-aw:dev"`,             // Dev mode uses locally built image
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`, // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                     // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"]`,
+				`"DEBUG": "*"`, // Literal value for debug logging
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
@@ -143,11 +143,11 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"container": "alpine:latest"`,
 				`"entrypoint": "${RUNNER_TEMP}/gh-aw/gh-aw"`,
 				`"entrypointArgs": ["mcp-server", "--validate-actor"]`,
-				`"${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`,              // gh-aw binary mount (read-only)
-				`"/usr/bin/gh:/usr/bin/gh:ro"`,                                // gh CLI binary mount (read-only)
-				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
+				`"${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`, // gh-aw binary mount (read-only)
+				`"/usr/bin/gh:/usr/bin/gh:ro"`,                   // gh CLI binary mount (read-only)
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`, // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                     // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"]`,
 				`"DEBUG": "*"`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`"GITHUB_ACTOR": "\${GITHUB_ACTOR}"`,           // Actor for role-based access control
@@ -167,10 +167,10 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			actionMode:           ActionModeDev,
 			expectedContent: []string{
 				`"agenticworkflows": {`,
-				`"container": "localhost/gh-aw:dev"`,                          // Dev mode uses locally built image
-				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
+				`"container": "localhost/gh-aw:dev"`,             // Dev mode uses locally built image
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`, // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                     // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"]`,
 				// Environment variables
 				`"DEBUG": "*"`, // Literal value for debug logging
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,

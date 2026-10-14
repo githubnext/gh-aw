@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/pelletier/go-toml/v2"
 )
 
 func TestRenderJSONMCPConfig_GatewayAgentIDValidatesAgainstSchema(t *testing.T) {
@@ -421,7 +424,7 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 		t.Error("Expected GITHUB_TOKEN in env vars")
 	}
 	// Should have network access and working directory args
-	if !strings.Contains(output, `"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`) {
+	if !strings.Contains(output, `"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"]`) {
 		t.Error("Expected args with network access and working directory set to workspace")
 	}
 }
@@ -446,6 +449,95 @@ func TestRenderAgenticWorkflowsMCP_JSON_Claude(t *testing.T) {
 	}
 	if strings.Contains(output, `"tools"`) {
 		t.Error("Should not contain 'tools' field for Claude")
+	}
+}
+
+func TestRenderAgenticWorkflowsMCP_RunnerOwnership(t *testing.T) {
+	for _, mode := range []ActionMode{ActionModeDev, ActionModeRelease} {
+		for _, format := range []string{"json", "toml"} {
+			for _, copilot := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/copilot=%v", mode, format, copilot), func(t *testing.T) {
+					renderer := NewMCPConfigRenderer(MCPRendererOptions{
+						Format:               format,
+						ActionMode:           mode,
+						IncludeCopilotFields: copilot,
+						IsLast:               true,
+					})
+					var rendered strings.Builder
+					renderer.RenderAgenticWorkflowsMCP(&rendered)
+					config := rendered.String()
+					if format == "json" {
+						config = "{\n" + config + "}\n"
+					}
+					// The generated config is written by the runner's unquoted heredoc,
+					// before the gateway starts its nested producer container.
+					cmd := exec.Command("bash", "-e", "-c", "cat <<GH_AW_TEST_CONFIG\n"+config+"GH_AW_TEST_CONFIG\n")
+					cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + t.TempDir(), "GITHUB_WORKSPACE=" + t.TempDir()}
+					output, err := cmd.CombinedOutput()
+					if err != nil {
+						t.Fatalf("expand runner config: %v: %s", err, output)
+					}
+					type serverConfig struct {
+						Args []string          `json:"args" toml:"args"`
+						Env  map[string]string `json:"env" toml:"env"`
+					}
+					var server serverConfig
+					if format == "json" {
+						var servers map[string]serverConfig
+						if err := json.Unmarshal(output, &servers); err != nil {
+							t.Fatal(err)
+						}
+						server = servers["agenticworkflows"]
+					} else {
+						var parsed struct {
+							Servers map[string]serverConfig `toml:"mcp_servers"`
+						}
+						if err := toml.Unmarshal(output, &parsed); err != nil {
+							t.Fatal(err)
+						}
+						server = parsed.Servers["agenticworkflows"]
+					}
+					expected := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
+					if len(server.Args) < 2 || server.Args[len(server.Args)-2] != "--user" || server.Args[len(server.Args)-1] != expected {
+						t.Fatalf("producer must use host UID/GID %s to share private artifacts with redaction, got %q", expected, server.Args)
+					}
+					if server.Env["HOME"] != "/tmp/gh-aw/aw-mcp/home" {
+						t.Fatalf("numeric UID producer needs a runner-owned home, got %q", server.Env["HOME"])
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestAgenticWorkflowsMCPPrivateHome(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enabled=%v", enabled), func(t *testing.T) {
+			var setup strings.Builder
+			generateAgenticWorkflowsInstallStep(&Compiler{}, &setup, enabled, &WorkflowData{})
+			command := "(umask 077 && mkdir -p /tmp/gh-aw/aw-mcp/home)"
+			if strings.Contains(setup.String(), command) != enabled {
+				t.Fatal("private home preparation must be scoped to the agentic-workflows producer")
+			}
+			if !enabled {
+				return
+			}
+			home := filepath.Join(t.TempDir(), "home")
+			cmd := exec.Command("bash", "-e", "-c", "umask 022\n"+strings.ReplaceAll(command, "/tmp/gh-aw/aw-mcp/home", shellEscapeArg(home)))
+			if output, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("prepare private producer home: %v: %s", err, output)
+			}
+			info, err := os.Stat(home)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode().Perm() != 0o700 {
+				t.Fatalf("producer home must remain private, got %o", info.Mode().Perm())
+			}
+			if err := os.WriteFile(filepath.Join(home, "config.json"), []byte("{}"), 0o600); err != nil {
+				t.Fatalf("runner must be able to write producer home: %v", err)
+			}
+		})
 	}
 }
 

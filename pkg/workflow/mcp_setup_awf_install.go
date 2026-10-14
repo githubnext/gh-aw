@@ -28,6 +28,7 @@ func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, has
 	}
 	yaml.WriteString("      - name: Copy gh-aw binary for MCP Server\n")
 	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          (umask 077 && mkdir -p " + agenticWorkflowsMCPHome + ")\n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh\"\n")
 }
 

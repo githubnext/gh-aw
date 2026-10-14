@@ -74,6 +74,25 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
+      it("redacts runner-owned private audit files without broadening permissions", () => {
+        const { findFiles, processFile } = require("./redact_secrets.cjs");
+        const logs = path.join(tempDir, "aw-mcp", "logs");
+        for (const id of ["38469476854", "38476997137"]) {
+          const run = path.join(logs, `run-${id}`);
+          fs.mkdirSync(run, { recursive: true, mode: 0o700 });
+          fs.writeFileSync(path.join(run, "audit.json"), JSON.stringify({ message: "fixture-secret" }), { mode: 0o600 });
+        }
+        const files = findFiles(logs, [".json"]);
+        expect(files).toHaveLength(2);
+        for (const file of files) {
+          expect(processFile(file, ["fixture-secret"])).toBe(1);
+          expect(fs.readFileSync(file, "utf8")).toContain("***REDACTED***");
+          expect(fs.readFileSync(file, "utf8")).not.toContain("fixture-secret");
+          expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+          expect(fs.statSync(path.dirname(file)).mode & 0o777).toBe(0o700);
+        }
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
       it.each(["EACCES", "EPERM", "ENOSPC"])("reports only safe read diagnostics for secret-bearing %s errors", code => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "secret-value.log");

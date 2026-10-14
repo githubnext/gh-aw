@@ -177,7 +177,7 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Verify working directory args are present
-	if !strings.Contains(workflowData, `"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`) {
+	if !strings.Contains(workflowData, `"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"]`) {
 		t.Error("Expected args with network access and working directory")
 	}
 }

@@ -781,6 +781,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Copy gh-aw binary for MCP Server
         run: |
+          (umask 077 && mkdir -p /tmp/gh-aw/aw-mcp/home)
           bash "${RUNNER_TEMP}/gh-aw/actions/copy_gh_aw_binary_for_mcp.sh"
       - name: Prepare Safe Outputs Directories
         run: |
@@ -1011,16 +1012,17 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_0b32309a692e8faf_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_5bca19bad3343c3e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
                 "type": "stdio",
                 "container": "localhost/gh-aw:dev",
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
-                "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"],
+                "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}", "--user", "$(id -u):$(id -g)"],
                 "env": {
                   "DEBUG": "*",
+                  "HOME": "/tmp/gh-aw/aw-mcp/home",
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"
@@ -1089,7 +1091,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_0b32309a692e8faf_EOF
+          GH_AW_MCP_CONFIG_5bca19bad3343c3e_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
