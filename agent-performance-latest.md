@@ -43,3 +43,6 @@ metrics/latest.json still dated 2026-09-01 (~41 days stale; deferred run). No ne
 
 ## Run 2026-10-13T13:01Z
 metrics/daily/2026-10-13.json is partial with 0 workflows (collector could not access tools); latest.json still 2026-09-01. Ranking deferred again; no discussion/issue filed.
+
+## Run 2026-10-14T12:55Z
+metrics/latest.json still dated 2026-09-01 (~43 days stale; deferred run). No new evidence; no discussion/issue filed.
