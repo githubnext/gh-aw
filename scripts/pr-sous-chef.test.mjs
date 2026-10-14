@@ -776,6 +776,74 @@ test("approval lookup errors remain failed reads, not a successful no-op", () =>
   );
 });
 
+test("active-run authorization denials fail closed with metadata-only credential diagnostics", () => {
+  for (const status of ["401", "403"]) {
+    const calls = [];
+    const denied = Object.assign(new Error("private response text"), { stdout: `[{"status":"${status}","message":"private response text"}]` });
+    assert.throws(
+      () =>
+        fetchActiveRuns("github/gh-aw", args => {
+          calls.push(args);
+          if (calls.length === 1) return [{ workflow_runs: [] }];
+          throw denied;
+        }),
+      error => {
+        assert.match(error.message, new RegExp(`HTTP ${status}`));
+        assert.match(error.message, /repository=github\/gh-aw, status=in_progress, credential source=/);
+        assert.match(error.message, /Job actions: read permissions apply only to GITHUB_TOKEN, not custom secrets/);
+        assert.match(error.message, /No retry or alternate credential was attempted; queue generation failed/);
+        assert.doesNotMatch(error.message, /private response text/);
+        assert.equal(error.cause, undefined);
+        return true;
+      }
+    );
+    assert.equal(calls.length, 2);
+  }
+});
+
+test("active-run non-authorization errors retain the original failure", () => {
+  const failure = new Error("HTTP 500");
+  assert.throws(
+    () =>
+      fetchActiveRuns("github/gh-aw", () => {
+        throw failure;
+      }),
+    error => error === failure
+  );
+});
+
+test("queue authorization denials never return partial or empty successful queues", () => {
+  for (const deniedStatus of ["in_progress", "action_required"]) {
+    const { api, calls } = queueAPI({ checks: [{ name: "CGO", status: "completed", conclusion: "action_required" }] });
+    assert.throws(
+      () =>
+        fetchQueue(
+          "github/gh-aw",
+          "42",
+          args => {
+            if (args[1].includes(`status=${deniedStatus}`)) {
+              calls.push(args);
+              throw Object.assign(new Error("Command failed"), { stderr: "gh: Resource not accessible by integration (HTTP 403)" });
+            }
+            return api(args);
+          },
+          now
+        ),
+      new RegExp(`workflow-run read denied .*status=${deniedStatus}`)
+    );
+    assert.equal(calls.filter(args => args[1].includes(`status=${deniedStatus}`)).length, 1);
+    assert.ok(!calls.some(args => args[1] === "graphql"));
+  }
+});
+
+test("prefilter credential-source metadata matches token precedence without changing permissions", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/pr-sous-chef.md", import.meta.url), "utf8");
+  const prefilter = workflow.split("\n  prefilter:\n")[1].split("\nsteps:\n")[0];
+  assert.match(prefilter, /GH_TOKEN: \$\{\{ secrets\.GH_AW_GITHUB_MCP_SERVER_TOKEN \|\| secrets\.GH_AW_GITHUB_TOKEN \|\| secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(prefilter, /PR_SOUS_CHEF_TOKEN_SOURCE: \$\{\{ secrets\.GH_AW_GITHUB_MCP_SERVER_TOKEN && 'GH_AW_GITHUB_MCP_SERVER_TOKEN' \|\| secrets\.GH_AW_GITHUB_TOKEN && 'GH_AW_GITHUB_TOKEN' \|\| 'GITHUB_TOKEN' \}\}/);
+  assert.match(prefilter, /permissions:\n      contents: read\n      pull-requests: read\n      issues: read\n      actions: read\n/);
+});
+
 test("workflow polls every five minutes but never starts an agent for low budgets or empty automatic queues", () => {
   const workflow = readFileSync(new URL("../.github/workflows/pr-sous-chef.md", import.meta.url), "utf8");
   assert.match(workflow, /^  schedule: every 5m$/m);

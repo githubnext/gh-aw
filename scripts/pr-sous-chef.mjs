@@ -261,8 +261,28 @@ function gh(args) {
 }
 
 export function fetchActiveRuns(repo, api = gh, branch) {
+  return [...activeStatuses].flatMap(status => fetchWorkflowRuns(repo, status, api, branch));
+}
+
+function fetchWorkflowRuns(repo, status, api, branch) {
   const branchFilter = branch ? `&branch=${encodeURIComponent(branch)}` : "";
-  return [...activeStatuses].flatMap(status => api(["api", `repos/${repo}/actions/runs?status=${status}&per_page=100${branchFilter}`, "--paginate", "--slurp"]).flatMap(page => page.workflow_runs));
+  let pages;
+  try {
+    pages = api(["api", `repos/${repo}/actions/runs?status=${status}&per_page=100${branchFilter}`, "--paginate", "--slurp"]);
+  } catch (error) {
+    const httpStatus = /"status"\s*:\s*"(401|403)"/.exec(String(error?.stdout ?? ""))?.[1] ?? /\(HTTP (401|403)\)/.exec(String(error?.stderr ?? error?.message ?? ""))?.[1];
+    if (!httpStatus) throw error;
+    const declaredSource = process.env.PR_SOUS_CHEF_TOKEN_SOURCE;
+    const source = ["GH_AW_GITHUB_MCP_SERVER_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"].includes(declaredSource) ? declaredSource : "unspecified GH_TOKEN";
+    throw new Error(
+      `PR Sous Chef workflow-run read denied (HTTP ${httpStatus}, repository=${repo}, status=${status}, credential source=${source}). ` +
+        "The prefilter selects GH_AW_GITHUB_MCP_SERVER_TOKEN, then GH_AW_GITHUB_TOKEN, then GITHUB_TOKEN. " +
+        "Job actions: read permissions apply only to GITHUB_TOKEN, not custom secrets. " +
+        "Verify the selected credential's repository access and Actions: read permission; for HTTP 401 also verify validity/expiry. " +
+        "No retry or alternate credential was attempted; queue generation failed."
+    );
+  }
+  return pages.flatMap(page => page.workflow_runs);
 }
 
 function inspect(repo, pr, runs, api = gh, now = Date.now()) {
@@ -429,9 +449,7 @@ export function fetchQueue(repo, checkNumber, api = gh, now = Date.now()) {
       if (skip) return { skip_reason: skip };
       runs ??= fetchActiveRuns(repo, api, checkNumber ? current.headRefName : undefined);
       if (activeAgent(current, runs)) return { skip_reason: "agent_active" };
-      const approvals = current.statusCheckRollup.some(check => (check.conclusion ?? check.state) === "ACTION_REQUIRED" || check.status === "WAITING")
-        ? api(["api", `repos/${repo}/actions/runs?status=action_required&per_page=100&branch=${encodeURIComponent(current.headRefName)}`, "--paginate", "--slurp"]).flatMap(page => page.workflow_runs)
-        : [];
+      const approvals = current.statusCheckRollup.some(check => (check.conclusion ?? check.state) === "ACTION_REQUIRED" || check.status === "WAITING") ? fetchWorkflowRuns(repo, "action_required", api, current.headRefName) : [];
       return inspect(repo, current, [...runs, ...approvals], api, now);
     },
     now

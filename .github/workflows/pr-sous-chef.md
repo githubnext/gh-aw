@@ -75,6 +75,7 @@ jobs:
         id: fetch-prs
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          PR_SOUS_CHEF_TOKEN_SOURCE: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN && 'GH_AW_GITHUB_MCP_SERVER_TOKEN' || secrets.GH_AW_GITHUB_TOKEN && 'GH_AW_GITHUB_TOKEN' || 'GITHUB_TOKEN' }}
         run: node scripts/pr-sous-chef.mjs
       - name: Upload compact queue
         uses: actions/upload-artifact@v7.0.2
@@ -162,6 +163,14 @@ with those budget/reset details and stop
 without any writes, including a slash-command acknowledgement or report issue.
 The same rule applies to each fresh eligibility check and simulation. An API error
 or malformed rate-limit response is a failed read, not a successful no-op.
+
+The prefilter uses the MCP-server token, then the general gh-aw token, then the
+built-in `GITHUB_TOKEN`. Its job permissions do not grant scopes to custom
+secrets. Workflow-run authorization failures report only the credential source
+name, repository, HTTP status, and required Actions read access; they fail the
+queue rather than retrying with another identity. Verify the selected
+credential's repository access and Actions read permission without exposing its
+value. Keep the existing identity for PR/check reads and API-budget accounting.
 
 PRs are idle only after at least ten minutes without a commit, PR update, comment,
 review, or reply. A fresh Copilot request also restarts this ten-minute interval.
