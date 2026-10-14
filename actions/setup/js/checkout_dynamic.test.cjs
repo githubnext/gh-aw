@@ -2,8 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
-import { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath } from "./checkout_dynamic.cjs";
+import { prepare, finish, parseRepositories, parseAllowedRepos, workspacePath, validateSingleRepository } from "./checkout_dynamic.cjs";
 import { buildCheckoutManifest, readManifestEntriesFromEnv } from "./build_checkout_manifest.cjs";
+
+describe("single repository checkout", () => {
+  it.each(["org/repo", "Org/Private.Repo", " org/repo \n", "org/repo.wiki"])("accepts exactly one repository without multi-repo policy: %s", repository => {
+    expect(() => validateSingleRepository(repository)).not.toThrow();
+  });
+
+  it.each([undefined, "", " \n", "org/a\norg/b", "org/a\nORG/A", "org/a,org/b", "org/*", "org/repo/extra", "org/..", "org/.", "org/a\rorg/b"])("rejects missing, multiple, or invalid repositories: %s", repository => {
+    expect(() => validateSingleRepository(repository)).toThrow("exactly one owner/repo slug");
+  });
+});
 
 describe("runtime repository checkout", () => {
   let temp;

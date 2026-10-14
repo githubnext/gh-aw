@@ -55,7 +55,7 @@ function renderSummary(snapshot, current) {
   } else {
     lines.push("", "This run has no worker assignment. Queue-control intents confer no worker effect authority.");
   }
-  lines.push("", "</details>", "");
+  lines.push("", "</details>", "", "", "");
   return lines.join("\n");
 }
 
@@ -67,10 +67,10 @@ async function main(options = {}) {
     const repositoryContext = options.context || context;
     const latest = await (options.readWorkQueueLog || readWorkQueueLog)({ githubClient, owner: repositoryContext.repo.owner, repo: repositoryContext.repo.repo, core: coreApi });
     const current = snapshot.role !== "worker" && snapshot.sha === null && latest.sha === null && latest.transactions.length === 0 ? newState() : replayTransactions(latest.transactions);
-    await coreApi.summary.addRaw(renderSummary(snapshot, current) + "\n" + renderWorkQueue(current)).write();
+    await coreApi.summary.addRaw(renderSummary(snapshot, current) + renderWorkQueue(current)).write();
   } catch (error) {
     coreApi.warning("Work queue activity is unavailable; snapshot or authoritative ledger validation failed.");
-    await coreApi.summary.addRaw("### Work queue activity\n\n<details>\n<summary>Show queue activity</summary>\n\nActivity is unavailable; no successful queue state is inferred from an unreadable ledger.\n\n</details>\n").write();
+    await coreApi.summary.addRaw("### Work queue activity\n\n<details>\n<summary>Show queue activity</summary>\n\nActivity is unavailable; no successful queue state is inferred from an unreadable ledger.\n\n</details>\n\n\n").write();
     throw new Error("Failed to summarize work queue activity", { cause: error });
   }
 }

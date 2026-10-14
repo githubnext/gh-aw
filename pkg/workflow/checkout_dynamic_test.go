@@ -16,7 +16,7 @@ import (
 func TestRuntimeCheckoutMaxReposParsing(t *testing.T) {
 	for _, value := range []any{1, int64(2), uint64(3), float64(4)} {
 		cfg, err := checkoutConfigFromMap(map[string]any{
-			"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "max-repos": value,
+			"repo": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*", "max-repos": value,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cfg.MaxRepos)
@@ -24,16 +24,16 @@ func TestRuntimeCheckoutMaxReposParsing(t *testing.T) {
 	}
 	for _, value := range []any{0, -1, 1.5, math.NaN(), math.Inf(1), uint64(math.MaxUint64), float64(1 << 53), "2", true, nil, "${{ inputs.max }}"} {
 		_, err := checkoutConfigFromMap(map[string]any{
-			"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "max-repos": value,
+			"repo": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*", "max-repos": value,
 		})
 		require.ErrorContains(t, err, "checkout.max-repos must be a positive integer")
 	}
-	_, err := checkoutConfigFromMap(map[string]any{"repository": "org/a", "max-repos": 1})
+	_, err := checkoutConfigFromMap(map[string]any{"multi": true, "repository": "org/a", "max-repos": 1})
 	require.ErrorContains(t, err, "checkout.max-repos requires checkout.allowed-repos")
 	for _, limit := range []int{0, -1} {
 		_, err := NewCompiler().CompileToYAML(&WorkflowData{
 			CheckoutConfigs: []*CheckoutConfig{{
-				Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, MaxRepos: &limit,
+				Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true, Multi: true, AllowedRepos: []string{"org/*"}, MaxRepos: &limit,
 			}},
 		}, filepath.Join(t.TempDir(), "worker.md"))
 		require.ErrorContains(t, err, "checkout.max-repos must be a positive integer")
@@ -45,7 +45,7 @@ func TestRuntimeCheckoutMaxReposMerging(t *testing.T) {
 		configs := make([]*CheckoutConfig, 0, len(limits))
 		expected := 30
 		for _, limit := range limits {
-			cfg := &CheckoutConfig{Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}}
+			cfg := &CheckoutConfig{Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}}
 			if limit != 0 {
 				cfg.MaxRepos = &limit
 			} else {
@@ -62,7 +62,7 @@ func TestRuntimeCheckoutMaxReposMerging(t *testing.T) {
 
 func TestParseRuntimeCheckout(t *testing.T) {
 	cfg, err := checkoutConfigFromMap(map[string]any{
-		"repo": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "${{ vars.ALLOWED_REPOS }}",
+		"repo": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "${{ vars.ALLOWED_REPOS }}",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "${{ inputs.repos }}", cfg.Repository)
@@ -73,19 +73,20 @@ func TestParseRuntimeCheckout(t *testing.T) {
 		"list without allowlist": {"repository": "org/a\norg/b", "path": "targets"},
 		"wrong alias type":       {"repo": true},
 		"old allowlist key":      {"repository": "${{ inputs.repos }}", "path": "targets", "allow-repos": "org/*"},
-		"empty allowlist":        {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": []any{}},
-		"wrong allowlist":        {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": true},
-		"invalid entry":          {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": []any{true}},
-		"missing repos":          {"path": "targets", "allowed-repos": "org/*"},
-		"missing prefix":         {"repository": "${{ inputs.repos }}", "allowed-repos": "org/*"},
-		"root prefix":            {"repository": "${{ inputs.repos }}", "path": ".", "allowed-repos": "org/*"},
-		"expression prefix":      {"repository": "${{ inputs.repos }}", "path": "${{ inputs.path }}", "allowed-repos": "org/*"},
-		"ambiguous current":      {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "current": true},
-		"wiki":                   {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*", "wiki": true},
-		"implicit app": {"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": "org/*",
+		"empty allowlist":        {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": []any{}},
+		"wrong allowlist":        {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": true},
+		"invalid entry":          {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": []any{true}},
+		"missing repos":          {"path": "targets", "multi": true, "allowed-repos": "org/*"},
+		"missing prefix":         {"repository": "${{ inputs.repos }}", "multi": true, "allowed-repos": "org/*"},
+		"root prefix":            {"repository": "${{ inputs.repos }}", "path": ".", "multi": true, "allowed-repos": "org/*"},
+		"expression prefix":      {"repository": "${{ inputs.repos }}", "path": "${{ inputs.path }}", "multi": true, "allowed-repos": "org/*"},
+		"ambiguous current":      {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*", "current": true},
+		"wiki":                   {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*", "wiki": true},
+		"implicit app": {"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": "org/*",
 			"github-app": map[string]any{"client-id": "123", "private-key": "${{ secrets.KEY }}"}},
 	} {
 		t.Run(name, func(t *testing.T) {
+			values["multi"] = true
 			_, err := checkoutConfigFromMap(values)
 			require.Error(t, err)
 		})
@@ -107,7 +108,7 @@ func TestRuntimeCheckoutRepositoryWildcards(t *testing.T) {
 			}
 			for _, repository := range []string{"org/repo", "org/a\norg/b", "${{ inputs.repos }}", "${{ join(needs.select.outputs.repos.*.name, '\n') }}"} {
 				_, err := checkoutConfigFromMap(map[string]any{
-					field: repository, "path": "targets", "allowed-repos": "org/*",
+					field: repository, "path": "targets", "multi": true, "allowed-repos": "org/*",
 				})
 				require.NoError(t, err)
 			}
@@ -120,24 +121,24 @@ func TestCompileRuntimeCheckoutRequiresAllowlist(t *testing.T) {
 		for _, value := range []string{"${{ inputs.repos }}", "org/${{ vars.REPO }}", "${{\n  vars.REPOS\n}}",
 			"${{ github.repository || inputs.repos }}", "${{ github.repository }}\norg/other", "${{ github.repository }}/other"} {
 			t.Run(field+"/"+value, func(t *testing.T) {
-				_, err := checkoutConfigFromMap(map[string]any{field: value, "path": "targets"})
-				require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
+				_, err := checkoutConfigFromMap(map[string]any{"multi": true, field: value, "path": "targets"})
+				require.ErrorContains(t, err, "requires checkout.allowed-repos")
 			})
 		}
 		t.Run(field+"/compiler", func(t *testing.T) {
 			dir := t.TempDir()
 			file := filepath.Join(dir, "worker.md")
-			content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  " + field + ": ${{ vars.REPOS }}\n  path: targets\n---\nProcess selected repositories.\n"
+			content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  multi: true\n  " + field + ": ${{ vars.REPOS }}\n  path: targets\n---\nProcess selected repositories.\n"
 			require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
 			err := NewCompiler().CompileWorkflow(file)
-			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
+			require.ErrorContains(t, err, "requires checkout.allowed-repos")
 			require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
 			_, err = NewCompiler().ParseWorkflowString(content, file)
-			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
+			require.ErrorContains(t, err, "requires checkout.allowed-repos")
 			_, err = NewCompiler().CompileToYAML(&WorkflowData{
-				CheckoutConfigs: []*CheckoutConfig{{Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true}},
+				CheckoutConfigs: []*CheckoutConfig{{Multi: true, Repository: "${{ vars.REPOS }}", Path: "targets", PathExplicit: true}},
 			}, file)
-			require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
+			require.ErrorContains(t, err, "requires checkout.allowed-repos")
 		})
 	}
 }
@@ -159,38 +160,39 @@ func TestRuntimeCheckoutWorkflowRepositoryException(t *testing.T) {
 			require.NoError(t, NewCompiler().CompileWorkflow(file))
 			lock, err := os.ReadFile(filepath.Join(dir, "worker.lock.yml"))
 			require.NoError(t, err)
-			assert.NotContains(t, string(lock), "checkout_dynamic.cjs")
+			assert.NotContains(t, string(lock), "GH_AW_DYNAMIC_REPOSITORIES")
+			assert.Contains(t, string(lock), "validateSingleRepository")
 			data, err := NewCompiler().ParseWorkflowString(content, file)
 			require.NoError(t, err)
 			_, err = NewCompiler().CompileToYAML(data, file)
 			require.NoError(t, err)
 		})
 	}
-	_, err := checkoutConfigFromMap(map[string]any{"repo": "${{ github.repository }}", "allowed-repos": "org/*"})
-	require.ErrorContains(t, err, "literal, non-root path prefix", "explicit allowlists still opt into runtime expansion")
+	_, err := checkoutConfigFromMap(map[string]any{"repo": "${{ github.repository }}", "multi": true, "allowed-repos": "org/*"})
+	require.ErrorContains(t, err, "literal, non-root path prefix", "explicit multi mode requires a prefix")
 }
 
 func TestCompileRuntimeCheckoutRejectsInvalidImportedAllowlist(t *testing.T) {
 	dir := t.TempDir()
-	shared := "---\ncheckout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n---\nShared checkout.\n"
+	shared := "---\ncheckout:\n  multi: true\n  repo: ${{ vars.REPOS }}\n  path: targets\n---\nShared checkout.\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte(shared), 0o644))
 	main := "---\non: workflow_dispatch\nengine: copilot\nimports:\n  - ./shared.md\n---\nProcess selected repositories.\n"
 	file := filepath.Join(dir, "worker.md")
 	require.NoError(t, os.WriteFile(file, []byte(main), 0o644))
 	err := NewCompiler().CompileWorkflow(file)
-	require.ErrorContains(t, err, "expressions require checkout.allowed-repos")
+	require.ErrorContains(t, err, "requires checkout.allowed-repos")
 	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
 }
 
 func TestRuntimeCheckoutRejectsLFS(t *testing.T) {
 	for _, repository := range []string{"${{ inputs.repos }}", "org/a\norg/b", "org/a"} {
 		_, err := checkoutConfigFromMap(map[string]any{
-			"repo": repository, "path": "targets", "allowed-repos": "org/*", "lfs": true,
+			"repo": repository, "path": "targets", "multi": true, "allowed-repos": "org/*", "lfs": true,
 		})
 		require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
 		_, err = NewCompiler().CompileToYAML(&WorkflowData{
 			CheckoutConfigs: []*CheckoutConfig{{
-				Repository: repository, Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, LFS: true,
+				Repository: repository, Path: "targets", PathExplicit: true, Multi: true, AllowedRepos: []string{"org/*"}, LFS: true,
 			}},
 		}, filepath.Join(t.TempDir(), "worker.md"))
 		require.ErrorContains(t, err, "LFS endpoints can bypass allowed-repos")
@@ -199,7 +201,7 @@ func TestRuntimeCheckoutRejectsLFS(t *testing.T) {
 	require.NoError(t, err, "static checkout LFS must remain supported")
 	dir := t.TempDir()
 	file := filepath.Join(dir, "worker.md")
-	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  lfs: true\n---\nProcess selected repositories.\n"
+	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  multi: true\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  lfs: true\n---\nProcess selected repositories.\n"
 	require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
 	require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "LFS endpoints can bypass allowed-repos")
 	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
@@ -211,21 +213,21 @@ func TestRuntimeCheckoutRejectsSubmodules(t *testing.T) {
 	for _, repository := range []string{"${{ inputs.repos }}", "org/a\norg/b", "org/a"} {
 		for _, submodules := range []any{true, "true", "recursive", "${{ inputs.submodules }}"} {
 			_, err := checkoutConfigFromMap(map[string]any{
-				"repo": repository, "path": "targets", "allowed-repos": "org/*", "submodules": submodules,
+				"repo": repository, "path": "targets", "multi": true, "allowed-repos": "org/*", "submodules": submodules,
 			})
 			require.ErrorContains(t, err, "submodule URLs can bypass allowed-repos")
 		}
 		for _, submodules := range []string{"true", "recursive", "${{ inputs.submodules }}"} {
 			_, err := NewCompiler().CompileToYAML(&WorkflowData{
 				CheckoutConfigs: []*CheckoutConfig{{
-					Repository: repository, Path: "targets", PathExplicit: true, AllowedRepos: []string{"org/*"}, Submodules: submodules,
+					Repository: repository, Path: "targets", PathExplicit: true, Multi: true, AllowedRepos: []string{"org/*"}, Submodules: submodules,
 				}},
 			}, filepath.Join(t.TempDir(), "worker.md"))
 			require.ErrorContains(t, err, "submodule URLs can bypass allowed-repos")
 		}
 		for _, submodules := range []any{false, "false", ""} {
 			_, err := checkoutConfigFromMap(map[string]any{
-				"repo": repository, "path": "targets", "allowed-repos": "org/*", "submodules": submodules,
+				"repo": repository, "path": "targets", "multi": true, "allowed-repos": "org/*", "submodules": submodules,
 			})
 			require.NoError(t, err)
 		}
@@ -238,7 +240,7 @@ func TestRuntimeCheckoutRejectsSubmodules(t *testing.T) {
 	}
 	dir := t.TempDir()
 	file := filepath.Join(dir, "worker.md")
-	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  submodules: recursive\n---\nProcess selected repositories.\n"
+	content := "---\non: workflow_dispatch\nengine: copilot\ncheckout:\n  multi: true\n  repo: ${{ vars.REPOS }}\n  path: targets\n  allowed-repos: org/*\n  submodules: recursive\n---\nProcess selected repositories.\n"
 	require.NoError(t, os.WriteFile(file, []byte(content), 0o644))
 	require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "submodule URLs can bypass allowed-repos")
 	require.NoFileExists(t, filepath.Join(dir, "worker.lock.yml"))
@@ -249,9 +251,9 @@ func TestRuntimeCheckoutRejectsSubmodules(t *testing.T) {
 func TestRuntimeCheckoutFailureOutputs(t *testing.T) {
 	configs := []*CheckoutConfig{
 		{Repository: "org/static", Path: "static"},
-		{Repository: "${{ vars.REPOS }}", Path: "targets", AllowedRepos: []string{"org/*"}},
-		{Repository: "${{ vars.REPOS }}", Path: "targets", AllowedRepos: []string{"org/*"}},
-		{Repository: "${{ vars.OTHER_REPOS }}", Path: "others", AllowedRepos: []string{"other/*"}},
+		{Repository: "${{ vars.REPOS }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}},
+		{Repository: "${{ vars.REPOS }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}},
+		{Repository: "${{ vars.OTHER_REPOS }}", Path: "others", Multi: true, AllowedRepos: []string{"other/*"}},
 	}
 	expected := "${{ steps.checkout-validate-1.outputs.checkout_error || steps.checkout-validate-2.outputs.checkout_error }}"
 	assert.Equal(t, expected, dynamicCheckoutFailureOutput(configs))
@@ -265,7 +267,7 @@ func TestRuntimeCheckoutFailureOutputs(t *testing.T) {
 
 func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	manager := NewCheckoutManager([]*CheckoutConfig{{
-		Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"},
+		Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"},
 		GitHubToken: "${{ secrets.CHECKOUT_TOKEN }}", Fetch: []string{"main"},
 	}})
 	pin := func(action string) string { return action + "@" + strings.Repeat("a", 40) + " # v7" }
@@ -291,13 +293,13 @@ func TestGenerateRuntimeCheckoutSteps(t *testing.T) {
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "true"`)
 	assert.Contains(t, steps, "await finish({ cleanCredentials: false });", "safe-output write credentials must remain available")
 	prompt := buildCheckoutsPromptContent([]*CheckoutConfig{{
-		Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"},
+		Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"},
 	}})
 	assert.Contains(t, prompt, "targets/<owner>/<repo>")
 	assert.NotContains(t, prompt, "${{ inputs.repos }}")
 
 	manager = NewCheckoutManager([]*CheckoutConfig{{
-		Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}, CleanGitCredentials: true,
+		Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}, CleanGitCredentials: true,
 	}})
 	steps = strings.Join(manager.GenerateAdditionalCheckoutSteps(pin), "")
 	assert.Contains(t, steps, `GH_AW_DYNAMIC_PERSIST: "true"`)
@@ -314,7 +316,8 @@ permissions:
   contents: read
 engine: copilot
 checkout:
-  - repo: ${{ vars.WORKER_REPOS }}
+  - multi: true
+    repo: ${{ vars.WORKER_REPOS }}
     path: targets
     allowed-repos: ["org/*"]
     max-repos: 3
@@ -349,8 +352,8 @@ Process each selected repository under targets.
 
 func TestRuntimeCheckoutAllowlistMerging(t *testing.T) {
 	manager := NewCheckoutManager([]*CheckoutConfig{
-		{Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/a"}},
-		{Repository: "${{ inputs.repos }}", Path: "targets", AllowedRepos: []string{"org/*"}},
+		{Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/a"}},
+		{Repository: "${{ inputs.repos }}", Path: "targets", Multi: true, AllowedRepos: []string{"org/*"}},
 	})
 	require.Len(t, manager.ordered, 1)
 	assert.Equal(t, []string{"org/a"}, manager.ordered[0].allowedRepos, "imports must not broaden the main workflow's allowlist")
@@ -359,13 +362,13 @@ func TestRuntimeCheckoutAllowlistMerging(t *testing.T) {
 func TestRuntimeCheckoutAllowedRepoPatterns(t *testing.T) {
 	for _, value := range []any{"*", " * ", "*/*", "**/**", "org/*\n*", "org/*,*", []any{"org/*", "*"}} {
 		_, err := checkoutConfigFromMap(map[string]any{
-			"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": value,
+			"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": value,
 		})
 		require.ErrorContains(t, err, "must not allow every repository")
 	}
 	for _, value := range []any{"org/*", "*/repo", "org/repo", []any{"org/*", "*/repo"}, "${{ vars.ALLOWED_REPOS }}"} {
 		_, err := checkoutConfigFromMap(map[string]any{
-			"repository": "${{ inputs.repos }}", "path": "targets", "allowed-repos": value,
+			"repository": "${{ inputs.repos }}", "path": "targets", "multi": true, "allowed-repos": value,
 		})
 		require.NoError(t, err)
 	}
@@ -383,7 +386,8 @@ on:
         required: true
 engine: copilot
 checkout:
-  - repository: ${{ inputs.repos }}
+  - multi: true
+    repository: ${{ inputs.repos }}
     path: targets
     allowed-repos: ${{ vars.ALLOWED_REPOS }}
 safe-outputs:
