@@ -98,6 +98,18 @@ const safeOutputsFiles = parseSetupShArray("SAFE_OUTPUTS_FILES");
 // Its deps must also be covered by SAFE_OUTPUTS_FILES
 const safeOutputsRoots = [...safeOutputsFiles, "safe-outputs-mcp-server.cjs"];
 
+describe("setup.sh isolated redaction dependencies", () => {
+  it.each([
+    ["MCP_SCRIPTS_FILES", mcpScriptsFiles],
+    ["SAFE_OUTPUTS_FILES", safeOutputsRoots],
+  ])("%s uses header collection without runner masking or telemetry export", (_name, roots) => {
+    const dependencies = collectTransitiveDeps(roots);
+    expect(dependencies.has("otlp_header_helpers.cjs")).toBe(true);
+    expect(dependencies.has("actions_secret_masking.cjs")).toBe(false);
+    expect(dependencies.has("send_otlp_span.cjs")).toBe(false);
+  });
+});
+
 describe("setup.sh MCP_SCRIPTS_FILES", () => {
   it("contains all transitive local dependencies", () => {
     const listed = new Set(mcpScriptsFiles);

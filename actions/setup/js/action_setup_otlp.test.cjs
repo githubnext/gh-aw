@@ -158,6 +158,25 @@ describe("action_setup_otlp.cjs", () => {
     expect(process.env[headerVariable]).toBe(headers.join(",Authorization=%invalid,"));
   });
 
+  it("registers escaped passwords and credentials from disabled endpoints before eval output can stream", async () => {
+    const password = 'synthetic-otlp-"password\\tail';
+    const decoded = `123456:${password}`;
+    const encoded = Buffer.from(decoded).toString("base64");
+    const headers = `Authorization=${encodeURIComponent(`Basic ${encoded}`)}`;
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "", headers }]);
+    mockSendJobSetupSpan.mockImplementationOnce(async () => {
+      for (const value of [password, decoded, encoded, JSON.stringify(password).slice(1, -1), encodeURIComponent(`Basic ${encoded}`)]) {
+        expect(mockCore.setSecret).toHaveBeenCalledWith(value);
+      }
+      return { traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID };
+    });
+
+    await run();
+
+    expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(password);
+    expect(JSON.parse(process.env.GH_AW_OTLP_ENDPOINTS || "[]")).toEqual([{ url: "", headers }]);
+  });
+
   describe("when GH_AW_OTLP_ENDPOINTS is not set", () => {
     it("should log that OTLP export is being skipped", async () => {
       await run();
