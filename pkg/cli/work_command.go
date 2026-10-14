@@ -34,7 +34,8 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		Use: "work-queue", Aliases: []string{"work"}, Short: "Inspect and publish the current fair Git-backed DAG work queue",
 		Long: "Inspect and publish the current fair Git-backed DAG work queue.\n\n" +
 			"Direct claim and operator finish are unsupported. Use dispatch-next for mandatory\n" +
-			"scheduler grants; only the originally bound worker may stage work_queue_claim_finish.\n" +
+			"scheduler grants, or dispatch to run a trusted dispatcher and launch assignments.\n" +
+			"Only the originally bound worker may stage work_queue_claim_finish.\n" +
 			"Use trace and historical explain for read-only provenance. compact normalizes\n" +
 			"representation without dropping history, resetting debt, or adopting legacy queues.",
 		Args: cobra.NoArgs,
@@ -56,7 +57,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
 	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
-		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(),
+		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
 		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
