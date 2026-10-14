@@ -1,13 +1,16 @@
 // @ts-check
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { createRequire } from "node:module";
-import { authorizeWorkerClaim, finalizeWorkerResults, main, readFinishIntent, reconcileWorkerClaim, verifyWithinBudget } from "./finish_work_queue_claim.cjs";
+import { authorizeWorkerClaim, finalizeWorkerResults, main, readFinishIntent, reconcileWorkerClaim, renderSummary, verifyWithinBudget } from "./finish_work_queue_claim.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { queueFixture, noWriteClaimVerifier, REF, REPOSITORY, WORKFLOW, DISPATCHER } from "./work_queue_lifecycle.test_helpers.cjs";
 
 const directories = [];
+beforeEach(() => {
+  vi.stubEnv("GH_AW_PROMPTS_DIR", path.resolve(import.meta.dirname, "../md"));
+});
 function setup(count = 3, fixtureOptions = {}) {
   const fixture = queueFixture({ bound: true, count, ...fixtureOptions });
   const directory = fs.mkdtempSync(path.join(fs.realpathSync(process.cwd()), ".gh-aw-queue-finish-"));
@@ -32,10 +35,21 @@ function finish(options, handle, outcome, id = `${handle}:${outcome}`, keep_open
   );
 }
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
 describe("independent trusted Claim finalization", () => {
+  it.each([{}, { h1: { authorized: true }, h2: { authorized: false } }])("collapses reconciliation with two empty lines before subsequent Markdown: %j", claims => {
+    const summary = renderSummary({ claims });
+    expect(summary).toMatch(/^<details>\n<summary>Work queue reconciliation<\/summary>\n\n### Independent Claim reconciliation\n\n/);
+    expect(summary).not.toContain("<details open");
+    expect(summary).toMatch(/<\/details>\n\n\n$/);
+    expect(summary + "### Next section").toContain("</details>\n\n\n### Next section");
+    expect(summary).toContain(`${Object.values(claims).filter(claim => claim.authorized).length} Claims may process scoped effects`);
+    expect(summary).toContain(`${Object.values(claims).filter(claim => !claim.authorized).length} Claims are cancelled, settled or blocked`);
+  });
+
   it("finalizes retained Claims once without completing Work and suppresses their historical effects after regrant", async () => {
     const { fixture, options } = setup(3);
     finish(options, "h1", "completed", "retained", true);
