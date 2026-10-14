@@ -37,6 +37,25 @@ describe("memory_custom_validation", () => {
     expect(result.stdout).toContain("domain ok");
   });
 
+  it.each(["baseline", "upload", "push"])("provides runtime-controlled %s phase metadata", phase => {
+    const result = runCustomMemoryValidation({
+      script: `if (memoryPhase !== ${JSON.stringify(phase)}) throw new Error("incorrect phase");`,
+      memoryDir: tempDir,
+      kind: "repo",
+      phase,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("defaults existing validator callers to the upload phase", () => {
+    const result = runCustomMemoryValidation({
+      script: 'if (memoryPhase !== "upload") throw new Error("incorrect default phase");',
+      memoryDir: tempDir,
+      kind: "cache",
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it("filters the disposable validation copy without changing sibling files", () => {
     fs.mkdirSync(path.join(tempDir, "nested"));
     fs.mkdirSync(path.join(tempDir, "sibling-only"));

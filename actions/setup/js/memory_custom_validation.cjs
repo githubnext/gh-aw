@@ -710,6 +710,7 @@ try {
  *   memoryDir: string,
  *   memoryId?: string,
  *   kind: "repo" | "cache" | "drive",
+ *   phase?: "baseline" | "upload" | "push",
  *   timeoutSeconds?: number,
  *   isEligibleFile?: (relativePath: string) => boolean,
  * }} options
@@ -817,6 +818,7 @@ const memoryRoot = ${JSON.stringify(validationMemoryDir)};
 const memoryDir = memoryRoot;
 const memoryId = ${JSON.stringify(memoryId)};
 const memoryKind = ${JSON.stringify(options.kind)};
+const memoryPhase = ${JSON.stringify(options.phase || "upload")};
 process.env.GH_AW_MEMORY_ROOT = memoryRoot;
 process.env.GH_AW_MEMORY_DIR = memoryRoot;
 process.env.GH_AW_MEMORY_ID = memoryId;
