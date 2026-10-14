@@ -10,6 +10,7 @@
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { parseRuntimeFeatures, hasRuntimeFeature, getRuntimeFeatureValue } = require("./runtime_features.cjs");
 const { GITHUB_API_VERSION } = require("./constants.cjs");
+const { registerStaticQueueAuthentication } = require("./work_queue_auth_cache.cjs");
 
 /**
  * @param {Record<string, string | number | undefined>} headers
@@ -85,7 +86,9 @@ function setupGlobals(coreModule, githubModule, contextModule, execModule, ioMod
     client.hook.before("request", requestOptions => {
       applyGitHubApiVersion(requestOptions.headers, clientOptions.headers);
     });
-    return createRateLimitAwareGithub(client, source);
+    const instrumented = createRateLimitAwareGithub(client, source);
+    if (!clientOptions.authStrategy) registerStaticQueueAuthentication(instrumented, token);
+    return instrumented;
   };
 }
 
