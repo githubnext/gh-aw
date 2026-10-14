@@ -10,11 +10,10 @@ const LOG_PATHS = [
   "sandbox/firewall/audit/api-proxy-logs/events.jsonl",
   "sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl",
   "sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl",
-  "sandbox/firewall/logs/api-proxy-logs/token-tracker-audit.jsonl",
-  "sandbox/firewall/audit/api-proxy-logs/token-tracker-audit.jsonl",
   "sandbox/firewall/logs/audit.jsonl",
   "sandbox/firewall/audit/log.jsonl",
 ];
+const TRACKER_PATHS = ["sandbox/firewall/logs/api-proxy-logs/token-tracker-audit.jsonl", "sandbox/firewall/audit/api-proxy-logs/token-tracker-audit.jsonl"];
 const USAGE_PATH = "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 
 function readJSON(directory, name) {
@@ -80,19 +79,34 @@ function verifyCreditLimit(directory, expected = { runId: process.env.GITHUB_RUN
       ) {
         throw new Error("Firewall rejection repository/run/attempt does not match this verification job; enforcement remains unverified.");
       }
-      if (entry?.event === "ai_credits_limit_exceeded" && entry.max_ai_credits === 1 && typeof entry.total_ai_credits === "number" && Number.isFinite(entry.total_ai_credits) && entry.total_ai_credits >= 1 && entry.hard_cap === false) {
+      if (entry.max_ai_credits === 1 && typeof entry.total_ai_credits === "number" && Number.isFinite(entry.total_ai_credits) && entry.total_ai_credits >= 1 && entry.hard_cap === false) {
         rejectionFound = true;
       } else {
         mismatchedRejections++;
       }
     }
   }
-  const usage = readJSONL(directory, USAGE_PATH);
+  if (rejectionFound && mismatchedRejections) {
+    throw new Error("Firewall credit rejection records contain invalid cap, usage or hard_cap fields; enforcement remains unverified.");
+  }
   if (!rejectionFound) {
     const diagnostics = [`Inspected ${observedRecords} records in ${observedFiles} candidate firewall files.`];
-    if (observedFiles === 0) diagnostics.push("Runtime evidence may be missing: no candidate firewall event/audit/tracker file was collected.");
+    if (observedFiles === 0) diagnostics.push("Runtime evidence may be missing: no candidate firewall event/audit file was collected.");
     else diagnostics.push("Collected firewall evidence contains no qualifying structured rejection; check AWF rejection-event emission and artifact collection, not just workload duration.");
     if (mismatchedRejections) diagnostics.push(`${mismatchedRejections} credit rejection records had invalid cap, usage or hard_cap fields.`);
+    const readDiagnostic = relativePath => {
+      try {
+        return readJSONL(directory, relativePath);
+      } catch {
+        diagnostics.push(`Invalid diagnostic JSONL in ${relativePath}; diagnostic data is not rejection evidence.`);
+        return null;
+      }
+    };
+    for (const relativePath of TRACKER_PATHS) {
+      const tracker = readDiagnostic(relativePath);
+      if (tracker !== null) diagnostics.push(`Collected ${tracker.length} token-tracker diagnostic records; tracker data is not rejection evidence.`);
+    }
+    const usage = readDiagnostic(USAGE_PATH);
     const totals = (usage || []).filter(entry => entry?.event === "token_usage" && typeof entry.ai_credits_total === "number" && Number.isFinite(entry.ai_credits_total) && entry.ai_credits_total >= 0);
     if (totals.length) {
       const total = totals[totals.length - 1].ai_credits_total;
@@ -133,4 +147,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { LOG_PATHS, USAGE_PATH, verifyCreditLimit };
+module.exports = { LOG_PATHS, TRACKER_PATHS, USAGE_PATH, verifyCreditLimit };

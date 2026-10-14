@@ -58,6 +58,11 @@ jobs:
         with:
           name: agent
           path: /tmp/gh-aw/
+      - name: Download run identity
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: info
+          path: /tmp/gh-aw/
       - name: Verify per-run credit rejection
         run: node .github/scripts/check-max-ai-credits.cjs /tmp/gh-aw/
 ---
@@ -71,7 +76,8 @@ jobs:
 > `ai_credits_limit_exceeded` event for the configured cap of 1 AI credit.
 > Assistant text, a successful exit, `noop`, and credit totals alone are not
 > evidence that the firewall rejected a request. The verifier binds the artifact
-> to this repository, run ID and run attempt. If structured rejection evidence
+> to this repository, run ID and run attempt using `aw_info.json` from the
+> same run's separate `info` artifact. If structured rejection evidence
 > is missing, it reports the collected firewall record count, last AWF usage
 > total and any top-level Codex terminal credit rejection separately. These
 > diagnostics never turn an unverified outcome into a pass.

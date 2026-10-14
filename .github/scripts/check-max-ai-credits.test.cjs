@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
-const { LOG_PATHS, USAGE_PATH, verifyCreditLimit: verify } = require("./check-max-ai-credits.cjs");
+const { LOG_PATHS, TRACKER_PATHS, USAGE_PATH, verifyCreditLimit: verify } = require("./check-max-ai-credits.cjs");
 const expected = { runId: "38556022048", runAttempt: "1", repository: "github/gh-aw" };
 const verifyCreditLimit = directory => verify(directory, expected);
 const captured = require("./fixtures/max-ai-credits-rejection-38556022048.json");
@@ -132,9 +132,12 @@ test("CLI exits nonzero for unexpected completion and writes a summary only on p
       encoding: "utf8",
       env: { ...process.env, GITHUB_STEP_SUMMARY: summary, GITHUB_RUN_ID: expected.runId, GITHUB_RUN_ATTEMPT: expected.runAttempt, GITHUB_REPOSITORY: expected.repository },
     });
+  for (const diagnosticPath of [...TRACKER_PATHS, USAGE_PATH]) write(diagnosticPath, "PRIVATE_PAYLOAD");
   const failed = run();
   assert.equal(failed.status, 1);
   assert.match(failed.stderr, /enforcement remains unverified/);
+  assert.doesNotMatch(failed.stderr, /PRIVATE_PAYLOAD/);
+  assert.ok(failed.stderr.length < 2000);
   assert.equal(fs.existsSync(summary), false);
   write(LOG_PATHS[0], JSON.stringify(rejection));
   const passed = run();
@@ -145,17 +148,14 @@ test("CLI exits nonzero for unexpected completion and writes a summary only on p
 test("captured genuine Codex rejection remains unverified without a structured AWF rejection", t => {
   const { directory, write } = fixture(t);
   write("awf-config.json", JSON.stringify(captured.config));
-  write(
-    LOG_PATHS.find(name => name.includes("token-tracker-audit")),
-    captured.tracker.map(entry => JSON.stringify(entry)).join("\n")
-  );
+  write(TRACKER_PATHS[0], captured.tracker.map(entry => JSON.stringify(entry)).join("\n"));
   write(USAGE_PATH, JSON.stringify(captured.usage));
   write("agent-stdio.log", JSON.stringify(captured.terminalError));
   assert.throws(
     () => verifyCreditLimit(directory),
     error =>
-      /Inspected 2 records in 1 candidate firewall files/.test(error.message) &&
-      /check AWF rejection-event emission and artifact collection/.test(error.message) &&
+      /Inspected 0 records in 0 candidate firewall files/.test(error.message) &&
+      /Collected 2 token-tracker diagnostic records/.test(error.message) &&
       /Last AWF token_usage total: 1.021966 \(at\/above cap 1\)/.test(error.message) &&
       /Codex terminal API error reports credit rejection \(1.021966 \/ 1\)/.test(error.message) &&
       /enforcement remains unverified/.test(error.message)
@@ -192,15 +192,72 @@ test("verification requires an independently supplied expected run identity", t 
   );
 });
 
-test("malformed tracker or usage evidence fails even after a valid rejection", t => {
+test("event-local run labels do not replace required generated artifact provenance", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify({ ...rejection, run_id: expected.runId, run_attempt: expected.runAttempt, repository: expected.repository }));
+  fs.rmSync(path.join(directory, "aw_info.json"));
+  assert.throws(() => verifyCreditLimit(directory), /Missing aw_info.json/);
+});
+
+test("malformed optional tracker and usage diagnostics cannot override a valid rejection", t => {
   const { directory, write } = fixture(t);
   write(LOG_PATHS[0], JSON.stringify(rejection));
-  const trackerPath = LOG_PATHS.find(name => name.includes("token-tracker-audit"));
-  write(trackerPath, "PRIVATE_PAYLOAD");
-  assert.throws(() => verifyCreditLimit(directory), /Invalid firewall JSONL.*token-tracker-audit/);
-  write(trackerPath, "");
+  for (const trackerPath of TRACKER_PATHS) write(trackerPath, "PRIVATE_PAYLOAD");
+  assert.match(verifyCreditLimit(directory), /^Passed:/);
   write(USAGE_PATH, "PRIVATE_PAYLOAD");
-  assert.throws(() => verifyCreditLimit(directory), /Invalid firewall JSONL.*token-usage/);
+  assert.match(verifyCreditLimit(directory), /^Passed:/);
+});
+
+test("missing proof stays unverified with bounded, private-text-free malformed diagnostics", t => {
+  const { directory, write } = fixture(t);
+  for (const diagnosticPath of [...TRACKER_PATHS, USAGE_PATH]) write(diagnosticPath, "PRIVATE_PAYLOAD".repeat(10000));
+  assert.throws(
+    () => verifyCreditLimit(directory),
+    error =>
+      /No AWF per-run credit rejection/.test(error.message) &&
+      /Invalid diagnostic JSONL/.test(error.message) &&
+      /enforcement remains unverified/.test(error.message) &&
+      !error.message.includes("PRIVATE_PAYLOAD") &&
+      error.message.length < 2000
+  );
+});
+
+for (const trackerPath of TRACKER_PATHS) {
+  test(`diagnostic-only tracker records cannot prove rejection in ${trackerPath}`, t => {
+    const { directory, write } = fixture(t);
+    write(trackerPath, [...captured.tracker, rejection].map(entry => JSON.stringify(entry)).join("\n"));
+    assert.throws(() => verifyCreditLimit(directory), /No AWF per-run credit rejection/);
+  });
+}
+
+for (const invalid of [
+  { ...rejection, max_ai_credits: 2 },
+  { ...rejection, total_ai_credits: "1.02" },
+  { ...rejection, hard_cap: true },
+]) {
+  test(`invalid authoritative rejection still fails after valid proof ${JSON.stringify(invalid)}`, t => {
+    const { directory, write } = fixture(t);
+    write(LOG_PATHS[0], JSON.stringify(rejection));
+    write(LOG_PATHS[1], JSON.stringify(invalid));
+    assert.throws(() => verifyCreditLimit(directory), /invalid cap, usage or hard_cap fields/);
+  });
+}
+
+test("malformed later authoritative proof file still fails after a valid rejection", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify(rejection));
+  write(LOG_PATHS[1], "PRIVATE_PAYLOAD");
+  assert.throws(
+    () => verifyCreditLimit(directory),
+    error => /Invalid firewall JSONL/.test(error.message) && !error.message.includes("PRIVATE_PAYLOAD")
+  );
+});
+
+test("a later authoritative proof file with a conflicting identity still fails", t => {
+  const { directory, write } = fixture(t);
+  write(LOG_PATHS[0], JSON.stringify(rejection));
+  write(LOG_PATHS[1], JSON.stringify({ ...rejection, run_id: "38242557753" }));
+  assert.throws(() => verifyCreditLimit(directory), /Firewall rejection repository\/run\/attempt does not match/);
 });
 
 for (const entry of [
