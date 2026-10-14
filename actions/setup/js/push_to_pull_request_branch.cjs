@@ -1100,11 +1100,12 @@ async function main(config = {}) {
           // Resolve from GitHub metadata and fetch from the target checkout's
           // origin, never from agent-supplied refs or patch headers.
           let trustedBase = "";
-          const baseSha = pullRequest.base?.sha;
-          if (!signedCommits && typeof baseSha === "string" && /^[0-9a-f]{40}$/.test(baseSha)) {
+          const baseRef = pullRequest.base?.ref;
+          if (!signedCommits && typeof baseRef === "string" && baseRef) {
             try {
-              await exec.exec("git", ["fetch", "origin", baseSha], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
-              trustedBase = baseSha;
+              await exec.exec("git", ["fetch", "origin", `refs/heads/${baseRef}`], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
+              const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], baseGitOpts);
+              if (/^[0-9a-f]{40}$/.test(stdout.trim())) trustedBase = stdout.trim();
             } catch (baseFetchError) {
               core.warning(`Unable to fetch trusted PR base; using PR-head validation: ${getErrorMessage(baseFetchError)}`);
             }
@@ -1185,7 +1186,21 @@ async function main(config = {}) {
             }
           }
           core.info(`Fetched bundle to ${bundleRef}`);
-          const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
+          let validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
+          const workflowSha = process.env.GITHUB_SHA;
+          if (trustedBase && validationBase.ref === rangeBaseRef && typeof workflowSha === "string" && /^[0-9a-f]{40}$/.test(workflowSha) && workflowSha !== trustedBase) {
+            try {
+              // A run SHA is trusted only if it belongs to the fetched base branch,
+              // not an agent-controlled PR head or a pull_request merge ref.
+              const runOnBase = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", workflowSha, trustedBase], { ...baseGitOpts, ignoreReturnCode: true });
+              if (runOnBase.exitCode === 0) {
+                validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, workflowSha);
+                if (validationBase.ref !== rangeBaseRef) trustedBase = workflowSha;
+              }
+            } catch {
+              core.warning("Unable to verify workflow SHA on the trusted base branch; using PR-head validation");
+            }
+          }
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
           const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;

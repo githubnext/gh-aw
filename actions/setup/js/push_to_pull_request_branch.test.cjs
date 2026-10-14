@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { spawnSync } from "child_process";
 
 const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
 const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
@@ -2344,9 +2345,12 @@ index 0000000..abc1234
       const changedPath = path.join(process.cwd(), "merge-agent.txt");
       fs.writeFileSync(changedPath, Buffer.alloc(contentSize));
       const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.sha = trustedBase;
+      pr.base.ref = "main";
+      pr.base.sha = "d".repeat(40);
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}") return { exitCode: 0, stdout: trustedBase + "\n", stderr: "" };
         if (args[0] === "merge-base") {
+          if (args[2] === pr.base.sha) return { exitCode: 0, stdout: "", stderr: "" };
           return { exitCode: args[3] === "remote-head" ? 1 : 0, stdout: "", stderr: "" };
         }
         if (args[0] === "merge-tree") {
@@ -2375,7 +2379,8 @@ index 0000000..abc1234
           expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "remote-head", signedCommits: false }));
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
         }
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.any(Object));
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", pr.base.sha], expect.any(Object));
         if (expectedError === "bundle modifies protected files") {
           const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
@@ -2390,6 +2395,73 @@ index 0000000..abc1234
       } finally {
         pushSpy.mockRestore();
         fs.rmSync(changedPath, { force: true });
+      }
+    });
+
+    it.each([
+      ["current base tip", false, false],
+      ["workflow-start base commit after the branch advances", true, false],
+      ["untrusted workflow SHA", true, true],
+    ])("resolves a real git baseline with merge-base PR metadata (%s)", async (_name, baseAdvanced, untrustedRun) => {
+      const git = (args, allowFailure = false) => {
+        const result = spawnSync("git", args, { cwd: tempDir, encoding: "utf8" });
+        if (result.error) throw result.error;
+        if (!allowFailure && result.status !== 0) throw new Error(result.stderr);
+        return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+      };
+      git(["init", "-b", "main"]);
+      git(["config", "user.name", "Test User"]);
+      git(["config", "user.email", "test@example.com"]);
+      git(["commit", "--allow-empty", "-m", "common base"]);
+      const mergeBase = git(["rev-parse", "HEAD"]).stdout.trim();
+      git(["checkout", "-b", "remote-head"]);
+      git(["commit", "--allow-empty", "-m", "old PR head"]);
+      git(["checkout", "main"]);
+      fs.writeFileSync(path.join(tempDir, "package.json"), "{}\n");
+      git(["add", "."]);
+      git(["commit", "-m", "trusted base changes"]);
+      const mergedBase = git(["rev-parse", "HEAD"]).stdout.trim();
+      git(["checkout", "-b", "candidate", "remote-head"]);
+      git(["merge", "--no-ff", "main", "-m", "merge base"]);
+      const candidate = git(["rev-parse", "HEAD"]).stdout.trim();
+      git(["update-ref", "refs/bundles/push-feature-branch", candidate]);
+      if (baseAdvanced) {
+        git(["checkout", "main"]);
+        git(["commit", "--allow-empty", "-m", "base advances after agent merge"]);
+        git(["checkout", "candidate"]);
+      }
+      git(["remote", "add", "origin", tempDir]);
+      process.env.GITHUB_SHA = untrustedRun ? candidate : mergedBase;
+      const pr = (await mockGithub.rest.pulls.get()).data;
+      pr.base.ref = "main";
+      pr.base.sha = mergeBase;
+      expect(git(["merge-base", "remote-head", "main"]).stdout.trim()).toBe(pr.base.sha);
+      mockExec.exec.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "fetch" && args[2] === "refs/heads/main") return git(args).exitCode;
+        return 0;
+      });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "merge-base" || args[0] === "merge-tree" || (args[0] === "rev-parse" && args[2] === "FETCH_HEAD^{commit}")) return git(args, true);
+        if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      const branch = "real-merge-base-metadata";
+      createPatchFile(branch, "small patch\n");
+      fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
+      const pushModule = require("./push_signed_commits.cjs");
+      const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue(candidate);
+      try {
+        const module = await loadModule();
+        const handler = await module.main({ signed_commits: false });
+        expect((await handler({ branch }, {})).success).toBe(true);
+        const validationTree = git(["merge-tree", "--write-tree", "remote-head", mergedBase]).stdout.trim();
+        const baseline = untrustedRun ? "remote-head" : validationTree;
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${baseline}..refs/bundles/push-feature-branch`], expect.any(Object));
+        const historyExclusions = untrustedRun ? ["remote-head"] : ["remote-head", mergedBase];
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
+        expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" && args[2] === pr.base.sha)).toBe(false);
+      } finally {
+        pushSpy.mockRestore();
       }
     });
 
@@ -2423,9 +2495,9 @@ index 0000000..abc1234
       createPatchFile(branch, "x".repeat(4096));
       fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
       const pr = (await mockGithub.rest.pulls.get()).data;
-      pr.base.sha = "b".repeat(40);
+      pr.base.ref = "main";
       mockExec.exec.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "fetch" && args[2] === pr.base.sha) throw new Error("base unavailable");
+        if (args[0] === "fetch" && args[2] === "refs/heads/main") throw new Error("base unavailable");
         return 0;
       });
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
