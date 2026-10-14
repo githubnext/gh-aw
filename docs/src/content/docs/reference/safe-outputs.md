@@ -1620,7 +1620,7 @@ safe-outputs:
 
 When configured, `required-labels` checks that every listed label is still present on the target issue or pull request immediately before the agent is assigned.
 
-`reasoning-effort` accepts `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`, as well as GitHub Actions expressions. Valid values are forwarded without enforcing model-specific capabilities; invalid runtime values produce a warning and are omitted without failing assignment.
+`reasoning-effort` accepts `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`, as well as GitHub Actions expressions. Values are forwarded only when supported by the selected model; unsupported values are omitted with a warning so the model default is used. For example, `gemini-3.8-flash` does not support reasoning effort. Invalid runtime values also produce a warning and are omitted without failing assignment.
 
 See **[Copilot Cloud Agent](/gh-aw/reference/copilot-cloud-agent/#assign-to-agent)** for complete configuration options and authorization setup.
 

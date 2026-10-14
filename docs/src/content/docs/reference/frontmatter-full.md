@@ -14690,9 +14690,10 @@ safe-outputs:
     # (optional)
     model: "example-value"
 
-    # Optional reasoning effort to forward without model-specific capability checks.
-    # Supports none, minimal, low, medium, high, xhigh, and GitHub Actions
-    # expressions. Invalid runtime values are ignored with a warning.
+    # Optional reasoning effort. Supports none, minimal, low, medium, high, xhigh, and
+    # GitHub Actions expressions. Values unsupported by the selected model (including
+    # all values for gemini-3.8-flash) are ignored with a warning so the model default
+    # is used. Invalid runtime values are also ignored with a warning.
     # (optional)
     reasoning-effort: "example-value"
 
