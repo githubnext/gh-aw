@@ -139,18 +139,33 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef,
  */
 async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, trustedBase) {
   const fallback = { ref: oldHead, conflictedFiles: [] };
-  if (!trustedBase) return fallback;
+  if (!trustedBase) {
+    core.debug("Bundle validation: no trusted base available; using PR-head validation");
+    return fallback;
+  }
   try {
-    const opts = { ...gitOptions, ignoreReturnCode: true };
+    const opts = { ...gitOptions, ignoreReturnCode: true, silent: true };
     const oldAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", oldHead, candidate], opts);
     const baseAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, candidate], opts);
     const alreadyMerged = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, oldHead], opts);
-    if (oldAncestor.exitCode !== 0 || baseAncestor.exitCode !== 0 || alreadyMerged.exitCode !== 1) return fallback;
+    if (oldAncestor.exitCode !== 0) {
+      core.debug("Bundle validation: candidate does not descend from PR head or ancestry is unavailable; using PR-head validation");
+      return fallback;
+    }
+    if (baseAncestor.exitCode !== 0) {
+      core.debug("Bundle validation: candidate does not include trusted base or ancestry is unavailable; using PR-head validation");
+      return fallback;
+    }
+    if (alreadyMerged.exitCode !== 1) {
+      core.debug("Bundle validation: trusted base is already in PR head or ancestry is unavailable; using PR-head validation");
+      return fallback;
+    }
 
     const merge = await exec.getExecOutput("git", ["merge-tree", "--write-tree", "--name-only", "-z", oldHead, trustedBase], opts);
     const [tree, ...fields] = merge.stdout.split("\0");
     if ((merge.exitCode === 0 || merge.exitCode === 1) && /^[0-9a-f]{40}$/.test(tree)) {
       const separatorIndex = fields.indexOf("");
+      core.debug(merge.exitCode === 1 ? "Bundle validation: trusted-base merge tree selected with conflicts" : "Bundle validation: trusted-base merge tree selected without conflicts");
       return {
         ref: tree,
         conflictedFiles: merge.exitCode === 1 ? fields.slice(0, separatorIndex === -1 ? fields.length : separatorIndex) : [],
@@ -1103,12 +1118,19 @@ async function main(config = {}) {
           const baseRef = pullRequest.base?.ref;
           if (!signedCommits && typeof baseRef === "string" && baseRef) {
             try {
-              await exec.exec("git", ["fetch", "origin", `refs/heads/${baseRef}`], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
-              const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], baseGitOpts);
-              if (/^[0-9a-f]{40}$/.test(stdout.trim())) trustedBase = stdout.trim();
-            } catch (baseFetchError) {
-              core.warning(`Unable to fetch trusted PR base; using PR-head validation: ${getErrorMessage(baseFetchError)}`);
+              await exec.exec("git", ["fetch", "origin", `refs/heads/${baseRef}`], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts, silent: true });
+              const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], { ...baseGitOpts, silent: true });
+              if (/^[0-9a-f]{40}$/.test(stdout.trim())) {
+                trustedBase = stdout.trim();
+                core.debug("Bundle validation: fetched trusted base branch tip");
+              } else {
+                core.debug("Bundle validation: fetched base tip is invalid; using PR-head validation");
+              }
+            } catch {
+              core.warning("Unable to fetch trusted PR base; using PR-head validation");
             }
+          } else {
+            core.debug(signedCommits ? "Bundle validation: trusted-base resolution skipped for signed commits" : "Bundle validation: trusted-base resolution skipped because base branch metadata is unavailable");
           }
           await ensureFullHistoryForBundle(
             exec,
@@ -1189,23 +1211,39 @@ async function main(config = {}) {
           let validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           const workflowSha = process.env.GITHUB_SHA;
           if (trustedBase && validationBase.ref === rangeBaseRef && typeof workflowSha === "string" && /^[0-9a-f]{40}$/.test(workflowSha) && workflowSha !== trustedBase) {
+            core.debug("Bundle validation: checking workflow-start base fallback");
             try {
               // A run SHA is trusted only if it belongs to the fetched base branch,
               // not an agent-controlled PR head or a pull_request merge ref.
-              const runOnBase = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", workflowSha, trustedBase], { ...baseGitOpts, ignoreReturnCode: true });
+              const runOnBase = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", workflowSha, trustedBase], { ...baseGitOpts, ignoreReturnCode: true, silent: true });
               if (runOnBase.exitCode === 0) {
                 validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, workflowSha);
-                if (validationBase.ref !== rangeBaseRef) trustedBase = workflowSha;
+                if (validationBase.ref !== rangeBaseRef) {
+                  trustedBase = workflowSha;
+                  core.debug("Bundle validation: workflow-start base fallback selected");
+                } else {
+                  core.debug("Bundle validation: workflow-start base fallback did not establish a baseline");
+                }
+              } else {
+                core.debug("Bundle validation: workflow-start base fallback rejected because base-branch ancestry is unverified");
               }
             } catch {
               core.warning("Unable to verify workflow SHA on the trusted base branch; using PR-head validation");
             }
+          } else {
+            core.debug(
+              validationBase.ref !== rangeBaseRef
+                ? "Bundle validation: workflow-start base fallback skipped because base tip established a baseline"
+                : "Bundle validation: workflow-start base fallback skipped because no distinct valid workflow base is available"
+            );
           }
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
           const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;
           if (trustedBaseInValidationBase) {
-            core.info(`Bundle validation baseline includes trusted base ${trustedBase}: ${validationBaseRef}`);
+            core.info("Bundle validation baseline includes trusted base changes");
+          } else {
+            core.info("Bundle validation baseline uses PR head");
           }
           const agentHistoryExclusions = [rangeBaseRef];
           if (trustedBaseInValidationBase) agentHistoryExclusions.push(trustedBase);

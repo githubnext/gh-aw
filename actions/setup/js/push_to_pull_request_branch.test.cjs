@@ -2460,9 +2460,43 @@ index 0000000..abc1234
         const historyExclusions = untrustedRun ? ["remote-head"] : ["remote-head", mergedBase];
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
         expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "merge-base" && args[2] === pr.base.sha)).toBe(false);
+        expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: fetched trusted base branch tip");
+        expect(mockCore.info).toHaveBeenCalledWith(untrustedRun ? "Bundle validation baseline uses PR head" : "Bundle validation baseline includes trusted base changes");
+        expect(mockCore.debug).toHaveBeenCalledWith(
+          untrustedRun
+            ? "Bundle validation: workflow-start base fallback rejected because base-branch ancestry is unverified"
+            : baseAdvanced
+              ? "Bundle validation: workflow-start base fallback selected"
+              : "Bundle validation: workflow-start base fallback skipped because base tip established a baseline"
+        );
+        const baselineLogs = [...mockCore.debug.mock.calls, ...mockCore.info.mock.calls, ...mockCore.warning.mock.calls].map(([message]) => message).filter(message => message.startsWith("Bundle validation"));
+        for (const message of baselineLogs) {
+          expect(message).not.toMatch(/[0-9a-f]{40}/);
+          expect(message).not.toContain("remote-head");
+          expect(message).not.toContain("refs/");
+        }
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
+        for (const [, args, options] of mockExec.getExecOutput.mock.calls) {
+          if (args[0] === "merge-base" || args[0] === "merge-tree" || args[2] === "FETCH_HEAD^{commit}") expect(options.silent).toBe(true);
+        }
       } finally {
         pushSpy.mockRestore();
       }
+    });
+
+    it.each([
+      ["", 0, 0, 1, "no trusted base available"],
+      ["trusted-base", 1, 0, 1, "candidate does not descend from PR head"],
+      ["trusted-base", 0, 1, 1, "candidate does not include trusted base"],
+      ["trusted-base", 0, 0, 0, "trusted base is already in PR head"],
+      ["trusted-base", 0, 0, 128, "trusted base is already in PR head"],
+    ])("logs the conservative baseline decision without refs (%s, %s, %s, %s)", async (trustedBase, oldAncestor, baseAncestor, alreadyMerged, reason) => {
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: oldAncestor }).mockResolvedValueOnce({ exitCode: baseAncestor }).mockResolvedValueOnce({ exitCode: alreadyMerged });
+      const module = await loadModule();
+      expect(await module.getBundleValidationBase(mockExec, {}, "private-old-head", "private-candidate", trustedBase)).toEqual({ ref: "private-old-head", conflictedFiles: [] });
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining(reason));
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("using PR-head validation"));
+      expect(mockCore.debug.mock.calls.flat().join(" ")).not.toMatch(/private-|trusted-base/);
     });
 
     it.each([128, "throw"])("retains the PR-head baseline when merge-tree fails (%s)", async failure => {
@@ -2488,6 +2522,8 @@ index 0000000..abc1234
         ref: validationTree,
         conflictedFiles: ["only-conflict.txt"],
       });
+      expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: trusted-base merge tree selected with conflicts");
+      expect(mockCore.debug.mock.calls.flat().join(" ")).not.toContain("only-conflict.txt");
     });
 
     it("retains the preview size limit when the trusted base fetch fails", async () => {
@@ -2497,7 +2533,7 @@ index 0000000..abc1234
       const pr = (await mockGithub.rest.pulls.get()).data;
       pr.base.ref = "main";
       mockExec.exec.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "fetch" && args[2] === "refs/heads/main") throw new Error("base unavailable");
+        if (args[0] === "fetch" && args[2] === "refs/heads/main") throw new Error("private remote details");
         return 0;
       });
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
@@ -2509,6 +2545,8 @@ index 0000000..abc1234
       const result = await handler({ branch, diff_size: 0 }, {});
       expect(result.success).toBe(false);
       expect(result.error).toContain("Patch size");
+      expect(mockCore.warning).toHaveBeenCalledWith("Unable to fetch trusted PR base; using PR-head validation");
+      expect(mockCore.warning.mock.calls.flat().join(" ")).not.toContain("private remote details");
       expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "update-ref" && args[1] === "refs/heads/feature-branch")).toBe(false);
     });
 
