@@ -345,6 +345,31 @@ func TestWorkQueueCurrentFinishIntents(t *testing.T) {
 	assert.JSONEq(t, `{"intent_id":"i","claim_handle":"h1","outcome":"completed","keep_open":true}`, string(serialized))
 }
 
+func TestNormalizeCurrentWorkQueueFinishIntent(t *testing.T) {
+	t.Parallel()
+	for _, scenario := range []struct {
+		name       string
+		fields     map[string]json.RawMessage
+		parameters map[string]json.RawMessage
+		valid      bool
+	}{
+		{"explicit false", map[string]json.RawMessage{}, map[string]json.RawMessage{"outcome": json.RawMessage(`"completed"`), "keep_open": json.RawMessage(`false`)}, true},
+		{"invalid parameters", map[string]json.RawMessage{}, map[string]json.RawMessage{"outcome": json.RawMessage(`invalid`)}, false},
+		{"invalid intent", map[string]json.RawMessage{"intent_id": json.RawMessage(`invalid`)}, map[string]json.RawMessage{"outcome": json.RawMessage(`"completed"`)}, false},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			normalized, err := normalizeCurrentWorkQueueFinishIntent(scenario.fields, scenario.parameters)
+			if !scenario.valid {
+				require.Error(t, err)
+				require.Nil(t, normalized)
+				return
+			}
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"parameters":{"outcome":"completed"}}`, string(normalized))
+		})
+	}
+}
+
 func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {
 	t.Parallel()
 	for _, scenario := range []struct {

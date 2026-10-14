@@ -370,7 +370,11 @@ func Fingerprint(actor Actor, kind string, parameters json.RawMessage) (string, 
 		}
 		if string(fields["keep_open"]) == "false" {
 			delete(fields, "keep_open")
-			parameters, _ = json.Marshal(fields)
+			normalized, err := json.Marshal(fields)
+			if err != nil {
+				return "", err
+			}
+			parameters = normalized
 		}
 	}
 	data, err := canonicalValue(map[string]any{"actor": actor, "kind": kind, "parameters": parameters})

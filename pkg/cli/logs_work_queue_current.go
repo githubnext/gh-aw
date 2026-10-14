@@ -316,15 +316,27 @@ func decodeCurrentWorkQueueFinishIntent(line []byte, snapshot *WorkQueueCurrentS
 		return WorkQueueFinishReceipt{}, nil, errors.New("finish intent is foreign to original immutable assignment")
 	}
 	if !intent.Parameters.KeepOpen {
-		delete(parameters, "keep_open")
-		fields["parameters"], _ = json.Marshal(parameters)
-		line, _ = json.Marshal(fields)
+		normalized, err := normalizeCurrentWorkQueueFinishIntent(fields, parameters)
+		if err != nil {
+			return WorkQueueFinishReceipt{}, nil, fmt.Errorf("finish intent line %d: %w", lineNumber, err)
+		}
+		line = normalized
 	}
 	canonical, err := workqueue.Canonical(line)
 	if err != nil {
 		return WorkQueueFinishReceipt{}, nil, fmt.Errorf("finish intent line %d: %w", lineNumber, err)
 	}
 	return WorkQueueFinishReceipt{IntentID: intent.IntentID, Handle: intent.Handle, Outcome: intent.Parameters.Outcome, KeepOpen: intent.Parameters.KeepOpen}, canonical, nil
+}
+
+func normalizeCurrentWorkQueueFinishIntent(fields, parameters map[string]json.RawMessage) ([]byte, error) {
+	delete(parameters, "keep_open")
+	normalized, err := json.Marshal(parameters)
+	if err != nil {
+		return nil, err
+	}
+	fields["parameters"] = normalized
+	return json.Marshal(fields)
 }
 
 func validWorkQueueNativeID(value string) bool {
