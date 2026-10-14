@@ -92,6 +92,24 @@ The Copilot token is missing, expired, or lacks the required permissions. Confir
 
 The workflow references a tool that isn't configured or the MCP server failed to connect. Verify the `tools:` section in frontmatter, check the MCP server version, then run `gh aw mcp inspect my-workflow` and `gh aw audit <run-id>` to compare available vs. requested tools.
 
+### Shell Commands Missing Inside the Agent Sandbox
+
+`command not found` for `jq` or `safeoutputs` is different from an unavailable MCP tool. The setup message `Successfully copied ... safe-outputs files` confirms that server scripts were copied to the runner. It does not confirm that the CLI wrapper was mounted or that its interpreter and directory are available on the agent's `PATH`.
+
+For intermittent failures, compare one successful and one failing run from the same workflow and deployment. Retain both run URLs, the gh-aw and engine versions, the exact `sandbox:` block, and the generated lock-file image, mounts, and `PATH` configuration. Compare setup, MCP startup, CLI mounting, and agent launch logs. Different self-hosted runner images, custom sandbox images, missing mounts, or shell startup files that reset `PATH` are possible causes, not proof of a provisioning race.
+
+Check `command -v safeoutputs` in the **agent's shell** when permitted, not just in a runner setup step. If the CLI is unavailable, use direct safe-output MCP tools only when the engine exposes them. CLI payloads do not require a separate serializer: pass one single-quoted JSON object, encoding newlines as `\n`, double quotes as `\"`, backslashes as `\\`, and apostrophes as `\u0027`. Unicode can remain literal.
+
+```bash
+safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.\nQuoted text: \"hello\".\nLiteral path: C:\\temp\\file.txt"}'
+```
+
+Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. Prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion. Stdin support does not grant permission for additional commands or redirections, and quoting cannot guarantee acceptance by the engine's independent shell guard. Do not repeat a denied command or bypass the denial with an unapproved workaround.
+
+Report unavailable functionality with [`missing_tool`](/gh-aw/reference/safe-outputs/) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
+
+Collect diagnostics with the repository's [debug.md guidance](https://github.com/github/gh-aw/blob/main/debug.md). Redact secrets from logs and configuration; do not dump the full environment or make a real safe-output call merely to test availability.
+
 ### Network / Firewall Blocks
 
 ```text

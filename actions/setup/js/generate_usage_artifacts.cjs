@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const diskUsage = require("./disk_usage_logger.cjs");
 
 function listFiles(directory) {
   let entries;
@@ -25,6 +26,7 @@ async function generateBestEffort(label, generate, coreModule) {
 }
 
 async function main({ core: coreModule = global.core, generateSummary = require("./generate_usage_activity_summary.cjs").main, generateSession = require("./unified_session.cjs").main, usageDirectory = "/tmp/gh-aw/usage" } = {}) {
+  diskUsage.collectDiskUsageArtifact();
   await generateBestEffort("usage activity summary", generateSummary, coreModule);
   await generateBestEffort("unified session", generateSession, coreModule);
 

@@ -618,10 +618,8 @@ function parseBridgeArgs(argv) {
  * - No arguments are provided and stdin is not connected to a terminal (piped JSON payload), or
  * - Any '--key .' or '--key=.' pair is present (per-field stdin mode — raw text for that field).
  *
- * This enables agents to pipe content in multiple ways:
- *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
- *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment
- *   printf 'Long issue body...' | safeoutputs create_issue --title "Bug" --body .
+ * Full-object stdin uses `safeoutputs <tool> .`; per-field stdin uses
+ * `safeoutputs <tool> --body .`. Stdin support grants no helper-command permissions.
  *
  * @param {string[]} args - User arguments after the tool name
  * @returns {boolean}
@@ -708,10 +706,8 @@ function readStdinSync(waitForData = false) {
  * extract individual fields without the entire JSON string ending up as the
  * field value.
  *
- * Example: an agent may construct a full payload JSON and still pass individual
- * fields via `--key .`:
- *   printf '{"title":"Fix bug","body":"Details here"}' \
- *     | safeoutputs create_pull_request --title "Fix bug" --body .
+ * A caller may provide a full JSON object on stdin while using
+ * `safeoutputs create_pull_request --title "Fix bug" --body .`.
  * Without this helper the body would be the raw JSON string.  With it, the
  * body is correctly extracted as "Details here".
  *
@@ -790,17 +786,15 @@ function findInlineJsonPayloadArg(args) {
  *
  * When `stdinContent` is provided and args is empty or `['.']`, the stdin
  * content is parsed as a JSON object and its properties are used as tool
- * arguments directly (JSON payload mode). This enables agents to pipe
- * complex multi-argument payloads without shell quoting issues:
- *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
+ * arguments directly (JSON payload mode). Full-object stdin uses
+ * `safeoutputs <tool> .`.
  *
  * When `stdinContent` is provided and non-empty, any '--key .' or '--key=.'
  * pair substitutes that field's value with stdin.  If stdin is a JSON object
  * that contains the target key, the matching field value is extracted from the
  * JSON instead of using the entire stdin string.  This prevents a common agent
- * mistake where the whole JSON payload ends up as a string field value:
- *   printf '{"title":"Fix bug","body":"Details"}' \
- *     | safeoutputs create_pull_request --title "Fix bug" --body .
+ * mistake where the whole JSON payload ends up as a string field value when
+ * JSON stdin is supplied alongside `safeoutputs <tool> --body .`.
  * When stdin is empty, the '.' is passed through as a literal value.  When
  * stdin is non-empty but the key is absent from the JSON (or stdin is not a
  * JSON object), the entire trimmed stdin string is used as the field value.
@@ -840,10 +834,10 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null, options
     try {
       parsed = JSON.parse(inlineJsonPayload);
     } catch (err) {
-      throw new Error(`inline JSON argument is not valid JSON: ${getErrorMessage(err)}. Pass a single quoted JSON object, use --key value flags, or pipe JSON on stdin with '.'.`, { cause: err });
+      throw new Error(`inline JSON argument is not valid JSON: ${getErrorMessage(err)}. Pass one single-quoted JSON object with newlines encoded as \\n. JSON stdin is also supported with '.'.`, { cause: err });
     }
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error("inline JSON argument must be a JSON object. Pass a single quoted JSON object, use --key value flags, or pipe JSON on stdin with '.'.");
+      throw new Error("inline JSON argument must be a JSON object. Pass one single-quoted JSON object with newlines encoded as \\n. JSON stdin is also supported with '.'.");
     }
     for (const [key, value] of Object.entries(parsed)) {
       const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
@@ -866,7 +860,9 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null, options
         parsed = JSON.parse(trimmedStdin ?? "");
       } catch (err) {
         const parseError = getErrorMessage(err);
-        throw new Error(`stdin is not valid JSON: ${parseError}. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Pass --key value flags instead, or correct the JSON.`);
+        throw new Error(
+          `stdin is not valid JSON: ${parseError}. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Prefer one single-quoted JSON object argument, or correct the stdin JSON.`
+        );
       }
       if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
         for (const [key, value] of Object.entries(parsed)) {
@@ -875,7 +871,9 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null, options
         }
         return { args: normalizeArgs(result), json: false };
       }
-      throw new Error(`stdin JSON payload must be an object. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Pass --key value flags instead, or provide a JSON object.`);
+      throw new Error(
+        `stdin JSON payload must be an object. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Prefer one single-quoted JSON object argument, or provide a JSON object on stdin.`
+      );
     }
   }
 
@@ -1365,7 +1363,8 @@ function showToolHelp(serverName, toolName, tools) {
     ...renderToolSignature(serverName, tool).split("\n"),
     "Recommended:",
     ...renderToolRecommendedExample(serverName, tool).split("\n"),
-    `JSON mode: ${serverName} ${toolName} '{"param":"value",...}'  (or: printf '{"param":"value",...}' | ${serverName} ${toolName} .)`,
+    `JSON mode: ${serverName} ${toolName} '{"param":"value",...}' (preferred; encode newlines as \\n, double quotes as \\", backslashes as \\\\, apostrophes as \\u0027)`,
+    `Stdin is also supported: ${serverName} ${toolName} . reads a JSON object; no extra shell permissions are granted.`,
   ];
 
   const props = tool.inputSchema?.properties;

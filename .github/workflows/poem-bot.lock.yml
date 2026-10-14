@@ -1664,6 +1664,7 @@ jobs:
     # Permissions for the conclusion job (workflow permissions default to none).
     permissions:
       actions: read
+      discussions: read
       issues: write
       pull-requests: read
     concurrency:
@@ -2839,7 +2840,9 @@ jobs:
     runs-on: ubuntu-slim
     # Permissions for the safe_outputs job (workflow permissions default to none).
     permissions:
+      discussions: read
       issues: read
+      pull-requests: read
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}

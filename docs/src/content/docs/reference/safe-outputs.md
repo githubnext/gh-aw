@@ -414,10 +414,13 @@ Posts comments on issues, PRs, or discussions. Defaults to triggering item; use 
 
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
+`max-links` accepts a positive integer and defaults to 50. It counts every `http://` or `https://` URL occurrence in agent-provided content, including repeated URLs. Generated footer and metadata links do not count toward this limit. Both tool invocation and comment posting enforce the configured limit; the final body still must satisfy length and mention limits. Raise `max-links` for trusted link-heavy reports.
+
 ```yaml wrap
 safe-outputs:
   add-comment:
     max: 3                       # max comments (default: 1)
+    max-links: 100                # max URL occurrences in agent content (default: 50)
     target: "*"                  # "triggering" (default), "*", or number
     allows-comment-ids: ${{ needs.prepare.outputs.comment_ids }} # comment IDs the agent may update when target is "*"
     discussions: true            # request discussions:write permission (default: false)
@@ -479,6 +482,8 @@ When enabled, the workflow completion notifier creates a new comment instead of 
 ### Hide Comment (`hide-comment:`)
 
 Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
+
+`required-labels` and `required-title-prefix` are not supported for `hide-comment`. Use `target` and `allowed-reasons` to restrict comment hiding.
 
 ```yaml wrap
 safe-outputs:
@@ -2218,6 +2223,8 @@ The `footer-install` template renders the install instructions that follow the f
 ## Staged Mode
 
 Staged mode lets you preview what safe outputs a workflow would create without actually creating anything. Every write operation is skipped; instead, a 🎭-labelled preview appears in the GitHub Actions step summary.
+
+Staged handlers can still read target data to validate filters such as `required-labels` and `required-title-prefix`. The compiler grants the read permissions these lookups require, including for GitHub App tokens, without granting write permissions for staged handlers.
 
 Enable it globally by adding `staged: true` to the `safe-outputs:` block:
 

@@ -73,7 +73,7 @@ func stepsRequireIDToken(steps []any) bool {
 }
 
 // isHandlerStaged returns true when a safe output handler is effectively staged
-// (i.e., it will only emit preview output, not make real API calls). A handler is
+// (i.e., it will only emit preview output, not make API mutations). A handler is
 // staged when either the global safe-outputs staged flag is true, or the
 // per-handler staged flag is true. Staged handlers do not require write permissions.
 func isHandlerStaged(globalStaged bool, handlerStaged *TemplatableBool) bool {
@@ -103,16 +103,16 @@ func getCheckBranchProtection(config *PushToPullRequestBranchConfig) bool {
 //
 // This implements the principle of least privilege by only including
 // permissions that are required by the configured safe outputs.
-// Handlers that are staged (globally or per-handler) are skipped because
-// staged mode only emits preview output and does not make any API calls.
+// Handlers that are staged (globally or per-handler) only receive read
+// permissions needed for target lookups and filter validation before previews.
 func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissions {
 	return computePermissionsForSafeOutputs(safeOutputs, false)
 }
 
 // safeOutputsGlobalAppTokenMinted reports whether the consolidated safe_outputs job
 // mints the global "safe-outputs-app-token" step. The step is skipped when no enabled
-// handler consumes GitHub permissions from the global app (for example when every
-// handler is staged, or in a Linear-only configuration), so token expressions that
+// handler consumes GitHub permissions from the global app (for example when staged
+// handlers need no reads, or in a Linear-only configuration), so token expressions that
 // reference the step must fall back to a regular token in that case.
 //
 // This must stay in sync with buildPreambleTokenSteps, which uses the same condition
@@ -162,7 +162,7 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePer
 		if excludePerHandlerApps && handler.StructField != "" && getHandlerGitHubApp(safeOutputs, handler.StructField) != nil {
 			continue
 		}
-		handlerPermissions := handler.PermissionBuilder(safeOutputs)
+		handlerPermissions := computeSafeOutputHandlerPermissions(safeOutputs, handler)
 		if handlerPermissions == nil {
 			continue
 		}
@@ -213,7 +213,7 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePer
 		}
 	}
 
-	// If safeOutputs is configured but no permissions were accumulated (all handlers staged),
+	// If safeOutputs is configured but no permissions were accumulated,
 	// return explicit empty permissions so the compiled safe_outputs job renders
 	// "permissions: {}" rather than omitting the block and inheriting workflow-level permissions.
 	// This makes the security posture self-documenting in the generated YAML.
@@ -223,6 +223,64 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePer
 	}
 
 	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
+	return permissions
+}
+
+// computeSafeOutputHandlerPermissions includes reads performed before staged previews,
+// for both job permissions and per-handler GitHub App tokens.
+func computeSafeOutputHandlerPermissions(safeOutputs *SafeOutputsConfig, handler safeOutputHandlerDescriptor) *Permissions {
+	permissions := handler.PermissionBuilder(safeOutputs)
+	if permissions != nil || !hasSafeOutputFieldSet(safeOutputs, handler.StructField) {
+		return permissions
+	}
+
+	permissions = NewPermissions()
+	switch handler.Key {
+	case "close-issue", "link-sub-issue", "replace-label", "assign-milestone":
+		permissions.Set(PermissionIssues, PermissionRead)
+	case "close-pull-request", "resolve-pull-request-review-thread", "mark-pull-request-as-ready-for-review",
+		"create-pull-request-review-comment", "submit-pull-request-review":
+		permissions.Set(PermissionPullRequests, PermissionRead)
+	case "close-discussion", "create-discussion":
+		permissions.Set(PermissionDiscussions, PermissionRead)
+	case "create-project-status-update":
+		permissions.Set(PermissionOrganizationProj, PermissionRead)
+	case "add-comment":
+		if addCommentTargetsEnabled(safeOutputs.AddComments) {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
+	case "hide-comment":
+		permissions.Set(PermissionIssues, PermissionRead)
+		permissions.Set(PermissionPullRequests, PermissionRead)
+		if safeOutputs.HideComment.Discussions != nil && *safeOutputs.HideComment.Discussions {
+			permissions.Set(PermissionDiscussions, PermissionRead)
+		}
+	case "merge-pull-request":
+		permissions.Set(PermissionPullRequests, PermissionRead)
+		permissions.Set(PermissionContents, PermissionRead)
+		permissions.Set(PermissionChecks, PermissionRead)
+		permissions.Set(PermissionAdministration, PermissionRead)
+	}
+
+	switch handler.Key {
+	case "add-labels", "remove-labels", "replace-label", "update-issue",
+		"update-pull-request", "assign-to-agent", "assign-to-user", "unassign-from-user",
+		"add-reviewer", "create-pull-request-review-comment",
+		"reply-to-pull-request-review-comment", "dismiss-pull-request-review",
+		"mark-pull-request-as-ready-for-review", "resolve-pull-request-review-thread",
+		"submit-pull-request-review", "set-issue-type", "set-issue-field":
+		field, _ := safeOutputPointerFieldValue(safeOutputs, handler.StructField)
+		config := field.Elem()
+		labels := config.FieldByName("RequiredLabels")
+		titlePrefix := config.FieldByName("RequiredTitlePrefix")
+		if (labels.IsValid() && labels.Len() > 0) || (titlePrefix.IsValid() && titlePrefix.String() != "") {
+			permissions.Set(PermissionIssues, PermissionRead)
+		}
+	}
+
+	if len(permissions.permissions) == 0 {
+		return nil
+	}
 	return permissions
 }
 

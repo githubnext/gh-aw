@@ -6,7 +6,7 @@ description: MCP CLI command usage guidance and JSON payload patterns
 
 MCP CLI exposes mounted MCP servers as shell commands on `PATH`. Enabled by `tools.cli-proxy: true`.
 
-> **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** instead of the equivalent MCP tools — do **not** call their MCP tools directly even if they appear in your tool list.
+> **IMPORTANT**: Use the configured transport. Mounted CLI commands are available through the shell; native functions are an option only when explicitly exposed in the engine's tool inventory. CLI examples do not grant additional shell permissions.
 >
 > For `safeoutputs`, treat every successful command as a real write-intent declaration. Do **not** use it for exploratory probing, auth checks, placeholder payloads, retries with variants, or runtime experiments. Emit the final intended call once. If not ready, use `noop` or `report_incomplete`.
 >
@@ -25,27 +25,23 @@ Each server is a standalone executable on `PATH`. Invoke from bash with `--name 
 github --help
 github issue_read --method get --owner org --repo repo --issue_number 42
 
-safeoutputs add_comment --item_number 42 --body "Analysis complete"
+safeoutputs add_comment '{"item_number":42,"body":"Analysis complete"}'
 
 mcpscripts --help
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
-For multiple/complex arguments, pipe JSON on stdin using `.` as sentinel (preserves native types, avoids shell quoting):
+For safe-output calls, prefer the complete JSON object inline as one single-quoted shell argument. Inside JSON strings, encode newlines as `\n`, double quotes as `\"`, backslashes as `\\`, and apostrophes as `\u0027` so they do not end the shell quote. Unicode can remain literal:
 
 ```bash
-printf '{"item_number":42,"body":"### Title\n\nBody paragraph one.\n\nBody paragraph two."}' \
-  | safeoutputs add_comment .
-
-printf '{"title":"Fix: something","body":"Details here","labels":["bug","priority-high"]}' \
-  | safeoutputs create_issue .
+safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready.\nQuoted text: \"hello\".\nLiteral path: C:\\temp\\file.txt"}'
 ```
 
-If pipes are blocked, use file redirection: `safeoutputs create_pull_request . < /tmp/payload.json`.
+Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. Prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion. Transport support does not grant permission for additional commands or redirections; never bypass a denial with an unapproved workaround.
 
 ## Notes
 
-- **Prefer JSON payload mode** (`. < file` or `printf '{...}' | server tool .`) for multi-argument or complex calls
+- **Prefer inline JSON** for safe-output calls, including multiline bodies and structured arguments
 - Parameters also accept `--name value` pairs; boolean flags use `--flag` (no value) for `true`
 - `.` as sole argument parses stdin as a JSON object
 - Hyphens and underscores in parameter names are interchangeable (`issue-number` == `issue_number`)

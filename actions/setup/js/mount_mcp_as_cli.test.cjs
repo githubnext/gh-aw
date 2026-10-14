@@ -231,7 +231,13 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(docs).toContain("schema-derived command syntax");
     expect(docs).toContain("--issue_number <number>");
     expect(docs).toContain("[--rationale <reason, max 280 characters>]");
-    expect(docs).toContain('--confidence \"HIGH\"');
+    const recommended = docs.match(/Recommended:\n\s*```bash\n\s*safeoutputs set_issue_type '([^']+)'/)[1];
+    expect(JSON.parse(recommended)).toEqual({
+      issue_number: 123,
+      issue_type: "Bug",
+      confidence: "HIGH",
+      rationale: "The report describes reproducible incorrect behavior.",
+    });
     expect(docs).toContain("`mcpscripts` — run `mcpscripts --help`");
   });
 

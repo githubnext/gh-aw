@@ -8,6 +8,9 @@
 
 # Test binary, built with `go test -c`
 *.test
+/test_dup_import
+/tmp/smoke_test_*.go
+/{outname}.f
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

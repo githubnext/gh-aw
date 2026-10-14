@@ -12,6 +12,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSafeOutputsCLIPromptChecksToolAvailability(t *testing.T) {
+	for _, file := range []string{mcpCLIToolsWithSafeOutputsPromptFile, safeOutputsCLIOnlyTransportPromptFile} {
+		t.Run(file, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", file))
+			require.NoError(t, err)
+			content := string(data)
+			assert.Contains(t, content, "command -v safeoutputs")
+			assert.Contains(t, strings.ToLower(content), "no supported transport is available")
+			assert.Contains(t, strings.ToLower(content), "do not claim the action was emitted")
+			assert.Contains(t, content, "`missing_tool`")
+			assert.Contains(t, strings.ToLower(content), "reserve `report_incomplete`")
+		})
+	}
+}
+
+func TestSafeOutputsPromptsPreferToolFreeInlineJSON(t *testing.T) {
+	for _, file := range []string{mcpCLIToolsWithSafeOutputsPromptFile, safeOutputsCLIOnlyTransportPromptFile, safeOutputsPromptFile, "shell_expansion_guard_rejected.md"} {
+		t.Run(file, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "md", file))
+			require.NoError(t, err)
+			content := string(data)
+			assert.Contains(t, content, "single-quoted")
+			assert.Contains(t, content, "Stdin is also supported")
+			for _, escape := range []string{`\n`, `\"`, `\\`, `\u0027`} {
+				assert.Contains(t, content, "`"+escape+"`")
+			}
+			for _, helper := range []string{"jq", "node", "printf", "<<", "payload.json"} {
+				assert.NotContains(t, content, helper)
+			}
+		})
+	}
+}
+
 // TestGitHubMCPToolsPromptBoundsCodeScanningAlertQueries verifies that the
 // github_mcp_tools_prompt.md file includes the required guardrail instructing
 // agents to always bound list_code_scanning_alerts calls with state: open and

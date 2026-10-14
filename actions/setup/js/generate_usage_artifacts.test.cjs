@@ -8,6 +8,7 @@ const req = createRequire(import.meta.url);
 const { main } = req("./generate_usage_artifacts.cjs");
 const { main: generateUnifiedSession } = req("./unified_session.cjs");
 const { generateCopilotCliStyleSummary } = req("./log_parser_shared.cjs");
+const diskUsage = req("./disk_usage_logger.cjs");
 
 describe("generate_usage_artifacts.cjs", () => {
   let tempDirectory;
@@ -17,6 +18,7 @@ describe("generate_usage_artifacts.cjs", () => {
   beforeEach(() => {
     previousEnv = { ...process.env };
     previousCore = global.core;
+    vi.spyOn(diskUsage, "collectDiskUsageArtifact").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -59,6 +61,7 @@ describe("generate_usage_artifacts.cjs", () => {
       core,
       usageDirectory,
       generateSummary: async () => {
+        expect(diskUsage.collectDiskUsageArtifact).toHaveBeenCalledOnce();
         await Promise.resolve();
         fs.mkdirSync(path.join(usageDirectory, "detection"), { recursive: true });
         fs.writeFileSync(path.join(usageDirectory, "detection", "detection_result.json"), JSON.stringify({ job_result: "success", conclusion: "success" }));
@@ -95,6 +98,7 @@ describe("generate_usage_artifacts.cjs", () => {
     });
 
     expect(generateSummary).toHaveBeenCalledOnce();
+    expect(diskUsage.collectDiskUsageArtifact).toHaveBeenCalledOnce();
     expect(generateSession).toHaveBeenCalledOnce();
     expect(core.warning).toHaveBeenCalledWith("Unable to generate usage activity summary: summary failed");
     expect(core.warning).toHaveBeenCalledWith("Unable to generate unified session: session failed");

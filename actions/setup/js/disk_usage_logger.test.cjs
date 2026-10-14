@@ -154,11 +154,12 @@ describe("runner disk usage monitoring", () => {
 
   it("spawns one sampler without retaining credentials", () => {
     process.env.GH_TOKEN = "private-token";
+    process.env.RUNNER_TRACKING_ID = "test-runner-tracking";
     startDiskUsageMonitor();
     expect(childProcess.spawn).toHaveBeenCalledOnce();
     const [, args, options] = childProcess.spawn.mock.calls[0];
     expect(args[1]).toBe("monitor");
-    expect(options.env).toEqual({ RUNNER_TEMP: "/runner/temp", GITHUB_WORKSPACE: "/runner/work" });
+    expect(options.env).toEqual({ RUNNER_TEMP: "/runner/temp", GITHUB_WORKSPACE: "/runner/work", RUNNER_TRACKING_ID: "test-runner-tracking" });
     expect(options.detached).toBe(true);
   });
 
@@ -432,12 +433,9 @@ describe("runner disk usage monitoring", () => {
   });
 });
 
-it("the usage shell collector survives a missing or failing monitor runtime under errexit", () => {
-  const block = collectorScript.match(/if \[ -f \/tmp\/gh-aw\/disk_usage.jsonl \]; then[\s\S]*?\nfi/)[0];
-  const script = "set -euo pipefail\nRUNNER_TEMP=unused\nnode() { return 1; }\n" + block.replace("[ -f /tmp/gh-aw/disk_usage.jsonl ]", "true") + "\necho continued";
-  const output = childProcess.execFileSync("/bin/bash", ["-c", script], { encoding: "utf8" });
-  expect(output).toContain("::warning::Failed to collect disk capacity telemetry");
-  expect(output).toContain("continued");
+it("the usage shell collector does not require a Node runtime for disk telemetry", () => {
+  expect(collectorScript).not.toMatch(/^\s*node\s/m);
+  expect(collectorScript).not.toContain("cp /tmp/gh-aw/disk_usage.jsonl");
 });
 
 it("monitor startup is a warning-only successful CLI operation when runner control is unavailable", () => {
