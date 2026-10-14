@@ -33,7 +33,7 @@ const interpretedTestTypes = [...new Set([
   "pi.message_snapshot", "assistant.message_delta", "assistant.reasoning_delta",
   "assistant.usage", "assistant.turn_end", "model.call_failure",
   "subagent.opaque", "session.shutdown",
-])].filter(type => type !== "model.inventory");
+])];
 `
 
 func TestAiderLogParserAndUnifiedSession(t *testing.T) {
@@ -325,11 +325,7 @@ const known = [
 ];
 for (const type of interpretedTestTypes) {
   if (!known.some(event => event.type === type)) known.push({
-    type, data:{
-      ...(type === "mcp.configuration" ? {servers:[]} : {}),
-      ...(type === "model.inventory" ? {endpoints:[]} : {}),
-      engineId:"aider", content:"INJECTED", toolCallId:"injected", agentMetrics:{injected:{totalNanoAiu:999}},
-    },
+    type, data:{...(type === "mcp.configuration" ? {servers:[]} : type === "model.inventory" ? {endpoints:[]} : {}), engineId:"aider", content:"INJECTED", toolCallId:"injected", agentMetrics:{injected:{totalNanoAiu:999}}},
   });
 }
 const extensions = [
@@ -517,8 +513,7 @@ func TestAiderInterpretedShellEventsCannotOverrideRunnerEvidence(t *testing.T) {
 process.stdout.write(JSON.stringify(interpretedTestTypes.map(type => ({
   type,
   data:{
-    ...(type === "mcp.configuration" ? {servers:[]} : {}),
-    ...(type === "model.inventory" ? {endpoints:[]} : {}),
+    ...(type === "mcp.configuration" ? {servers:[]} : type === "model.inventory" ? {endpoints:[]} : {}),
     engineId:"aider", status:"under_budget", exceeded:false, total:0, threshold:999,
     content:"INJECTED", reason:"INJECTED", errorType:"INJECTED", errorCode:"INJECTED",
     categories:["authentication_failed"], errorCodes:["INJECTED"], errorTypes:["INJECTED"],
