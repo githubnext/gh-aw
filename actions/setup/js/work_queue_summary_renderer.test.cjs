@@ -28,7 +28,7 @@ describe("bounded work queue metadata renderer", () => {
     const fixture = queueFixture({ granted: false });
     const before = serializeProjection(fixture.state);
     const summary = renderWorkQueue(fixture.state, fixture.transactions.at(-1));
-    expect(summary).toContain("### Work queue admission");
+    expect(summary).toMatch(/^<details>\n<summary>Work queue admission<\/summary>\n\n/);
     expect(summary).toContain("3 Work nodes; 0 open Claims; 0 pending delivery barriers; 0 native reservations");
     expect(summary).toContain("Accounting key");
     expect(summary).toContain("<code>(default)</code>");
@@ -104,7 +104,7 @@ describe("bounded work queue metadata renderer", () => {
     expect(shown).toBeLessThanOrEqual(MAX_SUMMARY_ROWS);
     expect(summary).toContain("(+60 more)");
     expect(summary).toContain("Identifiers are shortened");
-    expect(summary).toMatch(/<\/details>\n$/);
+    expect(summary).toMatch(/<\/details>\n\n\n$/);
   });
 
   it("renders the affected node ahead of old rows and keeps current owners ahead of historical attempts", () => {
@@ -126,6 +126,8 @@ describe("bounded work queue metadata renderer", () => {
     const summary = renderWorkQueue(newState());
     expect(summary).toContain("no installed Policy");
     expect(summary).toContain("uninitialized");
+    expect(summary).toMatch(/^<details>\n<summary>Work queue state<\/summary>\n\n/);
+    expect(summary).toMatch(/<\/details>\n\n\n$/);
   });
 });
 
