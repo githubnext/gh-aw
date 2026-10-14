@@ -106,12 +106,31 @@ func agenticEngineScriptArgument(args []string) (int, bool) {
 		if option == "--" {
 			return -1, false
 		}
-		if strings.HasPrefix(option, "-") && strings.Contains(option[1:], "c") {
-			script := i + 1
-			if script < len(args) && strings.Trim(args[script], `"'`) == "--" { //nolint:uncheckedsliceindex // The condition checks script against len(args).
-				script++
+		switch option {
+		case "--rcfile", "--init-file", "-o", "-O":
+			i++
+			continue
+		}
+		if strings.HasPrefix(option, "--") {
+			continue
+		}
+		if strings.HasPrefix(option, "-") {
+			flags := option[1:]
+			for flagIndex, flag := range flags {
+				if flag == 'c' {
+					script := i + 1
+					if script < len(args) && strings.Trim(args[script], `"'`) == "--" { //nolint:uncheckedsliceindex // The condition checks script against len(args).
+						script++
+					}
+					return script, script < len(args)
+				}
+				if flag == 'o' || flag == 'O' {
+					if flagIndex == len(flags)-1 {
+						i++
+					}
+					break
+				}
 			}
-			return script, script < len(args)
 		}
 	}
 	return -1, false
