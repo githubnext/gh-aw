@@ -51,8 +51,8 @@ test("uses restrained per-item keyframes, DOM order and a bounded total duration
     })
   );
   expect(timing).toEqual(
-    [0, 60, 120, 180].map((delay, index) => ({
-      duration: 360,
+    [0, 80, 160, 240].map((delay, index) => ({
+      duration: 480,
       delay,
       easing: "cubic-bezier(0.16, 1, 0.3, 1)",
       translate: index === 3 ? "none" : "0px 12px",
@@ -70,7 +70,7 @@ test("uses restrained per-item keyframes, DOM order and a bounded total duration
       })
     );
   expect(totals).toHaveLength(7);
-  expect(Math.max(...totals)).toBe(600);
+  expect(Math.max(...totals)).toBe(800);
 });
 
 test("reveals items permanently after finishing, rapid navigation, exit and reopening", async ({ page }) => {

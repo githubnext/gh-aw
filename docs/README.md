@@ -64,8 +64,8 @@ still navigate slides, and Tab/Shift+Tab leave the tablist.
 
 Add `data-slideshow-entrance="rise"` to a heading, point or call to action for
 a subtle 12px upward fade, or `"fade"` to a diagram or demo for opacity only.
-Items enter automatically in DOM order: 360ms ease-out animations staggered
-by 60ms, with delays capped at 240ms (600ms total). Annotate meaningful groups
+Items enter automatically in DOM order: 480ms ease-out animations staggered
+by 80ms, with delays capped at 320ms (800ms total). Annotate meaningful groups
 rather than every word, and avoid nesting annotated elements. Entrances start
 after the slide transition and run once per element for the lifetime of the
 page, including when revisiting slides or reopening the presentation.

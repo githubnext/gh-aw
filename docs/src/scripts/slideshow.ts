@@ -53,8 +53,8 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
           { opacity: 1, translate: "none" },
         ],
         {
-          duration: 360,
-          delay: Math.min(order * 60, 240),
+          duration: 480,
+          delay: Math.min(order * 80, 320),
           easing: "cubic-bezier(0.16, 1, 0.3, 1)",
           fill: "both",
         }
