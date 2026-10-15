@@ -252,6 +252,30 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "statistics": {
+                "type": "object",
+                "properties": {
+                  "failed_population": {
+                    "type": "integer"
+                  },
+                  "share": {
+                    "type": "number"
+                  },
+                  "wilson_lower_95": {
+                    "type": "number"
+                  },
+                  "wilson_upper_95": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "failed_population",
+                  "share",
+                  "wilson_lower_95",
+                  "wilson_upper_95"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -265,7 +289,8 @@
               "workflows",
               "first_seen",
               "last_seen",
-              "representative_runs"
+              "representative_runs",
+              "statistics"
             ],
             "additionalProperties": false
           }
@@ -5295,6 +5320,30 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "statistics": {
+                "type": "object",
+                "properties": {
+                  "failed_population": {
+                    "type": "integer"
+                  },
+                  "share": {
+                    "type": "number"
+                  },
+                  "wilson_lower_95": {
+                    "type": "number"
+                  },
+                  "wilson_upper_95": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "failed_population",
+                  "share",
+                  "wilson_lower_95",
+                  "wilson_upper_95"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -5308,7 +5357,8 @@
               "workflows",
               "first_seen",
               "last_seen",
-              "representative_runs"
+              "representative_runs",
+              "statistics"
             ],
             "additionalProperties": false
           }

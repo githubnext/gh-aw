@@ -65,6 +65,10 @@ func failureTarget(run *RunData) FailureClusterTarget {
 	}
 }
 
+func failureRunIdentity(run *RunData) string {
+	return failureClusterKey(strings.ToLower(run.Repository), strconv.FormatInt(run.RunID, 10))
+}
+
 // Keep the richest run first, then prefer distinct workflow/engine/model contexts.
 func selectFailureRepresentatives(members []*RunData) []FailureClusterTarget {
 	selected := make([]FailureClusterTarget, 0, 3)
@@ -72,7 +76,7 @@ func selectFailureRepresentatives(members []*RunData) []FailureClusterTarget {
 	identities := make(map[string]struct{})
 	for _, diverse := range []bool{true, false} {
 		for _, run := range members {
-			identity := failureClusterKey(strings.ToLower(run.Repository), strconv.FormatInt(run.RunID, 10))
+			identity := failureRunIdentity(run)
 			scope := failureClusterKey(strings.ToLower(run.Repository), workflowIDFromRun(run.WorkflowPath, run.WorkflowName), run.EngineID, run.Model)
 			_, picked := identities[identity]
 			_, represented := contexts[scope]

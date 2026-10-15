@@ -16,6 +16,7 @@ func renderFailureInvestigationToWriter(w io.Writer, plan *FailureInvestigation,
 		prefix, plan.UniqueFailedRuns, plan.ObservedEvidenceRuns, plan.MetadataOnlyRuns, plan.IntentionalFailureRuns,
 		len(plan.SelectedRuns), plan.AuditBudget, plan.CoveredClusters, plan.EligibleClusters, plan.RemainingClusters, plan.CoveredRuns)
 	out.printf("%sShared symptoms are not confirmed causes. Intentional failures are excluded from recommendations. Full membership: --json; text membership: -v.\n", prefix)
+	out.printf("%sCluster shares describe this failure sample, not fleet health. Wilson 95%% bounds assume independent runs; retries and missing evidence limit interpretation.\n", prefix)
 	for _, target := range plan.SelectedRuns {
 		out.printf("%s  investigate=%d workflow=%q engine=%q model=%q clusters=%s audit=%q logs=%q command=%q\n",
 			prefix, target.RunID, target.WorkflowName, target.Engine, target.Model,
