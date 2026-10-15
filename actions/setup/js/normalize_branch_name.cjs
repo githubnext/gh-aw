@@ -42,6 +42,8 @@ function normalizeBranchName(branchName, salt = null) {
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
 
+  if (!normalized) return normalized;
+
   // Append a salt suffix when provided
   if (salt) {
     normalized = `${normalized}-${salt}`;

@@ -1441,7 +1441,7 @@ describe("handle_agent_failure", () => {
       }
     });
 
-    it("reports a startup mismatch instead of the collector's engine outage when no session or terminal output exists", async () => {
+    it.each(["endpoint", "unavailable"])("reports a startup model %s error instead of the collector's engine outage when no session or terminal output exists", async kind => {
       fs.mkdirSync(path.join(tmpDir, "agent"), { recursive: true });
       fs.writeFileSync(
         path.join(tmpDir, "agent/model-endpoint-mismatch.json"),
@@ -1483,7 +1483,10 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_FAILURE_REPORT_AS_ISSUE = "true";
       vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
       vi.stubEnv("GH_AW_UNIFIED_SESSION", "");
-      vi.stubEnv("GH_AW_MODEL_ENDPOINT_MISMATCH_ERROR", "true");
+      vi.stubEnv("GH_AW_MODEL_ENDPOINT_MISMATCH_ERROR", kind === "endpoint" ? "true" : "false");
+      vi.stubEnv("GH_AW_MODEL_NOT_SUPPORTED_ERROR", kind === "unavailable" ? "true" : "false");
+      if (kind === "unavailable") fs.rmSync(path.join(tmpDir, "agent/model-endpoint-mismatch.json"));
+      fs.writeFileSync(path.join(promptsDir, "model_not_supported_error.md"), fs.readFileSync(new URL("../md/model_not_supported_error.md", import.meta.url), "utf8"));
       for (const template of ["agent_failure_issue.md", "agent_failure_comment.md"]) {
         fs.writeFileSync(path.join(promptsDir, template), fs.readFileSync(new URL(`../md/${template}`, import.meta.url), "utf8"));
       }
@@ -1503,11 +1506,17 @@ describe("handle_agent_failure", () => {
         await main();
         expect(create).toHaveBeenCalledOnce();
         const { title, body } = create.mock.calls[0][0];
-        expect(title).toContain("model/endpoint mismatch");
-        expect(body).toContain("**Model/Endpoint Mismatch**");
-        expect(body).toContain("Cause: Model gpt-5.6-luna does not support /chat/completions");
-        expect(body).toContain("Fix: Pin a compatible model, remove the COPILOT_PROVIDER_WIRE_API override, or upgrade gh-aw.");
-        expect(body).toContain("model_endpoint_mismatch");
+        if (kind === "endpoint") {
+          expect(title).toContain("model/endpoint mismatch");
+          expect(body).toContain("**Model/Endpoint Mismatch**");
+          expect(body).toContain("Cause: Model gpt-5.6-luna does not support /chat/completions");
+          expect(body).toContain("Fix: Pin a compatible model, remove the COPILOT_PROVIDER_WIRE_API override, or upgrade gh-aw.");
+          expect(body).toContain("model_endpoint_mismatch");
+        } else {
+          expect(title).toContain("unavailable configured model");
+          expect(body).toContain("Model Not Supported");
+          expect(body).toContain("model_not_supported_error");
+        }
         expect(body).not.toContain("engine_outage");
         expect(body).not.toContain("Last engine error type: unknown");
       } finally {

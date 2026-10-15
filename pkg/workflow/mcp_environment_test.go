@@ -239,6 +239,8 @@ func TestTrialTargetRepoReachesSafeOutputsMCPServer(t *testing.T) {
 	}
 	compiler := &Compiler{}
 
+	assert.Equal(t, `""`, compiler.buildMainJobEnv(workflowData)["GH_AW_TARGET_REPO_SLUG"])
+
 	envVars := collectMCPEnvironmentVariables(tools, []string{"safe-outputs"}, workflowData, false)
 	assert.Equal(t, "owner/side-repo", envVars["GH_AW_TARGET_REPO_SLUG"])
 
@@ -248,6 +250,7 @@ func TestTrialTargetRepoReachesSafeOutputsMCPServer(t *testing.T) {
 	assert.Contains(t, output, "GH_AW_TARGET_REPO_SLUG: owner/side-repo")
 	assert.Contains(t, output, "-e GH_AW_TARGET_REPO_SLUG")
 	assert.Contains(t, output, `"GH_AW_TARGET_REPO_SLUG": "\${GH_AW_TARGET_REPO_SLUG}"`)
+	assert.Contains(t, output, `export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"`)
 }
 
 func TestCollectMCPEnvironmentVariables_DynamicDelegationWithoutPrimaryGitHubUsesDestinationVisibility(t *testing.T) {

@@ -230,6 +230,8 @@ func TestBuildMainJobEnv(t *testing.T) {
 		require.NotNil(t, env)
 		assert.Contains(t, env, "GH_AW_MCP_LOG_DIR")
 		assert.Contains(t, env, "DEFAULT_BRANCH")
+		assert.Equal(t, `""`, env["GH_AW_TARGET_REPO_SLUG"],
+			"the gateway target repository placeholder must resolve outside trial mode")
 	})
 
 	t.Run("upload-assets sets asset env vars", func(t *testing.T) {

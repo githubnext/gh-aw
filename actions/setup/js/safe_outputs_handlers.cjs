@@ -1025,6 +1025,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    if (!normalizeBranchName(entry.branch)) {
+      return buildIntentErrorResponse("Invalid branch name: provide a name containing more than dashes.");
+    }
     const intentValidationError = validateCreatePullRequestIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
@@ -1076,12 +1079,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const useBundle = patchFormat === "bundle";
 
     // Build common options for both patch and bundle generation
-    const transportOptions = {};
+    const transportOptions = { repoSlug: repoResult.repo };
     if (repoCwd) {
       transportOptions.cwd = repoCwd;
-    }
-    if (repoSlug) {
-      transportOptions.repoSlug = repoSlug;
     }
     // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
     // Falls back to GITHUB_TOKEN if not set.
@@ -1469,6 +1469,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    if (!normalizeBranchName(entry.branch)) {
+      return buildIntentErrorResponse("Invalid branch name: provide a name containing more than dashes.");
+    }
     const intentValidationError = validatePushToPullRequestBranchIntent(entry);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
@@ -1502,7 +1505,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Build common options for both patch and bundle generation
-    const pushTransportOptions = { mode: "incremental" };
+    const pushTransportOptions = { mode: "incremental", repoSlug: repoResult.repo };
     if (prHeadBaseline) {
       if (prHeadBaseline.ref) {
         pushTransportOptions.incrementalBaseRef = prHeadBaseline.ref;
@@ -1513,7 +1516,6 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     if (repoCwd) {
       pushTransportOptions.cwd = repoCwd;
-      pushTransportOptions.repoSlug = repoResult.repo;
     }
     // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
     // Falls back to GITHUB_TOKEN if not set.
