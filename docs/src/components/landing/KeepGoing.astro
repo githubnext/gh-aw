@@ -18,7 +18,7 @@ const icon = (l: { external?: boolean; download?: boolean }) => (l.external ? 'l
 <LandingSection id="learn" title="Keep going">
   <ul class="aw-links">
     {links.map((l) => (
-      <li>
+      <li data-slideshow-entrance="rise">
         <a href={l.href} {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} {...(l.download ? { download: '' } : {})}>
           <span class="aw-text">
             <span class="aw-title aw-point-title">{l.title}{l.external && <span class="sr-only"> (opens in a new tab)</span>}</span>

@@ -62,6 +62,18 @@ custom-engine footnote already use this annotation.
 When a demo tab is focused, Left/Right select tabs; Up/Down and Page Up/Page Down
 still navigate slides, and Tab/Shift+Tab leave the tablist.
 
+Add `data-slideshow-entrance="rise"` to a heading, point or call to action for
+a subtle 12px upward fade, or `"fade"` to a diagram or demo for opacity only.
+Items enter automatically in DOM order: 360ms ease-out animations staggered
+by 60ms, with delays capped at 240ms (600ms total). Annotate meaningful groups
+rather than every word, and avoid nesting annotated elements. Entrances start
+after the slide transition and run once per element for the lifetime of the
+page, including when revisiting slides or reopening the presentation.
+Keyboard focus immediately reveals the focused item's group; reduced motion
+reveals everything without animation. Leaving a slide or exiting cancels
+unfinished entrances and leaves content revealed. Annotations have no effect
+on the normal page or without JavaScript.
+
 The pencil button opens drawing tools inspired by
 [Microsoft Streamer](https://github.com/microsoft/streamer): colored rectangles
 (hold Shift for squares), arrows, and emoji stamps. Click to stamp an emoji or

@@ -22,16 +22,16 @@ const headingId = titleId ?? `${id ?? 'section'}-title`;
     {Astro.slots.has('aside') ? (
       <div class="aw-split">
         <div class="aw-split-main">
-          <h2 id={headingId}>{title}</h2>
-          {lede && <p class="aw-lede">{lede}</p>}
+          <h2 id={headingId} data-slideshow-entrance="rise">{title}</h2>
+          {lede && <p class="aw-lede" data-slideshow-entrance="rise">{lede}</p>}
           <slot name="intro" />
         </div>
-        <div class="aw-split-aside"><slot name="aside" /></div>
+        <div class="aw-split-aside" data-slideshow-entrance="fade"><slot name="aside" /></div>
       </div>
     ) : (
       <>
-        <h2 id={headingId}>{title}</h2>
-        {lede && <p class="aw-lede">{lede}</p>}
+        <h2 id={headingId} data-slideshow-entrance="rise">{title}</h2>
+        {lede && <p class="aw-lede" data-slideshow-entrance="rise">{lede}</p>}
       </>
     )}
     <slot />

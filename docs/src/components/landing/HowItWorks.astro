@@ -15,7 +15,7 @@ const engines = [
 
 <LandingSection id="how-it-works" title="How it works" lede="Prompt your coding agent to create a workflow. GitHub compiles it into an Actions workflow and runs it.">
   <ol class="aw-steps">
-    <li class="aw-step">
+    <li class="aw-step" data-slideshow-entrance="rise">
       <div class="aw-frag aw-card" role="img" data-slideshow-snippet="Coding agent prompt" aria-label="A GitHub Copilot prompt: slash agentic workflows, create a daily status workflow. Followed by slash agentic workflow, optimize it.">
         <div class="aw-bar">GitHub Copilot</div>
         <div class="aw-prompt-body" aria-hidden="true">
@@ -28,7 +28,7 @@ const engines = [
       <p>Ask your coding agent for a workflow in plain language, then refine it with <code>/agentic-workflow optimize it</code>.</p>
     </li>
 
-    <li class="aw-step">
+    <li class="aw-step" data-slideshow-entrance="rise">
       <div class="aw-frag aw-card" role="img" data-slideshow-snippet="Compile in the terminal" aria-label="Terminal: running gh aw compile prints a check mark and triage.lock.yml, pinned, validated GitHub Actions YAML.">
         <div class="aw-bar"><Octicon name="terminal" />Terminal</div>
         <div class="aw-term-body" aria-hidden="true">
@@ -41,7 +41,7 @@ const engines = [
       <p><code>gh aw compile</code> turns it into a hardened, pinned Actions workflow.</p>
     </li>
 
-    <li class="aw-step">
+    <li class="aw-step" data-slideshow-entrance="rise">
       <div class="aw-frag aw-card" role="img" data-slideshow-snippet="GitHub Actions run" aria-label="An Actions run: triage, agent, succeeded in 48 seconds, applied the label type: bug.">
         <div class="aw-bar"><Octicon name="play" />Actions</div>
         <div class="aw-run-body" aria-hidden="true">
@@ -61,7 +61,7 @@ const engines = [
     </li>
   </ol>
 
-  <div class="aw-engines">
+  <div class="aw-engines" data-slideshow-entrance="fade">
     <p class="aw-engines-l" id="aw-engines-l">Runs the coding agent you choose</p>
     <ul class="aw-engine-list" aria-labelledby="aw-engines-l">
       {engines.map((e) => {

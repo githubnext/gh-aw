@@ -14,8 +14,8 @@ const engines = [
 
 <div class="aw-hero-inner">
   <div class="aw-hero-text">
-    <h1><span class="aw-line">Intelligent automation</span> <span class="aw-line">for GitHub, <span class="aw-muted">with your</span></span> <span class="aw-line aw-muted">own agents.</span></h1>
-    <p class="aw-hero-sub">
+    <h1 data-slideshow-entrance="rise"><span class="aw-line">Intelligent automation</span> <span class="aw-line">for GitHub, <span class="aw-muted">with your</span></span> <span class="aw-line aw-muted">own agents.</span></h1>
+    <p class="aw-hero-sub" data-slideshow-entrance="rise">
       {engines.map((e, i) => {
         const logo = engineLogos[e.id];
         const sep = i === engines.length - 1 ? '' : i === engines.length - 2 ? ' or ' : ', ';
@@ -26,9 +26,9 @@ const engines = [
         );
       })} triage issues, investigate failures and open pull requests across your repos. With strong guardrails and cost controls, in GitHub Actions.
     </p>
-    <div class="aw-hero-cta"><CtaRow /></div>
+    <div class="aw-hero-cta" data-slideshow-entrance="rise"><CtaRow /></div>
   </div>
-  <div class="aw-hero-visual"><HeroVAVisual /></div>
+  <div class="aw-hero-visual" data-slideshow-entrance="fade"><HeroVAVisual /></div>
 </div>
 
 <style>

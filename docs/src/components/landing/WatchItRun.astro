@@ -30,7 +30,7 @@ const options = [
   <div class="aw-watch-bg" aria-hidden="true">
     <HeroBackground placement="top-band" strength={0.45} forceDark />
   </div>
-  <div class="aw-watch" data-watch>
+  <div class="aw-watch" data-watch data-slideshow-entrance="fade">
     <div class="aw-watch-tabs" role="tablist" aria-label="Choose a walkthrough">
       {options.map((o, i) => (
         <button type="button" class="aw-watch-tab" role="tab" id={`watch-tab-${o.id}`} aria-controls={`watch-panel-${o.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}>

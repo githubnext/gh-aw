@@ -33,6 +33,41 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
   let requestedIndex = 0;
   let scrollY = 0;
   let transition: ViewTransition | undefined;
+  const revealed = new WeakSet<HTMLElement>();
+  const entrances = new Map<HTMLElement, Animation>();
+
+  const finishEntrances = () => {
+    entrances.forEach(animation => animation.cancel());
+    entrances.clear();
+  };
+
+  const revealSlide = (slide: HTMLElement, paused: boolean) => {
+    const items = Array.from(slide.querySelectorAll<HTMLElement>('[data-slideshow-entrance="rise"], [data-slideshow-entrance="fade"]')).filter(item => item.checkVisibility() && !revealed.has(item));
+    items.forEach((item, order) => {
+      revealed.add(item);
+      if (reducedMotion.matches || item.matches(":focus-within")) return;
+      const rise = item.dataset.slideshowEntrance === "rise";
+      const animation = item.animate(
+        [
+          { opacity: 0, translate: rise ? "0 12px" : "none" },
+          { opacity: 1, translate: "none" },
+        ],
+        {
+          duration: 360,
+          delay: Math.min(order * 60, 240),
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          fill: "both",
+        }
+      );
+      // Hold the entrance's first frame while the slide snapshot moves into place.
+      if (paused) animation.pause();
+      entrances.set(item, animation);
+      animation.onfinish = () => {
+        animation.cancel();
+        entrances.delete(item);
+      };
+    });
+  };
 
   const fit = () => {
     if (!dialog.open) return;
@@ -58,8 +93,9 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     slide.querySelectorAll("video").forEach(video => video.pause());
   };
 
-  const showSlide = (target: number) => {
+  const showSlide = (target: number, pauseEntrances = false) => {
     const newIndex = Math.max(0, Math.min(slides.length - 1, target));
+    finishEntrances();
     if (newIndex !== index) pauseVideos(slides[index]);
     index = newIndex;
     slides.forEach((slide, i) => {
@@ -74,6 +110,7 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
       close.focus({ preventScroll: true });
     }
     fit();
+    revealSlide(slides[index], pauseEntrances);
     dialog.dataset.slideIndex = String(index);
     dialog.dispatchEvent(new Event("slideshow:slide-change"));
   };
@@ -90,17 +127,19 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     }
     document.documentElement.dataset.slideshowDirection = direction;
     const current = document.startViewTransition(() => {
-      if (dialog.open && requestedIndex === newIndex) showSlide(newIndex);
+      if (dialog.open && requestedIndex === newIndex) showSlide(newIndex, true);
     });
     transition = current;
     current.finished.then(() => {
       if (transition !== current) return;
       transition = undefined;
       delete document.documentElement.dataset.slideshowDirection;
+      entrances.forEach(animation => animation.play());
     });
   };
 
   const restore = () => {
+    finishEntrances();
     transition?.skipTransition();
     transition = undefined;
     delete document.documentElement.dataset.slideshowDirection;
@@ -131,6 +170,26 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
 
   previous.addEventListener("click", () => navigate(requestedIndex - 1), { signal });
   next.addEventListener("click", () => navigate(requestedIndex + 1), { signal });
+  dialog.addEventListener(
+    "focusin",
+    event => {
+      if (!(event.target instanceof Node)) return;
+      const target = event.target;
+      entrances.forEach((animation, item) => {
+        if (!item.contains(target)) return;
+        animation.cancel();
+        entrances.delete(item);
+      });
+    },
+    { signal }
+  );
+  reducedMotion.addEventListener(
+    "change",
+    () => {
+      if (reducedMotion.matches) finishEntrances();
+    },
+    { signal }
+  );
   close.addEventListener(
     "click",
     () => {
