@@ -288,6 +288,11 @@ establish scanner coverage. Run the scanner-enabled compile command when possibl
 and report unavailable checks as unverified. Explicitly requested checks
 still fail the dry-run gate on findings or scanner failures.
 
+When optional CLI scanner preparation cannot find Docker on `PATH`, it prints one
+informational notice per process and does not retry image downloads. MCP
+compilation continues with compatible native scanners and reports skipped
+Docker-based checks with a concise `docker_unavailable` warning.
+
 MCP callers can opt into required image validation with `validate_images: true`,
 including with `dry_run: true`; Docker unavailability then fails compilation.
 
