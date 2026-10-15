@@ -632,6 +632,7 @@ Body.
 	lockYAML := string(lockContent)
 
 	uploadSection := extractWorkflowStepByName(t, lockYAML, "Upload agent output fallback artifact")
+	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 	for _, expected := range []string{
 		"name: agent-output-fallback\n",
 		"/tmp/gh-aw/agent_output.json",
@@ -645,6 +646,7 @@ Body.
 		"/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
+		constants.AWFResolvedConfigFilePath.String(),
 		"/tmp/gh-aw/agent/graders/grader_manifest.json",
 		"/tmp/gh-aw/agent/graders/grader_results.json",
 		"if-no-files-found: ignore",
@@ -720,6 +722,7 @@ safe-outputs:
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl",
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
+		"${{ runner.temp }}/gh-aw/awf-resolved-config.json",
 		"${{ runner.temp }}/gh-aw/agent/graders/grader_manifest.json",
 	} {
 		assert.Contains(t, uploadSection, expected)
@@ -798,6 +801,7 @@ Body.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 	uploadSection := extractWorkflowStepByName(t, string(lockContent), "Upload agent artifacts")
+	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 
 	for _, expected := range []string{
 		constants.TmpMcpLogsDir,
@@ -805,6 +809,7 @@ Body.
 		constants.AgentStdioLogPath,
 		constants.AWFProxyLogsDir.String() + "/",
 		constants.AWFAuditDir.String() + "/",
+		constants.AWFResolvedConfigFilePath.String(),
 	} {
 		assert.Contains(t, uploadSection, expected)
 	}
