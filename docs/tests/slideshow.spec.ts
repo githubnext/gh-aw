@@ -390,6 +390,36 @@ test("hides annotated secondary content only during the presentation", async ({ 
   await expect(page.locator(".ma")).toBeVisible();
 });
 
+for (const variant of ["a", "c", "d"]) {
+  test(`hides CTA buttons and hint only in slideshow mode for hero ${variant}`, async ({ page }) => {
+    await page.evaluate(key => {
+      document.querySelector<HTMLElement>('[data-variant-group="hero"]')!.dataset.active = key;
+    }, variant);
+    const heroCta = page.locator(`.aw-hero [data-variant="${variant}"] .aw-hero-cta`);
+    const closingCta = page.locator("#get-started .aw-closing");
+    for (const cta of [heroCta, closingCta]) {
+      await expect(cta.getByRole("link", { name: "Create a workflow", exact: true })).toBeVisible();
+      await expect(cta.getByRole("button", { name: "Copy installation prompt" })).toBeVisible();
+      await expect(cta.locator(".aw-cta-note")).toBeVisible();
+    }
+    await startSlideshow(page);
+    await page.keyboard.press("PageDown");
+    await expect(heroCta).not.toBeVisible();
+    await expect(presentation(page).getByRole("link", { name: "Create a workflow", exact: true })).toHaveCount(0);
+    await expect(presentation(page).getByRole("button", { name: "Copy installation prompt" })).toHaveCount(0);
+    await page.keyboard.press("End");
+    await expect(closingCta).not.toBeVisible();
+    await expect(presentation(page).getByRole("link", { name: "Create a workflow", exact: true })).toHaveCount(0);
+    await expect(presentation(page).getByRole("button", { name: "Copy installation prompt" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    for (const cta of [heroCta, closingCta]) {
+      await expect(cta.getByRole("link", { name: "Create a workflow", exact: true })).toBeVisible();
+      await expect(cta.getByRole("button", { name: "Copy installation prompt" })).toBeVisible();
+      await expect(cta.locator(".aw-cta-note")).toBeVisible();
+    }
+  });
+}
+
 test("skips annotated slide sections and restores them on exit", async ({ page }) => {
   await page.evaluate(() => {
     document.querySelector("#watch")?.setAttribute("data-slideshow-hide", "");
@@ -483,9 +513,14 @@ test("cleans up on page swaps and works after navigating away and back", async (
   await expect(page.locator("main [data-slideshow-slides] > section")).toHaveCount(12);
   await page.evaluate(() => document.dispatchEvent(new Event("astro:page-load")));
   await startSlideshow(page);
-  await page.keyboard.press("ArrowRight");
-  await presentation(page).getByRole("link", { name: "Create a workflow" }).first().click();
-  await expect(page).toHaveURL(/\/gh-aw\/setup\/creating-workflows\//);
+  await page.keyboard.press("End");
+  await expect(page.locator("html")).not.toHaveAttribute("data-slideshow-direction");
+  await page.keyboard.press("PageUp");
+  await expect(page.locator("html")).not.toHaveAttribute("data-slideshow-direction");
+  await presentation(page)
+    .getByRole("link", { name: /Documentation/ })
+    .click();
+  await expect(page).toHaveURL(/\/gh-aw\/introduction\/overview\//);
   await expect(page.locator("[data-slideshow-trigger]")).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/gh-aw\/$/);

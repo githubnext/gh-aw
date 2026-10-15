@@ -42,7 +42,7 @@ test("uses restrained per-item keyframes, DOM order and a bounded total duration
   await open(page);
   await page.keyboard.press("ArrowRight");
   const items = hero(page).locator("[data-slideshow-entrance]");
-  await expect(items).toHaveCount(4);
+  await expect(items).toHaveCount(3);
   const timing = await items.evaluateAll(elements =>
     elements.map(element => {
       const effect = element.getAnimations()[0].effect as KeyframeEffect;
@@ -51,11 +51,11 @@ test("uses restrained per-item keyframes, DOM order and a bounded total duration
     })
   );
   expect(timing).toEqual(
-    [0, 80, 160, 240].map((delay, index) => ({
+    [0, 80, 160].map((delay, index) => ({
       duration: 480,
       delay,
       easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-      translate: index === 3 ? "none" : "0px 12px",
+      translate: index === 2 ? "none" : "0px 12px",
     }))
   );
   await expect(items.first()).toHaveCSS("opacity", "0");
@@ -102,22 +102,23 @@ test("Tab reveals an entering control group immediately without consuming naviga
   await pauseEntrances(page);
   await open(page);
   await page.keyboard.press("ArrowRight");
-  const cta = hero(page).locator(".aw-hero-cta");
-  await expect(cta).toHaveCSS("opacity", "0");
-  await hero(page)
-    .locator("h1")
+  await page.keyboard.press("ArrowRight");
+  const picker = dialog(page).locator("[data-wf-picker]");
+  await expect(picker).toHaveCSS("opacity", "0");
+  await dialog(page)
+    .locator("#workflows-title")
     .evaluate(element => {
       element.tabIndex = -1;
       element.focus();
     });
   await page.keyboard.press("Tab");
-  await expect(hero(page).getByRole("link", { name: "Create a workflow", exact: true })).toBeFocused();
-  await expect(cta).toHaveCSS("opacity", "1");
-  expect(await cta.evaluate(element => element.getAnimations().length)).toBe(0);
+  await expect(picker.getByRole("tab", { name: /Repo Assist/ })).toBeFocused();
+  await expect(picker).toHaveCSS("opacity", "1");
+  expect(await picker.evaluate(element => element.getAnimations().length)).toBe(0);
   await page.keyboard.press("Tab");
-  await expect(hero(page).getByRole("button", { name: "Copy installation prompt" })).toBeFocused();
+  await expect(picker.getByRole("button", { name: "Copy setup prompt" })).toBeFocused();
   await page.keyboard.press("PageDown");
-  await expect(dialog(page).locator("[data-slideshow-status]")).toContainText("3 / 12");
+  await expect(dialog(page).locator("[data-slideshow-status]")).toContainText("4 / 12");
 });
 
 test("skips entrances for reduced motion and immediately finishes them when the preference changes", async ({ page }) => {

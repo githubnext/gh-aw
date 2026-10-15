@@ -56,9 +56,10 @@ footer space. It rests at 65% opacity and becomes opaque on hover, keyboard
 focus, or while its drawing palette is open.
 Add `data-slideshow-hide` to any element to omit secondary content from the
 presentation without hiding it on the normal page. On a whole slide section,
-the attribute skips that slide and updates the navigation count. Guided-form
-notes, lengthy workflow descriptions, the extra workflow catalog, and the
-custom-engine footnote already use this annotation.
+the attribute skips that slide and updates the navigation count. The hero and
+closing call-to-action groups (Create a workflow, Copy installation prompt and
+the guided-form hint), lengthy workflow descriptions, the extra workflow
+catalog, and the custom-engine footnote already use this annotation.
 When a demo tab is focused, Left/Right select tabs; Up/Down and Page Up/Page Down
 still navigate slides, and Tab/Shift+Tab leave the tablist.
 
