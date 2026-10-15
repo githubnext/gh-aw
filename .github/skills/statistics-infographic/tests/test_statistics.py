@@ -22,8 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from audit_sources import audit_api, audit_git, percentile
+from compute_pr_changes import compute
+from compute_pr_activity import compute as compute_activity
 from render_infographic import Canvas, LayoutError, discover_fonts, render, save
-from statistics_data import DataError, Outcome, Statistics, decimal, percent
+from statistics_data import Activity, DataError, Outcome, PRChange, Statistics, activity_groups, change_histogram, decimal, percent
 
 
 def example():
@@ -31,6 +33,78 @@ def example():
 
 
 class ArithmeticTests(unittest.TestCase):
+    @settings(max_examples=100, derandomize=True, database=None)
+    @given(st.integers(0, 10**12), st.integers(1, 10**8))
+    def test_activity_means_match_decimal_oracle(self, total, prs):
+        expected = (Decimal(total) / Decimal(prs)).quantize(Decimal(".1"), rounding=ROUND_HALF_UP)
+        self.assertEqual(Activity("Human account", total, 0).average(total, prs), f"{expected:.1f}")
+        self.assertEqual(Activity("Human account", 0, 0).average(0, 0), "n/a")
+
+    def test_activity_account_classification_and_individual_totals(self):
+        authors = [
+            {"login": "person", "__typename": "User"},
+            {"login": "github-actions", "__typename": "Bot"},
+            {"login": "copilot-swe-agent", "__typename": "User"},
+            {"login": "some-machine-user", "__typename": "User"},
+            None,
+            {"login": "github-actions[bot]", "__typename": "User"},
+        ]
+        records = [{"number": i + 1, "author": {"login": "PR-creator", "__typename": "User"},
+                    "comments": {"totalCount": 1, "nodes": [{"id": f"c{i}", "author": author}]},
+                    "commits": {"totalCount": 1, "nodes": [{"commit": {
+                        "oid": f"sha{i}", "author": {"user": author},
+                        "committer": {"user": {"login": "unrelated-committer", "__typename": "User"}}}}]}}
+                   for i, author in enumerate(authors)]
+        self.assertEqual(activity_groups(records), (
+            Activity("Human account", 1, 1), Activity("Agent / bot account", 3, 3),
+            Activity("Unattributed", 2, 2)))
+        changed_creators = deepcopy(records)
+        for pr in changed_creators:
+            pr["author"] = {"login": "agent-creator", "__typename": "Bot"}
+        self.assertEqual(activity_groups(records), activity_groups(changed_creators))
+        for mutate in (
+            lambda r: r.append(deepcopy(r[0])),
+            lambda r: r[0].update(number=0),
+            lambda r: r[0].pop("commits"),
+            lambda r: r[0]["comments"].update(totalCount=None),
+            lambda r: r[0]["commits"].update(totalCount=True),
+            lambda r: r[0]["commits"].update(totalCount=-1),
+            lambda r: r[0]["comments"].pop("nodes"),
+            lambda r: r[0]["comments"]["nodes"][0].pop("author"),
+            lambda r: r[0]["commits"]["nodes"][0]["commit"].pop("author"),
+            lambda r: r[0]["commits"]["nodes"][0]["commit"]["author"].pop("user"),
+            lambda r: r[0]["comments"].update(totalCount=2, nodes=r[0]["comments"]["nodes"] * 2),
+            lambda r: r[0]["commits"].update(totalCount=2, nodes=r[0]["commits"]["nodes"] * 2),
+        ):
+            bad = deepcopy(records)
+            mutate(bad)
+            with self.assertRaises(DataError):
+                activity_groups(bad)
+
+    @settings(max_examples=150, derandomize=True, database=None)
+    @given(st.lists(st.tuples(st.integers(0, 10**30), st.integers(0, 10**30)), max_size=260))
+    def test_change_histogram_matches_direct_count_oracle(self, values):
+        prs = tuple(PRChange(i + 1, a, d) for i, (a, d) in enumerate(values))
+        bins = change_histogram(prs)
+        self.assertEqual(sum(b.added for b in bins), len(values))
+        self.assertEqual(sum(b.deleted for b in bins), len(values))
+        self.assertLessEqual(len(bins), 8)
+        for i, bucket in enumerate(bins):
+            self.assertEqual(bucket.lower, i * bins[0].upper)
+            self.assertEqual(bucket.upper - bucket.lower, bins[0].upper)
+            self.assertEqual(bucket.added, sum(bucket.lower <= a < bucket.upper for a, _ in values))
+            self.assertEqual(bucket.deleted, sum(bucket.lower <= d < bucket.upper for _, d in values))
+        if values:
+            self.assertGreater(bins[-1].upper, max(max(v) for v in values))
+
+    def test_change_histogram_zero_empty_and_exact_boundaries(self):
+        self.assertEqual(change_histogram(()), ())
+        zero = change_histogram((PRChange(1, 0, 0),))
+        self.assertEqual([(b.lower, b.upper, b.added, b.deleted) for b in zero], [(0, 1, 1, 1)])
+        bins = change_histogram(tuple(PRChange(n + 1, n, 15 - n) for n in range(16)))
+        self.assertEqual([(b.lower, b.upper) for b in bins], [(n, n + 2) for n in range(0, 16, 2)])
+        self.assertEqual([(b.added, b.deleted) for b in bins], [(2, 2)] * 8)
+
     @settings(max_examples=200, derandomize=True, database=None)
     @given(st.integers(0, 10**18), st.integers(1, 10**18), st.integers(0, 4))
     def test_rounding_matches_independent_decimal_oracle(self, numerator, denominator, places):
@@ -97,6 +171,17 @@ class ContractTests(unittest.TestCase):
             ("structure", "included_files", 76),
             ("history", "total_added", 34001),
             ("history", "week_count", 3),
+            ("pr_changes", "pr_count", 73),
+            ("pr_changes", "snapshot_date", "2026-10-09"),
+            ("pr_changes", "repository", "other/repo"),
+            ("pr_changes", "bins", []),
+            ("pr_activity", "pr_count", 99),
+            ("pr_activity", "snapshot_date", "2026-10-09"),
+            ("pr_activity", "repository", "other/repo"),
+            ("pr_activity", "cohorts", []),
+            ("pr_activity", "group_by", "pr-author"),
+            ("pr_activity", "comment_count", 301),
+            ("pr_activity", "commit_count", 201),
         ]
         for section, field, value in changes:
             with self.subTest(section=section, field=field), self.assertRaises(ValueError):
@@ -138,6 +223,17 @@ class ContractTests(unittest.TestCase):
             lambda p: p["structure"]["groups"].__setitem__(1, deepcopy(p["structure"]["groups"][0])),
             lambda p: p["history"]["weeks"].reverse(),
             lambda p: p["history"]["weeks"][0].update(week_start="2026-09-29"),
+            lambda p: p["pr_changes"]["bins"][0].update(added=39),
+            lambda p: p["pr_changes"]["bins"][0].update(deleted=True),
+            lambda p: p["pr_changes"]["bins"][0].update(upper=0),
+            lambda p: p["pr_changes"]["bins"][1].update(lower=126),
+            lambda p: p["pr_changes"]["bins"][1].update(upper=251),
+            lambda p: p["pr_changes"]["bins"].append({"lower": 1000, "upper": 1125, "added": 0, "deleted": 0}),
+            lambda p: p["pr_activity"]["cohorts"][0].update(prs=4),
+            lambda p: p["pr_activity"]["cohorts"][0].update(comments=True),
+            lambda p: p["pr_activity"]["cohorts"][0].update(comments_per_pr=50),
+            lambda p: p["pr_activity"]["cohorts"][2].update(commits=1),
+            lambda p: p["pr_activity"]["cohorts"].reverse(),
         ]
         for mutate in mutations:
             with self.assertRaises(DataError):
@@ -174,10 +270,54 @@ class RenderingTests(unittest.TestCase):
             output = Path(directory) / "nested/result.png"
             save(a, output)
             with Image.open(output) as image:
-                self.assertEqual(image.size, (2560, 3200))
+                self.assertEqual(image.size, (2560, 5040))
                 self.assertEqual(image.format, "PNG")
                 self.assertFalse(getattr(image, "is_animated", False))
             self.assertEqual(list(output.parent.iterdir()), [output])
+        self.assertTrue(any(label.startswith("07") for _, label in a.labels))
+        self.assertTrue(any(label == "Lines per PR (inclusive ranges)" for _, label in a.labels))
+        self.assertTrue(any(label == "Number of PRs" for _, label in a.labels))
+        self.assertTrue(any(label == "Commits per PR" for _, label in a.labels))
+        self.assertTrue(any(label == "Conversation comments per PR" for _, label in a.labels))
+
+    def test_no_human_contributions_mean_zero_over_all_prs(self):
+        payload = example()
+        payload["pr_activity"]["cohorts"][0].update(comments=0, commits=0)
+        payload["pr_activity"]["cohorts"][1].update(comments=300, commits=200)
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        self.assertEqual(sum(label == "0.0" for _, label in canvas.labels), 2)
+        self.assertFalse(any(label == "n/a" for _, label in canvas.labels))
+
+    def test_empty_history_and_overlapped_bars(self):
+        payload = example()
+        payload["history"].update(week_count=0, weeks=[], total_added=0, total_deleted=0)
+        stats = Statistics.from_sources(payload)
+        self.assertEqual(stats.changes, Statistics.from_sources(example()).changes)
+        render(stats, self.fonts).verify()
+        # One bin contains both series: the interior must be a blended color.
+        payload["pr_changes"]["bins"] = [{"lower": 0, "upper": 1, "added": 100, "deleted": 100}]
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        overlap = canvas.image.getpixel((1400, 3500))
+        self.assertNotIn(overlap, ((22, 27, 34), (63, 185, 80), (248, 81, 73)))
+
+    def test_unreadable_histogram_labels_fail_explicitly(self):
+        payload = example()
+        for bucket in payload["pr_changes"]["bins"]:
+            bucket["lower"] *= 10**30
+            bucket["upper"] *= 10**30
+        with self.assertRaises(LayoutError):
+            render(Statistics.from_sources(payload), self.fonts)
+
+    def test_large_pr_diff_range_labels_wrap_without_truncation(self):
+        payload = example()
+        for bucket in payload["pr_changes"]["bins"]:
+            bucket["lower"] *= 10000
+            bucket["upper"] *= 10000
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        labels = [label for _, label in canvas.labels]
+        self.assertIn("1,250,000", labels)
+        self.assertIn("- 2,499,999", labels)
+        self.assertIn("Lines per PR (inclusive ranges)", labels)
 
     def test_zero_community_single_language_and_one_zero_week(self):
         payload = example()
@@ -235,6 +375,11 @@ class ApiAuditTests(unittest.TestCase):
     def fixture(self, raw):
         payload = example()
         prs, links = [], []
+        diff_values = {}
+        for field in ("added", "deleted"):
+            values = [b["lower"] for b in payload["pr_changes"]["bins"] for _ in range(b[field])]
+            values[-1] = 999
+            diff_values[field] = iter(values)
         durations = iter([5/60] * 10 + [.5] * 20 + [2] * 25 + [10] * 10 + [48] * 4 + [96] * 2 + [240] * 2)
         created = datetime(2026, 9, 1, tzinfo=timezone.utc)
         issues = [
@@ -254,8 +399,17 @@ class ApiAuditTests(unittest.TestCase):
                 references = [issues[0]] if origin == 0 and not direct else ([issues[1]] if origin == 1 and index < 10 else [])
                 if references:
                     body = f"<!-- START COPILOT CODING AGENT SUFFIX -->\nFixes #{references[0]['number']}"
-                pr = {"number": 1000 + len(prs), "state": state, "author": {"login": login},
+                number = 1000 + len(prs)
+                writers = [{"login": "human-writer", "__typename": "User"},
+                           {"login": "github-actions[bot]", "__typename": "User"}]
+                pr = {"number": 1000 + len(prs), "state": state,
+                      "author": {"login": login, "__typename": "User" if origin == 2 else "Bot"},
                       "body": body, "createdAt": created.isoformat(),
+                      "additions": next(diff_values["added"]), "deletions": next(diff_values["deleted"]),
+                      "comments": connection([{"id": f"c{number}-{i}", "author": writers[j]}
+                                              for i, j in enumerate((0, 1, 1))]),
+                      "commits": connection([{"commit": {"oid": f"sha{number}-{i}", "author": {"user": writer}}}
+                                             for i, writer in enumerate(writers)]),
                       "mergedAt": (created + timedelta(hours=next(durations))).isoformat() if state == "MERGED" else None}
                 prs.append(pr)
                 if login == "copilot-swe-agent":
@@ -286,6 +440,18 @@ class ApiAuditTests(unittest.TestCase):
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(mergedAt="2026-09-03T00:00:00Z")),
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(state="OPEN")),
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(createdAt="2026-10-09T00:00:00Z")),
+                ("pr-statistics-data.jsonl", lambda r: r[0].pop("additions")),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(deletions=None)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(additions=True)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(deletions=-1)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(number=0)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(additions=999)),
+                ("pr-statistics-data.jsonl", lambda r: r[-1].update(additions=1000)),
+                ("pr-statistics-data.jsonl", lambda r: r[30].update(additions=999)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["comments"].update(totalCount=40)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["commits"].update(totalCount=3)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["comments"]["nodes"][0].update(author=None)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["commits"]["nodes"][0]["commit"]["author"].update(user=None)),
                 ("cca-issue-links.jsonl", lambda r: r[0]["closingIssuesReferences"].update(totalCount=3)),
                 ("community-issues-data.jsonl", lambda r: r[20].update(state="UNKNOWN")),
                 ("community-issues-data.jsonl", lambda r: r[18]["closedByPullRequestsReferences"]["nodes"][0].update(author={"login": "different"})),
@@ -298,6 +464,50 @@ class ApiAuditTests(unittest.TestCase):
                 with self.subTest(source=name), self.assertRaises(DataError):
                     audit_api(stats, raw)
                 path.write_text("\n".join(json.dumps(value) for value in records[name]))
+
+    def test_recompute_individual_prs_cli_and_missing_diff_preserves_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory)
+            stats, records = self.fixture(raw)
+            census = raw / "census.json"
+            census.write_text(json.dumps(example()["origins"]))
+            output = raw / "computed"
+            compute(raw, census, output)
+            summary = json.loads((output / "pr-change-histogram.json").read_text())
+            self.assertEqual(summary, example()["pr_changes"])
+            self.assertEqual(sum(b["added"] for b in summary["bins"]), stats.all_prs.total)
+            self.assertEqual(sum(b["deleted"] for b in summary["bins"]), stats.all_prs.total)
+            with Image.open(output / "pr-change-histogram.png") as image:
+                self.assertEqual(image.size, (2560, 1180))
+            command = [sys.executable, str(ROOT / "scripts/compute_pr_changes.py"),
+                       "--raw-dir", str(raw), "--census", str(census), "--output-dir", str(output)]
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            original = {p.name: p.read_bytes() for p in output.iterdir()}
+            records["pr-statistics-data.jsonl"][0].pop("additions")
+            (raw / "pr-statistics-data.jsonl").write_text(
+                "\n".join(json.dumps(p) for p in records["pr-statistics-data.jsonl"]))
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("PR additions", result.stderr)
+            self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, original)
+
+    def test_recompute_comment_commit_comparison_and_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory)
+            self.fixture(raw)
+            census = raw / "census.json"
+            census.write_text(json.dumps(example()["origins"]))
+            output = raw / "computed"
+            compute_activity(raw, census, output)
+            self.assertEqual(json.loads((output / "pr-activity-summary.json").read_text()), example()["pr_activity"])
+            with Image.open(output / "pr-activity.png") as image:
+                self.assertEqual(image.size, (2560, 1180))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/compute_pr_activity.py"), "--raw-dir", str(raw),
+                 "--census", str(census), "--output-dir", str(output)],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class GitAuditTests(unittest.TestCase):

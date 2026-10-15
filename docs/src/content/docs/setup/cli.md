@@ -30,6 +30,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 
 | Command | Description | When to use |
 |---------|-------------|-------------|
+| [`gh aw skill`](#skill) | Print the bundled agentic-workflows skill | Loading instructions into an agent without adding repository files |
 | [`gh aw work-queue`](#work-queue) | Experimental Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 ## Installation
@@ -108,9 +109,21 @@ To choose between the setup commands: [`add-wizard`](#add-wizard) is guided and 
 
 ### Getting Workflows
 
+#### `skill`
+
+Print the bundled `/agentic-workflows` `SKILL.md` content to standard output without initializing a repository or creating files:
+
+```bash wrap
+gh aw skill
+```
+
+The command works outside a Git repository, requires no authentication or network access, and uses the file list bundled with the installed CLI version. The skill includes public raw-URL fallback instructions for GitHub API downloads blocked by HTTP 403 or cross-organization SAML authorization.
+
 #### `init`
 
 Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
+
+Initialization can use a token SAML-authorized for a different organization: if the public skill file-list API returns HTTP 403, `init` fetches the list from `raw.githubusercontent.com` without authentication. If that also fails, it warns and uses the bundled list. Creating a pull request still requires authorization for the target repository.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)

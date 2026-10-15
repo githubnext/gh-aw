@@ -1,17 +1,19 @@
 ---
 name: statistics-infographic
-description: Generate a readable six-panel repository statistics infographic from validated JSON, with exact arithmetic and independent raw GitHub/Git reconciliation.
+description: Generate an eight-panel repository statistics infographic with individual-PR diff histograms and human/agent comment and commit comparisons.
 ---
 
 # Repository statistics infographic
 
 Use when asked to consolidate repository-statistics slides into one image, regenerate
 the infographic with updated data, or verify its calculations. This is a reusable
-six-panel statistical template, not an arbitrary PowerPoint screenshot collage.
+eight-panel statistical template, not an arbitrary PowerPoint screenshot collage.
 
 The panels cover inferred PR initiation, merge/closed outcomes, start-to-merge
 durations, community issue outcomes, Go/JavaScript code composition, and weekly
-first-parent code changes. Repository names, dates, counts, proportions, and weeks
+first-parent code changes, plus overlapping histograms of lines added and removed
+for individual PRs, and mean comments/commits per PR for human versus agent/bot
+comment-writer and primary-commit-author accounts. Repository names, dates, counts, proportions, and weeks
 come from the input, never from this skill's original dataset.
 
 ## Generate
@@ -47,11 +49,78 @@ paths together. Automatic discovery supports Arial on macOS/Windows and Liberati
 Sans or DejaVu Sans on Linux. Missing fonts fail explicitly; no bitmap fallback is
 used.
 
-The output is a static, RGB, 2560 x 3200 PNG with 300-DPI metadata. A successful
+The output is a static, RGB, 2560 x 5040 PNG with 300-DPI metadata. A successful
 render atomically replaces the explicit output path. Invalid data, unreadable
 layout, or invalid fonts leave an existing output intact. Counts too large for
 their slots, more than 10 duration bands, or more than 260 weeks require a different
 layout; do not silently truncate, rescale text to illegibility, or aggregate data.
+
+### Recompute individual PR change sizes
+
+The seventh panel counts **individual PRs**, never weeks, commits, or files.
+Each census PR contributes its GitHub `additions` value to one bin of the added
+series and its `deletions` value to one bin of the removed series, including zeros.
+The x-axis is lines per PR; the y-axis is number of PRs. Both series use the same
+equal-width integer bins; bars overlap with transparency, not stacking or mirroring.
+The population includes merged, closed-unmerged, and open census PRs across all
+files, unlike the Go/JS-only weekly history panel.
+
+To recompute `pr-change-histogram.json` and a standalone image from cached raw
+records containing individual PR `number`, `additions`, `deletions`, `state`,
+and `createdAt` fields:
+
+```bash
+/tmp/statistics-infographic-venv/bin/python \
+  .github/skills/statistics-infographic/scripts/compute_pr_changes.py \
+  --raw-dir /path/to/raw-records \
+  --census /path/to/summaries/pr-initiation-assumption-summary.json \
+  --output-dir /path/to/summaries
+```
+
+This writes `pr-change-histogram.json` and `pr-change-histogram.png` (2560 x 1180).
+The summary is the required `pr_changes` section in the combined input, or the
+sixth canonical file for `--data-dir`. Re-render the complete image with all seven
+summaries. Missing per-PR additions/deletions fail explicitly; never substitute
+weekly Git totals, merge-commit churn, or missing values as zero.
+The command never fetches or refreshes API snapshots. If raw PR diff statistics
+are unavailable, disclose that real-data recomputation is blocked. Keep any
+rendered synthetic example clearly labelled and separate.
+
+### Compare human and agent PR activity
+
+Panel 08 counts **who wrote each comment and authored each commit**, never who
+created the PR. Each PR can contain both human and agent/bot contributions.
+For each author group, divide its total comments and primary-authored commits by
+the **same entire PR census**, including PRs with no contributions in that group.
+Use exact-rational means rounded half up to one decimal. No human contributions
+means zero, not an undefined or excluded PR population.
+
+```bash
+/tmp/statistics-infographic-venv/bin/python \
+  .github/skills/statistics-infographic/scripts/compute_pr_activity.py \
+  --raw-dir /path/to/raw-records \
+  --census /path/to/summaries/pr-initiation-assumption-summary.json \
+  --output-dir /path/to/summaries
+```
+
+Raw PRs need fully paginated
+`comments { totalCount nodes { id author { login __typename } } }` and
+`commits { totalCount nodes { commit { oid author { user { login __typename } } } } }`
+alongside number, state, and creation date. Counts-only records are insufficient.
+Every connection total must match its complete, distinct node inventory.
+The command writes `pr-activity-summary.json` (the required `pr_activity` section)
+and standalone `pr-activity.png` (2560 x 1180).
+Classify each comment's `author` and each commit's linked primary `author.user`.
+User accounts without bot/machine-user naming are human proxies; Bot actors,
+`[bot]` logins, and known Copilot accounts are agent/bot accounts. Unknown/deleted
+comment authors, unlinked commit authors, and other machine-user accounts stay
+unattributed. Disclose unknown comment and commit counts separately.
+Do not use the PR creator, committer, coauthor trailer, name, or email as a fallback.
+Agent/bot includes non-AI automation; account attribution is not proof of AI use.
+Comments exclude inline review comments and review submissions. Count each commit
+once per PR by its primary author, not once per coauthor or globally across PRs.
+The summary declares `group_by: contribution-author`; legacy PR-creator summaries
+must fail rather than being silently reused.
 
 ## Verify accuracy
 
@@ -79,7 +148,7 @@ requests credentials or performs network operations. Missing objects or shallow
 history fail explicitly. Large repositories may require substantial memory for
 the batched blob inventory.
 
-Open the resulting image and inspect all six panels at normal viewing size:
+Open the resulting image and inspect all eight panels at normal viewing size:
 titles, axes, labels, footnotes, chart proportions, and snapshot metadata. Automated
 text-bound and overlap checks complement but do not replace visual inspection.
 
