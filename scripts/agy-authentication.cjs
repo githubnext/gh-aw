@@ -7,7 +7,7 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 
-const VERSION = "1.3.3";
+const VERSION = "1.3.6";
 const TERMINAL_FAILURES = new Set(["ERROR", "CANCELED", "INTERRUPTED", "INVALID"]);
 const STATUSES = new Set(["SUCCESS", ...TERMINAL_FAILURES, "WAITING", "RUNNING"]);
 const USAGE_FIELDS = ["input_tokens", "output_tokens", "thinking_tokens", "cache_read_tokens", "total_tokens"];

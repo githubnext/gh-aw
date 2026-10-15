@@ -13,7 +13,17 @@ const completed = stdout => ({ code: 0, signal: null, stdout, stderr: "", timedO
 const failed = message => ({ ...completed(eventResult({ status: "ERROR", error: message })), code: 1 });
 
 test("the native authentication probe targets the latest verified release", () => {
-  assert.equal(VERSION, "1.3.3");
+  assert.equal(VERSION, "1.3.6");
+});
+
+test("the credentials workflow installs the probe's checksum-verified version", () => {
+  const workflow = fs.readFileSync(path.join(__dirname, "../.github/workflows/credentials-check.yml"), "utf8");
+  const harness = fs.readFileSync(path.join(__dirname, "../actions/setup/js/agy_harness.cjs"), "utf8");
+  const checksum = harness.match(new RegExp(`"${VERSION.replaceAll(".", "\\.")}": "([a-f0-9]{64})"`))?.[1];
+  assert.ok(checksum, "The probe version must have a verified harness checksum");
+  assert.ok(workflow.includes(`/releases/download/${VERSION}/agy_cli_linux_x64.tar.gz`));
+  assert.ok(workflow.includes(checksum));
+  assert.ok(workflow.includes(`test "$("$directory/agy" --version)" = "${VERSION}"`));
 });
 
 test("parses native streams and startup failure envelopes, rejects malformed events", () => {
