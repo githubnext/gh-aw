@@ -28,6 +28,20 @@ description: Complete reference for gh aw CLI commands and their MCP tool equiva
 
 ## Command Reference
 
+### `gh aw skill`
+
+Print the bundled `/agentic-workflows` `SKILL.md` content to standard output without adding files to the repository:
+
+```bash
+gh aw skill
+```
+
+Works outside a Git repository with no authentication or network access. Uses the file list bundled with the installed CLI version.
+
+**MCP equivalent**: Not available.
+
+---
+
 ### `gh aw init`
 
 Initialize a repository for agentic workflows.

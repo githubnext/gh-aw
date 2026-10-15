@@ -25,6 +25,7 @@ var copilotAgentsLog = logger.New("cli:copilot_agents")
 const agenticWorkflowsSkillFileListPlaceholder = "{{AW_FILE_LIST}}"
 const agenticWorkflowsOTELSkillParagraph = "When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill."
 const ghAWMarkdownFilesAPIURL = "https://api.github.com/repos/github/gh-aw/contents/.github/aw?ref=main"
+const ghAWMarkdownFilesRawURL = "https://raw.githubusercontent.com/github/gh-aw/main/pkg/cli/data/agentic_workflows_fallback_aw_files.json"
 const agenticWorkflowsSkillDirDescription = ".github/skills/agentic-workflows directory"
 const agenticWorkflowsAgentDirDescription = ".github/agents directory"
 
@@ -204,6 +205,10 @@ func buildAgenticWorkflowsSkillContent() (string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch .github/aw markdown file list from github/gh-aw: %v. Falling back to embedded list.", err)))
 		awFiles = embeddedFallbackAWMarkdownFiles()
 	}
+	return renderAgenticWorkflowsSkillContent(awFiles)
+}
+
+func renderAgenticWorkflowsSkillContent(awFiles []string) (string, error) {
 	sort.Strings(awFiles)
 	if len(awFiles) == 0 {
 		return "", errors.New("no .github/aw markdown files available from remote or embedded fallback")
@@ -249,6 +254,10 @@ func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusForbidden {
+		copilotAgentsLog.Print("GitHub API returned HTTP 403; fetching public raw markdown file list without authentication")
+		return fetchAgenticWorkflowsRawMarkdownFiles(ctx, client)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("github API returned %s", resp.Status)
 	}
@@ -270,6 +279,34 @@ func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
 		return nil, errors.New("github API returned no markdown files")
 	}
 
+	sort.Strings(awFiles)
+	return awFiles, nil
+}
+
+func fetchAgenticWorkflowsRawMarkdownFiles(ctx context.Context, client *http.Client) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ghAWMarkdownFilesRawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build public raw file list request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("public raw file list request failed: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			copilotAgentsLog.Printf("Failed to close public raw file list response: %v", err)
+		}
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("public raw file list returned HTTP %d", resp.StatusCode)
+	}
+	var awFiles []string
+	if err := json.NewDecoder(resp.Body).Decode(&awFiles); err != nil {
+		return nil, fmt.Errorf("failed to decode public raw file list: %w", err)
+	}
+	if len(awFiles) == 0 {
+		return nil, errors.New("public raw file list returned no markdown files")
+	}
 	sort.Strings(awFiles)
 	return awFiles, nil
 }
