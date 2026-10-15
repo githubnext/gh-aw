@@ -5,9 +5,16 @@ package cli
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func useDockerFallback(t *testing.T) {
@@ -658,26 +665,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable(t *testing.T) {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
 
-	errMsg := err.Error()
-	if !strings.Contains(errMsg, "docker is not available") {
-		t.Errorf("Expected error to mention 'docker is not available', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "cannot connect to Docker daemon") {
-		t.Errorf("Expected error to mention 'cannot connect to Docker daemon', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "zizmor") {
-		t.Errorf("Expected error to mention 'zizmor', got: %s", errMsg)
-	}
-	if strings.Contains(errMsg, "being downloaded") {
-		t.Errorf("Expected error NOT to say 'being downloaded' when Docker is unavailable, got: %s", errMsg)
-	}
-	// Error message should use parameter syntax, not CLI flag syntax
-	if strings.Contains(errMsg, "--zizmor") {
-		t.Errorf("Expected error NOT to use CLI flag syntax '--zizmor', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "zizmor: false") {
-		t.Errorf("Expected error to suggest 'zizmor: false', got: %s", errMsg)
-	}
+	assert.Equal(t, "Docker is unavailable; Docker-based static analysis will be skipped.", err.Error())
 
 	// Clean up
 	ResetDockerPullState()
@@ -697,27 +685,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_MultipleTools(t *testing.
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
 
-	errMsg := err.Error()
-	if !strings.Contains(errMsg, "docker is not available") {
-		t.Errorf("Expected error to mention 'docker is not available', got: %s", errMsg)
-	}
-	// Both tools should be mentioned
-	if !strings.Contains(errMsg, "zizmor") {
-		t.Errorf("Expected error to mention 'zizmor', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "actionlint") {
-		t.Errorf("Expected error to mention 'actionlint', got: %s", errMsg)
-	}
-	// Error message should use parameter syntax, not CLI flag syntax
-	if strings.Contains(errMsg, "--zizmor") || strings.Contains(errMsg, "--actionlint") {
-		t.Errorf("Expected error NOT to use CLI flag syntax, got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "zizmor: false") {
-		t.Errorf("Expected error to suggest 'zizmor: false', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "actionlint: false") {
-		t.Errorf("Expected error to suggest 'actionlint: false', got: %s", errMsg)
-	}
+	assert.Equal(t, "Docker is unavailable; Docker-based static analysis will be skipped.", err.Error())
 
 	// Clean up
 	ResetDockerPullState()
@@ -756,6 +724,78 @@ func TestIsDockerAvailable_MockFalse(t *testing.T) {
 		t.Error("Expected IsDockerAvailable to return false when mocked as unavailable")
 	}
 	ResetDockerPullState()
+}
+
+func TestDockerMissingReportsOnce(t *testing.T) {
+	useDockerFallback(t)
+	ResetDockerPullState()
+	t.Cleanup(ResetDockerPullState)
+
+	stdout, stderr := captureOutput(t, func() error {
+		var wg sync.WaitGroup
+		for range 10 {
+			wg.Go(func() {
+				assert.False(t, IsDockerAvailable(context.Background()))
+				assert.False(t, IsDockerImageAvailable(context.Background(), ZizmorImage))
+			})
+		}
+		wg.Wait()
+		for range 2 {
+			err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true, Grant: true})
+			var unavailable *DockerUnavailableError
+			require.ErrorAs(t, err, &unavailable)
+			assert.Equal(t, dockerUnavailableMessage, unavailable.Message)
+
+			started, join := StartDockerImageDownload(context.Background(), ZizmorImage)
+			assert.False(t, started, "missing Docker must not start a retrying download")
+			require.ErrorAs(t, join(), &unavailable)
+			assert.False(t, IsDockerImageDownloading(ZizmorImage))
+		}
+		return nil
+	})
+	assert.Empty(t, stdout, "informational output must not pollute JSON stdout")
+	assert.Equal(t, 1, strings.Count(stderr, "Docker is not installed; Docker-based features are unavailable."))
+	assert.NotContains(t, stderr, "Retry")
+	assert.NotContains(t, stderr, "Error")
+}
+
+func TestIsDockerAvailableInstalled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test binary uses a POSIX shell")
+	}
+	for _, exitCode := range []string{"0", "1"} {
+		t.Run("exit_"+exitCode, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\nexit "+exitCode+"\n"), 0o755))
+			t.Setenv("PATH", dir)
+			ResetDockerPullState()
+			t.Cleanup(ResetDockerPullState)
+			stdout, stderr := captureOutput(t, func() error {
+				assert.Equal(t, exitCode == "0", IsDockerAvailable(context.Background()))
+				return nil
+			})
+			assert.Empty(t, stdout)
+			assert.NotContains(t, stderr, "Docker is not installed")
+		})
+	}
+}
+
+func TestPrepareDockerImagesMissingBeforeDownload(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test binary uses a POSIX shell")
+	}
+	dir := t.TempDir()
+	docker := filepath.Join(dir, "docker")
+	require.NoError(t, os.WriteFile(docker, []byte("#!/bin/sh\n/bin/rm \"$0\"\n"), 0o755))
+	t.Setenv("PATH", dir)
+	ResetDockerPullState()
+	t.Cleanup(ResetDockerPullState)
+
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
+	var unavailable *DockerUnavailableError
+	require.ErrorAs(t, err, &unavailable)
+	assert.NotContains(t, err.Error(), "being downloaded")
+	assert.False(t, IsDockerImageDownloading(ZizmorImage))
 }
 
 func TestCheckAndPrepareDockerImages_DockerUnavailable_ReturnsTypedError(t *testing.T) {
