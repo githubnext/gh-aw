@@ -1,32 +1,30 @@
 {
-  "last_run_date": "2026-10-14",
+  "last_run_date": "2026-10-15",
   "last_window": {
-    "start": "2026-10-13T08:00:00Z",
-    "end": "2026-10-14T08:00:00Z"
+    "start": "2026-10-14T08:00:00Z",
+    "end": "2026-10-15T08:00:00Z"
   },
   "observed_window": {
-    "start": "2026-10-13T19:33:36Z",
-    "end": "2026-10-14T07:55:02Z",
-    "coverage": "partial; additional logs fetch remained count-limited",
-    "run_records": 294,
-    "detailed_summaries": 277
+    "coverage": "partial; 371 local run records, 283 detailed summaries; additional logs fetch stopped at storage limit",
+    "run_records": 371,
+    "detailed_summaries": 283
   },
   "key_themes": [
-    "failure-to-investigation closure loop remains mixed",
-    "publication-boundary repair loop has one merged and two open fixes",
-    "review-and-revision loop remains prospective"
+    "shared MCP gateway failure and reviewed repair",
+    "failure-report saturation under issue cap",
+    "Issue Arborist linking resumed",
+    "Release succeeded after separate tag failures"
   ],
   "carry_forward_questions": [
-    "Did Issue Arborist succeed after merged PR #68623?",
-    "Do PRs #68625, #68626 and #68628 merge and improve hosted runs?",
-    "Does Daily Go Test Parallelizer stay successful after its five failures?"
+    "Do later scheduled runs confirm the gateway repair across workflows?",
+    "Does Issue Arborist continue linking successfully?",
+    "What caused the two Release push_tag failures?"
   ],
   "representative_runs": [
-    38478313671,
-    38469476854,
-    38502082778,
-    38516088692,
-    38516167447,
-    38511328806
+    38647400879,
+    38648224390,
+    38677344534,
+    38686267247,
+    38680824229
   ]
 }
