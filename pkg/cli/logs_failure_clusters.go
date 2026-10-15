@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"crypto/sha256"
 	"fmt"
+	"net/url"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -30,6 +32,7 @@ type FailureCluster struct {
 	SignalRole         string                 `json:"signal_role"`
 	Count              int                    `json:"count"`
 	RunIDs             []int64                `json:"run_ids"`
+	RunIdentities      []FailureRunIdentity   `json:"run_identities,omitempty"`
 	Workflows          []string               `json:"workflows"`
 	Repositories       []string               `json:"repositories,omitempty"`
 	Engines            []string               `json:"engines,omitempty"`
@@ -37,6 +40,13 @@ type FailureCluster struct {
 	FirstSeen          time.Time              `json:"first_seen"`
 	LastSeen           time.Time              `json:"last_seen"`
 	RepresentativeRuns []FailureClusterTarget `json:"representative_runs"`
+}
+
+// FailureRunIdentity uniquely identifies a run across GitHub hosts and repositories.
+type FailureRunIdentity struct {
+	Host       string `json:"host,omitempty"`
+	Repository string `json:"repository,omitempty"`
+	RunID      int64  `json:"run_id"`
 }
 
 type FailureClusterTarget struct {
@@ -50,6 +60,32 @@ type FailureClusterTarget struct {
 	URL          string    `json:"url,omitempty"`
 	LogsPath     string    `json:"logs_path,omitempty"`
 	AuditPath    string    `json:"audit_path,omitempty"`
+}
+
+func failureRunIdentityFor(run RunData) FailureRunIdentity {
+	identity := FailureRunIdentity{
+		Repository: strings.ToLower(strings.TrimSpace(run.Repository)),
+		RunID:      run.RunID,
+	}
+	parsedURL, err := url.Parse(run.URL)
+	if err != nil {
+		return identity
+	}
+	identity.Host = strings.ToLower(parsedURL.Host)
+	if identity.Repository == "" {
+		if repoPath, _, found := strings.Cut(parsedURL.Path, "/actions/runs/"); found {
+			repoPath = strings.TrimRight(repoPath, "/")
+			ownerPath := path.Dir(repoPath)
+			if repoPath != "" && ownerPath != "." && ownerPath != "/" {
+				identity.Repository = strings.ToLower(path.Join(path.Base(ownerPath), path.Base(repoPath)))
+			}
+		}
+	}
+	return identity
+}
+
+func (identity FailureRunIdentity) key() string {
+	return failureClusterKey(identity.Host, identity.Repository, strconv.FormatInt(identity.RunID, 10))
 }
 
 func failureSignalsForRun(pr ProcessedRun) []FailureSignal {
@@ -123,7 +159,8 @@ func failureClusterSignals(run RunData) ([]FailureSignal, string) {
 	signals := slices.Clone(run.FailureSignals)
 	if len(signals) == 0 {
 		// Unknown failures are workflow-scoped, not a presumed common cause.
-		scope := failureClusterKey(strings.ToLower(run.Repository), run.WorkflowPath, run.WorkflowName)
+		identity := failureRunIdentityFor(run)
+		scope := failureClusterKey(identity.Host, identity.Repository, run.WorkflowPath, run.WorkflowName)
 		return []FailureSignal{{Kind: "workflow_failure", Value: scope}}, "metadata_only"
 	}
 	for i := range signals {
@@ -184,15 +221,16 @@ func finalizeFailureCluster(g *failureClusterGroup) FailureCluster {
 	c := g.cluster
 	// Prefer inspectable runs, then the newest, with deterministic tie breaks.
 	slices.SortFunc(g.members, compareFailureRuns)
-	seen := make(map[string]struct{})
+	seen := make(map[FailureRunIdentity]struct{})
 	for _, run := range g.members {
-		identity := fmt.Sprintf("%s/%d", strings.ToLower(run.Repository), run.RunID)
+		identity := failureRunIdentityFor(*run)
 		if _, exists := seen[identity]; exists {
 			continue
 		}
 		seen[identity] = struct{}{}
 		c.Count++
 		c.RunIDs = append(c.RunIDs, run.RunID)
+		c.RunIdentities = append(c.RunIdentities, identity)
 		c.Workflows = append(c.Workflows, workflowIDFromRun(run.WorkflowPath, run.WorkflowName))
 		c.Repositories = append(c.Repositories, run.Repository)
 		c.Engines = append(c.Engines, run.EngineID)
@@ -206,6 +244,13 @@ func finalizeFailureCluster(g *failureClusterGroup) FailureCluster {
 	}
 	c.RepresentativeRuns = selectFailureRepresentatives(g.members)
 	slices.Sort(c.RunIDs)
+	slices.SortFunc(c.RunIdentities, func(a, b FailureRunIdentity) int {
+		return cmp.Or(
+			cmp.Compare(a.Host, b.Host),
+			cmp.Compare(a.Repository, b.Repository),
+			cmp.Compare(a.RunID, b.RunID),
+		)
+	})
 	c.Workflows = sortedFailureFacets(c.Workflows)
 	c.Repositories = sortedFailureFacets(c.Repositories)
 	c.Engines = sortedFailureFacets(c.Engines)
@@ -214,11 +259,13 @@ func finalizeFailureCluster(g *failureClusterGroup) FailureCluster {
 }
 
 func compareFailureRuns(x, y *RunData) int {
+	xIdentity, yIdentity := failureRunIdentityFor(*x), failureRunIdentityFor(*y)
 	return cmp.Or(
 		cmp.Compare(failureRunDetailScore(*y), failureRunDetailScore(*x)),
 		y.CreatedAt.Compare(x.CreatedAt),
 		cmp.Compare(y.RunID, x.RunID),
-		cmp.Compare(x.Repository, y.Repository),
+		cmp.Compare(xIdentity.Host, yIdentity.Host),
+		cmp.Compare(xIdentity.Repository, yIdentity.Repository),
 	)
 }
 

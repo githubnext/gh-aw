@@ -221,7 +221,8 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 
 const logsToolDescription = `Download workflow logs. Returns JSON file_path; errors may be inline.
 
-Use jq to project summary, failure_investigation and continuation before runs.
+Read the returned file_path first; it contains the complete report JSON. Use jq
+against that file to project summary, failure_investigation and continuation before runs.
 For partial results ("partial": true), follow every continuation parameter, including
 updated end_date and before_run_id. State incomplete coverage until collection finishes.
 

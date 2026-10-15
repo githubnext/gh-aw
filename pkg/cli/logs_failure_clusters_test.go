@@ -249,14 +249,18 @@ func TestFailureClusterRenderingEscapesSignalNewlines(t *testing.T) {
 func TestFailureClusterTSVOutput(t *testing.T) {
 	data := failureClusterTestLogsData()
 	for _, verbose := range []bool{false, true} {
+		var stderr string
 		output := captureAuditGroupStdout(t, func() {
-			require.NoError(t, renderLogsOutputTSV(data, verbose))
+			stderr = captureAuditGroupStderr(t, func() {
+				require.NoError(t, renderLogsOutputTSV(data, verbose))
+			})
 		})
-		assert.Equal(t, 1, strings.Count(output, "[failure_clusters]"))
-		assert.Contains(t, output, "# [failure_clusters]")
-		assert.Contains(t, output, "# [failure_investigation]")
+		assert.NotContains(t, output, "[failure_clusters]")
+		assert.NotContains(t, output, "[failure_investigation]")
+		assert.Contains(t, stderr, "# [failure_clusters]")
+		assert.Contains(t, stderr, "# [failure_investigation]")
 		if verbose {
-			assert.Contains(t, output, "runs=1,2")
+			assert.Contains(t, stderr, "runs=1,2")
 		}
 	}
 
@@ -289,4 +293,15 @@ func TestFailureClusterCrossRunOutput(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(markdown), "## Failure Investigation Clusters")
 	assert.Contains(t, string(markdown), "runs=1,2")
+
+	var stderr string
+	stdout := captureAuditGroupStdout(t, func() {
+		stderr = captureAuditGroupStderr(t, func() {
+			renderCrossRunReportPretty(&CrossRunAuditReport{
+				FailureClusters: data.FailureClusters, FailureInvestigation: data.FailureInvestigation,
+			})
+		})
+	})
+	assert.NotContains(t, stdout, "[failure_clusters]")
+	assert.Contains(t, stderr, "[failure_clusters]")
 }

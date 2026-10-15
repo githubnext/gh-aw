@@ -166,6 +166,30 @@
                   "type": "integer"
                 }
               },
+              "run_identities": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "host": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "run_id": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "run_id"
+                  ],
+                  "additionalProperties": false
+                }
+              },
               "workflows": {
                 "type": [
                   "null",
@@ -5207,6 +5231,30 @@
                 ],
                 "items": {
                   "type": "integer"
+                }
+              },
+              "run_identities": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "host": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "run_id": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "run_id"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "workflows": {

@@ -70,6 +70,9 @@ const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
 
+// AgentFailureStepName is the generated conclusion step that reports agent failures.
+const AgentFailureStepName = "Handle agent failure"
+
 // KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
 // It is used for O(1) membership checks when validating or filtering user-defined job
 // names to avoid collisions with framework-generated jobs. For example, workflow code

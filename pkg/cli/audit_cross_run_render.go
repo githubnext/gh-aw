@@ -268,7 +268,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	renderPrettyDomainInventory(report)
 	renderPrettyDrain3Insights(report.Drain3Insights)
 	renderPrettyClusterAnalysis(report.ClusterAnalysis)
-	if err := renderFailureReportToWriter(os.Stdout, report.FailureClusters, report.FailureInvestigation, "", false); err != nil {
+	if err := renderFailureReportToWriter(os.Stderr, report.FailureClusters, report.FailureInvestigation, "", false); err != nil {
 		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
 	}
 	renderPrettyPerRunBreakdown(report.PerRunBreakdown)

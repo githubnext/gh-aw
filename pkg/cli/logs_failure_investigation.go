@@ -64,10 +64,10 @@ func buildFailureInvestigation(runs []RunData, clusters []FailureCluster) *Failu
 			covered[id] = struct{}{}
 		}
 	}
-	reached := make(map[int64]struct{})
+	reached := make(map[FailureRunIdentity]struct{})
 	for id := range covered {
-		for _, rid := range eligible[id].RunIDs {
-			reached[rid] = struct{}{}
+		for _, identity := range eligible[id].RunIdentities {
+			reached[identity] = struct{}{}
 		}
 	}
 	plan.CoveredClusters = len(covered)
@@ -77,14 +77,15 @@ func buildFailureInvestigation(runs []RunData, clusters []FailureCluster) *Failu
 }
 
 func failureInvestigationCandidates(runs []RunData, eligible map[string]FailureCluster, plan *FailureInvestigation) []failureInvestigationCandidate {
-	byID := make(map[int64]*RunData)
+	byID := make(map[FailureRunIdentity]*RunData)
 	for i := range runs {
 		run := &runs[i]
 		if !isClusterFailureConclusion(run.Conclusion) {
 			continue
 		}
-		if prior, exists := byID[run.RunID]; !exists || compareFailureRuns(run, prior) < 0 {
-			byID[run.RunID] = run
+		identity := failureRunIdentityFor(*run)
+		if prior, exists := byID[identity]; !exists || compareFailureRuns(run, prior) < 0 {
+			byID[identity] = run
 		}
 	}
 	candidates := make([]failureInvestigationCandidate, 0, len(byID))
@@ -113,7 +114,7 @@ func failureInvestigationCandidates(runs []RunData, eligible map[string]FailureC
 
 func failureCandidateGain(candidate *failureInvestigationCandidate, eligible map[string]FailureCluster, covered map[string]struct{}) failureInvestigationGain {
 	gain := failureInvestigationGain{rank: 4}
-	reached := make(map[int64]struct{})
+	reached := make(map[FailureRunIdentity]struct{})
 	for _, id := range candidate.clusterIDs {
 		if _, seen := covered[id]; seen {
 			continue
@@ -128,8 +129,8 @@ func failureCandidateGain(candidate *failureInvestigationCandidate, eligible map
 			clear(reached)
 		}
 		gain.clusters++
-		for _, rid := range cluster.RunIDs {
-			reached[rid] = struct{}{}
+		for _, identity := range cluster.RunIdentities {
+			reached[identity] = struct{}{}
 		}
 	}
 	gain.runs = len(reached)

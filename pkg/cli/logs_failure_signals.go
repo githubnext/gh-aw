@@ -3,6 +3,8 @@ package cli
 import (
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // Enrich legacy cached signals without changing their canonical value or ID.
@@ -30,7 +32,7 @@ func enrichFailureSignal(signal FailureSignal) FailureSignal {
 }
 
 func failureSignalRole(signal FailureSignal) string {
-	if signal.Job == "conclusion" && signal.Step == "Handle agent failure" {
+	if signal.Job == "conclusion" && signal.Step == constants.AgentFailureStepName {
 		return "aftermath"
 	}
 	switch signal.Kind {
@@ -72,15 +74,15 @@ func selectFailureRepresentatives(members []*RunData) []FailureClusterTarget {
 	identities := make(map[string]struct{})
 	for _, diverse := range []bool{true, false} {
 		for _, run := range members {
-			identity := failureClusterKey(strings.ToLower(run.Repository), strconv.FormatInt(run.RunID, 10))
-			scope := failureClusterKey(strings.ToLower(run.Repository), workflowIDFromRun(run.WorkflowPath, run.WorkflowName), run.EngineID, run.Model)
-			_, picked := identities[identity]
+			identity := failureRunIdentityFor(*run)
+			scope := failureClusterKey(identity.Host, identity.Repository, workflowIDFromRun(run.WorkflowPath, run.WorkflowName), run.EngineID, run.Model)
+			_, picked := identities[identity.key()]
 			_, represented := contexts[scope]
 			if picked || (diverse && represented) {
 				continue
 			}
 			selected = append(selected, failureTarget(run))
-			contexts[scope], identities[identity] = struct{}{}, struct{}{}
+			contexts[scope], identities[identity.key()] = struct{}{}, struct{}{}
 			if len(selected) == 3 {
 				return selected
 			}

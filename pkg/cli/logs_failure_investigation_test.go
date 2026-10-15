@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func TestFailureSignalsTypedLegacyContext(t *testing.T) {
 
 func TestFailureClustersPrioritizeBoundaries(t *testing.T) {
 	t.Parallel()
-	aftermath := FailureSignal{Kind: "failed_step", Value: failureClusterKey("conclusion", "Handle agent failure")}
+	aftermath := FailureSignal{Kind: "failed_step", Value: failureClusterKey("conclusion", constants.AgentFailureStepName)}
 	runs := []RunData{
 		{RunID: 1, Conclusion: "failure", FailureSignals: []FailureSignal{aftermath}},
 		{RunID: 2, Conclusion: "failure", FailureSignals: []FailureSignal{aftermath}},
@@ -87,7 +88,7 @@ func TestFailureInvestigationBudgetCoverageAndDeterminism(t *testing.T) {
 	for i := int64(1); i <= 7; i++ {
 		runs = append(runs, RunData{RunID: i, Conclusion: "failure", FailureSignals: []FailureSignal{
 			{Kind: "mcp_failure", Value: strconv.FormatInt(i, 10)},
-			{Kind: "failed_step", Value: failureClusterKey("conclusion", "Handle agent failure")},
+			{Kind: "failed_step", Value: failureClusterKey("conclusion", constants.AgentFailureStepName)},
 		}})
 	}
 	runs = append(runs,
@@ -153,7 +154,47 @@ func TestFailureInvestigationLogsPromptGuidance(t *testing.T) {
 		"failure_investigation.selected_runs", "failure_clusters", "representative_runs", "failure_boundary",
 		"aftermath", "signal.job/step", "unique run IDs", "symptoms", "intentional_failure",
 		"metadata_only", "jq", `"partial": true`, "end_date", "before_run_id", "audit_path/logs_path", "token_usage", "aic",
+		"Read the returned file_path first",
 	} {
 		assert.Contains(t, logsToolDescription, required)
 	}
+}
+
+func TestFailureInvestigationUsesHostQualifiedRunIdentities(t *testing.T) {
+	t.Parallel()
+	signal := FailureSignal{Kind: "mcp_failure", Value: "github"}
+	runs := []RunData{
+		{RunID: 42, Repository: "owner/repo", URL: "https://github.com/owner/repo/actions/runs/42", Conclusion: "failure", FailureSignals: []FailureSignal{signal}},
+		{RunID: 42, Repository: "owner/repo", URL: "https://ghe.example/owner/repo/actions/runs/42", Conclusion: "failure", FailureSignals: []FailureSignal{signal}},
+	}
+	clusters := annotateFailureClusters(runs)
+	require.Len(t, clusters, 1)
+	assert.Equal(t, 2, clusters[0].Count)
+	assert.Equal(t, []int64{42, 42}, clusters[0].RunIDs)
+	assert.Equal(t, []FailureRunIdentity{
+		{Host: "ghe.example", Repository: "owner/repo", RunID: 42},
+		{Host: "github.com", Repository: "owner/repo", RunID: 42},
+	}, clusters[0].RunIdentities)
+	require.Len(t, clusters[0].RepresentativeRuns, 2)
+
+	plan := buildFailureInvestigation(runs, clusters)
+	require.NotNil(t, plan)
+	assert.Equal(t, 2, plan.UniqueFailedRuns)
+	assert.Equal(t, 2, plan.CoveredRuns)
+	require.Len(t, plan.SelectedRuns, 1)
+	assert.Equal(t, []string{clusters[0].ID}, plan.SelectedRuns[0].ClusterIDs)
+
+	metadataRuns := []RunData{
+		{RunID: 42, Repository: "owner/repo", URL: "https://github.com/owner/repo/actions/runs/42", Conclusion: "failure"},
+		{RunID: 42, Repository: "owner/repo", URL: "https://ghe.example/owner/repo/actions/runs/42", Conclusion: "failure"},
+		{RunID: 42, Repository: "owner/repo", URL: "https://github.com/owner/repo/actions/runs/42", Conclusion: "failure"},
+	}
+	metadataClusters := annotateFailureClusters(metadataRuns)
+	require.Len(t, metadataClusters, 2)
+	metadataPlan := buildFailureInvestigation(metadataRuns, metadataClusters)
+	require.NotNil(t, metadataPlan)
+	assert.Equal(t, 2, metadataPlan.UniqueFailedRuns)
+	assert.Equal(t, 2, metadataPlan.MetadataOnlyRuns)
+	assert.Equal(t, 2, metadataPlan.CoveredRuns)
+	require.Len(t, metadataPlan.SelectedRuns, 2)
 }
