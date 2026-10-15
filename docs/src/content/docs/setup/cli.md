@@ -101,6 +101,8 @@ For invalid nested command paths, `gh aw` now fails explicitly instead of fallin
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
+Commands that create pull requests print the full pull request URL to stderr immediately after creation, including in non-verbose and quiet modes, so terminals can display it as a clickable link. The URL remains visible if subsequent local branch cleanup fails.
+
 ## Commands
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.

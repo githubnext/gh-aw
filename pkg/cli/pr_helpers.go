@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -69,7 +67,6 @@ func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTit
 		return prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created PR: "+prURL))
 	prHelpersLog.Printf("Created PR: %s", prURL)
 	return prURL, nil
 }
