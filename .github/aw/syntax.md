@@ -12,6 +12,7 @@ Use the smallest relevant reference instead of loading one large schema file.
 | Agentic workflow specific fields (`strict`, `bots`, `labels`, metadata) | [syntax-agentic.md](syntax-agentic.md) |
 | `engine:` field detail (per-engine support, inline drivers, auth) | [syntax-engine.md](syntax-engine.md) |
 | Cache configuration, tools, imports, and permission patterns | [syntax-tools-imports.md](syntax-tools-imports.md) |
+| `checkout:` field detail (single/array/disabled checkout, multi-repository allowlist) | [syntax-checkout.md](syntax-checkout.md) |
 | `skills` field | [skills.md](skills.md) |
 | `plugins` field (experimental Agent Plugins) | [syntax-tools-imports.md](syntax-tools-imports.md#agent-plugins-plugins) |
 | `lsp` field | [lsp.md](lsp.md) |

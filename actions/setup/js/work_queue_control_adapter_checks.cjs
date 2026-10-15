@@ -261,7 +261,10 @@ function registerTests({ describe, it }) {
           sleepFn: async () => {},
           core: { setOutput: () => {}, info: () => {}, setFailed: message => controlFailures.push(message) },
         });
-        assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
+        assert.equal(result.receipts[0].status, "durable", JSON.stringify(result));
+        assert.ok(result.receipts[0].request_id);
+        assert.equal(result.receipts[0].launches[0].state, "blocked");
+        assert.equal(result.receipts[0].launches[0].reason, "work_queue_dispatch_credential_principal_mismatch");
         assert.equal(controlFailures.length, 1);
         assert.match(controlFailures[0], /Work queue controls require recovery/);
         assert.equal(identityReads, 1);
@@ -927,7 +930,13 @@ async function verifyCompiledDispatchIdentity(input) {
       } else if (mode === "wrong-credential" || mode === "wrong-dispatch-tag") {
         assert.equal(posts, 0);
         assert.equal(tagReads, mode === "wrong-dispatch-tag" ? 1 : 0);
-        assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
+        assert.equal(result.receipts[0].status, "durable", JSON.stringify(result));
+        assert.equal(result.receipts[0].success, false);
+        assert.equal(result.receipts[0].launches.length, 1);
+        assert.equal(result.receipts[0].launches[0].dispatch_id, dispatch.dispatch_id);
+        assert.equal(result.receipts[0].launches[0].state, "blocked");
+        assert.equal(result.receipts[0].launches[0].failure_stage, "launch_processing");
+        assert.equal(result.receipts[0].launches[0].reason, mode === "wrong-credential" ? "work_queue_dispatch_credential_principal_mismatch" : "work_queue_dispatch_tag_mismatch");
         assert.equal(dispatch.state, "reserved");
         assert.equal(
           fixture.transactions.some(commit => commit.operations.some(operation => operation.kind === "Dispatch" && operation.state === "started")),

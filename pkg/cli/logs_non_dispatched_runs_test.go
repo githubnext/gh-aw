@@ -100,7 +100,7 @@ func TestFetchWorkflowRunsPaginatesPastFilteredBatches(t *testing.T) {
 
 	now := time.Now()
 	var calls []string
-	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, collection *HealthCollection) ([]WorkflowRun, int, error) {
 		calls = append(calls, opts.BeforeDate)
 		if opts.OldestFetchedCreatedAt == nil {
 			t.Fatal("fetchWorkflowRuns must request the oldest raw run timestamp for pagination")
@@ -138,7 +138,7 @@ func TestFetchWorkflowRunsStopsWhenSourceExhausted(t *testing.T) {
 	t.Cleanup(func() { healthListWorkflowRuns = original })
 
 	callCount := 0
-	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, collection *HealthCollection) ([]WorkflowRun, int, error) {
 		callCount++
 		return nil, 0, nil
 	}

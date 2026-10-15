@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -25,6 +25,10 @@ const trusted = {
   event: "issues",
   native_run: { repository: { id: 12 } },
 };
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function fixture(initialWork = work) {
   const state = { works: new Map([[initialWork.work_id, initialWork]]), requests: new Map() };
@@ -249,6 +253,14 @@ describe("closed backing Issue cancellation", () => {
     expect(args.request.parameters.operations).toEqual([{ kind: "WorkCancellation", work_id: "work_1", reason: "related_issue_closed" }]);
     expect(githubClient.rest.issues.createComment).toHaveBeenCalledOnce();
     expect(githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("Cancellation was recorded in the work queue ledger. New state: **cancelled**. The work is now canceled.");
+  });
+
+  it("cancels enterprise Work bound to a closed backing Issue", async () => {
+    vi.stubEnv("GITHUB_SERVER_URL", "https://contoso.example");
+    const enterpriseResource = { ...resource, host: "contoso.example" };
+    const event = fixture({ ...work, backing_issue: enterpriseResource });
+    expect(await main(event.options)).toMatchObject({ status: "cancelled", publishedNow: true });
+    expect(event.publishWorkQueueRequest.mock.calls[0][0].request.parameters.operations).toEqual([{ kind: "WorkCancellation", work_id: "work_1", reason: "related_issue_closed" }]);
   });
 
   it("does not publish for a stale or unbound Issue", async () => {

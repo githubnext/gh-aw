@@ -23,28 +23,30 @@ var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary             LogsSummary                 `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs                []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
-	Episodes            []EpisodeData               `json:"episodes" console:"-"`
-	Edges               []EpisodeEdge               `json:"edges" console:"-"`
-	ToolUsage           []ToolUsageSummary          `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
-	MCPToolUsage        *MCPToolUsageSummary        `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
-	Observability       []ObservabilityInsight      `json:"observability_insights,omitempty" console:"-"`
-	ErrorsAndWarnings   []ErrorSummary              `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
-	MissingTools        []MissingToolSummary        `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
-	MissingData         []MissingDataSummary        `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
-	MCPFailures         []MCPFailureSummary         `json:"mcp_failures,omitempty" console:"-"`
-	AccessLog           *AccessLogSummary           `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
-	FirewallLog         *FirewallLogSummary         `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
-	RedactedDomains     *RedactedDomainsLogSummary  `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
-	Continuation        *ContinuationData           `json:"continuation,omitempty" console:"-"`
-	Continuations       []WorkflowContinuation      `json:"continuations,omitempty" console:"-"`
-	LogsLocation        string                      `json:"logs_location" console:"-"`
-	Message             string                      `json:"message,omitempty" console:"-"`
-	StaleWarning        string                      `json:"stale_warning,omitempty" console:"-"`
-	GitHubAPIRateLimit  *GitHubAPIRateLimitReport   `json:"github_api_rate_limit,omitempty" console:"-"`
-	GitHubAPIRateLimits []*GitHubAPIRateLimitReport `json:"github_api_rate_limits,omitempty" console:"-"`
-	ModelRouting        *ModelRoutingLogsSummary    `json:"model_routing,omitempty" console:"title:Model Routing,omitempty"`
+	FailureInvestigation *FailureInvestigation       `json:"failure_investigation,omitempty" console:"-"`
+	FailureClusters      []FailureCluster            `json:"failure_clusters,omitempty" console:"-"`
+	Summary              LogsSummary                 `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs                 []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
+	Episodes             []EpisodeData               `json:"episodes" console:"-"`
+	Edges                []EpisodeEdge               `json:"edges" console:"-"`
+	ToolUsage            []ToolUsageSummary          `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	MCPToolUsage         *MCPToolUsageSummary        `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
+	Observability        []ObservabilityInsight      `json:"observability_insights,omitempty" console:"-"`
+	ErrorsAndWarnings    []ErrorSummary              `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools         []MissingToolSummary        `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MissingData          []MissingDataSummary        `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
+	MCPFailures          []MCPFailureSummary         `json:"mcp_failures,omitempty" console:"-"`
+	AccessLog            *AccessLogSummary           `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog          *FirewallLogSummary         `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
+	RedactedDomains      *RedactedDomainsLogSummary  `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
+	Continuation         *ContinuationData           `json:"continuation,omitempty" console:"-"`
+	Continuations        []WorkflowContinuation      `json:"continuations,omitempty" console:"-"`
+	LogsLocation         string                      `json:"logs_location" console:"-"`
+	Message              string                      `json:"message,omitempty" console:"-"`
+	StaleWarning         string                      `json:"stale_warning,omitempty" console:"-"`
+	GitHubAPIRateLimit   *GitHubAPIRateLimitReport   `json:"github_api_rate_limit,omitempty" console:"-"`
+	GitHubAPIRateLimits  []*GitHubAPIRateLimitReport `json:"github_api_rate_limits,omitempty" console:"-"`
+	ModelRouting         *ModelRoutingLogsSummary    `json:"model_routing,omitempty" console:"title:Model Routing,omitempty"`
 }
 
 type ModelRoutingLogsSummary struct {
@@ -159,10 +161,12 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	RunID        int64  `json:"run_id" console:"header:Run ID"`
-	Number       int    `json:"number" console:"-"`
-	WorkflowName string `json:"workflow_name" console:"header:Workflow"`
-	WorkflowPath string `json:"workflow_path" console:"-"`
+	FailureSignals    []FailureSignal `json:"failure_signals,omitempty" console:"-"`
+	FailureClusterIDs []string        `json:"failure_cluster_ids,omitempty" console:"-"`
+	RunID             int64           `json:"run_id" console:"header:Run ID"`
+	Number            int             `json:"number" console:"-"`
+	WorkflowName      string          `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath      string          `json:"workflow_path" console:"-"`
 	// IntentionalFailure is true when the workflow is tagged with intentional-failure: true
 	// in its frontmatter (e.g. credit-guardrail stress tests that are expected to fail).
 	// Agents and dashboards MUST exclude these runs from prod-main and fleet-health
@@ -677,7 +681,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		runs = append(runs, buildRunData(pr, processedRuns, localRepo, agg))
+		runData := buildRunData(pr, processedRuns, localRepo, agg)
+		if pr.cachedData == nil {
+			runData.FailureSignals = failureSignalsForRun(pr)
+		}
+		runs = append(runs, runData)
 	}
 
 	summary := agg.summary(len(processedRuns))
@@ -693,6 +701,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	data := buildLogsSections(processedRuns)
 	data.Summary = summary
 	data.Runs = runs
+	data.FailureClusters = annotateFailureClusters(data.Runs)
+	data.FailureInvestigation = buildFailureInvestigation(data.Runs, data.FailureClusters)
 	data.Episodes = episodes
 	data.Edges = edges
 	data.Continuation = continuation
@@ -900,6 +910,10 @@ func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 	}
 	if err := renderLogsWorkQueueToWriter(w, data.Runs); err != nil {
 		console.PrintErrorMessage("Cannot render work queue diagnostics: " + err.Error())
+		return
+	}
+	if err := renderFailureReportToWriter(w, data.FailureClusters, data.FailureInvestigation, "", false); err != nil {
+		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
 		return
 	}
 

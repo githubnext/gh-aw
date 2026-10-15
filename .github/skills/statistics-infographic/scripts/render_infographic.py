@@ -1,4 +1,4 @@
-"""Portable, deterministic six-panel infographic renderer."""
+"""Portable, deterministic eight-panel infographic renderer."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
-from statistics_data import DataError, Statistics, decimal, load_sources, percent
+from statistics_data import Activity, ChangeBin, DataError, Statistics, decimal, load_sources, percent
 
 
-WIDTH, HEIGHT = 2560, 3200
+WIDTH, HEIGHT = 2560, 5040
 BG, PANEL, WHITE, INK = "#0D1117", "#161B22", "#FFFFFF", "#C9D1D9"
 GREEN, BLUE, RED, GRAY = "#3FB950", "#58A6FF", "#F85149", "#484F58"
 Bbox = tuple[float, float, float, float]
@@ -49,12 +49,12 @@ def discover_fonts(regular: Path | None, bold: Path | None) -> tuple[Path, Path]
 
 
 class Canvas:
-    def __init__(self, fonts: tuple[Path, Path]) -> None:
+    def __init__(self, fonts: tuple[Path, Path], height: int = HEIGHT) -> None:
         self.fonts = fonts
-        self.image = Image.new("RGB", (WIDTH, HEIGHT), BG)
+        self.image = Image.new("RGB", (WIDTH, height), BG)
         self.draw = ImageDraw.Draw(self.image)
         self.labels: list[tuple[Bbox, str]] = []
-        self.clip = (0, 0, WIDTH, HEIGHT)
+        self.clip = (0, 0, WIDTH, height)
 
     @lru_cache(maxsize=32)
     def face(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -99,13 +99,15 @@ class Canvas:
                   width=length + 1)
 
     def card(self, index: int, title: str) -> tuple[int, int, int, int]:
-        x, y = 72 + (index % 2) * 1228, 330 + (index // 2) * 920
-        self.draw.rounded_rectangle((x, y, x + 1188, y + 860), radius=28,
+        x = 72 + (index % 2) * 1228 if index < 6 else 72
+        y = 330 + (index // 2 if index < 6 else index - 3) * 920
+        width = 2416 if index >= 6 else 1188
+        self.draw.rounded_rectangle((x, y, x + width, y + 860), radius=28,
                                     fill=PANEL, outline="#30363D", width=2)
-        self.clip = (x + 16, y + 16, x + 1172, y + 844)
+        self.clip = (x + 16, y + 16, x + width - 16, y + 844)
         self.text(f"{index + 1:02d}", x + 40, y + 33, 34, BLUE, True)
         self.text(title, x + 120, y + 30, 48, WHITE, True)
-        return x + 40, y + 125, 1108, y + 743
+        return x + 40, y + 125, width - 80, y + 743
 
     def stacked(self, values: list[int], colors: list[str], x: int, y: int,
                 width: int) -> None:
@@ -125,6 +127,60 @@ class Canvas:
             for b, label_b in self.labels[i + 1:]:
                 if max(a[0], b[0]) < min(a[2], b[2]) and max(a[1], b[1]) < min(a[3], b[3]):
                     raise LayoutError(f"Text overlap: {label_a!r} / {label_b!r}")
+
+
+def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: int,
+                          x: int, y: int, width: int) -> None:
+    c.text(f"{population:,} PRs per series | Green: added | Red: removed | Translucent overlap",
+           x, y, 38, WHITE)
+    if not bins:
+        c.text("No PR diff records", x, y + 220, 38)
+        return
+    left, right, baseline, height = x + 120, x + width - 20, y + 440, 330
+    maximum = max(max(b.added, b.deleted) for b in bins)
+    ticks = sorted({0, (maximum + 1) // 2, maximum})
+    c.text("Number of PRs", x, y + 58, 32)
+    for tick in ticks:
+        gy = baseline - tick * height / maximum
+        c.draw.line((left, gy, right, gy), fill=GRAY, width=2)
+        c.text(f"{tick:,}", x, gy - 20, 32, width=100)
+    slot = (right - left) / len(bins)
+    wrap_ranges = any(c.draw.textlength(f"{b.lower:,}-{b.upper - 1:,}", font=c.face(30)) > slot - 8 for b in bins)
+    bars = ImageDraw.Draw(c.image, "RGBA")
+    for i, bucket in enumerate(bins):
+        middle = left + (i + .5) * slot
+        for value, color in ((bucket.added, (63, 185, 80)), (bucket.deleted, (248, 81, 73))):
+            if value:
+                bars.rectangle((middle - slot * .42, baseline - value * height / maximum,
+                                middle + slot * .42, baseline),
+                               fill=(*color, 120), outline=(*color, 255), width=3)
+        if wrap_ranges:
+            c.center(f"{bucket.lower:,}", middle, baseline + 20, size=30, width=slot - 8)
+            c.center(f"- {bucket.upper - 1:,}", middle, baseline + 56, size=30, width=slot - 8)
+        else:
+            c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
+                     size=30, width=slot - 8)
+    c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + (106 if wrap_ranges else 90), size=34)
+
+
+def draw_activity(c: Canvas, activity: tuple[Activity, ...], population: int, x: int, y: int, width: int) -> None:
+    c.text(f"Contribution authors | Same denominator: {population:,} PRs | Blue: human | Green: agent/bot", x, y, 38, WHITE)
+    for metric_index, (label, values) in enumerate((
+        ("Conversation comments per PR", [g.comments for g in activity[:2]]),
+        ("Commits per PR", [g.commits for g in activity[:2]]),
+    )):
+        top = y + 90 + metric_index * 265
+        c.text(label, x, top, 42, WHITE, True)
+        means = [Fraction(value, population) if population else Fraction(0) for value in values]
+        maximum = max(max(means), Fraction(1))
+        left, right = x + 650, x + width - 210
+        for row, (group, total, mean, color) in enumerate(zip(activity[:2], values, means, (BLUE, GREEN))):
+            row_y = top + 80 + row * 75
+            c.text(f"{'Human' if row == 0 else 'Agent/bot'} ({total:,} total)", x, row_y, 36)
+            if mean:
+                c.draw.rectangle((left, row_y + 5, left + float(mean / maximum) * (right - left), row_y + 45),
+                                 fill=color)
+            c.text(group.average(total, population), right + 30, row_y, 40, WHITE, True, width=170)
 
 
 def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, in numbers") -> Canvas:
@@ -280,10 +336,22 @@ def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, i
         t("No weekly history records", x, y + 280, 38)
     t("First-parent Go / JS diff lines, including blanks. Renames count delete/add; boundary weeks may be partial.",
       x, foot + 16, 32, width=w, max_lines=2)
+    x, y, w, foot = c.card(6, "Lines added / removed per PR")
+    draw_change_histogram(c, s.changes, all_prs.total, x, y, w)
+    t("Shared equal-width bins; counts, not line totals. Every census PR contributes once to each series, including zero values.",
+      x, foot, 34, width=w, max_lines=2)
+    t("GitHub PR additions/deletions across all files; merged, closed-unmerged and open PRs. Not weekly Git churn.",
+      x, foot + 55, 32, width=w)
+    x, y, w, foot = c.card(7, "Comments and commits per PR: human vs agent")
+    draw_activity(c, s.activity, all_prs.total, x, y, w)
+    t(f"Grouped by comment writer and primary commit author, never PR creator. Unattributed: {s.activity[2].comments:,} comments / {s.activity[2].commits:,} commits.",
+      x, foot, 34, width=w, max_lines=2)
+    t("Conversation comments only; no inline reviews. Linked primary commit author only, not committer/coauthors. Bots may be non-AI.",
+      x, foot + 55, 32, width=w)
     c.clip = (0, 0, WIDTH, HEIGHT)
     collected = s.community_collected.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 3070, 32)
-    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 3125, 30)
+    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 4910, 32)
+    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 4965, 30)
     c.verify()
     return c
 
@@ -306,8 +374,8 @@ def save(canvas: Canvas, output: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--input", type=Path, help="JSON object containing the five source summaries.")
-    source.add_argument("--data-dir", type=Path, help="Directory containing the five canonical summary filenames.")
+    source.add_argument("--input", type=Path, help="JSON object containing the seven source summaries.")
+    source.add_argument("--data-dir", type=Path, help="Directory containing the seven canonical summary filenames.")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--title", default="Development, in numbers")
     parser.add_argument("--font-regular", type=Path)
@@ -319,7 +387,7 @@ def main() -> None:
         save(canvas, args.output)
     except (DataError, LayoutError, OSError, ValueError) as error:
         parser.error(str(error))
-    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, six panels, validated counts and text layout.")
+    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, eight panels, validated counts and text layout.")
 
 
 if __name__ == "__main__":

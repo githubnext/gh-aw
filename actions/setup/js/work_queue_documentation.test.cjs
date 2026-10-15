@@ -113,7 +113,8 @@ describe("work-queue deployment documentation", () => {
     expect(factory).toContain("does not send a workflow-dispatch request");
     expect(factory).toContain("A missing queue cannot exercise that lifecycle");
     expect(factory).toContain("The dispatcher is also the producer");
-    expect(factory).toContain("does not itself admit any Work");
+    expect(factory).toContain("A dispatch-only request cannot bootstrap the queue");
+    expect(factory).toContain("trusted processing handles actual launch and binding");
   });
 
   it("resolves queue documentation links after relocation", () => {

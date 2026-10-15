@@ -30,6 +30,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 
 | Command | Description | When to use |
 |---------|-------------|-------------|
+| [`gh aw skill`](#skill) | Print the bundled agentic-workflows skill | Loading instructions into an agent without adding repository files |
 | [`gh aw work-queue`](#work-queue) | Experimental Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 ## Installation
@@ -108,9 +109,21 @@ To choose between the setup commands: [`add-wizard`](#add-wizard) is guided and 
 
 ### Getting Workflows
 
+#### `skill`
+
+Print the bundled `/agentic-workflows` `SKILL.md` content to standard output without initializing a repository or creating files:
+
+```bash wrap
+gh aw skill
+```
+
+The command works outside a Git repository, requires no authentication or network access, and uses the file list bundled with the installed CLI version. The skill includes public raw-URL fallback instructions for GitHub API downloads blocked by HTTP 403 or cross-organization SAML authorization.
+
 #### `init`
 
 Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
+
+Initialization can use a token SAML-authorized for a different organization: if the public skill file-list API returns HTTP 403, `init` fetches the list from `raw.githubusercontent.com` without authentication. If that also fails, it warns and uses the bundled list. Creating a pull request still requires authorization for the target repository.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
@@ -739,12 +752,19 @@ gh aw health issue-monster         # Detailed metrics for specific workflow
 gh aw health --days 30             # Summary for last 30 days
 gh aw health --threshold 90        # Warn if below 90% success rate
 gh aw health --json                # Output in JSON format
+gh aw health --start-date -24h      # Evidence from the last 24 hours
+gh aw health --start-date 2026-10-14T04:49:11Z  # Evidence since a release timestamp
+gh aw health --start-date 2026-10-14 --end-date 2026-10-15  # Bounded window
 gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
-**Options:** `--days`, `--threshold`, `--repo/-r`, `--json/-j`
+**Options:** `--days`, `--start-date`, `--end-date`, `--logs-dir`, `--threshold`, `--repo/-r`, `--json/-j`
 
 The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an error.
+
+`--start-date` and `--end-date` filter run creation times inclusively. Both accept `YYYY-MM-DD` dates, RFC3339 timestamps with time zones, and relative times such as `-24h`, `-1d`, or `-1w`. Dates use UTC; an end date includes that entire day. The end defaults to the current time. Without an explicit start, `--days` counts backward from the end. An explicit start replaces the default seven-day horizon and cannot be combined with an explicit `--days`.
+
+For release-scoped evidence, pass the release's publication timestamp as `--start-date`; this filters by time, not compiler version. Text output and JSON `collection.start_date` / `collection.end_date` show the resolved UTC window. Health still samples current workflow revisions toward five completed first-attempt runs per scope, subject to API limits; it does not enumerate every run or reconstruct historical branch heads. A narrow window can leave insufficient evidence.
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 

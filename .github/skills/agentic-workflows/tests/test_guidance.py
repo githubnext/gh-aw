@@ -20,6 +20,49 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_public_instruction_download_fallback(self):
+        for path in (
+            SKILL / "SKILL.md",
+            ROOT / "pkg/cli/data/agentic_workflows_skill.md",
+            ROOT / ".github/agents/agentic-workflows.md",
+            ROOT / "pkg/cli/data/agentic_workflows_agent.md",
+        ):
+            with self.subTest(path=path):
+                text = path.read_text()
+                for required in (
+                    "HTTP 403",
+                    "SAML-authorized for a different organization",
+                    "do not retry with the same token",
+                    "https://raw.githubusercontent.com/github/gh-aw/main/<path>",
+                    "curl --fail --silent --show-error --location",
+                    "referenced instructions and `SKILL.md` files",
+                    "never send an Authorization header or token",
+                    "report that error",
+                    "not private or enterprise repositories",
+                ):
+                    self.assertIn(required, text)
+
+    def test_analyzing_runs_routes_and_evidence_contract(self):
+        guide = (ROOT / ".github/aw/analyzing-runs.md").read_text()
+        router = (SKILL / "SKILL.md").read_text()
+        overlay = (ROOT / ".github/aw/instructions.md").read_text()
+        for text in (router, overlay):
+            self.assertIn("analyzing-runs.md", text)
+            self.assertIn("failure clustering", text)
+        for required in (
+            "gh aw logs", "gh aw audit", "audit-diff",
+            "failure_investigation.selected_runs", "failure_clusters",
+            "failure_boundary", "aftermath", "signal.job", "signal.step",
+            "representative_runs", "audit_path", "logs_path", "metadata_only",
+            "Intentional failures", "unique run IDs", "common root cause",
+            "end_date", "before_run_id", "continuations", "recompute clusters",
+            "prune cache records", "Missing evidence", "successful",
+            "debug-agentic-workflow.md", "optimize-agentic-workflow.md",
+            "Do not dispatch workflows",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, guide)
+
     def test_no_network_guidance_for_read_only_workflows(self):
         constraints = (ROOT / ".github/aw/workflow-constraints.md").read_text()
         creator = (ROOT / ".github/aw/create-agentic-workflow.md").read_text()

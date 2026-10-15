@@ -2,6 +2,7 @@
 "use strict";
 
 const { canonical, queueError } = require("./work_queue_codec.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const RESOURCE_FIELDS = new Set(["repository", "kind", "host", "repository_id", "resource_id", "number", "comment_id", "run_id", "ref", "path"]);
 const DECIMAL_FIELDS = new Set(["repository_id", "resource_id", "number", "comment_id", "run_id"]);
@@ -36,7 +37,7 @@ function validateEffectResource(resource) {
       throw scopeError("effect target fields must be closed bounded nonempty identities");
     }
     if (DECIMAL_FIELDS.has(field) && !/^[1-9][0-9]*$/.test(value)) throw scopeError("effect resource IDs must be positive canonical decimals");
-    if (field === "host" && value !== "github.com") throw scopeError("effect target host is unsupported");
+    if (field === "host" && value !== expectedGitHubHost()) throw scopeError("effect target host is unsupported");
     if (field === "kind" && !["issue", "pull_request"].includes(value)) throw scopeError("effect target has an unknown resource kind");
     if (field === "path" && (value.startsWith("/") || value.includes("\\") || value.split("/").some(part => !part || part === "." || part === ".."))) {
       throw scopeError("effect paths must be exact nontraversing repository-relative paths");
@@ -87,7 +88,7 @@ function matchesEffectResource(selector, target) {
 }
 
 function hasNativeBinding(selector) {
-  if (selector.host !== "github.com" || !selector.repository_id) return false;
+  if (selector.host !== expectedGitHubHost() || !selector.repository_id) return false;
   if (["kind", "number", "resource_id", "comment_id"].some(field => Object.hasOwn(selector, field))) {
     return !!selector.kind && !!selector.number && !!selector.resource_id;
   }
@@ -141,4 +142,4 @@ function validateEffectResourceAuthority(state, authority, resource) {
   return authority;
 }
 
-module.exports = { validateEffectResource, frozenResourceScope, validateEffectResourceAuthority };
+module.exports = { expectedGitHubHost, validateEffectResource, frozenResourceScope, validateEffectResourceAuthority };
