@@ -57,9 +57,11 @@
     "subagent_costs": [
       {
         "agent_name": "file-summarizer",
+        "display_names": ["file-summarizer"],
         "agent_type": "subagent",
         "instance_count": 1,
         "completed_count": 1,
+        "models": ["claude-haiku-4.5"],
         "requests": 3,
         "input_tokens": 65748,
         "output_tokens": 473,
@@ -69,6 +71,7 @@
       },
       {
         "agent_name": "quick-checker",
+        "display_names": ["quick-checker"],
         "agent_type": "subagent",
         "instance_count": 1,
         "completed_count": 1,
@@ -122,6 +125,7 @@
         "agent_name": "file-summarizer",
         "requested_model": "copilot-completions/claude-haiku-4.5",
         "resolved_model": "claude-haiku-4.5",
+        "served_models": ["claude-haiku-4.5"],
         "invocation_count": 1,
         "completed_count": 1,
         "effective_model": "claude-haiku-4.5"
@@ -162,6 +166,7 @@
         "model": "claude-haiku-4.5",
         "requests": 3,
         "resolved_model": "claude-haiku-4.5",
+        "served_models": ["claude-haiku-4.5"],
         "input_tokens": 65748,
         "output_tokens": 473,
         "cache_read_tokens": 40686,
@@ -184,12 +189,14 @@
     "agent_usage": [
       {
         "agent_name": "file-summarizer",
+        "display_names": ["file-summarizer"],
         "agent_type": "subagent",
         "source_engine": "copilot",
         "instance_count": 1,
         "completed_count": 1,
         "requested_models": ["copilot-completions/claude-haiku-4.5"],
         "resolved_models": ["claude-haiku-4.5", "copilot-completions/claude-haiku-4.5"],
+        "served_models": ["claude-haiku-4.5"],
         "requests": 3,
         "input_tokens": 65748,
         "output_tokens": 473,
@@ -240,6 +247,7 @@
       },
       {
         "agent_name": "quick-checker",
+        "display_names": ["quick-checker"],
         "agent_type": "subagent",
         "source_engine": "copilot",
         "instance_count": 1,
