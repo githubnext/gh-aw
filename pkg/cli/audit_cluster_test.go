@@ -39,8 +39,8 @@ func TestAuditClusterOptions(t *testing.T) {
 		{"experiment conflict", []string{"--cluster", "--experiment", "x"}, "--experiment"},
 		{"baseline conflict", []string{"--cluster", "--no-baseline"}, "--no-baseline"},
 		{"stdin range conflict", []string{"--stdin", "--start-date=-1d"}, "--stdin"},
-		{"count requires cluster", []string{"--count", "3"}, "requires"},
-		{"failed selector requires cluster", []string{"--failed-no-jobs"}, "requires"},
+		{"count requires cluster", []string{"--count", "3", "123"}, "requires"},
+		{"failed selector requires cluster", []string{"--failed-no-jobs", "123"}, "requires"},
 		{"zero count", []string{"--cluster", "--count", "0"}, "1 and 1000"},
 		{"large count", []string{"--cluster", "--count", "1001"}, "1 and 1000"},
 		{"negative offset", []string{"--cluster", "--cluster-offset=-1"}, "negative"},
@@ -63,16 +63,44 @@ func TestAuditClusterOptions(t *testing.T) {
 	}
 }
 
+func TestAuditClusterDefaultSelection(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name    string
+		args    []string
+		cluster bool
+	}{
+		{name: "single run", args: []string{"123"}},
+		{name: "multiple runs", args: []string{"123", "456"}, cluster: true},
+		{name: "discovery", cluster: true},
+		{name: "explicit diff", args: []string{"--diff", "123", "456"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cmd := NewAuditCommand()
+			require.NoError(t, cmd.Flags().Parse(tt.args))
+			opts, err := getAuditCommandOptions(cmd)
+			require.NoError(t, err)
+			assert.Equal(t, tt.cluster, opts.cluster)
+		})
+	}
+}
+
 func TestAuditClusterArgumentConflicts(t *testing.T) {
 	t.Parallel()
 	for _, args := range [][]string{
 		{"--start-date=-1d", "123"},
 		{"--cluster", "--cluster-offset=1", "123"},
+		{"--cluster", "--diff", "123", "456"},
 	} {
 		cmd := NewAuditCommand()
 		cmd.SetArgs(args)
 		cmd.SilenceUsage, cmd.SilenceErrors = true, true
-		require.ErrorContains(t, cmd.Execute(), "run IDs cannot be combined")
+		if slices.Contains(args, "--diff") {
+			require.ErrorContains(t, cmd.Execute(), "cannot be combined")
+		} else {
+			require.ErrorContains(t, cmd.Execute(), "run IDs cannot be combined")
+		}
 	}
 }
 
@@ -488,7 +516,21 @@ func TestAuditClusterCommandJSON(t *testing.T) {
 	cmd := NewAuditCommand()
 	var output bytes.Buffer
 	cmd.SetOut(&output)
-	cmd.SetArgs([]string{"--cluster", "--repo", "o/r", "--json", "--output", testutil.TempDir(t, "audit-cluster-command-*"), "1"})
+	cmd.SetArgs([]string{"--repo", "o/r", "--json", "--output", testutil.TempDir(t, "audit-cluster-command-*"), "1", "2"})
+	require.NoError(t, cmd.Execute())
+	var report AuditClusterReport
+	require.NoError(t, json.Unmarshal(output.Bytes(), &report))
+	assert.Equal(t, "audit-clusters/v1", report.Schema)
+	assert.Equal(t, 2, report.RunsSelected)
+}
+
+func TestAuditDefaultsToDiscoveryClusteringWithoutRunIDs(t *testing.T) {
+	_, _ = setupAuditClusterGH(t)
+	t.Setenv("CLUSTER_LIST", `{"total_count":1,"runs":[{"databaseId":1,"status":"completed","conclusion":"failure"}]}`)
+	cmd := NewAuditCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"--repo", "o/r", "--json", "--output", testutil.TempDir(t, "audit-cluster-discovery-*")})
 	require.NoError(t, cmd.Execute())
 	var report AuditClusterReport
 	require.NoError(t, json.Unmarshal(output.Bytes(), &report))

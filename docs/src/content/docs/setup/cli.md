@@ -630,12 +630,12 @@ Logs are saved to `.github/aw/logs/run-{id}/` with filenames indicating the extr
 
 ##### Multi-run diff mode
 
-Compare two or more runs to detect policy regressions, new unauthorized domains, and behavioral drift. Pass multiple run IDs directly to `audit` — the first is the base, the rest are comparisons:
+Compare two or more runs to detect policy regressions, new unauthorized domains, and behavioral drift. Pass multiple run IDs to `audit --diff` — the first is the base, the rest are comparisons:
 
 ```bash wrap
-gh aw audit 12345 12346                     # Compare two runs
-gh aw audit 12345 12346 12347 12348         # Compare base against 3 runs
-gh aw audit 12345 12346 --format markdown   # Markdown for PR comments (or --json for CI)
+gh aw audit 12345 12346 --diff                     # Compare two runs
+gh aw audit 12345 12346 12347 12348 --diff         # Compare base against 3 runs
+gh aw audit 12345 12346 --diff --format markdown   # Markdown for PR comments (or --json for CI)
 ```
 
 The diff shows new or removed network domains, status changes (allowed ↔ denied), volume changes (>100%), MCP tool invocation changes, run metrics (tokens, duration, turns, tokens per turn), and per-tool and per-bash-command call breakdowns.

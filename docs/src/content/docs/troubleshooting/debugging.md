@@ -43,8 +43,8 @@ Copilot downloads the logs, identifies the root cause (missing tools, permission
 gh aw audit 12345678
 gh aw audit https://github.com/OWNER/REPO/actions/runs/123/job/456#step:7:1
 gh aw audit 12345678 --parse                          # parse to markdown
-gh aw audit 12345678 12345679                         # compare two runs
-gh aw audit 12345678 12345679 --format markdown
+gh aw audit 12345678 12345679 --diff                   # compare two runs
+gh aw audit 12345678 12345679 --diff --format markdown
 ```
 
 For security and performance trends across multiple runs, use `gh aw logs --format`:

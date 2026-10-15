@@ -313,7 +313,7 @@ Use `gh aw logs --run-id <run-id>` to identify blocked domains. For deeper analy
 
 ```bash
 gh aw audit 12345678              # Single run
-gh aw audit 12345678 12345679     # Compare two runs
+gh aw audit 12345678 12345679 --diff     # Compare two runs
 ```
 
 See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) and [Audit Commands](/gh-aw/reference/audit/) for more.

@@ -119,6 +119,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	t.Run("no baseline", func(t *testing.T) {
 		t.Parallel()
 		cmd := NewAuditCommand()
+		require.NoError(t, cmd.Flags().Parse([]string{"123"}))
 		require.NoError(t, cmd.Flags().Set("no-baseline", "true"))
 		opts, err := getAuditCommandOptions(cmd)
 		require.NoError(t, err)
@@ -137,6 +138,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	t.Run("evals with narrowed artifacts adds the usage artifact set", func(t *testing.T) {
 		t.Parallel()
 		cmd := NewAuditCommand()
+		require.NoError(t, cmd.Flags().Parse([]string{"123"}))
 		require.NoError(t, cmd.Flags().Set("evals", "true"))
 		require.NoError(t, cmd.Flags().Set("artifacts", "agent"))
 		opts, err := getAuditCommandOptions(cmd)
@@ -148,6 +150,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 	t.Run("evals with default artifacts keeps the default set", func(t *testing.T) {
 		t.Parallel()
 		cmd := NewAuditCommand()
+		require.NoError(t, cmd.Flags().Parse([]string{"123"}))
 		require.NoError(t, cmd.Flags().Set("evals", "true"))
 		opts, err := getAuditCommandOptions(cmd)
 		require.NoError(t, err)
@@ -174,7 +177,7 @@ func TestGetAuditCommandOptions(t *testing.T) {
 func TestRegisterAuditCommandFlags(t *testing.T) {
 	t.Parallel()
 	cmd := NewAuditCommand()
-	for _, name := range []string{"output", "json", "repo", "parse", "format", "artifacts", "stdin", "experiment", "variant", "runtime", "evals", "group", "no-baseline"} {
+	for _, name := range []string{"output", "json", "repo", "parse", "format", "artifacts", "stdin", "experiment", "variant", "runtime", "evals", "group", "diff", "no-baseline"} {
 		assert.NotNil(t, cmd.Flags().Lookup(name), "expected flag %q to be registered", name)
 	}
 }

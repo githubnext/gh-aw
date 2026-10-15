@@ -24,10 +24,11 @@ var auditCommandLong = `Audit one or more workflow runs by downloading artifacts
 analyzing MCP tool usage, and generating a concise report suitable for AI agents.
 
 When a single run is provided, generates a detailed Markdown report for that run.
-When two or more runs are provided, the first is used as the base (reference) and the
-remaining runs are compared against it, producing a diff report.
+With multiple runs, prepares a compact outcome-clustering report by default. Use
+--diff to compare runs against a base, or --group to audit and aggregate findings.
+With no run IDs, discovers runs from the last 24 hours and clusters them.
 
-With --cluster, collect lightweight metadata, jobs and usage artifacts instead of
+Clustering collects lightweight metadata, jobs and usage artifacts instead of
 performing full audits. Runs are grouped deterministically by outcome and observed
 failure signatures, with representative runs for follow-up. --start-date or
 --end-date enables clustering automatically. Without run IDs, clustering requires
@@ -59,9 +60,9 @@ var auditCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` audit 
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -v                 # Verbose output
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --parse            # Parse agent logs and firewall logs, generating log.md and firewall.md
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --repo owner/repo  # Audit run from a specific repository
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891         # Diff two runs (base vs comparison)
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891         # Cluster outcomes across two runs
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --diff  # Diff two runs (base vs comparison)
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --diff --format markdown  # Markdown diff output
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --group # Group findings by run and audit code
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --runtime cloud-hypervisor   # Skip run unless sandbox agent runtime matches
   ` + string(constants.CLIExtensionPrefix) + ` audit --cluster --repo owner/repo --json  # Cluster runs from the last 24 hours
@@ -85,6 +86,7 @@ type auditCommandOptions struct {
 	noBaseline       bool
 	timeout          time.Duration
 	cluster          bool
+	diff             bool
 	startDate        string
 	endDate          string
 	count            int
@@ -123,7 +125,8 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("group", false, "Group audit findings by run and finding code, including occurrence counts and a representative entry")
 	cmd.Flags().Bool("no-baseline", false, "Skip baseline lookup and comparison for single-run audits")
 	cmd.Flags().Duration("timeout", 0, "Maximum audit duration (e.g., 50s or 5m; 0 means no additional deadline). JSON single-run audits return explicitly incomplete results on timeout")
-	cmd.Flags().Bool("cluster", false, "Cluster lightweight run evidence by outcome and failure signature instead of auditing each run")
+	cmd.Flags().Bool("cluster", false, "Cluster lightweight run evidence by outcome and failure signature (the default for multiple runs)")
+	cmd.Flags().Bool("diff", false, "Compare multiple runs against a base instead of clustering them")
 	cmd.Flags().String("start-date", "", "Cluster runs created after this date (YYYY-MM-DD, RFC3339, or delta such as -1d); enables clustering")
 	cmd.Flags().String("end-date", "", "Cluster runs created before this date (YYYY-MM-DD, RFC3339, or delta); enables clustering")
 	cmd.Flags().Int("count", 100, "Maximum runs to examine for clustering (1-1000)")
@@ -149,6 +152,17 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
+	if !opts.cluster && !opts.diff && !opts.group && len(args) != 1 && opts.stdin {
+		opts.cluster = true
+	}
+	if opts.stdin {
+		if err := validateAuditClusterOptions(cmd, &opts); err != nil {
+			return err
+		}
+	}
+	if opts.diff && len(args) < 2 {
+		return errors.New("--diff requires at least two run IDs")
+	}
 	auditCommandLog.Printf("Dispatching audit command: run_count=%d, format=%s, parse=%t, evals_only=%t", len(args), opts.format, opts.parse, opts.evalsOnly)
 	ctx := cmd.Context()
 	if opts.timeout > 0 {
@@ -158,6 +172,9 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 	}
 	if opts.cluster {
 		return runAuditCluster(ctx, cmd, args, opts)
+	}
+	if opts.diff {
+		return runAuditMulti(ctx, args, opts.repoFlag, opts.outputDir, opts.verbose, opts.jsonOutput, opts.format, opts.artifacts)
 	}
 	if opts.group {
 		return runAuditGrouped(ctx, args, opts)
@@ -192,12 +209,16 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.noBaseline, _ = cmd.Flags().GetBool("no-baseline")
 	opts.timeout, _ = cmd.Flags().GetDuration("timeout")
 	opts.cluster, _ = cmd.Flags().GetBool("cluster")
+	opts.diff, _ = cmd.Flags().GetBool("diff")
 	opts.startDate, _ = cmd.Flags().GetString("start-date")
 	opts.endDate, _ = cmd.Flags().GetString("end-date")
 	opts.count, _ = cmd.Flags().GetInt("count")
 	opts.clusterOffset, _ = cmd.Flags().GetInt("cluster-offset")
 	opts.failedNoJobs, _ = cmd.Flags().GetBool("failed-no-jobs")
 	opts.stalledAfter, _ = cmd.Flags().GetDuration("stalled-after")
+	if !opts.cluster && !opts.diff && !opts.group && !opts.stdin && len(cmd.Flags().Args()) != 1 {
+		opts.cluster = true
+	}
 	if err := validateAuditClusterOptions(cmd, &opts); err != nil {
 		return auditCommandOptions{}, err
 	}

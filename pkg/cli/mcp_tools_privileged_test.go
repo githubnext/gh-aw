@@ -653,11 +653,11 @@ func TestAuditTool_AcceptsNumericRunIDOrURLField(t *testing.T) {
 	assert.Equal(t, []string{"1234567890"}, capturedArgs[slices.Index(capturedArgs, "--")+1:], "numeric run_id_or_url should be normalized to positional string run ID")
 }
 
-// TestAuditTool_MultiRunDiffMode verifies that when run_ids_or_urls contains
+// TestAuditTool_MultiRunClustering verifies that when run_ids_or_urls contains
 // multiple entries the audit tool passes all of them as positional arguments
-// to the audit command (which then runs in diff mode).
-func TestAuditTool_MultiRunDiffMode(t *testing.T) {
-	const expectedStdout = `[{"base_run_id":111,"compare_run_id":222}]`
+// to the audit command (which clusters outcomes by default).
+func TestAuditTool_MultiRunClustering(t *testing.T) {
+	const expectedStdout = `{"schema":"audit-clusters/v1"}`
 
 	var capturedArgs []string
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
@@ -687,7 +687,13 @@ func TestAuditTool_MultiRunDiffMode(t *testing.T) {
 	// All three run IDs must appear after the option boundary.
 	require.GreaterOrEqual(t, len(capturedArgs), 4, "captured args should include audit + 3 run IDs: %v", capturedArgs)
 	assert.Equal(t, "audit", capturedArgs[0], "first arg should be 'audit'")
+	assert.NotContains(t, capturedArgs, "--diff")
 	assert.Equal(t, []string{"111", "222", "333"}, capturedArgs[slices.Index(capturedArgs, "--")+1:])
+}
+
+func TestBuildAuditCommandArgsExplicitDiff(t *testing.T) {
+	args := buildAuditCommandArgs(auditArgs{Diff: true}, nil)
+	assert.Contains(t, args, "--diff")
 }
 
 // TestAuditTool_FailsWhenNoRunIDProvided verifies that the audit tool

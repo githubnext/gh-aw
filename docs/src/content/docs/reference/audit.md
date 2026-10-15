@@ -9,14 +9,14 @@ The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP
 
 ## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
-Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report. Add `--group` to aggregate findings or `--cluster` to prepare a compact outcome-analysis payload instead of diffing runs.
+Audit workflow runs. A single run produces a detailed Markdown report. Multiple runs are clustered by outcome and failure signature by default; use `--diff` to compare runs against a base or `--group` to audit and aggregate findings. With no run IDs, the command clusters runs from the last 24 hours.
 
 **Arguments:**
 
 | Argument | Description |
 |----------|-------------|
 | `<run-id-or-url>` | A numeric run ID, run URL, job URL, or job URL with step anchor |
-| `[<run-id-or-url>...]` | Additional runs to compare against the first (diff mode) |
+| `[<run-id-or-url>...]` | Additional runs to cluster, or to compare against the first with `--diff` |
 
 Each argument accepts a numeric run ID, a standard or short run URL, a job URL, or a job URL with a step anchor. GitHub Enterprise URLs follow the same patterns.
 
@@ -33,8 +33,9 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 | `--stdin` | off | Read run IDs or URLs from stdin (one per line) instead of positional arguments |
 | `--verbose` | off | Print detailed progress information |
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
+| `--diff` | off | Compare multiple runs against the first instead of clustering |
 | `--group` | off | Group audit findings so each `[run, code]` pair appears once with an occurrence count and representative entry |
-| `--cluster` | off | Cluster run outcomes and job signatures using compact usage artifacts, without full job logs or baseline audits |
+| `--cluster` | automatic for multiple runs and discovery | Explicitly request lightweight outcome clustering; also enables clustering for a single run |
 | `--start-date <date>` | 24 hours before end | Start of clustering discovery: relative date such as `-1d`, `YYYY-MM-DD`, or RFC3339 timestamp; enables clustering |
 | `--end-date <date>` | now | End of the clustering discovery window; enables clustering |
 | `--count <n>` | `100` | Maximum runs examined per clustering request, from 1 to 1000 |
@@ -68,7 +69,8 @@ Use `--stdin` to pass run IDs or URLs from a file or pipeline. This is mutually 
 
 ```bash
 echo "1234567890" | gh aw audit --stdin
-echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is base
+echo -e "1234567890\n9876543210" | gh aw audit --stdin   # cluster the supplied runs
+echo -e "1234567890\n9876543210" | gh aw audit --stdin --diff  # diff mode: first is base
 cat run-ids.txt | gh aw audit --stdin
 cat run-ids.txt | gh aw audit --stdin --repo owner/repo  # required for bare numeric IDs
 ```
@@ -76,32 +78,34 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo  # required for bare num
 **Multi-run diff examples:**
 
 ```bash
-gh aw audit 12345 12346                        # Compare two runs
-gh aw audit 12345 12346 12347 12348            # Compare base against 3 runs
-gh aw audit 12345 12346 --format markdown      # Markdown output for PR comments
-gh aw audit 12345 12346 --json                 # JSON for CI integration
-gh aw audit 12345 12346 --repo owner/repo      # Specify repository
-gh aw audit 12345 12346 --group                # Group findings by run and code
-gh aw audit 12345 12346 --group --json         # JSON grouped findings
+gh aw audit 12345 12346 --diff                        # Compare two runs
+gh aw audit 12345 12346 --diff --format markdown      # Markdown output for PR comments
+gh aw audit 12345 12346 --diff --json                 # JSON for CI integration
+gh aw audit 12345 12346 --diff --repo owner/repo      # Specify repository
+gh aw audit 12345 12346 --group                       # Group findings by run and code
+gh aw audit 12345 12346 --group --json                # JSON grouped findings
 ```
 
 ### Outcome clustering
 
-`--cluster` prepares compact evidence for agent analysis instead of performing
-a full audit of every run. It accepts explicit run IDs or a creation-time window.
-Date flags enable clustering automatically. For the last 24 hours:
+Clustering prepares compact evidence for agent analysis instead of performing a
+full audit of every run. It is the default for multiple run IDs and for discovery
+without run IDs; `--cluster` can also request it for a single run. Clustering
+accepts explicit run IDs or a creation-time window. Date flags enable it
+automatically. For the last 24 hours:
 
 ```bash
-gh aw audit --cluster --repo owner/repo --start-date -1d --json
-gh aw audit 12345 12346 --cluster --repo owner/repo --json
+gh aw audit --repo owner/repo --json
+gh aw audit --repo owner/repo --start-date -1d --json
+gh aw audit 12345 12346 --repo owner/repo --json
 gh aw audit --cluster --repo owner/repo --start-date -1d --failed-no-jobs --json
 ```
 
-Without IDs or date flags, `--cluster` discovers the last 24 hours. Explicit IDs
+Without IDs or date flags, clustering discovers the last 24 hours. Explicit IDs
 are deduplicated by host, repository and run ID; job/step URLs are rejected.
 Explicit IDs and date windows are mutually exclusive. Clustering supports `--stdin` for
 explicit IDs, but not together with date flags or `--cluster-offset`.
-It cannot be combined with `--group`, `--parse`, `--artifacts`, `--format`,
+It cannot be combined with `--diff`, `--group`, `--parse`, `--artifacts`, `--format`,
 `--experiment`, `--variant`, `--runtime`, `--evals`, or `--no-baseline`.
 
 Clustering reads run metadata, jobs and compact usage artifacts, groups outcomes

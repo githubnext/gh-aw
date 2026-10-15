@@ -1243,15 +1243,15 @@ func TestAuditCommandStdinRejectsPositionalArgs(t *testing.T) {
 	require.ErrorContains(t, err, "positional arguments are not allowed with --stdin", "error message should explain the conflict")
 }
 
-func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
+func TestAuditCommandDefaultsToDiscoveryWithoutRepo(t *testing.T) {
 	t.Parallel()
 	cmd := NewAuditCommand()
 	cmd.SetArgs([]string{})
 	cmd.SetOut(nil)
 	cmd.SetErr(nil)
 	err := cmd.Execute()
-	require.Error(t, err, "audit with no args and no --stdin should return an error")
-	require.ErrorContains(t, err, "at least one run ID or URL is required", "error message should prompt for required input")
+	require.Error(t, err, "default audit discovery should require a repository")
+	require.ErrorContains(t, err, "date-range clustering requires --repo owner/repo")
 }
 
 func TestAuditCommandVariantWithoutExperiment(t *testing.T) {

@@ -453,7 +453,8 @@ func buildLogsCommandError(err error, outputStr string, cmdArgs []string, timeou
 type auditArgs struct {
 	RunID        any      `json:"run_id,omitempty"          jsonschema:"Alias for run_id_or_url. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDOrURL   any      `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Accepts run ID or run/job URL (including step anchors). String or number."`
-	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
+	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: outcome clustering by default; set diff to compare runs against the first (see tool description for accepted formats)."`
+	Diff         bool     `json:"diff,omitempty"               jsonschema:"Use full-audit diff mode instead of outcome clustering for multiple runs."`
 	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, experiment, firewall, github-api, mcp, usage, work-queue"`
 	MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
@@ -513,10 +514,10 @@ func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, va
 
 const auditToolDescription = `Investigate one or more workflow runs and generate a concise report.
 
-When a single run is provided, generates a detailed audit report.
-When two or more runs are provided, the first is the base (reference) run and
-the remaining runs are compared against it (diff mode), showing changes in
-firewall domains, MCP tool usage, and run metrics.
+When a single run is provided, generates a detailed audit report. Multiple runs
+are clustered by outcome and observed failure signatures by default. Set diff to
+true to compare runs against the first, showing changes in firewall domains,
+MCP tool usage, and run metrics.
 
 Each run accepts:
 - Numeric run ID: 1234567890
@@ -684,10 +685,13 @@ func resolveAuditRunItems(args auditArgs) ([]string, error) {
 // buildAuditCommandArgs builds the `gh aw audit` command arguments.
 // Output is forced to /tmp/gh-aw/aw-mcp/logs for the MCP server (same as logs)
 // and --json is used for structured MCP consumption. All run IDs/URLs are passed
-// directly - the audit command handles single vs. diff mode.
+// directly - the audit command handles single, clustering and diff modes.
 func buildAuditCommandArgs(args auditArgs, runItems []string) []string {
 	cmdArgs := []string{"audit"}
 	cmdArgs = append(cmdArgs, "-o", constants.TmpAwMcpLogsDir, "--json")
+	if args.Diff {
+		cmdArgs = append(cmdArgs, "--diff")
+	}
 	if len(args.Artifacts) > 0 {
 		cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 	}

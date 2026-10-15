@@ -20,7 +20,8 @@ func TestAuditCommandDescriptionsAreConsistent(t *testing.T) {
 
 	assert.Contains(t, cmd.Short, "workflow runs", "audit short description should describe multiple run inputs")
 	assert.Contains(t, cmd.Long, "Audit one or more workflow runs", "audit long description should describe multiple run inputs")
-	assert.Contains(t, cmd.Long, "remaining runs are compared against it", "audit help should document multi-run analysis mode")
+	assert.Contains(t, cmd.Long, "outcome-clustering report by default", "audit help should document multi-run analysis mode")
+	assert.Contains(t, cmd.Long, "--diff", "audit help should document multi-run diff mode")
 }
 
 func TestTrialCommandUsesStandardExamplesHeading(t *testing.T) {

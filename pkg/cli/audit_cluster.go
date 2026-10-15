@@ -75,7 +75,24 @@ type AuditClusterContinuation struct {
 
 func validateAuditClusterOptions(cmd *cobra.Command, opts *auditCommandOptions) error {
 	opts.cluster = opts.cluster || opts.startDate != "" || opts.endDate != ""
+	if opts.diff {
+		if opts.cluster {
+			return errors.New("--diff cannot be combined with --cluster or clustering date ranges")
+		}
+		if opts.group {
+			return errors.New("--diff cannot be combined with --group")
+		}
+		for _, flag := range []string{"count", "cluster-offset", "failed-no-jobs", "stalled-after"} {
+			if cmd.Flags().Changed(flag) {
+				return fmt.Errorf("--%s is not supported with --diff", flag)
+			}
+		}
+		return nil
+	}
 	if !opts.cluster {
+		if opts.stdin {
+			return nil
+		}
 		for _, flag := range []string{"count", "cluster-offset", "failed-no-jobs", "stalled-after"} {
 			if cmd.Flags().Changed(flag) {
 				return fmt.Errorf("--%s requires --cluster or a date range", flag)
