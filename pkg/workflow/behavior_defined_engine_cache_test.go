@@ -134,8 +134,10 @@ func TestDeepCopyEngineDefinition_SlicesAreIndependent(t *testing.T) {
 }
 
 func TestDeepCopyEngineDefinition_BehaviorsAreIndependent(t *testing.T) {
+	nativeEdit := true
 	src := EngineDefinition{
 		Behaviors: &EngineBehaviorDefinition{
+			Capabilities:        EngineCapabilitiesDefinition{NativeEdit: &nativeEdit},
 			SupportedEnvVarKeys: []string{"API_KEY"},
 			Execution: &EngineExecutionDefinition{
 				Args: []string{"--model", "gpt-4"},
@@ -149,8 +151,11 @@ func TestDeepCopyEngineDefinition_BehaviorsAreIndependent(t *testing.T) {
 	src.Behaviors.SupportedEnvVarKeys[0] = "CHANGED"
 	src.Behaviors.Execution.Args[0] = "CHANGED"
 	src.Behaviors.Execution.Env["FOO"] = "CHANGED"
+	*src.Behaviors.Capabilities.NativeEdit = false
 
 	require.NotNil(t, dst.Behaviors)
+	require.NotNil(t, dst.Behaviors.Capabilities.NativeEdit)
+	assert.True(t, *dst.Behaviors.Capabilities.NativeEdit)
 	assert.Equal(t, "API_KEY", dst.Behaviors.SupportedEnvVarKeys[0])
 	require.NotNil(t, dst.Behaviors.Execution)
 	assert.Equal(t, "--model", dst.Behaviors.Execution.Args[0])

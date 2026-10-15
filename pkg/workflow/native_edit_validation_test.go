@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -37,16 +38,17 @@ func TestNativeEditCapabilities(t *testing.T) {
 
 func TestNativeEditBooleanCompilation(t *testing.T) {
 	for _, id := range []string{"copilot", "claude", "gemini", "pi", "codex", "agy"} {
-		for _, enabled := range []bool{true, false} {
-			t.Run(fmt.Sprintf("%s/%t", id, enabled), func(t *testing.T) {
-				content := fmt.Sprintf("---\non: workflow_dispatch\nengine: %s\ntools:\n  edit: %t\n---\nInspect the repository.\n", id, enabled)
+		for _, value := range []string{"true", "false", "", "null", "{}"} {
+			t.Run(id+"/"+value, func(t *testing.T) {
+				enabled := value != "false"
+				content := fmt.Sprintf("---\non: workflow_dispatch\nengine: %s\ntools:\n  edit: %s\n---\nInspect the repository.\n", id, value)
 				data, err := NewCompiler(WithSkipValidation(true)).ParseWorkflowString(content, "edit.md")
 				if !enabled && (id == "codex" || id == "agy") {
 					require.ErrorContains(t, err, "cannot enforce tools.edit: false")
 					return
 				}
 				require.NoError(t, err)
-				assert.Equal(t, enabled, data.Tools["edit"])
+				assert.Equal(t, !enabled, isToolExplicitlyFalse(data.Tools["edit"]))
 				assert.Equal(t, enabled, data.ParsedTools.Edit != nil)
 			})
 		}
@@ -60,6 +62,14 @@ func TestNativeEditImportPreservesExplicitBoolean(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, enabled, tools["edit"])
 		})
+	}
+	for _, value := range []any{nil, map[string]any{}} {
+		tools, err := NewCompiler().MergeTools(map[string]any{"edit": value}, `{"edit":false}`)
+		require.NoError(t, err)
+		assert.Equal(t, value, tools["edit"])
+		tools, err = NewCompiler().MergeTools(map[string]any{"edit": false}, `{"edit":null}`)
+		require.NoError(t, err)
+		assert.Equal(t, false, tools["edit"])
 	}
 }
 
@@ -106,25 +116,27 @@ Task
 }
 
 func TestNativeEditValidationBeforeToolFallback(t *testing.T) {
-	engine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+	definition := newHarnessEngineDefinition()
+	unsupported := false
+	definition.Behaviors.Capabilities.NativeEdit = &unsupported
+	engine, err := NewBehaviorDefinedEngine(definition)
 	require.NoError(t, err)
-	for _, tools := range []map[string]any{nil, {"edit": nil}, {"edit": map[string]any{}}} {
-		require.NoError(t, NewCompiler().validateNativeEditSupport(tools, engine), "legacy edit forms retain engine defaults")
-	}
-	for _, enabled := range []bool{true, false} {
-		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
-			frontmatter, err := parser.ExtractFrontmatterFromContent(fmt.Sprintf("---\ntools:\n  edit: %t\n---\nTask\n", enabled))
+	require.NoError(t, NewCompiler().validateNativeEditSupport(nil, engine))
+	for _, value := range []string{"true", "false", "", "null", "{}"} {
+		t.Run(value, func(t *testing.T) {
+			frontmatter, err := parser.ExtractFrontmatterFromContent(fmt.Sprintf("---\ntools:\n  edit: %s\n---\nTask\n", value))
 			require.NoError(t, err)
 			_, err = NewCompiler().resolveToolsConfiguration(frontmatter, frontmatter.Markdown, t.TempDir(), &parser.ImportsResult{}, engine, engine.GetID())
-			require.ErrorContains(t, err, fmt.Sprintf("tools.edit: %t", enabled))
+			require.ErrorContains(t, err, fmt.Sprintf("tools.edit: %t", value != "false"))
 		})
 	}
 }
 
 func TestNativeEditDoesNotEnableShell(t *testing.T) {
-	for _, enabled := range []bool{true, false} {
-		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
-			tools := map[string]any{"edit": enabled, "bash": false}
+	for _, value := range []any{true, false, nil, map[string]any{}} {
+		t.Run(fmt.Sprintf("%v", value), func(t *testing.T) {
+			enabled := !isToolExplicitlyFalse(value)
+			tools := map[string]any{"edit": value, "bash": false}
 			data := &WorkflowData{Tools: tools, ParsedTools: NewTools(tools), BashDisabled: true}
 
 			copilot := NewCopilotEngine()
@@ -150,7 +162,9 @@ func TestNativeEditDoesNotEnableShell(t *testing.T) {
 			piArgs := strings.Join(NewPiEngine().buildPiArgs(data), " ")
 			assert.Contains(t, piArgs, "--exclude-tools bash")
 			assert.Equal(t, !enabled, strings.Contains(piArgs, "--exclude-tools edit,write"))
-			assert.Contains(t, piToolPolicyJSON(data), fmt.Sprintf(`"edit":%t`, enabled))
+			var piPolicy map[string]any
+			require.NoError(t, json.Unmarshal([]byte(piToolPolicyJSON(data)), &piPolicy))
+			assert.Equal(t, value, piPolicy["edit"])
 		})
 	}
 }

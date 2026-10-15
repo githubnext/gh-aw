@@ -138,8 +138,9 @@ type EngineCapabilitiesDefinition struct {
 	BareMode             bool `yaml:"bare-mode,omitempty"`
 	BashCommandAllowlist bool `yaml:"bash-command-allowlist,omitempty"`
 	BashDisable          bool `yaml:"bash-disable,omitempty"`
-	NativeEdit           bool `yaml:"native-edit,omitempty"`
-	NativeEditDisable    bool `yaml:"native-edit-disable,omitempty"`
+	// Existing custom engines provide native editing by default; false opts out.
+	NativeEdit        *bool `yaml:"native-edit,omitempty"`
+	NativeEditDisable bool  `yaml:"native-edit-disable,omitempty"`
 }
 
 // ToRuntimeCapabilities converts the declarative capabilities definition into the
@@ -154,7 +155,7 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 		BareMode:             d.BareMode,
 		BashCommandAllowlist: d.BashCommandAllowlist,
 		BashDisable:          d.BashDisable,
-		NativeEdit:           d.NativeEdit,
+		NativeEdit:           d.NativeEdit == nil || *d.NativeEdit,
 		NativeEditDisable:    d.NativeEditDisable,
 	}
 }

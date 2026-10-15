@@ -622,9 +622,8 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 	applyEngineAndAgentEnv(env, workflowData, behaviorDefinedEngineLog)
 	applyMCPScriptsSecretEnv(env, workflowData)
 	e.applyBehaviorDefinedModelEnv(exec, workflowData, env)
-	capabilities := e.GetCapabilities()
-	if edit, configured := workflowData.Tools["edit"].(bool); configured && (capabilities.NativeEdit || capabilities.NativeEditDisable) {
-		env["GH_AW_TOOLS_EDIT"] = strconv.FormatBool(edit)
+	if edit, configured := workflowData.Tools["edit"]; configured {
+		env["GH_AW_TOOLS_EDIT"] = strconv.FormatBool(!isToolExplicitlyFalse(edit))
 	}
 	return env
 }
@@ -971,6 +970,11 @@ func deepCopyEngineDefinition(src EngineDefinition) EngineDefinition {
 //nolint:largefunc // Deep copy initializes all fields explicitly.
 func deepCopyEngineBehaviorDefinition(src EngineBehaviorDefinition) EngineBehaviorDefinition {
 	dst := src // value copy covers all scalar fields
+
+	if src.Capabilities.NativeEdit != nil {
+		nativeEdit := *src.Capabilities.NativeEdit
+		dst.Capabilities.NativeEdit = &nativeEdit
+	}
 
 	// SupportedEnvVarKeys
 	if src.SupportedEnvVarKeys != nil {

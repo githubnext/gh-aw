@@ -26,9 +26,9 @@ tools:
   edit: true
 ```
 
-`true` requires native editing. `false` disables native repository editing and takes precedence over sandbox defaults, pull request safe outputs, and imported enables. Omitting `edit` preserves existing defaults. Legacy `null` (`edit:`) and `{}` forms retain their existing engine-default behavior; use a boolean to require an enforceable policy.
+`true`, `null` (`edit:`), and `{}` are equivalent: they require native editing and use the same capability validation and runtime policy. `false` disables native repository editing and takes precedence over sandbox defaults, pull request safe outputs, and imported enables. Omitting `edit` preserves existing defaults.
 
-Copilot, Claude, Gemini, and Pi enforce both boolean values. Codex and experimental Agy provide native editing but cannot enforce `edit: false`; compilation rejects that setting instead of silently ignoring it. Custom engines must declare and implement the corresponding native editing capabilities.
+Copilot, Claude, Gemini, and Pi enforce enabling and disabling native editing. Codex and experimental Agy provide native editing but cannot enforce `edit: false`; compilation rejects that setting instead of silently ignoring it. Custom engines provide native editing by default for compatibility; engines without editors must declare `native-edit: false`. Disabling native editing requires an explicit `native-edit-disable: true` declaration and implementation.
 
 Editing does not grant shell or process execution. Use `bash: false` to independently disable shell tools. Conversely, `edit: false` is not a filesystem write barrier: separately enabled shell commands and MCP tools can still modify files. Claude retains scoped memory and sandbox scratch-path grants while denying repository edits.
 

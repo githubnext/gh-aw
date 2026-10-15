@@ -102,6 +102,14 @@ describe("Pi tool policy", () => {
     for (const toolName of ["edit", "write"]) expect(handlers.tool_call({ toolName }, {})).toMatchObject({ block: true });
   });
 
+  it.each([true, null, {}])("allows equivalent edit enable forms without allowing shell execution: %j", edit => {
+    vi.stubEnv("GH_AW_PI_TOOL_POLICY", JSON.stringify({ edit, bash: false }));
+    const handlers = {};
+    policyExtension({ on: (event, handler) => (handlers[event] = handler) });
+    for (const toolName of ["edit", "write"]) expect(handlers.tool_call({ toolName }, {})).toBeUndefined();
+    expect(handlers.tool_call({ toolName: "bash", input: { command: "echo blocked" } }, {})).toMatchObject({ block: true });
+  });
+
   it("blocks child workflow-completion reporting without blocking task safe outputs", () => {
     vi.stubEnv("GH_AW_PI_SUBAGENT_CHILD", "1");
     const child = {};

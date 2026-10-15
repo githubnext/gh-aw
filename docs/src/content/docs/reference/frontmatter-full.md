@@ -3306,9 +3306,9 @@ engine:
       # (optional)
       bash-command-allowlist: true
 
-      # The engine provides native file editing tools. The runtime receives
-      # GH_AW_TOOLS_EDIT for boolean edit settings when native editing capabilities are
-      # declared.
+      # The engine provides native file editing tools. Defaults to true for
+      # compatibility with existing custom engines; set false for engines without native
+      # editors. Configured edit settings are exported as GH_AW_TOOLS_EDIT.
       # (optional)
       native-edit: true
 
@@ -4377,11 +4377,10 @@ tools:
   web-search:
     {}
 
-  # Set true to require native file editing or false to disable native repository
-  # editing; compilation fails if the engine cannot enforce the requested boolean
-  # policy. Legacy null and {} forms retain engine-default behavior. This does not
-  # grant shell execution or prevent writes through separately enabled shell or MCP
-  # tools.
+  # Enable native file editing with true, null (edit:), or {}; these forms are
+  # equivalent. Set false to disable native repository editing. Compilation fails if
+  # the engine cannot enforce the requested policy. This does not grant shell
+  # execution or prevent writes through separately enabled shell or MCP tools.
   # (optional)
   # Accepted formats:
 
@@ -21921,9 +21920,9 @@ safe-outputs:
           # (optional)
           bash-command-allowlist: true
 
-          # The engine provides native file editing tools. The runtime receives
-          # GH_AW_TOOLS_EDIT for boolean edit settings when native editing capabilities are
-          # declared.
+          # The engine provides native file editing tools. Defaults to true for
+          # compatibility with existing custom engines; set false for engines without native
+          # editors. Configured edit settings are exported as GH_AW_TOOLS_EDIT.
           # (optional)
           native-edit: true
 

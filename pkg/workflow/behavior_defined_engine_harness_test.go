@@ -13,33 +13,40 @@ import (
 
 func TestBehaviorDefinedEngineNativeEditPolicy(t *testing.T) {
 	def := newHarnessEngineDefinition()
-	def.Behaviors.Capabilities.NativeEdit = true
+	nativeEdit := true
+	def.Behaviors.Capabilities.NativeEdit = &nativeEdit
 	def.Behaviors.Capabilities.NativeEditDisable = true
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 	assert.True(t, engine.GetCapabilities().NativeEdit)
 	assert.True(t, engine.GetCapabilities().NativeEditDisable)
 
-	for _, enabled := range []bool{true, false} {
-		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
-			tools := map[string]any{"edit": enabled}
+	for name, value := range map[string]any{"true": true, "false": false, "null": nil, "object": map[string]any{}} {
+		t.Run(name, func(t *testing.T) {
+			enabled := !isToolExplicitlyFalse(value)
+			tools := map[string]any{"edit": value}
 			require.NoError(t, NewCompiler().validateNativeEditSupport(tools, engine))
 			tools = NewCompiler().adjustToolsForEngineCapabilities(map[string]any{"tools": tools}, engine, tools)
-			assert.Equal(t, enabled, tools["edit"])
+			assert.Equal(t, value, tools["edit"])
 			data := &WorkflowData{Tools: tools, EngineConfig: &EngineConfig{Env: map[string]string{"GH_AW_TOOLS_EDIT": "ignored"}}}
 			env := engine.buildBehaviorDefinedExecutionEnv(def.Behaviors.Execution, data, false)
 			assert.Equal(t, strconv.FormatBool(enabled), env["GH_AW_TOOLS_EDIT"])
 		})
 	}
-	for _, tools := range []map[string]any{nil, {"edit": nil}, {"edit": map[string]any{}}} {
-		env := engine.buildBehaviorDefinedExecutionEnv(def.Behaviors.Execution, &WorkflowData{Tools: tools}, false)
-		assert.NotContains(t, env, "GH_AW_TOOLS_EDIT", "legacy edit forms retain engine defaults")
-	}
+	env := engine.buildBehaviorDefinedExecutionEnv(def.Behaviors.Execution, &WorkflowData{}, false)
+	assert.NotContains(t, env, "GH_AW_TOOLS_EDIT")
 
 	legacy, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
 	require.NoError(t, err)
-	env := legacy.buildBehaviorDefinedExecutionEnv(legacy.definition.Behaviors.Execution, &WorkflowData{Tools: map[string]any{"edit": true}}, false)
-	assert.NotContains(t, env, "GH_AW_TOOLS_EDIT", "implicit sandbox defaults must not change legacy custom engines")
+	assert.True(t, legacy.GetCapabilities().NativeEdit)
+	assert.False(t, legacy.GetCapabilities().NativeEditDisable)
+	for _, value := range []any{true, nil, map[string]any{}} {
+		tools := map[string]any{"edit": value}
+		require.NoError(t, NewCompiler().validateNativeEditSupport(tools, legacy))
+		env := legacy.buildBehaviorDefinedExecutionEnv(legacy.definition.Behaviors.Execution, &WorkflowData{Tools: tools}, false)
+		assert.Equal(t, "true", env["GH_AW_TOOLS_EDIT"])
+	}
+	require.ErrorContains(t, NewCompiler().validateNativeEditSupport(map[string]any{"edit": false}, legacy), "cannot enforce tools.edit: false")
 }
 
 // newHarnessEngineDefinition returns a minimal EngineDefinition with harness-script set.

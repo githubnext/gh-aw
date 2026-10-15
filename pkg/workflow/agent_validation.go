@@ -326,13 +326,12 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 }
 
 func (c *Compiler) validateNativeEditSupport(tools map[string]any, engine CodingAgentEngine) error {
-	edit, explicitBoolean := tools["edit"].(bool)
-	if !explicitBoolean {
-		// Legacy null/object forms retain their engine-default behavior.
+	edit, configured := tools["edit"]
+	if !configured {
 		return nil
 	}
 	capabilities := engine.GetCapabilities()
-	if !edit {
+	if isToolExplicitlyFalse(edit) {
 		if !capabilities.NativeEditDisable {
 			return fmt.Errorf("engine '%s' cannot enforce tools.edit: false; use an engine that supports disabling native editing (copilot, claude, gemini, or pi), or remove tools.edit to retain the engine default", engine.GetID())
 		}

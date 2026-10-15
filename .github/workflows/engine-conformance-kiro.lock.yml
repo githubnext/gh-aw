@@ -1335,6 +1335,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_STAGED: true
+          GH_AW_TOOLS_EDIT: true
           GITHUB_WORKSPACE: ${{ github.workspace }}
           KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
           KIRO_LOG_NO_COLOR: 1
