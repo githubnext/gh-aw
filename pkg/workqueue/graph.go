@@ -19,7 +19,11 @@ func validateResource(resource Resource, pool PoolPolicy) error {
 	if resource.Kind != "issue" && resource.Kind != "pull_request" {
 		return queueError("resource_invalid", "expected Issue or PR type")
 	}
-	if resource.Host != "github.com" || !repoPattern.MatchString(resource.Repository) ||
+	host, err := expectedResourceHost()
+	if err != nil {
+		return err
+	}
+	if resource.Host != host || !repoPattern.MatchString(resource.Repository) ||
 		!slices.Contains(pool.AllowedRepositories, resource.Repository) {
 		return queueError("resource_unauthorized", "host/repository is not approved")
 	}

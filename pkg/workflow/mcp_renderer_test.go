@@ -143,6 +143,9 @@ func TestRenderWorkQueueMCPUsesSnapshotAndFinishIntentMounts(t *testing.T) {
 		if !strings.Contains(rendered, constants.WorkQueueFinishIntentMount) || !strings.Contains(rendered, `"work_queue_claim_finish"`) {
 			t.Fatalf("expected the finish tool to use the safe-output intent mount: %s", rendered)
 		}
+		if !strings.Contains(rendered, `"GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"`) {
+			t.Fatalf("expected the configured GitHub server URL in the queue MCP environment: %s", rendered)
+		}
 		if strings.Contains(rendered, "GITHUB_TOKEN") || strings.Contains(rendered, constants.DefaultWorkspaceMount) || strings.Contains(rendered, constants.DefaultTmpGhAwMount) {
 			t.Fatalf("queue MCP must not receive Git credentials or workspace mounts: %s", rendered)
 		}
@@ -161,6 +164,9 @@ func TestRenderWorkQueueMCPUsesSnapshotAndFinishIntentMounts(t *testing.T) {
 		}
 		if !strings.Contains(rendered, constants.WorkQueueFinishIntentMount) {
 			t.Fatalf("expected the safe-output intent mount: %s", rendered)
+		}
+		if !strings.Contains(rendered, `env_vars = ["GITHUB_SERVER_URL", "RUNNER_TEMP"]`) {
+			t.Fatalf("expected the configured GitHub server URL in the queue MCP environment: %s", rendered)
 		}
 		if strings.Contains(rendered, "GITHUB_TOKEN") || strings.Contains(rendered, constants.DefaultWorkspaceMount) || strings.Contains(rendered, constants.DefaultTmpGhAwMount) {
 			t.Fatalf("queue MCP must not receive Git credentials or workspace mounts: %s", rendered)

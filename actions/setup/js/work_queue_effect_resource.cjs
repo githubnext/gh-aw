@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { expectedGitHubHost } = require("./work_queue_host.cjs");
+const { expectedGitHubHost, isTrustedGitHubApiUrl } = require("./work_queue_host.cjs");
 const { validateEffectResource } = require("./work_queue_resource_scope.cjs");
 
 const DECIMALS = new Set(["repository_id", "resource_id", "number", "comment_id", "run_id"]);
@@ -38,6 +38,7 @@ function canonicalResourceTarget(resource) {
 
 async function resolveRepositoryTarget(github, resource) {
   const target = canonicalResourceTarget(resource);
+  if (!isTrustedGitHubApiUrl()) throw new Error("Claim effect API endpoint does not match the configured GitHub server");
   target.host = expectedGitHubHost();
   if (typeof github?.rest?.repos?.get === "function") {
     const [owner, repo] = target.repository.split("/");
