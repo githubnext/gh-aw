@@ -1,20 +1,20 @@
-# PR Triage Report
+# PR Triage Summary
 
-- Run: 2026-10-13T18:33:46Z
-- Run ID: 38447452938
-- Eligible PRs: 1
-- Skipped by 1h cooldown: 10
-- Open Copilot PRs: 11
+- Run: 2026-10-15T18:30:00Z
+- Eligible PRs: 2
+- Skipped by cooldown: 2
+- Open Copilot PRs: 4
 
 ## Result
-- #56568 — fast_track — bug/medium — total 79
+- #69072 — fast_track — bug / medium — total 74
+- #69046 — defer — bug / medium — total 53
 
 ## Summary
-- Category distribution: bug=1
-- Risk distribution: medium=1
-- Priority distribution: medium=1
-- Recommended actions: fast_track=1
+- Category distribution: bug=2
+- Risk distribution: medium=2
+- Priority distribution: high=1, medium=1
+- Recommended actions: fast_track=1, defer=1
 - Batch opportunities: none
 
 ## Next action
-- Route #56568 to expedited human review because it addresses a production bug in a signed-commit fallback path and remains the only eligible Copilot PR after the 1-hour cooldown.
+- Route #69072 for expedited human review; keep #69046 deferred as a draft WIP with incomplete evidence.

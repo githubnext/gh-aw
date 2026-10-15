@@ -1,59 +1,67 @@
 {
-  "run_date": "2026-10-15T12:37:56Z",
-  "run_id": "38735481142",
-  "source": "pr-triage-agent",
-  "eligible_total": 1,
-  "cooldown_skipped": 0,
-  "open_copilot_prs": 1,
-  "category_counts": {
-    "bug": 1
-  },
-  "risk_counts": {
-    "high": 1
-  },
-  "priority_counts": {
-    "high": 1
-  },
-  "action_counts": {
-    "auto_merge": 0,
-    "fast_track": 0,
-    "batch_review": 0,
-    "defer": 0,
-    "close": 1
-  },
+  "run_date": "2026-10-15T18:30:00Z",
+  "run_id": "38785600324",
+  "source": "manual-pr-triage",
+  "eligible_total": 2,
+  "cooldown_skipped": 2,
+  "open_copilot_prs": 4,
+  "category_counts": { "bug": 2 },
+  "risk_counts": { "medium": 2 },
+  "priority_counts": { "high": 1, "medium": 1 },
+  "action_counts": { "auto_merge": 0, "fast_track": 1, "batch_review": 0, "defer": 1, "close": 0 },
   "batches": [],
   "selected_candidates": [
     {
-      "number": 56568,
-      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
+      "number": 69072,
+      "title": "Fix direct Anthropic `claude-sonnet-5-5` cache-read price ($0.20 → $0.10 per 1M tokens)",
       "category": "bug",
-      "risk": "high",
-      "priority_score": 75,
-      "score_breakdown": {
-        "impact": 39,
-        "urgency": 24,
-        "quality": 12
-      },
-      "action": "close",
-      "review_state": "CHANGES_REQUESTED",
-      "ci_state": "unknown"
+      "risk": "medium",
+      "priority_score": 74,
+      "score_breakdown": { "impact": 38, "urgency": 20, "quality": 16 },
+      "action": "fast_track",
+      "review_state": "pass",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69046,
+      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 53,
+      "score_breakdown": { "impact": 23, "urgency": 18, "quality": 12 },
+      "action": "defer",
+      "review_state": "draft",
+      "ci_state": "passing"
     }
   ],
   "prs": [
     {
-      "number": 56568,
-      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
+      "number": 69072,
+      "title": "Fix direct Anthropic `claude-sonnet-5-5` cache-read price ($0.20 → $0.10 per 1M tokens)",
       "state": "open",
       "user": "Copilot",
       "draft": false,
       "category": "bug",
-      "risk": "high",
-      "priority_score": 75,
-      "action": "close",
-      "review_state": "CHANGES_REQUESTED",
-      "ci_state": "unknown"
+      "risk": "medium",
+      "priority_score": 74,
+      "action": "fast_track",
+      "review_state": "pass",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69046,
+      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "state": "open",
+      "user": "Copilot",
+      "draft": true,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 53,
+      "action": "defer",
+      "review_state": "draft",
+      "ci_state": "passing"
     }
   ],
-  "cooldown_skipped_prs": [],
-  "notes": "Only one open Copilot-authored PR remained beyond the one-hour cooldown. It is a stale, high-risk bug fix with explicit changes requested and no CI signals, so it should be closed rather than routed for merge or expedited review."
+  "cooldown_skipped_prs": [ 69081, 69079 ],
+  "notes": "Two eligible Copilot-authored PRs remain after the one-hour cooldown. The pricing fix is a focused, passing bug fix that should be fast-tracked, while the draft WIP job-fix PR stays deferred until actionable evidence is present."
 }
