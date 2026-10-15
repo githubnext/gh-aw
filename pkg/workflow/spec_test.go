@@ -299,3 +299,57 @@ func TestSpec_ActionPinning_ActionMode(t *testing.T) {
 	assert.Equal(t, workflow.ActionModeRelease, mode,
 		"DetectActionMode must honor the GH_AW_ACTION_MODE override regardless of the version arg")
 }
+
+// TestSpec_Constants_LockSchemaVersions validates the documented lock schema
+// version values and supported-version set.
+func TestSpec_Constants_LockSchemaVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  workflow.LockSchemaVersion
+		expected string
+	}{
+		{name: "legacy v1", version: workflow.LockSchemaV1, expected: "v1"},
+		{name: "strict-field v2", version: workflow.LockSchemaV2, expected: "v2"},
+		{name: "agent-metadata v3", version: workflow.LockSchemaV3, expected: "v3"},
+		{name: "current v4", version: workflow.LockSchemaV4, expected: "v4"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, string(tt.version),
+				"lock schema version must match the documented value")
+			assert.True(t, workflow.IsSchemaVersionSupported(tt.version),
+				"documented lock schema version %q must be supported", tt.version)
+		})
+	}
+}
+
+// TestSpec_Constants_TimeDeltaLimits validates the documented one-year bounds
+// for relative time delta units.
+func TestSpec_Constants_TimeDeltaLimits(t *testing.T) {
+	tests := []struct {
+		name     string
+		actual   int
+		expected int
+	}{
+		{name: "months", actual: workflow.MaxTimeDeltaMonths, expected: 12},
+		{name: "weeks", actual: workflow.MaxTimeDeltaWeeks, expected: 52},
+		{name: "days", actual: workflow.MaxTimeDeltaDays, expected: 365},
+		{name: "hours", actual: workflow.MaxTimeDeltaHours, expected: 8760},
+		{name: "minutes", actual: workflow.MaxTimeDeltaMinutes, expected: 525600},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.actual,
+				"%s time delta limit must match the documented value", tt.name)
+		})
+	}
+}
+
+// TestSpec_Environment_EmptyOverride validates the documented contract that an
+// empty environment override is allowed and means no override.
+func TestSpec_Environment_EmptyOverride(t *testing.T) {
+	assert.NoError(t, workflow.ValidateEnvironmentOverride(""),
+		"an empty environment override must be accepted as documented")
+}
