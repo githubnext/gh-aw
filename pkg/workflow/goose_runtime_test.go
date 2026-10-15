@@ -5,6 +5,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +40,7 @@ exports.resolveOpenAICompatibleEndpointFromReflect = () => ({provider: "github",
 	require.NoError(t, os.WriteFile(prompt, []byte("Call the probe echo tool once, then answer Done."), 0o600))
 	config := filepath.Join(dir, "mcp.json")
 	servers := map[string]map[string]any{
-		"probe": map[string]any{"url": server.URL + "/mcp/probe", "headers": map[string]string{"Authorization": "Bearer test-only"}},
+		"probe": {"url": server.URL + "/mcp/probe", "headers": map[string]string{"Authorization": "Bearer test-only"}},
 	}
 	servers["probe"]["tools"] = []string{"echo"}
 	content, err := json.Marshal(map[string]any{"mcpServers": servers})
@@ -104,7 +105,7 @@ func gooseRuntimeHandler(t *testing.T, tools, inference *atomic.Int32) http.Hand
 	})
 	mcp.AddTool(server, &mcp.Tool{Name: "excluded", Description: "Tool excluded by the configured allowlist"}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		t.Error("Goose called a tool outside the configured allowlist")
-		return nil, nil, fmt.Errorf("tool is not allowed")
+		return nil, nil, errors.New("tool is not allowed")
 	})
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{JSONResponse: true, Stateless: true})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
