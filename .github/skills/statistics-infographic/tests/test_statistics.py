@@ -289,6 +289,17 @@ class RenderingTests(unittest.TestCase):
         with self.assertRaises(LayoutError):
             render(Statistics.from_sources(payload), self.fonts)
 
+    def test_large_pr_diff_range_labels_wrap_without_truncation(self):
+        payload = example()
+        for bucket in payload["pr_changes"]["bins"]:
+            bucket["lower"] *= 10000
+            bucket["upper"] *= 10000
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        labels = [label for _, label in canvas.labels]
+        self.assertIn("1,250,000", labels)
+        self.assertIn("- 2,499,999", labels)
+        self.assertIn("Lines per PR (inclusive ranges)", labels)
+
     def test_zero_community_single_language_and_one_zero_week(self):
         payload = example()
         for key in ("third_party_issues", "third_party_author_accounts", "third_party_issues_landed_main",

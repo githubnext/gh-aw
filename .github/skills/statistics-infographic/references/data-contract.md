@@ -124,7 +124,8 @@ Let `M` be the largest additions or deletions value for an individual PR. The in
 There are at most eight bins, and even a maximum on an exact boundary is included.
 The chart labels display inclusive integer ranges (`lower` through `upper - 1`).
 Counts and bounds use exact integers, not floats or rounded thousands.
-Excessively long labels fail explicitly rather than truncating.
+Large range labels wrap across two lines without reducing font size. Bounds that
+still cannot fit fail explicitly rather than truncating.
 
 The required `pr_changes` section contains `repository`, `snapshot_date`,
 `pr_count`, and `bins` with integer `lower`, `upper`, `added`, and `deleted`.

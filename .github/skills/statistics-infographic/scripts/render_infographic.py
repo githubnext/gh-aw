@@ -145,6 +145,7 @@ def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: in
         c.draw.line((left, gy, right, gy), fill=GRAY, width=2)
         c.text(f"{tick:,}", x, gy - 20, 32, width=100)
     slot = (right - left) / len(bins)
+    wrap_ranges = any(c.draw.textlength(f"{b.lower:,}-{b.upper - 1:,}", font=c.face(30)) > slot - 8 for b in bins)
     bars = ImageDraw.Draw(c.image, "RGBA")
     for i, bucket in enumerate(bins):
         middle = left + (i + .5) * slot
@@ -153,9 +154,13 @@ def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: in
                 bars.rectangle((middle - slot * .42, baseline - value * height / maximum,
                                 middle + slot * .42, baseline),
                                fill=(*color, 120), outline=(*color, 255), width=3)
-        c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
-                 size=30, width=slot - 8)
-    c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + 90, size=34)
+        if wrap_ranges:
+            c.center(f"{bucket.lower:,}", middle, baseline + 20, size=30, width=slot - 8)
+            c.center(f"- {bucket.upper - 1:,}", middle, baseline + 56, size=30, width=slot - 8)
+        else:
+            c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
+                     size=30, width=slot - 8)
+    c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + (106 if wrap_ranges else 90), size=34)
 
 
 def draw_activity(c: Canvas, activity: tuple[Activity, ...], x: int, y: int, width: int) -> None:
