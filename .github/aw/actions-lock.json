@@ -78,6 +78,11 @@
       "version": "v7.0.0",
       "sha": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"
     },
+    "actions/setup-java@v6.0.1": {
+      "repo": "actions/setup-java",
+      "version": "v6.0.1",
+      "sha": "de7274f081f381c8f8158605e0321c36c376e2e6"
+    },
     "actions/setup-java@v6.1.0": {
       "repo": "actions/setup-java",
       "version": "v6.1.0",
