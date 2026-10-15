@@ -231,6 +231,9 @@ Prioritize failure_boundary over generic aftermath. Read failure_clusters for se
 cluster IDs; signal.job/step identify boundaries. Clusters overlap: count unique run IDs,
 never sum counts. Membership describes symptoms, not proven causes. Recommendations
 exclude intentional_failure runs; metadata_only groups remain unknown.
+Cluster statistics use the returned failed sample, not fleet failure rates.
+Wilson bounds assume independent observations; retries and missing diagnostics
+limit interpretation. They are not root-cause confidence.
 
 Read representative_runs or selected_runs audit_path/logs_path before fetching evidence;
 use the audit tool if unavailable. Representatives expose workflow/engine/model context.

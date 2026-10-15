@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"slices"
+	"strings"
 )
 
 const defaultFailureInvestigationBudget = 5
@@ -30,6 +31,7 @@ type FailureInvestigationTarget struct {
 type failureInvestigationCandidate struct {
 	run        *RunData
 	clusterIDs []string
+	signature  string
 }
 
 type failureInvestigationGain struct {
@@ -107,14 +109,15 @@ func failureInvestigationCandidates(runs []RunData, eligible map[string]FailureC
 			}
 		}
 		slices.Sort(candidate.clusterIDs)
+		candidate.signature = strings.Join(candidate.clusterIDs, ",")
 		candidates = append(candidates, candidate)
 	}
 	return candidates
 }
 
-func failureCandidateGain(candidate *failureInvestigationCandidate, eligible map[string]FailureCluster, covered map[string]struct{}) failureInvestigationGain {
+func failureCandidateGain(candidate *failureInvestigationCandidate, eligible map[string]FailureCluster, covered map[string]struct{}, reachedByRole map[int]map[FailureRunIdentity]struct{}, scratch map[FailureRunIdentity]struct{}) failureInvestigationGain {
 	gain := failureInvestigationGain{rank: 4}
-	reached := make(map[FailureRunIdentity]struct{})
+	clear(scratch)
 	for _, id := range candidate.clusterIDs {
 		if _, seen := covered[id]; seen {
 			continue
@@ -126,26 +129,37 @@ func failureCandidateGain(candidate *failureInvestigationCandidate, eligible map
 		}
 		if rank < gain.rank {
 			gain.rank, gain.clusters = rank, 0
-			clear(reached)
+			clear(scratch)
 		}
 		gain.clusters++
 		for _, identity := range cluster.RunIdentities {
-			reached[identity] = struct{}{}
+			if _, reached := reachedByRole[rank][identity]; !reached {
+				scratch[identity] = struct{}{}
+			}
 		}
 	}
-	gain.runs = len(reached)
+	gain.runs = len(scratch)
 	return gain
 }
 
 func selectFailureInvestigationCandidate(candidates []failureInvestigationCandidate, eligible map[string]FailureCluster, covered map[string]struct{}) *failureInvestigationCandidate {
 	var best *failureInvestigationCandidate
 	var bestGain failureInvestigationGain
+	// Identical symptom memberships have identical gains, independent of run context.
+	gains := make(map[string]failureInvestigationGain)
+	reachedByRole := coveredFailureRunsByRole(eligible, covered)
+	scratch := make(map[FailureRunIdentity]struct{})
 	for i := range candidates {
 		candidate := &candidates[i]
-		gain := failureCandidateGain(candidate, eligible, covered)
+		gain, cached := gains[candidate.signature]
+		if !cached {
+			gain = failureCandidateGain(candidate, eligible, covered, reachedByRole, scratch)
+			gains[candidate.signature] = gain
+		}
 		if gain.clusters == 0 {
 			continue
 		}
+
 		if best == nil || cmp.Or(
 			cmp.Compare(gain.rank, bestGain.rank),
 			cmp.Compare(bestGain.clusters, gain.clusters),
@@ -156,4 +170,19 @@ func selectFailureInvestigationCandidate(candidates []failureInvestigationCandid
 		}
 	}
 	return best
+}
+
+func coveredFailureRunsByRole(eligible map[string]FailureCluster, covered map[string]struct{}) map[int]map[FailureRunIdentity]struct{} {
+	reached := make(map[int]map[FailureRunIdentity]struct{})
+	for id := range covered {
+		cluster := eligible[id]
+		rank := failureSignalRoleRank(cluster.SignalRole)
+		if reached[rank] == nil {
+			reached[rank] = make(map[FailureRunIdentity]struct{})
+		}
+		for _, identity := range cluster.RunIdentities {
+			reached[rank][identity] = struct{}{}
+		}
+	}
+	return reached
 }

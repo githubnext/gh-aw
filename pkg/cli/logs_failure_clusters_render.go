@@ -22,6 +22,8 @@ func renderFailureClustersToWriter(w io.Writer, clusters []FailureCluster, prefi
 		out.printf("%s%s count=%d role=%s signal=%s value=%q conclusion=%s kind=%q evidence=%s intentional=%t representatives=%s\n",
 			prefix, c.ID, c.Count, c.SignalRole, c.Signal.Kind, failureSignalDisplay(c.Signal),
 			c.Conclusion, c.FailureKind, c.Evidence, c.IntentionalFailure, failureRunIDsDisplay(ids))
+		out.printf("%s  failed_population=%d share=%.4f wilson95=[%.4f,%.4f]\n",
+			prefix, c.Statistics.FailedPopulation, c.Statistics.Share, c.Statistics.WilsonLower95, c.Statistics.WilsonUpper95)
 	}
 	return out.err
 }
@@ -77,16 +79,18 @@ func renderMarkdownFailureClustersToWriter(w io.Writer, clusters []FailureCluste
 	}
 	out := &compactLogsWriter{writer: w}
 	out.println("## Failure Investigation Clusters")
-	out.println("\nClusters overlap and describe observed symptoms, not proven root causes. Audit representative runs first.")
-	out.println("\n| Cluster | Runs | Role | Symptom | Conclusion / Kind | Evidence | Intentional | Representatives |")
-	out.println("|---|---:|---|---|---|---|---|---|")
+	out.println("\nClusters overlap and describe observed symptoms, not proven root causes. Shares use the returned failed population, separated by intentional status. Wilson 95% bounds assume independent runs, not fleet incidence; retries and missing evidence limit interpretation.")
+	out.println("\n| Cluster | Runs | Failed population | Share (Wilson 95%) | Role | Symptom | Conclusion / Kind | Evidence | Intentional | Representatives |")
+	out.println("|---|---:|---:|---|---|---|---|---|---|---|")
 	for _, c := range clusters {
 		ids := make([]string, 0, len(c.RepresentativeRuns))
 		for _, target := range c.RepresentativeRuns {
 			ids = append(ids, strconv.FormatInt(target.RunID, 10))
 		}
-		out.printf("| %s | %d | %s | %s | %s / %s | %s | %t | %s |\n",
-			c.ID, c.Count, c.SignalRole, modelRoutingMarkdownCell(failureSignalDisplay(c.Signal)),
+		out.printf("| %s | %d | %d | %.1f%% [%.1f%%, %.1f%%] | %s | %s | %s / %s | %s | %t | %s |\n",
+			c.ID, c.Count, c.Statistics.FailedPopulation, 100*c.Statistics.Share,
+			100*c.Statistics.WilsonLower95, 100*c.Statistics.WilsonUpper95,
+			c.SignalRole, modelRoutingMarkdownCell(failureSignalDisplay(c.Signal)),
 			modelRoutingMarkdownCell(c.Conclusion), modelRoutingMarkdownCell(c.FailureKind),
 			c.Evidence, c.IntentionalFailure, strings.Join(ids, ", "))
 	}

@@ -23,23 +23,24 @@ type FailureSignal struct {
 // FailureCluster provides an investigation subset for runs sharing a symptom.
 // Clusters overlap; their run counts must not be summed to count failed runs.
 type FailureCluster struct {
-	ID                 string                 `json:"id"`
-	Signal             FailureSignal          `json:"signal"`
-	Conclusion         string                 `json:"conclusion"`
-	FailureKind        string                 `json:"failure_kind,omitempty"`
-	IntentionalFailure bool                   `json:"intentional_failure,omitempty"`
-	Evidence           string                 `json:"evidence"`
-	SignalRole         string                 `json:"signal_role"`
-	Count              int                    `json:"count"`
-	RunIDs             []int64                `json:"run_ids"`
-	RunIdentities      []FailureRunIdentity   `json:"run_identities,omitempty"`
-	Workflows          []string               `json:"workflows"`
-	Repositories       []string               `json:"repositories,omitempty"`
-	Engines            []string               `json:"engines,omitempty"`
-	Models             []string               `json:"models,omitempty"`
-	FirstSeen          time.Time              `json:"first_seen"`
-	LastSeen           time.Time              `json:"last_seen"`
-	RepresentativeRuns []FailureClusterTarget `json:"representative_runs"`
+	ID                 string                   `json:"id"`
+	Signal             FailureSignal            `json:"signal"`
+	Conclusion         string                   `json:"conclusion"`
+	FailureKind        string                   `json:"failure_kind,omitempty"`
+	IntentionalFailure bool                     `json:"intentional_failure,omitempty"`
+	Evidence           string                   `json:"evidence"`
+	SignalRole         string                   `json:"signal_role"`
+	Count              int                      `json:"count"`
+	RunIDs             []int64                  `json:"run_ids"`
+	RunIdentities      []FailureRunIdentity     `json:"run_identities,omitempty"`
+	Workflows          []string                 `json:"workflows"`
+	Repositories       []string                 `json:"repositories,omitempty"`
+	Engines            []string                 `json:"engines,omitempty"`
+	Models             []string                 `json:"models,omitempty"`
+	FirstSeen          time.Time                `json:"first_seen"`
+	LastSeen           time.Time                `json:"last_seen"`
+	RepresentativeRuns []FailureClusterTarget   `json:"representative_runs"`
+	Statistics         FailureClusterStatistics `json:"statistics"`
 }
 
 // FailureRunIdentity uniquely identifies a run across GitHub hosts and repositories.
@@ -207,6 +208,7 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 	for _, g := range groups {
 		clusters = append(clusters, finalizeFailureCluster(g))
 	}
+	annotateFailureClusterStatistics(runs, clusters)
 	slices.SortFunc(clusters, func(a, b FailureCluster) int {
 		return cmp.Or(
 			cmp.Compare(strconv.FormatBool(a.IntentionalFailure), strconv.FormatBool(b.IntentionalFailure)),

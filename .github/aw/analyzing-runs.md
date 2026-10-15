@@ -20,6 +20,14 @@ Never expose secrets.
 Honor supplied scope. Default: current repository, last 24 hours. Record actual
 window and collection limits.
 
+For "healthy now" or fix-verification questions, use `gh aw health --json`.
+It samples backward per AW toward five completed first-attempt runs, bounded by
+`--days` and API quota. Read `collection` and `workflows[].revisions`: compare
+`gh-aw-metadata` frontmatter/body hashes, not repository commits alone.
+`recovery_observed` is evidence, not causation. A pushed revision without runs,
+missing hashes, or a sparse/quota-truncated sample is not healthy. Health clusters
+cover current-revision failures; use `logs` below for historical failures.
+
 ## Collect
 
 ```bash
@@ -55,6 +63,8 @@ jq --arg id 'failure-CLUSTER_ID' \
   additional contexts when evidence suggests different causes.
 - Count unique run IDs, never overlapping cluster counts. Stable IDs identify
   symptoms; membership is query-scoped, not proof of a common root cause.
+- `statistics` shares use the failed sample, not fleet failure rates. Wilson
+  bounds assume independence; retries and missing diagnostics weaken them.
 - Intentional failures stay separate and are excluded from recommendations.
   `metadata_only` means unknown; fetch targeted evidence.
 - Missing clustering fields: refresh with a supporting CLI or disclose per-run

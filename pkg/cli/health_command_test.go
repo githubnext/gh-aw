@@ -72,7 +72,10 @@ func TestHealthConfigValidation(t *testing.T) {
 	// test here; run listing itself is covered by dedicated tests elsewhere.
 	original := healthListWorkflowRuns
 	t.Cleanup(func() { healthListWorkflowRuns = original })
-	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+	originalDiscover := healthDiscoverWorkflows
+	t.Cleanup(func() { healthDiscoverWorkflows = originalDiscover })
+	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) { return nil, nil }
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, collection *HealthCollection) ([]WorkflowRun, int, error) {
 		return nil, 0, nil
 	}
 
