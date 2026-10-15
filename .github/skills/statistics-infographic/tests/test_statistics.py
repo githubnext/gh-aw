@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 import json
@@ -22,9 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from audit_sources import audit_api, audit_git, percentile
-from compute_code_statistics import compute
+from compute_pr_changes import compute
 from render_infographic import Canvas, LayoutError, discover_fonts, render, save
-from statistics_data import DataError, Outcome, Statistics, Week, change_histogram, decimal, percent
+from statistics_data import DataError, Outcome, PRChange, Statistics, change_histogram, decimal, percent
 
 
 def example():
@@ -35,8 +35,8 @@ class ArithmeticTests(unittest.TestCase):
     @settings(max_examples=150, derandomize=True, database=None)
     @given(st.lists(st.tuples(st.integers(0, 10**30), st.integers(0, 10**30)), max_size=260))
     def test_change_histogram_matches_direct_count_oracle(self, values):
-        weeks = tuple(Week(date(2026, 1, 5), a, d) for a, d in values)
-        bins = change_histogram(weeks)
+        prs = tuple(PRChange(i + 1, a, d) for i, (a, d) in enumerate(values))
+        bins = change_histogram(prs)
         self.assertEqual(sum(b.added for b in bins), len(values))
         self.assertEqual(sum(b.deleted for b in bins), len(values))
         self.assertLessEqual(len(bins), 8)
@@ -50,9 +50,9 @@ class ArithmeticTests(unittest.TestCase):
 
     def test_change_histogram_zero_empty_and_exact_boundaries(self):
         self.assertEqual(change_histogram(()), ())
-        zero = change_histogram((Week(date(2026, 1, 5), 0, 0),))
+        zero = change_histogram((PRChange(1, 0, 0),))
         self.assertEqual([(b.lower, b.upper, b.added, b.deleted) for b in zero], [(0, 1, 1, 1)])
-        bins = change_histogram(tuple(Week(date(2026, 1, 5), n, 15 - n) for n in range(16)))
+        bins = change_histogram(tuple(PRChange(n + 1, n, 15 - n) for n in range(16)))
         self.assertEqual([(b.lower, b.upper) for b in bins], [(n, n + 2) for n in range(0, 16, 2)])
         self.assertEqual([(b.added, b.deleted) for b in bins], [(2, 2)] * 8)
 
@@ -122,6 +122,10 @@ class ContractTests(unittest.TestCase):
             ("structure", "included_files", 76),
             ("history", "total_added", 34001),
             ("history", "week_count", 3),
+            ("pr_changes", "pr_count", 73),
+            ("pr_changes", "snapshot_date", "2026-10-09"),
+            ("pr_changes", "repository", "other/repo"),
+            ("pr_changes", "bins", []),
         ]
         for section, field, value in changes:
             with self.subTest(section=section, field=field), self.assertRaises(ValueError):
@@ -163,6 +167,12 @@ class ContractTests(unittest.TestCase):
             lambda p: p["structure"]["groups"].__setitem__(1, deepcopy(p["structure"]["groups"][0])),
             lambda p: p["history"]["weeks"].reverse(),
             lambda p: p["history"]["weeks"][0].update(week_start="2026-09-29"),
+            lambda p: p["pr_changes"]["bins"][0].update(added=39),
+            lambda p: p["pr_changes"]["bins"][0].update(deleted=True),
+            lambda p: p["pr_changes"]["bins"][0].update(upper=0),
+            lambda p: p["pr_changes"]["bins"][1].update(lower=126),
+            lambda p: p["pr_changes"]["bins"][1].update(upper=251),
+            lambda p: p["pr_changes"]["bins"].append({"lower": 1000, "upper": 1125, "added": 0, "deleted": 0}),
         ]
         for mutate in mutations:
             with self.assertRaises(DataError):
@@ -204,23 +214,26 @@ class RenderingTests(unittest.TestCase):
                 self.assertFalse(getattr(image, "is_animated", False))
             self.assertEqual(list(output.parent.iterdir()), [output])
         self.assertTrue(any(label.startswith("07") for _, label in a.labels))
-        self.assertTrue(any(label == "Lines per week (inclusive ranges)" for _, label in a.labels))
+        self.assertTrue(any(label == "Lines per PR (inclusive ranges)" for _, label in a.labels))
+        self.assertTrue(any(label == "Number of PRs" for _, label in a.labels))
 
     def test_empty_history_and_overlapped_bars(self):
         payload = example()
         payload["history"].update(week_count=0, weeks=[], total_added=0, total_deleted=0)
-        render(Statistics.from_sources(payload), self.fonts).verify()
+        stats = Statistics.from_sources(payload)
+        self.assertEqual(stats.changes, Statistics.from_sources(example()).changes)
+        render(stats, self.fonts).verify()
         # One bin contains both series: the interior must be a blended color.
-        payload["history"].update(week_count=1, total_added=0, total_deleted=0,
-                                  weeks=[{"week_start": "2026-10-05", "added": 0, "deleted": 0}])
+        payload["pr_changes"]["bins"] = [{"lower": 0, "upper": 1, "added": 100, "deleted": 100}]
         canvas = render(Statistics.from_sources(payload), self.fonts)
         overlap = canvas.image.getpixel((1400, 3500))
         self.assertNotIn(overlap, ((22, 27, 34), (63, 185, 80), (248, 81, 73)))
 
     def test_unreadable_histogram_labels_fail_explicitly(self):
         payload = example()
-        payload["history"]["weeks"][0]["added"] = 10**30
-        payload["history"]["total_added"] = 10**30 + 4000
+        for bucket in payload["pr_changes"]["bins"]:
+            bucket["lower"] *= 10**30
+            bucket["upper"] *= 10**30
         with self.assertRaises(LayoutError):
             render(Statistics.from_sources(payload), self.fonts)
 
@@ -280,6 +293,11 @@ class ApiAuditTests(unittest.TestCase):
     def fixture(self, raw):
         payload = example()
         prs, links = [], []
+        diff_values = {}
+        for field in ("added", "deleted"):
+            values = [b["lower"] for b in payload["pr_changes"]["bins"] for _ in range(b[field])]
+            values[-1] = 999
+            diff_values[field] = iter(values)
         durations = iter([5/60] * 10 + [.5] * 20 + [2] * 25 + [10] * 10 + [48] * 4 + [96] * 2 + [240] * 2)
         created = datetime(2026, 9, 1, tzinfo=timezone.utc)
         issues = [
@@ -301,6 +319,7 @@ class ApiAuditTests(unittest.TestCase):
                     body = f"<!-- START COPILOT CODING AGENT SUFFIX -->\nFixes #{references[0]['number']}"
                 pr = {"number": 1000 + len(prs), "state": state, "author": {"login": login},
                       "body": body, "createdAt": created.isoformat(),
+                      "additions": next(diff_values["added"]), "deletions": next(diff_values["deleted"]),
                       "mergedAt": (created + timedelta(hours=next(durations))).isoformat() if state == "MERGED" else None}
                 prs.append(pr)
                 if login == "copilot-swe-agent":
@@ -331,6 +350,14 @@ class ApiAuditTests(unittest.TestCase):
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(mergedAt="2026-09-03T00:00:00Z")),
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(state="OPEN")),
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(createdAt="2026-10-09T00:00:00Z")),
+                ("pr-statistics-data.jsonl", lambda r: r[0].pop("additions")),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(deletions=None)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(additions=True)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(deletions=-1)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(number=0)),
+                ("pr-statistics-data.jsonl", lambda r: r[0].update(additions=999)),
+                ("pr-statistics-data.jsonl", lambda r: r[-1].update(additions=1000)),
+                ("pr-statistics-data.jsonl", lambda r: r[30].update(additions=999)),
                 ("cca-issue-links.jsonl", lambda r: r[0]["closingIssuesReferences"].update(totalCount=3)),
                 ("community-issues-data.jsonl", lambda r: r[20].update(state="UNKNOWN")),
                 ("community-issues-data.jsonl", lambda r: r[18]["closedByPullRequestsReferences"]["nodes"][0].update(author={"login": "different"})),
@@ -343,6 +370,33 @@ class ApiAuditTests(unittest.TestCase):
                 with self.subTest(source=name), self.assertRaises(DataError):
                     audit_api(stats, raw)
                 path.write_text("\n".join(json.dumps(value) for value in records[name]))
+
+    def test_recompute_individual_prs_cli_and_missing_diff_preserves_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory)
+            stats, records = self.fixture(raw)
+            census = raw / "census.json"
+            census.write_text(json.dumps(example()["origins"]))
+            output = raw / "computed"
+            compute(raw, census, output)
+            summary = json.loads((output / "pr-change-histogram.json").read_text())
+            self.assertEqual(summary, example()["pr_changes"])
+            self.assertEqual(sum(b["added"] for b in summary["bins"]), stats.all_prs.total)
+            self.assertEqual(sum(b["deleted"] for b in summary["bins"]), stats.all_prs.total)
+            with Image.open(output / "pr-change-histogram.png") as image:
+                self.assertEqual(image.size, (2560, 1180))
+            command = [sys.executable, str(ROOT / "scripts/compute_pr_changes.py"),
+                       "--raw-dir", str(raw), "--census", str(census), "--output-dir", str(output)]
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            original = {p.name: p.read_bytes() for p in output.iterdir()}
+            records["pr-statistics-data.jsonl"][0].pop("additions")
+            (raw / "pr-statistics-data.jsonl").write_text(
+                "\n".join(json.dumps(p) for p in records["pr-statistics-data.jsonl"]))
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("PR additions", result.stderr)
+            self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, original)
 
 
 class GitAuditTests(unittest.TestCase):
@@ -381,17 +435,6 @@ class GitAuditTests(unittest.TestCase):
             s = Statistics.from_sources(payload)
             (repo / "main.go").write_text("uncommitted content\n")
             audit_git(s, repo)
-            output = repo / "computed"
-            compute(repo, "example/metrics", commit, output)
-            history = json.loads((output / "weekly-code-history.json").read_text())
-            structure = json.loads((output / "repo-structure-statistics.json").read_text())
-            bins = json.loads((output / "weekly-change-histogram.json").read_text())
-            self.assertEqual(history, payload["history"])
-            self.assertEqual(structure, payload["structure"])
-            self.assertEqual(sum(b["added"] for b in bins["bins"]), 2)
-            self.assertEqual(sum(b["deleted"] for b in bins["bins"]), 2)
-            with Image.open(output / "weekly-change-histogram.png") as image:
-                self.assertEqual(image.size, (2560, 1180))
             payload["history"]["weeks"][1]["added"] = 2
             payload["history"]["total_added"] = 9
             with self.assertRaises(DataError):

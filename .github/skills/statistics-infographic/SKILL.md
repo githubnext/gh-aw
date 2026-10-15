@@ -11,8 +11,8 @@ seven-panel statistical template, not an arbitrary PowerPoint screenshot collage
 
 The panels cover inferred PR initiation, merge/closed outcomes, start-to-merge
 durations, community issue outcomes, Go/JavaScript code composition, and weekly
-first-parent code changes, plus overlapping histograms of weekly lines added and
-removed. Repository names, dates, counts, proportions, and weeks
+first-parent code changes, plus overlapping histograms of lines added and removed
+for individual PRs. Repository names, dates, counts, proportions, and weeks
 come from the input, never from this skill's original dataset.
 
 ## Generate
@@ -54,31 +54,36 @@ layout, or invalid fonts leave an existing output intact. Counts too large for
 their slots, more than 10 duration bands, or more than 260 weeks require a different
 layout; do not silently truncate, rescale text to illegibility, or aggregate data.
 
-### Recompute local code evidence
+### Recompute individual PR change sizes
 
-The seventh panel is derived from `history.weeks`, without a new required input
-file. Each week contributes to both added and removed series, including zero
-values. Both series use the same equal-width integer bins and count axis; bars
-overlap with transparency, rather than stacking or mirroring.
+The seventh panel counts **individual PRs**, never weeks, commits, or files.
+Each census PR contributes its GitHub `additions` value to one bin of the added
+series and its `deletions` value to one bin of the removed series, including zeros.
+The x-axis is lines per PR; the y-axis is number of PRs. Both series use the same
+equal-width integer bins; bars overlap with transparency, not stacking or mirroring.
+The population includes merged, closed-unmerged, and open census PRs across all
+files, unlike the Go/JS-only weekly history panel.
 
-To recompute the code map, weekly totals, and histogram from available local Git
-objects, use a full immutable commit ID:
+To recompute `pr-change-histogram.json` and a standalone image from cached raw
+records containing individual PR `number`, `additions`, `deletions`, `state`,
+and `createdAt` fields:
 
 ```bash
 /tmp/statistics-infographic-venv/bin/python \
-  .github/skills/statistics-infographic/scripts/compute_code_statistics.py \
-  --repo /path/to/local-checkout --repository OWNER/REPO \
-  --commit FULL_COMMIT_ID --output-dir /path/to/session-artifacts/code
+  .github/skills/statistics-infographic/scripts/compute_pr_changes.py \
+  --raw-dir /path/to/raw-records \
+  --census /path/to/summaries/pr-initiation-assumption-summary.json \
+  --output-dir /path/to/summaries
 ```
 
-This writes `repo-structure-statistics.json`, `weekly-code-history.json`,
-`weekly-change-histogram.json`, and a standalone `weekly-change-histogram.png`
-(2560 x 1180). It never fetches. Use the two canonical summaries alongside the
-existing API summaries to regenerate the complete image. It does not refresh API
-snapshots or authorize attribution assumptions. If cached API evidence is
-unavailable, deliver the Git-only chart and disclose that the complete real-data
-infographic could not be regenerated; never fill missing panels with synthetic
-values. Keep a rendered synthetic example clearly labelled and separate.
+This writes `pr-change-histogram.json` and `pr-change-histogram.png` (2560 x 1180).
+The summary is the required `pr_changes` section in the combined input, or the
+sixth canonical file for `--data-dir`. Re-render the complete image with all six
+summaries. Missing per-PR additions/deletions fail explicitly; never substitute
+weekly Git totals, merge-commit churn, or missing values as zero.
+The command never fetches or refreshes API snapshots. If raw PR diff statistics
+are unavailable, disclose that real-data recomputation is blocked. Keep any
+rendered synthetic example clearly labelled and separate.
 
 ## Verify accuracy
 

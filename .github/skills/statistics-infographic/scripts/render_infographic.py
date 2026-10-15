@@ -130,15 +130,15 @@ class Canvas:
 
 def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: int,
                           x: int, y: int, width: int) -> None:
-    c.text(f"{population:,} weeks per series | Green: added | Red: removed | Translucent overlap",
+    c.text(f"{population:,} PRs per series | Green: added | Red: removed | Translucent overlap",
            x, y, 38, WHITE)
     if not bins:
-        c.text("No weekly history records", x, y + 220, 38)
+        c.text("No PR diff records", x, y + 220, 38)
         return
     left, right, baseline, height = x + 120, x + width - 20, y + 440, 330
     maximum = max(max(b.added, b.deleted) for b in bins)
     ticks = sorted({0, (maximum + 1) // 2, maximum})
-    c.text("Number of weeks", x, y + 58, 32)
+    c.text("Number of PRs", x, y + 58, 32)
     for tick in ticks:
         gy = baseline - tick * height / maximum
         c.draw.line((left, gy, right, gy), fill=GRAY, width=2)
@@ -154,7 +154,7 @@ def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: in
                                fill=(*color, 120), outline=(*color, 255), width=3)
         c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
                  size=30, width=slot - 8)
-    c.center("Lines per week (inclusive ranges)", (left + right) / 2, baseline + 90, size=34)
+    c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + 90, size=34)
 
 
 def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, in numbers") -> Canvas:
@@ -310,11 +310,11 @@ def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, i
         t("No weekly history records", x, y + 280, 38)
     t("First-parent Go / JS diff lines, including blanks. Renames count delete/add; boundary weeks may be partial.",
       x, foot + 16, 32, width=w, max_lines=2)
-    x, y, w, foot = c.card(6, "Lines added / removed: weekly distribution")
-    draw_change_histogram(c, s.changes, len(s.weeks), x, y, w)
-    t("Shared equal-width bins; counts, not line totals. Each week contributes once to each series, including zero-change weeks.",
+    x, y, w, foot = c.card(6, "Lines added / removed per PR")
+    draw_change_histogram(c, s.changes, all_prs.total, x, y, w)
+    t("Shared equal-width bins; counts, not line totals. Every census PR contributes once to each series, including zero values.",
       x, foot, 34, width=w, max_lines=2)
-    t("Same pinned first-parent Go / JS scope as panel 06; not per-PR or per-commit change sizes.",
+    t("GitHub PR additions/deletions across all files; merged, closed-unmerged and open PRs. Not weekly Git churn.",
       x, foot + 55, 32, width=w)
     c.clip = (0, 0, WIDTH, HEIGHT)
     collected = s.community_collected.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -342,8 +342,8 @@ def save(canvas: Canvas, output: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--input", type=Path, help="JSON object containing the five source summaries.")
-    source.add_argument("--data-dir", type=Path, help="Directory containing the five canonical summary filenames.")
+    source.add_argument("--input", type=Path, help="JSON object containing the six source summaries.")
+    source.add_argument("--data-dir", type=Path, help="Directory containing the six canonical summary filenames.")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--title", default="Development, in numbers")
     parser.add_argument("--font-regular", type=Path)

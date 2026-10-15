@@ -142,17 +142,33 @@ class ChangeBin:
     deleted: int
 
 
-def change_histogram(weeks: tuple[Week, ...]) -> tuple[ChangeBin, ...]:
-    """Count weekly additions and deletions in shared, equal-width integer bins."""
-    if not weeks:
+@dataclass(frozen=True)
+class PRChange:
+    number: int
+    added: int
+    deleted: int
+
+
+def pr_changes(records: list[dict[str, object]]) -> tuple[PRChange, ...]:
+    changes = tuple(PRChange(count(r.get("number"), "PR number"),
+                             count(r.get("additions"), "PR additions"),
+                             count(r.get("deletions"), "PR deletions")) for r in records)
+    require(all(p.number > 0 for p in changes), "PR numbers must be positive")
+    require(len({p.number for p in changes}) == len(changes), "duplicate PR numbers")
+    return changes
+
+
+def change_histogram(prs: tuple[PRChange, ...]) -> tuple[ChangeBin, ...]:
+    """Count per-PR additions and deletions in shared, equal-width integer bins."""
+    if not prs:
         return ()
-    maximum = max(max(week.added, week.deleted) for week in weeks)
+    maximum = max(max(pr.added, pr.deleted) for pr in prs)
     width = (maximum + 8) // 8
     size = maximum // width + 1
     additions, deletions = [0] * size, [0] * size
-    for week in weeks:
-        additions[week.added // width] += 1
-        deletions[week.deleted // width] += 1
+    for pr in prs:
+        additions[pr.added // width] += 1
+        deletions[pr.deleted // width] += 1
     return tuple(ChangeBin(i * width, (i + 1) * width, added, deleted)
                  for i, (added, deleted) in enumerate(zip(additions, deletions)))
 
@@ -179,6 +195,7 @@ class Statistics:
     cca_delivery: int
     groups: tuple[Group, ...]
     weeks: tuple[Week, ...]
+    changes: tuple[ChangeBin, ...]
 
     @property
     def all_prs(self) -> Outcome:
@@ -189,22 +206,19 @@ class Statistics:
     def lines(self) -> int:
         return sum(g.lines for g in self.groups)
 
-    @property
-    def changes(self) -> tuple[ChangeBin, ...]:
-        return change_histogram(self.weeks)
-
     def under(self, hours: float) -> int:
         return sum(b.count for b in self.bins if b.upper is not None and b.upper <= hours)
 
     @classmethod
     def from_sources(cls, sources: dict[str, object]) -> "Statistics":
-        o, h, c, s, w = [mapping(sources.get(key), key) for key in
-                         ("origins", "histogram", "community", "structure", "history")]
+        o, h, c, s, w, p = [mapping(sources.get(key), key) for key in
+                            ("origins", "histogram", "community", "structure", "history", "pr_changes")]
         repo = string(o.get("repository"), "repository")
-        require(all(source.get("repository") == repo for source in (h, c, s, w)),
+        require(all(source.get("repository") == repo for source in (h, c, s, w, p)),
                 "all source repositories must match")
         snapshot = date.fromisoformat(string(o.get("snapshot_date"), "snapshot_date"))
         require(h.get("snapshot_date") == snapshot.isoformat(), "PR and histogram snapshot dates must match")
+        require(p.get("snapshot_date") == snapshot.isoformat(), "PR change histogram snapshot date must match census")
         collected = datetime.fromisoformat(string(c.get("collected_at"), "collected_at").replace("Z", "+00:00"))
         require(collected.utcoffset() is not None, "community collected_at must include a timezone")
         commit = string(s.get("commit"), "commit")
@@ -316,8 +330,20 @@ class Statistics:
         require(len(weeks) == count(w.get("week_count"), "week_count"), "week count disagrees")
         require(sum(r.added for r in weeks) == count(w.get("total_added"), "total_added"), "weekly addition totals disagree")
         require(sum(r.deleted for r in weeks) == count(w.get("total_deleted"), "total_deleted"), "weekly deletion totals disagree")
+        require(count(p.get("pr_count"), "pr_count") == total, "PR change population must match the entire PR census")
+        changes = tuple(ChangeBin(count(r.get("lower"), "change.lower"), count(r.get("upper"), "change.upper"),
+                                  count(r.get("added"), "change.added"), count(r.get("deleted"), "change.deleted"))
+                        for r in rows(p.get("bins"), "pr_changes.bins"))
+        require(1 <= len(changes) <= 8 and changes[0].lower == 0, "PR change histogram requires one to eight bins starting at zero")
+        width = changes[0].upper
+        require(width > 0, "PR change bin width must be positive")
+        require(all(b.lower == i * width and b.upper == (i + 1) * width for i, b in enumerate(changes)),
+                "PR change bins must be contiguous, ordered and equal-width")
+        require(changes[-1].added + changes[-1].deleted > 0, "PR change histogram must not have trailing empty bins")
+        require(sum(b.added for b in changes) == sum(b.deleted for b in changes) == total,
+                "each PR change series must sum to the entire PR census")
         return cls(repo, snapshot, collected, commit, outcomes, MappingProxyType(components), assumption, bins, median, p90,
-                   labelled, eligible, authors, landed, closed, opened, delivery, cca, groups, weeks)
+                   labelled, eligible, authors, landed, closed, opened, delivery, cca, groups, weeks, changes)
 
 
 FILENAMES = {
@@ -326,6 +352,7 @@ FILENAMES = {
     "community": "community-statistics-summary.json",
     "structure": "repo-structure-statistics.json",
     "history": "weekly-code-history.json",
+    "pr_changes": "pr-change-histogram.json",
 }
 
 

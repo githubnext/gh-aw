@@ -1,7 +1,7 @@
 # Data contract and interpretation
 
 Use [the synthetic example](../examples/example.json) as the complete minimal input
-template. One JSON object has five sections. Alternatively, `--data-dir` maps them
+template. One JSON object has six sections. Alternatively, `--data-dir` maps them
 to these filenames:
 
 | Section | Filename | Required evidence |
@@ -11,6 +11,7 @@ to these filenames:
 | `community` | `community-statistics-summary.json` | Repository, timezone-aware collection timestamp, labelled/eligible issues, accounts, issue outcomes, deduplicated delivery PRs |
 | `structure` | `repo-structure-statistics.json` | Repository, full commit ID, file/nonblank-line totals, four Go/JavaScript implementation/test groups |
 | `history` | `weekly-code-history.json` | Same repository/commit, contiguous Monday-start weeks, additions/deletions and totals |
+| `pr_changes` | `pr-change-histogram.json` | Same repository/census date, total PR population, shared per-PR additions/deletions bins |
 
 Counts must be nonnegative integers, not booleans, strings, or floats. All
 repositories must match. PR and histogram census dates must match; community has
@@ -103,16 +104,20 @@ path/current-header filters may remain in churn. The auditor verifies each weekl
 pair and that net additions minus deletions equals the current physical-line
 inventory. It does not equate physical lines with nonblank lines.
 
-### Overlapping weekly change histogram
+## Overlapping individual-PR change histogram
 
-Panel 07 uses the same weeks as panel 06, not PRs, commits, files, or individual
-changed lines. Its x-axis is lines per week and its y-axis is the number of weeks.
+Panel 07 uses **individual PRs**, not the weeks in panel 06, commits, or files.
+Its x-axis is lines per PR and its y-axis is the number of PRs.
 Additions and removals are two overlapping, translucent series on identical axes,
-not stacked counts. Each series sums to `week_count`, including zero-change
-observations and retained empty weeks. An empty history has no bins; an all-zero
-history has one `[0, 1)` bin containing every week in each series.
+not stacked counts. Use GitHub's `additions` and `deletions` fields from every PR
+in the census, including merged, closed-unmerged, and open PRs. The scope is all
+files in each PR diff, not the weekly history panel's filtered Go/JS scope.
+Every PR contributes exactly one observation to each series, including zeros.
+Each series must sum to `pr_count`, equal to the entire origin census population.
+An all-zero population uses one `[0, 1)` bin; missing diff statistics are errors,
+not zeros. Zero PRs are disallowed by the infographic's positive-census contract.
 
-Let `M` be the largest added or deleted weekly value. The integer bin width is
+Let `M` be the largest additions or deletions value for an individual PR. The integer bin width is
 `floor((M + 8) / 8)`, equivalently `ceil((M + 1) / 8)`. Starting at zero, use
 `floor(M / width) + 1` contiguous, lower-inclusive, upper-exclusive bins.
 There are at most eight bins, and even a maximum on an exact boundary is included.
@@ -120,19 +125,27 @@ The chart labels display inclusive integer ranges (`lower` through `upper - 1`).
 Counts and bounds use exact integers, not floats or rounded thousands.
 Excessively long labels fail explicitly rather than truncating.
 
-No new input section is required: the validated model computes bins directly
-from weekly pairs. The local recomputation command also exports
-`weekly-change-histogram.json` with repository, commit, `weeks_per_series`,
-`bounds`, and `bins` containing `lower`, `upper`, `added`, and `deleted`.
-This export is derived evidence, not another required summary. Git auditing
-reconciles every bin against pinned weekly Git totals, retaining zero weeks.
+The required `pr_changes` section contains `repository`, `snapshot_date`,
+`pr_count`, and `bins` with integer `lower`, `upper`, `added`, and `deleted`.
+Here `added` and `deleted` are counts of PRs, not sums of changed lines.
+The model requires one to eight contiguous equal-width bins starting at zero,
+no trailing empty bins, and exact population reconciliation. Raw API auditing
+independently verifies the canonical bin bounds and counts from individual PR
+records. Git weekly auditing cannot verify per-PR diff sizes.
+
+`compute_pr_changes.py` generates this summary and a standalone chart from cached
+raw records plus the existing census. It rejects duplicate/nonpositive PR numbers,
+missing or invalid additions/deletions, unknown states, future creation dates, and
+population mismatches. Diff sizes describe the saved API observation, not cumulative
+edits through a PR's lifetime, deployed code, or causal impact.
 
 ## Cached raw records
 
 `--raw-dir` contains flat UTF-8 JSONL records, not GraphQL response envelopes:
 
 - `pr-statistics-data.jsonl`: every census PR's number, state, author login, body,
-  createdAt, and mergedAt.
+  createdAt, mergedAt, **additions**, and **deletions**. Diff counts must be present,
+  nonnegative integers for each individual PR.
 - `cca-issue-links.jsonl`: each CCA PR number and `closingIssuesReferences` with
   `totalCount` and `nodes`; issue nodes include number, body, repository
   `nameWithOwner`, and author login/`__typename`.

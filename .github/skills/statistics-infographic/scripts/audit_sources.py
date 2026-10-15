@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from io import BytesIO
 import json
@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from statistics_data import DataError, Group, Statistics, Week, count, load_sources, mapping, require, rows, string
+from statistics_data import DataError, Statistics, count, load_sources, mapping, pr_changes, require, rows, string
 
 
 WORKFLOW = re.compile(
@@ -89,6 +89,17 @@ def audit_api(s: Statistics, raw: Path, aliases: tuple[str, ...] = ()) -> None:
     prs = jsonl(raw / "pr-statistics-data.jsonl")
     require(len({count(p.get("number"), "PR number") for p in prs}) == len(prs), "duplicate PR numbers")
     require(len(prs) == s.all_prs.total, "raw PR population differs from summary")
+    changes = pr_changes(prs)
+    maximum = max(max(p.added, p.deleted) for p in changes)
+    width = (maximum + 8) // 8
+    require(len(s.changes) == maximum // width + 1
+            and all(b.lower == i * width and b.upper == (i + 1) * width for i, b in enumerate(s.changes)),
+            "raw PR change bin boundaries disagree")
+    for change_bin in s.changes:
+        actual_added = sum(change_bin.lower <= p.added < change_bin.upper for p in changes)
+        actual_deleted = sum(change_bin.lower <= p.deleted < change_bin.upper for p in changes)
+        require((actual_added, actual_deleted) == (change_bin.added, change_bin.deleted),
+                "raw per-PR additions/deletions histogram disagrees")
     repos = {s.repository, *aliases}
     cca_prs = [p for p in prs if author(p).get("login") == "copilot-swe-agent"]
     link_records = jsonl(raw / "cca-issue-links.jsonl") if cca_prs else []
@@ -215,12 +226,10 @@ def group_key(path: str) -> tuple[str, str]:
     return ("Go" if path.endswith(".go") else "JavaScript", "Tests" if tests else "Implementation")
 
 
-def collect_git(repo: Path, commit: str) -> tuple[tuple[Group, ...], tuple[Week, ...], int]:
+def audit_git(s: Statistics, repo: Path) -> None:
     require(git(repo, ["rev-parse", "--is-shallow-repository"]).strip() == b"false", "Git audit requires complete, non-shallow history")
-    require(re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", commit) is not None,
-            "commit must be a full hexadecimal object ID")
     blobs: list[tuple[str, str]] = []
-    for entry in git(repo, ["ls-tree", "-rz", commit]).split(b"\0"):
+    for entry in git(repo, ["ls-tree", "-rz", s.commit]).split(b"\0"):
         if not entry:
             continue
         info, path_bytes = entry.split(b"\t", 1)
@@ -250,9 +259,12 @@ def collect_git(repo: Path, commit: str) -> tuple[tuple[Group, ...], tuple[Week,
         counts[0] += 1
         counts[1] += sum(bool(line.strip()) for line in lines)
         physical += len(lines)
+    for group in s.groups:
+        require(totals.get((group.language, group.role), [0, 0]) == [group.files, group.lines],
+                f"pinned Git code counts disagree for {group.language} {group.role}")
     weekly: dict[str, list[int]] = {}
     current = ""
-    log = git(repo, ["log", commit, "--first-parent", "--diff-merges=first-parent", "--no-renames",
+    log = git(repo, ["log", s.commit, "--first-parent", "--diff-merges=first-parent", "--no-renames",
                      "--format=%x1e%cI%x00", "--numstat", "-z", "--", "*.go", "*.js", "*.cjs", "*.mjs", "*.jsx"])
     for chunk in log.split(b"\0"):
         chunk = chunk.lstrip(b"\n")
@@ -269,31 +281,10 @@ def collect_git(repo: Path, commit: str) -> tuple[tuple[Group, ...], tuple[Week,
         totals_week = weekly.setdefault(current, [0, 0])
         totals_week[0] += int(added)
         totals_week[1] += int(deleted)
-    groups = tuple(Group(lang, role, *totals.get((lang, role), [0, 0]))
-                   for lang in ("Go", "JavaScript") for role in ("Implementation", "Tests"))
-    weeks: list[Week] = []
-    if weekly:
-        start, end = date.fromisoformat(min(weekly)), date.fromisoformat(max(weekly))
-        while start <= end:
-            added_count, deleted_count = weekly.get(start.isoformat(), [0, 0])
-            weeks.append(Week(start, added_count, deleted_count))
-            start += timedelta(days=7)
-    require(sum(w.added - w.deleted for w in weeks) == physical, "history net differs from pinned physical lines, including blanks")
-    return groups, tuple(weeks), physical
-
-
-def audit_git(s: Statistics, repo: Path) -> None:
-    groups, weeks, _ = collect_git(repo, s.commit)
-    require(set(groups) == set(s.groups), "pinned Git code counts disagree")
-    weekly = {w.start.isoformat(): [w.added, w.deleted] for w in weeks}
     require(set(weekly) <= {week.start.isoformat() for week in s.weeks}, "Git history has weeks omitted from the summary")
     for week in s.weeks:
         require(weekly.get(week.start.isoformat(), [0, 0]) == [week.added, week.deleted], f"Git totals disagree for {week.start}")
-    for bucket in s.changes:
-        actual = tuple(sum(bucket.lower <= value[index] < bucket.upper
-                           for value in (weekly.get(w.start.isoformat(), [0, 0]) for w in s.weeks))
-                       for index in (0, 1))
-        require(actual == (bucket.added, bucket.deleted), "Git weekly change histogram disagrees")
+    require(sum(w.added - w.deleted for w in s.weeks) == physical, "history net differs from pinned physical lines, including blanks")
 
 
 def main() -> None:
@@ -312,7 +303,7 @@ def main() -> None:
             audit_git(s, args.repo)
     except (DataError, OSError, ValueError) as error:
         parser.error(str(error))
-    print("Raw API counts, inferred provenance, every timing bin and quantiles reconcile.")
+    print("Raw API counts, inferred provenance, timing bins/quantiles and per-PR additions/deletions bins reconcile.")
     if args.repo is not None:
         print("Pinned Git code groups, every weekly pair and physical-line net reconcile; no network access used.")
     print("Consistency verified; session initiation, human identity, causality and released impact remain unproven.")
