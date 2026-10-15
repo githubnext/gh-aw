@@ -25,7 +25,6 @@ func TestCompileToolPreservesLocalActionlintWhenDockerUnavailable(t *testing.T) 
 	t.Setenv("PATH", dir)
 	ResetDockerPullState()
 	t.Cleanup(ResetDockerPullState)
-	SetMockDockerAvailable(false)
 
 	var capturedArgs []string
 	mockExec := func(ctx context.Context, args ...string) *exec.Cmd {
@@ -62,5 +61,19 @@ func TestCompileToolPreservesLocalActionlintWhenDockerUnavailable(t *testing.T) 
 	assert.Empty(t, results[0].Errors)
 	require.Len(t, results[0].Warnings, 1)
 	assert.Equal(t, "docker_unavailable", results[0].Warnings[0].Type)
-	assert.Contains(t, results[0].Warnings[0].Message, "Docker")
+	assert.Equal(t, dockerUnavailableMessage, results[0].Warnings[0].Message)
+
+	repeatedResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "compile",
+		Arguments: map[string]any{
+			"workflows":  []string{"test.md"},
+			"actionlint": true,
+			"grant":      true,
+		},
+	})
+	require.NoError(t, err)
+	require.False(t, repeatedResult.IsError)
+	assert.JSONEq(t, extractTextResult(t, result), extractTextResult(t, repeatedResult))
+	assert.Contains(t, capturedArgs, "--actionlint")
+	assert.NotContains(t, capturedArgs, "--grant")
 }
