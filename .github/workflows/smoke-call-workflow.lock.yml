@@ -506,6 +506,7 @@ jobs:
       GH_AW_PR_HEAD_BASE_SHA: ""
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_TARGET_REPO_SLUG: ""
       GH_AW_WORKFLOW_ID_SANITIZED: smokecallworkflow
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
@@ -852,6 +853,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="codex"
@@ -1849,6 +1851,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="codex"

@@ -111,7 +111,10 @@ func resolveEffectiveModelAttribution(runDir string, info *AwInfo, routing *Mode
 	if info == nil {
 		return result
 	}
-	result.RequestedModel = info.RequestedModel
+	result.RequestedModel, _, _ = strings.Cut(info.RequestedModel, "?")
+	if result.RequestedModel == "" && info.ModelSelection != nil {
+		result.RequestedModel, _, _ = strings.Cut(info.ModelSelection.ConfiguredModel, "?")
+	}
 	if info.ModelRouting != nil {
 		result.RoutingStatus = info.ModelRouting.Status
 		result.Effort = firstNonEmpty(info.ModelRouting.AppliedEffort, info.ModelRouting.Effort)
@@ -131,9 +134,16 @@ func resolveEffectiveModelAttribution(runDir string, info *AwInfo, routing *Mode
 	primaryModel := primaryTokenUsageModel(usage)
 	routingActive := (info.ModelRouting != nil && info.ModelRouting.Status != "" && info.ModelRouting.Status != "not_routed") ||
 		(routing != nil && routing.Status != "" && routing.Status != "not_routed")
+	selection := info.ModelSelection
 	switch {
+	case selection != nil && selection.Status == "unavailable":
+		result.Model = ""
+	case selection != nil && selection.Status == "substituted":
+		result.Model = selection.EffectiveModel
 	case info.FallbackModel != "":
 		result.Model = info.FallbackModel
+	case selection != nil && selection.Status == "observed":
+		result.Model = selection.EffectiveModel
 	case info.ModelRouting != nil && info.ModelRouting.Status == "selected":
 		result.Model = firstNonEmpty(info.ModelRouting.WireModel, info.ModelRouting.Model)
 	case routing != nil && routing.Status == "selected":
@@ -162,8 +172,11 @@ func mergeSessionModelRoutingAwInfo(runDir string, info *AwInfo) *AwInfo {
 		if workflowInfo.EngineID != "" {
 			sessionInfo.EngineID = workflowInfo.EngineID
 		}
-		if workflowInfo.Model != "" {
+		if workflowInfo.Model != "" || workflowInfo.ModelSelection != nil {
 			sessionInfo.Model = workflowInfo.Model
+		}
+		if workflowInfo.ModelSelection != nil {
+			sessionInfo.ModelSelection = workflowInfo.ModelSelection.awInfo()
 		}
 		if workflowInfo.RequestedModel != "" {
 			sessionInfo.RequestedModel = workflowInfo.RequestedModel

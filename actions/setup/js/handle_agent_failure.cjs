@@ -443,6 +443,7 @@ function buildModelEndpointMismatchContext(mismatch, detectionJobResult = proces
  * @param {boolean} options.hasAssignmentErrors
  * @param {boolean} options.http400ResponseError
  * @param {boolean} [options.hasModelEndpointMismatch]
+ * @param {boolean} [options.modelNotSupportedError]
  * @param {boolean} options.unknownModelAICredits
  * @param {boolean} [options.copilotOrgBillingError]
  * @param {string} [options.copilotAgentNotFound] - Requested agent identifier if a "No such agent" failure was detected
@@ -467,6 +468,7 @@ function buildFailureIssueTitle(options) {
     return `[aw] ${workflowName} has no AI credits pricing for model${modelSuffix}`;
   }
   if (options.hasModelEndpointMismatch) return `[aw] ${workflowName} has model/endpoint mismatch`;
+  if (options.modelNotSupportedError) return `[aw] ${workflowName} has an unavailable configured model`;
   // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
   // budget state that should take precedence when both classes are detected.
   if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
@@ -4411,15 +4413,17 @@ async function main() {
     // A model/endpoint mismatch explains the missing terminal output, so the collector's
     // generic empty-output classification (e.g. engine_outage) must not override it.
     const collectorEmptyOutputCause = agentOutputResult.success ? agentOutputResult.collectorEmptyOutputCause : undefined;
-    const emptyOutputCause = hasModelEndpointMismatch ? undefined : collectorEmptyOutputCause;
-    const terminalOutputFailureCause = hasModelEndpointMismatch || !agentOutputResult.success ? undefined : agentOutputResult.collectorFailureCause;
+    const hasModelConfigurationError = hasModelEndpointMismatch || modelNotSupportedError;
+    const emptyOutputCause = hasModelConfigurationError ? undefined : collectorEmptyOutputCause;
+    const terminalOutputFailureCause = hasModelConfigurationError || !agentOutputResult.success ? undefined : agentOutputResult.collectorFailureCause;
     const reportItems = (Array.isArray(agentOutputResult.items) ? agentOutputResult.items : []).filter(
-      item => !(hasModelEndpointMismatch && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string")
+      item => !(hasModelConfigurationError && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string")
     );
     const hasReportedIncomplete = hasReportIncomplete && reportItems.some(item => item?.type === "report_incomplete");
     const issueTitle = buildFailureIssueTitle({
       workflowName: sanitizedWorkflowName,
       hasModelEndpointMismatch,
+      modelNotSupportedError,
       transportWedge,
       emptyOutputCause,
       terminalOutputFailureCause,
