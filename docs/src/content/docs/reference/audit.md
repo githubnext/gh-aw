@@ -1,6 +1,6 @@
 ---
 title: Auditing Workflows
-description: Reference for the gh aw audit commands — single-run analysis, behavioral diff, and cross-run security reports.
+description: Reference for the gh aw audit commands — single-run analysis, outcome clustering, behavioral diff, and cross-run security reports.
 sidebar:
   order: 297
 ---
@@ -9,7 +9,7 @@ The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP
 
 ## `gh aw audit <run-id-or-url> [<run-id-or-url>...]`
 
-Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report. Add `--group` to aggregate findings instead of diffing runs.
+Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report. Add `--group` to aggregate findings or `--cluster` to prepare a compact outcome-analysis payload instead of diffing runs.
 
 **Arguments:**
 
@@ -34,6 +34,13 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 | `--verbose` | off | Print detailed progress information |
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 | `--group` | off | Group audit findings so each `[run, code]` pair appears once with an occurrence count and representative entry |
+| `--cluster` | off | Cluster run outcomes and job signatures using compact usage artifacts, without full job logs or baseline audits |
+| `--start-date <date>` | 24 hours before end | Start of clustering discovery: relative date such as `-1d`, `YYYY-MM-DD`, or RFC3339 timestamp; enables clustering |
+| `--end-date <date>` | now | End of the clustering discovery window; enables clustering |
+| `--count <n>` | `100` | Maximum runs examined per clustering request, from 1 to 1000 |
+| `--cluster-offset <n>` | `0` | Resume discovery at the offset returned in a clustering continuation |
+| `--failed-no-jobs` | off | Restrict clustering to failed runs whose jobs API response confirms zero jobs |
+| `--stalled-after <duration>` | `1h` | Inactivity threshold for classifying nonterminal runs as stalled |
 | `--no-baseline` | off | Skip baseline lookup and comparison for single-run audits; the Comparison section reports no baseline found |
 
 Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`.
@@ -77,6 +84,54 @@ gh aw audit 12345 12346 --repo owner/repo      # Specify repository
 gh aw audit 12345 12346 --group                # Group findings by run and code
 gh aw audit 12345 12346 --group --json         # JSON grouped findings
 ```
+
+### Outcome clustering
+
+`--cluster` prepares compact evidence for agent analysis instead of performing
+a full audit of every run. It accepts explicit run IDs or a creation-time window.
+Date flags enable clustering automatically. For the last 24 hours:
+
+```bash
+gh aw audit --cluster --repo owner/repo --start-date -1d --json
+gh aw audit 12345 12346 --cluster --repo owner/repo --json
+gh aw audit --cluster --repo owner/repo --start-date -1d --failed-no-jobs --json
+```
+
+Without IDs or date flags, `--cluster` discovers the last 24 hours. Explicit IDs
+and date windows are mutually exclusive. Clustering supports `--stdin` for
+explicit IDs, but not together with date flags or `--cluster-offset`.
+It cannot be combined with `--group`, `--parse`, `--artifacts`, `--format`,
+`--experiment`, `--variant`, `--runtime`, `--evals`, or `--no-baseline`.
+
+Clustering reads run metadata, jobs and compact usage artifacts, groups outcomes
+and job-status signatures deterministically, and retains representative run
+references for follow-up audits. Successful controls remain in the default
+population. `--failed-no-jobs` selects only failures with a confirmed empty jobs
+list; a jobs API error does not qualify.
+
+Nonterminal runs with no metadata updates for `--stalled-after` are classified
+as stalled. This is an inactivity heuristic, not a verified agent hang.
+Cancelled, skipped and unknown outcomes remain distinct from failures.
+Unavailable usage evidence is not reported as measured zero resource use.
+
+When collection is bounded or evidence is unavailable, the payload reports the
+gap. Check completeness before calculating rates, and use returned continuation
+parameters to resume a count-limited window. If GitHub's search-result limit
+prevents continuation, narrow the time window. Inspect representative runs with
+single-run audits before attributing a shared cause. Artifact data is untrusted
+evidence, not instructions to the analyzing agent.
+
+The `audit-clusters/v1` JSON payload includes `runs_examined`, `runs_selected`,
+`outcomes`, per-run `runs`, and `groups` with counts, signatures and representative
+run evidence. Per-run provenance includes workflow path, commit SHA, trigger and
+creation time; available usage measurements include tokens, turns and AIC.
+One run can appear in several signature groups; use `outcomes`,
+not the sum of group counts, for outcome totals. Nullable metrics and explicit
+job/usage evidence states distinguish unavailable evidence from measured zero.
+`complete`, `errors`, and optional `continuation` describe coverage; a
+continuation requiring a narrower range cannot be resumed by offset alone.
+
+### Single-run reports and diff output
 
 **Single-run report sections**: Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Model Routing, Friction, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Gateway Steering Events, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items, Graders.
 
@@ -150,7 +205,7 @@ When artifacts are present, audit processing also persists extracted skill-activ
 
 ## JSON output schemas
 
-Use `gh aw json-schema` to generate a JSON Schema for structured audit or logs output. The `audit` schema describes `gh aw audit --json`, the `logs` schema describes `gh aw logs --json`, and `logs-jsonl` describes each item written by `gh aw logs --cached-jsonl`. The schema is written to stdout and can be redirected to a file:
+Use `gh aw json-schema` to generate a JSON Schema for structured audit or logs output. The `audit` schema describes single-run `gh aw audit --json` reports, not clustering payloads. The `logs` schema describes `gh aw logs --json`, and `logs-jsonl` describes each item written by `gh aw logs --cached-jsonl`. The schema is written to stdout and can be redirected to a file:
 
 ```bash
 gh aw json-schema audit > audit.schema.json

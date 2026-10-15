@@ -69,6 +69,12 @@ Below, ROOT is the location where you found this file. For example,
 - "Analyze the logs for workflow X"
 - "Investigate missing tool calls in run #12345"
 - "Debug this workflow run: https://github.com/owner/repo/actions/runs/12345"
+- "Audit the last 24 hours and cluster failures, successes, and stalled runs"
+
+For trends, use the [outcome clustering strategy](.github/skills/debugging-workflows/SKILL.md#cluster-outcomes-before-investigating-trends):
+collect compact evidence with `gh aw audit --cluster --repo OWNER/REPO --start-date -1d --json`,
+then investigate representative runs. Keep missing evidence unknown; use
+`--failed-no-jobs` only for confirmed failures without jobs.
 
 **If gh-aw version is in [0.68.4, 0.71.3], stop debugging and tell the user to upgrade because those versions were retired.**
 

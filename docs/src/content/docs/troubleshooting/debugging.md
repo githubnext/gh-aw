@@ -56,6 +56,28 @@ gh aw logs my-workflow --format markdown --last 5 --json
 
 See [Audit Commands](/gh-aw/reference/audit/) for complete flag documentation.
 
+### Investigating Outcome Trends
+
+For “audit the last 24 hours,” cluster run outcomes before investigating
+individual failures:
+
+```bash
+gh aw audit --cluster --repo OWNER/REPO --start-date -1d --json
+gh aw audit 12345678 12345679 --cluster --repo OWNER/REPO --json
+gh aw audit --cluster --repo OWNER/REPO --start-date -1d --failed-no-jobs --json
+```
+
+The compact payload groups outcomes and job signatures and reads usage
+artifacts without downloading full job logs. Give it to an agent to identify
+candidate patterns, then audit representative runs to verify the first failing
+boundary. Keep successful runs as controls; `--failed-no-jobs` isolates only
+failures with a confirmed empty jobs list.
+
+Check incomplete collection and missing evidence before reporting failure
+rates. Missing artifacts do not mean zero resource use, unavailable jobs do not
+mean no jobs, and stalled classifications are inactivity heuristics rather than
+proof of a hang. Shared outcomes alone do not establish a shared root cause.
+
 ### Analyzing Workflow Logs
 
 `gh aw logs` downloads and analyzes logs across multiple runs (tool usage, network patterns, errors). Results are cached for 10–100× speedup on later runs.

@@ -27,6 +27,15 @@ When a single run is provided, generates a detailed Markdown report for that run
 When two or more runs are provided, the first is used as the base (reference) and the
 remaining runs are compared against it, producing a diff report.
 
+With --cluster, collect lightweight metadata, jobs and usage artifacts instead of
+performing full audits. Runs are grouped deterministically by outcome and observed
+failure signatures, with representative runs for follow-up. --start-date or
+--end-date enables clustering automatically. Without run IDs, clustering requires
+--repo and defaults to the last 24 hours. --count bounds runs examined, not matches.
+Missing evidence is explicitly unknown; check completeness and continuation before
+calculating rates. Stalled means nonterminal with no metadata update for --stalled-after,
+not a confirmed agent hang. Signatures are observations, not proven shared causes.
+
 Each argument accepts:
 - A numeric run ID (e.g., 1234567890)
 - A GitHub Actions run URL (e.g., https://github.com/owner/repo/actions/runs/1234567890)
@@ -54,7 +63,10 @@ var auditCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` audit 
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --group # Group findings by run and audit code
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --runtime cloud-hypervisor   # Skip run unless sandbox agent runtime matches`
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --runtime cloud-hypervisor   # Skip run unless sandbox agent runtime matches
+  ` + string(constants.CLIExtensionPrefix) + ` audit --cluster --repo owner/repo --json  # Cluster runs from the last 24 hours
+  ` + string(constants.CLIExtensionPrefix) + ` audit --start-date=-1d --repo owner/repo --failed-no-jobs --json
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --cluster --repo owner/repo --json`
 
 type auditCommandOptions struct {
 	outputDir        string
@@ -72,12 +84,19 @@ type auditCommandOptions struct {
 	group            bool
 	noBaseline       bool
 	timeout          time.Duration
+	cluster          bool
+	startDate        string
+	endDate          string
+	count            int
+	clusterOffset    int
+	failedNoJobs     bool
+	stalledAfter     time.Duration
 }
 
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "audit <run-id-or-url> [run-id-or-url]...",
+		Use:     "audit [run-id-or-url]...",
 		Short:   "Audit workflow runs and generate detailed reports",
 		Long:    auditCommandLong,
 		Example: auditCommandExample,
@@ -104,6 +123,13 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("group", false, "Group audit findings by run and finding code, including occurrence counts and a representative entry")
 	cmd.Flags().Bool("no-baseline", false, "Skip baseline lookup and comparison for single-run audits")
 	cmd.Flags().Duration("timeout", 0, "Maximum audit duration (e.g., 50s or 5m; 0 means no additional deadline). JSON single-run audits return explicitly incomplete results on timeout")
+	cmd.Flags().Bool("cluster", false, "Cluster lightweight run evidence by outcome and failure signature instead of auditing each run")
+	cmd.Flags().String("start-date", "", "Cluster runs created after this date (YYYY-MM-DD, RFC3339, or delta such as -1d); enables clustering")
+	cmd.Flags().String("end-date", "", "Cluster runs created before this date (YYYY-MM-DD, RFC3339, or delta); enables clustering")
+	cmd.Flags().Int("count", 100, "Maximum runs to examine for clustering (1-1000)")
+	cmd.Flags().Int("cluster-offset", 0, "Resume date-range clustering at this run offset from a previous continuation")
+	cmd.Flags().Bool("failed-no-jobs", false, "Select only failed runs with confirmed zero jobs (requires clustering)")
+	cmd.Flags().Duration("stalled-after", time.Hour, "Classify nonterminal runs with no metadata updates for this duration as stalled")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -112,9 +138,16 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	args, handled, err := resolveAuditCommandArgs(args, opts.stdin)
-	if err != nil || handled {
-		return err
+	if opts.cluster && !opts.stdin {
+		if len(args) > 0 && (opts.startDate != "" || opts.endDate != "" || opts.clusterOffset > 0) {
+			return errors.New("run IDs cannot be combined with --start-date, --end-date, or --cluster-offset")
+		}
+	} else {
+		var handled bool
+		args, handled, err = resolveAuditCommandArgs(args, opts.stdin)
+		if err != nil || handled {
+			return err
+		}
 	}
 	auditCommandLog.Printf("Dispatching audit command: run_count=%d, format=%s, parse=%t, evals_only=%t", len(args), opts.format, opts.parse, opts.evalsOnly)
 	ctx := cmd.Context()
@@ -122,6 +155,9 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.timeout)
 		defer cancel()
+	}
+	if opts.cluster {
+		return runAuditCluster(ctx, cmd, args, opts)
 	}
 	if opts.group {
 		return runAuditGrouped(ctx, args, opts)
@@ -155,6 +191,16 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.group, _ = cmd.Flags().GetBool("group")
 	opts.noBaseline, _ = cmd.Flags().GetBool("no-baseline")
 	opts.timeout, _ = cmd.Flags().GetDuration("timeout")
+	opts.cluster, _ = cmd.Flags().GetBool("cluster")
+	opts.startDate, _ = cmd.Flags().GetString("start-date")
+	opts.endDate, _ = cmd.Flags().GetString("end-date")
+	opts.count, _ = cmd.Flags().GetInt("count")
+	opts.clusterOffset, _ = cmd.Flags().GetInt("cluster-offset")
+	opts.failedNoJobs, _ = cmd.Flags().GetBool("failed-no-jobs")
+	opts.stalledAfter, _ = cmd.Flags().GetDuration("stalled-after")
+	if err := validateAuditClusterOptions(cmd, &opts); err != nil {
+		return auditCommandOptions{}, err
+	}
 	if opts.timeout < 0 {
 		return auditCommandOptions{}, errors.New("--timeout must not be negative")
 	}
