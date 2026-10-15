@@ -85,7 +85,6 @@ import (
 	"github.com/github/gh-aw/pkg/linters/walkfuncerrshadow"
 	"github.com/github/gh-aw/pkg/linters/wgdonenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/writebytestring"
-	writestringerrorignored "github.com/github/gh-aw/pkg/linters/writestring-error-ignored"
 )
 
 // All returns all registered custom analysis linters.
@@ -180,5 +179,4 @@ var allAnalyzers = []*analysis.Analyzer{
 	walkfuncerrshadow.Analyzer,
 	wgdonenotdeferred.Analyzer,
 	writebytestring.Analyzer,
-	writestringerrorignored.Analyzer,
 }
