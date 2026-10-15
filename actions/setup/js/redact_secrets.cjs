@@ -312,7 +312,7 @@ function redactSecrets(content, secretValues) {
  */
 function readAWFResolvedConfig(sourcePath) {
   if (typeof sourcePath !== "string" || !AWF_RESOLVED_CONFIG_PATH_PATTERN.test(sourcePath)) {
-    throw new Error("Invalid AWF resolved configuration publication path");
+    throw new Error(`${ERR_VALIDATION}: Invalid AWF resolved configuration publication path`);
   }
   const uid = process.getuid?.();
   const root = fs.lstatSync("/run/awf-config-audit");
@@ -330,13 +330,13 @@ function readAWFResolvedConfig(sourcePath) {
     source.nlink !== 1 ||
     (source.mode & 0o777) !== 0o600
   ) {
-    throw new Error("AWF resolved configuration artifact failed ownership or permission validation");
+    throw new Error(`${ERR_VALIDATION}: AWF resolved configuration artifact failed ownership or permission validation`);
   }
   const fd = fs.openSync(sourcePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   try {
     const opened = fs.fstatSync(fd);
     if (!opened.isFile() || opened.nlink !== 1 || opened.uid !== uid || (opened.mode & 0o777) !== 0o600 || opened.ino !== source.ino || opened.dev !== source.dev) {
-      throw new Error("AWF resolved configuration artifact changed during validation");
+      throw new Error(`${ERR_VALIDATION}: AWF resolved configuration artifact changed during validation`);
     }
     return fs.readFileSync(fd, "utf8");
   } finally {
@@ -346,7 +346,7 @@ function readAWFResolvedConfig(sourcePath) {
 
 /**
  * Copy only sanitized AWF configuration into the normal artifact tree.
- * @param {string} sourcePath
+ * @param {string | undefined} sourcePath
  * @param {string[]} secretValues
  * @param {string[]} maskedValues
  * @returns {boolean}
@@ -354,7 +354,7 @@ function readAWFResolvedConfig(sourcePath) {
 function stageAWFResolvedConfig(sourcePath, secretValues, maskedValues) {
   const existing = fs.lstatSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { throwIfNoEntry: false });
   if (existing) {
-    if (!existing.isFile()) throw new Error("AWF resolved configuration staging path is not a file");
+    if (!existing.isFile()) throw new Error(`${ERR_VALIDATION}: AWF resolved configuration staging path is not a file`);
     fs.unlinkSync(AWF_RESOLVED_CONFIG_STAGING_PATH);
   }
   if (!sourcePath) return false;
@@ -363,7 +363,7 @@ function stageAWFResolvedConfig(sourcePath, secretValues, maskedValues) {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("AWF resolved configuration is not valid JSON");
+    throw new Error(`${ERR_VALIDATION}: AWF resolved configuration is not valid JSON`);
   }
   const safeConfig = redactSensitiveConfig(parsed);
   const serialized = JSON.stringify(safeConfig, null, 2);
