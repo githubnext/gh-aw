@@ -286,6 +286,13 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 
 	claudeArgs = appendClaudePluginArgs(claudeArgs, workflowData)
 
+	// Copilot writes Claude model versions with a dot (claude-haiku-4.5); map them to
+	// Anthropic ids so Claude Code applies the right model defaults (effort, context).
+	if shouldApplyClaudeCopilotModelOverrides(workflowData) {
+		claudeLog.Print("Adding Copilot Claude modelOverrides settings")
+		claudeArgs = append(claudeArgs, "--settings", claudeCopilotModelOverridesSettings())
+	}
+
 	claudeArgs = appendClaudeCustomEngineArgs(claudeArgs, permissionModeValueIndex, workflowData)
 
 	return claudeArgs, mcpConfigArg, allowedTools
@@ -486,6 +493,10 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 		// The external threat-detection path (threat-detect --engine claude) has no
 		// harness retry wrapper, so we leave CLI retries at their default there.
 		env["CLAUDE_CODE_MAX_RETRIES"] = "0"
+	} else if settings := claudeDetectionSettings(workflowData); settings != "" {
+		// The external threat-detect binary builds its own Claude Code arguments, so
+		// claude_harness.cjs adds --settings from this variable when none is present.
+		env[claudeSettingsEnvVar] = settings
 	}
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()

@@ -313,28 +313,62 @@ describe("AW-owned authorization with queue-owned scheduling and delivery", () =
     await expect(validator({ profile, repository: REPOSITORY })).rejects.toThrow(/client_mismatch/);
   });
 
-  it("requires contents write from the actual dispatch credential", async () => {
-    const client = {
-      rest: {
-        users: { getAuthenticated: vi.fn().mockResolvedValue({ status: 200, data: { id: "22", type: "Bot" } }) },
-        repos: { get: vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, permissions: { push: false } } }) },
-      },
-    };
-    const validator = createDispatchCredentialValidator(client, { kind: "authenticated" });
-    await expect(validator({ profile: {}, repository: REPOSITORY })).rejects.toThrow(/contents_write_required/);
-    expect(client.rest.users.getAuthenticated).not.toHaveBeenCalled();
+  it.each([
+    ["github_token", undefined],
+    ["github_app", undefined],
+    ["authenticated", undefined],
+    ["github_token", { push: false }],
+    ["github_app", { push: false }],
+    ["authenticated", { push: false }],
+    ["authenticated", { contents: "read", admin: false, maintain: false, push: false }],
+  ])("leaves permission enforcement to GitHub for %s with role metadata %j", async (kind, permissions) => {
+    const { fixture } = setupAW();
+    const profile = fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile;
+    const token = "test-only-installation-token";
+    const client = fixture.githubClient;
+    client.auth = vi.fn().mockResolvedValue({ type: "token", token });
+    client.rest.repos.get = vi.fn().mockResolvedValue({ status: 200, data: { full_name: REPOSITORY, ...(permissions === undefined ? {} : { permissions }) } });
+    client.rest.users.getByUsername = vi.fn(async ({ username }) => ({ status: 200, data: { id: "22", type: "Bot", login: username } }));
+    const credential = kind === "github_app" ? { kind, app_slug: "test-app" } : { kind };
+    const proof = await createDispatchCredentialValidator(client, credential, token)({ profile, repository: REPOSITORY });
+    expect(proof).toMatchObject({ principal: "22", tag_prepared: true });
+    expect(isDispatchCredentialProof(proof, client, profile)).toBe(true);
+    const denied = Object.assign(new Error("private-request-details"), { status: 403 });
+    client.rest.git = { getRef: vi.fn().mockRejectedValue({ status: 404 }), createRef: vi.fn().mockRejectedValue(denied) };
+    await expect(createDispatchCredentialValidator(client, credential, token)({ profile, repository: REPOSITORY })).rejects.toBe(denied);
+    expect(client.rest.git.createRef).toHaveBeenCalledOnce();
   });
 
-  it("checks dispatch write permission before publishing the launch marker", async () => {
+  it("launches without treating repository role metadata as token permissions", async () => {
     const { fixture, options, post } = setupAW();
     fixture.githubClient.rest.repos.get = vi.fn().mockResolvedValue({
       status: 200,
       data: { full_name: REPOSITORY, id: 7, permissions: { push: false } },
     });
-    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_required/);
-    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).state).toBe("reserved");
-    expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => operation.kind === "Dispatch" && operation.state === "started")).toBe(false);
-    expect(post).not.toHaveBeenCalled();
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "bound" });
+    expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => operation.kind === "Dispatch" && operation.state === "started")).toBe(true);
+    expect(post).toHaveBeenCalledOnce();
+  });
+
+  it("honors GitHub dispatch denial with an existing exact tag and negative role metadata", async () => {
+    const { fixture, options, post } = setupAW();
+    fixture.githubClient.rest.repos.get = vi.fn().mockResolvedValue({
+      status: 200,
+      data: { full_name: REPOSITORY, id: 7, permissions: { push: false } },
+    });
+    const tag = `refs/tags/gh-aw/work-queue/${REF}`;
+    fixture.githubClient.rest.git = {
+      getRef: vi.fn().mockResolvedValue({ status: 200, data: { ref: tag, object: { type: "commit", sha: REF } } }),
+      createRef: vi.fn(),
+    };
+    post.mockRejectedValue({
+      status: 403,
+      response: { status: 403, headers: { "x-github-request-id": "test-dispatch-denied" } },
+    });
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "rejected", released: true, dispatched: false });
+    expect(post).toHaveBeenCalledOnce();
+    expect(fixture.githubClient.rest.git.createRef).not.toHaveBeenCalled();
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "rejected", released: true });
   });
 
   it("rejects token-scoped tag creation denial before START despite repository push permission", async () => {
