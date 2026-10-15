@@ -10,8 +10,89 @@ async function startSlideshow(page: Page) {
 
 const runtimeAsset = /\/slideshow(?:-[^/.]+)?\.[^/]+\.js(?:\?|$)/;
 
+async function pauseEntrances(page: Page) {
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (Array.isArray(args[0]) && args[0][0]?.transform === "translateY(16px)") animation.pause();
+      return animation;
+    };
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/gh-aw/");
+});
+
+test("staggers visible content on every slide within one second", async ({ page }) => {
+  await pauseEntrances(page);
+  await startSlideshow(page);
+  const dialog = presentation(page);
+  for (let index = 0; index < 12; index++) {
+    await expect(dialog.locator("[data-slideshow-status]")).toContainText(`${index + 1} / 12`);
+    const timing = await dialog.locator("[data-slideshow-slides] > section:visible").evaluate(slide => {
+      const animations = slide.getAnimations({ subtree: true }).filter(animation => animation.id === "aw-slide-entrance");
+      const targets = animations.map(animation => (animation.effect as KeyframeEffect).target!);
+      return {
+        delays: animations.map(animation => Number(animation.effect!.getTiming().delay)),
+        endTimes: animations.map(animation => Number(animation.effect!.getComputedTiming().endTime)),
+        visible: targets.every(target => target.checkVisibility() && !target.closest('[aria-hidden="true"], [data-slideshow-hide]')),
+        nested: targets.some(target => targets.some(other => other !== target && other.contains(target))),
+        heading: targets.some(target => target.matches("h1, h2")),
+      };
+    });
+    expect(timing.delays.length).toBeGreaterThan(0);
+    if (index > 0) expect(timing.delays.length).toBeGreaterThan(1);
+    expect(timing.visible).toBe(true);
+    expect(timing.nested).toBe(false);
+    expect(timing.heading).toBe(true);
+    expect(timing.delays[0]).toBe(index === 0 ? 0 : 280);
+    for (let i = 1; i < timing.delays.length; i++) expect(timing.delays[i]).toBeGreaterThan(timing.delays[i - 1]);
+    expect(Math.max(...timing.endTimes)).toBeCloseTo(1000);
+    expect(timing.endTimes.every(time => time <= 1000)).toBe(true);
+    if (index < 11) await page.keyboard.press("ArrowRight");
+  }
+});
+
+test("cancels entrances on navigation and exit, and replays them on revisit", async ({ page }) => {
+  await pauseEntrances(page);
+  await startSlideshow(page);
+  const dialog = presentation(page);
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  await expect(dialog.locator("[data-slideshow-status]")).toContainText("2 / 12");
+  const activeSlides = await dialog.locator("[data-slideshow-slides] > section").evaluateAll(slides => slides.map(slide => slide.getAnimations({ subtree: true }).some(animation => animation.id === "aw-slide-entrance")));
+  expect(activeSlides.filter(Boolean)).toHaveLength(1);
+  expect(activeSlides[1]).toBe(true);
+  await page.keyboard.press("Escape");
+  expect(await page.locator("main [data-slideshow-slides]").evaluate(deck => deck.getAnimations({ subtree: true }).filter(animation => animation.id === "aw-slide-entrance").length)).toBe(0);
+  await startSlideshow(page);
+  const title = dialog.getByRole("heading", { name: "GitHub Agentic Workflows", exact: true });
+  expect(await title.evaluate(element => element.getAnimations().some(animation => animation.id === "aw-slide-entrance"))).toBe(true);
+  await title.evaluate(element =>
+    element
+      .getAnimations()
+      .filter(animation => animation.id === "aw-slide-entrance")
+      .forEach(animation => animation.finish())
+  );
+  await expect(title).toHaveCSS("opacity", "1");
+  await expect(title).toHaveCSS("transform", "none");
+});
+
+test("disables entrances for reduced motion, including preference changes", async ({ page }) => {
+  await pauseEntrances(page);
+  await startSlideshow(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const entrances = () => presentation(page).evaluate(dialog => dialog.getAnimations({ subtree: true }).filter(animation => animation.id === "aw-slide-entrance").length);
+  await expect.poll(entrances).toBe(0);
+  await page.keyboard.press("ArrowRight");
+  await expect(presentation(page).locator("[data-slideshow-status]")).toContainText("2 / 12");
+  expect(await entrances()).toBe(0);
+  await page.keyboard.press("Escape");
+  await startSlideshow(page);
+  expect(await entrances()).toBe(0);
 });
 
 test("dims the toolbar only when neither hovered nor focused", async ({ page }) => {
