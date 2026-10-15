@@ -930,7 +930,11 @@ async function verifyCompiledDispatchIdentity(input) {
       } else if (mode === "wrong-credential" || mode === "wrong-dispatch-tag") {
         assert.equal(posts, 0);
         assert.equal(tagReads, mode === "wrong-dispatch-tag" ? 1 : 0);
-        assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
+        assert.equal(result.receipts[0].status, "durable", JSON.stringify(result));
+        assert.equal(result.receipts[0].request_id, grant.request.id);
+        assert.equal(result.receipts[0].launches.length, 1);
+        assert.equal(result.receipts[0].launches[0].state, "blocked");
+        assert.equal(result.receipts[0].launches[0].failure_stage, "launch_processing");
         assert.equal(dispatch.state, "reserved");
         assert.equal(
           fixture.transactions.some(commit => commit.operations.some(operation => operation.kind === "Dispatch" && operation.state === "started")),
