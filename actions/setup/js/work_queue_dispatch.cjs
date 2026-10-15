@@ -647,7 +647,8 @@ async function main(options = {}) {
     result = { version: 3, receipts: [{ status: "blocked", reason: "staged_queue_intents_invalid", explanation: queueControlErrorExplanation(queueControlErrorCode(error)), failure_stage: "control_setup" }], remaining_dispatches: 0 };
   }
   const durable = result.receipts.filter(receipt => receipt.status === "durable").length;
-  const blocked = result.receipts.filter(receipt => receipt.status === "blocked" || receipt.launches?.some(launch => launch.state === "blocked")).length;
+  // Launch-processing failures belong to unresolved outcomes, not blocked control intents.
+  const blocked = result.receipts.filter(receipt => receipt.status === "blocked").length;
   const rejected = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => launch.state === "rejected").length, 0);
   const unresolved = result.receipts.reduce((count, receipt) => count + (receipt.launches || []).filter(launch => !["bound", "released", "rejected", "staged_preview"].includes(launch.state)).length, 0);
   const recoveryRequired = blocked > 0 || unresolved > 0 || rejected > 0;

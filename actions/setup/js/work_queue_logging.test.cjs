@@ -7,6 +7,7 @@ const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
 const { planDispatch } = require("./work_queue_scheduler.cjs");
 const { replayTransactions } = require("./work_queue_replay.cjs");
 const { performance } = require("node:perf_hooks");
+const { resolveDispatchCredentialPrincipal } = require("./work_queue_dispatch_credential.cjs");
 
 describe("privacy-preserving work queue logging", () => {
   let stderr;
@@ -168,6 +169,29 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).toContain(`${code}=true`);
     expect(output()).toContain(problem);
     expect(output()).toContain(action);
+  });
+
+  it("preserves the structured code from an unavailable opaque-token identity API", async () => {
+    let failure;
+    try {
+      await resolveDispatchCredentialPrincipal({}, { kind: "authenticated" });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toMatchObject({ code: "work_queue_dispatch_credential_identity_unavailable" });
+    expect(queueControlErrorCode(failure)).toBe("work_queue_dispatch_credential_identity_unavailable");
+    createWorkQueueLogger("dispatch").failure("launch.preflight.blocked", failure, true);
+    expect(output()).toContain("work_queue_dispatch_credential_identity_unavailable=true");
+    expect(output()).toContain("Check the selected token's validity and GitHub API access");
+    expect(output()).not.toContain("an opaque token requires");
+  });
+
+  it("uses an allowlisted structured code without exposing or parsing the raw message", () => {
+    const failure = Object.assign(new Error("private-token-and-task-payload"), { code: "work_queue_dispatch_credential_identity_unavailable" });
+    expect(queueControlErrorCode(failure)).toBe("work_queue_dispatch_credential_identity_unavailable");
+    createWorkQueueLogger("dispatch").failure("launch.preflight.blocked", failure, true);
+    expect(output()).toContain("work_queue_dispatch_credential_identity_unavailable=true");
+    expect(output()).not.toContain("private-token-and-task-payload");
   });
 
   it.each([

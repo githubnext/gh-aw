@@ -29,6 +29,11 @@ type workQueueReplayRun struct {
 	} `json:"repository"`
 }
 
+type workQueueReplayArtifact struct {
+	ID          int64 `json:"id"`
+	SizeInBytes int64 `json:"size_in_bytes"`
+}
+
 type workQueueReplayPrediction struct {
 	Reason      string                      `json:"reason"`
 	Assignments []workQueueReplayAssignment `json:"assignments"`
@@ -159,11 +164,21 @@ func downloadWorkQueueReplaySnapshot(ctx context.Context, repository string, run
 		!strings.EqualFold(run.Repository.FullName, repository) || run.Path == "" {
 		return nil, nil, errors.New("artifact_replay_invalid: GitHub's run metadata does not match the requested repository and run ID. Verify --repo and --run-id against the Actions run URL")
 	}
-	var artifactID int64
+	candidates, err := listWorkQueueReplayArtifacts(ctx, client, base)
+	if err != nil {
+		return nil, nil, err
+	}
+	data, err := selectWorkQueueReplaySnapshot(ctx, client, repository, &run, candidates)
+	return data, &run, err
+}
+
+func listWorkQueueReplayArtifacts(ctx context.Context, client *api.RESTClient, base string) ([]workQueueReplayArtifact, error) {
+	var candidates []workQueueReplayArtifact
+	seen := make(map[int64]bool)
 	for page := 1; page <= 10; page++ {
-		raw, err = readWorkQueueReplayAPI(ctx, client, fmt.Sprintf("%s/artifacts?per_page=100&page=%d", base, page), 1<<20)
+		raw, err := readWorkQueueReplayAPI(ctx, client, fmt.Sprintf("%s/artifacts?per_page=100&page=%d", base, page), 1<<20)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		var listing struct {
 			Artifacts []struct {
@@ -174,34 +189,73 @@ func downloadWorkQueueReplaySnapshot(ctx context.Context, repository string, run
 			} `json:"artifacts"`
 		}
 		if json.Unmarshal(raw, &listing) != nil || listing.Artifacts == nil {
-			return nil, nil, errors.New("artifact_replay_invalid: GitHub returned an unreadable artifact inventory. Retry the read-only replay after verifying the API host and connectivity")
+			return nil, errors.New("artifact_replay_invalid: GitHub returned an unreadable artifact inventory. Retry the read-only replay after verifying the API host and connectivity")
 		}
 		for _, artifact := range listing.Artifacts {
 			if artifact.Name != "activation" {
 				continue
 			}
-			if artifactID != 0 || artifact.ID <= 0 || artifact.Expired ||
-				artifact.SizeInBytes <= 0 || artifact.SizeInBytes > workQueueReplayArtifactBytes {
-				return nil, nil, errors.New("artifact_replay_invalid: the activation artifact is duplicated, expired, or outside the 162 MiB size limit. Choose a run with one retained activation artifact, or use --file with its original downloaded snapshot")
+			if artifact.Expired {
+				continue
 			}
-			artifactID = artifact.ID
+			if seen[artifact.ID] || artifact.ID <= 0 ||
+				artifact.SizeInBytes <= 0 || artifact.SizeInBytes > workQueueReplayArtifactBytes {
+				return nil, errors.New("artifact_replay_invalid: an activation artifact ID is duplicated or invalid, or its archive is outside the 162 MiB size limit. Use --file with the original downloaded snapshot")
+			}
+			seen[artifact.ID] = true
+			candidates = append(candidates, workQueueReplayArtifact{ID: artifact.ID, SizeInBytes: artifact.SizeInBytes})
 		}
 		if len(listing.Artifacts) < 100 {
 			break
 		}
 		if page == 10 {
-			return nil, nil, errors.New("artifact_replay_invalid: this run has too many artifacts to search within the 1,000-artifact limit. Download its original snapshot and replay it with --file /path/to/work-queue.snapshot.json")
+			return nil, errors.New("artifact_replay_invalid: this run has too many artifacts to search within the 1,000-artifact limit. Download its original snapshot and replay it with --file /path/to/work-queue.snapshot.json")
 		}
 	}
-	if artifactID == 0 {
-		return nil, nil, errors.New("artifact_replay_invalid: this run has no activation artifact. Choose an agentic workflow run with retained activation artifacts, or use --file /path/to/work-queue.snapshot.json")
+	if len(candidates) == 0 {
+		return nil, errors.New("artifact_replay_invalid: this run has no activation artifact retained for replay. Choose an agentic workflow run with retained activation artifacts, or use --file /path/to/work-queue.snapshot.json")
 	}
-	raw, err = readWorkQueueReplayAPI(ctx, client, fmt.Sprintf("repos/%s/actions/artifacts/%d/zip", repository, artifactID), workQueueReplayArtifactBytes)
-	if err != nil {
-		return nil, nil, err
+	return candidates, nil
+}
+
+func selectWorkQueueReplaySnapshot(ctx context.Context, client *api.RESTClient, repository string, run *workQueueReplayRun, candidates []workQueueReplayArtifact) ([]byte, error) {
+	var selected []byte
+	archiveBudget, snapshotBudget := int64(workQueueReplayArtifactBytes), int64(workQueueReplayArtifactBytes)
+	workflow, _, _ := strings.Cut(run.Path, "@")
+	for _, artifact := range candidates {
+		if artifact.SizeInBytes > archiveBudget {
+			return nil, errors.New("artifact_replay_invalid: searching activation artifacts exceeds the aggregate 162 MiB archive limit. Use --file with the original matching snapshot")
+		}
+		raw, err := readWorkQueueReplayAPI(ctx, client, fmt.Sprintf("repos/%s/actions/artifacts/%d/zip", repository, artifact.ID), archiveBudget)
+		if err != nil {
+			return nil, err
+		}
+		archiveBudget -= int64(len(raw))
+		data, err := workQueueReplaySnapshotFromZIPLimit(raw, snapshotBudget)
+		if err != nil {
+			return nil, err
+		}
+		snapshotBudget -= int64(len(data))
+		var snapshot struct {
+			Origin *workqueue.Actor `json:"origin"`
+		}
+		if json.Unmarshal(data, &snapshot) != nil || snapshot.Origin == nil {
+			return nil, errors.New("artifact_replay_invalid: an activation snapshot has unreadable provenance. Use --file with the original matching snapshot")
+		}
+		if snapshot.Origin.RunID != strconv.FormatInt(run.ID, 10) ||
+			snapshot.Origin.RunAttempt != run.RunAttempt || snapshot.Origin.Workflow != workflow ||
+			!strings.EqualFold(snapshot.Origin.Repository, repository) {
+			continue
+		}
+		if selected != nil {
+			return nil, errors.New("artifact_replay_invalid: multiple activation snapshots match the requested run, attempt, and workflow. Use --file with the original intended snapshot")
+		}
+		selected = data
 	}
-	data, err := workQueueReplaySnapshotFromZIP(raw)
-	return data, &run, err
+	if selected == nil {
+		return nil, errors.New("artifact_replay_invalid: no retained activation snapshot matches the requested run, attempt, repository, and workflow. Use --file with the original matching snapshot; do not edit its origin")
+	}
+	return selected, nil
 }
 
 func readWorkQueueReplayAPI(ctx context.Context, client *api.RESTClient, endpoint string, limit int64) (data []byte, err error) {
@@ -249,6 +303,10 @@ func readWorkQueueReplayBytes(reader io.Reader, limit int64) ([]byte, error) {
 }
 
 func workQueueReplaySnapshotFromZIP(data []byte) (snapshot []byte, err error) {
+	return workQueueReplaySnapshotFromZIPLimit(data, workQueueReplayArtifactBytes)
+}
+
+func workQueueReplaySnapshotFromZIPLimit(data []byte, limit int64) (snapshot []byte, err error) {
 	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, errors.New("artifact_replay_invalid: the activation artifact is not a readable ZIP archive. Download the original artifact again; --file expects work-queue.snapshot.json, not the ZIP archive")
@@ -258,8 +316,8 @@ func workQueueReplaySnapshotFromZIP(data []byte) (snapshot []byte, err error) {
 		if entry.Name != workQueueSnapshotFile {
 			continue
 		}
-		if selected != nil || !entry.Mode().IsRegular() || entry.UncompressedSize64 > workQueueReplayArtifactBytes {
-			return nil, errors.New("artifact_replay_invalid: the archive's snapshot entry is duplicated, not a regular file, or larger than 162 MiB. Use an unmodified activation artifact with exactly one regular work-queue.snapshot.json")
+		if selected != nil || !entry.Mode().IsRegular() || entry.UncompressedSize64 > uint64(limit) {
+			return nil, errors.New("artifact_replay_invalid: the archive's snapshot entry is duplicated, not a regular file, or exceeds the aggregate 162 MiB snapshot limit. Use --file with the original matching snapshot")
 		}
 		selected = entry
 	}
@@ -275,5 +333,5 @@ func workQueueReplaySnapshotFromZIP(data []byte) (snapshot []byte, err error) {
 			err = errors.Join(err, errors.New("artifact_replay_invalid: could not close the snapshot stream. Download the original artifact again before retrying"))
 		}
 	}()
-	return readWorkQueueReplayBytes(reader, workQueueReplayArtifactBytes)
+	return readWorkQueueReplayBytes(reader, limit)
 }

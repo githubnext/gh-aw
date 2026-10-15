@@ -586,10 +586,11 @@ gh aw work-queue --repo github/gh-aw replay --run-id 38645334879 \
   --pool default --max-claims 3 --max-dispatches 3 --json
 ```
 
-`--run-id` downloads only the exact run's `activation` artifact, reads its
-bounded `work-queue.snapshot.json` entry, and checks repository, workflow, run,
-and attempt identity. Ambiguous, expired, missing, or invalid artifacts fail
-explicitly. `--file PATH` accepts an already downloaded snapshot instead.
+`--run-id` searches the exact run's retained `activation` artifacts and selects
+the snapshot matching its current attempt, repository, workflow, and run identity.
+Expired artifacts are skipped; multiple matching snapshots, no match, or invalid
+artifacts fail explicitly. Candidate downloads and snapshot reads each have an
+aggregate 162 MiB limit. `--file PATH` accepts an already downloaded snapshot instead.
 
 Artifact replay is read-only and does not treat captured data as publication
 authority. JSON output contains metadata and counts, not Work payloads.

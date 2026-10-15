@@ -1763,7 +1763,9 @@ describe("native queue launch fencing and conservative recovery", () => {
       expect(logs).toContain("launch.processing.blocked");
       expect(logs).toContain(`${reason}=true`);
       expect(logs).toContain(explanation);
-      expect(logs).toContain("controls.complete durable=1 blocked=1 rejected=0 unresolved=3 recovery_required=true");
+      expect(result.summary).toContain("Blocked intents: 0");
+      expect(result.summary).toContain("Unresolved launches: 3");
+      expect(logs).toContain("controls.complete durable=1 blocked=0 rejected=0 unresolved=3 recovery_required=true");
       expect(logs + JSON.stringify(result)).not.toContain("private-token-response");
     } finally {
       stderr.mockRestore();
@@ -1791,6 +1793,44 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: "rejected", released: false });
     expect(post).toHaveBeenCalledOnce();
     expect(JSON.stringify(result)).not.toContain("private-release-error");
+  });
+
+  it.each(["after_start", "after_post", "release"])("counts a processing exception at %s only as an unresolved launch", async stage => {
+    const { fixture, options, post } = setup({ granted: false, count: 1 });
+    const filename = path.join(process.cwd(), `.gh-aw-queue-outcome-${stage}.jsonl`);
+    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+    const config = { ...options.config, work_queue_dispatch_credential: { kind: "authenticated" } };
+    post.mockRejectedValue({ status: 422, response: { status: 422, headers: { "x-github-request-id": "trusted-provider-request" } } });
+    try {
+      fs.writeFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "unknown-outcome", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
+      const result = await publishQueueControls({
+        ...options,
+        config,
+        intentPath: filename,
+        core,
+        readWorkQueueLog: args => {
+          if (stage === "after_start" && [...fixture.state.dispatches.values()].some(dispatch => dispatch.state === "started")) throw new Error("private-read-error");
+          return options.readWorkQueueLog(args);
+        },
+        publishWorkQueueRequest: args => {
+          if ((stage === "after_post" && args.request.parameters.operations?.some(operation => operation.state === "rejected")) || (stage === "release" && args.request.kind === "release")) throw new Error("private-publication-error");
+          return options.publishWorkQueueRequest(args);
+        },
+      });
+      expect(result).toMatchObject({ status: "recovery_required", success: false });
+      const launch = result.receipts[0].launches[0];
+      expect(launch).toMatchObject({ state: "blocked", failure_stage: "launch_processing" });
+      expect(launch).not.toHaveProperty("dispatched");
+      expect(launch).not.toHaveProperty("released");
+      expect(result.summary).toContain("Blocked intents: 0");
+      expect(result.summary).toContain("Unresolved launches: 1");
+      expect(core.setFailed).toHaveBeenCalledOnce();
+      expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: stage === "release" ? "rejected" : "started", released: false });
+      expect(post).toHaveBeenCalledTimes(stage === "after_start" ? 0 : 1);
+      expect(JSON.stringify(result)).not.toContain("private-");
+    } finally {
+      fs.rmSync(filename, { force: true });
+    }
   });
 
   it("publishes submit-only intents without accessing protected launch credentials", async () => {

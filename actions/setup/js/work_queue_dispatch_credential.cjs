@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { closed, canonical } = require("./work_queue_codec.cjs");
+const { closed, canonical, queueError } = require("./work_queue_codec.cjs");
 const { API_VERSION, nativeId, dispatchTag } = require("./work_queue_native.cjs");
 
 /** @type {WeakMap<object, {client: DispatchClient, profile: string}>} */
@@ -35,7 +35,7 @@ async function resolveDispatchCredentialPrincipal(client, supplied) {
   const parameters = { headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } };
   let response;
   if (credential.kind === "authenticated") {
-    if (typeof users?.getAuthenticated !== "function") throw new Error("work_queue_dispatch_credential_identity_unavailable: an opaque token requires authenticated user metadata or compiler-minted GitHub App metadata");
+    if (typeof users?.getAuthenticated !== "function") throw queueError("work_queue_dispatch_credential_identity_unavailable", "an opaque token requires authenticated user metadata or compiler-minted GitHub App metadata");
     response = await users.getAuthenticated(parameters);
     if (response?.status !== 200 || !["User", "Bot"].includes(response.data?.type)) throw new Error("work_queue_dispatch_credential_identity_unverified");
   } else {

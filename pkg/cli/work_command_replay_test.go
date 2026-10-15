@@ -5,6 +5,7 @@ package cli
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -173,6 +174,165 @@ func TestWorkQueueArtifactReplayDownloadErrorsExplainRecovery(t *testing.T) {
 			require.Contains(t, err.Error(), fmt.Sprintf("HTTP %d", test.status))
 			require.Contains(t, err.Error(), test.problem)
 			require.Contains(t, err.Error(), test.recovery)
+		})
+	}
+}
+
+func TestWorkQueueArtifactReplaySelectsCurrentAttemptWithinAggregateBounds(t *testing.T) {
+	type artifact struct {
+		ID          int64  `json:"id"`
+		Name        string `json:"name"`
+		Expired     bool   `json:"expired"`
+		SizeInBytes int64  `json:"size_in_bytes"`
+	}
+	data := workQueueReplayTestSnapshot(t)
+	snapshot := func(runID string, attempt int, repository, workflow string) []byte {
+		var value map[string]any
+		require.NoError(t, json.Unmarshal(data, &value))
+		origin := value["origin"].(map[string]any)
+		origin["run_id"], origin["run_attempt"] = runID, attempt
+		origin["repository"], origin["workflow"] = repository, workflow
+		result, err := json.Marshal(value)
+		require.NoError(t, err)
+		return result
+	}
+	current := snapshot("10", 2, "owner/repo", ".github/workflows/dispatcher.lock.yml")
+	oldZIP := workQueueReplayTestZIP(t, data, workQueueSnapshotFile)
+	currentZIP := workQueueReplayTestZIP(t, current, workQueueSnapshotFile)
+	for _, scenario := range []string{
+		"previous_attempt", "expired_previous_attempt", "current_first", "wrong_attempt",
+		"wrong_run", "wrong_workflow", "wrong_repository", "matching_ambiguity",
+		"archive_budget", "snapshot_budget", "oversized_archive", "invalid_id",
+		"pagination", "inventory_limit", "metadata_limit", "unreadable_origin",
+	} {
+		t.Run(scenario, func(t *testing.T) {
+			t.Setenv("GH_HOST", "github.com")
+			t.Setenv("GH_TOKEN", "test-token")
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			candidates := []artifact{
+				{ID: 20, Name: "activation", SizeInBytes: int64(len(oldZIP))},
+				{ID: 21, Name: "activation", SizeInBytes: int64(len(currentZIP))},
+			}
+			archives := map[int64][]byte{20: oldZIP, 21: currentZIP}
+			expectedError := ""
+			switch scenario {
+			case "expired_previous_attempt":
+				candidates[0].Expired = true
+				candidates[0].SizeInBytes = 0
+			case "current_first":
+				archives[20], archives[21] = currentZIP, oldZIP
+			case "wrong_attempt", "wrong_run", "wrong_workflow", "wrong_repository":
+				candidates = candidates[:1]
+				switch scenario {
+				case "wrong_run":
+					archives[20] = workQueueReplayTestZIP(t, snapshot("11", 2, "owner/repo", ".github/workflows/dispatcher.lock.yml"), workQueueSnapshotFile)
+				case "wrong_workflow":
+					archives[20] = workQueueReplayTestZIP(t, snapshot("10", 2, "owner/repo", ".github/workflows/other.lock.yml"), workQueueSnapshotFile)
+				case "wrong_repository":
+					archives[20] = workQueueReplayTestZIP(t, snapshot("10", 2, "other/repo", ".github/workflows/dispatcher.lock.yml"), workQueueSnapshotFile)
+				}
+				expectedError = "no retained activation snapshot matches"
+			case "matching_ambiguity":
+				archives[20] = currentZIP
+				expectedError = "multiple activation snapshots match"
+			case "archive_budget":
+				candidates[1].SizeInBytes = workQueueReplayArtifactBytes
+				expectedError = "aggregate 162 MiB archive limit"
+			case "snapshot_budget":
+				oversized := bytes.Clone(currentZIP)
+				central := bytes.Index(oversized, []byte("PK\x01\x02"))
+				require.NotEqual(t, -1, central)
+				binary.LittleEndian.PutUint32(oversized[central+24:], workQueueReplayArtifactBytes)
+				archives[21] = oversized
+				expectedError = "aggregate 162 MiB snapshot limit"
+			case "oversized_archive":
+				candidates[1].SizeInBytes = workQueueReplayArtifactBytes + 1
+				expectedError = "outside the 162 MiB size limit"
+			case "invalid_id":
+				candidates[1].ID = 0
+				expectedError = "ID is duplicated or invalid"
+			case "inventory_limit":
+				expectedError = "1,000-artifact limit"
+			case "metadata_limit":
+				expectedError = "bounded input limit"
+			case "unreadable_origin":
+				archives[20] = workQueueReplayTestZIP(t, []byte(`{"origin":"private-secret"}`), workQueueSnapshotFile)
+				expectedError = "unreadable provenance"
+			}
+			var downloads []int64
+			pages := 0
+			http.DefaultTransport = workAPIRoundTripper(func(request *http.Request) (*http.Response, error) {
+				require.Equal(t, http.MethodGet, request.Method)
+				var body []byte
+				contentType := "application/json"
+				switch request.URL.Path {
+				case "/repos/owner/repo/actions/runs/10":
+					run := workQueueReplayRun{ID: 10, RunAttempt: 2, Path: ".github/workflows/dispatcher.lock.yml@refs/heads/main"}
+					run.Repository.FullName = "owner/repo"
+					body, _ = json.Marshal(run)
+					if scenario == "metadata_limit" {
+						body = bytes.Repeat([]byte("x"), (1<<20)+1)
+					}
+				case "/repos/owner/repo/actions/runs/10/artifacts":
+					pages++
+					require.Equal(t, strconv.Itoa(pages), request.URL.Query().Get("page"))
+					listing := candidates
+					if scenario == "pagination" || scenario == "inventory_limit" {
+						listing = make([]artifact, 100)
+						if scenario == "pagination" {
+							if pages == 1 {
+								listing[0] = candidates[0]
+							} else {
+								listing = candidates[1:]
+							}
+						}
+					}
+					body, _ = json.Marshal(map[string]any{"artifacts": listing})
+				case "/repos/owner/repo/actions/artifacts/20/zip":
+					downloads = append(downloads, 20)
+					body = archives[20]
+					contentType = "application/zip"
+				case "/repos/owner/repo/actions/artifacts/21/zip":
+					downloads = append(downloads, 21)
+					body = archives[21]
+					contentType = "application/zip"
+				default:
+					t.Fatalf("unexpected replay request: %s", request.URL.Path)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Request: request, Header: http.Header{"Content-Type": []string{contentType}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
+			})
+			command := NewWorkCommand()
+			command.SilenceUsage = true
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetErr(io.Discard)
+			command.SetArgs([]string{"--repo", "owner/repo", "--json", "replay", "--run-id", "10"})
+			err := command.Execute()
+			if expectedError != "" {
+				require.ErrorContains(t, err, expectedError)
+				require.NotContains(t, err.Error(), "private-secret")
+				require.Empty(t, output.String())
+			} else {
+				require.NoError(t, err)
+				require.Contains(t, output.String(), `"run_id": "10"`)
+			}
+			switch scenario {
+			case "expired_previous_attempt":
+				require.Equal(t, []int64{21}, downloads)
+			case "archive_budget", "unreadable_origin":
+				require.Equal(t, []int64{20}, downloads)
+			case "oversized_archive", "invalid_id", "inventory_limit", "metadata_limit":
+				require.Empty(t, downloads)
+			case "previous_attempt", "current_first", "matching_ambiguity", "snapshot_budget", "pagination":
+				require.Equal(t, []int64{20, 21}, downloads)
+			}
+			if scenario == "pagination" {
+				require.Equal(t, 2, pages)
+			}
+			if scenario == "inventory_limit" {
+				require.Equal(t, 10, pages)
+			}
 		})
 	}
 }
