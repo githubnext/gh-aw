@@ -362,14 +362,33 @@ namespaces. `DEBUG=work-queue:store,work-queue:dispatch` selects components;
 patterns support `*`, with comma or whitespace separators.
 `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` enables all queue events,
 including when a GitHub Actions run is re-run with debug logging.
+Each emitted event ends with `+Nms`, the monotonic elapsed time since the previous
+emitted event in the same namespace within that process. The first event uses
+`+0ms`; suppressed events do not reset the interval. Always-visible queue
+diagnostics and failures use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
 `reconciler`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+Blocked control and launch-processing failures are always visible, even without
+`DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
+include a fixed human-readable explanation and recovery action alongside the
+stable error category. GitHub enforces API access using the trusted job's Actions
+permissions and selected credential; the ledger does not infer token permissions
+from repository-role metadata. An actual GitHub access denial explains which
+job permissions to check while the agent job remains read-only. Credential
+identity, Claim ownership, and immutable worker-revision checks remain in place.
+Raw provider errors and secret values are
+never printed.
+
+A failure after a grant retains the durable request and commit IDs in the control
+receipt, together with each original reservation's blocked launch status.
+Unknown launch or release outcomes remain unknown; failure alone does not prove
+that no worker launched.
 Payloads, identifiers, repository names, paths, URLs, tokens, raw API responses,
-error messages, and stack traces are not logged. Debug events do not grant
+raw error messages, and stack traces are not logged. Debug events do not grant
 authority or replace durable queue receipts.
 
 ## Workflow roles and intent tools
@@ -531,7 +550,7 @@ initialize Policy over an invalid log.
 
 | Command | Purpose |
 | --- | --- |
-| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. |
+| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
 | `state [--graph GRAPH] [--pool POOL] [--state STATE] [--search TEXT]` | Display an ASCII tree of graphs, Work, and Claims using metadata only. `--offset` and `--limit` paginate at most 256 rows/64 KiB. |
 | `inspect --work-id ID` or `inspect --claim-id ID` | Show full copyable IDs, dependency cross-references, current and historical ownership, original assignment membership, and separate delivery and native-run barriers. |
 | `tui` (alias `interactive`) | Browse the queue with a keyboard, search, multi-select, and view details for the focused item. Review cancellation and future priority changes before publishing. |
@@ -556,6 +575,31 @@ the same logical publication across retries. Each command's `--help`
 describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
+
+### Replay an Actions snapshot
+
+Reproduce ledger validation and scheduling with the current CLI against a
+captured activation artifact:
+
+```bash
+gh aw work-queue --repo github/gh-aw replay --run-id 38645334879 \
+  --pool default --max-claims 3 --max-dispatches 3 --json
+```
+
+`--run-id` searches the exact run's retained `activation` artifacts and selects
+the snapshot matching its current attempt, repository, workflow, and run identity.
+Expired artifacts are skipped; multiple matching snapshots, no match, or invalid
+artifacts fail explicitly. Candidate downloads and snapshot reads each have an
+aggregate 162 MiB limit. `--file PATH` accepts an already downloaded snapshot instead.
+
+Artifact replay is read-only and does not treat captured data as publication
+authority. JSON output contains metadata and counts, not Work payloads.
+Optional `--pool` evaluates the fair scheduler at the snapshot's capture time;
+`--max-claims` and `--max-dispatches` bound that prediction. It does not refresh
+external dependencies, reconcile live reservations, validate a live dispatch
+credential, create tags, launch workers, or replay effects. Credential-preflight
+fixes require runtime regression tests or a reviewed live dispatcher run;
+successful ledger replay alone does not prove those fixes or worker completion.
 
 To activate the ESLint factory through its trusted queue dispatcher:
 
