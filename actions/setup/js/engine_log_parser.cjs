@@ -146,8 +146,9 @@ function normalizeEngineLogEntries(entries, engine) {
 /** @type {Map<string, (entries: any[]) => boolean>} */
 const declaredFirstParserPolicies = new Map([
   ["aider", () => true],
-  // Older Crush definitions relied on terminal extraction; canonical producers own framing.
+  // Older plaintext definitions relied on terminal extraction; canonical producers own framing.
   ["crush", entries => entries.every(isSessionEvent)],
+  ["cursor", entries => entries.every(isSessionEvent)],
 ]);
 
 /**

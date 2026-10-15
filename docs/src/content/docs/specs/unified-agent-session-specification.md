@@ -1208,7 +1208,11 @@ framing, not an arbitrary raw-log fallback. They retain observed assistant text
 and tool evidence, omit prompts and recognized wrapper diagnostics, and leave
 unavailable native tool arguments, results, and accounting absent.
 Catalogued canonical-producing adapters own their complete mixed stdout before
-generic record extraction. Exact quiet output does not supply initialization,
+generic record extraction. Cursor and Crush retain a compatibility probe for
+older definitions that return legacy entries; a canonical-producing definition,
+including one returning an empty trace, remains authoritative. Generic message
+preflight must not bypass its native tool-event mappings or restore rejected
+records. Exact quiet output does not supply initialization,
 tool executions, terminal success, or accounting merely because text exists.
 Attributable startup errors remain `session.error`, not assistant answers.
 
@@ -1666,8 +1670,14 @@ observation, so their entries omit it.
 ### 9.6 Mechanical contract checks (Informative)
 
 `scripts/session_schemas.test.cjs`, relative to `actions/setup/js/`, checks
-byte-identical regeneration, independent schema compilation, all eight current
-parser labels, raw engine mappings, and collected runtime payload families.
+byte-identical regeneration, independent schema compilation, native passthrough
+labels, raw engine mappings, and collected runtime payload families. A separate
+fixture matrix exercises all 13 non-Pi engine routes through canonical artifact
+precedence, unified schema validation, and CLI reconstruction. Existing sanitized
+CI fixtures cover observed formats; Cursor and Crush cases use synthetic
+canonical input, not native-format or latest-release verification. Their older
+plaintext definitions emit a null model in initialization, which the canonical
+schema rejects; adapter corrections are required rather than relaxing the schema.
 Negative cases include invalid known payloads that would otherwise match the
 open native union, unsafe/fractional token counts, legacy event names, absent
 provenance, wrong file headers, invalid paths, ordering errors, duplicate execution
