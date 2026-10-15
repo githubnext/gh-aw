@@ -228,6 +228,13 @@ lossless resource identity shape as an external dependency:
 }
 ```
 
+Resource `host` must equal the hostname of `GITHUB_SERVER_URL` for dependencies,
+Work subjects, effect targets, and projector `backing_issues`. It defaults to
+`github.com` when `GITHUB_SERVER_URL` is unset. On GitHub Enterprise Cloud with
+data residency, for example `GITHUB_SERVER_URL=https://contoso.ghe.com`, use
+`"host": "contoso.ghe.com"`; resources on other hosts, including `github.com`,
+are rejected.
+
 This property is separate from `subject`, effect scope, and dependencies.
 Admission rejects pre-existing Issues without an installed exact-target grant;
 each projecting workflow must independently hold that grant. Repository

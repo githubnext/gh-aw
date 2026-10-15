@@ -55,6 +55,30 @@ func TestBuildCachedLogsJSONLRunDataUsesEffectiveRoutedModel(t *testing.T) {
 	require.Equal(t, "auto", data.RequestedModel)
 }
 
+func TestCachedLogsPreserveObservedCopilotModel(t *testing.T) {
+	t.Parallel()
+	for _, model := range []string{"claude-sonnet-5", ""} {
+		var info AwInfo
+		status := "substituted"
+		if model == "" {
+			status = "unavailable"
+		}
+		raw, err := json.Marshal(map[string]any{
+			"engine_id": "copilot", "model": model, "requested_model": "gemini-3.8-flash",
+			"model_selection": map[string]string{"status": status, "effective_model": model},
+		})
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(raw, &info))
+		data := buildCachedLogsJSONLRunData(ProcessedRun{}, RunData{awInfo: &info})
+		assert.Equal(t, model, data.Model)
+		assert.Equal(t, model, data.RunData.Model)
+		assert.Equal(t, "gemini-3.8-flash", data.RequestedModel)
+		info.ModelRouting = &AwInfoModelRouting{Status: "selected", WireModel: "gemini-3.8-flash"}
+		data = buildCachedLogsJSONLRunData(ProcessedRun{}, RunData{awInfo: &info})
+		assert.Equal(t, model, data.Model, "observed substitution must not be overwritten by intended routing")
+	}
+}
+
 func TestLoadCachedLogsJSONReportsFoundFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logs.jsonl")
 	require.NoError(t, os.WriteFile(path, []byte("{\"schema_version\":5,\"kind\":\"run\",\"run\":{\"run_id\":42}}\n"), 0o600))

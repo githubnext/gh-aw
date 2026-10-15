@@ -45,6 +45,52 @@ func TestWarnUnknownConfiguredModelsWithoutInventory(t *testing.T) {
 	assert.Zero(t, compiler.GetWarningCount())
 }
 
+func TestWarnCopilotIntegrationModelAvailability(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		model       string
+		engine      string
+		env         map[string]string
+		wantWarning bool
+	}{
+		{name: "Gemini", model: "gemini-3.8-flash", engine: "copilot", wantWarning: true},
+		{name: "provider qualified with effort", model: "copilot/gemini-3.8-flash?effort=high", engine: "copilot", wantWarning: true},
+		{name: "github-copilot prefix", model: "github-copilot/gemini-3.7-flash", engine: "copilot", wantWarning: true},
+		{name: "engine-name meta-alias", model: "gemini", engine: "copilot"},
+		{name: "engine-name meta-alias with effort", model: "gemini?effort=high", engine: "copilot"},
+		{name: "runtime model", model: "${{ inputs.model }}", engine: "copilot"},
+		{name: "other engine", model: "gemini-3.8-flash", engine: "pi"},
+		{name: "Google provider", model: "google/gemini-3.8-flash", engine: "copilot"},
+		{name: "explicit BYOK", model: "gemini-3.8-flash", engine: "copilot", env: map[string]string{"COPILOT_PROVIDER_BASE_URL": "https://example.com/v1"}},
+		{name: "other model", model: "claude-sonnet-5", engine: "copilot"},
+		{name: "no model", engine: "copilot"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			oldStderr := os.Stderr
+			reader, writer, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = writer
+			defer func() { os.Stderr = oldStderr }()
+			compiler.warnCopilotIntegrationModelAvailability(&WorkflowData{
+				Model:        tt.model,
+				EngineConfig: &EngineConfig{ID: tt.engine, Env: tt.env},
+			}, "test.md")
+			require.NoError(t, writer.Close())
+			output, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			if tt.wantWarning {
+				assert.Equal(t, 1, compiler.GetWarningCount())
+				assert.Contains(t, string(output), "agentic-workflows integration")
+				assert.Contains(t, string(output), "does not guarantee integration access")
+			} else {
+				assert.Zero(t, compiler.GetWarningCount())
+				assert.Empty(t, output)
+			}
+		})
+	}
+}
+
 func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 	type testCase struct {
 		name        string

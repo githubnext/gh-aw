@@ -229,6 +229,30 @@ func TestCollectMCPEnvironmentVariables_SafeOutputsIncludesCreatePullRequestPoli
 	)
 }
 
+func TestTrialTargetRepoReachesSafeOutputsMCPServer(t *testing.T) {
+	tools := map[string]any{"safe-outputs": map[string]any{}}
+	workflowData := &WorkflowData{
+		Tools:            tools,
+		SafeOutputs:      &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{}},
+		TrialMode:        true,
+		TrialLogicalRepo: "owner/side-repo",
+	}
+	compiler := &Compiler{}
+
+	assert.Equal(t, `""`, compiler.buildMainJobEnv(workflowData)["GH_AW_TARGET_REPO_SLUG"])
+
+	envVars := collectMCPEnvironmentVariables(tools, []string{"safe-outputs"}, workflowData, false)
+	assert.Equal(t, "owner/side-repo", envVars["GH_AW_TARGET_REPO_SLUG"])
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, tools, NewClaudeEngine(), workflowData))
+	output := yaml.String()
+	assert.Contains(t, output, "GH_AW_TARGET_REPO_SLUG: owner/side-repo")
+	assert.Contains(t, output, "-e GH_AW_TARGET_REPO_SLUG")
+	assert.Contains(t, output, `"GH_AW_TARGET_REPO_SLUG": "\${GH_AW_TARGET_REPO_SLUG}"`)
+	assert.Contains(t, output, `export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"`)
+}
+
 func TestCollectMCPEnvironmentVariables_DynamicDelegationWithoutPrimaryGitHubUsesDestinationVisibility(t *testing.T) {
 	workflowData := dynamicEnclaveWorkflowData()
 	workflowData.Tools["github"] = false

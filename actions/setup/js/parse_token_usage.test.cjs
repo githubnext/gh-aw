@@ -345,10 +345,112 @@ describe("parse_token_usage", () => {
       fs.writeFileSync(path.join(tmpDir, "aw_info.json"), JSON.stringify(runnerInfo));
       fs.mkdirSync(path.dirname(agentInfoPath), { recursive: true });
       fs.writeFileSync(agentInfoPath, JSON.stringify({ model_routing: { status: "selected", wire_model: "forged-model" } }));
+      const runtimeInfoPath = path.join(tmpDir, "runtime/aw_info.json");
+      fs.mkdirSync(path.dirname(runtimeInfoPath), { recursive: true });
+      fs.writeFileSync(runtimeInfoPath, JSON.stringify({ model: "forged-model", model_selection: { status: "observed", effective_model: "forged-model" } }));
 
       persistAgentAwInfoCopy(tmpDir);
 
       expect(JSON.parse(originalReadFileSync(agentInfoPath, "utf8"))).toEqual(runnerInfo);
+      expect(JSON.parse(originalReadFileSync(path.join(tmpDir, "runtime/aw_info.json"), "utf8"))).toEqual(runnerInfo);
+    });
+
+    test("rejects a symlinked runtime directory without writing its target", () => {
+      fs.writeFileSync(path.join(tmpDir, "aw_info.json"), JSON.stringify({ model: "runner-model" }));
+      const target = path.join(tmpDir, "other");
+      fs.mkdirSync(target);
+      fs.writeFileSync(path.join(target, "aw_info.json"), "untouched");
+      fs.symlinkSync(target, path.join(tmpDir, "runtime"), "dir");
+      persistAgentAwInfoCopy(tmpDir);
+      expect(originalReadFileSync(path.join(target, "aw_info.json"), "utf8")).toBe("untouched");
+      expect(originalExistsSync(path.join(tmpDir, "runtime"))).toBe(false);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("symlinked runtime"));
+    });
+
+    test("replaces a symlinked runtime file without writing its target", () => {
+      const runnerInfo = { model: "runner-model" };
+      fs.writeFileSync(path.join(tmpDir, "aw_info.json"), JSON.stringify(runnerInfo));
+      const target = path.join(tmpDir, "other.json");
+      fs.writeFileSync(target, "untouched");
+      fs.mkdirSync(path.join(tmpDir, "runtime"));
+      const runtimeInfoPath = path.join(tmpDir, "runtime/aw_info.json");
+      fs.symlinkSync(target, runtimeInfoPath);
+      persistAgentAwInfoCopy(tmpDir);
+      expect(originalReadFileSync(target, "utf8")).toBe("untouched");
+      expect(fs.lstatSync(runtimeInfoPath).isSymbolicLink()).toBe(false);
+      expect(JSON.parse(originalReadFileSync(runtimeInfoPath, "utf8"))).toEqual(runnerInfo);
+    });
+
+    test("removes stale runtime metadata when the source is missing or symlinked", () => {
+      const runtimeInfoPath = path.join(tmpDir, "runtime/aw_info.json");
+      fs.mkdirSync(path.dirname(runtimeInfoPath), { recursive: true });
+      fs.writeFileSync(runtimeInfoPath, '{"model":"forged-model"}');
+      persistAgentAwInfoCopy(tmpDir);
+      expect(originalExistsSync(runtimeInfoPath)).toBe(false);
+      const target = path.join(tmpDir, "other.json");
+      fs.writeFileSync(target, '{"model":"forged-model"}');
+      fs.symlinkSync(target, path.join(tmpDir, "aw_info.json"));
+      fs.writeFileSync(runtimeInfoPath, '{"model":"forged-model"}');
+      persistAgentAwInfoCopy(tmpDir);
+      expect(originalExistsSync(runtimeInfoPath)).toBe(false);
+      expect(mockCore.warning).toHaveBeenCalled();
+    });
+
+    test.each([
+      ["substituted", "claude-sonnet-5", "", "claude-sonnet-5"],
+      ["unavailable", "", "", ""],
+      ["observed", "gemini-3.8-flash", "claude-sonnet-5", "claude-sonnet-5"],
+    ])("preserves %s selection through postrun routing persistence and artifact copy", async (status, effectiveModel, fallbackModel, expectedModel) => {
+      process.env.GH_AW_TMP_DIR = tmpDir;
+      process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_ENGINE_MODEL = "gemini-3.8-flash";
+      const selection = { status, configured_model: "gemini-3.8-flash?effort=high", effective_model: effectiveModel };
+      fs.writeFileSync(
+        path.join(tmpDir, "aw_info.json"),
+        JSON.stringify({
+          model: effectiveModel,
+          requested_model: selection.configured_model,
+          model_selection: selection,
+          ...(fallbackModel ? { fallback_model: fallbackModel } : {}),
+        })
+      );
+      const routingPath = path.join(tmpDir, "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl");
+      fs.mkdirSync(path.dirname(routingPath), { recursive: true });
+      fs.writeFileSync(
+        routingPath,
+        JSON.stringify({
+          _schema: "model-routing/v0.28.44",
+          stage: "selection",
+          selected_model: "gemini-3.8-flash",
+          wire_model: "gemini-3.8-flash",
+          endpoint: "/chat/completions",
+        })
+      );
+      fs.writeFileSync(
+        path.join(path.dirname(routingPath), "token-usage.jsonl"),
+        JSON.stringify({
+          _schema: "token-usage/v1",
+          model: fallbackModel || "gpt-5.4",
+          provider: "openai",
+          model_fallback: { model: fallbackModel || "gpt-5.4" },
+          status: 200,
+          input_tokens: 10,
+          output_tokens: 5,
+        })
+      );
+
+      await main();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+        expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).toMatchObject({
+          model: expectedModel,
+          requested_model: "gemini-3.8-flash",
+          model_selection: selection,
+          model_routing: { status: "selected", wire_model: "gemini-3.8-flash" },
+        });
+      }
     });
 
     test("does not trust selected routing from sandbox-writable reflect data", async () => {

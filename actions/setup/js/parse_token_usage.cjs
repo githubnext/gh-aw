@@ -242,12 +242,39 @@ function recordModelRoutingFromArtifacts(env = process.env, ghAwDir = env.GH_AW_
 function persistAgentAwInfoCopy(ghAwDir = process.env.GH_AW_TMP_DIR || DEFAULT_GH_AW_DIR) {
   const infoPath = path.join(ghAwDir, "aw_info.json");
   const artifactInfoPath = path.join(ghAwDir, "agent", "aw_info.json");
-  if (!fs.existsSync(infoPath)) return;
+  const runtimeDir = path.join(ghAwDir, "runtime");
+  const runtimeInfoPath = path.join(runtimeDir, "aw_info.json");
+  if (!fs.existsSync(infoPath) && !fs.existsSync(runtimeInfoPath)) return;
   try {
+    // Replace preexisting output after the agent exits. This identifies the
+    // publisher, not an isolated or adversarially attested observation source.
+    try {
+      if (fs.lstatSync(runtimeDir).isSymbolicLink()) {
+        fs.unlinkSync(runtimeDir);
+        throw new Error(`${ERR_PARSE}: Refusing a symlinked runtime metadata directory`);
+      }
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    fs.rmSync(runtimeInfoPath, { force: true });
+    if (!fs.existsSync(infoPath)) return;
+    const fd = fs.openSync(infoPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    let snapshot;
+    try {
+      snapshot = fs.readFileSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.writeFileSync(runtimeInfoPath, snapshot, { flag: "wx", mode: 0o600 });
     fs.mkdirSync(path.dirname(artifactInfoPath), { recursive: true });
-    fs.copyFileSync(infoPath, artifactInfoPath);
+    if (fs.lstatSync(path.dirname(artifactInfoPath)).isSymbolicLink()) {
+      throw new Error(`${ERR_PARSE}: Refusing a symlinked agent metadata directory`);
+    }
+    fs.rmSync(artifactInfoPath, { force: true });
+    fs.writeFileSync(artifactInfoPath, snapshot, { flag: "wx", mode: 0o600 });
   } catch (error) {
-    core.warning(`Could not add routed aw_info.json to the agent artifact: ${getErrorMessage(error)}`);
+    core.warning(`Could not snapshot aw_info.json for the agent artifact: ${getErrorMessage(error)}`);
   }
 }
 

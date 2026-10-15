@@ -285,12 +285,14 @@ async function lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken
  * @param {any} [opts.gitAuthEnv]
  * @param {string} [opts.pushRemoteUrl]
  * @param {string} [opts.pushToken]
+ * @param {() => void} [opts.assertTransportUnchanged]
  * @returns {Promise<string>}
  */
-async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken }) {
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged }) {
   const pushArgs = pushRemoteUrl ? ["push", pushRemoteUrl, branch] : ["push", "origin", branch];
   const pushOnce = async () => {
     await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: pushRemoteUrl || "origin", branch, cwd, gitAuthEnv });
+    assertTransportUnchanged?.();
     const result = await getGitExecOutput(pushArgs, {
       cwd,
       env: { ...process.env, ...(gitAuthEnv || {}) },
@@ -397,6 +399,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
  * @param {(context: {cwd: string, branch: string, output: string}) => (boolean|Promise<boolean>)} [opts.resolveRebaseConflict]
+ * @param {() => void} [opts.assertTransportUnchanged] - Check captured safe-output inputs immediately before remote writes
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
 async function pushSignedCommits({
@@ -416,6 +419,7 @@ async function pushSignedCommits({
   currentRepo,
   validationConfig,
   resolveRebaseConflict,
+  assertTransportUnchanged,
 }) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
@@ -430,7 +434,7 @@ async function pushSignedCommits({
   if (signedCommits === false) {
     if (requireBaseRefMatch) throw new Error(`${ERR_VALIDATION}: signed commits are required for an atomic ledger transition`);
     core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
     core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
     return headSha;
   }
@@ -445,7 +449,7 @@ async function pushSignedCommits({
     }
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     try {
-      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
       core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
       return headSha;
     } catch (pushErr) {
@@ -812,6 +816,7 @@ async function pushSignedCommits({
           }
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
           try {
+            assertTransportUnchanged?.();
             await githubClient.rest.git.createRef({
               owner,
               repo,
@@ -820,6 +825,7 @@ async function pushSignedCommits({
             });
             core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
           } catch (createRefError) {
+            assertTransportUnchanged?.();
             /** @type {any} */
             const err = createRefError;
             const status = err && typeof err === "object" ? err.status : undefined;
@@ -866,6 +872,7 @@ async function pushSignedCommits({
       };
 
       core.info(`pushSignedCommits: calling createCommitOnBranch mutation (expectedHeadOid=${expectedHeadOid})`);
+      assertTransportUnchanged?.();
       const result = await githubClient.graphql(
         `mutation($input: CreateCommitOnBranchInput!) {
           createCommitOnBranch(input: $input) { commit { oid } }
@@ -882,6 +889,7 @@ async function pushSignedCommits({
     core.info(`pushSignedCommits: all ${shas.length} commit(s) pushed as signed commits`);
     return lastOid ?? shas[shas.length - 1];
   } catch (err) {
+    assertTransportUnchanged?.();
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
         `${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}. ` +
@@ -899,7 +907,7 @@ async function pushSignedCommits({
       throw new Error(`${ERR_API}: pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
-    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }
