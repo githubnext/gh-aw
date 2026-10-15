@@ -56,7 +56,7 @@ var downloadFileViaGitFunc = downloadFileViaGit
 func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref string, symlinkDepth int, host string) ([]byte, error) {
 	client, err := createRESTClientForHostFunc(host)
 	if err != nil {
-		if errorutil.IsAuthError(err.Error()) {
+		if errorutil.IsAuthError(err.Error()) || errorutil.IsForbiddenError(err) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
 			content, gitErr := downloadFileViaGitFunc(ctx, owner, repo, path, ref, host)
 			if gitErr != nil {
@@ -76,7 +76,7 @@ func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref
 
 	err = fetchRemoteFileContentFunc(ctx, client, owner, repo, path, ref, &fileContent)
 	if err != nil {
-		if errorutil.IsAuthError(err.Error()) {
+		if errorutil.IsAuthError(err.Error()) || errorutil.IsForbiddenError(err) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			content, gitErr := downloadFileViaGitFunc(ctx, owner, repo, path, ref, host)
 			if gitErr != nil {
