@@ -74,14 +74,10 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig.HarnessMaxRetries = "0"
 	}
 
-	resolvedDetectionModel := inheritedDetectionModel(data, engineSetting)
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
-		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
-	}
-
-	if resolvedDetectionModel == "" {
-		resolvedDetectionModel = defaultDetectionModel(engine)
-	}
+	// Apply enterprise and engine default detection models when no model was explicitly configured.
+	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
+	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
+	resolvedDetectionModel := resolveThreatDetectionModel(data, engineSetting, engine)
 
 	// Inherit APITarget for GHE/custom endpoints only when the engine IDs match.
 	if detectionEngineConfig.APITarget == "" && data.EngineConfig != nil &&

@@ -486,14 +486,12 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// detection_result.json from inside the AWF container to the host filesystem.
 	threatDetectionData := buildExternalDetectorWorkflowData(data, engineID)
 
-	// Resolve the detection model using the same precedence as the inline path.
-	resolvedDetectionModel := inheritedDetectionModel(data, engineID)
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
-		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
-	}
-	if resolvedDetectionModel == "" {
-		resolvedDetectionModel = defaultDetectionModel(engine)
-	}
+	// Resolve the detection model, mirroring buildDetectionEngineExecutionStep on the
+	// inline path. Without this, the engine env block falls back to
+	// ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || ... || 'auto' }}, and when no org var
+	// is set COPILOT_MODEL is 'auto'. The AWF API proxy has no pricing for 'auto' and
+	// returns HTTP 400, causing every inference attempt to fail.
+	resolvedDetectionModel := resolveThreatDetectionModel(data, engineID, engine)
 	// Pi workflows use a provider-matched built-in detection engine; strip the
 	// provider prefix so it receives a bare model ID.
 	// Precedence mirrors the inline path: explicit threat-detection.engine.id overrides

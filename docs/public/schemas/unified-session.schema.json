@@ -854,6 +854,16 @@
       },
       "additionalProperties": false
     },
+    "ModelSelectionData": {
+      "type": "object",
+      "properties": {
+        "status": { "$ref": "#/definitions/JsonValue" },
+        "configuredModel": { "$ref": "#/definitions/JsonValue" },
+        "resolvedModel": { "$ref": "#/definitions/JsonValue" },
+        "effectiveModel": { "$ref": "#/definitions/JsonValue" }
+      },
+      "additionalProperties": false
+    },
     "Pick<MessageData,\"content\">": { "type": "object", "properties": { "content": { "$ref": "#/definitions/JsonValue" } }, "additionalProperties": false },
     "PluginInstallationData": {
       "type": "object",
@@ -1081,6 +1091,7 @@
         "model": { "$ref": "#/definitions/JsonValue" },
         "requestedModel": { "$ref": "#/definitions/JsonValue" },
         "modelRouting": { "$ref": "#/definitions/UnifiedModelRoutingData" },
+        "modelSelection": { "$ref": "#/definitions/ModelSelectionData" },
         "triggerType": { "$ref": "#/definitions/JsonValue" },
         "dryRun": { "$ref": "#/definitions/JsonValue" },
         "workflow": { "$ref": "#/definitions/JsonValue" },

@@ -228,6 +228,13 @@ lossless resource identity shape as an external dependency:
 }
 ```
 
+Resource `host` must equal the hostname of `GITHUB_SERVER_URL` for dependencies,
+Work subjects, effect targets, and projector `backing_issues`. It defaults to
+`github.com` when `GITHUB_SERVER_URL` is unset. On GitHub Enterprise Cloud with
+data residency, for example `GITHUB_SERVER_URL=https://contoso.ghe.com`, use
+`"host": "contoso.ghe.com"`; resources on other hosts, including `github.com`,
+are rejected.
+
 This property is separate from `subject`, effect scope, and dependencies.
 Admission rejects pre-existing Issues without an installed exact-target grant;
 each projecting workflow must independently hold that grant. Repository
@@ -466,6 +473,50 @@ safe-output job cannot be recovered from agent logs. See
 [Claim diagnostic artifacts](/gh-aw/patterns/daily-report-portfolio/#claim-diagnostic-artifacts)
 for file purposes and redaction limits.
 
+## Performance regression tests
+
+The offline performance suite exercises the trusted control adapter, checked
+publication, deployment synchronization, reconciliation, and native worker
+binding with an in-memory GitHub API:
+
+```bash
+npm --prefix actions/setup/js run test:work-queue-performance
+```
+
+Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
+100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
+commits. Assertions cover API-call budgets, bounded history verification,
+full-batch retries without writes or duplicate launches, and both REST and
+GraphQL publication. JSON metrics include per-method counts and measured local
+execution time. Simulated network cost assumes 250 ms per read and 500 ms per
+mutation; it is not measured GitHub elapsed time.
+
+Compiled controls construct a separate queue client from the protected publisher
+token, not the worker-dispatch credential. Within one control invocation, this
+permits reuse of immutable checkpoint-history proofs under registered, unchanged
+static authentication while retaining fresh repository/ref probes and checked
+publication. Both publication transports have full-step regression budgets for
+this compiled-token path.
+
+Arbitrary injected-client and custom-auth cases without an explicit publisher
+token remain uncached negative controls. They must report
+`within_single_traversal_budget: false`; caching is not enabled by inspecting an
+unknown client's `auth()` result.
+
+Optional live-data tests use a privately captured ledger and the exact queue
+head's Git objects already fetched into the current checkout:
+
+```bash
+GH_AW_WORK_QUEUE_PERF_LEDGER=/path/to/private/work-queue.jsonl \
+GH_AW_WORK_QUEUE_PERF_LIVE_HEAD=IMMUTABLE_QUEUE_SHA \
+npm --prefix actions/setup/js run test:work-queue-performance
+```
+
+These tests verify native checkpoint ancestry, compare reconstructed state with
+the captured ledger, and measure cold and repeated reads with and without static
+authentication caching. They make no network requests, publish no queue records,
+and launch no workers. Missing live-data settings skip the optional cases.
+
 ## Operator commands
 
 `gh aw work-queue` defaults to branch `work-queue` and supports Git storage only.
@@ -494,6 +545,7 @@ initialize Policy over an invalid log.
 | `submit-work --file work.json` | Admit an immutable payload with default priority 3 and shared accounting key `""`. On an absent queue, atomically install verified scheduling and AW routes with Work without administrator seeding. |
 | `submit-graph` | Atomically admit a normalized graph within size limits, including issue and pull request dependency nodes. Bootstraps an absent queue under the same rules as `submit-work`. |
 | `dispatch-next --pool POOL --max-claims N --max-dispatches N` | Commit the next assignments selected by deterministic fair scheduling and their reservations. Does not send a workflow-dispatch POST. |
+| `dispatch DISPATCHER [--wait] [--dry-run]` | Use the GitHub CLI to start one verified dispatcher at the repository's default-branch snapshot revision. Its trusted controls grant and launch eligible assignments; it does not directly assign a Claim to a worker. |
 | `control`, `cancel-work` | Apply authorized pause, cutover, or cancellation decisions without refunding accounted service or force-releasing a reservation for a possible native run. |
 | `cancel-claim --claim-id ID[,ID...] --reason CODE` | Atomically revoke the exact current Claims' authority and terminally cancel their Work. Does not retry work, impersonate a worker, or stop a native run. |
 | `reprioritize --work-id ID[,ID...] --priority 1..5 --reason CODE` | Apply an administrator-only, compare-and-set priority override to future grants of available Work. Preserves admitted definitions, FIFO positions, retry boundaries, and accumulated fairness charges. |
@@ -504,6 +556,48 @@ the same logical publication across retries. Each command's `--help`
 describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
+
+To activate the ESLint factory through its trusted queue dispatcher:
+
+```bash
+gh aw work-queue --repo github/gh-aw dispatch eslint-factory-dispatcher --wait --json
+```
+
+`dispatch` verifies the dispatcher source and compiled lock at the immutable
+default-branch revision, then creates or reuses the lightweight snapshot tag
+`refs/tags/gh-aw/work-queue/<verified-sha>`. It reads back the exact tag name,
+commit object type and SHA before invoking the existing workflow-run transport
+with that tag, never the moving default branch. Existing mismatched tags,
+permission errors and uncertain tag creation fail before dispatch; the command
+never overwrites or deletes a tag. The operator's authenticated GitHub credential
+needs `actions: write` and, when creating the tag, `contents: write`.
+Snapshot tags are retained. This prevents ordinary default-branch updates from
+changing the activated revision, but repository writers able to move or delete
+tags remain trusted: they must not mutate these tags while in use. Post-dispatch
+SHA verification cannot undo execution if a privileged writer changes the tag.
+The command requires the activation's returned run URL and checks that run's
+repository, workflow, event, and SHA against the verified snapshot. Missing
+identity or a mismatch fails explicitly after activation; it never selects the
+latest run or automatically dispatches again. Inspect the accepted activation
+before retrying.
+It accepts only an unassigned dispatcher with a declared worker allowlist, never
+a worker requiring `work_queue_assignment`. Both compiled control allowlists
+must match the source worker-name set exactly; missing, malformed, drifted or
+ambiguous control configurations fail before tag creation or dispatch. Recompile
+the dispatcher after changing its source allowlist.
+It does not enable workflows, upload
+files, or supply assignment inputs. `--dry-run` previews the verified route only;
+it does not create tags, compile or execute a workflow. Activated JSON output's
+`ref` is the snapshot tag; preview output's `ref` is the default branch.
+`--wait` waits for the dispatcher, not
+its workers' independently verified Results. A successful activation is not proof
+of Claims, worker launches, or consumption; inspect the ledger afterward.
+
+Direct `--claim-id`, `--work-id`, `--worker-profile`, `--ref`, alternate queue
+branches, and `--request-id` overrides are unsupported for `dispatch`. The
+dispatcher owns its native run identity and compiled queue authority. Existing
+Claims retain their original immutable worker route; this command does not
+reassign them or retry uncertain effects.
 
 `submit-work --execution-ref IMMUTABLE_SHA` explicitly pins execution to a
 registered, compatible revision. Retries retain the original admission contract

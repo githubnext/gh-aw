@@ -9,6 +9,27 @@ const sharedIdentities = require("../../../specs/work-queue/fixtures/identity-va
 
 function registerTests({ describe, it }) {
   describe("mandatory immutable queue policy and trusted caller normalization", () => {
+    it("requires projector backing Issues to use the configured GitHub server host", () => {
+      const previous = process.env.GITHUB_SERVER_URL;
+      try {
+        for (const server of [undefined, "https://github.com", "https://contoso.ghe.com"]) {
+          if (server === undefined) delete process.env.GITHUB_SERVER_URL;
+          else process.env.GITHUB_SERVER_URL = server;
+          const host = server?.includes("contoso") ? "contoso.ghe.com" : "github.com";
+          const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
+          const resource = { kind: "issue", host, repository: "owner/repo", repository_id: "1", resource_id: "2", number: "3" };
+          policy.projectors = [{ principal: "1001", workflow: ".github/workflows/projector.lock.yml", ref: "a".repeat(40), pools: ["default"], repositories: ["owner/repo"], backing_issues: [resource] }];
+          assert.equal(validatePolicy(policy), policy);
+          for (const foreign of ["github.com", "contoso.ghe.com", "other.ghe.com"].filter(value => value !== host)) {
+            resource.host = foreign;
+            assert.throws(() => validatePolicy(policy), { code: "policy_invalid" });
+          }
+        }
+      } finally {
+        if (previous === undefined) delete process.env.GITHUB_SERVER_URL;
+        else process.env.GITHUB_SERVER_URL = previous;
+      }
+    });
     it("rejects missing/disabled policy modes and malformed weights, defaults, producer or route entitlements", () => {
       const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
       assert.equal(validatePolicy(policy), policy);

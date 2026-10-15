@@ -302,6 +302,25 @@ func engineCoreSecretVarNames(engineID string) []string {
 	}
 }
 
+// resolveThreatDetectionModel returns the explicit or inherited model when configured,
+// otherwise the enterprise override or runtime-aware engine detection default.
+func resolveThreatDetectionModel(data *WorkflowData, engineID string, engine CodingAgentEngine) string {
+	model := inheritedDetectionModel(data, engineID)
+	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		model = data.SafeOutputs.ThreatDetection.Model
+	}
+	if model == "" {
+		if engine != nil {
+			model = defaultDetectionModel(engine)
+		} else if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+			model = defaultModel
+		} else {
+			model = "detection"
+		}
+	}
+	return model
+}
+
 // inheritedDetectionModel returns the main workflow model when the detection engine can
 // interpret it. Workflows using a custom engine run detection on a built-in engine that
 // does not understand the custom engine's model IDs, so their model is not inherited and

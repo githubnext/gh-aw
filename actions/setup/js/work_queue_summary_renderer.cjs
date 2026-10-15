@@ -69,15 +69,15 @@ function renderWorkQueue(state, commit = undefined) {
   for (const claim of state.claims.values()) if (claim.state === "open") open++;
   for (const work of state.works.values()) if (work.barrier === "pending") pending++;
   const lines = [
-    commit?.request.kind === "submit" ? "### Work queue admission" : "### Work queue state",
+    "<details>",
+    commit?.request.kind === "submit" ? "<summary>Work queue admission</summary>" : "<summary>Work queue state</summary>",
     "",
     `${state.works.size} Work nodes; ${open} open Claims; ${pending} pending delivery barriers; ${reservations} native reservations (${unbound} unbound).`,
     "",
     state.policy ? "This is committed ledger state, not a scheduling grant. Available Work may still be blocked by dependencies, backoff, scope, or capacity." : "The queue has no installed Policy; this view is uninitialized.",
     ...(commit ? ["", `Checked update: ${code(commit.request.kind)} at ${code(commit.id, 24)}.`] : []),
     "",
-    "<details>",
-    "<summary>Show Work nodes and Claim ownership</summary>",
+    "### Work nodes and Claim ownership",
     "",
     "Updated nodes are shown first, followed by other unsettled Work. Identifiers are shortened for display; table order is not scheduler order. Concurrent writers can advance the ledger after this view.",
     "",
@@ -124,7 +124,7 @@ function renderWorkQueue(state, commit = undefined) {
     shownClaims++;
   }
   if (!shownClaims) lines.push("| No Claims shown | | | | | |");
-  lines.push("", `Showing ${shownClaims} of ${state.claims.size} Claims.`, "", "Completion is not verified delivery. Only Result opens Work dependency barriers; cancelled Claims cannot authorize effects.", "", "</details>", "");
+  lines.push("", `Showing ${shownClaims} of ${state.claims.size} Claims.`, "", "Completion is not verified delivery. Only Result opens Work dependency barriers; cancelled Claims cannot authorize effects.", "", "</details>", "", "", "");
   return lines.join("\n");
 }
 

@@ -1959,6 +1959,11 @@ features:
   # (optional)
   samples: true
 
+  # Suppress the non-strict warning when pull_request_target is combined with
+  # on.roles containing read or all. Strict mode still rejects this configuration.
+  # (optional)
+  dangerously-allow-roles-read-and-pull-request-target: true
+
 # Model policy and optional pricing configuration. The policy fields
 # (allowed/blocked) are experimental and merged as unions across imports. The
 # providers field is optional and supplies pricing data merged by provider/model
@@ -2718,8 +2723,8 @@ engine:
   # https://github.github.com/gh-aw/reference/model-routing/.
   # (optional)
   model-routing:
-    # Routing objective: cost prefers the cheapest model-and-effort choice meeting the
-    # quality bar; cost-speed also weighs execution time.
+    # Routing objective: cost prefers the cheapest model and effort that meet the
+    # mode's target; cost-speed prefers the fastest model and effort that meet it.
     goal: "cost"
 
     # Routing quality profile: economy, balanced, and robust set increasing quality
@@ -2727,15 +2732,14 @@ engine:
     # these profiles per task.
     mode: "economy"
 
-    # Optional Copilot models the router may select for the main agent. This is not a
-    # request policy: the session and sub-agents may use any model allowed by
-    # models.allowed and models.blocked. Candidates outside that policy are dropped
-    # with a warning. When omitted, the router selects from the policy-filtered model
-    # catalogue (Claude and Codex are limited to their own model family); AWF versions
-    # before v0.28.33 require it. Provider qualification is added by the compiler.
-    # GitHub Actions expressions are rejected when models.allowed or models.blocked is
-    # set. Candidate lists from imported workflows using the same engine are merged.
-    # Unavailable models and models not covered by routing tables are not selected.
+    # Optional exact Copilot model names that narrow the router's choice for the main
+    # agent only. This is not a request policy; put patterns such as gpt-* in
+    # models.allowed or models.blocked. When omitted, the router chooses from the
+    # models that policy allows (Claude and Codex only from their own model family).
+    # Among workflows that enable routing for the same engine, if any omits
+    # allowed-models, the router has no shortlist; otherwise, their lists are
+    # combined. GitHub Actions expressions are allowed only when neither
+    # models.allowed nor models.blocked is set.
     # (optional)
     allowed-models: []
       # Array of strings
@@ -4673,7 +4677,7 @@ tools:
     # Target for comment memory: 'triggering' (default), '*' (current issue/PR), or
     # explicit issue/PR number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository memory storage.
     # (optional)
@@ -9222,6 +9226,11 @@ safe-outputs:
   # Format 1: Configuration for automatically creating GitHub issue or pull request
   # comments from AI workflow output. The main job does not need write permissions.
   add-comment:
+    # Maximum number of http/https URL occurrences in agent-provided comment content
+    # (default: 50). Generated footer and metadata links are excluded.
+    # (optional)
+    max-links: 1
+
     # Maximum number of comments to create (default: 1) Supports integer or GitHub
     # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -9236,7 +9245,7 @@ safe-outputs:
     # Target for comments: 'triggering' (default), '*' (any issue), or explicit issue
     # number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository comments. Takes
     # precedence over trial target repo settings.
@@ -9289,6 +9298,18 @@ safe-outputs:
       # (optional)
       match: []
         # Array of strings
+
+    # When true, replaces the newest comment on the target issue or pull request with
+    # a matching workflow-call-id marker, or creates one if none exists. Cannot be
+    # enabled together with hide-older-comments. Default: false.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    replace-older-comments: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    replace-older-comments: "example-value"
 
     # Trusted allowlist of issue or pull request comment IDs the agent may update when
     # target is '*'.
@@ -10464,7 +10485,7 @@ safe-outputs:
     # Target for review comments: 'triggering' (default, only on triggering PR), '*'
     # (any PR, requires pull_request_number in agent output), or explicit PR number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository PR review
     # comments. Takes precedence over trial target repo settings.
@@ -10773,7 +10794,7 @@ safe-outputs:
     # github.event.inputs.pr_number }}). Required when workflow is not triggered by a
     # pull request (e.g. workflow_dispatch).
     # (optional)
-    target: "example-value"
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository PR review
     # submission. Takes precedence over trial target repo settings.
@@ -11634,7 +11655,7 @@ safe-outputs:
 
     # Target for replies: 'triggering' (default), '*' (any PR), or explicit PR number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Target repository in format 'owner/repo' for cross-repository operations
     # (optional)
@@ -13172,7 +13193,7 @@ safe-outputs:
     # Target pull request for check run attachment: 'triggering', '*' (any PR), or
     # explicit PR number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Maximum number of check runs to create per workflow run (default: 1). Supports
     # integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
@@ -16848,7 +16869,7 @@ safe-outputs:
     # Target for push operations: 'triggering' (default), '*' (any pull request), or
     # explicit pull request number
     # (optional)
-    target: "example-value"
+    target: null
 
     # Required prefix for pull request title. Only pull requests with this prefix will
     # be accepted.
@@ -21304,8 +21325,8 @@ safe-outputs:
       # https://github.github.com/gh-aw/reference/model-routing/.
       # (optional)
       model-routing:
-        # Routing objective: cost prefers the cheapest model-and-effort choice meeting the
-        # quality bar; cost-speed also weighs execution time.
+        # Routing objective: cost prefers the cheapest model and effort that meet the
+        # mode's target; cost-speed prefers the fastest model and effort that meet it.
         goal: "cost"
 
         # Routing quality profile: economy, balanced, and robust set increasing quality
@@ -21313,15 +21334,14 @@ safe-outputs:
         # these profiles per task.
         mode: "economy"
 
-        # Optional Copilot models the router may select for the main agent. This is not a
-        # request policy: the session and sub-agents may use any model allowed by
-        # models.allowed and models.blocked. Candidates outside that policy are dropped
-        # with a warning. When omitted, the router selects from the policy-filtered model
-        # catalogue (Claude and Codex are limited to their own model family); AWF versions
-        # before v0.28.33 require it. Provider qualification is added by the compiler.
-        # GitHub Actions expressions are rejected when models.allowed or models.blocked is
-        # set. Candidate lists from imported workflows using the same engine are merged.
-        # Unavailable models and models not covered by routing tables are not selected.
+        # Optional exact Copilot model names that narrow the router's choice for the main
+        # agent only. This is not a request policy; put patterns such as gpt-* in
+        # models.allowed or models.blocked. When omitted, the router chooses from the
+        # models that policy allows (Claude and Codex only from their own model family).
+        # Among workflows that enable routing for the same engine, if any omits
+        # allowed-models, the router has no shortlist; otherwise, their lists are
+        # combined. GitHub Actions expressions are allowed only when neither
+        # models.allowed nor models.blocked is set.
         # (optional)
         allowed-models: []
           # Array of strings
@@ -23667,6 +23687,13 @@ runtimes:
 
 # Format 1: Single checkout configuration for the default workspace
 checkout:
+  # Explicitly enable runtime repository-list expansion and its allowlist,
+  # visibility, path, and secondary-fetch restrictions. Requires allowed-repos.
+  # Otherwise repository/repo must resolve to exactly one owner/repo slug and
+  # ordinary checkout behavior applies.
+  # (optional)
+  multi: true
+
   # Set to false to disable the compiler-generated PR branch checkout and its
   # associated base-config snapshot/restore steps. The normal repository checkout
   # remains enabled.
@@ -23674,28 +23701,26 @@ checkout:
   pull-request: true
 
   # Repository to checkout in owner/repo format, or a newline-separated list when
-  # allowed-repos is set. Expressions require allowed-repos except for the
-  # standalone ${{ github.repository }} expression, which retains normal
-  # single-repository checkout behavior without an allowlist or path prefix.
-  # Expressions must resolve to explicit repository names. Wildcards are not
-  # supported. Defaults to the current repository.
+  # multi: true is set. Without multi, expressions must resolve to exactly one
+  # repository and need no allowlist or path prefix. Wildcards are not supported.
+  # Defaults to the current repository.
   # (optional)
   repository: "example-value"
 
-  # Alias for repository. Specify only one of repo and repository. Expressions
-  # require allowed-repos except for the standalone ${{ github.repository }}
-  # expression. Wildcards are not supported.
+  # Alias for repository. Specify only one of repo and repository. Must resolve to
+  # exactly one repository unless multi: true is set. Wildcards are not supported.
   # (optional)
   repo: "example-value"
 
-  # Required allowlist for runtime repository-list expansion. Accepts
-  # newline-separated patterns, an array, or a whole GitHub Actions expression
-  # directly referencing a repository or organization configuration variable (e.g.
-  # ${{ vars.ALLOWED_REPOS }} or ${{ vars['ALLOWED_REPOS'] }}). Caller-controlled
-  # contexts, dynamic indexing, and composite or mixed expressions are rejected.
-  # Supports scoped wildcard patterns such as owner/* or */repo, but not
-  # unrestricted wildcards such as * or */*. The path is a literal prefix;
-  # repositories are placed under prefix/owner/repo.
+  # Required allowlist when multi: true enables runtime repository-list expansion;
+  # does not enable multi mode by itself. Accepts newline-separated patterns, an
+  # array, or a whole GitHub Actions expression directly referencing a repository or
+  # organization configuration variable (e.g. ${{ vars.ALLOWED_REPOS }} or ${{
+  # vars['ALLOWED_REPOS'] }}). In multi mode caller-controlled contexts, dynamic
+  # indexing, and composite or mixed expressions are rejected. Supports scoped
+  # wildcard patterns such as owner/* or */repo, but not unrestricted wildcards such
+  # as * or */*. The path is a literal prefix; repositories are placed under
+  # prefix/owner/repo.
   # (optional)
   # Accepted formats:
 
@@ -23706,17 +23731,19 @@ checkout:
   allowed-repos: []
     # Array items: string
 
-  # Allow private or internal targets in a runtime repository list only when the
-  # hosting workflow repository is private or internal. Requires allowed-repos and a
-  # literal boolean. Defaults to false. Public hosting repositories always reject
-  # non-public targets, even when true. Every merged entry must explicitly opt in.
+  # With multi: true, allow private or internal targets only when the hosting
+  # workflow repository is private or internal. Requires allowed-repos and a literal
+  # boolean. Defaults to false. Public hosting repositories always reject non-public
+  # targets in multi mode, even when true. Every merged multi entry must explicitly
+  # opt in. Has no effect in single-repository mode.
   # (optional)
   allow-private-repos: true
 
-  # Maximum number of unique repositories per runtime checkout entry. Requires
-  # allowed-repos. Defaults to 10. Oversized lists fail before metadata requests or
-  # checkout; matching and deduplication are case-insensitive. Merged entries use
-  # the smallest effective limit, including the default for omitted values.
+  # Maximum number of unique repositories per multi: true checkout entry. Requires
+  # allowed-repos in multi mode. Defaults to 10. Oversized lists fail before
+  # metadata requests or checkout; matching and deduplication are case-insensitive.
+  # Merged multi entries use the smallest effective limit, including the default for
+  # omitted values. Has no effect in single-repository mode.
   # (optional)
   max-repos: 1
 
@@ -23741,9 +23768,8 @@ checkout:
   sparse-checkout: "example-value"
 
   # Controls submodule checkout. Use "recursive" for all submodules, "true" for
-  # immediate submodules, or "false" to skip. Runtime repository-list checkouts with
-  # allowed-repos require false or omission because submodule URLs can bypass the
-  # allowlist.
+  # immediate submodules, or "false" to skip. Checkouts with multi: true require
+  # false or omission because submodule URLs can bypass the allowlist.
   # (optional)
   # Accepted formats:
 
@@ -23753,9 +23779,9 @@ checkout:
   # Format 2: boolean
   submodules: true
 
-  # Whether to download Git LFS objects. Defaults to false. Runtime repository-list
-  # checkouts with allowed-repos reject lfs: true because repository-controlled LFS
-  # endpoints can bypass the allowlist.
+  # Whether to download Git LFS objects. Defaults to false. Checkouts with multi:
+  # true reject lfs: true because repository-controlled LFS endpoints can bypass the
+  # allowlist.
   # (optional)
   lfs: true
 

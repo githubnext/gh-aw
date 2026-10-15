@@ -446,26 +446,27 @@ type AwContext struct {
 
 // AwInfo represents the structure of aw_info.json files
 type AwInfo struct {
-	EngineID        string              `json:"engine_id"`
-	EngineName      string              `json:"engine_name"`
-	Model           string              `json:"model"`
-	RequestedModel  string              `json:"requested_model,omitempty"`
-	FallbackModel   string              `json:"fallback_model,omitempty"`
-	ModelRouting    *AwInfoModelRouting `json:"model_routing,omitempty"`
-	Version         string              `json:"version"`
-	CLIVersion      string              `json:"cli_version,omitempty"` // gh-aw CLI version
-	WorkflowName    string              `json:"workflow_name"`
-	Staged          bool                `json:"staged"`
-	DryRun          bool                `json:"dry_run"`
-	AwfVersion      string              `json:"awf_version,omitempty"`      // AWF firewall version (new name)
-	FirewallVersion string              `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
-	AwmgVersion     string              `json:"awmg_version,omitempty"`     // MCP gateway version
-	AgentRuntime    string              `json:"agent_runtime,omitempty"`    // sandbox.agent.runtime value (e.g., "cloud-hypervisor"); empty when unset
-	CacheMemory     bool                `json:"cache_memory"`               // true when the workflow declares tools.cache-memory
-	Steps           AwInfoSteps         `json:"steps,omitzero"`             // Steps metadata
-	CreatedAt       string              `json:"created_at"`
-	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
-	TokenWeights    *types.TokenWeights `json:"token_weights,omitempty"` // Historical/custom model cost data stored in aw_info.json
+	EngineID        string                `json:"engine_id"`
+	EngineName      string                `json:"engine_name"`
+	Model           string                `json:"model"`
+	RequestedModel  string                `json:"requested_model,omitempty"`
+	FallbackModel   string                `json:"fallback_model,omitempty"`
+	ModelRouting    *AwInfoModelRouting   `json:"model_routing,omitempty"`
+	ModelSelection  *AwInfoModelSelection `json:"model_selection,omitempty"`
+	Version         string                `json:"version"`
+	CLIVersion      string                `json:"cli_version,omitempty"` // gh-aw CLI version
+	WorkflowName    string                `json:"workflow_name"`
+	Staged          bool                  `json:"staged"`
+	DryRun          bool                  `json:"dry_run"`
+	AwfVersion      string                `json:"awf_version,omitempty"`      // AWF firewall version (new name)
+	FirewallVersion string                `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
+	AwmgVersion     string                `json:"awmg_version,omitempty"`     // MCP gateway version
+	AgentRuntime    string                `json:"agent_runtime,omitempty"`    // sandbox.agent.runtime value (e.g., "cloud-hypervisor"); empty when unset
+	CacheMemory     bool                  `json:"cache_memory"`               // true when the workflow declares tools.cache-memory
+	Steps           AwInfoSteps           `json:"steps,omitzero"`             // Steps metadata
+	CreatedAt       string                `json:"created_at"`
+	Context         *AwContext            `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
+	TokenWeights    *types.TokenWeights   `json:"token_weights,omitempty"` // Historical/custom model cost data stored in aw_info.json
 	// Additional fields that might be present
 	RunID      NumericID `json:"run_id,omitempty"`
 	RunNumber  NumericID `json:"run_number,omitempty"`
@@ -476,6 +477,13 @@ type AwInfo struct {
 	Actor      string    `json:"actor,omitempty"`
 	EventName  string    `json:"event_name,omitempty"`
 	TargetRepo string    `json:"target_repo,omitempty"`
+}
+
+type AwInfoModelSelection struct {
+	Status          string `json:"status"`
+	ConfiguredModel string `json:"configured_model"`
+	ResolvedModel   string `json:"resolved_model"`
+	EffectiveModel  string `json:"effective_model"`
 }
 
 type AwInfoModelRouting struct {

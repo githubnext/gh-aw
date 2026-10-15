@@ -8101,6 +8101,33 @@
                   ],
                   "additionalProperties": false
                 },
+                "model_selection": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "configured_model": {
+                      "type": "string"
+                    },
+                    "resolved_model": {
+                      "type": "string"
+                    },
+                    "effective_model": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "configured_model",
+                    "resolved_model",
+                    "effective_model"
+                  ],
+                  "additionalProperties": false
+                },
                 "version": {
                   "type": "string"
                 },

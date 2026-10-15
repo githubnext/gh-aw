@@ -370,6 +370,13 @@ export interface EpisodeLineageData {
   rootRunId?: JsonValue;
 }
 
+export interface ModelSelectionData {
+  status?: JsonValue;
+  configuredModel?: JsonValue;
+  resolvedModel?: JsonValue;
+  effectiveModel?: JsonValue;
+}
+
 export interface WorkflowInfoData {
   engineId?: JsonValue;
   agentVersion?: JsonValue;
@@ -379,6 +386,7 @@ export interface WorkflowInfoData {
   model?: JsonValue;
   requestedModel?: JsonValue;
   modelRouting?: UnifiedModelRoutingData;
+  modelSelection?: ModelSelectionData;
   triggerType?: JsonValue;
   dryRun?: JsonValue;
   workflow?: JsonValue;

@@ -70,6 +70,73 @@ describe("repo_helpers", () => {
     });
   });
 
+  describe("repository checkout helpers", () => {
+    it("should determine side-repo routing from the resolved target, not the environment hint", async () => {
+      process.env.GITHUB_REPOSITORY = "owner/workflow-repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "owner/side-repo";
+      const { isSideRepoTarget } = await import("./repo_helpers.cjs");
+
+      expect(isSideRepoTarget("OWNER/workflow-repo")).toBe(false);
+      expect(isSideRepoTarget("owner/side-repo")).toBe(true);
+    });
+
+    it("should fall back to the Actions context when the workflow repository environment is unset", async () => {
+      const { getWorkflowRepoSlug, isSideRepoTarget } = await import("./repo_helpers.cjs");
+
+      expect(getWorkflowRepoSlug()).toBe("test-owner/test-repo");
+      expect(isSideRepoTarget("TEST-OWNER/TEST-REPO")).toBe(false);
+    });
+
+    it("should treat an omitted patch-workspace checkout identity as the workflow repository", async () => {
+      process.env.GITHUB_REPOSITORY = "owner/workflow-repo";
+      const { patchWorkspaceTargetsRepo } = await import("./repo_helpers.cjs");
+
+      expect(patchWorkspaceTargetsRepo("OWNER/workflow-repo", "")).toBe(true);
+      expect(patchWorkspaceTargetsRepo("owner/side-repo", "")).toBe(false);
+      expect(patchWorkspaceTargetsRepo("owner/side-repo", "owner/side-repo")).toBe(true);
+    });
+
+    it("should prefer the trimmed workflow environment over a different Actions context", async () => {
+      process.env.GITHUB_REPOSITORY = "  OWNER/workflow-repo  ";
+      const { getWorkflowRepoSlug, isSideRepoTarget } = await import("./repo_helpers.cjs");
+
+      expect(getWorkflowRepoSlug()).toBe("OWNER/workflow-repo");
+      expect(isSideRepoTarget(" owner/WORKFLOW-REPO ")).toBe(false);
+      expect(isSideRepoTarget("test-owner/test-repo")).toBe(true);
+    });
+
+    it("should use the Actions context when the workflow environment contains only whitespace", async () => {
+      process.env.GITHUB_REPOSITORY = " \t ";
+      const { getWorkflowRepoSlug, patchWorkspaceTargetsRepo } = await import("./repo_helpers.cjs");
+
+      expect(getWorkflowRepoSlug()).toBe("test-owner/test-repo");
+      expect(patchWorkspaceTargetsRepo(" TEST-OWNER/TEST-REPO ", "")).toBe(true);
+    });
+
+    it.each([undefined, {}, { repo: {} }])("should require checkout discovery when workflow identity is unavailable (%j)", async missingContext => {
+      global.context = missingContext;
+      process.env.GH_AW_TARGET_REPO_SLUG = "owner/target";
+      const { getWorkflowRepoSlug, isSideRepoTarget, patchWorkspaceTargetsRepo } = await import("./repo_helpers.cjs");
+
+      expect(getWorkflowRepoSlug()).toBe("");
+      expect(isSideRepoTarget("owner/target")).toBe(true);
+      expect(patchWorkspaceTargetsRepo("owner/target", "")).toBe(false);
+      expect(patchWorkspaceTargetsRepo("owner/target", "owner/target")).toBe(true);
+    });
+
+    it.each([
+      [" OWNER/TARGET ", true],
+      ["owner/workflow-repo", false],
+      ["owner/other-target", false],
+    ])("should match explicit patch workspace identity %s independently of the environment target", async (checkoutRepo, expected) => {
+      process.env.GITHUB_REPOSITORY = "owner/workflow-repo";
+      process.env.GH_AW_TARGET_REPO_SLUG = "owner/other-target";
+      const { patchWorkspaceTargetsRepo } = await import("./repo_helpers.cjs");
+
+      expect(patchWorkspaceTargetsRepo(" owner/target ", checkoutRepo)).toBe(expected);
+    });
+  });
+
   describe("getDefaultTargetRepo", () => {
     it("should return target-repo from config when provided", async () => {
       const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");

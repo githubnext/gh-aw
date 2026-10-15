@@ -273,6 +273,7 @@ MCP_SCRIPTS_FILES=(
   "handler_auth.cjs"
   "invocation_context_helpers.cjs"
   "markdown_code_region_balancer.cjs"
+  "messages_core.cjs"
   "pi_session_redaction.cjs"
   "otlp_header_helpers.cjs"
   "redact_secrets.cjs"
@@ -320,6 +321,7 @@ MCP_SCRIPTS_FILES=(
   "work_queue_scheduler.cjs"
   "work_queue_store.cjs"
   "work_queue_summary_renderer.cjs"
+  "work_queue_host.cjs"
   "work_queue_yaml.cjs"
 )
 
@@ -466,6 +468,7 @@ SAFE_OUTPUTS_FILES=(
   "work_queue_declared_verification.cjs"
   "work_queue_delivery.cjs"
   "work_queue_dependency_resolver.cjs"
+  "work_queue_host.cjs"
   "work_queue_deployment.cjs"
   "work_queue_deployment_control.cjs"
   "work_queue_dispatch.cjs"

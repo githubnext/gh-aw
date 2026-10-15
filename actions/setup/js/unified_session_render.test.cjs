@@ -341,7 +341,7 @@ describe("unified session publication views", () => {
     expect(trace).toEqual(original);
     const markdown = generateCopilotCliStyleSummary(trace);
     expect(markdown).toContain("Done <details>");
-    expect(markdown).toContain("<details><summary>Unified session</summary>");
+    expect(markdown).toMatch(/^<details><summary>Unified session<\/summary>\n\n/);
     expect(markdown).not.toContain("### Unified session");
     expect(markdown).not.toContain("=== Unified session ===");
     expect(markdown).not.toContain("| Time |");
