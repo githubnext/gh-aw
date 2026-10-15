@@ -25,5 +25,14 @@
     "experiment_name": "prompt_tightening_v1",
     "pr_or_issue": "issue",
     "decision": null
+  },
+  {
+    "date": "2026-10-15",
+    "workflow_id": "daily-rendering-scripts-verifier",
+    "primary_dimension": "tool interaction",
+    "subtype": "deterministic_precondition",
+    "experiment_name": "deterministic_precondition_v1",
+    "pr_or_issue": "issue",
+    "decision": null
   }
 ]
