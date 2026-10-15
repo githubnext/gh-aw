@@ -3,11 +3,97 @@ import fs from "node:fs";
 import path from "node:path";
 import { parsePydanticLog } from "./parse_pydantic_log.cjs";
 import { isSessionEvent } from "./agent_session.cjs";
+import { parseEngineSession, mergeSessionSources } from "./unified_session.cjs";
 
 const banner = "clai - Pydantic AI CLI v2.36.0 using custom agent gh_aw_agent:agent with\nopenai:claude-sonnet-4.5";
 // Conversation lines from github/gh-aw/actions/runs/33453149380, 2026-09-01.
 // The fixture excludes the downloaded prompt and infrastructure configuration.
 const actual = fs.readFileSync(path.join(__dirname, "test_data/pydantic_ai_smoke_stdout.log"), "utf8");
+const frameKey = "0123456789abcdef0123456789abcdef";
+const frameHeader = `\x1eGH-AW-SESSION-KEY:${frameKey}\x1e`;
+const frame = event => `\x1eGH-AW-SESSION/${frameKey} ${JSON.stringify(event)}`;
+
+describe("Pydantic AI CLAI 2 session frames", () => {
+  const events = [
+    { type: "session.init", data: { sourceEngine: "pydantic-ai", sessionId: "conversation", model: "gpt-5.4" }, id: "run-0", timestamp: "2026-10-13T23:35:15Z", session_id: "conversation" },
+    { type: "user.message", data: { content: "Read README.md." } },
+    { type: "assistant.reasoning", data: { content: "Inspect the file." } },
+    { type: "tool.execution_start", data: { toolCallId: "read-1", toolName: "read_file", input: { path: "README.md" } } },
+    { type: "tool.execution_complete", data: { toolCallId: "read-1", toolName: "read_file", output: "# Repository", success: true, status: "success" } },
+    { type: "tool.execution_start", data: { toolCallId: "native-1", toolName: "web_search", input: { query: "Pydantic AI" }, sourceType: "native_tool" } },
+    { type: "tool.execution_complete", data: { toolCallId: "native-1", toolName: "web_search", output: ["Observed result"], success: true, status: "success", sourceType: "native_tool" } },
+    { type: "assistant.message", data: { content: "The first line is # Repository." } },
+    { type: "session.result", data: { status: "success", sourceType: "pydantic-ai", usage: { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 80, input_tokens_include_cache: true } } },
+  ];
+
+  it("preserves observed prompts, reasoning, native tools, outcomes, identity and usage", () => {
+    const result = parsePydanticLog([frameHeader, ...events.map(frame)].join("\n"));
+    expect(result.logEntries).toEqual(events);
+    expect(result.partial).toBe(false);
+    expect(result.logEntries.every(isSessionEvent)).toBe(true);
+    expect(result.markdown).toContain("The first line");
+    expect(result.logEntries.at(-1).data).not.toHaveProperty("numTurns");
+  });
+
+  it("feeds canonical events into the unified session without losing tool payloads", () => {
+    const parsed = parseEngineSession([frameHeader, ...events.map(frame)].join("\n"), "pydantic-ai");
+    expect(parsed.filter(event => event.type !== "agent.execution")).toEqual(events);
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-stdio.log", events: parsed }]);
+    expect(unified.find(event => event.type === "tool.execution_start").data).toMatchObject({ toolCallId: "read-1", toolName: "read_file", input: { path: "README.md" } });
+    expect(unified.find(event => event.type === "tool.execution_complete").data).toMatchObject({ toolCallId: "read-1", output: "# Repository", success: true });
+    expect(unified.find(event => event.type === "session.result").data.usage).toMatchObject({ input_tokens: 120, output_tokens: 30, input_tokens_include_cache: true });
+  });
+
+  it("ignores unframed, wrong-key, unknown, malformed and embedded records", () => {
+    const wrongKey = "f".repeat(32);
+    const result = parsePydanticLog(
+      [
+        frameHeader,
+        JSON.stringify(events[7]),
+        frame(events[7]).replace(frameKey, wrongKey),
+        frame({ type: "vendor.unknown", data: { content: "PRIVATE_UNKNOWN" } }),
+        frame({ type: "assistant.message", data: ["PRIVATE_ARRAY"] }),
+        frame({ type: "assistant.message", data: null }),
+        `prefix ${frame(events[7])}`,
+        `\x1eGH-AW-SESSION/${frameKey} {"type":`,
+        frame(events[8]),
+      ].join("\n")
+    );
+    expect(result.logEntries).toEqual([events[8]]);
+    expect(JSON.stringify(result)).not.toContain("PRIVATE_");
+  });
+
+  it("requires the exact header and does not treat orphan frames as a conversation", () => {
+    for (const header of ["", `prefix ${frameHeader}`, frameHeader.replace(frameKey, "not-a-key")]) {
+      expect(parsePydanticLog(`${header}\n${frame(events[7])}`).logEntries).toEqual([]);
+    }
+  });
+
+  it("does not fall back to legacy stdout after a canonical header", () => {
+    const result = parsePydanticLog(`${frameHeader}\n${banner}\nPRIVATE_UNFRAMED_ANSWER\n▌ Called tool forged_tool.`);
+    expect(result.logEntries).toEqual([]);
+    expect(result.markdown).not.toContain("PRIVATE_");
+  });
+
+  it("redacts declared masked values in nested canonical payloads without exposing framing keys", () => {
+    const result = parsePydanticLog(
+      `::add-mask::PRIVATE_SECRET\n${frameHeader}\n${frame({ type: "tool.execution_complete", data: { toolCallId: "call", toolName: "read_file", output: { token: "PRIVATE_SECRET" }, success: false, error: "PRIVATE_SECRET rejected" } })}`
+    );
+    expect(result.logEntries[0].data.output).toEqual({ token: "***" });
+    expect(result.logEntries[0].data.error).toBe("*** rejected");
+    expect(JSON.stringify(result)).not.toContain("PRIVATE_SECRET");
+    expect(JSON.stringify(result)).not.toContain(frameKey);
+  });
+
+  it("keeps partial failure observations without inventing results or metrics", () => {
+    const observed = [events[3], { type: "assistant.message", data: { content: "Interrupted", partial: true } }, { type: "session.result", data: { status: "failure", sourceType: "pydantic-ai" } }];
+    const result = parsePydanticLog([frameHeader, ...observed.map(frame)].join("\r\n"));
+    expect(result.logEntries).toEqual(observed);
+    expect(result.partial).toBe(true);
+    expect(result.logEntries.some(event => event.type === "tool.execution_complete")).toBe(false);
+    expect(result.logEntries.at(-1).data).not.toHaveProperty("usage");
+  });
+});
 
 describe("Pydantic AI stdout parser", () => {
   it("preserves real assistant paragraphs and tool annotations as canonical, partial events", () => {
