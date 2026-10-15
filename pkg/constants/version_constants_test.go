@@ -19,7 +19,7 @@ func TestDefaultCLIMCPVersions(t *testing.T) {
 		{"Copilot CLI", DefaultCopilotVersion, "1.0.96"},
 		{"Copilot SDK", DefaultCopilotSDKVersion, "1.0.16"},
 		{"Codex", DefaultCodexVersion, "0.162.1"},
-		{"Gemini CLI", DefaultGeminiVersion, "0.62.0"},
+		{"Gemini CLI", DefaultGeminiVersion, "0.64.0"},
 		{"Agy CLI", DefaultAgyVersion, "1.3.3"},
 		{"Pi CLI", DefaultPiVersion, "1.2.0"},
 		{"GitHub MCP Server", DefaultGitHubMCPServerVersion, "v2.0.2"},
