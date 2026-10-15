@@ -1053,7 +1053,9 @@ artifact. `agent-stdio.log` is not a source of sub-agent rows.
 `agentName`, with `agent_type` remaining the role (`main` or `subagent`). An
 audit row MUST combine all instances of one definition in a run, summing
 instance and outcome counts, requests, tokens, and credits; effort is the shared
-value or `mixed`. `gh aw logs` MUST combine rows across runs by definition and
+value or `mixed`. Models and `subagent_model_requests` rows MUST be resolved
+from each instance's own evidence before rows are combined by definition.
+`gh aw logs` MUST combine rows across runs by definition and
 effort. `display_names` MUST list the sorted, distinct `agentDisplayName` values
 from each instance's `subagent.started`, `subagent.completed`, and
 `subagent.failed` events and per-agent metrics, matched by instance ID, and MUST
@@ -1063,7 +1065,9 @@ from runner- or proxy-written evidence (the session's sub-agent records and
 per-agent metrics, and AWF `token-usage.jsonl`), never from the agent-writable
 `awf-routing-outcome.json`. They MUST omit provider prefixes, MUST NOT list alias
 names such as `small`, and MUST NOT drop a concrete model ID because a declared
-sub-agent pins it.
+sub-agent pins it, including as the selected variant of an experiment. A dated
+model ID that served requests MUST be kept as served evidence when it resolves
+to its undated identity.
 
 Subagent attribution is scoped to the final retry session; earlier source
 records cannot contribute even when merged timestamps interleave them.

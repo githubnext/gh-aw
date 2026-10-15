@@ -205,10 +205,12 @@ type SubagentModelActual struct {
 	TotalDurationMs  int     `json:"total_duration_ms,omitempty"`
 	agentName        string
 	identityEvidence []string
-	agentAliases     []string
 	// sessionModels lists the model ids the session recorded for the agent
 	// before identity resolution; nil when unknown.
 	sessionModels []string
+	// requestModels lists the original request-bearing model ids that resolved
+	// to Model; nil when unknown.
+	requestModels []string
 }
 
 type AgentUsageBreakdown struct {
@@ -232,7 +234,7 @@ type AgentUsageBreakdown struct {
 	requestUsages      []agentRequestUsage
 	sessionModels      []string
 	// definitionName is the session's agentName for an instance; when set,
-	// rows are keyed by it and instanceDisplayNames become DisplayNames.
+	// public rows are keyed by it and instanceDisplayNames become DisplayNames.
 	definitionName       string
 	instanceDisplayNames []string
 }
@@ -250,6 +252,9 @@ type AgentModelUsage struct {
 	Requests      int    `json:"requests"`
 	TokenCoreMetrics
 	AIC float64 `json:"aic,omitempty"`
+	// requestModels lists the original request-bearing model ids that resolved
+	// to Model.
+	requestModels []string
 }
 
 // agentUsageEntry is the JSON structure written by parse_token_usage.cjs to

@@ -248,3 +248,156 @@ func TestModelRoutingSubagentCostsWithoutSessionSubagentEvents(t *testing.T) {
 		}
 	})
 }
+
+func modelIdentityResolverForDeclarations(t *testing.T, declarations string) *modelIdentityResolver {
+	t.Helper()
+	runDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, "aw_info.json"), []byte(`{"sub_agent_models":`+declarations+`}`), 0o600))
+	return newModelIdentityResolver(runDir)
+}
+
+func TestModelIdentityResolverConcreteDeclarations(t *testing.T) {
+	const staticHaiku = `{"name":"file-summarizer","model":"claude-haiku-4.5","patterns":["github-copilot/claude-haiku-4.5"]}`
+	// An experiment declaration records the selected variant as its model and
+	// the patterns of every variant.
+	const experimentHaiku = `{"name":"file-summarizer","model":"claude-haiku-4.5","patterns":["github-copilot/claude-haiku-4.5","github-copilot/gpt-5.6-luna"]}`
+	const experimentSmall = `{"name":"quick-checker","model":"small","patterns":["github-copilot/*haiku*","github-copilot/gpt-5*mini*","github-copilot/claude-haiku-4.5"]}`
+	haikuUsage := func() []AgentUsageBreakdown {
+		return []AgentUsageBreakdown{{
+			AgentName: "file-summarizer", AgentType: "subagent", Requests: 3,
+			Models: []AgentModelUsage{{Model: "claude-haiku-4.5", Requests: 3}},
+		}}
+	}
+
+	t.Run("experiment-selected concrete id", func(t *testing.T) {
+		resolver := modelIdentityResolverForDeclarations(t, `[`+experimentHaiku+`]`)
+		assert.False(t, isModelIdentityAlias(resolver, "claude-haiku-4.5"))
+		assert.True(t, resolver.matches("claude-haiku-4.5", "claude-haiku-4.5", ""))
+		assert.False(t, resolver.matches("claude-haiku-4.5", "gpt-5.6-luna", ""), "a concrete id matches only its own model")
+		agents := resolveAgentUsageModels(haikuUsage(), resolver, "gpt-5.6-luna")
+		assert.Equal(t, []string{"claude-haiku-4.5"}, agents[0].ServedModels)
+	})
+
+	t.Run("experiment-selected alias", func(t *testing.T) {
+		resolver := modelIdentityResolverForDeclarations(t, `[`+experimentSmall+`]`)
+		assert.True(t, isModelIdentityAlias(resolver, "small"))
+		assert.True(t, resolver.matches("small", "gpt-5.4-mini", ""))
+		agents := resolveAgentUsageModels([]AgentUsageBreakdown{{
+			AgentName: "quick-checker", AgentType: "subagent", Requests: 2, ResolvedModels: []string{"gpt-5.4-mini"},
+			Models: []AgentModelUsage{{Model: "small", Requests: 2}},
+		}}, resolver)
+		require.Len(t, agents[0].Models, 1)
+		assert.Equal(t, "gpt-5.4-mini", agents[0].Models[0].Model)
+		assert.NotContains(t, agents[0].ServedModels, "small")
+	})
+
+	t.Run("same id declared twice", func(t *testing.T) {
+		for name, declarations := range map[string]string{
+			"static then experiment": `[` + staticHaiku + `,` + experimentHaiku + `]`,
+			"experiment then static": `[` + experimentHaiku + `,` + staticHaiku + `]`,
+		} {
+			resolver := modelIdentityResolverForDeclarations(t, declarations)
+			assert.False(t, isModelIdentityAlias(resolver, "claude-haiku-4.5"), name)
+			assert.False(t, resolver.matches("claude-haiku-4.5", "gpt-5.6-luna", ""), name)
+			agents := resolveAgentUsageModels(haikuUsage(), resolver, "gpt-5.6-luna")
+			assert.Equal(t, []string{"claude-haiku-4.5"}, agents[0].ServedModels, name)
+		}
+	})
+}
+
+func attributeSubagentSession(t *testing.T, content string) *TokenUsageSummary {
+	t.Helper()
+	requests, actuals, agents, found, err := parseSessionSubagentModelsDetailed(strings.NewReader(content), true)
+	require.NoError(t, err)
+	require.True(t, found)
+	summary := &TokenUsageSummary{}
+	resolveSubagentAttribution(summary, requests, actuals, agents, newModelIdentityResolver(t.TempDir()), nil)
+	return summary
+}
+
+func subagentRequestRowsByName(t *testing.T, rows []SubagentModelRequest) map[string]SubagentModelRequest {
+	t.Helper()
+	byName := make(map[string]SubagentModelRequest, len(rows))
+	for _, row := range rows {
+		_, duplicate := byName[row.AgentName]
+		require.False(t, duplicate, "duplicate request row %q", row.AgentName)
+		byName[row.AgentName] = row
+	}
+	return byName
+}
+
+func TestSubagentRequestRowsKeepDatedServedModels(t *testing.T) {
+	// No AWF token usage: the dated id recorded with requests is the only
+	// served evidence, and the zero-request dated key is not promoted.
+	content := subagentSessionHeader +
+		subagentSessionRecord(`{"type":"session.init","data":{"sourceEngine":"copilot","sessionId":"usage"}}`) +
+		subagentSessionRecord(`{"type":"subagent.started","agentId":"quick-1","data":{"agentName":"quick-checker","agentDisplayName":"quick-checker","model":"gpt-5.4-mini"}}`) +
+		subagentSessionRecord(`{"type":"subagent.completed","agentId":"quick-1","data":{"agentName":"quick-checker","agentDisplayName":"quick-checker"}}`) +
+		subagentSessionRecord(`{"type":"session.shutdown","data":{"agentMetrics":{"quick-1":{"agentName":"quick-checker","agentDisplayName":"quick-checker","totalNanoAiu":1144000000,"modelMetrics":{"gpt-5.4-mini-2026-03-17":{"requests":{"count":2},"usage":{"inputTokens":40,"outputTokens":8}},"gpt-5.4-mini-2025-08-07":{"requests":{"count":0},"usage":{"inputTokens":0,"outputTokens":0}}}}}}}`)
+	summary := attributeSubagentSession(t, content)
+	require.Len(t, summary.AgentUsage, 1)
+	assert.Equal(t, []string{"gpt-5.4-mini-2026-03-17"}, summary.AgentUsage[0].ServedModels)
+	require.Len(t, summary.SubagentModelRequests, 1)
+	row := summary.SubagentModelRequests[0]
+	assert.Equal(t, "gpt-5.4-mini", row.EffectiveModel)
+	assert.Equal(t, []string{"gpt-5.4-mini-2026-03-17"}, row.ServedModels)
+}
+
+func TestSubagentAttributionResolvesInstancesBeforeMergingDefinitions(t *testing.T) {
+	t.Run("failed and served instances", func(t *testing.T) {
+		content := subagentSessionHeader +
+			subagentSessionRecord(`{"type":"session.init","data":{"sourceEngine":"copilot","sessionId":"usage"}}`) +
+			subagentSessionRecord(`{"type":"subagent.started","agentId":"a-1","data":{"agentName":"explore","agentDisplayName":"scan-a","model":"claude-haiku-4.5"}}`) +
+			subagentSessionRecord(`{"type":"subagent.failed","agentId":"a-1","data":{"agentName":"explore","agentDisplayName":"scan-a","error":"HTTP 400"}}`) +
+			subagentSessionRecord(`{"type":"subagent.started","agentId":"b-1","data":{"agentName":"explore","agentDisplayName":"scan-b","model":"claude-haiku-4.5"}}`) +
+			subagentSessionRecord(`{"type":"subagent.completed","agentId":"b-1","data":{"agentName":"explore","agentDisplayName":"scan-b"}}`) +
+			subagentSessionRecord(`{"type":"session.shutdown","data":{"agentMetrics":{"b-1":{"agentName":"explore","agentDisplayName":"scan-b","totalNanoAiu":2000000000,"modelMetrics":{"claude-haiku-4.5":{"requests":{"count":3},"usage":{"inputTokens":30,"outputTokens":6}}}}}}}`)
+		summary := attributeSubagentSession(t, content)
+		rows := subagentRequestRowsByName(t, summary.SubagentModelRequests)
+		require.Len(t, rows, 2)
+		failed := rows["scan-a"]
+		assert.Empty(t, failed.EffectiveModel)
+		assert.Empty(t, failed.ServedModels)
+		assert.Equal(t, modelMismatchReasonSubagentFailed, failed.ReasonCode)
+		served := rows["scan-b"]
+		assert.Equal(t, "claude-haiku-4.5", served.EffectiveModel)
+		assert.Equal(t, []string{"claude-haiku-4.5"}, served.ServedModels)
+
+		require.Len(t, summary.AgentUsage, 1)
+		explore := summary.AgentUsage[0]
+		assert.Equal(t, "explore", explore.AgentName)
+		assert.Equal(t, []string{"scan-a", "scan-b"}, explore.DisplayNames)
+		assert.Equal(t, 2, explore.InstanceCount)
+		assert.Equal(t, 1, explore.CompletedCount)
+		assert.Equal(t, 1, explore.FailedCount)
+		assert.Equal(t, 3, explore.Requests)
+		assert.Equal(t, []string{"claude-haiku-4.5"}, explore.ServedModels)
+	})
+
+	t.Run("alias resolved to different models", func(t *testing.T) {
+		content := subagentSessionHeader +
+			subagentSessionRecord(`{"type":"session.init","data":{"sourceEngine":"copilot","sessionId":"usage"}}`) +
+			subagentSessionRecord(`{"type":"subagent.started","agentId":"a-1","data":{"agentName":"explore","agentDisplayName":"scan-a","model":"small","resolvedModel":"gpt-5.4-mini"}}`) +
+			subagentSessionRecord(`{"type":"subagent.completed","agentId":"a-1","data":{"agentName":"explore","agentDisplayName":"scan-a"}}`) +
+			subagentSessionRecord(`{"type":"subagent.started","agentId":"b-1","data":{"agentName":"explore","agentDisplayName":"scan-b","model":"small","resolvedModel":"claude-haiku-4.5"}}`) +
+			subagentSessionRecord(`{"type":"subagent.completed","agentId":"b-1","data":{"agentName":"explore","agentDisplayName":"scan-b"}}`) +
+			subagentSessionRecord(`{"type":"session.shutdown","data":{"agentMetrics":{"a-1":{"agentName":"explore","agentDisplayName":"scan-a","totalNanoAiu":1000000000,"modelMetrics":{"small":{"requests":{"count":2},"usage":{"inputTokens":20,"outputTokens":4}}}},"b-1":{"agentName":"explore","agentDisplayName":"scan-b","totalNanoAiu":3000000000,"modelMetrics":{"small":{"requests":{"count":3},"usage":{"inputTokens":30,"outputTokens":6}}}}}}}`)
+		summary := attributeSubagentSession(t, content)
+		rows := subagentRequestRowsByName(t, summary.SubagentModelRequests)
+		require.Len(t, rows, 2)
+		assert.Equal(t, "gpt-5.4-mini", rows["scan-a"].EffectiveModel)
+		assert.Equal(t, "claude-haiku-4.5", rows["scan-b"].EffectiveModel)
+
+		require.Len(t, summary.AgentUsage, 1)
+		explore := summary.AgentUsage[0]
+		assert.Equal(t, "explore", explore.AgentName)
+		assert.Equal(t, []string{"scan-a", "scan-b"}, explore.DisplayNames)
+		require.Len(t, explore.Models, 2)
+		assert.Equal(t, "claude-haiku-4.5", explore.Models[0].Model)
+		assert.Equal(t, 3, explore.Models[0].Requests)
+		assert.Equal(t, "gpt-5.4-mini", explore.Models[1].Model)
+		assert.Equal(t, 2, explore.Models[1].Requests)
+		assert.Equal(t, 5, explore.Requests)
+		assert.NotContains(t, explore.ServedModels, "small")
+	})
+}

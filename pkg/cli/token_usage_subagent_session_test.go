@@ -575,7 +575,7 @@ func TestCopilotAgentMetricsWithoutLifecycleRetainAttribution(t *testing.T) {
 	_, _, parsedAgents, found, err := readSessionSubagentModelsDetailed(root)
 	require.NoError(t, err)
 	require.True(t, found)
-	require.Len(t, parsedAgents, 3)
+	require.Len(t, parsedAgents, 4)
 	summary := &TokenUsageSummary{}
 	augmentSubagentModelAttribution(root, summary)
 

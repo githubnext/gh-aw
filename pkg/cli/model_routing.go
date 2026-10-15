@@ -299,7 +299,7 @@ func analyzeModelRouting(runDir string) *ModelRoutingSummary {
 			models = appendUnique(models, entry.Model)
 		}
 
-		agentSummary := &TokenUsageSummary{AgentUsage: resolveAgentUsageModels(agents, newModelIdentityResolver(runDir), models...)}
+		agentSummary := &TokenUsageSummary{AgentUsage: mergeAgentUsageByDefinition(resolveAgentUsageModels(agents, newModelIdentityResolver(runDir), models...))}
 		matchPiAgentUsageCredits(agentSummary, proxyEntries, newModelIdentityResolver(runDir))
 		applyAgentUsageToModelRouting(summary, agentSummary.AgentUsage)
 	}

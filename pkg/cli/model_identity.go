@@ -18,8 +18,8 @@ var (
 
 type modelIdentityResolver struct {
 	aliases map[string][]string
-	// concrete holds declared sub-agent models that pin a concrete model id
-	// rather than an alias; they keep their patterns but are never aliases.
+	// concrete holds declared sub-agent models that name a concrete model id
+	// rather than an alias; they match only that model and are never aliases.
 	concrete map[string]struct{}
 }
 
@@ -37,14 +37,16 @@ func newModelIdentityResolver(runDir string) *modelIdentityResolver {
 				} `json:"sub_agent_models"`
 			}
 			if json.Unmarshal(content, &info) == nil {
+				// Mark concrete ids before registering aliases so that no
+				// declaration can unmark another declaration of the same id.
 				for _, model := range info.Models {
-					if model.Model != "" && len(model.Patterns) > 0 {
+					if model.Model != "" && isConcreteModelDeclaration(model.Model, model.Patterns, aliases) {
+						concrete[normalizeModelIdentity(model.Model)] = struct{}{}
+					}
+				}
+				for _, model := range info.Models {
+					if _, isConcrete := concrete[normalizeModelIdentity(model.Model)]; model.Model != "" && len(model.Patterns) > 0 && !isConcrete {
 						aliases[model.Model] = append([]string(nil), model.Patterns...)
-						if isConcreteModelDeclaration(model.Model, model.Patterns) {
-							concrete[normalizeModelIdentity(model.Model)] = struct{}{}
-						} else {
-							delete(concrete, normalizeModelIdentity(model.Model))
-						}
 					}
 				}
 			}
@@ -53,20 +55,26 @@ func newModelIdentityResolver(runDir string) *modelIdentityResolver {
 	return &modelIdentityResolver{aliases: aliases, concrete: concrete}
 }
 
-// isConcreteModelDeclaration reports whether a declared sub-agent model pins a
-// concrete model id: every pattern names that same model, optionally qualified
-// by a provider, without wildcards.
-func isConcreteModelDeclaration(model string, patterns []string) bool {
-	normalized := normalizeModelIdentity(model)
-	if normalized == "" || len(patterns) == 0 {
+// isConcreteModelDeclaration reports whether a declared sub-agent model is a
+// concrete model id: it has no wildcard and is not an alias name. Builtin alias
+// names are known; a workflow-defined alias never lists itself among its
+// patterns. The other patterns are ignored because an experiment declaration
+// lists the patterns of every variant.
+func isConcreteModelDeclaration(model string, patterns []string, aliases map[string][]string) bool {
+	name, _, _ := strings.Cut(strings.TrimSpace(model), "?")
+	normalized := normalizeModelIdentity(name)
+	if normalized == "" || strings.ContainsAny(name, "*?[]{}$ ") {
+		return false
+	}
+	if _, alias := aliases[normalized]; alias {
 		return false
 	}
 	for _, pattern := range patterns {
-		if strings.ContainsAny(pattern, "*?[") || normalizeModelIdentity(pattern) != normalized {
-			return false
+		if !strings.ContainsAny(pattern, "*?[") && normalizeModelIdentity(pattern) == normalized {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // servedModelIdentity returns the provider-free model id recorded as served
