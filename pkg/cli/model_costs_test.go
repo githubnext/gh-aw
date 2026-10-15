@@ -22,7 +22,7 @@ func TestNewModelPricingEntries(t *testing.T) {
 		input, output, cacheRead, cacheWrite float64
 	}{
 		{"anthropic", "claude-opus-5-5", 4e-6, 20e-6, 0.2e-6, 5e-6},
-		{"anthropic", "claude-sonnet-5-5", 2e-6, 10e-6, 0.2e-6, 2.5e-6},
+		{"anthropic", "claude-sonnet-5-5", 2e-6, 10e-6, 0.1e-6, 2.5e-6},
 		{"anthropic", "claude-haiku-5-5", 0.1e-6, 0.5e-6, 0.01e-6, 0.125e-6},
 		{"github-copilot", "claude-haiku-5.5", 0.1e-6, 0.5e-6, 0.01e-6, 0.125e-6},
 		{"github-copilot", "claude-opus-5.5", 4e-6, 20e-6, 0.2e-6, 5e-6},
