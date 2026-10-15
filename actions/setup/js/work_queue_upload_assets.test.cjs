@@ -21,7 +21,14 @@ describe("work_queue_upload_assets", () => {
   let root, saved, handle, scope, authorizeCalls, effectCalls, git, client;
 
   beforeEach(() => {
-    saved = { scope: require.cache[scopePath], resource: require.cache[resourcePath], client: require.cache[clientPath], mod: require.cache[modulePath] };
+    saved = {
+      scope: require.cache[scopePath],
+      resource: require.cache[resourcePath],
+      client: require.cache[clientPath],
+      mod: require.cache[modulePath],
+      stagedMode: process.env.GH_AW_SAFE_OUTPUTS_STAGED,
+    };
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     root = fs.mkdtempSync(path.join(os.tmpdir(), "assets-"));
     handle = "claim-1";
     authorizeCalls = [];
@@ -64,6 +71,8 @@ describe("work_queue_upload_assets", () => {
       if (saved[k]) require.cache[p] = saved[k];
       else delete require.cache[p];
     }
+    if (saved.stagedMode === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    else process.env.GH_AW_SAFE_OUTPUTS_STAGED = saved.stagedMode;
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -148,6 +157,13 @@ describe("work_queue_upload_assets", () => {
     expect(created.force).toBeUndefined();
   });
 
+  it("rejects creating a branch outside the assets/ namespace", async () => {
+    stage("a.png", "data");
+    git.getRef = async () => Promise.reject({ status: 404 });
+    const handler = await load().main({ "assets-dir": root, "target-repo": "o/r", branch: "feature/not-assets" }, client);
+    await expect(handler({ path: "a.png" })).rejects.toThrow("approved assets/ namespace");
+  });
+
   it("propagates non-404 getRef errors", async () => {
     stage("a.png", "data");
     git.getRef = async () => Promise.reject({ status: 500, message: "boom" });
@@ -160,6 +176,20 @@ describe("work_queue_upload_assets", () => {
     delete git.createBlob;
     const handler = await load().main({ "assets-dir": root, "target-repo": "o/r" }, client);
     await expect(handler({ path: "a.png" })).rejects.toThrow("native read and write endpoints");
+  });
+
+  it("fails when the native parent commit endpoint is missing", async () => {
+    stage("a.png", "data");
+    delete git.getCommit;
+    const handler = await load().main({ "assets-dir": root, "target-repo": "o/r" }, client);
+    await expect(handler({ path: "a.png" })).rejects.toThrow("native parent commit endpoint");
+  });
+
+  it("fails when the native branch write endpoint is missing", async () => {
+    stage("a.png", "data");
+    delete git.updateRef;
+    const handler = await load().main({ "assets-dir": root, "target-repo": "o/r" }, client);
+    await expect(handler({ path: "a.png" })).rejects.toThrow("native branch write endpoint");
   });
 
   it("verifyAssetDelivery returns unverified without a receipt", async () => {
