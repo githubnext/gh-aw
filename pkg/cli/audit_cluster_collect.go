@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -90,7 +89,7 @@ func auditClusterRetryContinuation(runArgs []string, opts auditCommandOptions, n
 		args = append(args, "--start-date", start.Format(time.RFC3339), "--end-date", end.Format(time.RFC3339),
 			"--cluster-offset", strconv.Itoa(opts.clusterOffset))
 	}
-	return &AuditClusterContinuation{Arguments: args, Reason: "collection interrupted; retry this selection (cached artifacts are reused)"}
+	return &AuditClusterContinuation{Arguments: args, Reason: "collection interrupted; retry this selection"}
 }
 
 func auditClusterCommonArgs(opts auditCommandOptions) []string {
@@ -294,6 +293,7 @@ func collectAuditClusterRun(ctx context.Context, request auditClusterRequest, op
 		Outcome: "unknown", JobsState: "unknown", UsageState: "unknown", Signatures: []string{},
 	}
 	run := applyAuditClusterMetadata(ctx, request, opts, now, &result)
+	request.metadata = run
 	collectAuditClusterJobEvidence(ctx, request, &result)
 	// Usage collection is deliberately independent of job availability, count,
 	// and conclusion. Startup failures can still carry useful usage evidence.
@@ -417,7 +417,14 @@ func parseAuditClusterJobs(output []byte) ([]JobInfo, error) {
 }
 
 func collectAuditClusterUsage(ctx context.Context, request auditClusterRequest, outputDir string, verbose bool, result *AuditClusterRun) {
-	err := downloadRunArtifacts(ctx, downloadArtifactsOptions{
+	outputDir, cleanup, err := auditClusterUsageDirectory(outputDir)
+	if err != nil {
+		result.Evidence = append(result.Evidence, "usage directory: "+err.Error())
+		result.Signatures = append(result.Signatures, "usage:unknown")
+		return
+	}
+	defer cleanup()
+	err = downloadRunArtifacts(ctx, downloadArtifactsOptions{
 		runID: request.runID, owner: request.owner, repo: request.repo, hostname: request.hostname,
 		outputDir: outputDir, verbose: verbose, artifactFilter: ResolveArtifactFilter([]string{"usage"}),
 	})
@@ -427,69 +434,11 @@ func collectAuditClusterUsage(ctx context.Context, request auditClusterRequest, 
 	if ctx.Err() != nil {
 		return
 	}
-	summary, summaryErr := loadUsageActivitySummary(outputDir)
-	tokens, tokensErr := analyzeTokenUsage(outputDir, verbose)
-	if summaryErr != nil {
-		result.Evidence = append(result.Evidence, "usage activity: "+summaryErr.Error())
-	}
-	if tokensErr != nil {
-		result.Evidence = append(result.Evidence, "usage tokens: "+tokensErr.Error())
-	}
-	if summary != nil || tokens != nil {
-		result.UsageState = "available"
-	}
-	if summary != nil && summary.Session != nil {
-		result.Turns, result.FailedToolExecutions = measuredAuditClusterSession(outputDir)
-		if summary.Session.FailedToolExecutions > 0 {
-			result.Signatures = append(result.Signatures, "usage:failed-tool-executions")
-		}
-	}
-	if summary != nil && summary.Gateway != nil {
-		for _, tool := range summary.Gateway.Tools {
-			if tool.FailedCalls > 0 {
-				result.Signatures = append(result.Signatures, fmt.Sprintf("usage:tool:%s/%s:failure", tool.ServerName, tool.ToolName))
-			}
-		}
-	}
-	if tokens != nil {
-		count := tokens.TotalTokens()
-		if count > 0 {
-			result.Tokens = &count
-		}
-		if tokens.AICFound {
-			result.AIC = &tokens.TotalAIC
-		}
-	}
+	collectAuditClusterUsageArtifacts(outputDir, request, verbose, result)
 	if result.UsageState == "unknown" {
 		result.Signatures = append(result.Signatures, "usage:unknown")
-		if err == nil && summaryErr == nil && tokensErr == nil {
+		if err == nil && len(result.Evidence) == 0 {
 			result.Evidence = append(result.Evidence, "usage: no supported usage summary or token records found")
 		}
 	}
-
-}
-
-// The shared activity model uses value fields. Recover presence before exposing
-// measurements so an absent session metric cannot become a measured zero.
-func measuredAuditClusterSession(outputDir string) (*int, *int) {
-	for _, path := range []string{
-		filepath.Join(outputDir, "usage", "activity", "summary.json"),
-		filepath.Join(outputDir, "activity", "summary.json"),
-	} {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		var activity struct {
-			Schema  string `json:"schema"`
-			Session *struct {
-				Turns  *int `json:"turns"`
-				Failed *int `json:"failed_tool_executions"`
-			} `json:"session"`
-		}
-		if json.Unmarshal(data, &activity) == nil && activity.Schema == usageActivitySummarySchema && activity.Session != nil {
-			return activity.Session.Turns, activity.Session.Failed
-		}
-	}
-	return nil, nil
 }

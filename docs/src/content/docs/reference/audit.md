@@ -98,7 +98,8 @@ gh aw audit --cluster --repo owner/repo --start-date -1d --failed-no-jobs --json
 ```
 
 Without IDs or date flags, `--cluster` discovers the last 24 hours. Explicit IDs
-and date windows are mutually exclusive. Clustering supports `--stdin` for
+are deduplicated by host, repository and run ID; job/step URLs are rejected.
+Explicit IDs and date windows are mutually exclusive. Clustering supports `--stdin` for
 explicit IDs, but not together with date flags or `--cluster-offset`.
 It cannot be combined with `--group`, `--parse`, `--artifacts`, `--format`,
 `--experiment`, `--variant`, `--runtime`, `--evals`, or `--no-baseline`.
@@ -113,6 +114,12 @@ Nonterminal runs with no metadata updates for `--stalled-after` are classified
 as stalled. This is an inactivity heuristic, not a verified agent hang.
 Cancelled, skipped and unknown outcomes remain distinct from failures.
 Unavailable usage evidence is not reported as measured zero resource use.
+Rerun usage must identify the current attempt before it contributes metrics;
+unverified previous-attempt artifacts remain unknown. Activity evidence from
+reusable workflows' prefixed usage artifacts is included in clustering.
+Each collection refreshes temporary usage downloads so newly published artifacts
+are not hidden by an earlier cache. In clustering mode, `--output` controls the
+staging location; these temporary downloads are removed after analysis.
 
 When collection is bounded or evidence is unavailable, the payload reports the
 gap. Check completeness before calculating rates, and use returned continuation

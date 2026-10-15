@@ -172,7 +172,7 @@ case "$*" in
     if [ "$CLUSTER_JOBS" = "slow" ]; then exec sleep 10; fi
     printf '%s\n' "$CLUSTER_JOBS"; exit 0 ;;
   *"/artifacts"*)
-    if [ "$CLUSTER_USAGE" != "missing" ]; then printf '%s\n' usage; fi
+    if [ "$CLUSTER_USAGE" != "missing" ]; then printf '%s\n' "$CLUSTER_ARTIFACTS"; fi
     exit 0 ;;
   *"actions/runs?"*)
     case "$*" in *"page=2&"*) if [ -n "$CLUSTER_LIST_PAGE2" ]; then printf '%s\n' "$CLUSTER_LIST_PAGE2"; exit 0; fi ;; esac
@@ -182,11 +182,17 @@ case "$*" in
     printf '%s\n' "$CLUSTER_METADATA"; exit 0 ;;
   "run download "*)
     while [ $# -gt 0 ]; do
-      case "$1" in --dir) dir="$2"; shift 2 ;; *) shift ;; esac
+      case "$1" in --dir) dir="$2"; shift 2 ;; --name) name="$2"; shift 2 ;; *) shift ;; esac
     done
     mkdir -p "$dir/activity"
-    printf '%s\n' "$CLUSTER_USAGE" > "$dir/activity/summary.json"
-    printf '%s\n' '{}' > "$dir/aw_info.json"
+    if [ "$name" = "bbb-usage" ] && [ -n "$CLUSTER_USAGE_SECOND" ]; then
+      if [ "$CLUSTER_USAGE_SECOND" != "absent" ]; then
+        printf '%s\n' "$CLUSTER_USAGE_SECOND" > "$dir/activity/summary.json"
+      fi
+    else
+      printf '%s\n' "$CLUSTER_USAGE" > "$dir/activity/summary.json"
+    fi
+    printf '%s\n' "$CLUSTER_AW_INFO" > "$dir/aw_info.json"
     if [ -n "$CLUSTER_TOKEN_USAGE" ]; then printf '%s\n' "$CLUSTER_TOKEN_USAGE" > "$dir/token-usage.jsonl"; fi
     exit 0 ;;
 esac
@@ -200,6 +206,9 @@ exit 1
 	t.Setenv("CLUSTER_JOBS", `[{"total_count":0,"jobs":[]}]`)
 	t.Setenv("CLUSTER_USAGE", `{"schema":"usage-activity-summary/v1","session":{"turns":7,"failed_tool_executions":2}}`)
 	t.Setenv("CLUSTER_TOKEN_USAGE", "")
+	t.Setenv("CLUSTER_ARTIFACTS", "usage")
+	t.Setenv("CLUSTER_USAGE_SECOND", "")
+	t.Setenv("CLUSTER_AW_INFO", "{}")
 	t.Setenv("CLUSTER_LIST_PAGE2", "")
 	return auditCommandOptions{cluster: true, repoFlag: "o/r", outputDir: filepath.Join(dir, "output"), count: 100, stalledAfter: time.Hour}, calls
 }
@@ -281,8 +290,6 @@ func TestAuditClusterUsageMeasurementsRequirePresence(t *testing.T) {
 	assert.Nil(t, report.Runs[0].Turns)
 	assert.Nil(t, report.Runs[0].FailedToolExecutions)
 	assert.Nil(t, report.Runs[0].AIC)
-	// Use a separate output directory to avoid the immutable artifact cache.
-	opts.outputDir = testutil.TempDir(t, "audit-cluster-measured-zero-*")
 	t.Setenv("CLUSTER_USAGE", `{"schema":"usage-activity-summary/v1","session":{"turns":0,"failed_tool_executions":0}}`)
 	report, err = collectAuditClusters(context.Background(), []string{"1"}, opts, time.Now())
 	require.NoError(t, err)
