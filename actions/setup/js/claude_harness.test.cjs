@@ -30,6 +30,7 @@ const {
   resolveStartupRetryLimit,
   buildClaudeChildEnv,
   removeClaudeRoutingOverrides,
+  applyClaudeSettingsEnv,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -1435,5 +1436,23 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("without trusted firewall audit confirmation");
     });
+  });
+});
+
+describe("applyClaudeSettingsEnv", () => {
+  const settings = '{"modelOverrides":{"claude-haiku-4-5":"claude-haiku-4.5"}}';
+
+  it("appends --settings from GH_AW_CLAUDE_SETTINGS", () => {
+    expect(applyClaudeSettingsEnv(["--print", "--model", "claude-haiku-4.5"], { GH_AW_CLAUDE_SETTINGS: settings })).toEqual(["--print", "--model", "claude-haiku-4.5", "--settings", settings]);
+  });
+
+  it("leaves args unchanged when the variable is unset or empty", () => {
+    expect(applyClaudeSettingsEnv(["--print"], {})).toEqual(["--print"]);
+    expect(applyClaudeSettingsEnv(["--print"], { GH_AW_CLAUDE_SETTINGS: "  " })).toEqual(["--print"]);
+  });
+
+  it("keeps caller-provided --settings in either form", () => {
+    expect(applyClaudeSettingsEnv(["--settings", "{}"], { GH_AW_CLAUDE_SETTINGS: settings })).toEqual(["--settings", "{}"]);
+    expect(applyClaudeSettingsEnv(["--settings={}"], { GH_AW_CLAUDE_SETTINGS: settings })).toEqual(["--settings={}"]);
   });
 });

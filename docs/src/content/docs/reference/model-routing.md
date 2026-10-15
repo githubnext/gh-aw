@@ -299,8 +299,6 @@ The classifier is a language model, so the same task can get a different model o
 
 The router doesn't yet account for which reasoning efforts each engine supports. If it chooses an effort the engine can't use (`none` or `minimal` with Claude, `none` or `max` with Codex), the run fails.
 
-With the Claude engine, requests to `claude-haiku-4.5` fail with HTTP 400, because Claude Code sends a reasoning effort that this model doesn't accept ([gh-aw#68834](https://github.com/github/gh-aw/issues/68834)). The router can choose it when `allowed-models` is omitted, so list Claude candidates explicitly and leave it out.
-
 ### AI Credits budget
 
 Routing doesn't consider the run's AI Credits budget (`max-ai-credits`, 1,000 by default). Runs routed to larger models, which `robust` chooses more often, use more of it. See [Cap AI Credits per Run](/gh-aw/reference/cost-management/#cap-ai-credits-per-run).
