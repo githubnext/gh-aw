@@ -2736,10 +2736,10 @@ engine:
     # agent only. This is not a request policy; put patterns such as gpt-* in
     # models.allowed or models.blocked. When omitted, the router chooses from the
     # models that policy allows (Claude and Codex only from their own model family).
-    # Lists from imported workflows using the same engine are combined, but if the
-    # main workflow or any import omits allowed-models, the router has no shortlist.
-    # GitHub Actions expressions are allowed only when neither models.allowed nor
-    # models.blocked is set.
+    # Among workflows that enable routing for the same engine, if any omits
+    # allowed-models, the router has no shortlist; otherwise, their lists are
+    # combined. GitHub Actions expressions are allowed only when neither
+    # models.allowed nor models.blocked is set.
     # (optional)
     allowed-models: []
       # Array of strings
@@ -21338,10 +21338,10 @@ safe-outputs:
         # agent only. This is not a request policy; put patterns such as gpt-* in
         # models.allowed or models.blocked. When omitted, the router chooses from the
         # models that policy allows (Claude and Codex only from their own model family).
-        # Lists from imported workflows using the same engine are combined, but if the
-        # main workflow or any import omits allowed-models, the router has no shortlist.
-        # GitHub Actions expressions are allowed only when neither models.allowed nor
-        # models.blocked is set.
+        # Among workflows that enable routing for the same engine, if any omits
+        # allowed-models, the router has no shortlist; otherwise, their lists are
+        # combined. GitHub Actions expressions are allowed only when neither
+        # models.allowed nor models.blocked is set.
         # (optional)
         allowed-models: []
           # Array of strings
