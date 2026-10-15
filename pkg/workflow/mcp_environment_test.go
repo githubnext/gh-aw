@@ -239,6 +239,8 @@ func TestTrialTargetRepoReachesSafeOutputsMCPServer(t *testing.T) {
 	}
 	compiler := &Compiler{}
 
+	assert.Equal(t, `""`, compiler.buildMainJobEnv(workflowData)["GH_AW_TARGET_REPO_SLUG"])
+
 	envVars := collectMCPEnvironmentVariables(tools, []string{"safe-outputs"}, workflowData, false)
 	assert.Equal(t, "owner/side-repo", envVars["GH_AW_TARGET_REPO_SLUG"])
 
