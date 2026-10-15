@@ -22,6 +22,22 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 
 Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is an execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
 
+Copilot model availability is scoped to the `agentic-workflows` integration as
+well as organization policy. Gemini models available in the standalone Copilot
+CLI may be absent from this integration; compilation warns about this restriction.
+The bundled model catalog is not a live access guarantee. A missing model in a
+successfully retrieved runtime catalog is reported as unavailable, not as a catalog
+retrieval failure. Enabling missing models for this integration requires Copilot
+API support; changing the integration ID is not a supported workaround.
+
+The lock file records the configured model, not evidence of execution. When native
+Copilot session events identify the main-agent model, `aw_info.json` records
+`requested_model`, the observed `model`, and `model_selection` with configured,
+resolved, and effective models. A native CLI substitution fails the run rather
+than silently reporting success, including when no AWF API proxy is active.
+These observations do not include sub-agent model changes or prove which model
+served a request upstream of Copilot.
+
 Gemini remains selectable and emits an informational deprecation notice after effective engine resolution, including imports and CLI overrides. The notice does not count as a warning or affect strict-mode success. Evaluate experimental Agy for compatible API-key workflows; retain Gemini for Google WIF or unsupported capabilities. See [migration guidance](/gh-aw/engines/agy/#evaluating-a-gemini-api-key-workflow).
 
 The Copilot, Claude, Codex, and pi engines also support experimental per-run model and reasoning-effort selection through `engine.model-routing`, when they use GitHub Copilot inference. See [Model Routing](/gh-aw/reference/model-routing/) for configuration, requirements, known limitations, and troubleshooting.
