@@ -46,6 +46,7 @@
   },
   "overrides": {
     "@astrojs/markdown-remark": "7.3.2",
+    "p-queue": "9.3.3",
     "zod": "4.6.5",
     "mermaid": {
       "katex": "^0.18.2"
