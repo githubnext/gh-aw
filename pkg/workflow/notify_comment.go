@@ -113,7 +113,7 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 		})...)
 	}
 	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
-	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), c.getActionPin)...)
+	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), c.getActionPin)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -288,13 +288,13 @@ func buildUsageArtifactInputDownloadSteps(prefix string, hasEvals bool, experime
 // can include safe-output item counts in the activity summary without requiring a separate artifact download.
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, experimentArtifactName string, hasDetection bool, pinAction func(string) string) []string {
 	steps := buildUsageArtifactInputDownloadSteps(prefix, hasEvals, experimentArtifactName, pinAction)
-	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, pinAction)...)
+	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, pinAction)...)
 }
 
-func buildUsageArtifactPublishSteps(prefix string, hasDetection bool, pinAction func(string) string) []string {
+func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	steps := buildUsageArtifactCollectionStep(hasDetection)
-	steps = append(steps, buildUsageActivityGenerationStep(pinAction)...)
+	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, pinAction)...)
 	usageArtifactUploadAction := pinAction("actions/upload-artifact")
 	usageArtifactUploadWithLines := []string{
 		"        with:\n",
@@ -374,25 +374,32 @@ func buildUsageArtifactCollectionStep(hasDetection bool) []string {
 	return collectionStep
 }
 
-func buildUsageActivityGenerationStep(pinAction func(string) string) []string {
-	return []string{
+func buildUsageActivityGenerationStep(hasDailyAICGuardrail bool, pinAction func(string) string) []string {
+	steps := []string{
 		"      - name: Generate usage activity summary and unified session\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
-		"        env:\n",
-		"          GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}\n",
-		"          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}\n",
-		"          GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}\n",
-		"          GH_AW_DAILY_AI_CREDITS_ESTIMATED: ${{ needs.activation.outputs.daily_ai_credits_estimated }}\n",
-		"          GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}\n",
+	}
+	if hasDailyAICGuardrail {
+		steps = append(steps,
+			"        env:\n",
+			"          GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}\n",
+			"          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}\n",
+			"          GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}\n",
+			"          GH_AW_DAILY_AI_CREDITS_ESTIMATED: ${{ needs.activation.outputs.daily_ai_credits_estimated }}\n",
+			"          GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}\n",
+		)
+	}
+	steps = append(steps,
 		"        with:\n",
 		"          script: |\n",
 		fmt.Sprintf("            const { setupGlobals } = require('%s/setup_globals.cjs');\n", SetupActionDestination),
 		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
 		fmt.Sprintf("            const { main } = require('%s/generate_usage_artifacts.cjs');\n", SetupActionDestination),
 		"            await main();\n",
-	}
+	)
+	return steps
 }
 
 // isGroupConcurrencyQueueEnabled reports whether compiler-generated concurrency groups

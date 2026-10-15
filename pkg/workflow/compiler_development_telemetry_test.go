@@ -120,6 +120,27 @@ func TestRemoveDryRunTelemetryEnvPreservesUnrelatedYAML(t *testing.T) {
 	require.ErrorContains(t, err, "requires an env mapping")
 }
 
+func TestRemoveDryRunTelemetryEnvOmitsEmptyMappings(t *testing.T) {
+	const source = `name: test
+env:
+  OTEL_SERVICE_NAME: workflow
+jobs:
+  test:
+    steps:
+      - run: echo test
+        env:
+          GH_AW_OTLP_ATTRIBUTES: '{}'
+`
+	content, err := removeDryRunTelemetryEnv(source)
+	require.NoError(t, err)
+	assert.NotContains(t, content, "env:")
+	assert.NotContains(t, content, "OTEL_SERVICE_NAME")
+	assert.NotContains(t, content, "GH_AW_OTLP_ATTRIBUTES")
+	var workflow map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(content), &workflow))
+	assert.NotContains(t, workflow, "env")
+}
+
 func TestRemoveDryRunTelemetryEnvPreservesScalarText(t *testing.T) {
 	for _, value := range []string{"2026-01-01", "2026-01-01T00:00:00Z", "1e3", "0012", "false"} {
 		t.Run(value, func(t *testing.T) {
@@ -324,6 +345,37 @@ jobs:
 			}
 		})
 	}
+}
+
+func TestDryRunTelemetryAndDailyCreditsDiagnostic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "diagnostic.md")
+	const source = `---
+on: workflow_dispatch
+strict: false
+permissions:
+  contents: read
+engine: copilot
+max-daily-ai-credits: 25
+safe-outputs:
+  report-failure-as-issue: true
+env:
+  OTEL_SERVICE_NAME: diagnostic
+---
+Test dry-run compiler diagnostics.
+`
+	require.NoError(t, os.WriteFile(path, []byte(source), 0600))
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+	compiler.SetApprove(true)
+	compiler.SetDryRun(true)
+	require.NoError(t, compiler.CompileWorkflow(path))
+	content, err := os.ReadFile(filepath.Join(dir, "diagnostic.lock.yml"))
+	require.NoError(t, err)
+	compiled := string(content)
+	assert.NotContains(t, compiled, "env: {}")
+	assert.NotContains(t, compiled, "OTEL_SERVICE_NAME")
+	assert.NotContains(t, compiled, "needs.activation.outputs.daily_ai_credits_")
 }
 
 func assertDryRunEngineDate(t *testing.T, content []byte) {
