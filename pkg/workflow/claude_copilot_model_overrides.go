@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // claudeSettingsEnvVar carries Claude Code --settings JSON to claude_harness.cjs.
@@ -76,6 +78,36 @@ func claudeArgsHaveSettings(args []string) bool {
 		}
 	}
 	return false
+}
+
+// claudeArgsSettingsValue returns the last --settings value in args, in either the
+// "--settings <value>" or "--settings=<value>" form.
+func claudeArgsSettingsValue(args []string) (string, bool) {
+	value, found := "", false
+	for i, arg := range args {
+		if arg == "--settings" && i+1 < len(args) {
+			value, found = args[i+1], true
+		} else if after, ok := strings.CutPrefix(arg, "--settings="); ok {
+			value, found = after, true
+		}
+	}
+	return value, found
+}
+
+// claudeDetectionSettings returns the --settings value for claude_harness.cjs in a
+// Claude-on-Copilot detection run: the modelOverrides map, or the workflow's own
+// --settings from engine.args on the external detector path, where threat-detect
+// builds its own Claude Code arguments and does not receive engine.args.
+func claudeDetectionSettings(workflowData *WorkflowData) string {
+	if shouldApplyClaudeCopilotModelOverrides(workflowData) {
+		return claudeCopilotModelOverridesSettings()
+	}
+	if !claudeUsesCopilotInference(workflowData) || workflowData.EngineConfig == nil ||
+		!isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData) {
+		return ""
+	}
+	settings, _ := claudeArgsSettingsValue(workflowData.EngineConfig.Args)
+	return settings
 }
 
 // claudeUsesCopilotInference reports whether Claude Code runs on GitHub Copilot inference.

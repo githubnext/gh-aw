@@ -491,10 +491,10 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 		// The external threat-detection path (threat-detect --engine claude) has no
 		// harness retry wrapper, so we leave CLI retries at their default there.
 		env["CLAUDE_CODE_MAX_RETRIES"] = "0"
-	} else if shouldApplyClaudeCopilotModelOverrides(workflowData) {
+	} else if settings := claudeDetectionSettings(workflowData); settings != "" {
 		// The external threat-detect binary builds its own Claude Code arguments, so
 		// claude_harness.cjs adds --settings from this variable when none is present.
-		env[claudeSettingsEnvVar] = claudeCopilotModelOverridesSettings()
+		env[claudeSettingsEnvVar] = settings
 	}
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()

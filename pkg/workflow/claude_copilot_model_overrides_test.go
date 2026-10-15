@@ -142,3 +142,41 @@ func TestClaudeCopilotThreatDetectionModelOverrides(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(detection, claudeModelOverridesShellArg()))
 	})
 }
+
+func TestClaudeCopilotThreatDetectionSettingsArgs(t *testing.T) {
+	const mainEngine = "engine:\n  id: claude\n  model-provider: github\nmodel: claude-haiku-4.5\n"
+	for name, args := range map[string]string{
+		"separate value": `["--settings", "/tmp/custom-settings.json"]`,
+		"equals form":    `["--settings=/tmp/custom-settings.json"]`,
+	} {
+		detection := "safe-outputs:\n  noop:\n  threat-detection:\n    engine:\n      id: claude\n      model-provider: github\n      args: " + args + "\n    model: claude-haiku-4.5\n"
+
+		t.Run("external claude detector "+name, func(t *testing.T) {
+			lock, _ := compileClaudeOverridesWorkflow(t, mainEngine+detection)
+			detectionJob := extractJobSection(lock, "detection")
+			require.NotEmpty(t, detectionJob)
+			assert.Contains(t, detectionJob, "threat-detect --engine claude")
+			assert.Contains(t, detectionJob, claudeSettingsEnvVar+": /tmp/custom-settings.json")
+			assert.NotContains(t, detectionJob, "modelOverrides")
+		})
+
+		t.Run("inline claude detector "+name, func(t *testing.T) {
+			lock, _ := compileClaudeOverridesWorkflow(t, mainEngine+"features:\n  gh-aw-detection: false\n"+detection)
+			detectionJob := extractJobSection(lock, "detection")
+			require.NotEmpty(t, detectionJob)
+			assert.NotContains(t, detectionJob, "threat-detect --engine")
+			assert.Contains(t, detectionJob, "/tmp/custom-settings.json")
+			assert.NotContains(t, detectionJob, claudeSettingsEnvVar)
+			assert.NotContains(t, detectionJob, "modelOverrides")
+		})
+	}
+}
+
+func TestClaudeCopilotThreatDetectionSettingsWarningInheritsModel(t *testing.T) {
+	lock, stderr := compileClaudeOverridesWorkflow(t, "engine:\n  id: claude\nmodel: copilot/claude-haiku-4.5\nsafe-outputs:\n  noop:\n  threat-detection:\n    engine:\n      id: claude\n      args: [\"--settings\", \"/tmp/custom-settings.json\"]\n")
+	assert.Contains(t, stderr, "safe-outputs.threat-detection.engine.args passes --settings, so the Copilot model-id map (modelOverrides) for Claude Code was not added")
+	assert.NotContains(t, stderr, "warning: engine.args passes --settings")
+	detectionJob := extractJobSection(lock, "detection")
+	require.NotEmpty(t, detectionJob)
+	assert.Contains(t, detectionJob, claudeSettingsEnvVar+": /tmp/custom-settings.json")
+}

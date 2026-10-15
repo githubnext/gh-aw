@@ -91,12 +91,22 @@ func (c *Compiler) warnClaudeCopilotSettingsOverride(data *WorkflowData, markdow
 	if ResolveEngineID(data) == string(constants.ClaudeEngine) {
 		c.warnClaudeCopilotSettingsArgs("engine.args", data, markdownPath)
 	}
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		threatDetection := data.SafeOutputs.ThreatDetection
-		if td := threatDetection.EngineConfig; td != nil && td.ID == string(constants.ClaudeEngine) {
-			c.warnClaudeCopilotSettingsArgs("safe-outputs.threat-detection.engine.args", &WorkflowData{EngineConfig: td, Model: threatDetection.Model}, markdownPath)
-		}
+}
+
+// warnClaudeCopilotDetectionSettingsOverride is the safe-outputs.threat-detection.engine
+// counterpart of warnClaudeCopilotSettingsOverride. It runs once safe-outputs are parsed
+// and resolves the detection model as the detection job does, so an inherited copilot/
+// model selects Copilot inference for the detection engine too.
+func (c *Compiler) warnClaudeCopilotDetectionSettingsOverride(data *WorkflowData, markdownPath string) {
+	if data == nil || !IsDetectionJobEnabled(data.SafeOutputs) {
+		return
 	}
+	td := data.SafeOutputs.ThreatDetection.EngineConfig
+	if td == nil || td.ID != string(constants.ClaudeEngine) {
+		return
+	}
+	detectionData := &WorkflowData{EngineConfig: td, Model: resolveThreatDetectionModel(data, td.ID, NewClaudeEngine())}
+	c.warnClaudeCopilotSettingsArgs("safe-outputs.threat-detection.engine.args", detectionData, markdownPath)
 }
 
 func (c *Compiler) warnClaudeCopilotSettingsArgs(field string, data *WorkflowData, markdownPath string) {
