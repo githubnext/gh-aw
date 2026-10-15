@@ -39,7 +39,10 @@
           "allOf": [{ "$ref": "#/$defs/identity" }, { "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }]
         },
         "kind": { "enum": ["issue", "pull_request"] },
-        "host": { "const": "github.com" },
+        "host": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$"
+        },
         "repository_id": { "$ref": "#/$defs/decimal" },
         "resource_id": { "$ref": "#/$defs/decimal" },
         "number": { "$ref": "#/$defs/decimal" },
@@ -50,7 +53,7 @@
       },
       "required": ["repository"],
       "additionalProperties": false,
-      "$comment": "Every supplied field is an exact conjunction, not a wildcard or prefix. Runtime rejects absolute, backslash, empty-segment and dot-segment paths. Targets use this same closed shape. Native run targets must match the original bound worker. Typed existing targets additionally intersect the complete immutable Work.subject."
+      "$comment": "Every supplied field is an exact conjunction, not a wildcard or prefix. Runtime requires host to match GITHUB_SERVER_URL, rejects absolute, backslash, empty-segment and dot-segment paths, and binds native run targets to the original worker. Typed targets also intersect the complete immutable Work.subject."
     }
   }
 }

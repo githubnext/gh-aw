@@ -35,8 +35,7 @@ Scheduling overrides live in the shared `.github/workflows/aw.json` `work_queue`
 section; AW supplies authorization and immutable worker routes.
 The compiler embeds the resolved Policy proposal. The first trusted
 producer submit installs that Policy with its Work and creates the queue branch;
-no administrator needs to seed the queue. An authorized producer explicitly
-admits Work with its output contract. The
+no administrator seeding is needed. The
 supplied workflows do **not** automatically create a miner-to-refiner-to-monster
 DAG, and creating a refinement issue does not submit another Work.
 
@@ -50,29 +49,24 @@ payloads; they do not admit another copy. A new UTC day admits a new cohort.
 Older eligible work can still run before the new cohort.
 
 AW authorizes the dispatcher; the queue validates pool `default`, priority `3`,
-and empty accounting key (`""`) against installed scheduling. Installing Policy
-does not itself admit any Work. Workers still require authenticated assignments;
-they do not seed tasks. The separate `daily-report-dispatcher` uses the
+and empty accounting key (`""`) against installed scheduling. Workers require
+authenticated assignments and do not seed tasks. The separate `daily-report-dispatcher` uses the
 `daily-reports` pool and is not this factory's producer.
 
 ### Bootstrap the factory policy
 
 Activation reports a missing queue branch as `queue_state: "uninitialized"`
-without writing to it. The dispatcher can continue as a producer: its first
+without writing to it. The dispatcher continues as a producer: its first
 `work_queue_submit` safe output atomically creates the branch with the compiled
-Policy and admitted Work. A dispatch-only request cannot bootstrap the queue.
-No administrator seed is required. Do not substitute an ordinary workflow
-dispatch for a queue assignment.
+Policy and admitted Work. A dispatch-only request cannot bootstrap the queue,
+and an ordinary workflow dispatch is not a queue assignment.
 
 The shared `aw.json` sets concurrency three and a 30-pending-task limit, with
 three attempts and 30-second backoff. Workers use singleton assignments.
-No producer IDs, worker principals, trust domains or credential scopes are
-authored in queue configuration. The first accepted submission publishes
-Policy and Work together. Standalone administrator seeding is unsupported.
-Follow the
-[deployment guide](/gh-aw/guides/deploy-work-queue/) for first-use bootstrap.
-GitHub enforces repository rules without queue-specific setup. Later Policy
-updates require an existing, drained queue. If it already serves other pools, retain their
+Queue configuration authors no producer IDs, worker principals, trust domains,
+or credential scopes, and standalone administrator seeding is unsupported.
+Follow the [deployment guide](/gh-aw/guides/deploy-work-queue/) for first-use
+bootstrap. Later Policy updates require an existing, drained queue. If it already serves other pools, retain their
 configuration rather than replacing it with this single-pool template.
 
 Prepared payloads freeze the repository's verified numeric identity and
@@ -114,13 +108,12 @@ compiler Policy, invalid scheduling settings, or a denied Git read still block
 publication. Do not bypass GitHub access denials.
 
 Hosted activation can fail at **Snapshot work queue state**, before the agent
-starts. Diagnose that boundary separately from the agent's queue tools.
+starts; diagnose that separately from the agent's queue tools.
 Installation-token repository metadata can report `permissions.pull: false`
 despite usable contents access; actual Git reads establish visibility, not
-collaborator flags. A denied Git read is not an empty queue. Even with readable
-refs, first-submit bootstrap requires the compiler's validated Policy proposal.
-The snapshot alone does not bootstrap the branch; trusted safe-output processing
-does so only when it accepts a producer submission.
+collaborator flags. A denied Git read is not an empty queue. Bootstrap requires
+the compiler's validated Policy proposal and happens only when trusted
+safe-output processing accepts a producer submission, not from the snapshot.
 
 Inspect an existing dispatcher run without launching another:
 
@@ -129,9 +122,8 @@ Inspect an existing dispatcher run without launching another:
 ```
 
 `--no-baseline` avoids downloading comparison runs. A successful Actions conclusion
-or `noop` does not establish that any Work was admitted or any worker launched.
-Check the snapshot, queue intents, and authoritative ledger, not just the audit's
-overall success recommendation.
+or `noop` does not establish that any Work was admitted or any worker launched;
+check the snapshot, queue intents, and authoritative ledger.
 
 If trusted control processing times out before launching every worker, inspect
 the time between `Work queue: validated ... causal commits` messages. Repeated

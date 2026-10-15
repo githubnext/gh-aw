@@ -56,6 +56,7 @@ const {
   assertClaimIdentity,
   receiptMatchesClaim,
 } = require("./work_queue_claim_scope.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 const privateDeliveryReceipts = new WeakMap();
 
 /**
@@ -717,7 +718,7 @@ async function main(config = {}) {
           const { data: nativeRepository } = await github.rest.repos.get({ owner, repo });
           if (nativeRepository.full_name !== repository || !/^[1-9][0-9]*$/.test(String(nativeRepository.id)))
             throw new Error(`${ERR_VALIDATION}: Artifact upload repository identity differs from its native target; scoped effects remain blocked`);
-          await assertClaimAuthorized({ ...message, repo: repository }, { effect: true, resource: { repository, host: "github.com", repository_id: String(nativeRepository.id), run_id: process.env.GITHUB_RUN_ID } });
+          await assertClaimAuthorized({ ...message, repo: repository }, { effect: true, resource: { repository, host: expectedGitHubHost(), repository_id: String(nativeRepository.id), run_id: process.env.GITHUB_RUN_ID } });
         }
         const effect = recordClaimEffect({ kind: "artifact", repository, outcome: "unknown" });
         const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, stagingDirectory(), uploadOpts);

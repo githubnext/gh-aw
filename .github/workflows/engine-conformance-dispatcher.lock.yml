@@ -805,7 +805,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_bda54f4e4d91b04f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_22a6a0d29c3d3695_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -876,6 +876,7 @@ jobs:
                 "mounts": ["${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro", "${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:rw"],
                 "env": {
                   "RUNNER_TEMP": "\${RUNNER_TEMP}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
                   "GH_AW_WORK_QUEUE_ROLE": "dispatcher"
                 },
                 "entrypoint": "node",
@@ -895,7 +896,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_bda54f4e4d91b04f_EOF
+          GH_AW_MCP_CONFIG_22a6a0d29c3d3695_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
