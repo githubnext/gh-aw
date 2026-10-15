@@ -9,6 +9,26 @@ const { bind, evidence, finish, genesis, grant, operationCommit, reconciler, sub
 
 function registerTests({ describe, it }) {
   describe("typed bounded Work/Issue/PR dependency graph", () => {
+    it("requires the configured GitHub server host for Issue and Pull Request resources", () => {
+      const previous = process.env.GITHUB_SERVER_URL;
+      try {
+        for (const server of [undefined, "https://github.com", "https://contoso.ghe.com/"]) {
+          if (server === undefined) delete process.env.GITHUB_SERVER_URL;
+          else process.env.GITHUB_SERVER_URL = server;
+          const host = server?.includes("contoso") ? "contoso.ghe.com" : "github.com";
+          for (const kind of ["issue", "pull_request"]) {
+            const resource = { kind, host, repository: "owner/repo", repository_id: "1", resource_id: "2", number: "3" };
+            assert.equal(validateResource(resource), resource);
+            for (const foreign of ["github.com", "contoso.ghe.com", "other.ghe.com"].filter(value => value !== host)) {
+              assert.throws(() => validateResource({ ...resource, host: foreign }), { code: "resource_unauthorized" });
+            }
+          }
+        }
+      } finally {
+        if (previous === undefined) delete process.env.GITHUB_SERVER_URL;
+        else process.env.GITHUB_SERVER_URL = previous;
+      }
+    });
     it("preserves opaque resource identities and refuses wrong hosts, resource kinds and numeric coercion", () => {
       const resource = { kind: "issue", host: "github.com", repository: "owner/repo", repository_id: "999999999999999999999", resource_id: "999999999999999999998", number: "42" };
       assert.equal(validateResource(resource), resource);

@@ -4,7 +4,9 @@ const assert = require("node:assert/strict");
 const { canonical, parseStrictJSON } = require("./work_queue_codec.cjs");
 const { defaultPolicy } = require("./work_queue_policy.cjs");
 const { compactTransactions, replayTransactions, serializeProjection, validateClaimAuthority } = require("./work_queue_replay.cjs");
-const { frozenResourceScope, validateEffectResource } = require("./work_queue_resource_scope.cjs");
+const { expectedGitHubHost, frozenResourceScope, validateEffectResource } = require("./work_queue_resource_scope.cjs");
+const { resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
+const { issueResource } = require("./work_queue_issue_api.cjs");
 const { bind, context, finish, genesis, grant, submission, workerActor } = require("./work_queue_test_helpers.cjs");
 const fixture = require("../../../specs/work-queue/fixtures/resource-scope.json");
 const { queueFixture, REF, REPOSITORY, WORKFLOW } = require("./work_queue_lifecycle.test_helpers.cjs");
@@ -171,6 +173,42 @@ function scopeError(error) {
 
 function registerTests({ describe, it }) {
   describe("immutable per-Claim Work resource authority", () => {
+    it("binds effect selectors, Work subjects and resolved native targets to the configured server", async () => {
+      const previous = { server: process.env.GITHUB_SERVER_URL, api: process.env.GITHUB_API_URL };
+      try {
+        for (const server of [undefined, "https://github.com", "https://contoso.ghe.com"]) {
+          if (server === undefined) delete process.env.GITHUB_SERVER_URL;
+          else process.env.GITHUB_SERVER_URL = server;
+          const host = server?.includes("contoso") ? "contoso.ghe.com" : "github.com";
+          process.env.GITHUB_API_URL = host === "github.com" ? "https://api.github.com" : "https://api.contoso.ghe.com";
+          assert.equal(expectedGitHubHost(), host);
+          const target = { host, repository: "owner/repo", repository_id: "7", kind: "issue", resource_id: "100", number: "42" };
+          assert.deepEqual(validateEffectResource(target), target);
+          for (const subject of [undefined, target]) {
+            const { state, dispatchId } = completedScope([subject ? {} : { resource_scope: { version: 1, resources: [target] } }], subject);
+            assert.doesNotThrow(() => authorize(state, dispatchId, target));
+            for (const foreign of ["github.com", "contoso.ghe.com", "other.ghe.com"].filter(value => value !== host)) {
+              assert.throws(() => authorize(state, dispatchId, { ...target, host: foreign }), scopeError);
+            }
+          }
+          const github = { rest: { repos: { get: async () => ({ data: { id: 7, full_name: "owner/repo" } }) } } };
+          assert.deepEqual(await resolveRepositoryTarget(github, { repository: "owner/repo" }), { repository: "owner/repo", repository_id: "7", host });
+          assert.deepEqual(await resolveParentResourceTarget(github, { repository: "owner/repo", kind: "issue", number: "42" }, { id: 100, number: 42 }), target);
+          assert.deepEqual(issueResource({ repository: { nameWithOwner: "owner/repo", databaseId: 7 }, databaseId: 100, number: 42 }), target);
+          await assert.rejects(resolveRepositoryTarget(github, { ...target, host: "other.ghe.com" }), scopeError);
+        }
+        process.env.GITHUB_SERVER_URL = "invalid-server-url";
+        assert.throws(
+          () => expectedGitHubHost(),
+          error => error instanceof Error && error.message === "Work queue requires a valid GITHUB_SERVER_URL" && error.cause instanceof TypeError
+        );
+      } finally {
+        if (previous.server === undefined) delete process.env.GITHUB_SERVER_URL;
+        else process.env.GITHUB_SERVER_URL = previous.server;
+        if (previous.api === undefined) delete process.env.GITHUB_API_URL;
+        else process.env.GITHUB_API_URL = previous.api;
+      }
+    });
     assert.equal(fixture.version, 1);
     assert.equal(fixture.cases.length, 47);
     assert.equal(fixture.ancestor_cases.length, 10);
@@ -579,6 +617,88 @@ function registerTests({ describe, it }) {
         const restored = replayTransactions(checkpoint);
         if (widened) assert.throws(() => authorizeCompactedChild(restored), /immutable Work resource_scope|positive immutable Work target binding/);
         else assert.doesNotThrow(() => authorizeCompactedChild(restored));
+      }
+    });
+    it("authorizes and verifies enterprise REST and GraphQL effects against native Work bindings", async () => {
+      const previous = { server: process.env.GITHUB_SERVER_URL, api: process.env.GITHUB_API_URL };
+      try {
+        process.env.GITHUB_SERVER_URL = "https://contoso.ghe.com";
+        process.env.GITHUB_API_URL = "https://api.contoso.ghe.com";
+        const repository = { repository: REPOSITORY, host: "contoso.ghe.com", repository_id: "7" };
+        for (const transport of ["rest", "graphql"])
+          for (const bound of [false, true]) {
+            const type = transport === "rest" ? "create_issue" : "update_issue";
+            const f = productionFixture({
+              effect_contract: { version: 1, outputs: [{ type, min: 0, max: 1 }] },
+              ...(bound ? { resource_scope: { version: 1, resources: [repository] } } : {}),
+            });
+            let writes = 0;
+            let readbacks = 0;
+            const effects = [];
+            const issue = { id: 100, number: 42, title: "Enterprise Work", html_url: `https://contoso.ghe.com/${REPOSITORY}/issues/42` };
+            const source = {
+              rest: {
+                ...f.queue.githubClient.rest,
+                issues: {
+                  create: async _parameters => {
+                    writes++;
+                    return { data: issue };
+                  },
+                  get: async parameters => {
+                    assert.deepEqual(parameters, { owner: "owner", repo: "repo", issue_number: 42 });
+                    readbacks++;
+                    return { data: issue };
+                  },
+                },
+              },
+              graphql: async (query, variables) => {
+                if (query.startsWith("mutation")) {
+                  writes++;
+                  return { updateIssue: { issue: { id: "I42" } } };
+                }
+                assert.deepEqual(variables.ids, ["I42"]);
+                return { nodes: [{ __typename: "Issue", id: "I42", databaseId: 100, number: 42, repository: { nameWithOwner: REPOSITORY, databaseId: 7 } }] };
+              },
+            };
+            await withClaimExecution({ assignment: f.assignment, claim_handle: f.member.handle, authorize: f.authorize, effects }, async () => {
+              const client = wrapClaimEffectClient(source, { claim_handle: f.member.handle });
+              const effect =
+                transport === "rest"
+                  ? client.rest.issues.create({ owner: "owner", repo: "repo", title: "Enterprise Work" })
+                  : client.graphql("mutation($input:UpdateIssueInput!){updateIssue(input:$input){issue{id}}}", { input: { id: "I42", title: "Enterprise Work" } });
+              if (bound) {
+                await effect;
+                closeClaimEffectChannel();
+                const { inspectClaimDelivery, verifyBuiltinDeliveryOutput } = require("./work_queue_delivery.cjs");
+                const message = { type, repo: REPOSITORY, title: issue.title, ...(type === "update_issue" ? { item_number: issue.number } : {}) };
+                const result = { repo: REPOSITORY, number: issue.number };
+                const proof = await verifyBuiltinDeliveryOutput({ claim: f.member, message, result, github: client, effects });
+                assert.equal(proof.verified, true);
+                assert.equal(proof.authority_resource.host, repository.host);
+                await withClaimResourceVerification(proof, () => assertClaimAuthorized({ type: "work_queue_resource_verification", claim_handle: f.member.handle }, { resource: proof.authority_resource }));
+                if (transport === "rest") {
+                  const delivery = await inspectClaimDelivery({
+                    assignment: f.assignment,
+                    claim_handle: f.member.handle,
+                    authorize: f.authorize,
+                    github: client,
+                    messages: [message],
+                    results: [{ messageIndex: 0, success: true, result }],
+                    effects,
+                    verifyOutput: () => proof,
+                  });
+                  assert.equal(delivery.verification, "verified", delivery.reason);
+                }
+              } else await assert.rejects(effect, /positive immutable Work target binding/);
+            });
+            assert.equal(writes, bound ? 1 : 0);
+            assert.equal(readbacks, bound ? 1 : 0);
+          }
+      } finally {
+        if (previous.server === undefined) delete process.env.GITHUB_SERVER_URL;
+        else process.env.GITHUB_SERVER_URL = previous.server;
+        if (previous.api === undefined) delete process.env.GITHUB_API_URL;
+        else process.env.GITHUB_API_URL = previous.api;
       }
     });
     it("resolves GraphQL numeric targets independently and rejects missing Work bindings before mutations", async () => {
