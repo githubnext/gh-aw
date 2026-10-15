@@ -30,6 +30,14 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 > [!IMPORTANT]
 > Sync note: This table mirrors artifact-name constants in `pkg/constants/job_constants.go` and `pkg/constants/constants.go`. When those constant values change, update this page and the downstream artifact references in `docs/src/content/docs/reference/audit.md` and `docs/src/content/docs/reference/cost-management.md`.
 
+## Reusable workflow artifact names
+
+Workflows with a `workflow_call` trigger prefix artifact names with an eight-character hash followed by `-`, for example `a1b2c3d4-activation`. The hash uses the workflow inputs and run attempt. Each consuming job computes the same prefix locally, including custom safe-output jobs and dedicated SARIF and coverage upload jobs. Built-in artifact downloads do not depend on cross-job prefix outputs, which GitHub Actions can suppress when a value matches a registered secret.
+
+Different invocations in the same run must have different inputs to avoid artifact-name collisions. Identical inputs on the same attempt produce the same prefix. Workflows without a `workflow_call` trigger retain unprefixed names.
+
+Reusable workflows also resolve host repository metadata within each job that needs it for checkouts, GitHub App tokens, or workflow dispatch. Non-inlined imports use `job.workflow_repository`; inlined imports use the caller repository. Missing or malformed required repository metadata fails explicitly rather than redirecting operations to another repository.
+
 ## Legacy artifact names
 
 :::caution[Deprecated]

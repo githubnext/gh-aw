@@ -925,7 +925,7 @@ func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowDa
 		insertIndex += len(c.generateCheckoutActionsFolder(data))
 		countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		countParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
-		insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
+		insertIndex += len(c.generateSetupStepForJob("safe_outputs", data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID, ""))
 	}
 	if isOTLPHeadersPresent(data) {
 		insertIndex += strings.Count(generateOTLPHeadersMaskStep(), stepNameLinePrefix)
@@ -1012,7 +1012,7 @@ func (c *Compiler) buildSafeOutputsJobNeeds(data *WorkflowData, mainJobName stri
 	// and also when needed for other reasons:
 	// - create_pull_request or push_to_pull_request_branch (need the activation artifact)
 	// - lock-for-agent (need the activation lock)
-	// - workflow_call trigger (need needs.activation.outputs.target_repo for cross-repo token/dispatch)
+	// - workflow_call trigger (activation artifacts and lifecycle ordering)
 	needs = append(needs, string(constants.ActivationJobName))
 	// Add unlock job dependency if lock-for-agent is enabled
 	// This ensures the issue is unlocked before safe outputs run

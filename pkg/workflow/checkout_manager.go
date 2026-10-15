@@ -180,8 +180,7 @@ type CheckoutManager struct {
 	// crossRepoTargetRepo holds the platform (host) repository to use when performing
 	// .github/.agents sparse checkout steps for cross-repo workflow_call invocations.
 	//
-	// In the activation job this is set to "${{ steps.resolve-host-repo.outputs.target_repo }}".
-	// In the agent and safe_outputs jobs it is set to "${{ needs.activation.outputs.target_repo }}".
+	// Each consuming job uses "${{ steps.resolve-host-repo.outputs.target_repo }}".
 	// An empty string means the checkout targets the current repository (github.repository).
 	crossRepoTargetRepo string
 	// crossRepoTargetRef holds the platform (host) ref (branch/tag/SHA) to use when
@@ -249,8 +248,7 @@ func NewCheckoutManager(userCheckouts []*CheckoutConfig) *CheckoutManager {
 // .github/.agents sparse checkout steps. Call this when the workflow has a workflow_call
 // trigger and the checkout should target the platform repo rather than github.repository.
 //
-// In the activation job pass "${{ steps.resolve-host-repo.outputs.target_repo }}".
-// In downstream jobs (agent, safe_outputs) pass "${{ needs.activation.outputs.target_repo }}".
+// Pass "${{ steps.resolve-host-repo.outputs.target_repo }}" from the consuming job.
 func (cm *CheckoutManager) SetCrossRepoTargetRepo(repo string) {
 	checkoutManagerLog.Printf("Setting cross-repo target repo: %q", repo)
 	cm.crossRepoTargetRepo = repo

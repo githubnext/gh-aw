@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/actions/setup"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -35,8 +36,8 @@ func hasWorkflowCallOrDispatchTrigger(onSection string) bool {
 // names do not clash when the same reusable workflow is called multiple times within a
 // single workflow run (e.g. two jobs in the calling workflow each invoking the same lock.yml).
 //
-// The computation is delegated to actions/setup/sh/compute_artifact_prefix.sh (copied to
-// ${RUNNER_TEMP}/gh-aw/actions/ at runtime by the Setup Scripts step) which:
+// The computation inlines actions/setup/sh/compute_artifact_prefix.sh so jobs without
+// Setup Scripts can compute the same prefix. The script:
 //   - Hashes INPUTS_JSON + GITHUB_RUN_ATTEMPT using sha256, taking the first 8 hex chars.
 //   - Logs what it is hashing so the prefix is traceable in workflow logs.
 //   - Yields a value like "a1b2c3d4-".
@@ -50,13 +51,20 @@ func hasWorkflowCallOrDispatchTrigger(onSection string) bool {
 // Security note: inputs are passed through an environment variable rather than being
 // interpolated directly into the shell script to prevent template injection.
 func generateArtifactPrefixStep() []string {
-	return []string{
+	steps := []string{
 		"      - name: Compute artifact prefix\n",
 		"        id: artifact-prefix\n",
+		"        shell: bash\n",
 		"        env:\n",
 		"          INPUTS_JSON: ${{ toJSON(inputs) }}\n",
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh\"\n",
+		"        run: |\n",
 	}
+	for line := range strings.SplitSeq(setup.ArtifactPrefixScript, "\n") {
+		if strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			steps = append(steps, "          "+line+"\n")
+		}
+	}
+	return steps
 }
 
 // artifactPrefixExprForActivationJob returns the GitHub Actions expression for the artifact
@@ -70,13 +78,13 @@ func artifactPrefixExprForActivationJob(data *WorkflowData) string {
 }
 
 // artifactPrefixExprForDownstreamJob returns the GitHub Actions expression for the artifact
-// prefix used in jobs that depend on the activation job (references an activation job output).
+// prefix computed locally in each consuming job, avoiding masked cross-job outputs.
 // Returns empty string for non-workflow_call workflows.
 func artifactPrefixExprForDownstreamJob(data *WorkflowData) string {
 	if !hasWorkflowCallTrigger(data.On) {
 		return ""
 	}
-	return "${{ needs.activation.outputs.artifact_prefix }}"
+	return artifactPrefixExprForActivationJob(data)
 }
 
 // artifactPrefixExprForAgentDownstreamJob returns the expression for the artifact prefix in
@@ -86,7 +94,7 @@ func artifactPrefixExprForAgentDownstreamJob(data *WorkflowData) string {
 	if !hasWorkflowCallTrigger(data.On) {
 		return ""
 	}
-	return "${{ needs.agent.outputs.artifact_prefix }}"
+	return artifactPrefixExprForActivationJob(data)
 }
 
 // injectWorkflowCallOutputs adds on.workflow_call.outputs declarations for safe-output results

@@ -832,7 +832,7 @@ func TestBuildGitHubScriptStepWorkflowCallArtifactPrefix(t *testing.T) {
 
 	// In workflow_call context, the download must reference needs.agent (not needs.activation)
 	// because buildSafeOutputJob-based jobs depend on agent, not activation.
-	agentPrefix := "${{ needs.agent.outputs.artifact_prefix }}agent"
+	agentPrefix := "${{ steps.artifact-prefix.outputs.prefix }}agent"
 	if !strings.Contains(stepsStr, agentPrefix) {
 		t.Errorf("Expected buildGitHubScriptStep to use %q in workflow_call context, but it was not found.\nGenerated steps:\n%s", agentPrefix, stepsStr)
 	}

@@ -10,8 +10,8 @@ import (
 var githubAppOwnerDerivationLog = logger.New("workflow:github_app_owner_derivation")
 
 const (
-	activationTargetRepoExpr     = "${{ needs.activation.outputs.target_repo || github.repository }}"
-	activationTargetRepoNameExpr = "${{ needs.activation.outputs.target_repo_name || github.event.repository.name }}"
+	activationTargetRepoExpr     = "${{ steps.resolve-host-repo.outputs.target_repo }}"
+	activationTargetRepoNameExpr = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
 )
 
 // inferSingleCheckoutRepositoryForGitHubAppOwner returns the single explicit checkout.repository
@@ -41,7 +41,7 @@ func inferSingleCheckoutRepositoryForGitHubAppOwner(data *WorkflowData) string {
 	}
 
 	if repository == "" && hasWorkflowCallTrigger(data.On) {
-		githubAppOwnerDerivationLog.Print("No explicit checkout.repository found for workflow_call; using needs.activation.outputs.target_repo as owner source")
+		githubAppOwnerDerivationLog.Print("No explicit checkout.repository found for workflow_call; using locally resolved target repository as owner source")
 		return activationTargetRepoExpr
 	}
 

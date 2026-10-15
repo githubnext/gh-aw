@@ -426,7 +426,7 @@ func TestCreatePullRequestProtectedFilesPolicyDefault(t *testing.T) {
 
 // TestDispatchWorkflowRelayInjectsDispatchCompatibleRef verifies that when a workflow_call
 // trigger is present and dispatch_workflow safe-outputs are configured, the compiler injects
-// needs.activation.outputs.target_ref (the dispatch-compatible branch/tag ref) — not
+// steps.resolve-host-repo.outputs.target_ref (the dispatch-compatible branch/tag ref) — not
 // needs.activation.outputs.target_checkout_ref (the SHA) — as the target-ref for dispatch.
 // Sending a SHA to createWorkflowDispatch causes "No ref found for: <sha>" errors.
 func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
@@ -456,8 +456,8 @@ func TestDispatchWorkflowRelayInjectsDispatchCompatibleRef(t *testing.T) {
 	stepsContent := strings.Join(steps, "\n")
 
 	// target_ref (dispatch-compatible branch/tag) must be injected
-	assert.Contains(t, stepsContent, "needs.activation.outputs.target_ref",
-		"dispatch target-ref must use needs.activation.outputs.target_ref (branch/tag ref)")
+	assert.Contains(t, stepsContent, "steps.resolve-host-repo.outputs.target_ref",
+		"dispatch target-ref must use steps.resolve-host-repo.outputs.target_ref (branch/tag ref)")
 
 	// target_checkout_ref (SHA) must NOT be used as the dispatch ref
 	assert.NotContains(t, stepsContent, "target_checkout_ref",

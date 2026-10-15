@@ -71,6 +71,10 @@ async function main() {
   const targetRepoName = targetRepo.split("/").pop() || "";
   const currentRepo = process.env.GITHUB_REPOSITORY || "";
 
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(targetRepo)) {
+    throw new Error("Cannot resolve target repository: JOB_WORKFLOW_REPOSITORY must contain owner/repo. Refusing to fall back to the caller repository.");
+  }
+
   core.info("Resolving host repo via job.workflow_* context");
   core.info(`job.workflow_repository = ${targetRepo}`);
   core.info(`job.workflow_sha        = ${targetCheckoutRef}`);

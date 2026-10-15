@@ -112,6 +112,9 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	uploadSteps := c.buildCodeScanningUploadSteps(data, restoreToken)
 	steps := make([]string, 0, typeutil.SafeAllocationCapacity(len(tokenMintSteps), len(uploadSteps)))
 	steps = append(steps, tokenMintSteps...)
+	if hasWorkflowCallTrigger(data.On) {
+		steps = append(steps, generateArtifactPrefixStep()...)
+	}
 	steps = append(steps, uploadSteps...)
 
 	// The job only runs when the safe_outputs job exported a non-empty SARIF file path.

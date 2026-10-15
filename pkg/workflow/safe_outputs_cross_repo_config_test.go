@@ -664,7 +664,7 @@ func TestWorkflowCallDispatchRepoFallsBackWhenActivationOutputMissing(t *testing
 	var steps []string
 	compiler.addHandlerManagerConfigEnvVar(&steps, data)
 	config := extractHandlerConfig(t, strings.Join(steps, ""))
-	assert.Equal(t, "${{ needs.activation.outputs.target_repo || github.repository }}",
+	assert.Equal(t, "${{ steps.resolve-host-repo.outputs.target_repo }}",
 		config["dispatch_workflow"]["target-repo"])
 }
 

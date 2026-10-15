@@ -58,6 +58,10 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		safeOutputsJobsLog.Printf("Adding %d pre-steps to job", len(config.PreSteps))
 		steps = append(steps, config.PreSteps...)
 	}
+	if hasWorkflowCallTrigger(data.On) {
+		steps = append(steps, generateArtifactPrefixStep()...)
+		steps = append(steps, c.generateResolveHostRepoStep(data))
+	}
 
 	// Add GitHub App token minting step if app is configured.
 	// This must run after setup/pre-steps so dynamic credentials can be prepared first.

@@ -162,6 +162,10 @@ func (c *Compiler) buildUploadCodeCoverageSteps(data *WorkflowData, permissions 
 
 	var steps []string
 
+	if hasWorkflowCallTrigger(data.On) {
+		steps = append(steps, generateArtifactPrefixStep()...)
+	}
+
 	// Download the coverage staging artifact produced by the agent job.
 	const downloadStepID = "download_upload_code_coverage_staging"
 	continueOnDownloadError := false

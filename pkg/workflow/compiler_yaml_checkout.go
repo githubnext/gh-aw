@@ -51,12 +51,11 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
-	// Propagate the platform (host) repo resolved by the activation job so that
+	// Use the platform (host) repo resolved locally so that
 	// checkout steps in this job and in safe_outputs can use the correct repository
 	// for .github/.agents sparse checkouts when called cross-repo.
-	// The activation job exposes this as needs.activation.outputs.target_repo.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		checkoutMgr.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
+		checkoutMgr.SetCrossRepoTargetRepo(activationTargetRepoExpr)
 	}
 
 	c.generateAppTokenAndDefaultCheckoutSteps(yaml, data, checkoutMgr, needsCheckout)

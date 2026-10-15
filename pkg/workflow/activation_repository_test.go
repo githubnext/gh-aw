@@ -3,51 +3,33 @@
 package workflow
 
 import (
-	"context"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestActivationRepositoryFallbackResolution(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("Node.js is required for repository expression resolution tests")
+func TestWorkflowCallRepositoryResolutionIsJobLocal(t *testing.T) {
+	compiler := NewCompiler()
+	for _, inlined := range []bool{false, true} {
+		data := &WorkflowData{On: "workflow_call", InlinedImports: inlined}
+		steps := strings.Join(compiler.generateSetupStepForJob("safe_outputs", data, "./actions/setup", SetupActionDestination, false, "", "", ""), "")
+		assert.Contains(t, steps, "id: resolve-host-repo")
+		if inlined {
+			assert.Contains(t, steps, "JOB_WORKFLOW_REPOSITORY: ${{ github.repository }}")
+			assert.Contains(t, steps, "JOB_WORKFLOW_SHA: ${{ github.sha }}")
+			assert.Contains(t, steps, "JOB_WORKFLOW_REF: ${{ github.workflow_ref }}")
+		} else {
+			assert.Contains(t, steps, "JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}")
+			assert.Contains(t, steps, "JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}")
+			assert.Contains(t, steps, "JOB_WORKFLOW_REF: ${{ job.workflow_ref }}")
+		}
+		assert.Equal(t, "${{ steps.resolve-host-repo.outputs.target_repo }}", activationTargetRepoExpr)
+		assert.Equal(t, "${{ steps.resolve-host-repo.outputs.target_repo_name }}", activationTargetRepoNameExpr)
+		assert.NotContains(t, steps, "needs.activation.outputs.target_repo")
 	}
-	jsDir, err := filepath.Abs("../../actions/setup/js")
-	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, node, "-e", `
-const assert = require("node:assert/strict");
-global.context = {
-  repo: { owner: "caller-org", repo: "caller-repo" },
-  payload: { repository: { name: "caller-repo" } }
-};
-const { evaluateExpression } = require("./runtime_import.cjs");
-const [repository, name] = process.argv.slice(1).map(
-  expression => expression.slice(3, -2).trim()
-);
-delete process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO;
-delete process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO_NAME;
-assert.equal(evaluateExpression(repository), "caller-org/caller-repo");
-assert.equal(evaluateExpression(name), "caller-repo");
-process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO = "host-org/host-repo";
-process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO_NAME = "host-repo";
-assert.equal(evaluateExpression(repository), "host-org/host-repo");
-assert.equal(evaluateExpression(name), "host-repo");
-`, activationTargetRepoExpr, activationTargetRepoNameExpr)
-	cmd.Dir = jsDir
-	cmd.Env = os.Environ()
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "%s", output)
 }
 
 func TestMainCheckoutUsesExportedHostRepository(t *testing.T) {
@@ -75,7 +57,7 @@ func TestMainCheckoutUsesExportedHostRepository(t *testing.T) {
 			require.Equal(t, "${{ steps.resolve-host-repo.outputs.target_repo }}", activation.Outputs["target_repo"])
 			assert.Contains(t, strings.Join(activation.Steps, ""), "JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}")
 			checkout := strings.Join(manager.GenerateGitHubFolderCheckoutStep(manager.GetCrossRepoTargetRepo(), "", "", compiler.getActionPin), "")
-			assert.Contains(t, checkout, "repository: ${{ needs.activation.outputs.target_repo }}")
+			assert.Contains(t, checkout, "repository: ${{ steps.resolve-host-repo.outputs.target_repo }}")
 			assert.NotContains(t, checkout, "|| github.repository")
 			assert.Contains(t, checkout, "persist-credentials: false")
 		})

@@ -223,6 +223,10 @@ func (c *Compiler) generateSetupStepForJob(jobName string, data *WorkflowData, s
 	if data != nil && strings.Contains(strings.Join(steps, ""), "id: "+otlpOIDCMintStepID+"\n") {
 		c.recordGeneratedWildcardAppTokenStep(jobName, getOTLPGitHubAppTokenConfig(data.RawFrontmatter), otlpOIDCMintStepID)
 	}
+	if data != nil && hasWorkflowCallTrigger(data.On) && jobName != "activation" {
+		steps = append(steps, generateArtifactPrefixStep()...)
+		steps = append(steps, c.generateResolveHostRepoStep(data))
+	}
 	return steps
 }
 

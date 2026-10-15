@@ -1436,7 +1436,7 @@ func TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "")
 
 	// Must use the repo-name-only output, NOT the full slug
-	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name || github.event.repository.name }}",
+	assert.Contains(t, stepsContent, "repositories: ${{ steps.resolve-host-repo.outputs.target_repo_name }}",
 		"GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
 	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
 		"GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
@@ -1472,7 +1472,7 @@ func TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *tes
 	stepsContent := strings.Join(job.Steps, "")
 
 	// Must use the repo-name-only output, NOT the full slug
-	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name || github.event.repository.name }}",
+	assert.Contains(t, stepsContent, "repositories: ${{ steps.resolve-host-repo.outputs.target_repo_name }}",
 		"Conclusion job GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
 	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
 		"Conclusion job GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
@@ -1768,7 +1768,7 @@ func TestCreateCodeScanningAlertUploadJobWorkflowCallDependsOnActivation(t *test
 		string(constants.ActivationJobName),
 		string(constants.SafeOutputsJobName),
 	}, uploadJob.Needs)
-	assert.Contains(t, strings.Join(uploadJob.Steps, ""), "${{ needs.activation.outputs.artifact_prefix }}")
+	assert.Contains(t, strings.Join(uploadJob.Steps, ""), "${{ steps.artifact-prefix.outputs.prefix }}")
 }
 
 // TestBuildSafeOutputItemsManifestUploadStep verifies that the upload step includes

@@ -180,4 +180,30 @@ describe("resolve_host_repo main", () => {
     expect(outputs["target_repo"]).toBe("my-org/my-platform");
     expect(outputs["target_repo_name"]).toBe("my-platform");
   });
+
+  it.each(["", "missing-owner", "org/repo/extra", "org/repo\ninjected=value"])("rejects missing or malformed host metadata without selecting the caller (%j)", async repository => {
+    process.env.JOB_WORKFLOW_REPOSITORY = repository;
+    process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+
+    await expect(main()).rejects.toThrow("Refusing to fall back to the caller repository");
+    expect(outputs).toEqual({});
+  });
+
+  it("resolves the host locally even when activation job outputs are masked", async () => {
+    vi.stubEnv("GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO", "");
+    vi.stubEnv("GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REPO_NAME", "");
+    vi.stubEnv("GH_AW_NEEDS_ACTIVATION_OUTPUTS_TARGET_REF", "");
+    process.env.JOB_WORKFLOW_REPOSITORY = "host-org/platform";
+    process.env.JOB_WORKFLOW_REF = "host-org/platform/.github/workflows/relay.yml@refs/heads/main";
+    process.env.GITHUB_REPOSITORY = "caller-org/project";
+
+    try {
+      await main();
+      expect(outputs["target_repo"]).toBe("host-org/platform");
+      expect(outputs["target_repo_name"]).toBe("platform");
+      expect(outputs["target_ref"]).toBe("refs/heads/main");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

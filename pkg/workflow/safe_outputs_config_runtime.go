@@ -55,7 +55,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
 		}
 		if safeOutputs.DispatchWorkflow.TargetRef == "" {
-			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
+			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ steps.resolve-host-repo.outputs.target_ref }}")
 			safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
 		}
 	}

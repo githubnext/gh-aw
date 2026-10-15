@@ -363,9 +363,15 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	step.WriteString("        id: resolve-host-repo\n")
 	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	step.WriteString("        env:\n")
-	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
-	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")
-	step.WriteString("          JOB_WORKFLOW_REF: ${{ job.workflow_ref }}\n")
+	if data != nil && data.InlinedImports {
+		step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ github.repository }}\n")
+		step.WriteString("          JOB_WORKFLOW_SHA: ${{ github.sha }}\n")
+		step.WriteString("          JOB_WORKFLOW_REF: ${{ github.workflow_ref }}\n")
+	} else {
+		step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
+		step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")
+		step.WriteString("          JOB_WORKFLOW_REF: ${{ job.workflow_ref }}\n")
+	}
 	step.WriteString("          JOB_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}\n")
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")

@@ -91,7 +91,7 @@ func TestConclusionWorkQueueSummaryArtifactPrefix(t *testing.T) {
 		artifactName string
 	}{
 		{trigger: "workflow_dispatch", artifactName: "activation"},
-		{trigger: "workflow_call", artifactName: "${{ needs.activation.outputs.artifact_prefix }}activation"},
+		{trigger: "workflow_call", artifactName: "${{ steps.artifact-prefix.outputs.prefix }}activation"},
 	} {
 		t.Run(tc.trigger, func(t *testing.T) {
 			data := &WorkflowData{
@@ -105,7 +105,7 @@ func TestConclusionWorkQueueSummaryArtifactPrefix(t *testing.T) {
 			require.Contains(t, job.Needs, "activation")
 			steps := strings.Join(job.Steps, "")
 			require.Contains(t, steps, "          name: "+tc.artifactName+"\n")
-			require.NotContains(t, steps, "steps.artifact-prefix.outputs.prefix")
+			require.NotContains(t, steps, "needs.activation.outputs.artifact_prefix")
 		})
 	}
 }
