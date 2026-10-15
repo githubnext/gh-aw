@@ -54,7 +54,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, activationTargetRepoExpr)
 			safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
 		}
-		if safeOutputs.DispatchWorkflow.TargetRef == "" {
+		// Inlined imports run against the caller checkout. Keep PR-aware dispatch
+		// resolution instead of overriding it with a merge ref or default branch.
+		if !data.InlinedImports && safeOutputs.DispatchWorkflow.TargetRef == "" {
 			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ steps.resolve-host-repo.outputs.target_ref }}")
 			safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
 		}

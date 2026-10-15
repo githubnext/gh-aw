@@ -44,6 +44,22 @@ gh aw compile --ghes my-workflow.md
 > [!NOTE]
 > The `--ghes` flag only affects the current compilation. Use `aw.json` to apply GHES compatibility permanently across all workflows in the repository.
 
+### Reusable-workflow repository identity
+
+GHES does not expose the `job.workflow_*` context properties. Non-inlined reusable workflows instead resolve their host repository and exact checkout revision from the runner's OIDC `job_workflow_ref` and `job_workflow_sha` claims. This requires a GHES release supporting both claims and `id-token: write` in the agentic workflow:
+
+```aw
+permissions:
+  contents: read
+  id-token: write
+```
+
+The compiler forwards this explicit permission to each job that resolves the host repository, including pre-activation and conclusion jobs. The calling workflow must also grant `id-token: write`; reusable workflows cannot elevate the caller's permissions. An explicit job-level denial remains effective.
+
+If the runner cannot provide both reusable-workflow claims, resolution fails closed rather than substituting the caller's repository, workflow ref, or checkout. Inlined imports use the caller checkout and do not require this identity fallback. Their omitted dispatch ref retains PR-head resolution for `pull_request` and PR `issue_comment` events.
+
+Host identity resolution does not enable unsupported cross-repository artifact publication or prove end-to-end GHES runtime compatibility. Artifact-backend and publication limitations still apply.
+
 ## GitHub Enterprise Server CLI Setup
 
 For `gh` CLI configuration, host authentication, and `GH_HOST` setup on GHES, see [GitHub Enterprise Server Support](/gh-aw/setup/cli/#github-enterprise-server-support) in the CLI reference.

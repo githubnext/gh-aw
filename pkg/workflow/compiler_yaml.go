@@ -37,6 +37,9 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	if err := c.applyEnvironmentOverride(); err != nil {
 		return err
 	}
+	if err := c.bindArtifactProducerAttempts(data); err != nil {
+		return err
+	}
 
 	// Validate job dependencies
 	if err := c.jobManager.ValidateDependencies(); err != nil {

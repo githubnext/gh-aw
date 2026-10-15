@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.12<br>
+**Version**: 1.29.13<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-14<br>
+**Publication Date**: 2026-10-15<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -5334,6 +5334,37 @@ An accepted opt-out MUST NOT bypass safe-output target authorization. Repository
 
 ---
 
+### 9.8 Reusable-Workflow Metadata and Artifact Provenance
+
+Reusable invocations can execute from a repository different from the caller, and partial reruns can retain successful producer jobs from earlier attempts. Cross-job outputs can also be suppressed by secret masking. The following requirements supplement AR2 artifact transport, target authorization, detector gating, and PTI-001–007 byte integrity; none replaces another.
+
+**RWI-001 — Local identity**: Each job that consumes reusable-workflow artifact or repository metadata MUST resolve it locally rather than depend on maskable activation/agent job outputs. Non-inlined workflows MUST preserve executing-workflow repository identity; inlined imports MUST explicitly use caller identity. Missing or malformed host metadata MUST NOT silently select the caller repository.
+
+**RWI-002 — GHES identity and permissions**: When native `job.workflow_*` properties are absent, implementations MAY obtain `job_workflow_ref` and `job_workflow_sha` directly from the runner's authenticated OIDC endpoint. Repository/ref shape and the immutable SHA MUST be validated; tokens MUST NOT be logged or included in artifacts. OIDC resolution MUST require explicit `id-token: write` opt-in, respect explicit denials and caller permission ceilings, and fail explicitly when the server lacks usable claims. Caller context or an externally supplied token MUST NOT substitute for unknown reusable-workflow identity.
+
+**RWI-003 — Ref semantics**: Checkout SHA and dispatch branch/tag MUST remain distinct. An inlined import MUST NOT inject a default dispatch ref that overrides the handler's PR-aware resolution, including pull-request merge refs and issue-comment default-branch context. Explicitly configured target refs MUST retain precedence.
+
+**RWI-004 — Canonical upload and metadata producers**: Payload uploads MUST use the canonical inputs-and-current-attempt prefix. Stable producer metadata MUST use a separate canonical invocation namespace, computed with attempt zero, never a payload upload prefix. Each producing job MUST publish `producer.json` containing its compiler-bound job ID, stable identity, and positive runtime attempt before payload production. Its stable metadata artifact MUST replace the prior descriptor on reruns through the pinned overwrite-capable action or supported mutable v3 behavior. The descriptor MUST NOT carry credentials or an agent-selected prefix.
+
+**RWI-005 — Retained-producer downloads**: Consumers MUST depend on the actual producer and fetch its descriptor from the current run and repository. Validation MUST reject malformed shape, foreign producer/invocation identity, and non-integer, non-positive, or future attempts. Older-attempt metadata MUST be accepted only when the producer's trusted dependency result is `success`; failed/skipped reruns MUST NOT reuse stale metadata. Prefixes MUST be recomputed canonically for the validated producer attempt, separately from current-job uploads. Current-attempt diagnostic artifacts MAY remain consumable from failed producers subject to existing job and detector gates.
+
+**RWI-006 — Unique, ordered, fail-closed consumers**: Shared and dedicated builders MUST emit exactly one local prefix producer and each required source resolver before their consumers, including upload-asset jobs. Payload downloads MUST require successful source resolution and MUST NOT fall back to an empty/unprefixed name. An optional channel with no configured producer MAY be omitted or made unreachable; required missing or ambiguous producers MUST fail compilation. Actions MUST remain pinned; cross-run or cross-repository descriptor selection MUST NOT be introduced.
+
+**RWI-007 — Publication coordinates**: Checkout, default GitHub App owner/repository scope, and publication revision MUST use consistent resolved coordinates while preserving explicit credential configuration. A pinned uploader that cannot honor the authorized repository or revision MUST fail explicitly rather than publish to the caller. The current SARIF and coverage actions do not support cross-repository selection; coverage also derives its revision from the caller event (the PR head for pull requests). Local token scoping alone MUST NOT be represented as support for those publication targets.
+
+**RWI-008 — Conformance and evidence**: Structural conformance MUST validate canonical producer and consumer scripts, environment bindings, metadata names/paths, uniqueness, ordering, dependencies, and non-bypassable success guards, not merely recognize a local expression. Regressions MUST exercise retained activation and agent artifacts across different consumer attempts and reject tampered computations, foreign/future metadata, and stale failed/skipped producers. Identical inputs and truncated-hash collisions remain namespace assumptions. Local tests and bounded models MUST NOT be presented as hosted partial-rerun or GHES runtime evidence; deployment MUST recompile affected workflows.
+
+**Conformance Evidence**:
+
+| Requirements | Implementation | Regression evidence |
+|---|---|---|
+| RWI-001–003 | `pkg/workflow/compiler_activation_job.go`, `pkg/workflow/safe_outputs_config_runtime.go`, `actions/setup/js/resolve_host_repo.cjs` | `pkg/workflow/host_repository_compatibility_test.go`, resolver and dispatch JavaScript suites |
+| RWI-004–006 | `pkg/workflow/compiler_artifact_producers.go`, canonical artifact scripts in `actions/setup/sh/` | `pkg/workflow/artifact_producer_attempts_test.go`, `pkg/workflow/workflow_call_local_metadata_test.go` |
+| RWI-007 | Dedicated SARIF/coverage compiler jobs | `pkg/workflow/dedicated_uploader_metadata_test.go` |
+| RWI-008 | `specs/workflow-security/conformance/artifacts.go`, `artifact_sources.go` | Canonical publisher/consumer and tampering tests in the same conformance package |
+
+The [workflow-security model notes](https://github.com/github/gh-aw/blob/main/specs/workflow-security/README.md) distinguish structural producer-attempt checks from the bounded TLA+ run-origin model. GHES versions without usable executing-workflow metadata or OIDC claims remain unsupported for unknown non-inlined identity; no caller fallback is authorized.
+
 ## 10. Execution Guarantees
 
 ### 10.1 Atomicity
@@ -6196,6 +6227,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.13** (2026-10-15):
+
+- **Added**: RWI-001–008 for masking-resistant local identity, trusted GHES OIDC resolution with explicit permission opt-in, PR-aware inlined dispatch, canonical producer-attempt metadata, retained-artifact downloads, and consistent uploader coordinates.
+- **Specified**: Unique ordered producers/resolvers, rejection of stale or foreign metadata, unsupported cross-repository publication failures, and separation of local conformance from hosted/GHES runtime evidence.
+- **Mapped**: Compiler, shell, JavaScript, and workflow-security conformance regressions; generated workflows require recompilation without a frontmatter schema change.
 
 **Version 1.29.12** (2026-10-14):
 

@@ -345,11 +345,13 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 }
 
 // generateResolveHostRepoStep generates a step that resolves the platform (host) repository
-// for the activation job checkout using the job.workflow_* context fields.
+// for the activation job checkout using job.workflow_* context fields, or the
+// runner's OIDC reusable-workflow claims when those properties are absent on GHES.
 //
 // job.workflow_repository provides the owner/repo of the currently executing workflow file,
-// correctly identifying the platform repo in all relay patterns (cross-repo workflow_call,
-// event-driven relays like on: issue_comment, on: push, and cross-org scenarios).
+// correctly identifying the platform repo in all relay patterns. GHES uses
+// job_workflow_ref and job_workflow_sha from core.getIDToken() instead; resolver
+// jobs and their callers therefore need id-token: write on those installations.
 //
 // The step emits two distinct ref outputs:
 //   - target_checkout_ref: the immutable commit SHA from job.workflow_sha, used by
@@ -377,6 +379,36 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	step.WriteString("          script: |\n")
 	step.WriteString(generateGitHubScriptWithRequire("resolve_host_repo.cjs"))
 	return step.String()
+}
+
+// ensureHostRepositoryOIDCJobPermissions forwards the workflow's explicit OIDC
+// opt-in to jobs resolving reusable-workflow identity on GHES. Do not grant it
+// unconditionally: reusable workflows cannot elevate the caller's permissions.
+func (c *Compiler) ensureHostRepositoryOIDCJobPermissions(data *WorkflowData) {
+	if data == nil || data.InlinedImports || !hasWorkflowCallTrigger(data.On) {
+		return
+	}
+	workflowPermissions := NewPermissionsParser(data.Permissions).ToPermissions()
+	if level, exists := workflowPermissions.Get(PermissionIdToken); !exists || level != PermissionWrite {
+		return
+	}
+	for _, job := range c.jobManager.GetAllJobs() {
+		if job.Name == string(constants.SafeOutputsJobName) && data.SafeOutputs != nil && data.SafeOutputs.IDToken != nil && *data.SafeOutputs.IDToken == "none" {
+			continue
+		}
+		for _, step := range job.Steps {
+			if !strings.Contains(step, "id: resolve-host-repo\n") {
+				continue
+			}
+			perms := NewPermissionsParser(job.Permissions).ToPermissions()
+			if level, exists := perms.Get(PermissionIdToken); exists && level == PermissionNone {
+				break
+			}
+			perms.Set(PermissionIdToken, PermissionWrite)
+			job.Permissions = perms.RenderToYAML()
+			break
+		}
+	}
 }
 
 // generateCheckoutGitHubFolderForActivation generates the checkout step for .github and .agents folders

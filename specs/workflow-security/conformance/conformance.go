@@ -17,11 +17,13 @@ import (
 
 type document struct {
 	Permissions map[string]string                     `yaml:"permissions"`
+	Env         map[string]any                        `yaml:"env"`
 	Jobs        map[string]job                        `yaml:"jobs"`
 	Policy      *workflow.GHAWManifestDetectionPolicy `yaml:"-"`
 }
 
 type job struct {
+	Env         map[string]any    `yaml:"env"`
 	Needs       yaml.Node         `yaml:"needs"`
 	If          string            `yaml:"if"`
 	Permissions map[string]string `yaml:"permissions"`
@@ -30,6 +32,8 @@ type job struct {
 }
 
 type step struct {
+	Env             map[string]any `yaml:"env"`
+	Shell           string         `yaml:"shell"`
 	ID              string         `yaml:"id"`
 	Run             string         `yaml:"run"`
 	If              string         `yaml:"if"`

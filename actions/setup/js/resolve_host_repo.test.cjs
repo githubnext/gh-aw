@@ -1,6 +1,9 @@
 // @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { main, parseDispatchRef } from "./resolve_host_repo.cjs";
+import { main as dispatchWorkflow } from "./dispatch_workflow.cjs";
+
+const identityToken = claims => `header.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.signature`;
 
 describe("parseDispatchRef", () => {
   it("parses refs/heads/main from a standard workflow_ref", () => {
@@ -59,6 +62,8 @@ describe("resolve_host_repo main", () => {
       info: vi.fn(msg => infos.push(msg)),
       warning: vi.fn(msg => warnings.push(msg)),
       error: vi.fn(),
+      getIDToken: vi.fn().mockRejectedValue(new Error("OIDC unavailable")),
+      setSecret: vi.fn(),
       setOutput: vi.fn((key, value) => {
         outputs[key] = value;
       }),
@@ -70,7 +75,12 @@ describe("resolve_host_repo main", () => {
       JOB_WORKFLOW_REF: process.env.JOB_WORKFLOW_REF,
       JOB_WORKFLOW_FILE_PATH: process.env.JOB_WORKFLOW_FILE_PATH,
       GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
+      GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
+      GITHUB_WORKFLOW_SHA: process.env.GITHUB_WORKFLOW_SHA,
+      GITHUB_REF: process.env.GITHUB_REF,
+      GITHUB_HEAD_REF: process.env.GITHUB_HEAD_REF,
     };
+    for (const key of Object.keys(originalEnv)) delete process.env[key];
   });
 
   afterEach(() => {
@@ -92,6 +102,7 @@ describe("resolve_host_repo main", () => {
     await main();
 
     expect(outputs["target_checkout_ref"]).toBe("abc123def456abc123def456abc123def456abc1");
+    expect(core.getIDToken).not.toHaveBeenCalled();
   });
 
   it("emits target_ref as the dispatch-compatible branch ref from JOB_WORKFLOW_REF", async () => {
@@ -187,6 +198,111 @@ describe("resolve_host_repo main", () => {
 
     await expect(main()).rejects.toThrow("Refusing to fall back to the caller repository");
     expect(outputs).toEqual({});
+  });
+
+  it.each(["host-org/platform", "caller-org/project"])("resolves missing GHES job metadata from runner identity, not caller context (%s)", async repository => {
+    process.env.GITHUB_REPOSITORY = "caller-org/project";
+    process.env.GITHUB_WORKFLOW_REF = "caller-org/project/.github/workflows/caller.yml@refs/heads/caller";
+    process.env.GITHUB_WORKFLOW_SHA = "a".repeat(40);
+    const claims = {
+      job_workflow_ref: `${repository}/.github/workflows/relay.lock.yml@refs/heads/platform`,
+      job_workflow_sha: "b".repeat(40),
+      workflow_ref: process.env.GITHUB_WORKFLOW_REF,
+      workflow_sha: process.env.GITHUB_WORKFLOW_SHA,
+      repository: process.env.GITHUB_REPOSITORY,
+    };
+    const token = identityToken(claims);
+    core.getIDToken.mockResolvedValue(token);
+
+    await main();
+
+    expect(core.getIDToken).toHaveBeenCalledWith("gh-aw-host-repository");
+    expect(core.setSecret).toHaveBeenCalledWith(token);
+    expect(outputs).toEqual({
+      target_repo: repository,
+      target_repo_name: repository.split("/")[1],
+      target_checkout_ref: "b".repeat(40),
+      target_ref: "refs/heads/platform",
+    });
+    expect([...infos, ...warnings].join("\n")).not.toContain(token);
+  });
+
+  it.each([
+    {},
+    { workflow_ref: "caller-org/project/.github/workflows/caller.yml@refs/heads/main", workflow_sha: "a".repeat(40) },
+    { job_workflow_ref: "host/repo/.github/workflows/relay.yml@refs/heads/main" },
+    { job_workflow_ref: "host/repo/.github/workflows/relay.yml@refs/heads/main", job_workflow_sha: "refs/heads/main" },
+    { job_workflow_ref: "host/repo/extra/.github/workflows/relay.yml@refs/heads/main", job_workflow_sha: "b".repeat(40) },
+    { job_workflow_ref: "host/repo/.github/workflows/relay.yml@refs/heads/main\ninjected=value", job_workflow_sha: "b".repeat(40) },
+  ])("rejects absent or invalid reusable-workflow claims without falling back to caller identity (%j)", async claims => {
+    process.env.GITHUB_REPOSITORY = "caller-org/project";
+    core.getIDToken.mockResolvedValue(identityToken(claims));
+
+    await expect(main()).rejects.toThrow("Refusing to fall back to the caller repository");
+    expect(outputs).toEqual({});
+  });
+
+  it("keeps a GHES reusable workflow's immutable SHA separate from its dispatch ref", async () => {
+    const sha = "b".repeat(40);
+    core.getIDToken.mockResolvedValue(identityToken({ job_workflow_ref: `host-org/platform/.github/workflows/relay.lock.yml@${sha}`, job_workflow_sha: sha }));
+    await main();
+    expect(outputs.target_checkout_ref).toBe(sha);
+    expect(outputs.target_ref).toBe("");
+    expect(warnings[0]).toContain("Could not parse");
+  });
+
+  it("does not expose token material from a failed runner identity request", async () => {
+    const secret = "private-token-response";
+    core.getIDToken.mockRejectedValue(new Error(secret));
+
+    await expect(main()).rejects.toThrow("Grant id-token: write");
+    await expect(main()).rejects.not.toThrow(secret);
+    expect([...infos, ...warnings].join("\n")).not.toContain(secret);
+    expect(outputs).toEqual({});
+  });
+
+  it.each(["not-a-token", "header.not-json.signature"])("fails closed on malformed runner identity tokens (%s)", async token => {
+    core.getIDToken.mockResolvedValue(token);
+    await expect(main()).rejects.toThrow("Refusing to fall back to the caller repository");
+    expect(outputs).toEqual({});
+  });
+
+  it.each(["pull_request", "issue_comment"])("keeps inline dispatch defaults PR-aware after local identity resolution (%s)", async eventName => {
+    process.env.JOB_WORKFLOW_REPOSITORY = "caller-org/project";
+    process.env.GITHUB_REPOSITORY = "caller-org/project";
+    process.env.JOB_WORKFLOW_SHA = "a".repeat(40);
+    process.env.JOB_WORKFLOW_REF = `caller-org/project/.github/workflows/relay.lock.yml@${eventName === "pull_request" ? "refs/pull/42/merge" : "refs/heads/main"}`;
+    process.env.GITHUB_REF = eventName === "pull_request" ? "refs/pull/42/merge" : "refs/heads/main";
+    if (eventName === "pull_request") process.env.GITHUB_HEAD_REF = "feature/pr-head";
+    const previousContext = global.context;
+    const previousGithub = global.github;
+    const previousGetOctokit = global.getOctokit;
+    global.context = {
+      repo: { owner: "caller-org", repo: "project" },
+      eventName,
+      ref: process.env.GITHUB_REF,
+      payload: { issue: { number: 42, pull_request: {} } },
+    };
+    global.github = {
+      rest: {
+        actions: { createWorkflowDispatch: vi.fn().mockResolvedValue({ data: {} }) },
+        pulls: { get: vi.fn().mockResolvedValue({ data: { head: { ref: "feature/pr-head" } } }) },
+      },
+    };
+    delete global.getOctokit;
+    try {
+      await main();
+      // The compiler contract omits target-ref for inlined imports (covered in Go).
+      const handler = await dispatchWorkflow({ workflows: ["worker"], workflow_files: { worker: ".lock.yml" }, "target-repo": outputs.target_repo });
+      const result = await handler({ type: "dispatch_workflow", workflow_name: "worker" }, {});
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-org", repo: "project", ref: "refs/heads/feature/pr-head" }));
+      expect(github.rest.pulls.get).toHaveBeenCalledTimes(eventName === "issue_comment" ? 1 : 0);
+    } finally {
+      global.context = previousContext;
+      global.github = previousGithub;
+      global.getOctokit = previousGetOctokit;
+    }
   });
 
   it("resolves the host locally even when activation job outputs are masked", async () => {

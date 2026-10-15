@@ -22,6 +22,8 @@ set +o histexpand
 # GitHub Actions output:
 #   prefix               8-hex-char SHA256 digest followed by "-"
 #                        (e.g. "a1b2c3d4-"), or empty string on error.
+#   identity_prefix      Stable invocation namespace for producer metadata,
+#                        computed with attempt zero, never used for payload uploads.
 #
 # Uniqueness guarantee:
 #   - Two calls with different inputs → different prefixes (collision-resistant SHA256).
@@ -58,3 +60,7 @@ PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
 echo "  SHA256 digest (first 8 chars): ${PREFIX}"
 echo "  Artifact prefix: ${PREFIX}-"
 echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+
+# Stable namespace for producer-attempt metadata, not for artifact payload uploads.
+IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"

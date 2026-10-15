@@ -45,6 +45,10 @@ Note: `CTR-025`–`CTR-030` map to `T-CTR-039` and `T-CTR-041`–`T-CTR-045` bec
 
 The test triggers, expected compiler actions, and stable diagnostics are defined in [Section 8.1](../compiler-threat-detection-spec.md#81-test-id-catalog). The implementation and concrete test-file mappings are defined in [Section 7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping).
 
+## Reusable-Workflow Transport Contracts
+
+Safe Outputs RWI-001–008 support existing routing and checkout-provenance rules; they do not allocate new `CTR-*` or `T-CTR-*` IDs. [Section 7.3](../compiler-threat-detection-spec.md#73-reusable-workflow-transport-contract-mapping) maps local host identity, producer-attempt descriptors, dispatch defaults, and uploader limitations to concrete implementation and regression evidence. The workflow-security conformance suite verifies canonical publisher and consumer bindings, not merely expression spelling. Local conformance results do not establish hosted partial-rerun or GHES runtime verification.
+
 ## Section 5.4 Deprecation Policy Annotations
 
 So that the [§5.4 Deprecation Policy](../compiler-threat-detection-spec.md#54-deprecation-policy) obligations are mechanically verifiable, a deprecated rule is annotated as follows:

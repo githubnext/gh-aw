@@ -4,8 +4,8 @@
 /**
  * Resolves the target repository and refs for the activation job.
  *
- * Uses the job.workflow_* context fields to determine the platform (host)
- * repository and produce two distinct ref outputs for different consumers:
+ * Uses job.workflow_* or the runner's OIDC reusable-workflow claims (GHES)
+ * to determine the platform (host) repository and produce distinct ref outputs:
  *
  * - target_checkout_ref: the immutable commit SHA from job.workflow_sha, used
  *   by actions/checkout to pin the activation checkout to the exact executing
@@ -28,7 +28,7 @@
  * cross-repo workflow_call, event-driven relays (on: issue_comment, on: push),
  * and cross-org scenarios.
  *
- * @safe-outputs-exempt SEC-005: values sourced from trusted GitHub Actions runner context via env vars only
+ * @safe-outputs-exempt SEC-005: identity sourced from trusted runner context or its authenticated OIDC endpoint only
  */
 
 /**
@@ -61,24 +61,66 @@ function parseDispatchRef(workflowRef) {
 }
 
 /**
+ * GHES does not expose job.workflow_* context properties. Request identity directly
+ * from the runner's authenticated OIDC endpoint, never from workflow inputs or the
+ * caller's github.workflow_ref. Both claims describe the executing reusable workflow.
+ * No signature verification is needed here: the token is received directly through
+ * core.getIDToken(), not accepted from an external party.
+ *
+ * @returns {Promise<{repository: string, sha: string, ref: string}>}
+ */
+async function resolveOIDCWorkflowIdentity() {
+  try {
+    const token = await core.getIDToken("gh-aw-host-repository");
+    core.setSecret(token);
+    const parts = token.split(".");
+    if (parts.length !== 3) throw new Error("Invalid identity token");
+    const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const ref = claims.job_workflow_ref;
+    const sha = claims.job_workflow_sha;
+    const match = typeof ref === "string" && /^([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/\.github\/workflows\/[^@\r\n]+@[^@\r\n]+$/.exec(ref);
+    if (!match || typeof sha !== "string" || !/^[0-9a-f]{40}$/i.test(sha)) {
+      throw new Error("Missing reusable workflow identity");
+    }
+    core.info("Resolving host repo via runner OIDC reusable-workflow claims");
+    return { repository: match[1], sha, ref };
+  } catch {
+    // Toolkit/JSON errors can contain token material. Surface only a fixed diagnostic.
+    throw new Error(
+      "Cannot resolve target repository: job.workflow_* metadata is unavailable and runner OIDC reusable-workflow identity could not be verified. " +
+        "Grant id-token: write to the calling workflow and resolver jobs, and use a GHES version supporting job_workflow_ref and job_workflow_sha. " +
+        "Refusing to fall back to the caller repository."
+    );
+  }
+}
+
+/**
+ * @returns {Promise<{repository: string, sha: string, ref: string}>}
+ */
+async function resolveWorkflowIdentity() {
+  const repository = process.env.JOB_WORKFLOW_REPOSITORY || "";
+  if (!repository) {
+    return resolveOIDCWorkflowIdentity();
+  }
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    throw new Error("Cannot resolve target repository: JOB_WORKFLOW_REPOSITORY must contain owner/repo. Refusing to fall back to the caller repository.");
+  }
+  core.info("Resolving host repo via job.workflow_* context");
+  return { repository, sha: process.env.JOB_WORKFLOW_SHA || "", ref: process.env.JOB_WORKFLOW_REF || "" };
+}
+
+/**
  * @returns {Promise<void>}
  */
 async function main() {
-  const targetRepo = process.env.JOB_WORKFLOW_REPOSITORY || "";
-  const targetCheckoutRef = process.env.JOB_WORKFLOW_SHA || "";
-  const workflowRef = process.env.JOB_WORKFLOW_REF || "";
+  const { repository: targetRepo, sha: targetCheckoutRef, ref: workflowRef } = await resolveWorkflowIdentity();
   const targetDispatchRef = parseDispatchRef(workflowRef);
   const targetRepoName = targetRepo.split("/").pop() || "";
   const currentRepo = process.env.GITHUB_REPOSITORY || "";
 
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(targetRepo)) {
-    throw new Error("Cannot resolve target repository: JOB_WORKFLOW_REPOSITORY must contain owner/repo. Refusing to fall back to the caller repository.");
-  }
-
-  core.info("Resolving host repo via job.workflow_* context");
-  core.info(`job.workflow_repository = ${targetRepo}`);
-  core.info(`job.workflow_sha        = ${targetCheckoutRef}`);
-  core.info(`job.workflow_ref        = ${workflowRef}`);
+  core.info(`workflow repository     = ${targetRepo}`);
+  core.info(`workflow sha            = ${targetCheckoutRef}`);
+  core.info(`workflow ref            = ${workflowRef}`);
   core.info(`job.workflow_file_path  = ${process.env.JOB_WORKFLOW_FILE_PATH || ""}`);
   core.info(`github.repository       = ${currentRepo}`);
   core.info("");
@@ -89,7 +131,7 @@ async function main() {
 
   if (!targetDispatchRef) {
     core.warning(
-      `Could not parse a branch/tag ref from JOB_WORKFLOW_REF="${workflowRef}". ` +
+      `Could not parse a branch/tag ref from the executing workflow ref "${workflowRef}". ` +
         "dispatch_workflow safe outputs may fail if they rely on target_ref. " +
         "Falling back to empty string — do not use target_checkout_ref (SHA) as the dispatch ref."
     );

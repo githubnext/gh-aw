@@ -398,11 +398,59 @@ equivalent assurance to required detection.
 Guard checks use actionlint's AST and conservative Boolean implication. An
 `always()` condition is accepted only when compiler-owned success is enforced;
 OR branches, negation, and status-function calls cannot simply bypass the check.
-Symbolic artifact names must match across producer/consumer and refer to the
-trusted activation prefix helper, not arbitrary caller-selected prefixes.
+Symbolic artifact names must match across producer/consumer and refer to a
+trusted prefix computation, not arbitrary caller-selected prefixes. The verifier
+accepts legacy activation job outputs and locally computed step outputs. Every
+local producer and consumer must have exactly one unconditional, fail-closed
+`artifact-prefix` step before the artifact operation, with the canonical
+`toJSON(inputs)` environment binding and Bash script. Embedded bodies must match
+the executable lines of
+[`compute_artifact_prefix.sh`](../../actions/setup/sh/compute_artifact_prefix.sh)
+exactly; the legacy external-script invocation remains supported. Ambient attempt,
+output-file, and shell-startup overrides are rejected. Legacy output references
+must bind to the activation job; agent-artifact consumers must depend on the agent
+job. Selectors require their corresponding agent uploads. The exact
+`{agent,agent-output-fallback}` alternative also permits an absent fallback
+channel when the primary agent upload exists; a foreign fallback producer is
+not accepted. Cross-run or cross-repository downloads remain rejected.
+
+Producer-attempt handoffs use a separate stable `identity_prefix`, computed from
+the same inputs with attempt zero. Immediately after computing its prefixes,
+each producing job runs the canonical
+[`write_artifact_producer.sh`](../../actions/setup/sh/write_artifact_producer.sh)
+and publishes `producer.json` under its invocation-qualified producer name.
+The verifier checks the compiled producer ID, runtime attempt binding, exact
+metadata path, fail-closed publication, and overwrite behavior (or the pinned
+mutable v3 action). Descriptor and payload producer identities must be
+unambiguous.
+
+Every bound consumer depends on the actual producer and computes its own
+canonical invocation identity before downloading that producer's descriptor.
+Its unique, ordered `artifact-metadata-<producer>` and
+`artifact-source-<producer>` steps must use the canonical
+[`resolve_artifact_producer.sh`](../../actions/setup/sh/resolve_artifact_producer.sh)
+followed by canonical prefix recomputation. The resolver validates metadata
+shape, producer identity, invocation identity, and positive non-future attempt;
+retained older-attempt metadata is accepted only for a successful producer.
+Payload downloads must require resolver success, not fall back to an empty
+prefix, and must remain within the current run and repository. The verifier
+checks both required and best-effort handoffs, including source dependencies,
+descriptor/download ordering, exact environment bindings, and matching payload
+uploads. Compiler-disabled optional channels remain inert rather than using an
+unbound current-attempt download.
+
 The prefix helper hashes inputs and run attempt; identical inputs in the same
 attempt intentionally share a prefix. Caller-provided invocation uniqueness
 and hash collision resistance remain assumptions, not guarantees proved here.
+Canonical-script matching assumes trusted setup scripts and runner tools; it is
+not a proof of arbitrary shell execution or hosted/GHES runtime compatibility.
+The bounded TLA+ artifact origin abstracts attempts within one run; retained
+producer-attempt selection is a structural/runtime contract, not a rerun
+state-space proof. Conformance regressions cover canonical fresh compilation
+and reject tampered producer and consumer computations, foreign origins,
+missing/duplicate/misordered steps, bypassed success guards, and broken
+dependency bindings. These checks do not establish GHES runtime evidence or
+cross-repository publication support.
 Manifest provenance, payload
 validation, redaction coverage, external network enforcement, and token expiry
 remain obligations, not facts extracted by this structural check.

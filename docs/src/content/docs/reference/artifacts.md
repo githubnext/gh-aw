@@ -32,11 +32,15 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 
 ## Reusable workflow artifact names
 
-Workflows with a `workflow_call` trigger prefix artifact names with an eight-character hash followed by `-`, for example `a1b2c3d4-activation`. The hash uses the workflow inputs and run attempt. Each consuming job computes the same prefix locally, including custom safe-output jobs and dedicated SARIF and coverage upload jobs. Built-in artifact downloads do not depend on cross-job prefix outputs, which GitHub Actions can suppress when a value matches a registered secret.
+Workflows with a `workflow_call` trigger prefix artifact names with an eight-character hash followed by `-`, for example `a1b2c3d4-activation`. The hash uses the workflow inputs and producer's run attempt. Each consuming job computes prefixes locally, including custom safe-output jobs and dedicated SARIF and coverage upload jobs. Built-in artifact downloads do not depend on cross-job prefix outputs, which GitHub Actions can suppress when a value matches a registered secret.
+
+For failed-job-only reruns, current uploads retain the current-attempt prefix while downloads use the actual producer's attempt. Each producing job publishes a small `<identity-prefix>producer-<job-id>` metadata artifact before its payloads. Its `producer.json` binds the producer ID, attempt, and a stable inputs-derived namespace salted with attempt zero. Consumers download it from the same run, validate it, and recompute that producer's payload prefix. Metadata uses repository-default retention, subject to the same repository/variable retention overrides as other artifacts.
+
+Older-attempt metadata is accepted only for successful retained producers. Missing, malformed, foreign, future, or stale failed/skipped producer metadata fails explicitly; payload downloads cannot fall back to unprefixed names. These bindings do not replace threat detection or content validation.
 
 Different invocations in the same run must have different inputs to avoid artifact-name collisions. Identical inputs on the same attempt produce the same prefix. Workflows without a `workflow_call` trigger retain unprefixed names.
 
-Reusable workflows also resolve host repository metadata within each job that needs it for checkouts, GitHub App tokens, or workflow dispatch. Non-inlined imports use `job.workflow_repository`; inlined imports use the caller repository. Missing or malformed required repository metadata fails explicitly rather than redirecting operations to another repository.
+Reusable workflows also resolve host repository metadata within each job that needs it for checkouts, GitHub App tokens, or workflow dispatch. Non-inlined imports use `job.workflow_repository`, or authenticated runner OIDC claims when native metadata is unavailable; see [enterprise configuration](./enterprise-configuration.md#reusable-workflow-repository-identity) for required permissions and server support. Inlined imports use the caller repository and preserve PR-aware default dispatch refs. Missing or malformed required repository metadata fails explicitly rather than redirecting operations to another repository.
 
 The pinned SARIF and coverage upload actions cannot select another repository. Their dedicated jobs reject cross-repository reusable uploads instead of publishing to the caller. SARIF uploads use the resolved workflow ref and SHA; non-inlined coverage uploads also require the resolved revision to match the uploader's caller-event revision (the PR head for pull requests).
 

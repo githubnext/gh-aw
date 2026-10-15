@@ -64,6 +64,25 @@ Report findings.
 					assert.Equal(t, 1, strings.Count(steps, "id: resolve-host-repo\n"), name)
 					assert.Less(t, strings.Index(steps, "id: resolve-host-repo"), strings.Index(steps, "steps.resolve-host-repo.outputs."), name)
 				}
+				protocolSteps, err := parseArtifactProtocolSteps(job)
+				require.NoError(t, err)
+				for _, step := range protocolSteps {
+					if strings.HasPrefix(step.Uses, "actions/download-artifact@") {
+						for _, key := range []string{"name", "pattern"} {
+							if value, ok := step.With[key].(string); ok {
+								assert.NotContains(t, value, localArtifactPrefix, "cross-job downloads must use producer attempts: %s", name)
+							}
+						}
+					}
+					if !strings.HasPrefix(step.ID, "artifact-source-") {
+						continue
+					}
+					producer := strings.TrimPrefix(step.ID, "artifact-source-")
+					assert.Contains(t, job.Needs, producer)
+					source, exists := c.jobManager.GetJob(producer)
+					require.True(t, exists)
+					assert.Contains(t, strings.Join(source.Steps, ""), "name: "+artifactMetadataName(producer))
+				}
 			}
 			for _, name := range []string{"activation", "agent", "detection", "conclusion", "safe_outputs", "upload_code_scanning_sarif", "upload_code_coverage", "upload_assets", "notify", "update_cache_memory", "push_repo_memory"} {
 				_, exists := c.jobManager.GetJob(name)
@@ -140,7 +159,7 @@ func TestLocalArtifactPrefixSurvivesMaskedJobOutputs(t *testing.T) {
 	for _, inputs := range []string{`{}`, `{"target":"host/platform"}`, `{"target":"$(touch /tmp/not-executed)"}`} {
 		for _, attempt := range []string{"1", "2"} {
 			expected := compute(string(original), inputs, attempt)
-			assert.Regexp(t, `^prefix=[a-f0-9]{8}-\n$`, expected)
+			assert.Regexp(t, `^prefix=[a-f0-9]{8}-\nidentity_prefix=[a-f0-9]{8}-\n$`, expected)
 			assert.Equal(t, expected, compute(script, inputs, attempt))
 			assert.Equal(t, expected, compute(script, inputs, attempt), "independent jobs must agree without transported outputs")
 		}

@@ -231,6 +231,30 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Record artifact producer attempt
+        shell: bash
+        env:
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: activation
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/activation
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid artifact producer attempt"; exit 1; }
+          mkdir -p "$METADATA_DIRECTORY"
+          jq -n --argjson attempt "$PRODUCER_ATTEMPT" --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" \
+            '{attempt: $attempt, producer: $producer, identity: $identity}' > "$METADATA_DIRECTORY/producer.json"
+      - name: Publish artifact producer attempt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-activation
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/activation/producer.json
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+          if-no-files-found: error
+          overwrite: true
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -616,6 +640,77 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Record artifact producer attempt
+        shell: bash
+        env:
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: agent
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid artifact producer attempt"; exit 1; }
+          mkdir -p "$METADATA_DIRECTORY"
+          jq -n --argjson attempt "$PRODUCER_ATTEMPT" --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" \
+            '{attempt: $attempt, producer: $producer, identity: $identity}' > "$METADATA_DIRECTORY/producer.json"
+      - name: Publish artifact producer attempt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-agent
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/agent/producer.json
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+          if-no-files-found: error
+          overwrite: true
+      - name: Download activation producer metadata
+        id: artifact-metadata-activation
+        if: always()
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-activation
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/activation
+      - name: Resolve activation artifact prefix
+        id: artifact-source-activation
+        if: always() && steps.artifact-metadata-activation.outcome == 'success'
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: activation
+          PRODUCER_RESULT: ${{ needs.activation.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/activation
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -664,9 +759,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download activation artifact
+        if: steps.artifact-source-activation.outcome == 'success'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ steps.artifact-prefix.outputs.prefix }}activation
+          name: ${{ steps.artifact-source-activation.outputs.prefix }}activation
           path: /tmp/gh-aw
       - name: Configure Git credentials
         env:
@@ -1432,6 +1528,177 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Record artifact producer attempt
+        shell: bash
+        env:
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: conclusion
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/conclusion
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid artifact producer attempt"; exit 1; }
+          mkdir -p "$METADATA_DIRECTORY"
+          jq -n --argjson attempt "$PRODUCER_ATTEMPT" --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" \
+            '{attempt: $attempt, producer: $producer, identity: $identity}' > "$METADATA_DIRECTORY/producer.json"
+      - name: Publish artifact producer attempt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-conclusion
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/conclusion/producer.json
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+          if-no-files-found: error
+          overwrite: true
+      - name: Download agent producer metadata
+        id: artifact-metadata-agent
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-agent
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+      - name: Resolve agent artifact prefix
+        id: artifact-source-agent
+        if: always() && steps.artifact-metadata-agent.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: agent
+          PRODUCER_RESULT: ${{ needs.agent.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Download detection producer metadata
+        id: artifact-metadata-detection
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-detection
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/detection
+      - name: Resolve detection artifact prefix
+        id: artifact-source-detection
+        if: always() && steps.artifact-metadata-detection.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: detection
+          PRODUCER_RESULT: ${{ needs.detection.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/detection
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Download safe_outputs producer metadata
+        id: artifact-metadata-safe_outputs
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-safe_outputs
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/safe_outputs
+      - name: Resolve safe_outputs artifact prefix
+        id: artifact-source-safe_outputs
+        if: always() && steps.artifact-metadata-safe_outputs.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: safe_outputs
+          PRODUCER_RESULT: ${{ needs.safe_outputs.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/safe_outputs
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1449,11 +1716,12 @@ jobs:
             const { main } = require(path.join(actionsDir, 'resolve_host_repo.cjs'));
             await main();
       - name: Download agent output artifact
+        if: steps.artifact-source-agent.outcome == 'success'
         id: download-agent-output
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{${{ steps.artifact-prefix.outputs.prefix }}agent,${{ steps.artifact-prefix.outputs.prefix }}agent-output-fallback}"
+          pattern: "{${{ steps.artifact-source-agent.outputs.prefix }}agent,${{ steps.artifact-source-agent.outputs.prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
@@ -1473,19 +1741,20 @@ jobs:
         if: always() && needs.detection.result != 'skipped' && (needs.detection.outputs.detection_reason == 'agent_failure' || needs.detection.outputs.detection_reason == 'parse_error' || needs.detection.outputs.detection_conclusion == '')
         run: echo "::warning::Threat detection produced no security verdict. Review the detection job logs before trusting the agent outputs."
       - name: Download detection artifact
+        if: steps.artifact-source-detection.outcome == 'success'
         id: download-detection-artifact
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ steps.artifact-prefix.outputs.prefix }}detection
+          name: ${{ steps.artifact-source-detection.outputs.prefix }}detection
           path: /tmp/gh-aw/threat-detection/
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
-        if: always()
+        if: ${{ (always()) && steps.artifact-source-safe_outputs.outcome == 'success' }}
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: ${{ steps.artifact-prefix.outputs.prefix }}safe-outputs-items
+          pattern: ${{ steps.artifact-source-safe_outputs.outputs.prefix }}safe-outputs-items
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Process no-op messages
@@ -1806,6 +2075,128 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Record artifact producer attempt
+        shell: bash
+        env:
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: detection
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/detection
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid artifact producer attempt"; exit 1; }
+          mkdir -p "$METADATA_DIRECTORY"
+          jq -n --argjson attempt "$PRODUCER_ATTEMPT" --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" \
+            '{attempt: $attempt, producer: $producer, identity: $identity}' > "$METADATA_DIRECTORY/producer.json"
+      - name: Publish artifact producer attempt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-detection
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/detection/producer.json
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+          if-no-files-found: error
+          overwrite: true
+      - name: Download activation producer metadata
+        id: artifact-metadata-activation
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-activation
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/activation
+      - name: Resolve activation artifact prefix
+        id: artifact-source-activation
+        if: always() && steps.artifact-metadata-activation.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: activation
+          PRODUCER_RESULT: ${{ needs.activation.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/activation
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Download agent producer metadata
+        id: artifact-metadata-agent
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-agent
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+      - name: Resolve agent artifact prefix
+        id: artifact-source-agent
+        if: always() && steps.artifact-metadata-agent.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: agent
+          PRODUCER_RESULT: ${{ needs.agent.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1823,17 +2214,19 @@ jobs:
             const { main } = require(path.join(actionsDir, 'resolve_host_repo.cjs'));
             await main();
       - name: Download activation artifact
+        if: steps.artifact-source-activation.outcome == 'success'
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ steps.artifact-prefix.outputs.prefix }}activation
+          name: ${{ steps.artifact-source-activation.outputs.prefix }}activation
           path: /tmp/gh-aw
       - name: Download agent output artifact
+        if: steps.artifact-source-agent.outcome == 'success'
         id: download-agent-output
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{${{ steps.artifact-prefix.outputs.prefix }}agent,${{ steps.artifact-prefix.outputs.prefix }}agent-output-fallback}"
+          pattern: "{${{ steps.artifact-source-agent.outputs.prefix }}agent,${{ steps.artifact-source-agent.outputs.prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
@@ -2169,6 +2562,8 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -2287,6 +2682,79 @@ jobs:
           echo "  SHA256 digest (first 8 chars): ${PREFIX}"
           echo "  Artifact prefix: ${PREFIX}-"
           echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
+      - name: Record artifact producer attempt
+        shell: bash
+        env:
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: safe_outputs
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/safe_outputs
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid artifact producer attempt"; exit 1; }
+          mkdir -p "$METADATA_DIRECTORY"
+          jq -n --argjson attempt "$PRODUCER_ATTEMPT" --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" \
+            '{attempt: $attempt, producer: $producer, identity: $identity}' > "$METADATA_DIRECTORY/producer.json"
+      - name: Publish artifact producer attempt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-safe_outputs
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/safe_outputs/producer.json
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+          if-no-files-found: error
+          overwrite: true
+      - name: Download agent producer metadata
+        id: artifact-metadata-agent
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.artifact-prefix.outputs.identity_prefix }}producer-agent
+          path: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+      - name: Resolve agent artifact prefix
+        id: artifact-source-agent
+        if: always() && steps.artifact-metadata-agent.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          INVOCATION_ID: ${{ steps.artifact-prefix.outputs.identity_prefix }}
+          PRODUCER_JOB: agent
+          PRODUCER_RESULT: ${{ needs.agent.result }}
+          METADATA_DIRECTORY: ${{ runner.temp }}/gh-aw/artifact-producer/agent
+        run: |
+          set -euo pipefail
+          [[ "$INVOCATION_ID" =~ ^[a-f0-9]{8}-$ ]] || { echo "::error::Invalid artifact invocation identity"; exit 1; }
+          [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Invalid consumer run attempt"; exit 1; }
+          ATTEMPT=$(jq -er --arg producer "$PRODUCER_JOB" --arg identity "$INVOCATION_ID" --argjson current "$GITHUB_RUN_ATTEMPT" '
+            if type == "object" and keys == ["attempt", "identity", "producer"]
+              and .producer == $producer and .identity == $identity
+              and (.attempt | type == "number") and (.attempt | floor == .)
+              and .attempt >= 1 and .attempt <= $current
+            then .attempt else error("Invalid artifact producer metadata") end
+          ' "$METADATA_DIRECTORY/producer.json")
+          if (( ATTEMPT < GITHUB_RUN_ATTEMPT )) && [[ "$PRODUCER_RESULT" != "success" ]]; then
+            echo "::error::Refusing retained artifacts from a failed or skipped producer"
+            exit 1
+          fi
+          export GITHUB_RUN_ATTEMPT="$ATTEMPT"
+          set +o histexpand
+          set -euo pipefail
+          INPUTS="${INPUTS_JSON:-{}}"
+          ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Computing artifact prefix from workflow inputs and run attempt..."
+          echo "  GITHUB_RUN_ATTEMPT: ${ATTEMPT}"
+          echo "  Inputs JSON length: ${#INPUTS} chars"
+          HASH_INPUT="${INPUTS}::attempt=${ATTEMPT}"
+          PREFIX=$(printf '%s' "$HASH_INPUT" | sha256sum | cut -c1-8)
+          echo "  SHA256 digest (first 8 chars): ${PREFIX}"
+          echo "  Artifact prefix: ${PREFIX}-"
+          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+          IDENTITY=$(printf '%s' "${INPUTS}::attempt=0" | sha256sum | cut -c1-8)
+          echo "identity_prefix=${IDENTITY}-" >> "$GITHUB_OUTPUT"
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -2306,11 +2774,12 @@ jobs:
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Download agent output artifact
+        if: steps.artifact-source-agent.outcome == 'success'
         id: download-agent-output
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: "{${{ steps.artifact-prefix.outputs.prefix }}agent,${{ steps.artifact-prefix.outputs.prefix }}agent-output-fallback}"
+          pattern: "{${{ steps.artifact-source-agent.outputs.prefix }}agent,${{ steps.artifact-source-agent.outputs.prefix }}agent-output-fallback}"
           merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable

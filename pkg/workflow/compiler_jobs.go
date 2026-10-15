@@ -403,6 +403,7 @@ func (c *Compiler) finalizeBuiltJobs(data *WorkflowData) error {
 	}
 
 	c.ensureOTLPOIDCJobPermissions(data)
+	c.ensureHostRepositoryOIDCJobPermissions(data)
 	c.ensureDriveMemoryJobPermissions(data)
 	c.annotateGeneratedJobs(data)
 

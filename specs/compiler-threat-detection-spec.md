@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.52
+**Version**: 1.0.53
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.53` | Unreleased | Maps reusable-workflow identity and artifact provenance to Safe Outputs RWI-001–008 and the structural conformance verifier. Payload uploads retain attempt-specific names; retained-producer downloads use validated artifact metadata. Generated workflows require recompilation; no frontmatter schema change or new CTR identifier. |
 | `1.0.52` | Unreleased | Adds CTR-033: repository-list checkout requires literal `multi: true`; ordinary repository expressions retain single-checkout semantics with runtime cardinality validation in both jobs. Safe Outputs PTI-001–007 and its TLA+ model clarify a runtime patch/bundle validation-to-application integrity boundary without changing permissions or lock-file schema. |
 | `1.0.51` | Unreleased | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode and permit suppression of only the corresponding warning in non-strict mode via an explicit dangerous feature flag. |
 | `1.0.50` | Unreleased | Extends CTR-032 with mandatory creating-run traceability from first publication, HTML markers for issue comments and PR descriptions, and Markdown anchor markers for PR review comments. Versioned activation markers and review-comment persistence coverage remain implementation obligations. |
@@ -75,6 +76,8 @@ Patch/bundle replacement between safe-output validation and Git application is l
 Sandbox bypass includes the provenance of the agent's own configuration. On pull-request triggers the workspace holds head-branch content that the PR author controls, so agent configuration folders and root instruction files are attacker-controlled inputs until the generated job replaces them with the base-branch snapshot captured before that content was checked out.
 
 Activation also reads workflow imports and skills before the agent job runs. Restoring agent configuration later cannot make instructions already loaded during activation trustworthy; the activation sparse checkout must select a trusted ref independently.
+
+Reusable-workflow transport also crosses an identity boundary. Secret masking can suppress cross-job metadata, and a failed-job-only rerun can retain artifacts from an earlier producer attempt. Safe Outputs [RWI-001–008](../docs/src/content/docs/specs/safe-outputs-specification.md#98-reusable-workflow-metadata-and-artifact-provenance) require local canonical computation, validated producer-attempt metadata, explicit producer dependencies, and fail-closed target selection. These controls support CTR-005 routing and CTR-030 checkout provenance without introducing a new `CTR-*` rule. They do not replace payload validation, detector success gates, or patch/bundle byte-integrity checks. The structural verifier checks canonical producers and consumers; its checks and the bounded workflow-security model are not evidence of hosted rerun or GHES runtime compatibility.
 
 Host-side OTLP exporter configuration is another secret-bearing trust boundary. Passing collector headers and endpoints through AWF's `--env-all` exposes collector credentials to sandboxed processes and can cause an agent CLI to export duplicate telemetry. CTR-017 covers compiler-generated exclusions for the agent, threat-detection, and evals sandboxes.
 
@@ -217,6 +220,18 @@ Every active rule MUST map to implementation and test coverage. References are p
 ### 7.2 Mapping Audit History
 
 Dated mapping-audit records are maintained in `specs/compiler-threat-detection-changelog.md`. A daily optimizer run MUST append its audit entry to that changelog, not to this specification.
+
+### 7.3 Reusable-Workflow Transport Contract Mapping
+
+These supporting contracts retain the existing rule/test-ID catalog. Runtime identity or artifact validation errors MUST fail explicitly; an unavailable identity MUST NOT authorize a caller-repository fallback.
+
+| Contract | Implementation | Regression evidence |
+|---|---|---|
+| RWI-001–003: trusted host identity and dispatch refs | `compiler_activation_job.go`, `safe_outputs_config_runtime.go`, `actions/setup/js/resolve_host_repo.cjs` | `host_repository_compatibility_test.go`, `actions/setup/js/resolve_host_repo.test.cjs`, `actions/setup/js/dispatch_workflow.test.cjs` |
+| RWI-004–006: local prefixes and retained-producer artifacts | `compiler_artifact_producers.go`, `compiler_artifact_producer_steps.go`, `compiler_artifact_edits.go`, canonical artifact scripts under `actions/setup/sh/` | `artifact_producer_attempts_test.go`, `workflow_call_local_metadata_test.go`; canonical publisher/consumer rejection tests in `specs/workflow-security/conformance/` |
+| RWI-007–008: publication scope and evidence limits | `create_code_scanning_alert.go`, `publish_code_coverage.go`, `specs/workflow-security/conformance/artifacts.go`, `specs/workflow-security/conformance/artifact_sources.go` | `dedicated_uploader_metadata_test.go`, complete workflow-security conformance suite; hosted/GHES execution remains separate evidence |
+
+Unqualified Go filenames in this table are under `pkg/workflow/`. GHES identity resolution uses the runner's authenticated OIDC endpoint only when native executing-workflow metadata is absent; explicit `id-token: write` opt-in and caller permission ceilings remain required. Unknown cross-repository identities fail closed. Inlined imports preserve caller identity and PR-aware dispatch defaults rather than injecting a merge/default-branch ref.
 
 ## 8. Compliance Testing
 

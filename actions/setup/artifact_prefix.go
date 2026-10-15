@@ -6,3 +6,9 @@ import _ "embed"
 //
 //go:embed sh/compute_artifact_prefix.sh
 var ArtifactPrefixScript string
+
+//go:embed sh/write_artifact_producer.sh
+var ArtifactProducerScript string
+
+//go:embed sh/resolve_artifact_producer.sh
+var ArtifactProducerResolverScript string
