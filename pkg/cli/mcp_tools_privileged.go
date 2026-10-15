@@ -219,27 +219,29 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 	return nil
 }
 
-const logsToolDescription = `Download and analyze workflow logs.
+const logsToolDescription = `Download workflow logs. Returns JSON file_path; errors may be inline.
 
-In the normal case, returns a file path to a JSON file with workflow run data and metrics.
-The data is written to a file to avoid large inline payloads. Use the returned file_path
-to read the full data. In rare error cases (e.g., invalid workflow name), a JSON error
-response is returned inline instead.
+Read the returned file_path first; it contains the complete report JSON. Use jq
+against that file to project summary, failure_investigation and continuation before runs.
+For partial results ("partial": true), follow every continuation parameter, including
+updated end_date and before_run_id. State incomplete coverage until collection finishes.
 
-If the command times out before fetching all available logs, a "continuation" field will be present
-in the JSON data with updated parameters to continue fetching more data.
-Check for the presence of the continuation field to determine if there are more logs available.
+Start with failure_investigation.selected_runs: a deduplicated initial audit plan.
+Prioritize failure_boundary over generic aftermath. Read failure_clusters for selected
+cluster IDs; signal.job/step identify boundaries. Clusters overlap: count unique run IDs,
+never sum counts. Membership describes symptoms, not proven causes. Recommendations
+exclude intentional_failure runs; metadata_only groups remain unknown.
+Cluster statistics use the returned failed sample, not fleet failure rates.
+Wilson bounds assume independent observations; retries and missing diagnostics
+limit interpretation. They are not root-cause confidence.
 
-When results are incomplete, the tool response also sets "partial": true and repeats the
-"continuation" cursor inline, so partial results can be detected without reading the file.
+Read representative_runs or selected_runs audit_path/logs_path before fetching evidence;
+use the audit tool if unavailable. Representatives expose workflow/engine/model context.
+Report cluster IDs, unique affected runs, inspected URLs and remaining uncertainty.
 
-The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
-from where the previous request stopped due to timeout.
-
-Each run record includes a "token_usage" field (input+output tokens) and an "aic" field.
-Both are always present, so aggregating them across runs yields real fleet-level metrics.
-The compact "usage" artifact set is downloaded by default (and added to any explicit
-artifact selection) because it carries the per-run token usage data.`
+token_usage (input+output) and aic are always present per run. The usage artifact is
+downloaded by default and added to explicit selections. Compact metadata is not complete
+logs; missing evidence does not prove absence of failure.`
 
 // newLogsToolHandler builds the handler for the logs tool.
 func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.
@@ -391,9 +393,9 @@ func appendLogsFilterArgs(cmdArgs []string, args logsArgs) []string {
 		cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 	}
 	if len(args.IgnoreWorkflowRuns) > 0 {
-		runIDs := make([]string, len(args.IgnoreWorkflowRuns))
-		for i, runID := range args.IgnoreWorkflowRuns {
-			runIDs[i] = strconv.FormatInt(runID, 10)
+		runIDs := make([]string, 0, len(args.IgnoreWorkflowRuns))
+		for _, runID := range args.IgnoreWorkflowRuns {
+			runIDs = append(runIDs, strconv.FormatInt(runID, 10))
 		}
 		cmdArgs = append(cmdArgs, "--ignore-workflow-runs", strings.Join(runIDs, ","))
 	}

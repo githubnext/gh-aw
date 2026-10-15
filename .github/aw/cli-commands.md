@@ -133,6 +133,16 @@ gh aw logs --ignore-workflow-runs 123,456  # Exclude specific run IDs from resul
 
 **MCP equivalent**: `logs` tool
 
+For failure triage, project `summary`, `failure_investigation`, and `continuation`
+before reading individual runs. `failure_investigation.selected_runs` is a bounded,
+deduplicated audit plan; inspect local `audit_path`/`logs_path` first. Join selected
+cluster IDs to `failure_clusters` for evidence and full membership. Specific
+`failure_boundary` signals precede generic `aftermath`; `signal.job`/`signal.step`
+identify failed boundaries without parsing display strings. Count unique runs,
+not overlapping cluster counts. Recommendations exclude intentional failures;
+`metadata_only` means unknown, not a confirmed shared cause. Follow every
+continuation parameter, including the updated end date, before claiming full coverage.
+
 ---
 
 ### `gh aw audit`
