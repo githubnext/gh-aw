@@ -71,25 +71,25 @@ func analyzeAssignStmt(pass *analysis.Pass, assign *ast.AssignStmt, generatedFil
 		return
 	}
 
-	// Pattern 2: _, _ := builder.WriteString(...) 
+	// Pattern 2: _, _ := builder.WriteString(...)
 	// Only flag if BOTH return values are assigned to blank identifiers
 	if len(assign.Lhs) == 2 && len(assign.Rhs) == 1 {
 		// Check if both LHS are blank identifiers
 		firstIsBlank := false
 		secondIsBlank := false
-		
+
 		if ident, ok := assign.Lhs[0].(*ast.Ident); ok && ident.Name == "_" {
 			firstIsBlank = true
 		}
 		if ident, ok := assign.Lhs[1].(*ast.Ident); ok && ident.Name == "_" {
 			secondIsBlank = true
 		}
-		
+
 		// Only flag if both are blank
 		if !firstIsBlank || !secondIsBlank {
 			return
 		}
-		
+
 		for _, rhs := range assign.Rhs {
 			call, ok := astutil.UnwrapParenExpr(rhs).(*ast.CallExpr)
 			if !ok {
