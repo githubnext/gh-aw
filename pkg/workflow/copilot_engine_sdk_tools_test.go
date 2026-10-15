@@ -258,6 +258,46 @@ func TestCopilotSDKExplicitEditDisableOverridesDriveMemory(t *testing.T) {
 	}
 }
 
+func TestCopilotSDKEditDisableOverridesWildcardBash(t *testing.T) {
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{CopilotSDK: true},
+		Tools: map[string]any{
+			"bash": []any{"*"},
+			"edit": false,
+		},
+		ParsedTools: NewTools(map[string]any{
+			"bash": []any{"*"},
+			"edit": false,
+		}),
+		ExplicitlyDisabledTools: map[string]struct{}{"edit": {}},
+	}
+
+	copilotArgs, toolArgs := NewCopilotEngine().buildCopilotArgs(workflowData)
+	hasWriteDeny := false
+	for index := 0; index+1 < len(copilotArgs); index++ {
+		if copilotArgs[index] == "--deny-tool" && copilotArgs[index+1] == "write" {
+			hasWriteDeny = true
+			break
+		}
+	}
+	if !hasWriteDeny {
+		t.Fatalf("Copilot CLI args = %#v, want --deny-tool write", copilotArgs)
+	}
+
+	var config copilotSDKToolConfig
+	if err := json.Unmarshal([]byte(buildCopilotSDKToolConfigJSON(workflowData, toolArgs)), &config); err != nil {
+		t.Fatalf("Unmarshal SDK tool config: %v", err)
+	}
+	if !config.Capabilities.Bash || config.Capabilities.Edit {
+		t.Fatalf("SDK capabilities = %#v, want bash enabled and edit disabled", config.Capabilities)
+	}
+	for _, tool := range config.Permissions.AllowedTools {
+		if tool == "write" {
+			t.Fatalf("SDK allowed write despite edit:false: %#v", config.Permissions.AllowedTools)
+		}
+	}
+}
+
 func TestCopilotSDKWebFetchContractFixtureMatchesCompiler(t *testing.T) {
 	const workflowMarkdown = `---
 on: workflow_dispatch

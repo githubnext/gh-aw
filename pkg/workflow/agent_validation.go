@@ -333,7 +333,7 @@ func (c *Compiler) validateNativeEditSupport(tools map[string]any, engine Coding
 	capabilities := engine.GetCapabilities()
 	if isToolExplicitlyFalse(edit) {
 		if !capabilities.NativeEditDisable {
-			return fmt.Errorf("engine '%s' cannot enforce tools.edit: false; use an engine that supports disabling native editing (copilot, claude, gemini, or pi), or remove tools.edit to retain the engine default", engine.GetID())
+			return fmt.Errorf("engine '%s' cannot enforce tools.edit: false; use an engine that declares native-edit-disable support, or remove tools.edit to retain the engine default", engine.GetID())
 		}
 		return nil
 	}

@@ -446,6 +446,11 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		assert.NotContains(t, result, "run_shell_command")
 	})
 
+	t.Run("empty bash allowlist without edit does not enable shell", func(t *testing.T) {
+		result := computeGeminiToolsCore(map[string]any{"bash": []any{}})
+		assert.NotContains(t, result, "run_shell_command")
+	})
+
 	t.Run("combined bash and edit tools", func(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"grep"},

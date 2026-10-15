@@ -399,10 +399,7 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
 	c.IncrementWarningCount()
 	if _, hasTools := frontmatter["tools"]; hasTools {
-		message := fmt.Sprintf("MCP tool allow-list ignored when using engine: %s (%s doesn't support MCP tool allow-listing); native edit policy remains enforced", agenticEngine.GetID(), agenticEngine.GetDisplayName())
-		if _, hasQueue := tools["work-queue"]; hasQueue {
-			message = fmt.Sprintf("Native tool allow-list ignored for engine: %s; work-queue controls and CLI transport remain enabled", agenticEngine.GetID())
-		}
+		message := fmt.Sprintf("Native tool settings ignored when using engine: %s (%s doesn't support native tool allow-listing); the fallback discards configured shell restrictions and MCP filters, retaining only the framework GitHub entry and any edit, work-queue, and cli-proxy entries. Custom harnesses must enforce the forwarded GH_AW_TOOLS_EDIT policy themselves.", agenticEngine.GetID(), agenticEngine.GetDisplayName())
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(message))
 		c.IncrementWarningCount()
 	}
@@ -434,7 +431,6 @@ func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, ag
 		return err
 	}
 	validators := []func() error{
-		func() error { return c.validateNativeEditSupport(tools, agenticEngine) },
 		func() error { return c.validateMaxTurnsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxToolDenialsSupport(frontmatter, agenticEngine) },
