@@ -621,7 +621,7 @@ async function main({ prepareForCustomMasking = false } = {}) {
     } catch (error) {
       core.setFailed(`${ERR_VALIDATION}: AWF resolved configuration was not collected safely`);
       core.warning(`AWF resolved configuration collection failed: ${getErrorMessage(error)}`);
-      return;
+      core.warning("Continuing with standard artifact redaction despite AWF resolved configuration collection failure");
     }
     if (stagedResolvedConfig) {
       core.info("Collected sanitized AWF resolved configuration");
