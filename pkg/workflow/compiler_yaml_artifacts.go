@@ -99,6 +99,9 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 		path.Join(constants.AWFAuditDir.String(), "api-proxy-logs/token-usage.jsonl"),
 		path.Join(constants.AWFAuditDir.String(), "api-proxy-logs/model-routing.jsonl"),
 	}
+	if isFirewallEnabled(data) {
+		paths = append(paths, constants.AWFResolvedConfigFilePath.String())
+	}
 
 	// Include grader manifest/results in the fallback so detection and downstream
 	// jobs have reliable access even when the large unified artifact times out.

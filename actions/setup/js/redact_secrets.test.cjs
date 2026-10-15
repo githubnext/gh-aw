@@ -1222,6 +1222,63 @@ Custom secret: my-secret-123456789012`;
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google OAuth Access Token"));
           });
         });
+        describe("AWF_RESOLVED_CONFIG", () => {
+          it.each(["", "/tmp/secret.json", "/run/awf-config-audit/run-abcdef/other.json", "/run/awf-config-audit/run-abcdef/awf-resolved-config.json\n/tmp/secret.json"])("rejects unsafe publication path %j without reading it", source => {
+            const { readAWFResolvedConfig } = require("./redact_secrets.cjs");
+            const read = vi.spyOn(fs, "lstatSync");
+            expect(() => readAWFResolvedConfig(source)).toThrow();
+            expect(read).not.toHaveBeenCalled();
+            read.mockRestore();
+          });
+
+          it("preserves compatibility when older AWF does not publish the artifact", () => {
+            const { stageAWFResolvedConfig, AWF_RESOLVED_CONFIG_STAGING_PATH } = require("./redact_secrets.cjs");
+            expect(stageAWFResolvedConfig(undefined, [], [])).toBe(false);
+            expect(fs.existsSync(AWF_RESOLVED_CONFIG_STAGING_PATH)).toBe(false);
+          });
+
+          it("stages only sanitized configuration after validating the protected source", () => {
+            const { stageAWFResolvedConfig, AWF_RESOLVED_CONFIG_STAGING_PATH } = require("./redact_secrets.cjs");
+            const sourcePath = "/run/awf-config-audit/run-abcdef/awf-resolved-config.json";
+            const sourceStat = { isFile: () => true, isDirectory: () => false, uid: process.getuid(), nlink: 1, mode: 0o100600, ino: 42, dev: 7 };
+            const directoryStat = { isFile: () => false, isDirectory: () => true, uid: process.getuid(), mode: 0o40700 };
+            const rootStat = { isFile: () => false, isDirectory: () => true, uid: 0, mode: 0o40711 };
+            const lstat = vi.spyOn(fs, "lstatSync").mockImplementation(file => {
+              if (file === AWF_RESOLVED_CONFIG_STAGING_PATH) return undefined;
+              if (file === "/run/awf-config-audit") return rootStat;
+              if (file === path.dirname(sourcePath)) return directoryStat;
+              if (file === sourcePath) return sourceStat;
+              throw new Error(`unexpected path: ${file}`);
+            });
+            const open = vi.spyOn(fs, "openSync").mockReturnValue(9);
+            const fstat = vi.spyOn(fs, "fstatSync").mockReturnValue(sourceStat);
+            const read = vi.spyOn(fs, "readFileSync").mockReturnValue(
+              JSON.stringify({
+                version: "v0.28.59",
+                token: "******",
+                nested: { password: "fixture-password", endpoint: "https://example.test" },
+              })
+            );
+            const close = vi.spyOn(fs, "closeSync").mockImplementation(() => {});
+            const mkdtemp = vi.spyOn(fs, "mkdtempSync").mockReturnValue("/tmp/gh-aw/.awf-resolved-config-test");
+            let stagedContent;
+            const write = vi.spyOn(fs, "writeFileSync").mockImplementation((file, content) => {
+              stagedContent = content;
+            });
+            const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => {});
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation(() => {});
+            try {
+              expect(stageAWFResolvedConfig(sourcePath, [], [])).toBe(true);
+              expect(stagedContent).toContain('"version": "v0.28.59"');
+              expect(stagedContent).not.toContain("******");
+              expect(stagedContent).not.toContain("fixture-password");
+              expect(stagedContent).toContain("***REDACTED***");
+              expect(rename).toHaveBeenCalledWith("/tmp/gh-aw/.awf-resolved-config-test/awf-resolved-config.json", AWF_RESOLVED_CONFIG_STAGING_PATH);
+            } finally {
+              for (const spy of [lstat, open, fstat, read, close, mkdtemp, write, rename, remove]) spy.mockRestore();
+            }
+          });
+        });
       });
     }));
 

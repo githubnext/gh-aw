@@ -140,11 +140,13 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 			// On ARC/DinD, logs are under ${{ runner.temp }}/gh-aw (daemon-visible path).
 			// Use ${{ runner.temp }} because `with:` blocks expand Actions expressions, not shell vars.
 			paths = append(paths, constants.AWFConfigFilePathExpr)
+			paths = append(paths, constants.AWFResolvedConfigFilePathExpr)
 			paths = append(paths, constants.AWFProxyLogsDirExpr+"/")
 			paths = append(paths, constants.AWFAuditDirExpr+"/")
 			paths = append(paths, constants.AWFReflectFilePathExpr)
 		} else {
 			paths = append(paths, constants.AWFConfigFilePath.String())
+			paths = append(paths, constants.AWFResolvedConfigFilePath.String())
 			paths = append(paths, constants.AWFProxyLogsDir.String()+"/")
 			paths = append(paths, constants.AWFAuditDir.String()+"/")
 			// Include the AWF /reflect payload persisted by the agent harness.

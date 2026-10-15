@@ -645,6 +645,7 @@ Body.
 		"/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
+		constants.AWFResolvedConfigFilePath.String(),
 		"/tmp/gh-aw/agent/graders/grader_manifest.json",
 		"/tmp/gh-aw/agent/graders/grader_results.json",
 		"if-no-files-found: ignore",
@@ -720,6 +721,7 @@ safe-outputs:
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl",
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
+		"${{ runner.temp }}/gh-aw/awf-resolved-config.json",
 		"${{ runner.temp }}/gh-aw/agent/graders/grader_manifest.json",
 	} {
 		assert.Contains(t, uploadSection, expected)
@@ -805,6 +807,7 @@ Body.
 		constants.AgentStdioLogPath,
 		constants.AWFProxyLogsDir.String() + "/",
 		constants.AWFAuditDir.String() + "/",
+		constants.AWFResolvedConfigFilePath.String(),
 	} {
 		assert.Contains(t, uploadSection, expected)
 	}
