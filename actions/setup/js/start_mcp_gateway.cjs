@@ -56,6 +56,36 @@ const DOCKER_CLEANUP_TIMEOUT_MS = getSetupTimeoutMs("mcpDockerCleanup");
 const MCP_SERVER_CHECK_TIMEOUT_MS = getSetupTimeoutMs("mcpServerCheck");
 
 /**
+ * Keep owner-only MCP downloads readable and redactable by the host runner.
+ * @param {Record<string, unknown>} config
+ */
+function applyAgenticWorkflowsRunnerIdentity(config) {
+  const servers = config.mcpServers;
+  if (!servers || typeof servers !== "object" || !Object.hasOwn(servers, "agenticworkflows") || !("agenticworkflows" in servers)) return;
+  const server = servers.agenticworkflows;
+  if (!server || typeof server !== "object" || !("container" in server) || typeof server.container !== "string" || !server.container) return;
+  const uid = process.getuid?.();
+  const gid = process.getgid?.();
+  if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || uid === undefined || gid === undefined || uid < 0 || gid < 0) {
+    throw new Error("Cannot determine runner UID/GID for the agentic-workflows MCP container");
+  }
+  const existing = "args" in server ? server.args : [];
+  if (!Array.isArray(existing) || !existing.every(arg => typeof arg === "string")) {
+    throw new Error("Invalid Docker arguments for the agentic-workflows MCP container");
+  }
+  const args = [];
+  for (let i = 0; i < existing.length; i++) {
+    const arg = existing[i];
+    if (arg === "--user" || arg === "-u") {
+      i++;
+    } else if (!arg.startsWith("--user=") && !arg.startsWith("-u")) {
+      args.push(arg);
+    }
+  }
+  Object.assign(server, { args: [...args, "--user", `${uid}:${gid}`] });
+}
+
+/**
  * Retries startup probes without letting requests or backoff extend the shared
  * container startup deadline.
  *
@@ -934,6 +964,7 @@ async function main() {
     return;
   }
   applyGatewayRuntimeTimeouts(configObj, process.env);
+  applyAgenticWorkflowsRunnerIdentity(configObj);
   mcpConfig = JSON.stringify(configObj);
   if (!("port" in gw) || gw.port == null) {
     core.setFailed("ERROR: Gateway configuration is missing required 'port' field");
@@ -1481,6 +1512,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  applyAgenticWorkflowsRunnerIdentity,
   applyOTLPIgnoreIfMissing,
   clearGatewayStartupMarker,
   createGatewayStderrPath,

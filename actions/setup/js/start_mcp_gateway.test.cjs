@@ -4,6 +4,7 @@ import path from "path";
 import http from "http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyAgenticWorkflowsRunnerIdentity,
   applyOTLPIgnoreIfMissing,
   clearGatewayStartupMarker,
   createGatewayStderrPath,
@@ -34,6 +35,77 @@ import {
   httpGet,
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
+
+describe("agentic-workflows MCP runner identity", () => {
+  beforeEach(() => {
+    vi.spyOn(process, "getuid").mockReturnValue(1001);
+    vi.spyOn(process, "getgid").mockReturnValue(1002);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses runner ownership for owner-only downloads from %s", container => {
+    const server = {
+      container,
+      args: ["--network", "host", "-w", "${GITHUB_WORKSPACE}"],
+      entrypointArgs: ["mcp-server", "--validate-actor"],
+      mounts: ["/tmp/gh-aw:/tmp/gh-aw:rw"],
+      env: { GITHUB_TOKEN: "${GITHUB_TOKEN}" },
+    };
+    const original = structuredClone(server);
+    const other = { container: "other", args: ["--user", "42:42"] };
+    const config = { mcpServers: { agenticworkflows: server, other } };
+
+    applyAgenticWorkflowsRunnerIdentity(config);
+
+    expect(server).toEqual({ ...original, args: [...original.args, "--user", "1001:1002"] });
+    expect(other).toEqual({ container: "other", args: ["--user", "42:42"] });
+  });
+
+  it.each([["--user", "0:0"], ["--user=0:0"], ["-u", "0:0"], ["-u=0:0"], ["-u0:0"]])("replaces existing identity arguments %j idempotently", (...identityArgs) => {
+    const config = { mcpServers: { agenticworkflows: { container: "alpine", args: ["--network", "host", ...identityArgs, "-w", "/workspace"] } } };
+    applyAgenticWorkflowsRunnerIdentity(config);
+    applyAgenticWorkflowsRunnerIdentity(config);
+    expect(config.mcpServers.agenticworkflows.args).toEqual(["--network", "host", "-w", "/workspace", "--user", "1001:1002"]);
+  });
+
+  it("adds Docker arguments when none were configured", () => {
+    const config = { mcpServers: { agenticworkflows: { container: "alpine" } } };
+    applyAgenticWorkflowsRunnerIdentity(config);
+    expect(config.mcpServers.agenticworkflows).toEqual({ container: "alpine", args: ["--user", "1001:1002"] });
+  });
+
+  it.each([{}, { mcpServers: {} }, { mcpServers: { agenticworkflows: null } }, { mcpServers: { agenticworkflows: { url: "https://example.com/mcp" } } }])("leaves absent or non-container backends unchanged: %j", config => {
+    const original = structuredClone(config);
+    applyAgenticWorkflowsRunnerIdentity(config);
+    expect(config).toEqual(original);
+    expect(process.getuid).not.toHaveBeenCalled();
+  });
+
+  it.each(["getuid", "getgid"])("fails closed when %s is unavailable", method => {
+    vi.stubGlobal("process", { ...process, [method]: undefined });
+    try {
+      expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine" } } })).toThrow("Cannot determine runner UID/GID");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each(["getuid", "getgid"])("rejects invalid %s values", method => {
+    for (const value of [-1, NaN, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      vi.mocked(process[method]).mockReturnValue(value);
+      expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine" } } })).toThrow("Cannot determine runner UID/GID");
+    }
+  });
+
+  it.each([null, "--user=0:0", [null]])("rejects malformed Docker arguments %j", args => {
+    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine", args } } })).toThrow("Invalid Docker arguments");
+  });
+
+  it("normalizes the configuration before serializing it for the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source.indexOf("applyAgenticWorkflowsRunnerIdentity(configObj)")).toBeLessThan(source.indexOf("mcpConfig = JSON.stringify(configObj)"));
+  });
+});
 
 describe("start_mcp_gateway logging", () => {
   it("records only a sanitized configuration snapshot before launching the gateway", () => {
