@@ -16,6 +16,64 @@ import (
 // Target Repo and Patch Limit Tests
 // ========================================
 
+func TestAllowFullHistoryFetch(t *testing.T) {
+	t.Parallel()
+	for _, value := range []any{nil, false, true} {
+		name := "default"
+		switch value {
+		case false:
+			name = "disabled"
+		case true:
+			name = "enabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			compiler := NewCompiler()
+			raw := map[string]any{
+				"create-pull-request":         map[string]any{},
+				"push-to-pull-request-branch": map[string]any{},
+			}
+			if value != nil {
+				raw["create-pull-request"] = map[string]any{"allow-full-history-fetch": value}
+				raw["push-to-pull-request-branch"] = map[string]any{"allow-full-history-fetch": value}
+			}
+			cfg := compiler.extractSafeOutputsConfig(map[string]any{"safe-outputs": raw})
+			require.NotNil(t, cfg)
+			for _, handler := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+				got := handlerRegistry[handler](cfg)
+				require.NotNil(t, got)
+				if value != true {
+					assert.NotContains(t, got, "allow_full_history_fetch")
+				} else {
+					assert.Equal(t, value, got["allow_full_history_fetch"])
+				}
+			}
+			encoded, err := generateSafeOutputsConfig(&WorkflowData{SafeOutputs: cfg})
+			require.NoError(t, err)
+			var runtime map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(encoded), &runtime))
+			for _, handler := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+				if value != true {
+					assert.NotContains(t, runtime[handler], "allow_full_history_fetch")
+				} else {
+					assert.Equal(t, value, runtime[handler]["allow_full_history_fetch"])
+				}
+			}
+		})
+	}
+}
+
+func TestAllowFullHistoryFetchIsHandlerScoped(t *testing.T) {
+	t.Parallel()
+	cfg := NewCompiler().extractSafeOutputsConfig(map[string]any{"safe-outputs": map[string]any{
+		"create-pull-request":         map[string]any{"allow-full-history-fetch": true},
+		"push-to-pull-request-branch": map[string]any{},
+	}})
+	require.NotNil(t, cfg)
+	assert.Equal(t, true, handlerRegistry["create_pull_request"](cfg)["allow_full_history_fetch"])
+	assert.NotContains(t, handlerRegistry["push_to_pull_request_branch"](cfg), "allow_full_history_fetch")
+}
+
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()
