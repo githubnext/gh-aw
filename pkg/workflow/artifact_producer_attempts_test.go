@@ -132,20 +132,29 @@ func TestArtifactProducerMetadataReplacedOnRerun(t *testing.T) {
 	assert.Equal(t, producer["prefix"], resolved["prefix"])
 }
 
-func TestArtifactProducerOptionalChannelAbsent(t *testing.T) {
-	c := NewCompiler()
-	job := &Job{Name: "conclusion", Steps: append(generateArtifactPrefixStep(),
-		"      - name: Download optional manifest\n",
-		"        uses: "+getActionPin("actions/download-artifact")+"\n",
-		"        continue-on-error: true\n",
-		"        with:\n",
-		"          name: "+localArtifactPrefix+"optional-manifest\n",
-	)}
-	require.NoError(t, c.jobManager.AddJob(job))
-	require.NoError(t, c.bindArtifactProducerAttempts(&WorkflowData{On: "workflow_call"}))
-	steps := strings.Join(job.Steps, "")
-	assert.Contains(t, steps, "if: ${{ false }}")
-	assert.NotContains(t, steps, "artifact-source-")
+func TestArtifactProducerUnboundChannelOptionality(t *testing.T) {
+	for _, continueOnError := range []string{"true", "false", "${{ inputs.tolerate }}"} {
+		t.Run(continueOnError, func(t *testing.T) {
+			c := NewCompiler()
+			job := &Job{Name: "conclusion", Steps: append(generateArtifactPrefixStep(),
+				"      - name: Download manifest\n",
+				"        uses: "+getActionPin("actions/download-artifact")+"\n",
+				"        continue-on-error: "+continueOnError+"\n",
+				"        with:\n",
+				"          name: "+localArtifactPrefix+"optional-manifest\n",
+			)}
+			require.NoError(t, c.jobManager.AddJob(job))
+			err := c.bindArtifactProducerAttempts(&WorkflowData{On: "workflow_call"})
+			if continueOnError != "true" {
+				require.ErrorContains(t, err, "has no bound producer", "only literal true proves an unbound channel is optional")
+				return
+			}
+			require.NoError(t, err)
+			steps := strings.Join(job.Steps, "")
+			assert.Contains(t, steps, "if: ${{ false }}")
+			assert.NotContains(t, steps, "artifact-source-")
+		})
+	}
 }
 
 func TestArtifactProducerUsesRepositoryRetention(t *testing.T) {

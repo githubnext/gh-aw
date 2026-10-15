@@ -167,3 +167,55 @@ func TestLocalArtifactPrefixSurvivesMaskedJobOutputs(t *testing.T) {
 	assert.NotEqual(t, compute(script, `{"target":"one"}`, "1"), compute(script, `{"target":"two"}`, "1"))
 	assert.NotEqual(t, compute(script, `{}`, "1"), compute(script, `{}`, "2"))
 }
+
+func TestWorkflowCallTemplatedStepContinueOnError(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		config string
+		job    string
+	}{
+		{
+			name: "external detector",
+			config: `safe-outputs:
+  create-issue:
+  threat-detection:
+    continue-on-error: ${{ inputs.tolerate }}
+features:
+  gh-aw-detection: true
+`,
+			job: "detection",
+		},
+		{
+			name: "custom job",
+			config: `jobs:
+  optional:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo optional
+        continue-on-error: ${{ inputs.tolerate }}
+`,
+			job: "optional",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := filepath.Join(t.TempDir(), "templated-step.md")
+			content := `---
+on:
+  workflow_call:
+    inputs:
+      tolerate:
+        type: boolean
+        default: false
+engine: copilot
+permissions:
+  contents: read
+` + tc.config + "---\nTest templated step options.\n"
+			require.NoError(t, os.WriteFile(workflow, []byte(content), 0600))
+			c := NewCompiler(WithNoEmit(true))
+			require.NoError(t, c.CompileWorkflow(workflow))
+			job, exists := c.jobManager.GetJob(tc.job)
+			require.True(t, exists)
+			assert.Contains(t, strings.Join(job.Steps, ""), "continue-on-error: ${{ inputs.tolerate }}")
+		})
+	}
+}

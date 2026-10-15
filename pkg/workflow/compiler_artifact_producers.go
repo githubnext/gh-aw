@@ -20,11 +20,11 @@ type artifactProtocolStep struct {
 	raw             string
 	start           int
 	end             int
-	ID              string         `yaml:"id"`
-	Uses            string         `yaml:"uses"`
-	If              string         `yaml:"if"`
-	ContinueOnError bool           `yaml:"continue-on-error"`
-	With            map[string]any `yaml:"with"`
+	ID              string           `yaml:"id"`
+	Uses            string           `yaml:"uses"`
+	If              string           `yaml:"if"`
+	ContinueOnError *TemplatableBool `yaml:"continue-on-error"`
+	With            map[string]any   `yaml:"with"`
 }
 
 func parseArtifactProtocolSteps(job *Job) ([]artifactProtocolStep, error) {
@@ -127,7 +127,7 @@ func artifactDownloadSources(step artifactProtocolStep, producers map[string]str
 				}
 			}
 			if !found {
-				if step.ContinueOnError {
+				if templatableBoolIsTrue(step.ContinueOnError) {
 					// No job can supply this optional channel in this configuration.
 					sources[pattern] = ""
 					continue
@@ -156,7 +156,7 @@ func (c *Compiler) bindJobArtifactSources(job *Job, steps []artifactProtocolStep
 			if producer == job.Name {
 				continue
 			}
-			required[producer] = required[producer] || !step.ContinueOnError
+			required[producer] = required[producer] || !templatableBoolIsTrue(step.ContinueOnError)
 			guards = append(guards, "steps.artifact-source-"+producer+".outcome == 'success'")
 		}
 		if len(guards) > 0 {
