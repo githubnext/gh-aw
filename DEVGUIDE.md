@@ -20,6 +20,15 @@ make deps
 make deps-dev
 ```
 
+Run `make check-npm-1es` to verify that every exact npm registry dependency in
+the tracked lockfiles is available through the Microsoft 1ES public npm feed.
+This downloads metadata and tarballs into a temporary cache, including dev,
+transitive, and platform-specific optional dependencies, without installing
+packages, running lifecycle scripts, or changing npm configuration or lockfiles.
+Git, local, and private-registry dependencies are reported separately and still
+require their own network access. The command fails if a registry package
+cannot be downloaded; caching an upstream version may require feed permissions.
+
 ### 3. Build and Verify Development Environment
 
 ```bash
