@@ -36,6 +36,7 @@ safe-outputs:
   create-issue:
   create-code-scanning-alert:
   upload-code-coverage:
+  upload-asset:
   jobs:
     notify:
       steps:
@@ -64,10 +65,50 @@ Report findings.
 					assert.Less(t, strings.Index(steps, "id: resolve-host-repo"), strings.Index(steps, "steps.resolve-host-repo.outputs."), name)
 				}
 			}
-			for _, name := range []string{"activation", "agent", "detection", "conclusion", "safe_outputs", "upload_code_scanning_sarif", "upload_code_coverage", "notify", "update_cache_memory", "push_repo_memory"} {
+			for _, name := range []string{"activation", "agent", "detection", "conclusion", "safe_outputs", "upload_code_scanning_sarif", "upload_code_coverage", "upload_assets", "notify", "update_cache_memory", "push_repo_memory"} {
 				_, exists := c.jobManager.GetJob(name)
 				assert.True(t, exists, "fixture must exercise %s", name)
 			}
+		})
+	}
+}
+
+func TestSafeOutputJobLocalMetadataPreSteps(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		artifactPrefix bool
+		resolveHost    bool
+	}{
+		{name: "no metadata"},
+		{name: "artifact prefix", artifactPrefix: true},
+		{name: "host repository", resolveHost: true},
+		{name: "both metadata steps", artifactPrefix: true, resolveHost: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewCompiler()
+			data := &WorkflowData{On: "workflow_call"}
+			var preSteps []string
+			if tc.artifactPrefix {
+				preSteps = append(preSteps, generateArtifactPrefixStep()...)
+			}
+			if tc.resolveHost {
+				preSteps = append(preSteps, c.generateResolveHostRepoStep(data))
+			}
+			job, err := c.buildSafeOutputJob(data, SafeOutputJobConfig{
+				JobName:     "test_output",
+				StepName:    "Test output",
+				StepID:      "test_output",
+				MainJobName: "agent",
+				Permissions: NewPermissions(),
+				PreSteps:    preSteps,
+				Script:      "console.log('test')",
+			})
+			require.NoError(t, err)
+			steps := strings.Join(job.Steps, "")
+			assert.Equal(t, 1, strings.Count(steps, "id: artifact-prefix\n"))
+			assert.Equal(t, 1, strings.Count(steps, "id: resolve-host-repo\n"))
+			assert.Less(t, strings.Index(steps, "id: artifact-prefix\n"), strings.Index(steps, "id: test_output\n"))
+			assert.Less(t, strings.Index(steps, "id: resolve-host-repo\n"), strings.Index(steps, "id: test_output\n"))
 		})
 	}
 }

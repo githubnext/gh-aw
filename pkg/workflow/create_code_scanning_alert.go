@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -77,9 +76,10 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 //   - depends on safe_outputs (needs: [safe_outputs])
 //   - runs only when the safe_outputs job exported a SARIF file
 //     (if: needs.safe_outputs.outputs.sarif_file != ”)
-//   - restores the workspace to the triggering commit via actions/checkout before upload so
+//   - restores the workspace to the scanned commit via actions/checkout before upload so
 //     that github/codeql-action/upload-sarif can resolve the commit reference
-//   - uploads the SARIF file with explicit ref/sha to pin the result to the triggering commit
+//   - uploads the SARIF file with explicit ref/sha to pin the result to the scanned commit
+//   - rejects cross-repository reusable calls because upload-sarif has no repository input
 func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) {
 	createCodeScanningAlertLog.Print("Building upload_code_scanning_sarif job")
 
@@ -96,10 +96,15 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	defaultOverride := checkoutMgr.GetDefaultCheckoutOverride()
 	if defaultOverride != nil && defaultOverride.githubApp != nil {
 		permissions := NewPermissionsContentsReadSecurityEventsWrite()
-		for _, step := range c.buildGitHubAppTokenMintStep(defaultOverride.githubApp, permissions, "") {
-			tokenMintSteps = append(tokenMintSteps,
-				strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: checkout-restore-app-token"))
+		var fallbackRepo, ownerRepository string
+		if hasWorkflowCallTrigger(data.On) {
+			fallbackRepo = activationTargetRepoNameExpr
+			ownerRepository = activationTargetRepoExpr
 		}
+		tokenMintSteps = c.buildGitHubAppTokenMintStepWithMeta(
+			defaultOverride.githubApp, permissions, fallbackRepo, ownerRepository,
+			"Generate GitHub App token", "checkout-restore-app-token",
+		)
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
 		restoreToken = "${{ steps.checkout-restore-app-token.outputs.token }}"
 	} else {
@@ -111,10 +116,8 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 
 	uploadSteps := c.buildCodeScanningUploadSteps(data, restoreToken)
 	steps := make([]string, 0, typeutil.SafeAllocationCapacity(len(tokenMintSteps), len(uploadSteps)))
+	steps = append(steps, c.buildCodeScanningWorkflowMetadataSteps(data)...)
 	steps = append(steps, tokenMintSteps...)
-	if hasWorkflowCallTrigger(data.On) {
-		steps = append(steps, generateArtifactPrefixStep()...)
-	}
 	steps = append(steps, uploadSteps...)
 
 	// The job only runs when the safe_outputs job exported a non-empty SARIF file path.
@@ -139,18 +142,59 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	return job, nil
 }
 
-// buildCodeScanningUploadSteps restores the triggering commit because upload-sarif requires HEAD
+func (c *Compiler) buildCodeScanningWorkflowMetadataSteps(data *WorkflowData) []string {
+	if !hasWorkflowCallTrigger(data.On) {
+		return nil
+	}
+	steps := generateArtifactPrefixStep()
+	steps = append(steps, c.generateResolveHostRepoStep(data))
+	if !data.InlinedImports {
+		steps = append(steps,
+			"      - name: Validate SARIF upload repository and revision\n",
+			"        env:\n",
+			"          TARGET_REPOSITORY: "+activationTargetRepoExpr+"\n",
+			"          CURRENT_REPOSITORY: ${{ github.repository }}\n",
+			"          TARGET_REF: ${{ steps.resolve-host-repo.outputs.target_ref }}\n",
+			"          TARGET_SHA: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}\n",
+			"        shell: bash\n",
+			"        run: |\n",
+			"          set -euo pipefail\n",
+			"          if [[ \"$TARGET_REPOSITORY\" != \"$CURRENT_REPOSITORY\" ]]; then\n",
+			"            echo \"::error::github/codeql-action/upload-sarif cannot target another repository. Refusing to upload to the caller repository.\"\n",
+			"            exit 1\n",
+			"          fi\n",
+			"          if [[ -z \"$TARGET_REF\" || -z \"$TARGET_SHA\" ]]; then\n",
+			"            echo \"::error::SARIF upload requires a resolved workflow branch/tag ref and commit SHA. Refusing to fall back to the caller revision.\"\n",
+			"            exit 1\n",
+			"          fi\n",
+		)
+	}
+	return steps
+}
+
+// buildCodeScanningUploadSteps restores the scanned commit because upload-sarif requires HEAD
 // to match the scanned commit, then downloads the SARIF artifact because this job has a fresh workspace.
 func (c *Compiler) buildCodeScanningUploadSteps(data *WorkflowData, restoreToken string) []string {
+	checkoutRef := "${{ github.sha }}"
+	uploadRef := "${{ github.ref }}"
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		checkoutRef = "${{ steps.resolve-host-repo.outputs.target_checkout_ref }}"
+		uploadRef = "${{ steps.resolve-host-repo.outputs.target_ref }}"
+	}
 	steps := []string{
 		"      - name: Restore checkout to triggering commit\n",
 		fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
 		"        with:\n",
-		"          ref: ${{ github.sha }}\n",
+	}
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		steps = append(steps, "          repository: "+activationTargetRepoExpr+"\n")
+	}
+	steps = append(steps,
+		fmt.Sprintf("          ref: %s\n", checkoutRef),
 		fmt.Sprintf("          token: %s\n", restoreToken),
 		"          persist-credentials: false\n",
 		"          fetch-depth: 1\n",
-	}
+	)
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: artifactPrefixExprForDownstreamJob(data) + constants.SarifArtifactName.String(),
 		DownloadPath: constants.SarifArtifactDownloadPath.String(),
@@ -168,9 +212,9 @@ func (c *Compiler) buildCodeScanningUploadSteps(data *WorkflowData, restoreToken
 	c.addUploadSARIFToken(&steps, data, data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken, restoreToken)
 	// sarif_file now references the locally-downloaded artifact, not the path from safe_outputs
 	steps = append(steps, fmt.Sprintf("          sarif_file: %s\n", localSarifPath))
-	// ref and sha pin the upload to the exact triggering commit regardless of local git state
-	steps = append(steps, "          ref: ${{ github.ref }}\n")
-	steps = append(steps, "          sha: ${{ github.sha }}\n")
+	// ref and sha pin the upload to the exact scanned commit regardless of local git state.
+	steps = append(steps, fmt.Sprintf("          ref: %s\n", uploadRef))
+	steps = append(steps, fmt.Sprintf("          sha: %s\n", checkoutRef))
 	steps = append(steps, "          wait-for-processing: true\n")
 
 	return steps

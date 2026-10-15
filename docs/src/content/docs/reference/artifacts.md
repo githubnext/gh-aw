@@ -38,6 +38,8 @@ Different invocations in the same run must have different inputs to avoid artifa
 
 Reusable workflows also resolve host repository metadata within each job that needs it for checkouts, GitHub App tokens, or workflow dispatch. Non-inlined imports use `job.workflow_repository`; inlined imports use the caller repository. Missing or malformed required repository metadata fails explicitly rather than redirecting operations to another repository.
 
+The pinned SARIF and coverage upload actions cannot select another repository. Their dedicated jobs reject cross-repository reusable uploads instead of publishing to the caller. SARIF uploads use the resolved workflow ref and SHA; non-inlined coverage uploads also require the resolved revision to match the uploader's caller-event revision (the PR head for pull requests).
+
 ## Legacy artifact names
 
 :::caution[Deprecated]

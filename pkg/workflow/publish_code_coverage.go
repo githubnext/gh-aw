@@ -131,6 +131,7 @@ func generateSafeOutputsCodeCoverageStagingUpload(builder *strings.Builder, data
 //     (the job condition checks that upload_code_coverage_file is non-empty)
 //   - does not perform a checkout: actions/upload-code-coverage resolves the commit/ref/PR
 //     number itself from the triggering event context
+//   - rejects reusable calls whose repository or revision the action cannot honor
 func (c *Compiler) buildUploadCodeCoverageJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	publishCodeCoverageLog.Print("Building upload_code_coverage job")
 
@@ -164,6 +165,10 @@ func (c *Compiler) buildUploadCodeCoverageSteps(data *WorkflowData, permissions 
 
 	if hasWorkflowCallTrigger(data.On) {
 		steps = append(steps, generateArtifactPrefixStep()...)
+		steps = append(steps, c.generateResolveHostRepoStep(data))
+		if !data.InlinedImports {
+			steps = append(steps, generateCodeCoverageUploadValidationStep()...)
+		}
 	}
 
 	// Download the coverage staging artifact produced by the agent job.
@@ -210,6 +215,37 @@ func (c *Compiler) buildUploadCodeCoverageSteps(data *WorkflowData, permissions 
 	return steps
 }
 
+func generateCodeCoverageUploadValidationStep() []string {
+	return []string{
+		"      - name: Validate code coverage upload repository and revision\n",
+		"        env:\n",
+		"          TARGET_REPOSITORY: " + activationTargetRepoExpr + "\n",
+		"          CURRENT_REPOSITORY: ${{ github.repository }}\n",
+		"          TARGET_REF: ${{ steps.resolve-host-repo.outputs.target_ref }}\n",
+		"          TARGET_SHA: ${{ steps.resolve-host-repo.outputs.target_checkout_ref }}\n",
+		"          UPLOAD_EVENT_NAME: ${{ github.event_name }}\n",
+		"          UPLOAD_REF: ${{ github.ref }}\n",
+		"          UPLOAD_SHA: ${{ github.sha }}\n",
+		"          PR_HEAD_REF: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request != null && github.event.pull_request.head != null && github.event.pull_request.head.ref || '' }}\n",
+		"          PR_HEAD_SHA: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request != null && github.event.pull_request.head != null && github.event.pull_request.head.sha || '' }}\n",
+		"        shell: bash\n",
+		"        run: |\n",
+		"          set -euo pipefail\n",
+		"          if [[ \"$TARGET_REPOSITORY\" != \"$CURRENT_REPOSITORY\" ]]; then\n",
+		"            echo \"::error::actions/upload-code-coverage cannot target another repository. Refusing to upload to the caller repository.\"\n",
+		"            exit 1\n",
+		"          fi\n",
+		"          if [[ \"$UPLOAD_EVENT_NAME\" == \"pull_request\" || \"$UPLOAD_EVENT_NAME\" == \"pull_request_target\" ]]; then\n",
+		"            UPLOAD_REF=\"refs/heads/$PR_HEAD_REF\"\n",
+		"            UPLOAD_SHA=\"$PR_HEAD_SHA\"\n",
+		"          fi\n",
+		"          if [[ -z \"$TARGET_REF\" || -z \"$TARGET_SHA\" || \"$TARGET_REF\" != \"$UPLOAD_REF\" || \"$TARGET_SHA\" != \"$UPLOAD_SHA\" ]]; then\n",
+		"            echo \"::error::actions/upload-code-coverage cannot override the caller upload revision. Refusing to upload coverage for a different workflow revision.\"\n",
+		"            exit 1\n",
+		"          fi\n",
+	}
+}
+
 func (c *Compiler) buildUploadCodeCoverageToken(data *WorkflowData, permissions *Permissions) ([]string, string) {
 	cfg := data.SafeOutputs.UploadCodeCoverage
 	var steps []string
@@ -229,11 +265,15 @@ func (c *Compiler) buildUploadCodeCoverageToken(data *WorkflowData, permissions 
 		}
 		if coverageApp != nil {
 			const appTokenStepID = "upload-code-coverage-app-token"
-			for _, step := range c.buildGitHubAppTokenMintStep(coverageApp, permissions, "") {
-				step = strings.ReplaceAll(step, "safe-outputs-app-token-owner", appTokenStepID+"-owner")
-				step = strings.ReplaceAll(step, "safe-outputs-app-token", appTokenStepID)
-				steps = append(steps, step)
+			var fallbackRepo, ownerRepository string
+			if hasWorkflowCallTrigger(data.On) {
+				fallbackRepo = activationTargetRepoNameExpr
+				ownerRepository = activationTargetRepoExpr
 			}
+			steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
+				coverageApp, permissions, fallbackRepo, ownerRepository,
+				"Generate GitHub App token", appTokenStepID,
+			)...)
 			if coverageApp.shouldIgnoreMissingKey() {
 				coverageToken = combineTokenExpressions(
 					fmt.Sprintf("${{ steps.%s.outputs.token }}", appTokenStepID),

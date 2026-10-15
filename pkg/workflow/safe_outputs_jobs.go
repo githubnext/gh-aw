@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -59,8 +61,14 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		steps = append(steps, config.PreSteps...)
 	}
 	if hasWorkflowCallTrigger(data.On) {
-		steps = append(steps, generateArtifactPrefixStep()...)
-		steps = append(steps, c.generateResolveHostRepoStep(data))
+		// Setup pre-steps may already provide job-local workflow_call metadata.
+		preSteps := strings.Join(config.PreSteps, "")
+		if !strings.Contains(preSteps, "\n        id: artifact-prefix\n") {
+			steps = append(steps, generateArtifactPrefixStep()...)
+		}
+		if !strings.Contains(preSteps, "\n        id: resolve-host-repo\n") {
+			steps = append(steps, c.generateResolveHostRepoStep(data))
+		}
 	}
 
 	// Add GitHub App token minting step if app is configured.
