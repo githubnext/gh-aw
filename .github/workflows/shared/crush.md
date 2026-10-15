@@ -2,7 +2,7 @@
 engine:
   id: crush
   detection-engine: copilot
-  version: "0.88.0"
+  version: "0.98.1"
   display-name: Crush
   description: Crush CLI with non-interactive execution and native MCP support
   experimental: true
@@ -134,7 +134,7 @@ engine:
       const { spawnSync } = require("child_process");
       const { accessSync, constants, readFileSync, writeFileSync } = require("fs");
       const { isAbsolute, join } = require("path");
-      const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL } = require("./awf_reflect.cjs");
+      const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL, inferWireApiForModel, REFLECT_PROVIDER_ALIASES } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
       const log = message => process.stderr.write(`[crush-harness] ${message}\n`);
@@ -189,7 +189,7 @@ engine:
             reflectData: result.reflectData,
             logger: log,
           });
-          if (!endpoint || !endpoint.baseUrl) {
+          if (!endpoint || !endpoint.baseUrl || !REFLECT_PROVIDER_ALIASES[provider]?.has(endpoint.endpointProvider)) {
             throw new Error(`No configured /reflect endpoint found for provider ${provider}`);
           }
           baseUrl = endpoint.baseUrl;
@@ -213,7 +213,9 @@ engine:
         if (!workspace) throw new Error("GITHUB_WORKSPACE is required");
         const configPath = process.env.GH_AW_MCP_CONFIG || join(workspace, ".crush.json");
         const config = JSON.parse(readFileSync(configPath, "utf8"));
-        const providerType = provider === "anthropic" ? "anthropic" : "openai-compat";
+        const providerType = provider === "anthropic"
+          ? "anthropic"
+          : inferWireApiForModel("openai", model) === "responses" ? "openai" : "openai-compat";
         const apiKey = providerType === "anthropic" ? "$ANTHROPIC_API_KEY" : "$OPENAI_API_KEY";
         config.providers = {
           ...(config.providers || {}),
@@ -265,69 +267,48 @@ engine:
       });
     log-parser: |
       function parseLog(logContent) {
-        const lines = logContent.split("\n");
+        const { isSessionEvent } = require("./agent_session.cjs");
+        const { normalizeEngineLogEntries } = require("./engine_log_parser.cjs");
+        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|crush-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+        const lines = logContent.split("\n").filter(line => !AWF_INFRA_RE.test(line));
+        const observedLines = lines.filter(line => line.trim());
+        const records = observedLines.map(line => {
+          try { return JSON.parse(line); } catch { return null; }
+        });
+        if (records.length && records.every(isSessionEvent)) {
+          return { markdown: "Crush saved session events", logEntries: records, mcpFailures: [], maxTurnsHit: false };
+        }
+
+        // Historical gh-aw logs may append an explicit result; quiet CLI text
+        // itself contains no tool identities, token usage, or turn counters.
+        let terminalIndex = lines.length - 1;
+        while (terminalIndex >= 0 && !lines[terminalIndex].trim()) terminalIndex--;
+        let terminal;
+        try {
+          const record = JSON.parse(lines[terminalIndex] || "");
+          if (record.type === "result" && (Object.hasOwn(record, "num_turns") || Object.hasOwn(record, "usage"))) {
+            terminal = record;
+            lines.splice(terminalIndex);
+          }
+        } catch {}
+
         const logEntries = [];
         const mcpFailures = [];
         let maxTurnsHit = false;
-        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|crush-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
-        let toolCallIndex = 0;
-        let turnCount = 0;
-        let currentRole = null;
-        let currentText = [];
-
-        function flushEntry() {
-          if (!currentRole || currentText.length === 0) { currentText = []; return; }
-          const text = currentText.join("\n").trim();
-          if (!text) { currentText = []; return; }
-          if (currentRole === "tool_use") {
-            const toolId = `crush_tool_${toolCallIndex++}`;
-            const nameMatch = text.match(/^(?:Tool|Running|Executing|>\s*)(view|edit|bash|grep|ls|write|webfetch|websearch)\b/i);
-            const toolName = nameMatch ? nameMatch[1] : "unknown_tool";
-            logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
-            logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: text }] } });
-          } else if (currentRole === "assistant") {
-            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
-            turnCount++;
-          }
-          currentText = [];
-        }
-
-        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
-
         for (const line of lines) {
-          if (!line.trim()) continue;
-          if (AWF_INFRA_RE.test(line)) continue;
-          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
-          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+          if (/^(?:max.?turns|maximum.*turns.*reached|turn limit)/i.test(line)) maxTurnsHit = true;
+          if (/^(?:MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP)/i.test(line)) {
             const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
             mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
           }
-
-          if (/^(Tool|Running|Executing|>\s*(view|edit|bash|grep|ls|write|webfetch|websearch))\b/i.test(line.trim())) {
-            flushEntry();
-            currentRole = "tool_use";
-            currentText.push(line);
-            continue;
-          }
-          if (/^(Assistant|Response|Output)\s*[>:]/i.test(line.trim())) {
-            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
-            currentText.push(line);
-            continue;
-          }
-          if (currentRole) {
-            currentText.push(line);
-          } else {
-            currentText.push(line);
-            currentRole = "assistant";
-          }
         }
-        flushEntry();
-
-        logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
-        const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
-        if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
-        if (maxTurnsHit) parts.push("**Max turns reached**");
-        return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
+        const text = lines.join("\n");
+        if (text.trim()) logEntries.push({ type: "assistant.message", data: { content: text } });
+        if (terminal) logEntries.push(...normalizeEngineLogEntries([terminal], "crush"));
+        return {
+          markdown: "Crush plain-text output (tool and usage telemetry unavailable)",
+          logEntries, mcpFailures, maxTurnsHit,
+        };
       }
 ---
 
@@ -337,4 +318,21 @@ engine:
 Shared engine definition for the [Crush](https://github.com/charmbracelet/crush)
 coding agent. Import this file and set `engine.id: crush` with a
 `provider/model` model selection.
+
+This unsupported sample pins Crush 0.98.1. Its npm package uses an install
+script to provision the native binary, so lifecycle scripts remain enabled
+only for the pinned installation.
+
+The harness discovers the selected provider's endpoint through AWF reflection
+and retains its API path prefix. GPT-5 and newer models use Crush's native
+OpenAI Responses provider; other non-Anthropic models retain Chat Completions.
+Anthropic uses its native Messages provider. Credential references remain
+environment-variable expressions in the private config, not literal API keys.
+Copilot inference uses the workflow's `copilot-requests: write` permission.
+
+JSON configuration and native HTTP/stdio MCP remain supported. CLI-mounted
+servers are excluded from the native MCP config. `run --quiet` emits plain
+text, so unified sessions preserve the answer without inventing tool calls,
+turn counts, model/session identifiers, or token usage. Saved canonical events
+and explicit historical terminal records retain their observed fields.
 -->
