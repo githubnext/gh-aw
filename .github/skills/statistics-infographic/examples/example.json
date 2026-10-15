@@ -40,6 +40,34 @@
       { "bin": "30+ days", "lower_hours_inclusive": 720, "upper_hours_exclusive": null, "count": 0 }
     ]
   },
+  "pr_changes": {
+    "repository": "example/metrics",
+    "snapshot_date": "2026-10-08",
+    "pr_count": 100,
+    "bins": [
+      { "lower": 0, "upper": 125, "added": 40, "deleted": 65 },
+      { "lower": 125, "upper": 250, "added": 20, "deleted": 15 },
+      { "lower": 250, "upper": 375, "added": 15, "deleted": 8 },
+      { "lower": 375, "upper": 500, "added": 10, "deleted": 5 },
+      { "lower": 500, "upper": 625, "added": 7, "deleted": 3 },
+      { "lower": 625, "upper": 750, "added": 4, "deleted": 2 },
+      { "lower": 750, "upper": 875, "added": 3, "deleted": 1 },
+      { "lower": 875, "upper": 1000, "added": 1, "deleted": 1 }
+    ]
+  },
+  "pr_activity": {
+    "repository": "example/metrics",
+    "snapshot_date": "2026-10-08",
+    "pr_count": 100,
+    "group_by": "contribution-author",
+    "comment_count": 300,
+    "commit_count": 200,
+    "cohorts": [
+      { "cohort": "Human account", "comments": 100, "commits": 100 },
+      { "cohort": "Agent / bot account", "comments": 200, "commits": 100 },
+      { "cohort": "Unattributed", "comments": 0, "commits": 0 }
+    ]
+  },
   "community": {
     "repository": "example/metrics",
     "collected_at": "2026-10-08T21:19:30Z",
