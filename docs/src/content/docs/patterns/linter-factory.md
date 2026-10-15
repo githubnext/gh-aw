@@ -49,8 +49,9 @@ payloads; they do not admit another copy. A new UTC day admits a new cohort.
 Older eligible work can still run before the new cohort.
 
 AW authorizes the dispatcher; the queue validates pool `default`, priority `3`,
-and empty accounting key (`""`) against installed scheduling. Workers require
-authenticated assignments and do not seed tasks. The separate `daily-report-dispatcher` uses the
+and empty accounting key (`""`) against installed scheduling. Installing Policy
+does not itself admit any Work. Workers require authenticated assignments and
+do not seed tasks. The separate `daily-report-dispatcher` uses the
 `daily-reports` pool and is not this factory's producer.
 
 ### Bootstrap the factory policy

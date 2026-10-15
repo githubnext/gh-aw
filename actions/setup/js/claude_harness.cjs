@@ -461,6 +461,21 @@ function removeClaudeRoutingOverrides(args) {
 }
 
 /**
+ * Append --settings from GH_AW_CLAUDE_SETTINGS when the caller passed no --settings.
+ * The external threat-detect binary builds its own Claude Code arguments, so the
+ * compiler hands the Copilot modelOverrides map to Claude Code through this variable.
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string[]}
+ */
+function applyClaudeSettingsEnv(args, env = process.env) {
+  const settings = (env.GH_AW_CLAUDE_SETTINGS || "").trim();
+  if (!settings) return args;
+  if (args.some(arg => arg === "--settings" || arg.startsWith("--settings="))) return args;
+  return [...args, "--settings", settings];
+}
+
+/**
  * Main entry point: run claude with retry logic for transient API failures.
  */
 async function main() {
@@ -485,7 +500,7 @@ async function main() {
     const resolved = resolveClaudePromptFileArgs(args);
     prompt = resolved.prompt;
     const capabilities = claudeBareCapabilities(claudeRepositoryEditPolicy(stripContinueArgs(resolved.args), process.env));
-    initialArgs = capabilities.args;
+    initialArgs = applyClaudeSettingsEnv(capabilities.args, process.env);
     pluginDir = capabilities.pluginDir;
   } catch (err) {
     const e = /** @type {Error} */ err;
@@ -844,6 +859,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveClaudeModelRouting,
     buildClaudeChildEnv,
     removeClaudeRoutingOverrides,
+    applyClaudeSettingsEnv,
   };
 }
 

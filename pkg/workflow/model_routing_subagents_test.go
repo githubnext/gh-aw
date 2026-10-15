@@ -258,3 +258,98 @@ sandbox:
 		"github-copilot/claude-haiku-4.5",
 	}, config["apiProxy"].(map[string]any)["routing"].(map[string]any)["candidateModels"])
 }
+
+func TestImportedWorkflowModelRoutingOmittedAllowedModelsMeansAnyModel(t *testing.T) {
+	routingImport := func(allowedModels string) string {
+		content := "---\nengine:\n  id: copilot\n  model-routing:\n    goal: cost-speed\n    mode: robust\n"
+		if allowedModels != "" {
+			content += "    allowed-models: " + allowedModels + "\n"
+		}
+		return content + "---\n# Shared routing\n"
+	}
+	tests := []struct {
+		name          string
+		mainRouting   string
+		imports       map[string]string
+		importOrder   []string
+		expectedModel []string
+	}{
+		{
+			name:          "main omits allowed-models, import lists models",
+			mainRouting:   "  model-routing:\n    goal: cost\n    mode: economy\n",
+			imports:       map[string]string{"routing.md": routingImport("[claude-sonnet-5]")},
+			importOrder:   []string{"routing.md"},
+			expectedModel: nil,
+		},
+		{
+			name:          "main lists models, import omits allowed-models",
+			mainRouting:   "  model-routing:\n    goal: cost\n    mode: economy\n    allowed-models: [gpt-6-sol]\n",
+			imports:       map[string]string{"routing.md": routingImport("")},
+			importOrder:   []string{"routing.md"},
+			expectedModel: nil,
+		},
+		{
+			name:          "main without routing, omitted import before listed import",
+			imports:       map[string]string{"omitted.md": routingImport(""), "listed.md": routingImport("[claude-sonnet-5]")},
+			importOrder:   []string{"omitted.md", "listed.md"},
+			expectedModel: nil,
+		},
+		{
+			name:          "main without routing, listed import before omitted import",
+			imports:       map[string]string{"omitted.md": routingImport(""), "listed.md": routingImport("[claude-sonnet-5]")},
+			importOrder:   []string{"listed.md", "omitted.md"},
+			expectedModel: nil,
+		},
+		{
+			name:          "main without routing, import lists models",
+			imports:       map[string]string{"routing.md": routingImport("[claude-sonnet-5]")},
+			importOrder:   []string{"routing.md"},
+			expectedModel: []string{"claude-sonnet-5"},
+		},
+		{
+			name:          "main and import list models",
+			mainRouting:   "  model-routing:\n    goal: cost\n    mode: economy\n    allowed-models: [gpt-6-sol]\n",
+			imports:       map[string]string{"routing.md": routingImport("[claude-sonnet-5, gpt-6-sol]")},
+			importOrder:   []string{"routing.md"},
+			expectedModel: []string{"gpt-6-sol", "claude-sonnet-5"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, content := range tt.imports {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600))
+			}
+			var importsYAML strings.Builder
+			for _, name := range tt.importOrder {
+				importsYAML.WriteString("  - " + name + "\n")
+			}
+			source := filepath.Join(dir, "routed.md")
+			require.NoError(t, os.WriteFile(source, []byte("---\non: workflow_dispatch\npermissions:\n  contents: read\n  copilot-requests: write\nstrict: false\nimports:\n"+
+				importsYAML.String()+"engine:\n  id: copilot\n"+tt.mainRouting+"---\n# Routed workflow\n"), 0600))
+
+			data, err := NewCompiler().ParseWorkflowFile(source)
+			require.NoError(t, err)
+			require.NotNil(t, data.EngineConfig.ModelRouting)
+			require.Equal(t, tt.expectedModel, data.EngineConfig.ModelRouting.AllowedModels)
+			setRoutingCandidateModelsProxyImage(data, "0.28.33")
+
+			configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+				EngineName: "copilot", AllowedDomains: "github.com", WorkflowData: data,
+			})
+			require.NoError(t, err)
+			var config map[string]any
+			require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+			routing := config["apiProxy"].(map[string]any)["routing"].(map[string]any)
+			if tt.expectedModel == nil {
+				require.NotContains(t, routing, "candidateModels")
+				return
+			}
+			expected := make([]any, 0, len(tt.expectedModel))
+			for _, model := range tt.expectedModel {
+				expected = append(expected, "github-copilot/"+model)
+			}
+			require.Equal(t, expected, routing["candidateModels"])
+		})
+	}
+}
