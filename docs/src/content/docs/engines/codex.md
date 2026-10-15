@@ -5,6 +5,8 @@ description: Select and authenticate OpenAI Codex as the AI engine for GitHub Ag
 
 [OpenAI Codex](https://openai.com/codex/) is OpenAI's coding-focused agent runtime for repository work. GitHub Agentic Workflows runs Codex through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
 
+The default CLI version is [Codex 0.163.0](https://github.com/openai/codex/releases/tag/rust-v0.163.0). Its `exec` arguments and JSONL event contract are unchanged from 0.162.1, so the existing harness and unified session parser remain compatible, including concurrent read-only tool calls. Recompile existing workflows to update their generated installation pin.
+
 > [!CAUTION]
 > Codex cannot enforce a per-command `tools.bash` allowlist. Configuring one does not restrict which shell commands can run. Set `tools.bash: false` to disable shell execution, or choose an engine that supports command allowlists.
 
