@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const require = createRequire(import.meta.url);
-const { resolveModelRoutingSummary } = require("./model_attribution.cjs");
+const { resolveModelRoutingSummary, resolveEffectiveModel, getEffectiveModelLabel } = require("./model_attribution.cjs");
 
 function createRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-model-routing-"));
@@ -15,6 +15,61 @@ function writeJSONL(filePath, records) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, records.map(record => JSON.stringify(record)).join("\n"));
 }
+
+describe("observed model attribution", () => {
+  it.each(["observed", "substituted"])("normalizes requested query parameters for %s selections", status => {
+    const root = createRoot();
+    const infoPath = path.join(root, "aw_info.json");
+    try {
+      const configured = "gemini-3.8-flash?effort=high";
+      fs.writeFileSync(
+        infoPath,
+        JSON.stringify({
+          requested_model: configured,
+          model_selection: { status, configured_model: configured, effective_model: "claude-sonnet-5" },
+        })
+      );
+      expect(resolveEffectiveModel(infoPath, "agent", {})).toMatchObject({ model: "claude-sonnet-5", requestedModel: "gemini-3.8-flash" });
+      expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection.configured_model).toBe(configured);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("labels an observed model that differs from routing without an authorized fallback", () => {
+    const root = createRoot();
+    const infoPath = path.join(root, "aw_info.json");
+    try {
+      fs.writeFileSync(
+        infoPath,
+        JSON.stringify({
+          model_routing: { status: "selected", wire_model: "gemini-3.8-flash" },
+          model_selection: { status: "substituted", effective_model: "claude-sonnet-5" },
+        })
+      );
+      expect(getEffectiveModelLabel(infoPath, "agent", {})).toBe("observed: sonnet50 (routed: gem38)");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not apply agent selections or unsupported phase-prefixed metadata to detection", () => {
+    const root = createRoot();
+    const infoPath = path.join(root, "aw_info.json");
+    try {
+      fs.writeFileSync(
+        infoPath,
+        JSON.stringify({
+          model_selection: { status: "substituted", effective_model: "claude-sonnet-5" },
+          detection_model_selection: { status: "unavailable", effective_model: "" },
+        })
+      );
+      expect(resolveEffectiveModel(infoPath, "detection", { GH_AW_ENGINE_MODEL: "gpt-5.4" }).model).toBe("gpt-5.4");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("resolveModelRoutingSummary", () => {
   it("reads allow-listed routing data and counts agent request deviations", () => {

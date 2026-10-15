@@ -6,22 +6,24 @@
  */
 
 /**
- * Dedicated error thrown when a configured model is a known gh-aw alias but the
- * model catalog needed to resolve it could not be built (e.g. an AWF /reflect
- * model-catalog fetch failed or returned no models — see
- * https://github.com/github/gh-aw/issues/52782). Callers must not forward the
- * unresolved alias to Copilot when this is thrown, because the API proxy will
- * reject it with a misleading "no AI credits pricing" error rather than the
- * actual root cause (catalog retrieval failure).
+ * A known alias could not resolve because its catalog is unavailable or no
+ * catalog entry matches. Keep those causes distinct; neither permits forwarding
+ * an unresolved alias to Copilot.
  */
 class ModelAliasResolutionError extends Error {
   /**
    * @param {string} configuredModel
+   * @param {"catalog_unavailable" | "model_unavailable"} [reason]
    */
-  constructor(configuredModel) {
-    super(`model-catalog retrieval prevented alias resolution for '${configuredModel}'`);
+  constructor(configuredModel, reason = "catalog_unavailable") {
+    super(
+      reason === "model_unavailable"
+        ? `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. For Copilot, availability also depends on the agentic-workflows integration, not just organization policy. Select a model offered to this workflow; enabling a missing model for that integration requires Copilot API support.`
+        : `model-catalog retrieval prevented alias resolution for '${configuredModel}'`
+    );
     this.name = "ModelAliasResolutionError";
     this.configuredModel = configuredModel;
+    this.reason = reason;
   }
 }
 
@@ -287,6 +289,38 @@ function normalizeForCopilotCLI(resolved) {
 }
 
 /**
+ * A failed candidate-provider fetch cannot establish that an alias is unavailable.
+ * @param {string} aliasKey
+ * @param {Record<string, string[]>} aliasMap
+ * @param {any} reflectData
+ * @returns {boolean}
+ */
+function hasIncompleteCandidateCatalog(aliasKey, aliasMap, reflectData) {
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
+  const failedEndpoints = endpoints.filter(endpoint => endpoint?.configured === true && !Array.isArray(endpoint.models));
+  const visited = new Set();
+  function hasFailedCandidate(target) {
+    const { base } = splitModelIdentifier(target);
+    if (Object.prototype.hasOwnProperty.call(aliasMap, base)) {
+      if (visited.has(base)) return false;
+      visited.add(base);
+      const entries = aliasMap[base];
+      return Array.isArray(entries) && entries.some(entry => hasFailedCandidate(String(entry)));
+    }
+    const slash = base.indexOf("/");
+    if (slash === -1) return failedEndpoints.length > 0;
+    const provider = base.slice(0, slash).toLowerCase();
+    return failedEndpoints.some(endpoint => {
+      const endpointProvider = String(endpoint.provider || "")
+        .trim()
+        .toLowerCase();
+      return (endpointProvider === "github-copilot" ? "copilot" : endpointProvider) === provider;
+    });
+  }
+  return hasFailedCandidate(aliasKey);
+}
+
+/**
  * Resolve configured COPILOT_MODEL when it is a gh-aw alias.
  * @param {{
  *   configuredModel: string,
@@ -328,8 +362,12 @@ function resolveConfiguredCopilotModel(options) {
 
   const resolved = resolveModelAlias(configuredModel, aliasMap, catalog, { logger });
   if (!resolved) {
+    if (hasIncompleteCandidateCatalog(aliasKey, aliasMap, options.reflectData)) {
+      logger(`copilot model alias resolution: candidate provider catalog unavailable from awf-reflect for known alias '${configuredModel}'`);
+      throw new ModelAliasResolutionError(configuredModel);
+    }
     logger(`copilot model alias resolution: known alias '${configuredModel}' did not resolve against catalog`);
-    throw new ModelAliasResolutionError(configuredModel);
+    throw new ModelAliasResolutionError(configuredModel, "model_unavailable");
   }
 
   const normalized = normalizeForCopilotCLI(resolved);

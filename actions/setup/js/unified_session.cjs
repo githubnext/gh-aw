@@ -309,9 +309,9 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     return files;
   };
   const choose = candidates => candidates.map(file => path.join(rootDir, file)).find(exists);
-  const metadata = choose(["aw_info.json", "activation/aw_info.json", "usage/aw_info.json"]);
+  const metadata = choose(["runtime/aw_info.json", "aw_info.json", "activation/aw_info.json", "usage/aw_info.json"]);
   if (metadata) {
-    const phase = metadata === path.join(rootDir, "agent/aw_info.json") ? "agent" : metadata === path.join(rootDir, "usage/aw_info.json") ? "conclusion" : "activation";
+    const phase = metadata === path.join(rootDir, "runtime/aw_info.json") ? "agent" : metadata === path.join(rootDir, "usage/aw_info.json") ? "conclusion" : "activation";
     add(metadata, "workflow", phase, "workflow.info");
     const info = sources.at(-1)?.events[0]?.data;
     const observedEngine = info?.engine_id;
