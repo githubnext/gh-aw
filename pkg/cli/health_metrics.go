@@ -217,12 +217,3 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 
 	return summary
 }
-
-// GroupRunsByWorkflow groups workflow runs by workflow name
-func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun {
-	grouped := make(map[string][]WorkflowRun)
-	for _, run := range runs {
-		grouped[run.WorkflowName] = append(grouped[run.WorkflowName], run)
-	}
-	return grouped
-}
