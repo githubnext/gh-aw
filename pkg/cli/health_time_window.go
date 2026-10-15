@@ -47,7 +47,7 @@ func resolveHealthTimeWindow(config HealthConfig, now time.Time) (time.Time, tim
 }
 
 func (config HealthConfig) healthPeriod() string {
-	if config.StartDate == "" {
+	if !config.explicitTimeWindow {
 		return fmt.Sprintf("Current status (up to %d days)", config.Days)
 	}
 	return fmt.Sprintf("Current status (runs created from %s to %s)", config.StartDate, config.EndDate)

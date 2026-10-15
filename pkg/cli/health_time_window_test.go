@@ -159,8 +159,33 @@ func TestHealthRunListingPreservesTimeWindowAcrossPages(t *testing.T) {
 	}
 }
 
+func TestHealthDaysOnlyPeriodThroughCommand(t *testing.T) {
+	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
+	t.Cleanup(func() { healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList })
+	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) {
+		return []GitHubWorkflow{{ID: 1, Name: "Example", Path: ".github/workflows/example.lock.yml", State: "active"}}, nil
+	}
+	healthListWorkflowRuns = func(ListWorkflowRunsOptions, int, *HealthCollection) ([]WorkflowRun, int, error) {
+		return nil, 0, nil
+	}
+
+	output := captureAuditGroupStdout(t, func() {
+		cmd := NewHealthCommand()
+		cmd.SetArgs([]string{"--repo", "org/repo", "--json", "--days", "7"})
+		require.NoError(t, cmd.Execute())
+	})
+	var report struct {
+		Period string `json:"period"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(output), &report))
+	assert.Equal(t, "Current status (up to 7 days)", report.Period)
+}
+
 func TestHealthTimeWindowTextOutput(t *testing.T) {
-	config := HealthConfig{StartDate: "2026-10-14T04:49:11Z", EndDate: "2026-10-15T13:20:00Z"}
+	config := HealthConfig{
+		StartDate: "2026-10-14T04:49:11Z", EndDate: "2026-10-15T13:20:00Z",
+		explicitTimeWindow: true,
+	}
 	period := config.healthPeriod()
 	assert.True(t, strings.HasPrefix(period, "Current status"))
 	assert.Contains(t, period, config.StartDate)

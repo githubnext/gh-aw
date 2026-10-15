@@ -23,16 +23,17 @@ var healthListWorkflowRuns = listHealthWorkflowRuns
 
 // HealthConfig holds configuration for health command execution
 type HealthConfig struct {
-	WorkflowName string
-	Days         int
-	StartDate    string
-	EndDate      string
-	Threshold    float64
-	Verbose      bool
-	JSONOutput   bool
-	RepoOverride string
-	LogsDir      string
-	collection   *HealthCollection
+	WorkflowName       string
+	Days               int
+	StartDate          string
+	EndDate            string
+	Threshold          float64
+	Verbose            bool
+	JSONOutput         bool
+	RepoOverride       string
+	LogsDir            string
+	collection         *HealthCollection
+	explicitTimeWindow bool
 }
 
 // NewHealthCommand creates the health command
@@ -113,6 +114,7 @@ func addHealthFlags(cmd *cobra.Command) {
 func RunHealth(config HealthConfig) error {
 	healthLog.Printf("Running health check: workflow=%s, days=%d, threshold=%.1f", config.WorkflowName, config.Days, config.Threshold)
 
+	config.explicitTimeWindow = config.StartDate != "" || config.EndDate != ""
 	start, end, err := resolveHealthTimeWindow(config, time.Now())
 	if err != nil {
 		return err
