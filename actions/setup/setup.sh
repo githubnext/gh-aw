@@ -277,6 +277,7 @@ MCP_SCRIPTS_FILES=(
   "pi_session_redaction.cjs"
   "otlp_header_helpers.cjs"
   "redact_secrets.cjs"
+  "safe_outputs_config_redact.cjs"
   "repo_helpers.cjs"
   "safe_output_helpers.cjs"
   "safe_output_manifest.cjs"
