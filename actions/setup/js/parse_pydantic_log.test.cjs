@@ -41,7 +41,7 @@ describe("Pydantic AI CLAI 2 session frames", () => {
     const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-stdio.log", events: parsed }]);
     expect(unified.find(event => event.type === "tool.execution_start").data).toMatchObject({ toolCallId: "read-1", toolName: "read_file", input: { path: "README.md" } });
     expect(unified.find(event => event.type === "tool.execution_complete").data).toMatchObject({ toolCallId: "read-1", output: "# Repository", success: true });
-    expect(unified.find(event => event.type === "session.result").data.usage).toMatchObject({ input_tokens: 120, output_tokens: 30, input_tokens_include_cache: true });
+    expect(unified.find(event => event.type === "session.result").data.usage).toMatchObject({ inputTokens: 120, outputTokens: 30, cacheReadInputTokens: 80, inputTokensIncludeCache: true });
   });
 
   it("ignores unframed, wrong-key, unknown, malformed and embedded records", () => {
