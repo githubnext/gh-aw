@@ -23,6 +23,7 @@ var reportLog = logger.New("cli:logs_report")
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
+	FailureClusters     []FailureCluster            `json:"failure_clusters,omitempty" console:"-"`
 	Summary             LogsSummary                 `json:"summary" console:"title:Workflow Logs Summary"`
 	Runs                []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
 	Episodes            []EpisodeData               `json:"episodes" console:"-"`
@@ -159,10 +160,12 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	RunID        int64  `json:"run_id" console:"header:Run ID"`
-	Number       int    `json:"number" console:"-"`
-	WorkflowName string `json:"workflow_name" console:"header:Workflow"`
-	WorkflowPath string `json:"workflow_path" console:"-"`
+	FailureSignals    []FailureSignal `json:"failure_signals,omitempty" console:"-"`
+	FailureClusterIDs []string        `json:"failure_cluster_ids,omitempty" console:"-"`
+	RunID             int64           `json:"run_id" console:"header:Run ID"`
+	Number            int             `json:"number" console:"-"`
+	WorkflowName      string          `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath      string          `json:"workflow_path" console:"-"`
 	// IntentionalFailure is true when the workflow is tagged with intentional-failure: true
 	// in its frontmatter (e.g. credit-guardrail stress tests that are expected to fail).
 	// Agents and dashboards MUST exclude these runs from prod-main and fleet-health
@@ -677,7 +680,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		runs = append(runs, buildRunData(pr, processedRuns, localRepo, agg))
+		runData := buildRunData(pr, processedRuns, localRepo, agg)
+		if pr.cachedData == nil {
+			runData.FailureSignals = failureSignalsForRun(pr)
+		}
+		runs = append(runs, runData)
 	}
 
 	summary := agg.summary(len(processedRuns))
@@ -693,6 +700,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	data := buildLogsSections(processedRuns)
 	data.Summary = summary
 	data.Runs = runs
+	data.FailureClusters = annotateFailureClusters(data.Runs)
 	data.Episodes = episodes
 	data.Edges = edges
 	data.Continuation = continuation
@@ -900,6 +908,10 @@ func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 	}
 	if err := renderLogsWorkQueueToWriter(w, data.Runs); err != nil {
 		console.PrintErrorMessage("Cannot render work queue diagnostics: " + err.Error())
+		return
+	}
+	if err := renderFailureClustersToWriter(w, data.FailureClusters, ""); err != nil {
+		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
 		return
 	}
 

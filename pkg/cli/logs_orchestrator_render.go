@@ -147,6 +147,9 @@ func renderLogsOutputTSV(logsData LogsData, verbose bool) error {
 	} else {
 		renderLogsTSV(logsData)
 	}
+	if err := renderFailureClustersToWriter(os.Stdout, logsData.FailureClusters, "# "); err != nil {
+		return fmt.Errorf("failed to render failure clusters: %w", err)
+	}
 	renderLogsArtifactHint(os.Stderr, logsData.Message)
 	return nil
 }
@@ -157,6 +160,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
+	report.FailureClusters = logsData.FailureClusters
 	if opts.jsonOutput {
 		return renderCrossRunReportJSON(report)
 	}
@@ -213,7 +217,9 @@ func renderLogsArtifactHint(w io.Writer, message string) {
 	if message == "" {
 		return
 	}
-	fmt.Fprintf(w, "[hint] %s\n", message)
+	if _, err := fmt.Fprintf(w, "[hint] %s\n", message); err != nil {
+		console.PrintErrorMessage("Cannot render logs hint: " + err.Error())
+	}
 }
 
 // processedRunsToCrossRunInputs converts ProcessedRun slices to crossRunInput slices

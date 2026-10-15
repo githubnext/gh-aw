@@ -68,6 +68,12 @@ gh aw logs my-workflow --safe-output            # include safe-output details
 gh aw logs my-workflow --json                   # JSON for scripting
 ```
 
+Logs reports automatically group failed, timed-out, cancelled, and startup-failure runs into **failure investigation clusters** using failed jobs/steps, MCP failures, missing tools/data, and blocked domains already available in the downloaded metadata. Clusters describe shared symptoms, not proven root causes; they can overlap, so do not sum their counts to compute a failure rate. Intentional failures and different conclusions/failure kinds remain separate.
+
+The default output includes `[failure_clusters]` with member run IDs and up to three representative audit commands per cluster. JSON and summary files include `failure_clusters`, per-run `failure_cluster_ids`, repository/workflow/engine/model facets, and first/last-seen timestamps. Start with a representative's `audit_path` or `gh aw audit` command, then investigate other members if needed. Stable cluster IDs identify the same symptom across queries; membership reflects only the returned runs.
+
+No extra downloads or model calls are required. When detailed evidence is unavailable, a `metadata_only` cluster groups runs within the same workflow and repository without asserting a shared cause. Cached reports retain extracted signals; older cache records without signals use this metadata-only grouping.
+
 ### Checking Workflow Health
 
 `gh aw health` reports workflow status across all workflows in a repository.

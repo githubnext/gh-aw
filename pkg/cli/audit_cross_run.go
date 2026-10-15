@@ -25,6 +25,7 @@ const spikeDetectionMultiplier = 2.0
 // CrossRunAuditReport represents aggregated audit data across multiple workflow runs.
 // It includes firewall analysis, metrics trends, MCP server health, and error trends.
 type CrossRunAuditReport struct {
+	FailureClusters     []FailureCluster            `json:"failure_clusters,omitempty"`
 	RunsAnalyzed        int                         `json:"runs_analyzed"`
 	RunsWithData        int                         `json:"runs_with_data"`
 	RunsWithoutData     int                         `json:"runs_without_data"`
