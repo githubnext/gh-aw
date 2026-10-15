@@ -31,6 +31,8 @@ Compact workflow metadata and usage have been pre-downloaded to `/tmp/gh-aw/aw-m
 
 **IMPORTANT**: Do NOT run `./gh-aw` or `gh aw` CLI commands directly — the binary is not authenticated in the agent environment. Use the `agentic-workflows` MCP server tools (`status`, `logs`, `audit`) instead for all additional queries.
 
+Project `summary`, `failure_investigation`, and `continuation` from `/tmp/gh-aw/aw-mcp/logs/summary.json` first; do not read every run. Start with `failure_investigation.selected_runs`, a deduplicated initial audit plan, and read their cached `audit_path`/`logs_path` before fetching more evidence. Use selected cluster IDs to read `failure_clusters`: prioritize specific `failure_boundary` signals over generic `aftermath`, and use typed `signal.job`/`signal.step`. Clusters overlap, so count unique run IDs rather than summing counts. Membership describes symptoms, not proven causes; intentional failures are excluded from recommendations and `metadata_only` groups remain unknown. Follow every continuation parameter, including the updated end date, through the MCP tools or state incomplete coverage. Report inspected run URLs and remaining uncertainty.
+
 ### Log Directory Structure
 
 ```

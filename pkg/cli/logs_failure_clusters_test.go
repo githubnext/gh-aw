@@ -40,8 +40,8 @@ func TestFailureSignalsForRun(t *testing.T) {
 	signals := failureSignalsForRun(pr)
 	assert.Equal(t, []FailureSignal{
 		{Kind: "blocked_domain", Value: "blocked.example"},
-		{Kind: "failed_job", Value: "setup"},
-		{Kind: "failed_step", Value: `"safe_outputs"/"Create issue"`},
+		{Kind: "failed_job", Value: "setup", Job: "setup"},
+		{Kind: "failed_step", Value: `"safe_outputs"/"Create issue"`, Job: "safe_outputs", Step: "Create issue"},
 		{Kind: "mcp_failure", Value: "github"},
 		{Kind: "missing_data", Value: "issue"},
 		{Kind: "missing_tool", Value: "shell"},
@@ -168,11 +168,13 @@ func TestFailureClustersCachedAndSummaryReports(t *testing.T) {
 	cached.FailureClusterIDs = []string{"stale"}
 	fromCache := buildLogsData([]ProcessedRun{processedRunFromCachedData(cached.RunData, nil, t.TempDir())}, "", nil)
 	assert.Equal(t, data.FailureClusters, fromCache.FailureClusters)
+	assert.Equal(t, data.FailureInvestigation, fromCache.FailureInvestigation)
 	assert.Equal(t, data.Runs[0].FailureClusterIDs, fromCache.Runs[0].FailureClusterIDs)
 	var compact bytes.Buffer
 	require.NoError(t, renderLogsJSONToWriter(&compact, fromCache, false))
 	assert.Contains(t, compact.String(), `"failure_clusters"`)
 	assert.Contains(t, compact.String(), `"failure_cluster_ids"`)
+	assert.Contains(t, compact.String(), `"failure_investigation"`)
 	path := filepath.Join(t.TempDir(), "summary.json")
 	require.NoError(t, writeSummaryFile(path, fromCache, false))
 	summary, err := os.ReadFile(path)
@@ -185,12 +187,18 @@ func TestFailureClustersCachedAndSummaryReports(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, string(expectedClusters), string(savedClusters))
 	assert.Equal(t, fromCache.Runs[0].FailureClusterIDs, saved.Runs[0].FailureClusterIDs)
+	assert.Equal(t, fromCache.FailureInvestigation, saved.FailureInvestigation)
+}
+
+func failureClusterTestLogsData() LogsData {
+	runs := failureClusterTestRuns()
+	clusters := annotateFailureClusters(runs)
+	return LogsData{Runs: runs, FailureClusters: clusters, FailureInvestigation: buildFailureInvestigation(runs, clusters)}
 }
 
 func TestFailureClusterRenderers(t *testing.T) {
 	t.Parallel()
-	runs := failureClusterTestRuns()
-	data := LogsData{Runs: runs, FailureClusters: annotateFailureClusters(runs)}
+	data := failureClusterTestLogsData()
 	for name, render := range map[string]func(io.Writer, LogsData){
 		"compact": func(w io.Writer, d LogsData) { require.NoError(t, renderLogsCompactToWriter(w, d)) },
 		"verbose": func(w io.Writer, d LogsData) { require.NoError(t, renderLogsCompactVerboseToWriter(w, d)) },
@@ -199,16 +207,25 @@ func TestFailureClusterRenderers(t *testing.T) {
 			var buf bytes.Buffer
 			render(&buf, data)
 			assert.Equal(t, 1, strings.Count(buf.String(), "[failure_clusters]"))
-			assert.Contains(t, buf.String(), "gh aw audit 'https://github.com/org/repo/actions/runs/1'")
-			assert.Contains(t, buf.String(), "runs=1,2")
+			assert.Equal(t, 1, strings.Count(buf.String(), "[failure_investigation]"))
+			assert.Contains(t, buf.String(), "gh aw audit 2 --repo 'org/repo'")
+			assert.Contains(t, buf.String(), "investigate=2")
+			if name == "verbose" {
+				assert.Contains(t, buf.String(), "runs=1,2")
+			} else {
+				assert.NotContains(t, buf.String(), "runs=1,2")
+			}
 		})
 	}
 	var md bytes.Buffer
-	renderCrossRunReportMarkdownToWriter(&md, &CrossRunAuditReport{FailureClusters: data.FailureClusters})
+	renderCrossRunReportMarkdownToWriter(&md, &CrossRunAuditReport{
+		FailureClusters: data.FailureClusters, FailureInvestigation: data.FailureInvestigation,
+	})
 	assert.Contains(t, md.String(), "## Failure Investigation Clusters")
 	assert.Contains(t, md.String(), "runs=1,2")
 	assert.Contains(t, md.String(), "/logs/2/audit.json")
 	require.ErrorIs(t, renderFailureClustersToWriter(failingClusterWriter{}, data.FailureClusters, ""), io.ErrClosedPipe)
+	require.ErrorIs(t, renderFailureReportToWriter(failingClusterWriter{}, data.FailureClusters, data.FailureInvestigation, "", false), io.ErrClosedPipe)
 }
 
 type failingClusterWriter struct{}
@@ -230,15 +247,17 @@ func TestFailureClusterRenderingEscapesSignalNewlines(t *testing.T) {
 }
 
 func TestFailureClusterTSVOutput(t *testing.T) {
-	runs := failureClusterTestRuns()
-	data := LogsData{Runs: runs, FailureClusters: annotateFailureClusters(runs)}
+	data := failureClusterTestLogsData()
 	for _, verbose := range []bool{false, true} {
 		output := captureAuditGroupStdout(t, func() {
 			require.NoError(t, renderLogsOutputTSV(data, verbose))
 		})
 		assert.Equal(t, 1, strings.Count(output, "[failure_clusters]"))
 		assert.Contains(t, output, "# [failure_clusters]")
-		assert.Contains(t, output, "runs=1,2")
+		assert.Contains(t, output, "# [failure_investigation]")
+		if verbose {
+			assert.Contains(t, output, "runs=1,2")
+		}
 	}
 
 }
@@ -254,14 +273,14 @@ func TestFailureClusterAuditCommand(t *testing.T) {
 }
 
 func TestFailureClusterCrossRunOutput(t *testing.T) {
-	runs := failureClusterTestRuns()
-	data := LogsData{Runs: runs, FailureClusters: annotateFailureClusters(runs)}
+	data := failureClusterTestLogsData()
 	output := captureAuditGroupStdout(t, func() {
 		require.NoError(t, renderLogsOutputCrossRun(nil, data, renderLogsOutputOptions{jsonOutput: true}))
 	})
 	var report CrossRunAuditReport
 	require.NoError(t, json.Unmarshal([]byte(output), &report))
 	assert.Equal(t, data.FailureClusters, report.FailureClusters)
+	assert.Equal(t, data.FailureInvestigation, report.FailureInvestigation)
 	path := filepath.Join(t.TempDir(), "report.md")
 	require.NoError(t, renderLogsOutputCrossRun(nil, data, renderLogsOutputOptions{
 		format: "markdown", reportFile: path,

@@ -147,7 +147,7 @@ func renderLogsOutputTSV(logsData LogsData, verbose bool) error {
 	} else {
 		renderLogsTSV(logsData)
 	}
-	if err := renderFailureClustersToWriter(os.Stdout, logsData.FailureClusters, "# "); err != nil {
+	if err := renderFailureReportToWriter(os.Stdout, logsData.FailureClusters, logsData.FailureInvestigation, "# ", verbose); err != nil {
 		return fmt.Errorf("failed to render failure clusters: %w", err)
 	}
 	renderLogsArtifactHint(os.Stderr, logsData.Message)
@@ -161,6 +161,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
 	report.FailureClusters = logsData.FailureClusters
+	report.FailureInvestigation = logsData.FailureInvestigation
 	if opts.jsonOutput {
 		return renderCrossRunReportJSON(report)
 	}

@@ -14,6 +14,8 @@ import (
 type FailureSignal struct {
 	Kind  string `json:"kind"`
 	Value string `json:"value"`
+	Job   string `json:"job,omitempty"`
+	Step  string `json:"step,omitempty"`
 }
 
 // FailureCluster provides an investigation subset for runs sharing a symptom.
@@ -25,6 +27,7 @@ type FailureCluster struct {
 	FailureKind        string                 `json:"failure_kind,omitempty"`
 	IntentionalFailure bool                   `json:"intentional_failure,omitempty"`
 	Evidence           string                 `json:"evidence"`
+	SignalRole         string                 `json:"signal_role"`
 	Count              int                    `json:"count"`
 	RunIDs             []int64                `json:"run_ids"`
 	Workflows          []string               `json:"workflows"`
@@ -37,11 +40,16 @@ type FailureCluster struct {
 }
 
 type FailureClusterTarget struct {
-	RunID      int64  `json:"run_id"`
-	Repository string `json:"repository,omitempty"`
-	URL        string `json:"url,omitempty"`
-	LogsPath   string `json:"logs_path,omitempty"`
-	AuditPath  string `json:"audit_path,omitempty"`
+	RunID        int64     `json:"run_id"`
+	Repository   string    `json:"repository,omitempty"`
+	WorkflowName string    `json:"workflow_name,omitempty"`
+	WorkflowPath string    `json:"workflow_path,omitempty"`
+	Engine       string    `json:"engine,omitempty"`
+	Model        string    `json:"model,omitempty"`
+	CreatedAt    time.Time `json:"created_at,omitzero"`
+	URL          string    `json:"url,omitempty"`
+	LogsPath     string    `json:"logs_path,omitempty"`
+	AuditPath    string    `json:"audit_path,omitempty"`
 }
 
 func failureSignalsForRun(pr ProcessedRun) []FailureSignal {
@@ -51,7 +59,7 @@ func failureSignalsForRun(pr ProcessedRun) []FailureSignal {
 	var signals []FailureSignal
 	add := func(kind, value string) {
 		if value = strings.TrimSpace(value); value != "" {
-			signals = append(signals, FailureSignal{Kind: kind, Value: value})
+			signals = append(signals, enrichFailureSignal(FailureSignal{Kind: kind, Value: value}))
 		}
 	}
 	for _, job := range pr.JobDetails {
@@ -118,6 +126,9 @@ func failureClusterSignals(run RunData) ([]FailureSignal, string) {
 		scope := failureClusterKey(strings.ToLower(run.Repository), run.WorkflowPath, run.WorkflowName)
 		return []FailureSignal{{Kind: "workflow_failure", Value: scope}}, "metadata_only"
 	}
+	for i := range signals {
+		signals[i] = enrichFailureSignal(signals[i])
+	}
 	slices.SortFunc(signals, compareFailureSignals)
 	return slices.Compact(signals), "observed_symptom"
 }
@@ -134,6 +145,9 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 			continue
 		}
 		signals, evidence := failureClusterSignals(*run)
+		if len(run.FailureSignals) > 0 {
+			run.FailureSignals = signals
+		}
 		for _, signal := range signals {
 			key := failureClusterKey(signal.Kind, signal.Value, run.Conclusion, run.FailureKind, strconv.FormatBool(run.IntentionalFailure))
 			digest := sha256.Sum256([]byte(key))
@@ -143,7 +157,7 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 				g = &failureClusterGroup{cluster: FailureCluster{
 					ID: id, Signal: signal, Conclusion: run.Conclusion,
 					FailureKind: run.FailureKind, IntentionalFailure: run.IntentionalFailure,
-					Evidence: evidence,
+					Evidence: evidence, SignalRole: failureSignalRole(signal),
 				}}
 				groups[id] = g
 			}
@@ -157,7 +171,11 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 		clusters = append(clusters, finalizeFailureCluster(g))
 	}
 	slices.SortFunc(clusters, func(a, b FailureCluster) int {
-		return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.ID, b.ID))
+		return cmp.Or(
+			cmp.Compare(strconv.FormatBool(a.IntentionalFailure), strconv.FormatBool(b.IntentionalFailure)),
+			cmp.Compare(failureSignalRoleRank(a.SignalRole), failureSignalRoleRank(b.SignalRole)),
+			cmp.Compare(b.Count, a.Count), cmp.Compare(a.ID, b.ID),
+		)
 	})
 	return clusters
 }
@@ -165,14 +183,7 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 func finalizeFailureCluster(g *failureClusterGroup) FailureCluster {
 	c := g.cluster
 	// Prefer inspectable runs, then the newest, with deterministic tie breaks.
-	slices.SortFunc(g.members, func(x, y *RunData) int {
-		return cmp.Or(
-			cmp.Compare(failureRunDetailScore(*y), failureRunDetailScore(*x)),
-			y.CreatedAt.Compare(x.CreatedAt),
-			cmp.Compare(y.RunID, x.RunID),
-			cmp.Compare(x.Repository, y.Repository),
-		)
-	})
+	slices.SortFunc(g.members, compareFailureRuns)
 	seen := make(map[string]struct{})
 	for _, run := range g.members {
 		identity := fmt.Sprintf("%s/%d", strings.ToLower(run.Repository), run.RunID)
@@ -192,19 +203,23 @@ func finalizeFailureCluster(g *failureClusterGroup) FailureCluster {
 		if run.CreatedAt.After(c.LastSeen) {
 			c.LastSeen = run.CreatedAt
 		}
-		if len(c.RepresentativeRuns) < 3 {
-			c.RepresentativeRuns = append(c.RepresentativeRuns, FailureClusterTarget{
-				RunID: run.RunID, Repository: run.Repository, URL: run.URL,
-				LogsPath: run.LogsPath, AuditPath: run.AuditPath,
-			})
-		}
 	}
+	c.RepresentativeRuns = selectFailureRepresentatives(g.members)
 	slices.Sort(c.RunIDs)
 	c.Workflows = sortedFailureFacets(c.Workflows)
 	c.Repositories = sortedFailureFacets(c.Repositories)
 	c.Engines = sortedFailureFacets(c.Engines)
 	c.Models = sortedFailureFacets(c.Models)
 	return c
+}
+
+func compareFailureRuns(x, y *RunData) int {
+	return cmp.Or(
+		cmp.Compare(failureRunDetailScore(*y), failureRunDetailScore(*x)),
+		y.CreatedAt.Compare(x.CreatedAt),
+		cmp.Compare(y.RunID, x.RunID),
+		cmp.Compare(x.Repository, y.Repository),
+	)
 }
 
 func failureRunDetailScore(run RunData) int {

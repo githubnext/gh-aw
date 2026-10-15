@@ -42,6 +42,7 @@ func renderCrossRunReportMarkdownToWriter(w io.Writer, report *CrossRunAuditRepo
 	renderMarkdownDomainInventoryToWriter(w, report)
 	renderMarkdownDrain3InsightsToWriter(w, report.Drain3Insights)
 	renderMarkdownClusterAnalysisToWriter(w, report.ClusterAnalysis)
+	renderMarkdownFailureInvestigationToWriter(w, report.FailureInvestigation)
 	renderMarkdownFailureClustersToWriter(w, report.FailureClusters)
 	renderMarkdownPerRunBreakdownToWriter(w, report.PerRunBreakdown)
 }
@@ -267,7 +268,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	renderPrettyDomainInventory(report)
 	renderPrettyDrain3Insights(report.Drain3Insights)
 	renderPrettyClusterAnalysis(report.ClusterAnalysis)
-	if err := renderFailureClustersToWriter(os.Stdout, report.FailureClusters, ""); err != nil {
+	if err := renderFailureReportToWriter(os.Stdout, report.FailureClusters, report.FailureInvestigation, "", false); err != nil {
 		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
 	}
 	renderPrettyPerRunBreakdown(report.PerRunBreakdown)

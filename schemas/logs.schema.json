@@ -3,6 +3,273 @@
     {
       "type": "object",
       "properties": {
+        "failure_investigation": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "unique_failed_runs": {
+              "type": "integer"
+            },
+            "observed_evidence_runs": {
+              "type": "integer"
+            },
+            "metadata_only_runs": {
+              "type": "integer"
+            },
+            "intentional_failure_runs": {
+              "type": "integer"
+            },
+            "audit_budget": {
+              "type": "integer"
+            },
+            "eligible_clusters": {
+              "type": "integer"
+            },
+            "covered_clusters": {
+              "type": "integer"
+            },
+            "remaining_clusters": {
+              "type": "integer"
+            },
+            "covered_runs": {
+              "type": "integer"
+            },
+            "selected_runs": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "run_id": {
+                    "type": "integer"
+                  },
+                  "repository": {
+                    "type": "string"
+                  },
+                  "workflow_name": {
+                    "type": "string"
+                  },
+                  "workflow_path": {
+                    "type": "string"
+                  },
+                  "engine": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "logs_path": {
+                    "type": "string"
+                  },
+                  "audit_path": {
+                    "type": "string"
+                  },
+                  "cluster_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "cluster_ids"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "unique_failed_runs",
+            "observed_evidence_runs",
+            "metadata_only_runs",
+            "intentional_failure_runs",
+            "audit_budget",
+            "eligible_clusters",
+            "covered_clusters",
+            "remaining_clusters",
+            "covered_runs",
+            "selected_runs"
+          ],
+          "additionalProperties": false
+        },
+        "failure_clusters": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "signal": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "job": {
+                    "type": "string"
+                  },
+                  "step": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              "conclusion": {
+                "type": "string"
+              },
+              "failure_kind": {
+                "type": "string"
+              },
+              "intentional_failure": {
+                "type": "boolean"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "signal_role": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "run_ids": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "workflows": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "repositories": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "engines": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "models": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "first_seen": {
+                "type": "string"
+              },
+              "last_seen": {
+                "type": "string"
+              },
+              "representative_runs": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "run_id": {
+                      "type": "integer"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "workflow_name": {
+                      "type": "string"
+                    },
+                    "workflow_path": {
+                      "type": "string"
+                    },
+                    "engine": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "logs_path": {
+                      "type": "string"
+                    },
+                    "audit_path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "run_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "signal",
+              "conclusion",
+              "evidence",
+              "signal_role",
+              "count",
+              "run_ids",
+              "workflows",
+              "first_seen",
+              "last_seen",
+              "representative_runs"
+            ],
+            "additionalProperties": false
+          }
+        },
         "summary": {
           "type": "object",
           "properties": {
@@ -137,6 +404,43 @@
           "items": {
             "type": "object",
             "properties": {
+              "failure_signals": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "step": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "failure_cluster_ids": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
               "run_id": {
                 "type": "integer"
               },
@@ -4742,6 +5046,273 @@
     {
       "type": "object",
       "properties": {
+        "failure_investigation": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "unique_failed_runs": {
+              "type": "integer"
+            },
+            "observed_evidence_runs": {
+              "type": "integer"
+            },
+            "metadata_only_runs": {
+              "type": "integer"
+            },
+            "intentional_failure_runs": {
+              "type": "integer"
+            },
+            "audit_budget": {
+              "type": "integer"
+            },
+            "eligible_clusters": {
+              "type": "integer"
+            },
+            "covered_clusters": {
+              "type": "integer"
+            },
+            "remaining_clusters": {
+              "type": "integer"
+            },
+            "covered_runs": {
+              "type": "integer"
+            },
+            "selected_runs": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "run_id": {
+                    "type": "integer"
+                  },
+                  "repository": {
+                    "type": "string"
+                  },
+                  "workflow_name": {
+                    "type": "string"
+                  },
+                  "workflow_path": {
+                    "type": "string"
+                  },
+                  "engine": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "logs_path": {
+                    "type": "string"
+                  },
+                  "audit_path": {
+                    "type": "string"
+                  },
+                  "cluster_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "cluster_ids"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "unique_failed_runs",
+            "observed_evidence_runs",
+            "metadata_only_runs",
+            "intentional_failure_runs",
+            "audit_budget",
+            "eligible_clusters",
+            "covered_clusters",
+            "remaining_clusters",
+            "covered_runs",
+            "selected_runs"
+          ],
+          "additionalProperties": false
+        },
+        "failure_clusters": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "signal": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "job": {
+                    "type": "string"
+                  },
+                  "step": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              "conclusion": {
+                "type": "string"
+              },
+              "failure_kind": {
+                "type": "string"
+              },
+              "intentional_failure": {
+                "type": "boolean"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "signal_role": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "run_ids": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "workflows": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "repositories": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "engines": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "models": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "first_seen": {
+                "type": "string"
+              },
+              "last_seen": {
+                "type": "string"
+              },
+              "representative_runs": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "run_id": {
+                      "type": "integer"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "workflow_name": {
+                      "type": "string"
+                    },
+                    "workflow_path": {
+                      "type": "string"
+                    },
+                    "engine": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "logs_path": {
+                      "type": "string"
+                    },
+                    "audit_path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "run_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "signal",
+              "conclusion",
+              "evidence",
+              "signal_role",
+              "count",
+              "run_ids",
+              "workflows",
+              "first_seen",
+              "last_seen",
+              "representative_runs"
+            ],
+            "additionalProperties": false
+          }
+        },
         "runs_analyzed": {
           "type": "integer"
         },

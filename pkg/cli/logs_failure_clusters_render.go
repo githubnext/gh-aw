@@ -15,16 +15,43 @@ func renderFailureClustersToWriter(w io.Writer, clusters []FailureCluster, prefi
 	out := &compactLogsWriter{writer: w}
 	out.printf("%s[failure_clusters] groups=%d overlapping=true; symptoms are not proven causes; audit representative runs first\n", prefix, len(clusters))
 	for _, c := range clusters {
-		ids := make([]string, 0, len(c.RunIDs))
-		for _, id := range c.RunIDs {
-			ids = append(ids, strconv.FormatInt(id, 10))
-		}
-		out.printf("%s%s count=%d signal=%s value=%q conclusion=%s kind=%q evidence=%s intentional=%t runs=%s workflows=%q engines=%q\n",
-			prefix, c.ID, c.Count, c.Signal.Kind, c.Signal.Value, c.Conclusion, c.FailureKind,
-			c.Evidence, c.IntentionalFailure, strings.Join(ids, ","), strings.Join(c.Workflows, ","), strings.Join(c.Engines, ","))
+		var ids []int64
 		for _, target := range c.RepresentativeRuns {
-			out.printf("%s  representative=%d repository=%q audit=%q logs=%q command=%q\n",
-				prefix, target.RunID, target.Repository, target.AuditPath, target.LogsPath, failureClusterAuditCommand(target))
+			ids = append(ids, target.RunID)
+		}
+		out.printf("%s%s count=%d role=%s signal=%s value=%q conclusion=%s kind=%q evidence=%s intentional=%t representatives=%s\n",
+			prefix, c.ID, c.Count, c.SignalRole, c.Signal.Kind, failureSignalDisplay(c.Signal),
+			c.Conclusion, c.FailureKind, c.Evidence, c.IntentionalFailure, failureRunIDsDisplay(ids))
+	}
+	return out.err
+}
+
+func failureRunIDsDisplay(ids []int64) string {
+	values := make([]string, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, strconv.FormatInt(id, 10))
+	}
+	return strings.Join(values, ",")
+}
+
+func failureSignalDisplay(signal FailureSignal) string {
+	if signal.Job != "" && signal.Step != "" {
+		return signal.Job + " / " + signal.Step
+	}
+	return signal.Value
+}
+
+func renderFailureReportToWriter(w io.Writer, clusters []FailureCluster, plan *FailureInvestigation, prefix string, verbose bool) error {
+	if err := renderFailureInvestigationToWriter(w, plan, prefix); err != nil {
+		return err
+	}
+	if err := renderFailureClustersToWriter(w, clusters, prefix); err != nil {
+		return err
+	}
+	out := &compactLogsWriter{writer: w}
+	if verbose {
+		for _, cluster := range clusters {
+			out.printf("%smembers cluster=%s runs=%s\n", prefix, cluster.ID, failureRunIDsDisplay(cluster.RunIDs))
 		}
 	}
 	return out.err
@@ -51,25 +78,27 @@ func renderMarkdownFailureClustersToWriter(w io.Writer, clusters []FailureCluste
 	out := &compactLogsWriter{writer: w}
 	out.println("## Failure Investigation Clusters")
 	out.println("\nClusters overlap and describe observed symptoms, not proven root causes. Audit representative runs first.")
-	out.println("\n| Cluster | Runs | Symptom | Conclusion | Evidence | Intentional | Representatives |")
-	out.println("|---|---:|---|---|---|---|---|")
+	out.println("\n| Cluster | Runs | Role | Symptom | Conclusion / Kind | Evidence | Intentional | Representatives |")
+	out.println("|---|---:|---|---|---|---|---|---|")
 	for _, c := range clusters {
 		ids := make([]string, 0, len(c.RepresentativeRuns))
 		for _, target := range c.RepresentativeRuns {
 			ids = append(ids, strconv.FormatInt(target.RunID, 10))
 		}
-		out.printf("| %s | %d | %s: %s | %s | %s | %t | %s |\n",
-			c.ID, c.Count, modelRoutingMarkdownCell(c.Signal.Kind), modelRoutingMarkdownCell(c.Signal.Value),
-			c.Conclusion, c.Evidence, c.IntentionalFailure, strings.Join(ids, ", "))
+		out.printf("| %s | %d | %s | %s | %s / %s | %s | %t | %s |\n",
+			c.ID, c.Count, c.SignalRole, modelRoutingMarkdownCell(failureSignalDisplay(c.Signal)),
+			modelRoutingMarkdownCell(c.Conclusion), modelRoutingMarkdownCell(c.FailureKind),
+			c.Evidence, c.IntentionalFailure, strings.Join(ids, ", "))
 	}
 	out.println()
-	// Preserve full membership and exact audit selectors in the saved report.
+	out.println("<details><summary>Full cluster membership</summary>")
+	out.println()
 	out.println("```text")
-	if err := renderFailureClustersToWriter(out, clusters, ""); err != nil {
-		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
-		return
+	for _, cluster := range clusters {
+		out.printf("%s runs=%s\n", cluster.ID, failureRunIDsDisplay(cluster.RunIDs))
 	}
 	out.println("```")
+	out.println("\n</details>")
 	out.println()
 	if out.err != nil {
 		console.PrintErrorMessage("Cannot render failure clusters: " + out.err.Error())
