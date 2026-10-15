@@ -1,17 +1,18 @@
 ---
 name: statistics-infographic
-description: Generate a readable six-panel repository statistics infographic from validated JSON, with exact arithmetic and independent raw GitHub/Git reconciliation.
+description: Generate a readable seven-panel repository statistics infographic, including overlapping added/removed-line histograms, from validated JSON and pinned Git evidence.
 ---
 
 # Repository statistics infographic
 
 Use when asked to consolidate repository-statistics slides into one image, regenerate
 the infographic with updated data, or verify its calculations. This is a reusable
-six-panel statistical template, not an arbitrary PowerPoint screenshot collage.
+seven-panel statistical template, not an arbitrary PowerPoint screenshot collage.
 
 The panels cover inferred PR initiation, merge/closed outcomes, start-to-merge
 durations, community issue outcomes, Go/JavaScript code composition, and weekly
-first-parent code changes. Repository names, dates, counts, proportions, and weeks
+first-parent code changes, plus overlapping histograms of weekly lines added and
+removed. Repository names, dates, counts, proportions, and weeks
 come from the input, never from this skill's original dataset.
 
 ## Generate
@@ -47,11 +48,37 @@ paths together. Automatic discovery supports Arial on macOS/Windows and Liberati
 Sans or DejaVu Sans on Linux. Missing fonts fail explicitly; no bitmap fallback is
 used.
 
-The output is a static, RGB, 2560 x 3200 PNG with 300-DPI metadata. A successful
+The output is a static, RGB, 2560 x 4120 PNG with 300-DPI metadata. A successful
 render atomically replaces the explicit output path. Invalid data, unreadable
 layout, or invalid fonts leave an existing output intact. Counts too large for
 their slots, more than 10 duration bands, or more than 260 weeks require a different
 layout; do not silently truncate, rescale text to illegibility, or aggregate data.
+
+### Recompute local code evidence
+
+The seventh panel is derived from `history.weeks`, without a new required input
+file. Each week contributes to both added and removed series, including zero
+values. Both series use the same equal-width integer bins and count axis; bars
+overlap with transparency, rather than stacking or mirroring.
+
+To recompute the code map, weekly totals, and histogram from available local Git
+objects, use a full immutable commit ID:
+
+```bash
+/tmp/statistics-infographic-venv/bin/python \
+  .github/skills/statistics-infographic/scripts/compute_code_statistics.py \
+  --repo /path/to/local-checkout --repository OWNER/REPO \
+  --commit FULL_COMMIT_ID --output-dir /path/to/session-artifacts/code
+```
+
+This writes `repo-structure-statistics.json`, `weekly-code-history.json`,
+`weekly-change-histogram.json`, and a standalone `weekly-change-histogram.png`
+(2560 x 1180). It never fetches. Use the two canonical summaries alongside the
+existing API summaries to regenerate the complete image. It does not refresh API
+snapshots or authorize attribution assumptions. If cached API evidence is
+unavailable, deliver the Git-only chart and disclose that the complete real-data
+infographic could not be regenerated; never fill missing panels with synthetic
+values. Keep a rendered synthetic example clearly labelled and separate.
 
 ## Verify accuracy
 
@@ -79,7 +106,7 @@ requests credentials or performs network operations. Missing objects or shallow
 history fail explicitly. Large repositories may require substantial memory for
 the batched blob inventory.
 
-Open the resulting image and inspect all six panels at normal viewing size:
+Open the resulting image and inspect all seven panels at normal viewing size:
 titles, axes, labels, footnotes, chart proportions, and snapshot metadata. Automated
 text-bound and overlap checks complement but do not replace visual inspection.
 

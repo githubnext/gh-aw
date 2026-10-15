@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 import json
@@ -22,8 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from audit_sources import audit_api, audit_git, percentile
+from compute_code_statistics import compute
 from render_infographic import Canvas, LayoutError, discover_fonts, render, save
-from statistics_data import DataError, Outcome, Statistics, decimal, percent
+from statistics_data import DataError, Outcome, Statistics, Week, change_histogram, decimal, percent
 
 
 def example():
@@ -31,6 +32,30 @@ def example():
 
 
 class ArithmeticTests(unittest.TestCase):
+    @settings(max_examples=150, derandomize=True, database=None)
+    @given(st.lists(st.tuples(st.integers(0, 10**30), st.integers(0, 10**30)), max_size=260))
+    def test_change_histogram_matches_direct_count_oracle(self, values):
+        weeks = tuple(Week(date(2026, 1, 5), a, d) for a, d in values)
+        bins = change_histogram(weeks)
+        self.assertEqual(sum(b.added for b in bins), len(values))
+        self.assertEqual(sum(b.deleted for b in bins), len(values))
+        self.assertLessEqual(len(bins), 8)
+        for i, bucket in enumerate(bins):
+            self.assertEqual(bucket.lower, i * bins[0].upper)
+            self.assertEqual(bucket.upper - bucket.lower, bins[0].upper)
+            self.assertEqual(bucket.added, sum(bucket.lower <= a < bucket.upper for a, _ in values))
+            self.assertEqual(bucket.deleted, sum(bucket.lower <= d < bucket.upper for _, d in values))
+        if values:
+            self.assertGreater(bins[-1].upper, max(max(v) for v in values))
+
+    def test_change_histogram_zero_empty_and_exact_boundaries(self):
+        self.assertEqual(change_histogram(()), ())
+        zero = change_histogram((Week(date(2026, 1, 5), 0, 0),))
+        self.assertEqual([(b.lower, b.upper, b.added, b.deleted) for b in zero], [(0, 1, 1, 1)])
+        bins = change_histogram(tuple(Week(date(2026, 1, 5), n, 15 - n) for n in range(16)))
+        self.assertEqual([(b.lower, b.upper) for b in bins], [(n, n + 2) for n in range(0, 16, 2)])
+        self.assertEqual([(b.added, b.deleted) for b in bins], [(2, 2)] * 8)
+
     @settings(max_examples=200, derandomize=True, database=None)
     @given(st.integers(0, 10**18), st.integers(1, 10**18), st.integers(0, 4))
     def test_rounding_matches_independent_decimal_oracle(self, numerator, denominator, places):
@@ -174,10 +199,30 @@ class RenderingTests(unittest.TestCase):
             output = Path(directory) / "nested/result.png"
             save(a, output)
             with Image.open(output) as image:
-                self.assertEqual(image.size, (2560, 3200))
+                self.assertEqual(image.size, (2560, 4120))
                 self.assertEqual(image.format, "PNG")
                 self.assertFalse(getattr(image, "is_animated", False))
             self.assertEqual(list(output.parent.iterdir()), [output])
+        self.assertTrue(any(label.startswith("07") for _, label in a.labels))
+        self.assertTrue(any(label == "Lines per week (inclusive ranges)" for _, label in a.labels))
+
+    def test_empty_history_and_overlapped_bars(self):
+        payload = example()
+        payload["history"].update(week_count=0, weeks=[], total_added=0, total_deleted=0)
+        render(Statistics.from_sources(payload), self.fonts).verify()
+        # One bin contains both series: the interior must be a blended color.
+        payload["history"].update(week_count=1, total_added=0, total_deleted=0,
+                                  weeks=[{"week_start": "2026-10-05", "added": 0, "deleted": 0}])
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        overlap = canvas.image.getpixel((1400, 3500))
+        self.assertNotIn(overlap, ((22, 27, 34), (63, 185, 80), (248, 81, 73)))
+
+    def test_unreadable_histogram_labels_fail_explicitly(self):
+        payload = example()
+        payload["history"]["weeks"][0]["added"] = 10**30
+        payload["history"]["total_added"] = 10**30 + 4000
+        with self.assertRaises(LayoutError):
+            render(Statistics.from_sources(payload), self.fonts)
 
     def test_zero_community_single_language_and_one_zero_week(self):
         payload = example()
@@ -336,6 +381,17 @@ class GitAuditTests(unittest.TestCase):
             s = Statistics.from_sources(payload)
             (repo / "main.go").write_text("uncommitted content\n")
             audit_git(s, repo)
+            output = repo / "computed"
+            compute(repo, "example/metrics", commit, output)
+            history = json.loads((output / "weekly-code-history.json").read_text())
+            structure = json.loads((output / "repo-structure-statistics.json").read_text())
+            bins = json.loads((output / "weekly-change-histogram.json").read_text())
+            self.assertEqual(history, payload["history"])
+            self.assertEqual(structure, payload["structure"])
+            self.assertEqual(sum(b["added"] for b in bins["bins"]), 2)
+            self.assertEqual(sum(b["deleted"] for b in bins["bins"]), 2)
+            with Image.open(output / "weekly-change-histogram.png") as image:
+                self.assertEqual(image.size, (2560, 1180))
             payload["history"]["weeks"][1]["added"] = 2
             payload["history"]["total_added"] = 9
             with self.assertRaises(DataError):

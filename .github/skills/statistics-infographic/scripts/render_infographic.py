@@ -1,4 +1,4 @@
-"""Portable, deterministic six-panel infographic renderer."""
+"""Portable, deterministic seven-panel infographic renderer."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
-from statistics_data import DataError, Statistics, decimal, load_sources, percent
+from statistics_data import ChangeBin, DataError, Statistics, decimal, load_sources, percent
 
 
-WIDTH, HEIGHT = 2560, 3200
+WIDTH, HEIGHT = 2560, 4120
 BG, PANEL, WHITE, INK = "#0D1117", "#161B22", "#FFFFFF", "#C9D1D9"
 GREEN, BLUE, RED, GRAY = "#3FB950", "#58A6FF", "#F85149", "#484F58"
 Bbox = tuple[float, float, float, float]
@@ -49,12 +49,12 @@ def discover_fonts(regular: Path | None, bold: Path | None) -> tuple[Path, Path]
 
 
 class Canvas:
-    def __init__(self, fonts: tuple[Path, Path]) -> None:
+    def __init__(self, fonts: tuple[Path, Path], height: int = HEIGHT) -> None:
         self.fonts = fonts
-        self.image = Image.new("RGB", (WIDTH, HEIGHT), BG)
+        self.image = Image.new("RGB", (WIDTH, height), BG)
         self.draw = ImageDraw.Draw(self.image)
         self.labels: list[tuple[Bbox, str]] = []
-        self.clip = (0, 0, WIDTH, HEIGHT)
+        self.clip = (0, 0, WIDTH, height)
 
     @lru_cache(maxsize=32)
     def face(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -100,12 +100,13 @@ class Canvas:
 
     def card(self, index: int, title: str) -> tuple[int, int, int, int]:
         x, y = 72 + (index % 2) * 1228, 330 + (index // 2) * 920
-        self.draw.rounded_rectangle((x, y, x + 1188, y + 860), radius=28,
+        width = 2416 if index == 6 else 1188
+        self.draw.rounded_rectangle((x, y, x + width, y + 860), radius=28,
                                     fill=PANEL, outline="#30363D", width=2)
-        self.clip = (x + 16, y + 16, x + 1172, y + 844)
+        self.clip = (x + 16, y + 16, x + width - 16, y + 844)
         self.text(f"{index + 1:02d}", x + 40, y + 33, 34, BLUE, True)
         self.text(title, x + 120, y + 30, 48, WHITE, True)
-        return x + 40, y + 125, 1108, y + 743
+        return x + 40, y + 125, width - 80, y + 743
 
     def stacked(self, values: list[int], colors: list[str], x: int, y: int,
                 width: int) -> None:
@@ -125,6 +126,35 @@ class Canvas:
             for b, label_b in self.labels[i + 1:]:
                 if max(a[0], b[0]) < min(a[2], b[2]) and max(a[1], b[1]) < min(a[3], b[3]):
                     raise LayoutError(f"Text overlap: {label_a!r} / {label_b!r}")
+
+
+def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: int,
+                          x: int, y: int, width: int) -> None:
+    c.text(f"{population:,} weeks per series | Green: added | Red: removed | Translucent overlap",
+           x, y, 38, WHITE)
+    if not bins:
+        c.text("No weekly history records", x, y + 220, 38)
+        return
+    left, right, baseline, height = x + 120, x + width - 20, y + 440, 330
+    maximum = max(max(b.added, b.deleted) for b in bins)
+    ticks = sorted({0, (maximum + 1) // 2, maximum})
+    c.text("Number of weeks", x, y + 58, 32)
+    for tick in ticks:
+        gy = baseline - tick * height / maximum
+        c.draw.line((left, gy, right, gy), fill=GRAY, width=2)
+        c.text(f"{tick:,}", x, gy - 20, 32, width=100)
+    slot = (right - left) / len(bins)
+    bars = ImageDraw.Draw(c.image, "RGBA")
+    for i, bucket in enumerate(bins):
+        middle = left + (i + .5) * slot
+        for value, color in ((bucket.added, (63, 185, 80)), (bucket.deleted, (248, 81, 73))):
+            if value:
+                bars.rectangle((middle - slot * .42, baseline - value * height / maximum,
+                                middle + slot * .42, baseline),
+                               fill=(*color, 120), outline=(*color, 255), width=3)
+        c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
+                 size=30, width=slot - 8)
+    c.center("Lines per week (inclusive ranges)", (left + right) / 2, baseline + 90, size=34)
 
 
 def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, in numbers") -> Canvas:
@@ -280,10 +310,16 @@ def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, i
         t("No weekly history records", x, y + 280, 38)
     t("First-parent Go / JS diff lines, including blanks. Renames count delete/add; boundary weeks may be partial.",
       x, foot + 16, 32, width=w, max_lines=2)
+    x, y, w, foot = c.card(6, "Lines added / removed: weekly distribution")
+    draw_change_histogram(c, s.changes, len(s.weeks), x, y, w)
+    t("Shared equal-width bins; counts, not line totals. Each week contributes once to each series, including zero-change weeks.",
+      x, foot, 34, width=w, max_lines=2)
+    t("Same pinned first-parent Go / JS scope as panel 06; not per-PR or per-commit change sizes.",
+      x, foot + 55, 32, width=w)
     c.clip = (0, 0, WIDTH, HEIGHT)
     collected = s.community_collected.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 3070, 32)
-    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 3125, 30)
+    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 3990, 32)
+    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 4045, 30)
     c.verify()
     return c
 
@@ -319,7 +355,7 @@ def main() -> None:
         save(canvas, args.output)
     except (DataError, LayoutError, OSError, ValueError) as error:
         parser.error(str(error))
-    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, six panels, validated counts and text layout.")
+    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, seven panels, validated counts and text layout.")
 
 
 if __name__ == "__main__":

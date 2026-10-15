@@ -135,6 +135,29 @@ class Week:
 
 
 @dataclass(frozen=True)
+class ChangeBin:
+    lower: int
+    upper: int
+    added: int
+    deleted: int
+
+
+def change_histogram(weeks: tuple[Week, ...]) -> tuple[ChangeBin, ...]:
+    """Count weekly additions and deletions in shared, equal-width integer bins."""
+    if not weeks:
+        return ()
+    maximum = max(max(week.added, week.deleted) for week in weeks)
+    width = (maximum + 8) // 8
+    size = maximum // width + 1
+    additions, deletions = [0] * size, [0] * size
+    for week in weeks:
+        additions[week.added // width] += 1
+        deletions[week.deleted // width] += 1
+    return tuple(ChangeBin(i * width, (i + 1) * width, added, deleted)
+                 for i, (added, deleted) in enumerate(zip(additions, deletions)))
+
+
+@dataclass(frozen=True)
 class Statistics:
     repository: str
     snapshot: date
@@ -165,6 +188,10 @@ class Statistics:
     @property
     def lines(self) -> int:
         return sum(g.lines for g in self.groups)
+
+    @property
+    def changes(self) -> tuple[ChangeBin, ...]:
+        return change_histogram(self.weeks)
 
     def under(self, hours: float) -> int:
         return sum(b.count for b in self.bins if b.upper is not None and b.upper <= hours)

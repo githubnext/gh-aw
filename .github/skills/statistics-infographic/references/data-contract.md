@@ -103,6 +103,30 @@ path/current-header filters may remain in churn. The auditor verifies each weekl
 pair and that net additions minus deletions equals the current physical-line
 inventory. It does not equate physical lines with nonblank lines.
 
+### Overlapping weekly change histogram
+
+Panel 07 uses the same weeks as panel 06, not PRs, commits, files, or individual
+changed lines. Its x-axis is lines per week and its y-axis is the number of weeks.
+Additions and removals are two overlapping, translucent series on identical axes,
+not stacked counts. Each series sums to `week_count`, including zero-change
+observations and retained empty weeks. An empty history has no bins; an all-zero
+history has one `[0, 1)` bin containing every week in each series.
+
+Let `M` be the largest added or deleted weekly value. The integer bin width is
+`floor((M + 8) / 8)`, equivalently `ceil((M + 1) / 8)`. Starting at zero, use
+`floor(M / width) + 1` contiguous, lower-inclusive, upper-exclusive bins.
+There are at most eight bins, and even a maximum on an exact boundary is included.
+The chart labels display inclusive integer ranges (`lower` through `upper - 1`).
+Counts and bounds use exact integers, not floats or rounded thousands.
+Excessively long labels fail explicitly rather than truncating.
+
+No new input section is required: the validated model computes bins directly
+from weekly pairs. The local recomputation command also exports
+`weekly-change-histogram.json` with repository, commit, `weeks_per_series`,
+`bounds`, and `bins` containing `lower`, `upper`, `added`, and `deleted`.
+This export is derived evidence, not another required summary. Git auditing
+reconciles every bin against pinned weekly Git totals, retaining zero weeks.
+
 ## Cached raw records
 
 `--raw-dir` contains flat UTF-8 JSONL records, not GraphQL response envelopes:
