@@ -49,7 +49,9 @@ func NewCopilotEngine() *CopilotEngine {
 				WebSearch:            false, // Offline BYOK mode disables native web tools
 				BareMode:             true,  // Copilot CLI supports --no-custom-instructions
 				BashCommandAllowlist: true,  // Copilot enforces tools.bash allowlist via --allow-tool shell(cmd)
-				Plugins:              true,  // Copilot CLI supports Agent Plugins
+				NativeEdit:           true,
+				NativeEditDisable:    true,
+				Plugins:              true, // Copilot CLI supports Agent Plugins
 				DynamicWorkflows:     true,
 			},
 			dedicatedLLMGatewayPort: constants.CopilotLLMGatewayPort,

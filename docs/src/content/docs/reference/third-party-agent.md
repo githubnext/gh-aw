@@ -98,6 +98,8 @@ engine:
 
 ## Configure a workflow to use OpenCode
 
+An engine that implements boolean `tools.edit` settings declares `engine.behaviors.capabilities.native-edit: true`. If it can also enforce `edit: false`, it declares `native-edit-disable: true`. The runtime receives `GH_AW_TOOLS_EDIT` as `"true"` or `"false"` for boolean edit settings when native editing capabilities are declared; the engine's harness must apply that policy to its native editors without enabling shell tools. Capability declarations are an integration contract, not enforcement supplied by gh-aw. Without them, explicit boolean edit settings fail compilation rather than being silently ignored. Legacy `edit:` and `edit: {}` retain their existing behavior.
+
 Import the engine definition file and set `engine: opencode` in your workflow:
 
 ```aw wrap

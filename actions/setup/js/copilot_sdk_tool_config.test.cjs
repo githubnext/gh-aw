@@ -167,7 +167,7 @@ describe("buildCopilotSDKSessionToolConfig", () => {
       "mcp:*",
       "builtin:web_fetch",
     ]);
-    for (const forbiddenTool of ["builtin:bash", "builtin:read_bash", "builtin:stop_bash", "builtin:list_bash", "builtin:apply_patch"]) {
+    for (const forbiddenTool of ["builtin:bash", "builtin:read_bash", "builtin:write_bash", "builtin:stop_bash", "builtin:list_bash", "builtin:apply_patch"]) {
       expect(config.availableTools.toArray()).not.toContain(forbiddenTool);
     }
     expect(config.tools).toHaveLength(1);
@@ -185,7 +185,41 @@ describe("buildCopilotSDKSessionToolConfig", () => {
       explicitlyDisabledTools: ["cli-proxy", "edit"],
     });
     const config = buildCopilotSDKSessionToolConfig(toolConfig, fakeSDKTools);
-    expect(config.availableTools.toArray()).toEqual(expect.arrayContaining(["builtin:bash", "builtin:read_bash", "builtin:stop_bash", "builtin:list_bash"]));
+    expect(config.availableTools.toArray()).toEqual(expect.arrayContaining(["builtin:bash", "builtin:read_bash", "builtin:write_bash", "builtin:stop_bash", "builtin:list_bash"]));
+  });
+
+  it("enables native editors without granting shell or process input", () => {
+    const toolConfig = parseCopilotSDKToolConfig(
+      JSON.stringify(
+        validToolConfig({
+          capabilities: { edit: true },
+          permissions: { allowedTools: ["read", "write", "safeoutputs", "web_fetch"] },
+          explicitlyDisabledTools: ["bash", "cli-proxy"],
+        })
+      )
+    );
+    const config = buildCopilotSDKSessionToolConfig(toolConfig, fakeSDKTools);
+    expect(config.availableTools.toArray()).toEqual(expect.arrayContaining(["builtin:apply_patch", "builtin:edit", "builtin:create", "builtin:delete", "builtin:move"]));
+    for (const name of ["bash", "read_bash", "write_bash", "stop_bash", "list_bash"]) {
+      expect(config.availableTools.toArray()).not.toContain(`builtin:${name}`);
+    }
+    const handler = buildCopilotSDKPermissionHandler(toolConfig.permissions, () => ({ kind: "approve-once" }), { logger: () => {} });
+    expect(handler({ kind: "write", fileName: "example.txt" }).kind).toBe("approve-once");
+    expect(handler({ kind: "shell", fullCommandText: "echo changed" }).kind).toBe("reject");
+  });
+
+  it("does not inherit disabled native editors or shell tools from the SDK isolated catalog", () => {
+    const sdk = {
+      ...fakeSDKTools,
+      BuiltInTools: { Isolated: [...fakeSDKTools.BuiltInTools.Isolated, "edit", "apply_patch", "create", "delete", "move", "bash", "write_bash"] },
+    };
+    const toolConfig = parseCopilotSDKToolConfig(JSON.stringify(validToolConfig()));
+    const config = buildCopilotSDKSessionToolConfig(toolConfig, sdk);
+    for (const name of ["edit", "apply_patch", "create", "delete", "move", "bash", "write_bash"]) {
+      expect(config.availableTools.toArray()).not.toContain(`builtin:${name}`);
+    }
+    const handler = buildCopilotSDKPermissionHandler(toolConfig.permissions, () => ({ kind: "approve-once" }), { logger: () => {} });
+    expect(handler({ kind: "write", fileName: "example.txt" }).kind).toBe("reject");
   });
 
   it("rejects unavailable native web_search even with matching permissions", () => {

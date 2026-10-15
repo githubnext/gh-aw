@@ -34,6 +34,8 @@ func NewGeminiEngine() *GeminiEngine {
 				WebSearch:            false,
 				NativeAgentFile:      false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 				BashCommandAllowlist: true,  // Gemini enforces tools.bash allowlist via tools.core: [run_shell_command(cmd)]
+				NativeEdit:           true,
+				NativeEditDisable:    true,
 			},
 			dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
 		},

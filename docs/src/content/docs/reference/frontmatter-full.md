@@ -3306,6 +3306,17 @@ engine:
       # (optional)
       bash-command-allowlist: true
 
+      # The engine provides native file editing tools. The runtime receives
+      # GH_AW_TOOLS_EDIT for boolean edit settings when native editing capabilities are
+      # declared.
+      # (optional)
+      native-edit: true
+
+      # The engine enforces tools.edit: false independently of approval modes and other
+      # tool grants.
+      # (optional)
+      native-edit-disable: true
+
     # (optional)
     manifest:
       # (optional)
@@ -4366,7 +4377,11 @@ tools:
   web-search:
     {}
 
-  # File editing tool for reading, creating, and modifying files in the repository
+  # Set true to require native file editing or false to disable native repository
+  # editing; compilation fails if the engine cannot enforce the requested boolean
+  # policy. Legacy null and {} forms retain engine-default behavior. This does not
+  # grant shell execution or prevent writes through separately enabled shell or MCP
+  # tools.
   # (optional)
   # Accepted formats:
 
@@ -21905,6 +21920,17 @@ safe-outputs:
 
           # (optional)
           bash-command-allowlist: true
+
+          # The engine provides native file editing tools. The runtime receives
+          # GH_AW_TOOLS_EDIT for boolean edit settings when native editing capabilities are
+          # declared.
+          # (optional)
+          native-edit: true
+
+          # The engine enforces tools.edit: false independently of approval modes and other
+          # tool grants.
+          # (optional)
+          native-edit-disable: true
 
         # (optional)
         manifest:

@@ -439,6 +439,13 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		assert.Contains(t, result, "replace", "Should map edit to replace")
 	})
 
+	t.Run("empty bash allowlist does not enable shell with native editing", func(t *testing.T) {
+		result := computeGeminiToolsCore(map[string]any{"edit": true, "bash": []any{}})
+		assert.Contains(t, result, "write_file")
+		assert.Contains(t, result, "replace")
+		assert.NotContains(t, result, "run_shell_command")
+	})
+
 	t.Run("combined bash and edit tools", func(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"grep"},

@@ -7,8 +7,8 @@ const { parseMaxToolCalls } = require("./copilot_sdk_tool_budget.cjs");
 
 const COPILOT_SDK_TOOL_CONFIG_VERSION = 1;
 const COPILOT_SDK_NEUTRAL_BUILTIN_TOOLS = Object.freeze(["view", "rg", "glob", "sql"]);
-const COPILOT_SDK_SHELL_BUILTIN_TOOLS = Object.freeze(["bash", "read_bash", "stop_bash", "list_bash"]);
-const COPILOT_SDK_EDIT_BUILTIN_TOOLS = Object.freeze(["apply_patch", "edit", "create", "delete", "move", "write_bash"]);
+const COPILOT_SDK_SHELL_BUILTIN_TOOLS = Object.freeze(["bash", "read_bash", "write_bash", "stop_bash", "list_bash"]);
+const COPILOT_SDK_EDIT_BUILTIN_TOOLS = Object.freeze(["apply_patch", "edit", "create", "delete", "move"]);
 const COPILOT_SDK_WORKFLOW_BUILTIN_TOOLS = Object.freeze(["run_dynamic_workflow", "dynamic_workflows_manage"]);
 
 /**
@@ -215,7 +215,9 @@ function buildCopilotSDKSessionToolConfig(config, sdk, options = {}) {
   }
 
   const availableTools = new sdk.ToolSet();
-  availableTools.addBuiltIn(sdk.BuiltInTools.Isolated.filter(name => name !== "ask_user" && !COPILOT_SDK_WORKFLOW_BUILTIN_TOOLS.includes(name)));
+  availableTools.addBuiltIn(
+    sdk.BuiltInTools.Isolated.filter(name => name !== "ask_user" && !COPILOT_SDK_WORKFLOW_BUILTIN_TOOLS.includes(name) && !COPILOT_SDK_EDIT_BUILTIN_TOOLS.includes(name) && !COPILOT_SDK_SHELL_BUILTIN_TOOLS.includes(name))
+  );
   availableTools.addBuiltIn(COPILOT_SDK_NEUTRAL_BUILTIN_TOOLS);
   if (config.capabilities.bash) availableTools.addBuiltIn(COPILOT_SDK_SHELL_BUILTIN_TOOLS);
   if (config.capabilities.edit) availableTools.addBuiltIn(COPILOT_SDK_EDIT_BUILTIN_TOOLS);

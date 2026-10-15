@@ -42,7 +42,9 @@ func NewClaudeEngine() *ClaudeEngine {
 				BareMode:             true,  // Claude CLI supports --bare
 				BashCommandAllowlist: true,  // Claude enforces tools.bash allowlist via --allowed-tools Bash(cmd)
 				BashDisable:          true,  // Explicit Bash deny rules remove shell execution.
-				Plugins:              true,  // Claude Code loads Agent Plugins via --plugin-dir
+				NativeEdit:           true,
+				NativeEditDisable:    true,
+				Plugins:              true, // Claude Code loads Agent Plugins via --plugin-dir
 				DynamicWorkflows:     true,
 			},
 			dedicatedLLMGatewayPort: constants.ClaudeLLMGatewayPort,

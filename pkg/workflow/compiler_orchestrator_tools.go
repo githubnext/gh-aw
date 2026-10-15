@@ -253,6 +253,9 @@ func (c *Compiler) resolveToolsConfiguration(
 	if err != nil {
 		return nil, err
 	}
+	if err := c.validateNativeEditSupport(tools, agenticEngine); err != nil {
+		return nil, err
+	}
 	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
 	tools, err = enforceMCPProxyTools(agenticEngine, tools)
 	if err != nil {
@@ -396,7 +399,7 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
 	c.IncrementWarningCount()
 	if _, hasTools := frontmatter["tools"]; hasTools {
-		message := fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())
+		message := fmt.Sprintf("MCP tool allow-list ignored when using engine: %s (%s doesn't support MCP tool allow-listing); native edit policy remains enforced", agenticEngine.GetID(), agenticEngine.GetDisplayName())
 		if _, hasQueue := tools["work-queue"]; hasQueue {
 			message = fmt.Sprintf("Native tool allow-list ignored for engine: %s; work-queue controls and CLI transport remain enabled", agenticEngine.GetID())
 		}
@@ -406,6 +409,9 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 	// Queue assignment and CLI transport are framework controls, not native
 	// engine tool allow-list entries. Preserve them for dispatch-only workers.
 	fallback := map[string]any{"github": map[string]any{}}
+	if edit, configured := tools["edit"]; configured {
+		fallback["edit"] = edit
+	}
 	if queue, ok := tools["work-queue"]; ok {
 		fallback["work-queue"] = queue
 	}
@@ -417,7 +423,7 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 
 func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, agenticEngine CodingAgentEngine, tools map[string]any) error {
 	if agenticEngine.GetID() == string(constants.AgyEngine) {
-		for _, name := range []string{"edit", "web-fetch", "web-search"} {
+		for _, name := range []string{"web-fetch", "web-search"} {
 			if disabled, ok := tools[name].(bool); ok && !disabled {
 				return fmt.Errorf("experimental agy cannot enforce tools.%s: false; its native permission profile enables tools inside the outer sandbox", name)
 			}
@@ -428,6 +434,7 @@ func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, ag
 		return err
 	}
 	validators := []func() error{
+		func() error { return c.validateNativeEditSupport(tools, agenticEngine) },
 		func() error { return c.validateMaxTurnsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxToolDenialsSupport(frontmatter, agenticEngine) },

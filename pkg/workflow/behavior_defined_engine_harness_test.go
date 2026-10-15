@@ -3,12 +3,44 @@
 package workflow
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBehaviorDefinedEngineNativeEditPolicy(t *testing.T) {
+	def := newHarnessEngineDefinition()
+	def.Behaviors.Capabilities.NativeEdit = true
+	def.Behaviors.Capabilities.NativeEditDisable = true
+	engine, err := NewBehaviorDefinedEngine(def)
+	require.NoError(t, err)
+	assert.True(t, engine.GetCapabilities().NativeEdit)
+	assert.True(t, engine.GetCapabilities().NativeEditDisable)
+
+	for _, enabled := range []bool{true, false} {
+		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
+			tools := map[string]any{"edit": enabled}
+			require.NoError(t, NewCompiler().validateNativeEditSupport(tools, engine))
+			tools = NewCompiler().adjustToolsForEngineCapabilities(map[string]any{"tools": tools}, engine, tools)
+			assert.Equal(t, enabled, tools["edit"])
+			data := &WorkflowData{Tools: tools, EngineConfig: &EngineConfig{Env: map[string]string{"GH_AW_TOOLS_EDIT": "ignored"}}}
+			env := engine.buildBehaviorDefinedExecutionEnv(def.Behaviors.Execution, data, false)
+			assert.Equal(t, strconv.FormatBool(enabled), env["GH_AW_TOOLS_EDIT"])
+		})
+	}
+	for _, tools := range []map[string]any{nil, {"edit": nil}, {"edit": map[string]any{}}} {
+		env := engine.buildBehaviorDefinedExecutionEnv(def.Behaviors.Execution, &WorkflowData{Tools: tools}, false)
+		assert.NotContains(t, env, "GH_AW_TOOLS_EDIT", "legacy edit forms retain engine defaults")
+	}
+
+	legacy, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+	require.NoError(t, err)
+	env := legacy.buildBehaviorDefinedExecutionEnv(legacy.definition.Behaviors.Execution, &WorkflowData{Tools: map[string]any{"edit": true}}, false)
+	assert.NotContains(t, env, "GH_AW_TOOLS_EDIT", "implicit sandbox defaults must not change legacy custom engines")
+}
 
 // newHarnessEngineDefinition returns a minimal EngineDefinition with harness-script set.
 func newHarnessEngineDefinition() *EngineDefinition {

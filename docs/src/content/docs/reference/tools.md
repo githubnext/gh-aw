@@ -19,12 +19,18 @@ Some tools are available by default. All tools declared in imported components a
 
 ### Edit Tool (`edit:`)
 
-Allows file editing in the GitHub Actions workspace.
+Controls the engine's native file editing tools in the GitHub Actions workspace.
 
 ```yaml wrap
 tools:
-  edit:
+  edit: true
 ```
+
+`true` requires native editing. `false` disables native repository editing and takes precedence over sandbox defaults, pull request safe outputs, and imported enables. Omitting `edit` preserves existing defaults. Legacy `null` (`edit:`) and `{}` forms retain their existing engine-default behavior; use a boolean to require an enforceable policy.
+
+Copilot, Claude, Gemini, and Pi enforce both boolean values. Codex and experimental Agy provide native editing but cannot enforce `edit: false`; compilation rejects that setting instead of silently ignoring it. Custom engines must declare and implement the corresponding native editing capabilities.
+
+Editing does not grant shell or process execution. Use `bash: false` to independently disable shell tools. Conversely, `edit: false` is not a filesystem write barrier: separately enabled shell commands and MCP tools can still modify files. Claude retains scoped memory and sandbox scratch-path grants while denying repository edits.
 
 ### GitHub Tools (`github:`)
 

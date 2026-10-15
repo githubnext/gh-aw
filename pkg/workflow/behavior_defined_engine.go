@@ -7,6 +7,7 @@ import (
 	"maps"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -621,6 +622,10 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 	applyEngineAndAgentEnv(env, workflowData, behaviorDefinedEngineLog)
 	applyMCPScriptsSecretEnv(env, workflowData)
 	e.applyBehaviorDefinedModelEnv(exec, workflowData, env)
+	capabilities := e.GetCapabilities()
+	if edit, configured := workflowData.Tools["edit"].(bool); configured && (capabilities.NativeEdit || capabilities.NativeEditDisable) {
+		env["GH_AW_TOOLS_EDIT"] = strconv.FormatBool(edit)
+	}
 	return env
 }
 

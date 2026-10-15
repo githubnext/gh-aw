@@ -41,7 +41,7 @@ var geminiToolsLog = logger.New("workflow:gemini_tools")
 //
 // See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/file-system.md
 // See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/shell.md
-func computeGeminiToolsCore(tools map[string]any) []string {
+func computeGeminiToolsCore(tools map[string]any) []string { //nolint:largefunc // Keep native tool catalog mapping centralized.
 	// Always include essential read-only file system tools
 	toolsCore := []string{
 		"glob",
@@ -56,9 +56,9 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 	}
 
 	// Map bash neutral tool to run_shell_command
-	if bashConfig, hasBash := tools["bash"]; hasBash {
+	if bashConfig, hasBash := tools["bash"]; hasBash && !isToolExplicitlyFalse(bashConfig) {
 		bashCommands, ok := bashConfig.([]any)
-		if !ok || len(bashCommands) == 0 {
+		if !ok {
 			// bash with no specific commands - allow all shell commands
 			geminiToolsLog.Print("bash (no specific commands) → run_shell_command")
 			toolsCore = append(toolsCore, "run_shell_command")
@@ -92,7 +92,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 	}
 
 	// Map edit neutral tool to write_file and replace (Gemini's file write tools)
-	if _, hasEdit := tools["edit"]; hasEdit {
+	if edit, hasEdit := tools["edit"]; hasEdit && !isToolExplicitlyFalse(edit) {
 		geminiToolsLog.Print("edit → replace, write_file")
 		toolsCore = append(toolsCore, "replace")
 		toolsCore = append(toolsCore, "write_file")

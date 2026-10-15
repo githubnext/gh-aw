@@ -51,6 +51,8 @@ func NewPiEngine() *PiEngine {
 				BareMode:             true,
 				BashCommandAllowlist: true,
 				BashDisable:          true,
+				NativeEdit:           true,
+				NativeEditDisable:    true,
 			},
 		},
 	}

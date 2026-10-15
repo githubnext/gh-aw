@@ -325,6 +325,25 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 	}
 }
 
+func (c *Compiler) validateNativeEditSupport(tools map[string]any, engine CodingAgentEngine) error {
+	edit, explicitBoolean := tools["edit"].(bool)
+	if !explicitBoolean {
+		// Legacy null/object forms retain their engine-default behavior.
+		return nil
+	}
+	capabilities := engine.GetCapabilities()
+	if !edit {
+		if !capabilities.NativeEditDisable {
+			return fmt.Errorf("engine '%s' cannot enforce tools.edit: false; use an engine that supports disabling native editing (copilot, claude, gemini, or pi), or remove tools.edit to retain the engine default", engine.GetID())
+		}
+		return nil
+	}
+	if !capabilities.NativeEdit {
+		return fmt.Errorf("engine '%s' does not support tools.edit: true; use an engine with native editing support, or remove tools.edit to retain the engine default", engine.GetID())
+	}
+	return nil
+}
+
 // validateBashCommandAllowlistSupport errors when an explicit bash restriction is used
 // with an engine that cannot enforce it. An explicit restriction is any of:
 //   - bash: false  (disabling bash — silently ignored at runtime)

@@ -157,6 +157,14 @@ type EngineCapabilities struct {
 	// compiler allows a fully-disabled tools.bash even if BashCommandAllowlist is false.
 	BashDisable bool
 
+	// NativeEdit reports whether the engine provides native file editing tools.
+	// Enabling these tools must not grant shell or process execution.
+	NativeEdit bool
+
+	// NativeEditDisable reports whether tools.edit: false is enforced independently
+	// of approval modes and other tool grants. This is not a filesystem write ACL.
+	NativeEditDisable bool
+
 	// Plugins reports whether the engine can install Agent Plugins.
 	Plugins bool
 

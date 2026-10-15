@@ -60,7 +60,8 @@ func NewCodexEngine() *CodexEngine {
 				WebSearch:        true,  // Codex has built-in web-search support
 				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 				BashDisable:      true,  // Codex can fully refuse shell execution via `-c features.shell_tool=false`, though it cannot enforce a per-command allowlist
-				Plugins:          true,  // Codex CLI loads Agent Plugins through a generated local marketplace and "codex plugin add"
+				NativeEdit:       true,
+				Plugins:          true, // Codex CLI loads Agent Plugins through a generated local marketplace and "codex plugin add"
 			},
 			dedicatedLLMGatewayPort: constants.CodexLLMGatewayPort,
 		},

@@ -284,6 +284,10 @@ func (e *CopilotEngine) buildCopilotFeatureArgs(workflowData *WorkflowData, copi
 		copilotExecLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
 	copilotArgs = append(copilotArgs, toolArgs...)
+	if isToolExplicitlyFalse(workflowData.Tools["edit"]) {
+		// A deny rule takes precedence over wildcard bash's --allow-all-tools.
+		copilotArgs = append(copilotArgs, "--deny-tool", "write")
+	}
 	if dynamicWorkflowsEnabled(e, workflowData.EngineConfig) {
 		copilotArgs = append(copilotArgs, "--allow-tool", "workflow")
 	} else {
@@ -327,7 +331,7 @@ func buildCopilotMkdirCommands(copilotArgs []string) string {
 	addDirPaths = append(addDirPaths, logsFolder)
 	var mkdirCommands strings.Builder
 	for _, dir := range addDirPaths {
-		fmt.Fprintf(&mkdirCommands, "mkdir -p %s\n", dir)
+		mkdirCommands.WriteString("mkdir -p " + dir + "\n")
 	}
 	return mkdirCommands.String()
 }
