@@ -25,7 +25,14 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 const receipts = new WeakMap();
 
-/** @param {{ "target-repo"?: string, "assets-dir"?: string, "allowed-exts"?: string[], "max-size"?: number, max?: number, branch?: string, staged?: boolean }} [config] @param {import("./types/work-queue-native-client").ClaimNativeClient} [suppliedClient] */
+/**
+ * @typedef {{ "target-repo"?: string, "assets-dir"?: string, "allowed-exts"?: string[], "max-size"?: number, max?: number, branch?: string, staged?: boolean }} AssetAdapterConfig
+ */
+
+/**
+ * @param {AssetAdapterConfig} [config]
+ * @param {import("./types/work-queue-native-client").ClaimNativeClient} [suppliedClient]
+ */
 async function main(config = {}, suppliedClient) {
   const factoryClaim = currentClaimHandle();
   if (!factoryClaim) throw new Error(`${SAFE_OUTPUT_E001}: Queue asset adapter requires an immutable Claim factory`);
