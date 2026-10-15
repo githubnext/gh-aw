@@ -575,19 +575,20 @@ func TestCopilotAgentMetricsWithoutLifecycleRetainAttribution(t *testing.T) {
 	_, _, parsedAgents, found, err := readSessionSubagentModelsDetailed(root)
 	require.NoError(t, err)
 	require.True(t, found)
-	require.Len(t, parsedAgents, 4)
+	require.Len(t, parsedAgents, 3)
 	summary := &TokenUsageSummary{}
 	augmentSubagentModelAttribution(root, summary)
 
-	require.Len(t, summary.AgentUsage, 4)
+	require.Len(t, summary.AgentUsage, 3)
 	agents := make(map[string]AgentUsageBreakdown, len(summary.AgentUsage))
 	for _, agent := range summary.AgentUsage {
 		agents[agent.AgentName] = agent
 	}
 	require.InDelta(t, 389.122, agents["main"].AIC, 0.000001)
-	require.InDelta(t, 494.207, agents["subagent-research"].AIC, 0.000001)
-	require.InDelta(t, 40.977, agents["awf-routing"].AIC, 0.000001)
-	require.InDelta(t, 9.141, agents["ghaw-issues"].AIC, 0.000001)
+	require.InDelta(t, 494.207, agents["research"].AIC, 0.000001)
+	require.Equal(t, []string{"subagent-research"}, agents["research"].DisplayNames)
+	require.InDelta(t, 50.118, agents["explore"].AIC, 0.000001)
+	require.Equal(t, []string{"awf-routing", "ghaw-issues"}, agents["explore"].DisplayNames)
 	require.Len(t, summary.SubagentModelRequests, 3)
 	for _, request := range summary.SubagentModelRequests {
 		require.Zero(t, request.InvocationCount)
