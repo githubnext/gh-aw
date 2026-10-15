@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data *WorkflowData) []string {
@@ -492,20 +491,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || ... || 'auto' }}, and when no org var
 	// is set COPILOT_MODEL is 'auto'. The AWF API proxy has no pricing for 'auto' and
 	// returns HTTP 400, causing every inference attempt to fail.
-	resolvedDetectionModel := inheritedDetectionModel(data, engineID)
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
-		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
-	}
-	if resolvedDetectionModel == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
-			resolvedDetectionModel = defaultModel
-		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
-			resolvedDetectionModel = defaultModel
-		}
-	}
-	if resolvedDetectionModel == "" {
-		resolvedDetectionModel = "detection"
-	}
+	resolvedDetectionModel := resolveThreatDetectionModel(data, engineID, engine)
 	// Pi workflows use a provider-matched built-in detection engine; strip the
 	// provider prefix so it receives a bare model ID.
 	// Precedence mirrors the inline path: explicit threat-detection.engine.id overrides

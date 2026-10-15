@@ -80,3 +80,42 @@ func (c *Compiler) warnUnknownConfiguredModels(data *WorkflowData, markdownPath 
 		c.IncrementWarningCount()
 	}
 }
+
+// warnClaudeCopilotSettingsOverride warns when a Claude-on-Copilot workflow passes its
+// own --settings in engine.args, because gh-aw then keeps that value and does not add
+// the Copilot model-id map (modelOverrides) for Claude Code.
+func (c *Compiler) warnClaudeCopilotSettingsOverride(data *WorkflowData, markdownPath string) {
+	if data == nil {
+		return
+	}
+	if ResolveEngineID(data) == string(constants.ClaudeEngine) {
+		c.warnClaudeCopilotSettingsArgs("engine.args", data, markdownPath)
+	}
+}
+
+// warnClaudeCopilotDetectionSettingsOverride is the safe-outputs.threat-detection.engine
+// counterpart of warnClaudeCopilotSettingsOverride. It runs once safe-outputs are parsed
+// and resolves the detection model as the detection job does, so an inherited copilot/
+// model selects Copilot inference for the detection engine too.
+func (c *Compiler) warnClaudeCopilotDetectionSettingsOverride(data *WorkflowData, markdownPath string) {
+	if data == nil || !IsDetectionJobEnabled(data.SafeOutputs) {
+		return
+	}
+	td := data.SafeOutputs.ThreatDetection.EngineConfig
+	if td == nil || td.ID != string(constants.ClaudeEngine) {
+		return
+	}
+	detectionData := &WorkflowData{EngineConfig: td, Model: resolveThreatDetectionModel(data, td.ID, NewClaudeEngine())}
+	c.warnClaudeCopilotSettingsArgs("safe-outputs.threat-detection.engine.args", detectionData, markdownPath)
+}
+
+func (c *Compiler) warnClaudeCopilotSettingsArgs(field string, data *WorkflowData, markdownPath string) {
+	if data.EngineConfig == nil || !claudeArgsHaveSettings(data.EngineConfig.Args) || !claudeUsesCopilotInference(data) {
+		return
+	}
+	message := field + " passes --settings, so the Copilot model-id map (modelOverrides) for Claude Code was not added. " +
+		"Add a modelOverrides entry that maps each Anthropic model id to its Copilot id (for example \"claude-haiku-4-5\": \"claude-haiku-4.5\") to your --settings value"
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		formatCompilerMessage(markdownPath, "warning", message)))
+	c.IncrementWarningCount()
+}
