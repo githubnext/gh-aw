@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.8.1"
+version: "1.9.0"
 status: Draft
-publication_date: "2026-10-12"
+publication_date: "2026-10-15"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.8.1<br>
+**Version**: 1.9.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-12<br>
+**Publication Date**: 2026-10-15<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.8.1 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.9.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -1048,6 +1048,23 @@ actuals include only sub-agent requests, not main-agent or router traffic.
 `agent-session.jsonl` is used only for older runs without a unified-session
 artifact. `agent-stdio.log` is not a source of sub-agent rows.
 
+**T-UAS-073 — Sub-agent rows by definition.** Audit `agent_usage` and
+`subagent_costs` rows MUST be keyed by the agent definition recorded in
+`agentName`, with `agent_type` remaining the role (`main` or `subagent`). An
+audit row MUST combine all instances of one definition in a run, summing
+instance and outcome counts, requests, tokens, and credits; effort is the shared
+value or `mixed`. `gh aw logs` MUST combine rows across runs by definition and
+effort. `display_names` MUST list the sorted, distinct `agentDisplayName` values
+from each instance's `subagent.started`, `subagent.completed`, and
+`subagent.failed` events and per-agent metrics, matched by instance ID, and MUST
+NOT use `subagent.selected`. When an instance has no `agentName`, its row MUST be
+named by its display name without `display_names`. Served models MUST come only
+from runner- or proxy-written evidence (the session's sub-agent records and
+per-agent metrics, and AWF `token-usage.jsonl`), never from the agent-writable
+`awf-routing-outcome.json`. They MUST omit provider prefixes, MUST NOT list alias
+names such as `small`, and MUST NOT drop a concrete model ID because a declared
+sub-agent pins it.
+
 Subagent attribution is scoped to the final retry session; earlier source
 records cannot contribute even when merged timestamps interleave them.
 Malformed preferred artifacts produce diagnostics while the reader continues
@@ -1494,6 +1511,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-068 | Goose stream messages/deltas, tool requests/results, cumulative completion usage, source-second timestamps, malformed records, error-only and partial sessions | Exact supported content and IDs, observed outcomes only, no duplicated snapshots or invented partial results, explicit diagnostics. |
 | T-UAS-070 | Firewall token usage with supplied or absent purpose/path/initiator; `usage.report` alias | Supplied routing metadata survives projection; consumers treat absent purpose as unknown, not agent. |
 | T-UAS-071 | Firewall token usage with supplied, absent, or malformed `steering`; AI-credit, token, and time steering event-log entries | Type and threshold survive projection, malformed notices are dropped, steering events keep threshold and request ID, and absent notices remain unrecorded rather than undelivered. |
+| T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 
 ### 9.3 Engine and integration fixture matrix
 
@@ -1976,6 +1994,12 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.9.0 — Draft (2026-10-15)
+
+- Keyed audit and logs sub-agent rows by agent definition with `display_names` (T-UAS-073).
+- Restricted sub-agent served models to runner- and proxy-written evidence, without provider prefixes or aliases, and kept concrete model IDs pinned by declared sub-agents.
+- Retained serialization-format version 1.
 
 ### Version 1.8.1 — Draft (2026-10-12)
 

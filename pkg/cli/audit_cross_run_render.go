@@ -60,7 +60,7 @@ func renderMarkdownModelRoutingToWriter(w io.Writer, routing *ModelRoutingLogsSu
 			writeModelRoutingReportLine(w, "| Sub-agent | Effort | Requests | Total AIC |\n|---|---|---:|---:|\n")
 			for _, agent := range routing.SubagentCosts {
 				writeModelRoutingReportLine(w, "| %s | %s | %d | %.3f |\n",
-					modelRoutingMarkdownCell(agent.AgentName), modelRoutingMarkdownCell(agent.Effort),
+					modelRoutingMarkdownCell(agentNameWithDisplayNames(agent.AgentName, agent.DisplayNames)), modelRoutingMarkdownCell(agent.Effort),
 					agent.Requests, agent.AIC)
 			}
 			writeModelRoutingReportLine(w, "\n")

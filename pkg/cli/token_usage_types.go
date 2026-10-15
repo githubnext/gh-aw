@@ -205,10 +205,15 @@ type SubagentModelActual struct {
 	TotalDurationMs  int     `json:"total_duration_ms,omitempty"`
 	agentName        string
 	identityEvidence []string
+	agentAliases     []string
+	// sessionModels lists the model ids the session recorded for the agent
+	// before identity resolution; nil when unknown.
+	sessionModels []string
 }
 
 type AgentUsageBreakdown struct {
 	AgentName       string   `json:"agent_name"`
+	DisplayNames    []string `json:"display_names,omitempty"`
 	AgentType       string   `json:"agent_type"`
 	SourceEngine    string   `json:"source_engine,omitempty"`
 	InstanceCount   int      `json:"instance_count"`
@@ -225,6 +230,11 @@ type AgentUsageBreakdown struct {
 	TotalApiDurationMs int               `json:"total_api_duration_ms,omitempty"`
 	Models             []AgentModelUsage `json:"models,omitempty"`
 	requestUsages      []agentRequestUsage
+	sessionModels      []string
+	// definitionName is the session's agentName for an instance; when set,
+	// rows are keyed by it and instanceDisplayNames become DisplayNames.
+	definitionName       string
+	instanceDisplayNames []string
 }
 
 type agentRequestUsage struct {

@@ -693,6 +693,9 @@ func (models *subagentSessionModels) observeSubagentRequest(event sessionSubagen
 		return err
 	}
 	models.recordSubagentRequest(identity, row.AgentName, model, usage, incomplete, timestamp)
+	if data.AgentName != "" {
+		models.agentUsage[identity].definitionName = data.AgentName
+	}
 	return nil
 }
 
@@ -814,6 +817,9 @@ func (models *subagentSessionModels) observeAgentMetric(agentID string, metric s
 	}
 	agentUsage.AgentName = name
 	agentUsage.AgentType = role
+	if role == "subagent" {
+		agentUsage.observeIdentity(metric.AgentName, metric.AgentDisplayName)
+	}
 	agentUsage.SourceEngine = models.sourceEngine
 	agentUsage.InstanceCount = max(agentUsage.InstanceCount, 1)
 	agentUsage.AIC = float64(metric.TotalNanoAiu) / 1e9
@@ -924,6 +930,7 @@ func (models *subagentSessionModels) observeLifecycle(event sessionSubagentEvent
 	agentUsage.AgentName = row.AgentName
 	agentUsage.AgentType = "subagent"
 	agentUsage.SourceEngine = models.sourceEngine
+	agentUsage.observeIdentity(data.AgentName, lifecycleDisplayName(event.Type, data.AgentDisplayName))
 	if event.Type == "subagent.started" {
 		row.RequestedModel = data.Model
 		row.ResolvedModel = data.ResolvedModel
@@ -956,6 +963,25 @@ func (models *subagentSessionModels) observeLifecycle(event sessionSubagentEvent
 		observeLifecycleOutcome(row, agentUsage, event, data)
 	}
 	return nil
+}
+
+// lifecycleDisplayName returns the display name chosen for an instance; only
+// started, completed, and failed events carry it.
+func lifecycleDisplayName(eventType, displayName string) string {
+	switch eventType {
+	case "subagent.started", "subagent.completed", "subagent.failed":
+		return displayName
+	}
+	return ""
+}
+
+// observeIdentity records the agent definition (agentName) and the display
+// name chosen for this instance, so rows can be keyed by definition.
+func (usage *AgentUsageBreakdown) observeIdentity(definition, displayName string) {
+	if definition != "" {
+		usage.definitionName = definition
+	}
+	usage.instanceDisplayNames = appendUnique(usage.instanceDisplayNames, displayName)
 }
 
 func observeLifecycleOutcome(row *SubagentModelRequest, agentUsage *AgentUsageBreakdown, event sessionSubagentEvent, data sessionSubagentData) {
@@ -1320,16 +1346,26 @@ func (models *subagentSessionModels) agentRows() []AgentUsageBreakdown {
 		if usage.AgentName == "" {
 			usage.AgentName = "subagent"
 		}
-		key := usage.AgentType + "\x00" + usage.AgentName
+		name := usage.AgentName
+		var displayNames []string
+		if usage.AgentType == "subagent" && usage.definitionName != "" {
+			name = usage.definitionName
+			displayNames = usage.instanceDisplayNames
+		}
+		key := usage.AgentType + "\x00" + name
 		row := grouped[key]
 		if row == nil {
-			row = &AgentUsageBreakdown{AgentName: usage.AgentName, AgentType: usage.AgentType, SourceEngine: usage.SourceEngine}
+			row = &AgentUsageBreakdown{AgentName: name, AgentType: usage.AgentType, SourceEngine: usage.SourceEngine}
 			grouped[key] = row
+		}
+		for _, displayName := range displayNames {
+			row.DisplayNames = appendUnique(row.DisplayNames, displayName)
 		}
 		mergeAgentUsageBreakdown(row, usage, models.agents[agentID])
 	}
 	result := make([]AgentUsageBreakdown, 0, len(grouped))
 	for _, row := range grouped {
+		slices.Sort(row.DisplayNames)
 		slices.Sort(row.RequestedModels)
 		slices.Sort(row.ResolvedModels)
 		slices.Sort(row.ServedModels)

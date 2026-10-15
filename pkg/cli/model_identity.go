@@ -18,10 +18,14 @@ var (
 
 type modelIdentityResolver struct {
 	aliases map[string][]string
+	// concrete holds declared sub-agent models that pin a concrete model id
+	// rather than an alias; they keep their patterns but are never aliases.
+	concrete map[string]struct{}
 }
 
 func newModelIdentityResolver(runDir string) *modelIdentityResolver {
 	aliases := workflow.BuiltinModelAliases()
+	concrete := make(map[string]struct{})
 	infoPath := findAwInfoPath(runDir)
 	if infoPath != "" {
 		content, err := os.ReadFile(infoPath)
@@ -36,12 +40,39 @@ func newModelIdentityResolver(runDir string) *modelIdentityResolver {
 				for _, model := range info.Models {
 					if model.Model != "" && len(model.Patterns) > 0 {
 						aliases[model.Model] = append([]string(nil), model.Patterns...)
+						if isConcreteModelDeclaration(model.Model, model.Patterns) {
+							concrete[normalizeModelIdentity(model.Model)] = struct{}{}
+						} else {
+							delete(concrete, normalizeModelIdentity(model.Model))
+						}
 					}
 				}
 			}
 		}
 	}
-	return &modelIdentityResolver{aliases: aliases}
+	return &modelIdentityResolver{aliases: aliases, concrete: concrete}
+}
+
+// isConcreteModelDeclaration reports whether a declared sub-agent model pins a
+// concrete model id: every pattern names that same model, optionally qualified
+// by a provider, without wildcards.
+func isConcreteModelDeclaration(model string, patterns []string) bool {
+	normalized := normalizeModelIdentity(model)
+	if normalized == "" || len(patterns) == 0 {
+		return false
+	}
+	for _, pattern := range patterns {
+		if strings.ContainsAny(pattern, "*?[") || normalizeModelIdentity(pattern) != normalized {
+			return false
+		}
+	}
+	return true
+}
+
+// servedModelIdentity returns the provider-free model id recorded as served
+// evidence, preserving dated ids.
+func servedModelIdentity(model string) string {
+	return modelNameWithoutProvider(strings.TrimSpace(model))
 }
 
 func normalizeModelIdentity(model string) string {
