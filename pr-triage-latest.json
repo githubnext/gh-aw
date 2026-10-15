@@ -1,21 +1,20 @@
 {
-  "run_date": "2026-10-14T18:35:13Z",
-  "run_id": "38615396379",
+  "run_date": "2026-10-15T00:55:35Z",
+  "run_id": "38662336721",
   "source": "pr-triage-agent",
   "eligible_total": 2,
-  "cooldown_skipped": 3,
+  "cooldown_skipped": 1,
   "open_copilot_prs": 5,
   "category_counts": {
-    "feature": 1,
-    "bug": 1
+    "bug": 2
   },
   "risk_counts": {
-    "high": 1,
-    "medium": 1
+    "medium": 1,
+    "high": 1
   },
   "priority_counts": {
-    "high": 1,
-    "medium": 1
+    "medium": 1,
+    "high": 1
   },
   "action_counts": {
     "auto_merge": 0,
@@ -27,15 +26,15 @@
   "batches": [],
   "selected_candidates": [
     {
-      "number": 68315,
-      "title": "[Experimental] Long-running agentic work across multiple runs",
-      "category": "feature",
-      "risk": "high",
-      "priority_score": 82,
+      "number": 68839,
+      "title": "Claude on Copilot: pass Claude Code a modelOverrides map for Copilot's dotted Claude model ids",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 62,
       "score_breakdown": {
-        "impact": 45,
-        "urgency": 24,
-        "quality": 13
+        "impact": 32,
+        "urgency": 16,
+        "quality": 14
       },
       "action": "batch_review",
       "review_state": "COMMENTED",
@@ -45,12 +44,12 @@
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "category": "bug",
-      "risk": "medium",
-      "priority_score": 60,
+      "risk": "high",
+      "priority_score": 75,
       "score_breakdown": {
-        "impact": 28,
-        "urgency": 18,
-        "quality": 14
+        "impact": 39,
+        "urgency": 24,
+        "quality": 12
       },
       "action": "close",
       "review_state": "CHANGES_REQUESTED",
@@ -59,14 +58,14 @@
   ],
   "prs": [
     {
-      "number": 68315,
-      "title": "[Experimental] Long-running agentic work across multiple runs",
+      "number": 68839,
+      "title": "Claude on Copilot: pass Claude Code a modelOverrides map for Copilot's dotted Claude model ids",
       "state": "open",
       "user": "Copilot",
       "draft": false,
-      "category": "feature",
-      "risk": "high",
-      "priority_score": 82,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 62,
       "action": "batch_review",
       "review_state": "COMMENTED",
       "ci_state": "unknown"
@@ -78,17 +77,15 @@
       "user": "Copilot",
       "draft": false,
       "category": "bug",
-      "risk": "medium",
-      "priority_score": 60,
+      "risk": "high",
+      "priority_score": 75,
       "action": "close",
       "review_state": "CHANGES_REQUESTED",
       "ci_state": "unknown"
     }
   ],
   "cooldown_skipped_prs": [
-    68732,
-    68728,
-    68717
+    68883
   ],
-  "notes": "Eligible PRs are those older than 1 hour and authored by app/github-copilot; three newer Copilot PRs were skipped under the cooldown policy."
+  "notes": "Two eligible Copilot-authored PRs older than one hour were triaged; one newer Copilot PR remained under the cooldown window."
 }
