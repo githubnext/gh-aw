@@ -207,6 +207,12 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	addWorkflowPRLog.Printf("Successfully created PR #%d: %s", prNumber, prURL)
 
+	if opts.AutoMerge {
+		if err := enablePRAutoMerge(ctx, prURL); err != nil {
+			return prNumber, prURL, err
+		}
+	}
+
 	// Switch back to original branch
 	if err := switchBranch(currentBranch, opts.Verbose); err != nil {
 		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)

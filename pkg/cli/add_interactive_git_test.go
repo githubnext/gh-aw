@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -13,6 +14,58 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAddInteractiveAutoMergeRejectsLocalDelivery(t *testing.T) {
+	t.Parallel()
+	config := &AddInteractiveConfig{AutoMerge: true}
+	err := config.createWorkflowChangesAndConfigureSecret(context.Background(), nil, nil, "", "", false)
+	require.ErrorContains(t, err, "--auto-merge requires selecting pull request delivery")
+	assert.Nil(t, config.addResult)
+}
+
+func TestAddInteractiveAutoMergePropagation(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+	prependFakeGH(t, "exit 0\n")
+	originalCreatePR := createPRRunGHContextWithHost
+	originalAutoMerge := autoMergeRunGH
+	t.Cleanup(func() {
+		createPRRunGHContextWithHost = originalCreatePR
+		autoMergeRunGH = originalAutoMerge
+	})
+	const prURL = "https://github.com/octo/repo/pull/42"
+	created := false
+	createPRRunGHContextWithHost = func(_ context.Context, _, _ string, _ ...string) ([]byte, error) {
+		created = true
+		return []byte(prURL), nil
+	}
+	enableErr := errors.New("auto-merge unavailable")
+	autoMergeCalls := 0
+	autoMergeRunGH = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		assert.True(t, created, "auto-merge must happen after PR creation")
+		autoMergeCalls++
+		return nil, enableErr
+	}
+	config := &AddInteractiveConfig{
+		AutoMerge:       true,
+		NoGitattributes: true,
+		RepoOverride:    "octo/repo",
+		WorkflowSpecs:   []string{"test-workflow.yml"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{{
+			Spec:             &WorkflowSpec{WorkflowName: "test-workflow", WorkflowPath: "test-workflow.yml"},
+			Content:          []byte("name: Test\non: workflow_dispatch\njobs: {}\n"),
+			IsActionWorkflow: true,
+		}}},
+	}
+	err := config.createWorkflowChangesAndConfigureSecret(context.Background(), []string{"test-workflow.yml"}, nil, "", "", true)
+	require.ErrorIs(t, err, enableErr)
+	require.ErrorContains(t, err, prURL)
+	assert.Equal(t, 1, autoMergeCalls)
+	require.NotNil(t, config.addResult)
+	assert.Equal(t, 42, config.addResult.PRNumber)
+	assert.Equal(t, prURL, config.addResult.PRURL)
+	assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")))
+}
 
 func TestParseDefaultBranchFromLsRemote(t *testing.T) {
 	t.Parallel()

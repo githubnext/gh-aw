@@ -26,8 +26,8 @@ func PreflightCheckForCreatePR(verbose bool) error {
 // CreatePRWithChanges creates a new branch, stages and commits all current changes,
 // pushes the branch, creates a pull request, and returns to the original branch.
 // branchPrefix is used as the prefix for the auto-generated branch name.
-// Returns the PR URL on success.
-func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error) {
+// Returns the created PR URL even if enabling auto-merge or branch cleanup fails.
+func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool, autoMerge bool) (string, error) {
 	prHelpersLog.Printf("Creating PR with branch prefix: %s", branchPrefix)
 
 	currentBranch, err := getCurrentBranch()
@@ -63,8 +63,15 @@ func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTit
 		return "", fmt.Errorf("failed to create PR: %w", err)
 	}
 
+	var autoMergeErr error
+	if autoMerge {
+		autoMergeErr = enablePRAutoMerge(ctx, prURL)
+	}
 	if err := switchBranch(currentBranch, verbose); err != nil {
-		return prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+		return prURL, errors.Join(autoMergeErr, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err))
+	}
+	if autoMergeErr != nil {
+		return prURL, autoMergeErr
 	}
 
 	prHelpersLog.Printf("Created PR: %s", prURL)

@@ -315,6 +315,43 @@ func TestAddInteractiveConfig_createWorkflowChangesLocallyDoesNotRequireCleanTre
 	require.NoError(t, err, "workflow should be written locally")
 }
 
+func TestAddInteractiveConfigForcedPRDeliverySkipsDeliveryPrompt(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+	prependFakeGH(t, "exit 0\n")
+	originalConfirmChanges := addConfirmChanges
+	originalMissingMarkers := addMissingInitMarkers
+	t.Cleanup(func() {
+		addConfirmChanges = originalConfirmChanges
+		addMissingInitMarkers = originalMissingMarkers
+	})
+	addMissingInitMarkers = func(string, string) ([]string, error) { return nil, nil }
+	addConfirmChanges = func(*AddInteractiveConfig, []string, []string) (bool, error) {
+		t.Fatal("explicit PR delivery must not prompt for local delivery")
+		return false, nil
+	}
+	config := &AddInteractiveConfig{
+		Ctx:            context.Background(),
+		CreatePR:       true,
+		AutoMerge:      true,
+		EngineOverride: "copilot",
+		SkipSecret:     true,
+		RepoOverride:   "octo/repo",
+		WorkflowSpecs:  []string{"owner/repo/test-workflow"},
+		resolvedWorkflows: &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{{
+			Spec:    &WorkflowSpec{WorkflowName: "test-workflow", WorkflowPath: "test-workflow.md"},
+			Content: []byte("---\non: workflow_dispatch\n---\n# Test\n"),
+		}}},
+	}
+	files, initFiles, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
+	require.NoError(t, err)
+	assert.True(t, createPR)
+	assert.Equal(t, []string{"test-workflow.md", "test-workflow.lock.yml"}, files)
+	assert.Empty(t, initFiles)
+	assert.Empty(t, secretName)
+	assert.Empty(t, secretValue)
+}
+
 // TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSecretsAndPRSteps
 // drives the actual orchestration in prepareAndConfirmAddInteractive (not just the
 // downstream write helper) with a stubbed "No, write files locally" answer to the
@@ -403,6 +440,17 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 	assert.NotEmpty(t, workflowFiles, "workflow files should still be determined for local writes")
 	assert.Empty(t, initFiles, "local writes must not include repository initialization files")
 	assert.False(t, initializationRan, "local writes must not initialize repository support files")
+
+	config.AutoMerge = true
+	confirmationRan = false
+	_, _, secretName, secretValue, createPR, err = config.prepareAndConfirmAddInteractive()
+	require.ErrorContains(t, err, "--auto-merge requires selecting pull request delivery")
+	assert.True(t, confirmationRan, "auto-merge must validate the selected delivery mode")
+	assert.False(t, createPR)
+	assert.Empty(t, secretName)
+	assert.Empty(t, secretValue)
+	assert.False(t, initializationRan, "reject incompatible delivery before initializing repository support files")
+	assert.NoFileExists(t, filepath.Join(tmpDir, ".github", "workflows", "test-workflow.md"))
 
 	if _, statErr := os.Stat(ghLog); statErr == nil {
 		logContent, readErr := os.ReadFile(ghLog)

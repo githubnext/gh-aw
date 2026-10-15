@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,7 +13,80 @@ import (
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestInitAutoMergeRequiresPR(t *testing.T) {
+	t.Parallel()
+	cmd := NewInitCommand()
+	flag := cmd.Flags().Lookup("auto-merge")
+	require.NotNil(t, flag)
+	assert.Equal(t, "false", flag.DefValue)
+	assert.Contains(t, flag.Usage, "requires --pr or --create-pull-request")
+	require.NoError(t, cmd.Flags().Set("auto-merge", "true"))
+	require.ErrorContains(t, cmd.RunE(cmd, nil), "--auto-merge requires --pr or --create-pull-request")
+	require.ErrorContains(t, InitRepository(InitOptions{AutoMerge: true}), "--auto-merge requires --pr or --create-pull-request")
+}
+
+func TestInitCommandAutoMergePropagation(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		prFlag    string
+		autoMerge bool
+	}{
+		{name: "default", prFlag: "pr"},
+		{name: "short PR flag", prFlag: "pr", autoMerge: true},
+		{name: "long PR flag", prFlag: "create-pull-request", autoMerge: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			prependFakeGH(t, "exit 0\n")
+			t.Setenv("CI", "true")
+			originalCreatePR := createPRRunGHContextWithHost
+			originalAutoMerge := autoMergeRunGH
+			t.Cleanup(func() {
+				createPRRunGHContextWithHost = originalCreatePR
+				autoMergeRunGH = originalAutoMerge
+			})
+			const prURL = "https://github.com/octo/repo/pull/42"
+			created := false
+			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
+				if args[0] == "repo" {
+					return []byte(`{"owner":{"login":"octo"},"name":"repo"}`), nil
+				}
+				created = true
+				return []byte(prURL), nil
+			}
+			autoMergeCalls := 0
+			enableErr := errors.New("auto-merge unavailable")
+			autoMergeRunGH = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+				assert.True(t, created, "auto-merge must happen after PR creation")
+				autoMergeCalls++
+				return nil, enableErr
+			}
+			cmd := NewInitCommand()
+			for _, flag := range []string{tc.prFlag, "no-skill", "no-agent", "no-mcp"} {
+				require.NoError(t, cmd.Flags().Set(flag, "true"))
+			}
+			if tc.autoMerge {
+				require.NoError(t, cmd.Flags().Set("auto-merge", "true"))
+			}
+			err := cmd.RunE(cmd, nil)
+			if tc.autoMerge {
+				require.ErrorIs(t, err, enableErr)
+				require.ErrorContains(t, err, prURL)
+				assert.Equal(t, 1, autoMergeCalls)
+			} else {
+				require.NoError(t, err)
+				assert.Zero(t, autoMergeCalls)
+			}
+			assert.True(t, created)
+			assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")))
+		})
+	}
+}
 
 func TestNewInitCommand(t *testing.T) {
 	t.Parallel()

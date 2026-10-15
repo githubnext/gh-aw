@@ -36,6 +36,9 @@ const (
 
 // createWorkflowChangesAndConfigureSecret writes the workflows, optionally creates and merges a PR, and adds the secret.
 func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles []string, initFiles []addInitializedFile, secretName, secretValue string, createPR bool) error {
+	if c.AutoMerge && !createPR {
+		return errors.New("--auto-merge requires selecting pull request delivery")
+	}
 	addInteractiveLog.Print("Applying changes")
 
 	// Add the workflow using the existing implementation.
@@ -50,6 +53,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		Force:                            c.forceOverwrite,
 		AppendText:                       c.AppendText,
 		CreatePR:                         createPR,
+		AutoMerge:                        c.AutoMerge,
 		NoGitattributes:                  c.NoGitattributes,
 		WorkflowDir:                      c.WorkflowDir,
 		NoStopAfter:                      c.NoStopAfter,
@@ -69,10 +73,10 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	}
 	opts.addWizard.secretSource = c.secretSources["COPILOT_GITHUB_TOKEN"]
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
+	c.addResult = result
 	if err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)
 	}
-	c.addResult = result
 
 	if !createPR {
 		return nil

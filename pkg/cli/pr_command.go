@@ -96,14 +96,21 @@ The command will:
 3. Create a new PR in the target repository
 4. Copy the original title and body`,
 		Example: `  gh aw pr transfer https://github.com/owner/repo/pull/234
-  gh aw pr transfer https://github.com/owner/repo/pull/234 --repo owner/target-repo`,
+  gh aw pr transfer https://github.com/owner/repo/pull/234 --repo owner/target-repo
+  gh aw pr transfer https://github.com/owner/repo/pull/234 --pr --auto-merge`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			prURL := args[0]
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			createPR, _ := cmd.Flags().GetBool("create-pull-request")
+			prAlias, _ := cmd.Flags().GetBool("pr")
+			if autoMerge && !createPR && !prAlias {
+				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			}
 
-			if err := transferPR(prURL, targetRepo, verbose); err != nil {
+			if err := transferPRWithAutoMerge(cmd.Context(), prURL, targetRepo, verbose, autoMerge); err != nil {
 				return err
 			}
 			return nil
@@ -111,6 +118,10 @@ The command will:
 	}
 
 	addRepoFlag(cmd)
+	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request (always enabled for transfer)")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr")
 
 	return cmd
 }
@@ -411,6 +422,10 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 
 // createTransferPR creates a new PR in the target repository
 func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error { //nolint:largefunc
+	return createTransferPRWithAutoMerge(context.Background(), targetOwner, targetRepo, prInfo, branchName, verbose, false)
+}
+
+func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose, autoMerge bool) error { //nolint:largefunc
 	// Check if user has write access to target repository
 	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
 	if err != nil && verbose {
@@ -437,13 +452,13 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		forkRepoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, forkOwner, forkRepo)
 
 		// Check if fork remote exists
-		checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)
+		checkRemoteCmd := exec.CommandContext(ctx, "git", "remote", "get-url", remoteName)
 		if checkRemoteCmd.Run() != nil {
 			// Remote doesn't exist, add it
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding fork remote: "+forkRepoURL))
 			}
-			addRemoteCmd := exec.Command("git", "remote", "add", remoteName, forkRepoURL)
+			addRemoteCmd := exec.CommandContext(ctx, "git", "remote", "add", remoteName, forkRepoURL)
 			if err := addRemoteCmd.Run(); err != nil {
 				return fmt.Errorf("could not add fork remote; ensure required prerequisites are configured, then retry: %w", err)
 			}
@@ -454,7 +469,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		targetRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", targetOwner, targetRepo)
 
 		// Check if upstream remote exists and points to the right repo
-		checkUpstreamCmd := exec.Command("git", "remote", "get-url", upstreamRemote)
+		checkUpstreamCmd := exec.CommandContext(ctx, "git", "remote", "get-url", upstreamRemote)
 		upstreamOutput, err := checkUpstreamCmd.Output()
 		if err != nil || strings.TrimSpace(string(upstreamOutput)) != targetRepoURL {
 			// Upstream doesn't exist or points to wrong repo, add/update it
@@ -463,7 +478,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding upstream remote: "+targetRepoURL))
 				}
-				addUpstreamCmd := exec.Command("git", "remote", "add", upstreamRemote, targetRepoURL)
+				addUpstreamCmd := exec.CommandContext(ctx, "git", "remote", "add", upstreamRemote, targetRepoURL)
 				if err := addUpstreamCmd.Run(); err != nil {
 					return fmt.Errorf("could not add upstream remote; ensure required prerequisites are configured, then retry: %w", err)
 				}
@@ -472,7 +487,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating upstream remote: "+targetRepoURL))
 				}
-				setUpstreamCmd := exec.Command("git", "remote", "set-url", upstreamRemote, targetRepoURL)
+				setUpstreamCmd := exec.CommandContext(ctx, "git", "remote", "set-url", upstreamRemote, targetRepoURL)
 				if err := setUpstreamCmd.Run(); err != nil {
 					return fmt.Errorf("could not update upstream remote; ensure required prerequisites are configured, then retry: %w", err)
 				}
@@ -491,9 +506,9 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 
 	var pushCmd *exec.Cmd
 	if needsFork {
-		pushCmd = exec.Command("git", "push", "-u", "fork", branchName)
+		pushCmd = exec.CommandContext(ctx, "git", "push", "-u", "fork", branchName)
 	} else {
-		pushCmd = exec.Command("git", "push", "-u", "origin", branchName)
+		pushCmd = exec.CommandContext(ctx, "git", "push", "-u", "origin", branchName)
 	}
 
 	if err := pushCmd.Run(); err != nil {
@@ -520,7 +535,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		headRef = branchName
 	}
 
-	output, err := workflow.RunGH("Creating pull request...", "pr", "create",
+	output, err := workflow.RunGHContext(ctx, "Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
 		"--body", prBody,
@@ -533,11 +548,18 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	if needsFork {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PR created from fork %s/%s to %s/%s", forkOwner, forkRepo, targetOwner, targetRepo)))
 	}
+	if autoMerge {
+		return enablePRAutoMerge(ctx, strings.TrimSpace(string(output)))
+	}
 	return nil
 }
 
 // transferPR is the main function that orchestrates the PR transfer
 func transferPR(prURL, targetRepo string, verbose bool) error { //nolint:largefunc
+	return transferPRWithAutoMerge(context.Background(), prURL, targetRepo, verbose, false)
+}
+
+func transferPRWithAutoMerge(ctx context.Context, prURL, targetRepo string, verbose, autoMerge bool) error { //nolint:largefunc
 	prLog.Printf("Starting PR transfer: url=%s, targetRepo=%s", prURL, targetRepo)
 
 	if verbose {
@@ -756,7 +778,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error { //nolint:largefu
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating new PR in target repository..."))
 	}
 
-	if err := createTransferPR(targetOwner, targetRepoName, prInfo, branchName, verbose); err != nil {
+	if err := createTransferPRWithAutoMerge(ctx, targetOwner, targetRepoName, prInfo, branchName, verbose, autoMerge); err != nil {
 		return err
 	}
 

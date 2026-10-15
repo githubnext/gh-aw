@@ -302,7 +302,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		releaseLine + "\n" + xmlMarker
 
 	prURL, err := CreatePRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
-		"Upgrade agentic workflows", prBody, verbose)
+		"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
 	if err != nil {
 		return err
 	}
