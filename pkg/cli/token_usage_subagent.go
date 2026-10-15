@@ -28,13 +28,7 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 			addTokenUsageWarning(summary, "failed to read unified firewall token usage: "+usageErr.Error())
 			tokenUsageSubagentLog.Printf("failed to read unified firewall token usage: %v", usageErr)
 		}
-		summary.AgentUsage = resolveAgentUsageModels(agentUsage, resolver, modelCandidates...)
-		agentActuals := subagentActualsFromAgentUsage(summary.AgentUsage)
-		if len(agentActuals) == 0 {
-			agentActuals = actuals
-		}
-		summary.SubagentModelRequests = resolveSubagentRequestModels(requests, agentActuals, resolver, modelCandidates...)
-		summary.SubagentModelActuals = resolveSubagentActualModels(agentActuals, resolver, modelCandidates...)
+		resolveSubagentAttribution(summary, requests, actuals, agentUsage, resolver, modelCandidates)
 		matchPiAgentUsageCredits(summary, entries, resolver)
 		reconcileAgentUsageCredits(summary, entries)
 		summary.MismatchCount = 0
@@ -44,6 +38,23 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 
 	augmentDeclaredSubagentModels(runDir, summary)
 	tokenUsageSubagentLog.Print("no structured subagent information found, skipping attribution")
+}
+
+// resolveSubagentAttribution resolves models and request rows from each
+// instance's own evidence, then merges the public agent usage rows by agent
+// definition.
+func resolveSubagentAttribution(summary *TokenUsageSummary, requests []SubagentModelRequest, actuals []SubagentModelActual, agentUsage []AgentUsageBreakdown, resolver *modelIdentityResolver, candidates []string) {
+	agentUsage = resolveAgentUsageModels(agentUsage, resolver, candidates...)
+	agentActuals := subagentActualsFromAgentUsage(agentUsage)
+	if len(agentActuals) == 0 {
+		agentActuals = actuals
+	}
+	summary.SubagentModelRequests = resolveSubagentRequestModels(requests, agentActuals, resolver, candidates...)
+	summary.SubagentModelActuals = resolveSubagentActualModels(agentActuals, resolver, candidates...)
+	for i := range summary.SubagentModelActuals {
+		summary.SubagentModelActuals[i].requestModels = nil
+	}
+	summary.AgentUsage = mergeAgentUsageByDefinition(agentUsage)
 }
 
 func subagentActualsFromAgentUsage(agents []AgentUsageBreakdown) []SubagentModelActual {
@@ -56,7 +67,7 @@ func subagentActualsFromAgentUsage(agents []AgentUsageBreakdown) []SubagentModel
 			actuals = append(actuals, SubagentModelActual{
 				Model: model.Model, ResolvedModel: model.ResolvedModel, Requests: model.Requests,
 				TokenCoreMetrics: model.TokenCoreMetrics, AIC: model.AIC, agentName: agent.AgentName,
-				identityEvidence: agent.ResolvedModels,
+				identityEvidence: agent.ResolvedModels, sessionModels: agent.sessionModels, requestModels: model.requestModels,
 			})
 		}
 	}
@@ -75,7 +86,10 @@ func resolveSubagentRequestModels(requests []SubagentModelRequest, actuals []Sub
 			localObserved = append(localObserved, actual.Model)
 			localObserved = append(localObserved, actual.ServedModels...)
 			if actual.Requests > 0 {
-				localServed = append(localServed, actual.Model)
+				if actual.sessionModels == nil || slices.Contains(actual.sessionModels, actual.Model) {
+					localServed = append(localServed, actual.Model)
+				}
+				localServed = append(localServed, actual.requestModels...)
 				localServed = append(localServed, actual.ServedModels...)
 			}
 		}
@@ -87,21 +101,21 @@ func resolveSubagentRequestModels(requests []SubagentModelRequest, actuals []Sub
 			row.EffectiveModel = resolver.resolve(row.EffectiveModel, "", localObserved)
 			for _, candidate := range localServed {
 				if !isModelIdentityAlias(resolver, candidate) && resolver.matches(firstNonEmptyModel(row.ResolvedModel, row.RequestedModel), candidate, "") {
-					row.ServedModels = appendUnique(row.ServedModels, candidate)
+					row.ServedModels = appendUnique(row.ServedModels, servedModelIdentity(candidate))
 				}
 			}
 		} else {
 			row.EffectiveModel = firstMatchingObservedModel(requested, localServed, resolver)
 			for _, candidate := range localServed {
 				if !isModelIdentityAlias(resolver, candidate) && resolver.matches(requested, candidate, "") {
-					row.ServedModels = appendUnique(row.ServedModels, candidate)
+					row.ServedModels = appendUnique(row.ServedModels, servedModelIdentity(candidate))
 				}
 			}
 		}
 		if row.EffectiveModel != "" {
 			for _, candidate := range candidates {
 				if !isModelIdentityAlias(resolver, candidate) && resolver.matches(row.EffectiveModel, candidate, "") {
-					row.ServedModels = appendUnique(row.ServedModels, candidate)
+					row.ServedModels = appendUnique(row.ServedModels, servedModelIdentity(candidate))
 				}
 			}
 		}
@@ -167,6 +181,15 @@ func resolveSubagentActualModels(actuals []SubagentModelActual, resolver *modelI
 		combined.ReasoningTokens += actual.ReasoningTokens
 		combined.AIC += actual.AIC
 		combined.TotalDurationMs += actual.TotalDurationMs
+		if actual.Requests > 0 {
+			requestModels := actual.requestModels
+			if requestModels == nil {
+				requestModels = []string{servedModelIdentity(actual.Model)}
+			}
+			for _, model := range requestModels {
+				combined.requestModels = appendUnique(combined.requestModels, model)
+			}
+		}
 		addSubagentServedModels(&combined, actual, resolved, servedByAgent[actual.agentName], resolver, candidates)
 		grouped[resolved] = combined
 	}
@@ -184,11 +207,11 @@ func addSubagentServedModels(combined *SubagentModelActual, actual SubagentModel
 	}
 	if !isModelIdentityAlias(resolver, actual.Model) &&
 		(actual.ResolvedModel == "" || normalizeModelIdentity(actual.Model) != normalizeModelIdentity(actual.ResolvedModel)) {
-		combined.ServedModels = appendUnique(combined.ServedModels, actual.Model)
+		combined.ServedModels = appendUnique(combined.ServedModels, servedModelIdentity(actual.Model))
 	}
 	for _, model := range actual.ServedModels {
 		if !isModelIdentityAlias(resolver, model) {
-			combined.ServedModels = appendUnique(combined.ServedModels, model)
+			combined.ServedModels = appendUnique(combined.ServedModels, servedModelIdentity(model))
 		}
 	}
 	appendMatchingServedModels(combined, resolved, actual.Provider, agentCandidates, resolver)
@@ -198,7 +221,7 @@ func addSubagentServedModels(combined *SubagentModelActual, actual SubagentModel
 func appendMatchingServedModels(combined *SubagentModelActual, resolved, provider string, candidates []string, resolver *modelIdentityResolver) {
 	for _, candidate := range candidates {
 		if !isModelIdentityAlias(resolver, candidate) && resolver.matches(resolved, candidate, provider) {
-			combined.ServedModels = appendUnique(combined.ServedModels, candidate)
+			combined.ServedModels = appendUnique(combined.ServedModels, servedModelIdentity(candidate))
 		}
 	}
 }
@@ -210,6 +233,9 @@ func isModelIdentityAlias(resolver *modelIdentityResolver, model string) bool {
 	name := modelNameWithoutProvider(model)
 	lowered := strings.ToLower(strings.TrimSpace(name))
 	normalized := normalizeModelIdentity(name)
+	if _, concrete := resolver.concrete[normalized]; concrete {
+		return false
+	}
 	return lowered == normalized && len(resolver.patternsFor(normalized)) > 0
 }
 
@@ -224,6 +250,10 @@ func resolveAgentUsageModels(agents []AgentUsageBreakdown, resolver *modelIdenti
 	for i := range agents {
 		agent := &agents[i]
 		agent.ServedModels = nil
+		agent.sessionModels = make([]string, 0, len(agent.Models))
+		for _, model := range agent.Models {
+			agent.sessionModels = appendUnique(agent.sessionModels, servedModelIdentity(model.Model))
+		}
 		observed := make([]string, 0, len(agent.Models)+len(agent.ResolvedModels))
 		observed = append(observed, agent.ResolvedModels...)
 		actuals := make([]SubagentModelActual, 0, len(agent.Models))
@@ -239,12 +269,12 @@ func resolveAgentUsageModels(agents []AgentUsageBreakdown, resolver *modelIdenti
 		for _, model := range resolved {
 			agent.Models = append(agent.Models, AgentModelUsage{
 				Model: model.Model, ResolvedModel: model.ResolvedModel, Requests: model.Requests,
-				TokenCoreMetrics: model.TokenCoreMetrics, AIC: model.AIC,
+				TokenCoreMetrics: model.TokenCoreMetrics, AIC: model.AIC, requestModels: model.requestModels,
 			})
 			for _, served := range append(model.ServedModels, candidates...) {
 				if model.Requests > 0 && !isModelIdentityAlias(resolver, served) {
 					if resolver.matches(firstNonEmptyModel(model.ResolvedModel, model.Model), served, "") {
-						agent.ServedModels = appendUnique(agent.ServedModels, served)
+						agent.ServedModels = appendUnique(agent.ServedModels, servedModelIdentity(served))
 					}
 				}
 			}

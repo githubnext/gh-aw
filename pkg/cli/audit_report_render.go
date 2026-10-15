@@ -230,7 +230,7 @@ func renderConsoleTokenUsage(tokenUsage *TokenUsageSummary) {
 		fmt.Fprintln(os.Stderr, "    agent | instances | outcome (completed/failed/incomplete) | requests | tokens (in/out) | credits | effort")
 		for _, agent := range tokenUsage.AgentUsage {
 			fmt.Fprintf(os.Stderr, "    %s %s | %d | %d/%d/%d | %d | %s/%s | %.3f | %s\n",
-				agent.AgentType, safeModelRoutingText(agent.AgentName), agent.InstanceCount,
+				agent.AgentType, safeModelRoutingText(agentNameWithDisplayNames(agent.AgentName, agent.DisplayNames)), agent.InstanceCount,
 				agent.CompletedCount, agent.FailedCount, agent.IncompleteCount, agent.Requests,
 				console.FormatNumber(agent.InputTokens), console.FormatNumber(agent.OutputTokens),
 				agent.AIC, safeModelRoutingText(agent.Effort))
@@ -263,7 +263,7 @@ func renderConsoleModelRouting(routing *ModelRoutingSummary) {
 	}
 	for _, agent := range routing.SubagentCosts {
 		fmt.Fprintf(os.Stderr, "    subagent_cost: %s effort=%s requests=%d failed=%d aic=%.3f\n",
-			safeModelRoutingText(agent.AgentName), safeModelRoutingText(agent.Effort),
+			safeModelRoutingText(agentNameWithDisplayNames(agent.AgentName, agent.DisplayNames)), safeModelRoutingText(agent.Effort),
 			agent.Requests, agent.FailedCount, agent.AIC)
 	}
 }
@@ -352,6 +352,15 @@ func formatModelRoutingCounts(counts map[string]int) string {
 		parts = append(parts, fmt.Sprintf("%s=%d", safeModelRoutingText(key), counts[key]))
 	}
 	return strings.Join(parts, ",")
+}
+
+// agentNameWithDisplayNames renders an agent definition name followed by the
+// display names chosen for its instances, for example "explore (cost-table-explorer)".
+func agentNameWithDisplayNames(name string, displayNames []string) string {
+	if len(displayNames) == 0 {
+		return name
+	}
+	return name + " (" + strings.Join(displayNames, ", ") + ")"
 }
 
 func safeModelRoutingText(value string) string {
