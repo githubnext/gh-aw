@@ -39,9 +39,14 @@ describe("Pi sub-agent model resolution", () => {
     expect(prepare({ gateway: false })[0].model).toBe("github-copilot/gpt-5.6-luna");
   });
 
-  it("translates model effort into Pi thinking settings", () => {
-    frontmatter.model = "small?effort=none";
-    expect(prepare()[0]).toMatchObject({ modelId: "claude-haiku-4.5", thinking: "off" });
+  it.each(["none", "minimal", "low", "medium", "high", "xhigh", "max"])("translates %s effort into Pi thinking settings", effort => {
+    frontmatter.model = `small?effort=${effort}`;
+    expect(prepare()[0]).toMatchObject({ modelId: "claude-haiku-4.5", thinking: effort === "none" ? "off" : effort });
+  });
+
+  it("rejects unsupported thinking efforts", () => {
+    frontmatter.model = "small?effort=invalid";
+    expect(() => prepare()).toThrow("unsupported thinking effort");
   });
 
   it("refuses unresolved aliases instead of silently using the parent model", () => {

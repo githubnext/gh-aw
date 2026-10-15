@@ -5,7 +5,7 @@ description: Select and authenticate Pi as the AI engine for GitHub Agentic Work
 
 [Pi](https://pi.dev/) is a provider-agnostic coding agent for repository analysis and code changes. GitHub Agentic Workflows runs Pi through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
 
-Pi v1.0.0 supports native MCP through the gh-aw policy gateway. GitHub CLI proxy mode and `tools.cli-proxy: true` remain optional transport choices. The default model is `copilot/auto` when no model is configured for the Copilot backend with the default gateway enabled. Native execution without the gateway retains `copilot/gpt-5.4`.
+The default Pi version is [v1.3.0](https://github.com/earendil-works/pi/releases/tag/v1.3.0); it must be available in the runner's npm registry. Pi supports native MCP through the gh-aw policy gateway. GitHub CLI proxy mode and `tools.cli-proxy: true` remain optional transport choices. The default model is `copilot/auto` when no model is configured for the Copilot backend with the default gateway enabled. Native execution without the gateway retains `copilot/gpt-5.4`.
 
 ## Selecting Pi + GitHub as the AI engine
 
@@ -119,6 +119,8 @@ When AWF `/reflect` completes model discovery and reports reasoning-effort suppo
 
 Custom executables without the npm SDK must supply complete model metadata (`reasoning`, `input`, `contextWindow`, and `maxTokens`) in `engine.config.model`.
 
+The integration runs Pi headlessly; terminal UI controls, interactive authentication, and `/share` uploads are not workflow outputs. Native provider fixes, prompt-cache behavior, model switching, codemode worker limits, and session tool restoration come from the installed Pi release. The `kimi-coding` provider uses Chat Completions in v1.3.0; custom native base URLs must include `/v1`. Sandboxed custom routes still require a compatible AWF endpoint.
+
 The built-in `tools.playwright` integration uses `playwright-cli`; omit its `mode` field. Native `tools.web-search`, `max-continuations`, native `engine.agent` selection, and custom `engine.harness` scripts remain unsupported. Custom drivers must implement their own policies and cannot opt into the built-in aggregate tool budgets.
 
 ## Sub-agents
@@ -139,7 +141,7 @@ Read the requested files and report the facts.
 
 The built-in CLI, SDK, and RPC modes load managed delegation, including with `engine.bare: true`. Each invocation starts an isolated, ephemeral child session with the agent's instructions and the workflow system prompt. The tool accepts one agent and task per call; it does not accept chain or parallel-task parameters, and children cannot recursively delegate.
 
-An omitted model inherits the parent's configured model. Bare model IDs use the parent's provider; aliases such as `small` resolve against that provider's advertised models. A declaration cannot switch to another provider or silently fall back to the parent model when alias resolution fails. The optional `?effort=` parameter supports `none`, `minimal`, `low`, `medium`, `high`, and `xhigh`; other model parameters are rejected. An explicit `name` must match the agent marker.
+An omitted model inherits the parent's configured model. Bare model IDs use the parent's provider; aliases such as `small` resolve against that provider's advertised models. A declaration cannot switch to another provider or silently fall back to the parent model when alias resolution fails. The optional `?effort=` parameter supports `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; Pi maps `none` to `off` and clamps thinking to the selected model's capabilities. Other model parameters are rejected. An explicit `name` must match the agent marker.
 
 Children retain the workflow's inference gateway, MCP configuration, steering, bash allowlist, and edit restrictions. Tool-call and denial budgets are shared with the parent. Children use compiler-managed execution arguments rather than inheriting `engine.args` overrides. Optional automatically discovered extensions are disabled in children; only the managed infrastructure extensions are loaded. Custom drivers do not support this delegation path.
 
@@ -188,6 +190,8 @@ max-tool-calls: 100
 ```
 
 Sessions are ephemeral by default. Persistent JSONL sessions are written under `/tmp/gh-aw/agent/pi-sessions`; restore a previous session artifact there before using `resume` or `fork`. HTML exports are stored at `/tmp/gh-aw/pi-agent-dir/session.html`. Both are secret-redacted before artifact upload.
+
+Settings are passed through to Pi, including `codemode.inlineBudget`, per-model thinking and compaction overrides, and v1.3.0's `sessionShareDestination`. The latter configures Pi's `/share` command; it does not publish workflow artifacts automatically. Installed `defaultTools` selections are preserved unless overridden by `engine.config.settings.defaultTools`. On resume, Pi restores tools activated in the saved session; explicit CLI `--tools` selections or exclusions still apply. See the [Pi settings reference](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/docs/settings.md).
 
 See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) and [Pi extensions reference](/gh-aw/reference/engines/#pi-extensions-extensions).
 

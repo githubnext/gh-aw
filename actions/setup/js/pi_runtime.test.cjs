@@ -30,7 +30,7 @@ describe("Pi runtime configuration", () => {
   it.each(["0.99.2", "1.0.0-beta.1", "unexpected"])("rejects an incompatible actual CLI version: %s", version => {
     expect(() => verifyPiVersion("pi", () => version)).toThrow("v1.0.0 or newer");
   });
-  it.each(["1.0.0", "1.1.0", "2.0.0", "Pi 1.0.0"])("accepts an actual compatible version: %s", version => {
+  it.each(["1.0.0", "1.1.0", "1.3.0", "2.0.0", "Pi 1.0.0"])("accepts an actual compatible version: %s", version => {
     expect(() => verifyPiVersion("pi", () => version)).not.toThrow();
   });
 
@@ -73,6 +73,19 @@ describe("Pi runtime configuration", () => {
     fs.writeFileSync(path.join(dir, "agent/settings.json"), JSON.stringify({ retry: { maxRetries: 4 } }));
     const result = preparePiRuntime({ settings: { retry: { baseDelayMs: 500 } } });
     expect(result.settings.retry).toEqual({ enabled: true, maxRetries: 4, baseDelayMs: 500, maxAgentDelayMs: 30000 });
+  });
+
+  it("preserves installed tool selections and forwards current release settings", () => {
+    fs.mkdirSync(path.join(dir, "agent"));
+    fs.writeFileSync(path.join(dir, "agent/settings.json"), JSON.stringify({ defaultTools: ["+grep", "+codemode"] }));
+    const result = preparePiRuntime({ settings: { sessionShareDestination: "radius", defaultThinkingLevel: "max", codemode: { mode: "only", inlineBudget: 0 } } });
+    expect(result.settings).toMatchObject({
+      defaultTools: ["+grep", "+codemode"],
+      sessionShareDestination: "radius",
+      defaultThinkingLevel: "max",
+      codemode: { mode: "only", inlineBudget: 0 },
+    });
+    expect(preparePiRuntime({ settings: { defaultTools: ["read"] } }).settings.defaultTools).toEqual(["read"]);
   });
 
   it("applies the routed model effort instead of a fixed setting", () => {

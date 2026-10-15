@@ -100,7 +100,7 @@ function preparePiRuntime(config = parsePiConfig()) {
   }
   const settings = {
     ...installedSettings,
-    defaultTools: ["+codemode", "+tool_search"],
+    defaultTools: installedSettings.defaultTools ?? ["+codemode", "+tool_search"],
     sessionDir: DEFAULT_SESSION_DIR,
     enableInstallTelemetry: false,
     ...config.settings,

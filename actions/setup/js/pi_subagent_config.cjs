@@ -71,7 +71,7 @@ function preparePiSubagents(options) {
     const modelId = selected.base.includes("/") ? selected.base.slice(selected.base.indexOf("/") + 1) : selected.base;
     const effort = selected.params.get("effort") || params.get("effort");
     if ([...selected.params.keys(), ...params.keys()].some(key => key !== "effort")) throw new Error(`Pi sub-agent "${agent.name}" supports only the effort model parameter`);
-    if (effort && !["none", "minimal", "low", "medium", "high", "xhigh"].includes(effort)) throw new Error(`Pi sub-agent "${agent.name}" has unsupported thinking effort "${effort}"`);
+    if (effort && !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(effort)) throw new Error(`Pi sub-agent "${agent.name}" has unsupported thinking effort "${effort}"`);
     logger(`sub-agent ${agent.name}: requested=${requested} resolved=${provider}/${modelId}`);
     return { ...agent, modelId, model: `${gateway ? "aw-gateway" : provider}/${modelId}`, ...(effort ? { thinking: effort === "none" ? "off" : effort } : {}) };
   });
