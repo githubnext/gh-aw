@@ -38,7 +38,16 @@ const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_s
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 const { qualifyModelForMultiProvider, parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
 
-const CAPTURED_EPHEMERAL_EVENTS = new Set([...COPILOT_WORKFLOW_EVENT_TYPES, "assistant.usage", "assistant.message_delta", "assistant.reasoning_delta", "model.call_failure", "model.call_final_result"]);
+const CAPTURED_EPHEMERAL_EVENTS = new Set([
+  ...COPILOT_WORKFLOW_EVENT_TYPES,
+  "assistant.usage",
+  "assistant.message_delta",
+  "assistant.reasoning_delta",
+  "model.call_failure",
+  "model.call_final_result",
+  "model.call_finished",
+  "tool.shell_output",
+]);
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal

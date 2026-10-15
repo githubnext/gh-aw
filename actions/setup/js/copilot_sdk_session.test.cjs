@@ -336,6 +336,55 @@ describe("copilot_sdk_session runtime configuration", () => {
     expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
   });
 
+  it("retains CLI 1.0.98 / SDK 1.0.22 shell, dispatch, file-edit and human-response evidence", async () => {
+    let handler;
+    // Synthetic transport fixtures follow SDK 1.0.22's generated/session-events.d.ts,
+    // not a live Actions run. Shell chunks and logical dispatches are not tool or session completions.
+    const events = [
+      { type: "tool.execution_start", id: "start", data: { toolCallId: "shell", toolName: "bash", arguments: { command: "printf 'hello\\n'" } } },
+      { type: "tool.shell_output", id: "stdout", ephemeral: true, data: { toolCallId: "shell", sequence: 0, stream: "stdout", text: "hel" } },
+      { type: "tool.shell_output", id: "stderr", ephemeral: true, agentId: "child", data: { toolCallId: "shell", sequence: 1, stream: "stderr", text: "warning\n" } },
+      { type: "tool.shell_output", id: "stdout-next", ephemeral: true, data: { toolCallId: "shell", sequence: 2, stream: "stdout", text: "lo\n" } },
+      { type: "model.call_finished", id: "dispatch", ephemeral: true, data: { dispatchDurationMs: 100, editClassifierVersion: 1, outcome: "success", turnId: "0" } },
+      { type: "tool.execution_complete", id: "edit", data: { toolCallId: "edit", success: false, fileEdits: [{ kind: "edit", path: "/workspace/partial.txt" }], error: { message: "Second edit failed" } } },
+      { type: "human_response.recorded", id: "response", data: { actor: "host_automation", requestId: "request", response: { responseKind: "user_input", question: "Continue?", answer: "No", wasFreeform: false } } },
+    ];
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "release-events",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => {
+          events.forEach(event => handler(event));
+          handler({ type: "vendor.transient", ephemeral: true, data: {} });
+          return { data: { content: "done" } };
+        },
+        disconnect: async () => {},
+      });
+    }
+    const original = structuredClone(events);
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const captured = fs.readFileSync(path.join(base, "release-events/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(captured.slice(0, events.length)).toEqual(original);
+    expect(captured.some(event => event.type === "vendor.transient")).toBe(false);
+    const normalized = normalizeCopilotSession(captured);
+    for (const event of original.slice(1)) expect(normalized.find(entry => entry.id === event.id)).toEqual(event);
+    expect(normalized.filter(event => event.type === "tool.execution_complete")).toHaveLength(1);
+    expect(normalized.some(event => event.type === "session.result")).toBe(false);
+    expect(events).toEqual(original);
+    expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
+  });
+
   it.each(["routing", "environment", "fallback", "reflect"])("qualifies the %s model before createSession", async source => {
     const expected = source === "reflect" ? "anthropic/claude-sonnet-4.6" : "openai/gpt-5.4";
     if (source === "routing" || source === "environment") vi.stubEnv("COPILOT_MODEL", "gpt-5.4");
