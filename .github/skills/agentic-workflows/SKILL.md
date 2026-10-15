@@ -79,6 +79,7 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 - `.github/aw/skills.md`
 - `.github/aw/subagents.md`
 - `.github/aw/syntax-agentic.md`
+- `.github/aw/syntax-checkout.md`
 - `.github/aw/syntax-core.md`
 - `.github/aw/syntax-engine.md`
 - `.github/aw/syntax-tools-imports.md`

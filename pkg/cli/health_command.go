@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -22,14 +23,17 @@ var healthListWorkflowRuns = listHealthWorkflowRuns
 
 // HealthConfig holds configuration for health command execution
 type HealthConfig struct {
-	WorkflowName string
-	Days         int
-	Threshold    float64
-	Verbose      bool
-	JSONOutput   bool
-	RepoOverride string
-	LogsDir      string
-	collection   *HealthCollection
+	WorkflowName       string
+	Days               int
+	StartDate          string
+	EndDate            string
+	Threshold          float64
+	Verbose            bool
+	JSONOutput         bool
+	RepoOverride       string
+	LogsDir            string
+	collection         *HealthCollection
+	explicitTimeWindow bool
 }
 
 // NewHealthCommand creates the health command
@@ -49,38 +53,41 @@ Shows health metrics for workflows including:
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
 
+Use --start-date and --end-date to bound run creation times. Accepts UTC dates,
+RFC3339 timestamps, or relative times such as -24h and -1w. An explicit start
+replaces --days; otherwise --days counts backward from --end-date (default: now).
+The report remains a bounded current-revision sample, not an exhaustive history.
+
 ` + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` health                       # Current status of all workflows
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster         # Detailed metrics for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` health --days 30             # Look back at most 30 days
   ` + string(constants.CLIExtensionPrefix) + ` health --threshold 90        # Warn if below 90% success rate
   ` + string(constants.CLIExtensionPrefix) + ` health --json                # Output in JSON format
+  ` + string(constants.CLIExtensionPrefix) + ` health --start-date -24h      # Evidence from the last 24 hours
+  ` + string(constants.CLIExtensionPrefix) + ` health --start-date 2026-10-14T04:49:11Z  # Evidence since a release
+  ` + string(constants.CLIExtensionPrefix) + ` health --start-date 2026-10-14 --end-date 2026-10-15  # Bounded window
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster --days 90  # Current status; at most 90 days`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			days, _ := cmd.Flags().GetInt("days")
 			threshold, _ := cmd.Flags().GetFloat64("threshold")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			repoOverride, _ := cmd.Flags().GetString("repo")
-			logsDir, _ := cmd.Flags().GetString("logs-dir")
 
 			var workflowName string
 			if len(args) > 0 {
 				workflowName = args[0]
 			}
 
-			config := HealthConfig{
+			return RunHealth(HealthConfig{
 				WorkflowName: workflowName,
-				Days:         days,
+				Days:         getIntFlag(cmd, "days"),
+				StartDate:    getStringFlag(cmd, "start-date"),
+				EndDate:      getStringFlag(cmd, "end-date"),
 				Threshold:    threshold,
-				Verbose:      verbose,
-				JSONOutput:   jsonOutput,
-				RepoOverride: repoOverride,
-				LogsDir:      logsDir,
-			}
-
-			return RunHealth(config)
+				Verbose:      getBoolFlag(cmd, "verbose"),
+				JSONOutput:   getBoolFlag(cmd, "json"),
+				RepoOverride: getStringFlag(cmd, "repo"),
+				LogsDir:      getStringFlag(cmd, "logs-dir"),
+			})
 		},
 	}
 
@@ -94,6 +101,9 @@ When called with a specific workflow name, displays detailed metrics for that wo
 
 func addHealthFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("days", 7, "Maximum evidence horizon in days (7, 30, or 90)")
+	cmd.Flags().String("start-date", "", "Include runs created at or after this UTC date, RFC3339 timestamp, or relative time (e.g. -24h)")
+	cmd.Flags().String("end-date", "", "Include runs created at or before this UTC date, RFC3339 timestamp, or relative time (default: now)")
+	cmd.MarkFlagsMutuallyExclusive("days", "start-date")
 	cmd.Flags().Float64("threshold", 80.0, "Success rate threshold for warnings (percentage)")
 	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering (no artifact downloads)")
 	addRepoFlag(cmd)
@@ -104,38 +114,42 @@ func addHealthFlags(cmd *cobra.Command) {
 func RunHealth(config HealthConfig) error {
 	healthLog.Printf("Running health check: workflow=%s, days=%d, threshold=%.1f", config.WorkflowName, config.Days, config.Threshold)
 
-	// Validate days parameter
-	if config.Days != 7 && config.Days != 30 && config.Days != 90 {
-		return fmt.Errorf("invalid days value: %d. Must be 7, 30, or 90", config.Days)
+	config.explicitTimeWindow = config.StartDate != "" || config.EndDate != ""
+	start, end, err := resolveHealthTimeWindow(config, time.Now())
+	if err != nil {
+		return err
 	}
-
-	// Calculate start date
-	startDate := time.Now().AddDate(0, 0, -config.Days).Format(time.RFC3339)
+	config.StartDate, config.EndDate = start.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano)
 
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Fetching workflow runs since "+startDate))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Fetching workflow runs created from "+config.StartDate+" to "+config.EndDate))
 	}
 
 	// Fetch workflow runs from GitHub
-	config.collection = &HealthCollection{Host: normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride))}
+	config.collection = &HealthCollection{
+		Host:        normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
+		StartDate:   config.StartDate,
+		EndDate:     config.EndDate,
+		MaximumDays: max(1, int(math.Ceil(end.Sub(start).Hours()/24))),
+	}
 	if err := discoverHealthWorkflows(&config); err != nil {
 		return err
 	}
-	runs, err := fetchWorkflowRuns("", startDate, config.RepoOverride, config.Verbose, config.collection)
+	runs, err := fetchWorkflowRuns("", config.StartDate, config.RepoOverride, config.Verbose, config.collection)
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow runs: %w", err)
 	}
 
 	if len(runs) == 0 && len(config.collection.workflows) == 0 && !config.collection.Partial {
 		if config.WorkflowName != "" {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No runs found for workflow '%s' in the last %d days", config.WorkflowName, config.Days)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No runs found for workflow '%s' created from %s to %s", config.WorkflowName, config.StartDate, config.EndDate)))
 			// When JSON output is requested for a specific workflow, still output a valid
 			// zero-run JSON structure so callers can parse the result programmatically.
 			if config.JSONOutput {
 				return displayDetailedHealth(runs, config)
 			}
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflow runs found in the last %d days", config.Days)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflow runs found created from %s to %s", config.StartDate, config.EndDate)))
 		}
 		return nil
 	}
@@ -161,7 +175,7 @@ func displayHealthSummary(runs []WorkflowRun, config HealthConfig) error {
 	})
 
 	// Calculate summary (intentional-failure workflows excluded from rollup counts)
-	summary := CalculateHealthSummary(workflowHealths, fmt.Sprintf("Current status (up to %d days)", config.Days), config.Threshold)
+	summary := CalculateHealthSummary(workflowHealths, config.healthPeriod(), config.Threshold)
 	summary.Collection = config.collection
 	summary.FailureClusters, summary.FailureInvestigation = buildHealthFailureClusters(runs, config)
 
@@ -193,7 +207,7 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 	}
 
 	// Display header message
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow Health: %s (Current status; up to %d days)", config.WorkflowName, config.Days)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow Health: %s (%s)", config.WorkflowName, config.healthPeriod())))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Create detailed view

@@ -27,7 +27,10 @@ func healthRepositoryEndpoint(repoOverride string) string {
 func discoverHealthWorkflows(config *HealthConfig) error {
 	collection := config.collection
 	collection.repoOverride = config.RepoOverride
-	collection.MinimumRuns, collection.MaximumDays = healthMinimumRuns, config.Days
+	collection.MinimumRuns = healthMinimumRuns
+	if collection.MaximumDays == 0 {
+		collection.MaximumDays = config.Days
+	}
 	registered, err := healthDiscoverWorkflows(collection)
 	if err != nil {
 		if !collection.Partial {
@@ -87,7 +90,7 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 	if opts.WorkflowName != "" {
 		endpoint = path.Join(healthRepositoryEndpoint(opts.RepoOverride), "actions/workflows", url.PathEscape(opts.WorkflowName), "runs")
 	}
-	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(">="+opts.StartDate))
+	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, "")))
 	out, err := healthAPI(collection, endpoint)
 	if err != nil {
 		return nil, 0, err
@@ -141,7 +144,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 	if target.ID > 0 {
 		workflowID = strconv.FormatInt(target.ID, 10)
 	}
-	opts := ListWorkflowRunsOptions{WorkflowName: workflowID, StartDate: startDate, Limit: healthMinimumRuns * 2,
+	opts := ListWorkflowRunsOptions{WorkflowName: workflowID, StartDate: startDate, EndDate: collection.EndDate, Limit: healthMinimumRuns * 2,
 		RepoOverride: repoOverride, Verbose: verbose, OldestFetchedCreatedAt: &oldest}
 	var sample []WorkflowRun
 	seen := make(map[int64]struct{})
