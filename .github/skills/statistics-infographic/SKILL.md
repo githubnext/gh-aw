@@ -13,7 +13,7 @@ The panels cover inferred PR initiation, merge/closed outcomes, start-to-merge
 durations, community issue outcomes, Go/JavaScript code composition, and weekly
 first-parent code changes, plus overlapping histograms of lines added and removed
 for individual PRs, and mean comments/commits per PR for human versus agent/bot
-PR-author account cohorts. Repository names, dates, counts, proportions, and weeks
+comment-writer and primary-commit-author accounts. Repository names, dates, counts, proportions, and weeks
 come from the input, never from this skill's original dataset.
 
 ## Generate
@@ -88,10 +88,12 @@ rendered synthetic example clearly labelled and separate.
 
 ### Compare human and agent PR activity
 
-Panel 08 shows mean conversation comments and commits per individual PR, grouped
-by the **PR author's account**, not the comment/commit author or inferred session
-initiator. Both metrics show cohort sample sizes and exact-rational means rounded
-half up to one decimal. Empty cohorts show `n/a`, not zero.
+Panel 08 counts **who wrote each comment and authored each commit**, never who
+created the PR. Each PR can contain both human and agent/bot contributions.
+For each author group, divide its total comments and primary-authored commits by
+the **same entire PR census**, including PRs with no contributions in that group.
+Use exact-rational means rounded half up to one decimal. No human contributions
+means zero, not an undefined or excluded PR population.
 
 ```bash
 /tmp/statistics-infographic-venv/bin/python \
@@ -101,17 +103,24 @@ half up to one decimal. Empty cohorts show `n/a`, not zero.
   --output-dir /path/to/summaries
 ```
 
-Raw PRs need `author { login __typename }`, `comments { totalCount }`, and
-`commits { totalCount }` alongside number, state, and creation date.
+Raw PRs need fully paginated
+`comments { totalCount nodes { id author { login __typename } } }` and
+`commits { totalCount nodes { commit { oid author { user { login __typename } } } } }`
+alongside number, state, and creation date. Counts-only records are insufficient.
+Every connection total must match its complete, distinct node inventory.
 The command writes `pr-activity-summary.json` (the required `pr_activity` section)
 and standalone `pr-activity.png` (2560 x 1180).
-Human accounts are User authors without bot/machine-user names; Bot authors and
-known Copilot account logins are agent/bot accounts. Unknown/deleted authors and
-other machine-user accounts remain unattributed and are disclosed, not silently
-assigned to humans. Agent/bot includes non-AI automation. Comment counts exclude
-inline review comments and review submissions. Commit counts use the PR's saved
-GitHub connection total, not local first-parent commits. These are account proxies
-and arithmetic means, not verified human identity, causal attribution, or medians.
+Classify each comment's `author` and each commit's linked primary `author.user`.
+User accounts without bot/machine-user naming are human proxies; Bot actors,
+`[bot]` logins, and known Copilot accounts are agent/bot accounts. Unknown/deleted
+comment authors, unlinked commit authors, and other machine-user accounts stay
+unattributed. Disclose unknown comment and commit counts separately.
+Do not use the PR creator, committer, coauthor trailer, name, or email as a fallback.
+Agent/bot includes non-AI automation; account attribution is not proof of AI use.
+Comments exclude inline review comments and review submissions. Count each commit
+once per PR by its primary author, not once per coauthor or globally across PRs.
+The summary declares `group_by: contribution-author`; legacy PR-creator summaries
+must fail rather than being silently reused.
 
 ## Verify accuracy
 

@@ -37,8 +37,8 @@ class ArithmeticTests(unittest.TestCase):
     @given(st.integers(0, 10**12), st.integers(1, 10**8))
     def test_activity_means_match_decimal_oracle(self, total, prs):
         expected = (Decimal(total) / Decimal(prs)).quantize(Decimal(".1"), rounding=ROUND_HALF_UP)
-        self.assertEqual(Activity("Human account", prs, total, 0).average(total), f"{expected:.1f}")
-        self.assertEqual(Activity("Human account", 0, 0, 0).average(0), "n/a")
+        self.assertEqual(Activity("Human account", total, 0).average(total, prs), f"{expected:.1f}")
+        self.assertEqual(Activity("Human account", 0, 0).average(0, 0), "n/a")
 
     def test_activity_account_classification_and_individual_totals(self):
         authors = [
@@ -47,12 +47,21 @@ class ArithmeticTests(unittest.TestCase):
             {"login": "copilot-swe-agent", "__typename": "User"},
             {"login": "some-machine-user", "__typename": "User"},
             None,
+            {"login": "github-actions[bot]", "__typename": "User"},
         ]
-        records = [{"number": i + 1, "author": author, "comments": {"totalCount": i},
-                    "commits": {"totalCount": i + 1}} for i, author in enumerate(authors)]
+        records = [{"number": i + 1, "author": {"login": "PR-creator", "__typename": "User"},
+                    "comments": {"totalCount": 1, "nodes": [{"id": f"c{i}", "author": author}]},
+                    "commits": {"totalCount": 1, "nodes": [{"commit": {
+                        "oid": f"sha{i}", "author": {"user": author},
+                        "committer": {"user": {"login": "unrelated-committer", "__typename": "User"}}}}]}}
+                   for i, author in enumerate(authors)]
         self.assertEqual(activity_groups(records), (
-            Activity("Human account", 1, 0, 1), Activity("Agent / bot account", 2, 3, 5),
-            Activity("Unattributed", 2, 7, 9)))
+            Activity("Human account", 1, 1), Activity("Agent / bot account", 3, 3),
+            Activity("Unattributed", 2, 2)))
+        changed_creators = deepcopy(records)
+        for pr in changed_creators:
+            pr["author"] = {"login": "agent-creator", "__typename": "Bot"}
+        self.assertEqual(activity_groups(records), activity_groups(changed_creators))
         for mutate in (
             lambda r: r.append(deepcopy(r[0])),
             lambda r: r[0].update(number=0),
@@ -60,6 +69,12 @@ class ArithmeticTests(unittest.TestCase):
             lambda r: r[0]["comments"].update(totalCount=None),
             lambda r: r[0]["commits"].update(totalCount=True),
             lambda r: r[0]["commits"].update(totalCount=-1),
+            lambda r: r[0]["comments"].pop("nodes"),
+            lambda r: r[0]["comments"]["nodes"][0].pop("author"),
+            lambda r: r[0]["commits"]["nodes"][0]["commit"].pop("author"),
+            lambda r: r[0]["commits"]["nodes"][0]["commit"]["author"].pop("user"),
+            lambda r: r[0]["comments"].update(totalCount=2, nodes=r[0]["comments"]["nodes"] * 2),
+            lambda r: r[0]["commits"].update(totalCount=2, nodes=r[0]["commits"]["nodes"] * 2),
         ):
             bad = deepcopy(records)
             mutate(bad)
@@ -164,6 +179,9 @@ class ContractTests(unittest.TestCase):
             ("pr_activity", "snapshot_date", "2026-10-09"),
             ("pr_activity", "repository", "other/repo"),
             ("pr_activity", "cohorts", []),
+            ("pr_activity", "group_by", "pr-author"),
+            ("pr_activity", "comment_count", 301),
+            ("pr_activity", "commit_count", 201),
         ]
         for section, field, value in changes:
             with self.subTest(section=section, field=field), self.assertRaises(ValueError):
@@ -262,12 +280,13 @@ class RenderingTests(unittest.TestCase):
         self.assertTrue(any(label == "Commits per PR" for _, label in a.labels))
         self.assertTrue(any(label == "Conversation comments per PR" for _, label in a.labels))
 
-    def test_empty_human_cohort_is_undefined_not_zero(self):
+    def test_no_human_contributions_mean_zero_over_all_prs(self):
         payload = example()
-        payload["pr_activity"]["cohorts"][0].update(prs=0, comments=0, commits=0)
-        payload["pr_activity"]["cohorts"][1].update(prs=100)
+        payload["pr_activity"]["cohorts"][0].update(comments=0, commits=0)
+        payload["pr_activity"]["cohorts"][1].update(comments=300, commits=200)
         canvas = render(Statistics.from_sources(payload), self.fonts)
-        self.assertEqual(sum(label == "n/a" for _, label in canvas.labels), 2)
+        self.assertEqual(sum(label == "0.0" for _, label in canvas.labels), 2)
+        self.assertFalse(any(label == "n/a" for _, label in canvas.labels))
 
     def test_empty_history_and_overlapped_bars(self):
         payload = example()
@@ -380,12 +399,17 @@ class ApiAuditTests(unittest.TestCase):
                 references = [issues[0]] if origin == 0 and not direct else ([issues[1]] if origin == 1 and index < 10 else [])
                 if references:
                     body = f"<!-- START COPILOT CODING AGENT SUFFIX -->\nFixes #{references[0]['number']}"
+                number = 1000 + len(prs)
+                writers = [{"login": "human-writer", "__typename": "User"},
+                           {"login": "github-actions[bot]", "__typename": "User"}]
                 pr = {"number": 1000 + len(prs), "state": state,
                       "author": {"login": login, "__typename": "User" if origin == 2 else "Bot"},
                       "body": body, "createdAt": created.isoformat(),
                       "additions": next(diff_values["added"]), "deletions": next(diff_values["deleted"]),
-                      "comments": {"totalCount": 5 if origin == 2 else 3},
-                      "commits": {"totalCount": 3 if origin == 2 else 2},
+                      "comments": connection([{"id": f"c{number}-{i}", "author": writers[j]}
+                                              for i, j in enumerate((0, 1, 1))]),
+                      "commits": connection([{"commit": {"oid": f"sha{number}-{i}", "author": {"user": writer}}}
+                                             for i, writer in enumerate(writers)]),
                       "mergedAt": (created + timedelta(hours=next(durations))).isoformat() if state == "MERGED" else None}
                 prs.append(pr)
                 if login == "copilot-swe-agent":
@@ -426,7 +450,8 @@ class ApiAuditTests(unittest.TestCase):
                 ("pr-statistics-data.jsonl", lambda r: r[30].update(additions=999)),
                 ("pr-statistics-data.jsonl", lambda r: r[0]["comments"].update(totalCount=40)),
                 ("pr-statistics-data.jsonl", lambda r: r[0]["commits"].update(totalCount=3)),
-                ("pr-statistics-data.jsonl", lambda r: r[0]["author"].update(__typename="User")),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["comments"]["nodes"][0].update(author=None)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["commits"]["nodes"][0]["commit"]["author"].update(user=None)),
                 ("cca-issue-links.jsonl", lambda r: r[0]["closingIssuesReferences"].update(totalCount=3)),
                 ("community-issues-data.jsonl", lambda r: r[20].update(state="UNKNOWN")),
                 ("community-issues-data.jsonl", lambda r: r[18]["closedByPullRequestsReferences"]["nodes"][0].update(author={"login": "different"})),

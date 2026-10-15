@@ -59,10 +59,13 @@
     "repository": "example/metrics",
     "snapshot_date": "2026-10-08",
     "pr_count": 100,
+    "group_by": "contribution-author",
+    "comment_count": 300,
+    "commit_count": 200,
     "cohorts": [
-      { "cohort": "Human account", "prs": 5, "comments": 25, "commits": 15 },
-      { "cohort": "Agent / bot account", "prs": 95, "comments": 285, "commits": 190 },
-      { "cohort": "Unattributed", "prs": 0, "comments": 0, "commits": 0 }
+      { "cohort": "Human account", "comments": 100, "commits": 100 },
+      { "cohort": "Agent / bot account", "comments": 200, "commits": 100 },
+      { "cohort": "Unattributed", "comments": 0, "commits": 0 }
     ]
   },
   "community": {

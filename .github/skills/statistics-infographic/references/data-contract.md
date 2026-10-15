@@ -12,7 +12,7 @@ to these filenames:
 | `structure` | `repo-structure-statistics.json` | Repository, full commit ID, file/nonblank-line totals, four Go/JavaScript implementation/test groups |
 | `history` | `weekly-code-history.json` | Same repository/commit, contiguous Monday-start weeks, additions/deletions and totals |
 | `pr_changes` | `pr-change-histogram.json` | Same repository/census date, total PR population, shared per-PR additions/deletions bins |
-| `pr_activity` | `pr-activity-summary.json` | Same repository/census date, three PR-author account cohorts with PR/comment/commit totals |
+| `pr_activity` | `pr-activity-summary.json` | Same repository/census date, comment-writer and primary-commit-author group totals, shared PR denominator |
 
 Counts must be nonnegative integers, not booleans, strings, or floats. All
 repositories must match. PR and histogram census dates must match; community has
@@ -144,38 +144,48 @@ edits through a PR's lifetime, deployed code, or causal impact.
 ## Human versus agent PR activity
 
 Panel 08 compares arithmetic means of conversation comments and commits per
-individual PR, grouped by the **PR author's account**. This is not a breakdown by
-comment author, commit author, or inferred session initiator. It includes all
-census PR states and zeros, with a separate denominator for each cohort.
+individual PR, grouped by **who wrote the comment or primarily authored the
+commit**. The PR creator and committer are irrelevant to attribution. One PR can
+contain both human and agent/bot contributions.
 
 The required `pr_activity` section contains matching `repository`, `snapshot_date`,
-`pr_count`, and exactly three ordered `cohorts`: `Human account`,
-`Agent / bot account`, and `Unattributed`. Each row has nonnegative integer `prs`,
-`comments`, and `commits` totals. Cohort PR counts partition the entire census;
-zero-PR cohorts must have zero comment/commit totals. Optional `comments_per_pr`
-and `commits_per_pr` must match exact-rational means rounded half up to one decimal;
-undefined means must be `null`, rendered `n/a`.
+`pr_count`, `group_by: "contribution-author"`, `comment_count`, `commit_count`, and
+exactly three ordered `cohorts`: `Human account`, `Agent / bot account`, and
+`Unattributed`. Each row has nonnegative integer `comments` and `commits` totals,
+never its own `prs` population. Author groups partition every comment and every
+commit, **not the PRs**. Both human and agent/bot means divide by the same entire
+positive PR census, including zeros and all PR states. Optional `comments_per_pr`
+and `commits_per_pr` must match exact-rational means rounded half up to one decimal.
+No contributions in a group means `0.0`, not `n/a`.
 
 Raw cohort policy:
 
-- Bot authors, and case-insensitive `copilot` / `copilot-swe-agent` logins, are
+- Bot actors, `[bot]` logins, and case-insensitive `copilot` / `copilot-swe-agent` logins are
   agent/bot accounts. This includes non-AI automation.
 - Other User authors without bot/machine-user naming are human-account proxies.
-- Missing/deleted authors, unrecognized actor kinds, and other machine-user
-  accounts are unattributed. Their count is disclosed and excluded from the two
-  plotted cohort means, not assigned to humans.
+- Missing/deleted comment authors, unlinked primary commit authors, unrecognized
+  actor kinds, and other machine-user accounts are unattributed. Unknown comment
+  and commit counts are disclosed separately, not assigned to humans. No PR is
+  removed from either denominator because an author is unavailable.
 
-Conversation comments use `comments.totalCount`: no inline review comments or
-review submissions. Commits use `commits.totalCount`, not first-parent history,
-push events, or locally inferred commit authorship. The API's saved connection
-totals are the measurements; missing totals fail rather than becoming zero.
-Means are `sum(comments) / cohort PRs` and `sum(commits) / cohort PRs`, not means of
-rounded per-PR values or medians. Account types do not verify people, agent use,
-session initiation, or causal productivity.
+Conversation comments use every `comments.nodes[].author`: no inline review
+comments or review submissions. Commits use
+`commits.nodes[].commit.author.user`, not `committer`, PR creator, coauthor trailers,
+names, emails, push events, or local first-parent history. Null linked users
+remain unknown; absent author fields are errors. Count a commit once per PR by
+its primary author; a commit present in multiple PRs contributes to each PR.
+
+Every consumed comment/commit connection requires `totalCount == len(nodes)`
+after pagination. Comment IDs and commit OIDs must be nonempty and distinct within
+each PR; missing nodes, truncated inventories, and duplicate events fail.
+Means are `author-group comments / all census PRs` and
+`author-group commits / all census PRs`, not rounded per-PR means or medians.
+Account types do not verify people, AI use, session initiation, or productivity.
 
 `compute_pr_activity.py` emits `pr-activity-summary.json` and `pr-activity.png`
-from cached records. Raw API auditing recomputes the cohort assignment and every
-PR/comment/commit total; it does not infer this chart from origin shares.
+from cached records. Raw API auditing recomputes each contribution's author group
+and every comment/commit total. It never infers this chart from PR-creator origin
+shares or divides by human-created/agent-created PR counts.
 
 ## Cached raw records
 
@@ -183,8 +193,10 @@ PR/comment/commit total; it does not infer this chart from origin shares.
 
 - `pr-statistics-data.jsonl`: every census PR's number, state, author login, body,
   createdAt, mergedAt, **additions**, and **deletions**. Diff counts must be present,
-  nonnegative integers for each individual PR. Activity also requires author
-  `__typename`, `comments { totalCount }`, and `commits { totalCount }`.
+  nonnegative integers for each individual PR. Activity requires complete
+  `comments { totalCount nodes { id author { login __typename } } }` and
+  `commits { totalCount nodes { commit { oid author { user { login __typename } } } } }`.
+  Null comment authors and unlinked commit-author users are explicit unknowns.
 - `cca-issue-links.jsonl`: each CCA PR number and `closingIssuesReferences` with
   `totalCount` and `nodes`; issue nodes include number, body, repository
   `nameWithOwner`, and author login/`__typename`.
@@ -197,8 +209,9 @@ PR/comment/commit total; it does not infer this chart from origin shares.
   baseRefName, repository `nameWithOwner`, and author login.
 
 Connections consumed through `nodes` require `totalCount` to equal their node
-count; paginate before saving. Activity reads comment/commit connection
-`totalCount` directly and does not require those nodes. Duplicate PR/issues, missing CCA inventories/issue metadata,
+count; paginate before saving, including nested comment and commit connections.
+Counts-only comment/commit records cannot identify contribution authors.
+Duplicate PR/issues, missing CCA inventories/issue metadata,
 unknown states, negative durations, and conflicting delivery metadata fail.
 The auditor reconciles saved evidence; it does not establish that an upstream
 collection was exhaustive or independently recollect the live repository.

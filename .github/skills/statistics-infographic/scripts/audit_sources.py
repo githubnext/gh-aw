@@ -89,7 +89,7 @@ def audit_api(s: Statistics, raw: Path, aliases: tuple[str, ...] = ()) -> None:
     prs = jsonl(raw / "pr-statistics-data.jsonl")
     require(len({count(p.get("number"), "PR number") for p in prs}) == len(prs), "duplicate PR numbers")
     require(len(prs) == s.all_prs.total, "raw PR population differs from summary")
-    require(activity_groups(prs) == s.activity, "raw PR author-cohort comment/commit totals disagree")
+    require(activity_groups(prs) == s.activity, "raw comment-writer / primary-commit-author totals disagree")
     changes = pr_changes(prs)
     maximum = max(max(p.added, p.deleted) for p in changes)
     width = (maximum + 8) // 8
@@ -304,7 +304,7 @@ def main() -> None:
             audit_git(s, args.repo)
     except (DataError, OSError, ValueError) as error:
         parser.error(str(error))
-    print("Raw API counts, provenance, timing bins/quantiles, PR diff bins and author-cohort comment/commit totals reconcile.")
+    print("Raw API counts, provenance, timing bins/quantiles, PR diff bins and contribution-author totals reconcile.")
     if args.repo is not None:
         print("Pinned Git code groups, every weekly pair and physical-line net reconcile; no network access used.")
     print("Consistency verified; session initiation, human identity, causality and released impact remain unproven.")

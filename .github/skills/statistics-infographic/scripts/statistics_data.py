@@ -180,34 +180,56 @@ MACHINE_ACCOUNT = re.compile(r"(?:^|[-_])(?:bot|machine[-_]user)(?:$|[-_])", re.
 @dataclass(frozen=True)
 class Activity:
     cohort: str
-    prs: int
     comments: int
     commits: int
 
-    def average(self, total: int) -> str:
-        return "n/a" if self.prs == 0 else decimal(Fraction(total, self.prs))
+    def average(self, total: int, prs: int) -> str:
+        return "n/a" if prs == 0 else decimal(Fraction(total, prs))
+
+
+def account_cohort(value: object) -> int:
+    if value is None:
+        return 2
+    person = mapping(value, "contribution author")
+    login = string(person.get("login"), "contribution author login")
+    kind = string(person.get("__typename"), "contribution author type")
+    if kind == "Bot" or login.casefold() in {"copilot", "copilot-swe-agent"} or login.casefold().endswith("[bot]"):
+        return 1
+    if kind == "User" and not MACHINE_ACCOUNT.search(login):
+        return 0
+    return 2
 
 
 def activity_groups(records: list[dict[str, object]]) -> tuple[Activity, ...]:
     numbers = [count(r.get("number"), "PR number") for r in records]
     require(all(n > 0 for n in numbers) and len(set(numbers)) == len(numbers),
             "activity records require distinct positive PR numbers")
-    totals = [[0, 0, 0] for _ in COHORTS]
+    totals = [[0, 0] for _ in COHORTS]
     for record in records:
-        cohort = 2
-        if record.get("author") is not None:
-            person = mapping(record["author"], "PR author")
-            login = string(person.get("login"), "PR author login")
-            kind = string(person.get("__typename"), "PR author type")
-            if kind == "Bot" or login.casefold() in {"copilot", "copilot-swe-agent"}:
-                cohort = 1
-            elif kind == "User" and not MACHINE_ACCOUNT.search(login):
-                cohort = 0
-        comments = count(mapping(record.get("comments"), "PR comments").get("totalCount"), "comment totalCount")
-        commits = count(mapping(record.get("commits"), "PR commits").get("totalCount"), "commit totalCount")
-        totals[cohort][0] += 1
-        totals[cohort][1] += comments
-        totals[cohort][2] += commits
+        for metric, key in enumerate(("comments", "commits")):
+            connection = mapping(record.get(key), f"PR {key}")
+            events = rows(connection.get("nodes"), f"{key}.nodes")
+            require(count(connection.get("totalCount"), f"{key}.totalCount") == len(events),
+                    f"PR {key} author inventory is truncated")
+            identifiers: set[str] = set()
+            for event in events:
+                if key == "comments":
+                    identifier = string(event.get("id"), "comment id")
+                    require("author" in event, "comment author must be present; use null for unavailable accounts")
+                    person = event["author"]
+                else:
+                    commit = mapping(event.get("commit"), "commit")
+                    identifier = string(commit.get("oid"), "commit oid")
+                    require("author" in commit, "primary commit author must be present")
+                    if commit["author"] is None:
+                        person = None
+                    else:
+                        actor = mapping(commit["author"], "commit author")
+                        require("user" in actor, "commit author user must be present; use null for unlinked accounts")
+                        person = actor["user"]
+                require(identifier not in identifiers, f"duplicate {key} in a PR")
+                identifiers.add(identifier)
+                totals[account_cohort(person)][metric] += 1
     return tuple(Activity(label, *values) for label, values in zip(COHORTS, totals))
 
 
@@ -383,17 +405,20 @@ class Statistics:
         require(sum(b.added for b in changes) == sum(b.deleted for b in changes) == total,
                 "each PR change series must sum to the entire PR census")
         activity_rows = rows(a.get("cohorts"), "pr_activity.cohorts")
-        activity = tuple(Activity(string(r.get("cohort"), "cohort"), count(r.get("prs"), "cohort.prs"),
-                                  count(r.get("comments"), "cohort.comments"), count(r.get("commits"), "cohort.commits"))
+        require(all("prs" not in r for r in activity_rows), "contribution-author groups cannot contain PR-creator cohort populations")
+        activity = tuple(Activity(string(r.get("cohort"), "cohort"), count(r.get("comments"), "cohort.comments"),
+                                  count(r.get("commits"), "cohort.commits"))
                          for r in activity_rows)
-        require(tuple(g.cohort for g in activity) == COHORTS, "expected ordered human, agent/bot and unattributed cohorts")
-        require(count(a.get("pr_count"), "activity.pr_count") == sum(g.prs for g in activity) == total,
-                "activity cohorts must partition the entire PR census")
-        require(all(g.prs > 0 or g.comments == g.commits == 0 for g in activity),
-                "empty activity cohorts cannot have comments or commits")
+        require(tuple(g.cohort for g in activity) == COHORTS, "expected ordered human, agent/bot and unattributed author groups")
+        require(a.get("group_by") == "contribution-author", "PR activity must group by comment and primary commit author")
+        require(count(a.get("pr_count"), "activity.pr_count") == total, "activity denominator must be the entire PR census")
+        require(count(a.get("comment_count"), "activity.comment_count") == sum(g.comments for g in activity),
+                "author groups must partition every comment")
+        require(count(a.get("commit_count"), "activity.commit_count") == sum(g.commits for g in activity),
+                "author groups must partition every commit")
         for record, activity_group in zip(activity_rows, activity):
-            check_published(record, "comments_per_pr", activity_group.average(activity_group.comments))
-            check_published(record, "commits_per_pr", activity_group.average(activity_group.commits))
+            check_published(record, "comments_per_pr", activity_group.average(activity_group.comments, total))
+            check_published(record, "commits_per_pr", activity_group.average(activity_group.commits, total))
         return cls(repo, snapshot, collected, commit, outcomes, MappingProxyType(components), assumption, bins, median, p90,
                    labelled, eligible, authors, landed, closed, opened, delivery, cca, groups, weeks, changes, activity)
 

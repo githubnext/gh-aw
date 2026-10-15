@@ -163,25 +163,24 @@ def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: in
     c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + (106 if wrap_ranges else 90), size=34)
 
 
-def draw_activity(c: Canvas, activity: tuple[Activity, ...], x: int, y: int, width: int) -> None:
-    c.text("Mean per individual PR | Blue: human accounts | Green: agent/bot accounts", x, y, 38, WHITE)
+def draw_activity(c: Canvas, activity: tuple[Activity, ...], population: int, x: int, y: int, width: int) -> None:
+    c.text(f"Contribution authors | Same denominator: {population:,} PRs | Blue: human | Green: agent/bot", x, y, 38, WHITE)
     for metric_index, (label, values) in enumerate((
         ("Conversation comments per PR", [g.comments for g in activity[:2]]),
         ("Commits per PR", [g.commits for g in activity[:2]]),
     )):
         top = y + 90 + metric_index * 265
         c.text(label, x, top, 42, WHITE, True)
-        means = [Fraction(value, group.prs) if group.prs else Fraction(0)
-                 for value, group in zip(values, activity[:2])]
+        means = [Fraction(value, population) if population else Fraction(0) for value in values]
         maximum = max(max(means), Fraction(1))
         left, right = x + 650, x + width - 210
         for row, (group, total, mean, color) in enumerate(zip(activity[:2], values, means, (BLUE, GREEN))):
             row_y = top + 80 + row * 75
-            c.text(f"{'Human' if row == 0 else 'Agent/bot'} (n = {group.prs:,})", x, row_y, 36)
+            c.text(f"{'Human' if row == 0 else 'Agent/bot'} ({total:,} total)", x, row_y, 36)
             if mean:
                 c.draw.rectangle((left, row_y + 5, left + float(mean / maximum) * (right - left), row_y + 45),
                                  fill=color)
-            c.text(group.average(total), right + 30, row_y, 40, WHITE, True, width=170)
+            c.text(group.average(total, population), right + 30, row_y, 40, WHITE, True, width=170)
 
 
 def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, in numbers") -> Canvas:
@@ -344,10 +343,10 @@ def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, i
     t("GitHub PR additions/deletions across all files; merged, closed-unmerged and open PRs. Not weekly Git churn.",
       x, foot + 55, 32, width=w)
     x, y, w, foot = c.card(7, "Comments and commits per PR: human vs agent")
-    draw_activity(c, s.activity, x, y, w)
-    t(f"PR-author account cohorts, not session initiation or comment/commit authors. Unattributed: {s.activity[2].prs:,} PRs (excluded).",
+    draw_activity(c, s.activity, all_prs.total, x, y, w)
+    t(f"Grouped by comment writer and primary commit author, never PR creator. Unattributed: {s.activity[2].comments:,} comments / {s.activity[2].commits:,} commits.",
       x, foot, 34, width=w, max_lines=2)
-    t("Conversation comments only; excludes inline review comments/reviews. Agent/bot includes non-AI automation; means, not medians.",
+    t("Conversation comments only; no inline reviews. Linked primary commit author only, not committer/coauthors. Bots may be non-AI.",
       x, foot + 55, 32, width=w)
     c.clip = (0, 0, WIDTH, HEIGHT)
     collected = s.community_collected.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
