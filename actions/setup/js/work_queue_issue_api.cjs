@@ -4,6 +4,7 @@
 const { queueError } = require("./work_queue_codec.cjs");
 const { nativeId } = require("./work_queue_native.cjs");
 const { withRetry } = require("./error_recovery.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const MAX_PROJECTION_TARGETS = 25;
 const MAX_PROJECTION_MUTATIONS = 50;
@@ -240,7 +241,7 @@ function isRetryableBeforeExecution(error) {
 }
 
 function issueResource(issue) {
-  return { kind: "issue", host: "github.com", repository: issue.repository.nameWithOwner, repository_id: nativeId(issue.repository.databaseId), resource_id: nativeId(issue.databaseId), number: nativeId(issue.number) };
+  return { kind: "issue", host: expectedGitHubHost(), repository: issue.repository.nameWithOwner, repository_id: nativeId(issue.repository.databaseId), resource_id: nativeId(issue.databaseId), number: nativeId(issue.number) };
 }
 
 module.exports = {

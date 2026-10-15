@@ -383,6 +383,11 @@ func (c *Compiler) mergeImportedModelRoutingConfigs(engineConfig *EngineConfig, 
 			engineConfig.ModelRouting = &routing
 			continue
 		}
+		// An omitted allowed-models list means "any model", so it wins over any list.
+		if engineConfig.ModelRouting.AllowedModels == nil || importedConfig.ModelRouting.AllowedModels == nil {
+			engineConfig.ModelRouting.AllowedModels = nil
+			continue
+		}
 		seen := make(map[string]struct{}, len(engineConfig.ModelRouting.AllowedModels))
 		for _, model := range engineConfig.ModelRouting.AllowedModels {
 			seen[model] = struct{}{}

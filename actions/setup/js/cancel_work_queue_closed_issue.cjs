@@ -11,6 +11,7 @@ const { actorFromContext } = require("./work_queue_policy.cjs");
 const { newRequest, generateRequestOperations } = require("./work_queue_replay.cjs");
 const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
 const { readCheckedQueue } = require("./work_queue_checked_transport.cjs");
+const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const REASON = "related_issue_closed";
 
@@ -74,7 +75,7 @@ async function main(options = {}) {
   const number = Number(nativeId(eventIssue.number));
   const resource = {
     kind: "issue",
-    host: "github.com",
+    host: expectedGitHubHost(),
     repository,
     repository_id: repoId,
     resource_id: nativeId(eventIssue.id),

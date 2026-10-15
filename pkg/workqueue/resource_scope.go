@@ -32,7 +32,8 @@ func validateEffectResource(resource EffectResource) error {
 		switch key {
 		case "repository", "ref":
 		case "host":
-			if value != "github.com" {
+			host, err := expectedResourceHost()
+			if err != nil || value != host {
 				return queueError("claim_scope_invalid", "effect target host is unsupported")
 			}
 		case "kind":
@@ -106,7 +107,8 @@ func matchesEffectResource(selector, target EffectResource) bool {
 }
 
 func hasNativeResourceBinding(selector EffectResource) bool {
-	if selector["host"] != "github.com" || !decimalIdentity(selector["repository_id"]) {
+	host, err := expectedResourceHost()
+	if err != nil || selector["host"] != host || !decimalIdentity(selector["repository_id"]) {
 		return false
 	}
 	for _, field := range []string{"kind", "number", "resource_id", "comment_id"} {
@@ -172,6 +174,8 @@ func assertWorkTarget(work *WorkState, target EffectResource) error {
 }
 
 // WorkCreators retains the first actor for each immutable Work across checkpoints.
+//
+//nolint:largefunc // The ancestry and creator checks form one fail-closed reconstruction.
 func immutableWorkCreators(state Projection) (map[string]Actor, error) {
 	creators := make(map[string]Actor, len(state.WorkCreators))
 	maps.Copy(creators, state.WorkCreators)
@@ -245,7 +249,12 @@ func immutableWorkCreators(state Projection) (map[string]Actor, error) {
 			priorTip := checkpointPriorTips[commit.ID]
 			if isCheckpoint(commit) {
 				var checkpoint CheckpointOperation
-				if json.Unmarshal(commit.Operations[0], &checkpoint) != nil {
+				var operation json.RawMessage
+				for _, candidate := range commit.Operations {
+					operation = candidate
+					break
+				}
+				if len(operation) == 0 || json.Unmarshal(operation, &checkpoint) != nil {
 					return nil, queueError("claim_scope_invalid", "immutable Work origin history is malformed")
 				}
 				if checkpoint.PriorTip != "" {
