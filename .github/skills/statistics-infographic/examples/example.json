@@ -55,6 +55,16 @@
       { "lower": 875, "upper": 1000, "added": 1, "deleted": 1 }
     ]
   },
+  "pr_activity": {
+    "repository": "example/metrics",
+    "snapshot_date": "2026-10-08",
+    "pr_count": 100,
+    "cohorts": [
+      { "cohort": "Human account", "prs": 5, "comments": 25, "commits": 15 },
+      { "cohort": "Agent / bot account", "prs": 95, "comments": 285, "commits": 190 },
+      { "cohort": "Unattributed", "prs": 0, "comments": 0, "commits": 0 }
+    ]
+  },
   "community": {
     "repository": "example/metrics",
     "collected_at": "2026-10-08T21:19:30Z",

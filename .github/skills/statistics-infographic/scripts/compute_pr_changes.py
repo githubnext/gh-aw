@@ -13,18 +13,24 @@ from render_infographic import Canvas, LayoutError, discover_fonts, draw_change_
 from statistics_data import DataError, change_histogram, count, mapping, pr_changes, require, string
 
 
-def compute(raw: Path, census: Path, output: Path) -> None:
+def load_records(raw: Path, census: Path) -> tuple[str, date, list[dict[str, object]]]:
     source = mapping(json.loads(census.read_text(encoding="utf-8")), "PR census")
     repository = string(source.get("repository"), "repository")
     snapshot = date.fromisoformat(string(source.get("snapshot_date"), "snapshot_date"))
     total = count(source.get("total_prs"), "total_prs")
     require(total > 0, "PR census must be positive")
     records = jsonl(raw / "pr-statistics-data.jsonl")
-    changes = pr_changes(records)
-    require(len(changes) == total, "raw PR population differs from census")
+    require(len(records) == total, "raw PR population differs from census")
     require(all(timestamp(r.get("createdAt")).date() <= snapshot for r in records),
             "PR creation is after the declared snapshot date")
     require(all(r.get("state") in {"MERGED", "CLOSED", "OPEN"} for r in records), "unknown PR state")
+    return repository, snapshot, records
+
+
+def compute(raw: Path, census: Path, output: Path) -> None:
+    repository, snapshot, records = load_records(raw, census)
+    changes = pr_changes(records)
+    total = len(changes)
     bins = change_histogram(changes)
     summary = {"repository": repository, "snapshot_date": snapshot.isoformat(), "pr_count": total,
                "bins": [asdict(bucket) for bucket in bins]}

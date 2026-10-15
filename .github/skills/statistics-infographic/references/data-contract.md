@@ -1,7 +1,7 @@
 # Data contract and interpretation
 
 Use [the synthetic example](../examples/example.json) as the complete minimal input
-template. One JSON object has six sections. Alternatively, `--data-dir` maps them
+template. One JSON object has seven sections. Alternatively, `--data-dir` maps them
 to these filenames:
 
 | Section | Filename | Required evidence |
@@ -12,6 +12,7 @@ to these filenames:
 | `structure` | `repo-structure-statistics.json` | Repository, full commit ID, file/nonblank-line totals, four Go/JavaScript implementation/test groups |
 | `history` | `weekly-code-history.json` | Same repository/commit, contiguous Monday-start weeks, additions/deletions and totals |
 | `pr_changes` | `pr-change-histogram.json` | Same repository/census date, total PR population, shared per-PR additions/deletions bins |
+| `pr_activity` | `pr-activity-summary.json` | Same repository/census date, three PR-author account cohorts with PR/comment/commit totals |
 
 Counts must be nonnegative integers, not booleans, strings, or floats. All
 repositories must match. PR and histogram census dates must match; community has
@@ -139,13 +140,50 @@ missing or invalid additions/deletions, unknown states, future creation dates, a
 population mismatches. Diff sizes describe the saved API observation, not cumulative
 edits through a PR's lifetime, deployed code, or causal impact.
 
+## Human versus agent PR activity
+
+Panel 08 compares arithmetic means of conversation comments and commits per
+individual PR, grouped by the **PR author's account**. This is not a breakdown by
+comment author, commit author, or inferred session initiator. It includes all
+census PR states and zeros, with a separate denominator for each cohort.
+
+The required `pr_activity` section contains matching `repository`, `snapshot_date`,
+`pr_count`, and exactly three ordered `cohorts`: `Human account`,
+`Agent / bot account`, and `Unattributed`. Each row has nonnegative integer `prs`,
+`comments`, and `commits` totals. Cohort PR counts partition the entire census;
+zero-PR cohorts must have zero comment/commit totals. Optional `comments_per_pr`
+and `commits_per_pr` must match exact-rational means rounded half up to one decimal;
+undefined means must be `null`, rendered `n/a`.
+
+Raw cohort policy:
+
+- Bot authors, and case-insensitive `copilot` / `copilot-swe-agent` logins, are
+  agent/bot accounts. This includes non-AI automation.
+- Other User authors without bot/machine-user naming are human-account proxies.
+- Missing/deleted authors, unrecognized actor kinds, and other machine-user
+  accounts are unattributed. Their count is disclosed and excluded from the two
+  plotted cohort means, not assigned to humans.
+
+Conversation comments use `comments.totalCount`: no inline review comments or
+review submissions. Commits use `commits.totalCount`, not first-parent history,
+push events, or locally inferred commit authorship. The API's saved connection
+totals are the measurements; missing totals fail rather than becoming zero.
+Means are `sum(comments) / cohort PRs` and `sum(commits) / cohort PRs`, not means of
+rounded per-PR values or medians. Account types do not verify people, agent use,
+session initiation, or causal productivity.
+
+`compute_pr_activity.py` emits `pr-activity-summary.json` and `pr-activity.png`
+from cached records. Raw API auditing recomputes the cohort assignment and every
+PR/comment/commit total; it does not infer this chart from origin shares.
+
 ## Cached raw records
 
 `--raw-dir` contains flat UTF-8 JSONL records, not GraphQL response envelopes:
 
 - `pr-statistics-data.jsonl`: every census PR's number, state, author login, body,
   createdAt, mergedAt, **additions**, and **deletions**. Diff counts must be present,
-  nonnegative integers for each individual PR.
+  nonnegative integers for each individual PR. Activity also requires author
+  `__typename`, `comments { totalCount }`, and `commits { totalCount }`.
 - `cca-issue-links.jsonl`: each CCA PR number and `closingIssuesReferences` with
   `totalCount` and `nodes`; issue nodes include number, body, repository
   `nameWithOwner`, and author login/`__typename`.
@@ -157,8 +195,9 @@ edits through a PR's lifetime, deployed code, or causal impact.
   `closedByPullRequestsReferences`. PR nodes include number, mergedAt,
   baseRefName, repository `nameWithOwner`, and author login.
 
-Every consumed connection's `totalCount` must equal its node count; paginate
-before saving. Duplicate PR/issues, missing CCA inventories/issue metadata,
+Connections consumed through `nodes` require `totalCount` to equal their node
+count; paginate before saving. Activity reads comment/commit connection
+`totalCount` directly and does not require those nodes. Duplicate PR/issues, missing CCA inventories/issue metadata,
 unknown states, negative durations, and conflicting delivery metadata fail.
 The auditor reconciles saved evidence; it does not establish that an upstream
 collection was exhaustive or independently recollect the live repository.

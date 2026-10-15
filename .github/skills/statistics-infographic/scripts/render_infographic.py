@@ -1,4 +1,4 @@
-"""Portable, deterministic seven-panel infographic renderer."""
+"""Portable, deterministic eight-panel infographic renderer."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
-from statistics_data import ChangeBin, DataError, Statistics, decimal, load_sources, percent
+from statistics_data import Activity, ChangeBin, DataError, Statistics, decimal, load_sources, percent
 
 
-WIDTH, HEIGHT = 2560, 4120
+WIDTH, HEIGHT = 2560, 5040
 BG, PANEL, WHITE, INK = "#0D1117", "#161B22", "#FFFFFF", "#C9D1D9"
 GREEN, BLUE, RED, GRAY = "#3FB950", "#58A6FF", "#F85149", "#484F58"
 Bbox = tuple[float, float, float, float]
@@ -99,8 +99,9 @@ class Canvas:
                   width=length + 1)
 
     def card(self, index: int, title: str) -> tuple[int, int, int, int]:
-        x, y = 72 + (index % 2) * 1228, 330 + (index // 2) * 920
-        width = 2416 if index == 6 else 1188
+        x = 72 + (index % 2) * 1228 if index < 6 else 72
+        y = 330 + (index // 2 if index < 6 else index - 3) * 920
+        width = 2416 if index >= 6 else 1188
         self.draw.rounded_rectangle((x, y, x + width, y + 860), radius=28,
                                     fill=PANEL, outline="#30363D", width=2)
         self.clip = (x + 16, y + 16, x + width - 16, y + 844)
@@ -155,6 +156,27 @@ def draw_change_histogram(c: Canvas, bins: tuple[ChangeBin, ...], population: in
         c.center(f"{bucket.lower:,}-{bucket.upper - 1:,}", middle, baseline + 20,
                  size=30, width=slot - 8)
     c.center("Lines per PR (inclusive ranges)", (left + right) / 2, baseline + 90, size=34)
+
+
+def draw_activity(c: Canvas, activity: tuple[Activity, ...], x: int, y: int, width: int) -> None:
+    c.text("Mean per individual PR | Blue: human accounts | Green: agent/bot accounts", x, y, 38, WHITE)
+    for metric_index, (label, values) in enumerate((
+        ("Conversation comments per PR", [g.comments for g in activity[:2]]),
+        ("Commits per PR", [g.commits for g in activity[:2]]),
+    )):
+        top = y + 90 + metric_index * 265
+        c.text(label, x, top, 42, WHITE, True)
+        means = [Fraction(value, group.prs) if group.prs else Fraction(0)
+                 for value, group in zip(values, activity[:2])]
+        maximum = max(max(means), Fraction(1))
+        left, right = x + 650, x + width - 210
+        for row, (group, total, mean, color) in enumerate(zip(activity[:2], values, means, (BLUE, GREEN))):
+            row_y = top + 80 + row * 75
+            c.text(f"{'Human' if row == 0 else 'Agent/bot'} (n = {group.prs:,})", x, row_y, 36)
+            if mean:
+                c.draw.rectangle((left, row_y + 5, left + float(mean / maximum) * (right - left), row_y + 45),
+                                 fill=color)
+            c.text(group.average(total), right + 30, row_y, 40, WHITE, True, width=170)
 
 
 def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, in numbers") -> Canvas:
@@ -316,10 +338,16 @@ def render(s: Statistics, fonts: tuple[Path, Path], title: str = "Development, i
       x, foot, 34, width=w, max_lines=2)
     t("GitHub PR additions/deletions across all files; merged, closed-unmerged and open PRs. Not weekly Git churn.",
       x, foot + 55, 32, width=w)
+    x, y, w, foot = c.card(7, "Comments and commits per PR: human vs agent")
+    draw_activity(c, s.activity, x, y, w)
+    t(f"PR-author account cohorts, not session initiation or comment/commit authors. Unattributed: {s.activity[2].prs:,} PRs (excluded).",
+      x, foot, 34, width=w, max_lines=2)
+    t("Conversation comments only; excludes inline review comments/reviews. Agent/bot includes non-AI automation; means, not medians.",
+      x, foot + 55, 32, width=w)
     c.clip = (0, 0, WIDTH, HEIGHT)
     collected = s.community_collected.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 3990, 32)
-    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 4045, 30)
+    t(f"Snapshots: PR census {s.snapshot.isoformat()} | Community {collected}", 72, 4910, 32)
+    t(f"Code: {s.commit[:12]} | Sources: GitHub API + pinned Git history | AW = agentic workflow; CCA = Copilot coding agent", 72, 4965, 30)
     c.verify()
     return c
 
@@ -342,8 +370,8 @@ def save(canvas: Canvas, output: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--input", type=Path, help="JSON object containing the six source summaries.")
-    source.add_argument("--data-dir", type=Path, help="Directory containing the six canonical summary filenames.")
+    source.add_argument("--input", type=Path, help="JSON object containing the seven source summaries.")
+    source.add_argument("--data-dir", type=Path, help="Directory containing the seven canonical summary filenames.")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--title", default="Development, in numbers")
     parser.add_argument("--font-regular", type=Path)
@@ -355,7 +383,7 @@ def main() -> None:
         save(canvas, args.output)
     except (DataError, LayoutError, OSError, ValueError) as error:
         parser.error(str(error))
-    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, seven panels, validated counts and text layout.")
+    print(f"Saved {args.output}: {WIDTH} x {HEIGHT}, eight panels, validated counts and text layout.")
 
 
 if __name__ == "__main__":

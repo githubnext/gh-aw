@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from statistics_data import DataError, Statistics, count, load_sources, mapping, pr_changes, require, rows, string
+from statistics_data import DataError, Statistics, activity_groups, count, load_sources, mapping, pr_changes, require, rows, string
 
 
 WORKFLOW = re.compile(
@@ -89,6 +89,7 @@ def audit_api(s: Statistics, raw: Path, aliases: tuple[str, ...] = ()) -> None:
     prs = jsonl(raw / "pr-statistics-data.jsonl")
     require(len({count(p.get("number"), "PR number") for p in prs}) == len(prs), "duplicate PR numbers")
     require(len(prs) == s.all_prs.total, "raw PR population differs from summary")
+    require(activity_groups(prs) == s.activity, "raw PR author-cohort comment/commit totals disagree")
     changes = pr_changes(prs)
     maximum = max(max(p.added, p.deleted) for p in changes)
     width = (maximum + 8) // 8
@@ -303,7 +304,7 @@ def main() -> None:
             audit_git(s, args.repo)
     except (DataError, OSError, ValueError) as error:
         parser.error(str(error))
-    print("Raw API counts, inferred provenance, timing bins/quantiles and per-PR additions/deletions bins reconcile.")
+    print("Raw API counts, provenance, timing bins/quantiles, PR diff bins and author-cohort comment/commit totals reconcile.")
     if args.repo is not None:
         print("Pinned Git code groups, every weekly pair and physical-line net reconcile; no network access used.")
     print("Consistency verified; session initiation, human identity, causality and released impact remain unproven.")

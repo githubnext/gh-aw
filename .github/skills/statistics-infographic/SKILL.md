@@ -1,18 +1,19 @@
 ---
 name: statistics-infographic
-description: Generate a readable seven-panel repository statistics infographic, including overlapping added/removed-line histograms, from validated JSON and pinned Git evidence.
+description: Generate an eight-panel repository statistics infographic with individual-PR diff histograms and human/agent comment and commit comparisons.
 ---
 
 # Repository statistics infographic
 
 Use when asked to consolidate repository-statistics slides into one image, regenerate
 the infographic with updated data, or verify its calculations. This is a reusable
-seven-panel statistical template, not an arbitrary PowerPoint screenshot collage.
+eight-panel statistical template, not an arbitrary PowerPoint screenshot collage.
 
 The panels cover inferred PR initiation, merge/closed outcomes, start-to-merge
 durations, community issue outcomes, Go/JavaScript code composition, and weekly
 first-parent code changes, plus overlapping histograms of lines added and removed
-for individual PRs. Repository names, dates, counts, proportions, and weeks
+for individual PRs, and mean comments/commits per PR for human versus agent/bot
+PR-author account cohorts. Repository names, dates, counts, proportions, and weeks
 come from the input, never from this skill's original dataset.
 
 ## Generate
@@ -48,7 +49,7 @@ paths together. Automatic discovery supports Arial on macOS/Windows and Liberati
 Sans or DejaVu Sans on Linux. Missing fonts fail explicitly; no bitmap fallback is
 used.
 
-The output is a static, RGB, 2560 x 4120 PNG with 300-DPI metadata. A successful
+The output is a static, RGB, 2560 x 5040 PNG with 300-DPI metadata. A successful
 render atomically replaces the explicit output path. Invalid data, unreadable
 layout, or invalid fonts leave an existing output intact. Counts too large for
 their slots, more than 10 duration bands, or more than 260 weeks require a different
@@ -78,12 +79,39 @@ and `createdAt` fields:
 
 This writes `pr-change-histogram.json` and `pr-change-histogram.png` (2560 x 1180).
 The summary is the required `pr_changes` section in the combined input, or the
-sixth canonical file for `--data-dir`. Re-render the complete image with all six
+sixth canonical file for `--data-dir`. Re-render the complete image with all seven
 summaries. Missing per-PR additions/deletions fail explicitly; never substitute
 weekly Git totals, merge-commit churn, or missing values as zero.
 The command never fetches or refreshes API snapshots. If raw PR diff statistics
 are unavailable, disclose that real-data recomputation is blocked. Keep any
 rendered synthetic example clearly labelled and separate.
+
+### Compare human and agent PR activity
+
+Panel 08 shows mean conversation comments and commits per individual PR, grouped
+by the **PR author's account**, not the comment/commit author or inferred session
+initiator. Both metrics show cohort sample sizes and exact-rational means rounded
+half up to one decimal. Empty cohorts show `n/a`, not zero.
+
+```bash
+/tmp/statistics-infographic-venv/bin/python \
+  .github/skills/statistics-infographic/scripts/compute_pr_activity.py \
+  --raw-dir /path/to/raw-records \
+  --census /path/to/summaries/pr-initiation-assumption-summary.json \
+  --output-dir /path/to/summaries
+```
+
+Raw PRs need `author { login __typename }`, `comments { totalCount }`, and
+`commits { totalCount }` alongside number, state, and creation date.
+The command writes `pr-activity-summary.json` (the required `pr_activity` section)
+and standalone `pr-activity.png` (2560 x 1180).
+Human accounts are User authors without bot/machine-user names; Bot authors and
+known Copilot account logins are agent/bot accounts. Unknown/deleted authors and
+other machine-user accounts remain unattributed and are disclosed, not silently
+assigned to humans. Agent/bot includes non-AI automation. Comment counts exclude
+inline review comments and review submissions. Commit counts use the PR's saved
+GitHub connection total, not local first-parent commits. These are account proxies
+and arithmetic means, not verified human identity, causal attribution, or medians.
 
 ## Verify accuracy
 
@@ -111,7 +139,7 @@ requests credentials or performs network operations. Missing objects or shallow
 history fail explicitly. Large repositories may require substantial memory for
 the batched blob inventory.
 
-Open the resulting image and inspect all seven panels at normal viewing size:
+Open the resulting image and inspect all eight panels at normal viewing size:
 titles, axes, labels, footnotes, chart proportions, and snapshot metadata. Automated
 text-bound and overlap checks complement but do not replace visual inspection.
 

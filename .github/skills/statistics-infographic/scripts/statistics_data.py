@@ -173,6 +173,44 @@ def change_histogram(prs: tuple[PRChange, ...]) -> tuple[ChangeBin, ...]:
                  for i, (added, deleted) in enumerate(zip(additions, deletions)))
 
 
+COHORTS = ("Human account", "Agent / bot account", "Unattributed")
+MACHINE_ACCOUNT = re.compile(r"(?:^|[-_])(?:bot|machine[-_]user)(?:$|[-_])", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class Activity:
+    cohort: str
+    prs: int
+    comments: int
+    commits: int
+
+    def average(self, total: int) -> str:
+        return "n/a" if self.prs == 0 else decimal(Fraction(total, self.prs))
+
+
+def activity_groups(records: list[dict[str, object]]) -> tuple[Activity, ...]:
+    numbers = [count(r.get("number"), "PR number") for r in records]
+    require(all(n > 0 for n in numbers) and len(set(numbers)) == len(numbers),
+            "activity records require distinct positive PR numbers")
+    totals = [[0, 0, 0] for _ in COHORTS]
+    for record in records:
+        cohort = 2
+        if record.get("author") is not None:
+            person = mapping(record["author"], "PR author")
+            login = string(person.get("login"), "PR author login")
+            kind = string(person.get("__typename"), "PR author type")
+            if kind == "Bot" or login.casefold() in {"copilot", "copilot-swe-agent"}:
+                cohort = 1
+            elif kind == "User" and not MACHINE_ACCOUNT.search(login):
+                cohort = 0
+        comments = count(mapping(record.get("comments"), "PR comments").get("totalCount"), "comment totalCount")
+        commits = count(mapping(record.get("commits"), "PR commits").get("totalCount"), "commit totalCount")
+        totals[cohort][0] += 1
+        totals[cohort][1] += comments
+        totals[cohort][2] += commits
+    return tuple(Activity(label, *values) for label, values in zip(COHORTS, totals))
+
+
 @dataclass(frozen=True)
 class Statistics:
     repository: str
@@ -196,6 +234,7 @@ class Statistics:
     groups: tuple[Group, ...]
     weeks: tuple[Week, ...]
     changes: tuple[ChangeBin, ...]
+    activity: tuple[Activity, ...]
 
     @property
     def all_prs(self) -> Outcome:
@@ -211,14 +250,15 @@ class Statistics:
 
     @classmethod
     def from_sources(cls, sources: dict[str, object]) -> "Statistics":
-        o, h, c, s, w, p = [mapping(sources.get(key), key) for key in
-                            ("origins", "histogram", "community", "structure", "history", "pr_changes")]
+        o, h, c, s, w, p, a = [mapping(sources.get(key), key) for key in
+                               ("origins", "histogram", "community", "structure", "history", "pr_changes", "pr_activity")]
         repo = string(o.get("repository"), "repository")
-        require(all(source.get("repository") == repo for source in (h, c, s, w, p)),
+        require(all(source.get("repository") == repo for source in (h, c, s, w, p, a)),
                 "all source repositories must match")
         snapshot = date.fromisoformat(string(o.get("snapshot_date"), "snapshot_date"))
         require(h.get("snapshot_date") == snapshot.isoformat(), "PR and histogram snapshot dates must match")
         require(p.get("snapshot_date") == snapshot.isoformat(), "PR change histogram snapshot date must match census")
+        require(a.get("snapshot_date") == snapshot.isoformat(), "PR activity snapshot date must match census")
         collected = datetime.fromisoformat(string(c.get("collected_at"), "collected_at").replace("Z", "+00:00"))
         require(collected.utcoffset() is not None, "community collected_at must include a timezone")
         commit = string(s.get("commit"), "commit")
@@ -342,8 +382,20 @@ class Statistics:
         require(changes[-1].added + changes[-1].deleted > 0, "PR change histogram must not have trailing empty bins")
         require(sum(b.added for b in changes) == sum(b.deleted for b in changes) == total,
                 "each PR change series must sum to the entire PR census")
+        activity_rows = rows(a.get("cohorts"), "pr_activity.cohorts")
+        activity = tuple(Activity(string(r.get("cohort"), "cohort"), count(r.get("prs"), "cohort.prs"),
+                                  count(r.get("comments"), "cohort.comments"), count(r.get("commits"), "cohort.commits"))
+                         for r in activity_rows)
+        require(tuple(g.cohort for g in activity) == COHORTS, "expected ordered human, agent/bot and unattributed cohorts")
+        require(count(a.get("pr_count"), "activity.pr_count") == sum(g.prs for g in activity) == total,
+                "activity cohorts must partition the entire PR census")
+        require(all(g.prs > 0 or g.comments == g.commits == 0 for g in activity),
+                "empty activity cohorts cannot have comments or commits")
+        for record, activity_group in zip(activity_rows, activity):
+            check_published(record, "comments_per_pr", activity_group.average(activity_group.comments))
+            check_published(record, "commits_per_pr", activity_group.average(activity_group.commits))
         return cls(repo, snapshot, collected, commit, outcomes, MappingProxyType(components), assumption, bins, median, p90,
-                   labelled, eligible, authors, landed, closed, opened, delivery, cca, groups, weeks, changes)
+                   labelled, eligible, authors, landed, closed, opened, delivery, cca, groups, weeks, changes, activity)
 
 
 FILENAMES = {
@@ -353,6 +405,7 @@ FILENAMES = {
     "structure": "repo-structure-statistics.json",
     "history": "weekly-code-history.json",
     "pr_changes": "pr-change-histogram.json",
+    "pr_activity": "pr-activity-summary.json",
 }
 
 

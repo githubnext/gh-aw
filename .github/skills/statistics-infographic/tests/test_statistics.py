@@ -23,8 +23,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from audit_sources import audit_api, audit_git, percentile
 from compute_pr_changes import compute
+from compute_pr_activity import compute as compute_activity
 from render_infographic import Canvas, LayoutError, discover_fonts, render, save
-from statistics_data import DataError, Outcome, PRChange, Statistics, change_histogram, decimal, percent
+from statistics_data import Activity, DataError, Outcome, PRChange, Statistics, activity_groups, change_histogram, decimal, percent
 
 
 def example():
@@ -32,6 +33,39 @@ def example():
 
 
 class ArithmeticTests(unittest.TestCase):
+    @settings(max_examples=100, derandomize=True, database=None)
+    @given(st.integers(0, 10**12), st.integers(1, 10**8))
+    def test_activity_means_match_decimal_oracle(self, total, prs):
+        expected = (Decimal(total) / Decimal(prs)).quantize(Decimal(".1"), rounding=ROUND_HALF_UP)
+        self.assertEqual(Activity("Human account", prs, total, 0).average(total), f"{expected:.1f}")
+        self.assertEqual(Activity("Human account", 0, 0, 0).average(0), "n/a")
+
+    def test_activity_account_classification_and_individual_totals(self):
+        authors = [
+            {"login": "person", "__typename": "User"},
+            {"login": "github-actions", "__typename": "Bot"},
+            {"login": "copilot-swe-agent", "__typename": "User"},
+            {"login": "some-machine-user", "__typename": "User"},
+            None,
+        ]
+        records = [{"number": i + 1, "author": author, "comments": {"totalCount": i},
+                    "commits": {"totalCount": i + 1}} for i, author in enumerate(authors)]
+        self.assertEqual(activity_groups(records), (
+            Activity("Human account", 1, 0, 1), Activity("Agent / bot account", 2, 3, 5),
+            Activity("Unattributed", 2, 7, 9)))
+        for mutate in (
+            lambda r: r.append(deepcopy(r[0])),
+            lambda r: r[0].update(number=0),
+            lambda r: r[0].pop("commits"),
+            lambda r: r[0]["comments"].update(totalCount=None),
+            lambda r: r[0]["commits"].update(totalCount=True),
+            lambda r: r[0]["commits"].update(totalCount=-1),
+        ):
+            bad = deepcopy(records)
+            mutate(bad)
+            with self.assertRaises(DataError):
+                activity_groups(bad)
+
     @settings(max_examples=150, derandomize=True, database=None)
     @given(st.lists(st.tuples(st.integers(0, 10**30), st.integers(0, 10**30)), max_size=260))
     def test_change_histogram_matches_direct_count_oracle(self, values):
@@ -126,6 +160,10 @@ class ContractTests(unittest.TestCase):
             ("pr_changes", "snapshot_date", "2026-10-09"),
             ("pr_changes", "repository", "other/repo"),
             ("pr_changes", "bins", []),
+            ("pr_activity", "pr_count", 99),
+            ("pr_activity", "snapshot_date", "2026-10-09"),
+            ("pr_activity", "repository", "other/repo"),
+            ("pr_activity", "cohorts", []),
         ]
         for section, field, value in changes:
             with self.subTest(section=section, field=field), self.assertRaises(ValueError):
@@ -173,6 +211,11 @@ class ContractTests(unittest.TestCase):
             lambda p: p["pr_changes"]["bins"][1].update(lower=126),
             lambda p: p["pr_changes"]["bins"][1].update(upper=251),
             lambda p: p["pr_changes"]["bins"].append({"lower": 1000, "upper": 1125, "added": 0, "deleted": 0}),
+            lambda p: p["pr_activity"]["cohorts"][0].update(prs=4),
+            lambda p: p["pr_activity"]["cohorts"][0].update(comments=True),
+            lambda p: p["pr_activity"]["cohorts"][0].update(comments_per_pr=50),
+            lambda p: p["pr_activity"]["cohorts"][2].update(commits=1),
+            lambda p: p["pr_activity"]["cohorts"].reverse(),
         ]
         for mutate in mutations:
             with self.assertRaises(DataError):
@@ -209,13 +252,22 @@ class RenderingTests(unittest.TestCase):
             output = Path(directory) / "nested/result.png"
             save(a, output)
             with Image.open(output) as image:
-                self.assertEqual(image.size, (2560, 4120))
+                self.assertEqual(image.size, (2560, 5040))
                 self.assertEqual(image.format, "PNG")
                 self.assertFalse(getattr(image, "is_animated", False))
             self.assertEqual(list(output.parent.iterdir()), [output])
         self.assertTrue(any(label.startswith("07") for _, label in a.labels))
         self.assertTrue(any(label == "Lines per PR (inclusive ranges)" for _, label in a.labels))
         self.assertTrue(any(label == "Number of PRs" for _, label in a.labels))
+        self.assertTrue(any(label == "Commits per PR" for _, label in a.labels))
+        self.assertTrue(any(label == "Conversation comments per PR" for _, label in a.labels))
+
+    def test_empty_human_cohort_is_undefined_not_zero(self):
+        payload = example()
+        payload["pr_activity"]["cohorts"][0].update(prs=0, comments=0, commits=0)
+        payload["pr_activity"]["cohorts"][1].update(prs=100)
+        canvas = render(Statistics.from_sources(payload), self.fonts)
+        self.assertEqual(sum(label == "n/a" for _, label in canvas.labels), 2)
 
     def test_empty_history_and_overlapped_bars(self):
         payload = example()
@@ -317,9 +369,12 @@ class ApiAuditTests(unittest.TestCase):
                 references = [issues[0]] if origin == 0 and not direct else ([issues[1]] if origin == 1 and index < 10 else [])
                 if references:
                     body = f"<!-- START COPILOT CODING AGENT SUFFIX -->\nFixes #{references[0]['number']}"
-                pr = {"number": 1000 + len(prs), "state": state, "author": {"login": login},
+                pr = {"number": 1000 + len(prs), "state": state,
+                      "author": {"login": login, "__typename": "User" if origin == 2 else "Bot"},
                       "body": body, "createdAt": created.isoformat(),
                       "additions": next(diff_values["added"]), "deletions": next(diff_values["deleted"]),
+                      "comments": {"totalCount": 5 if origin == 2 else 3},
+                      "commits": {"totalCount": 3 if origin == 2 else 2},
                       "mergedAt": (created + timedelta(hours=next(durations))).isoformat() if state == "MERGED" else None}
                 prs.append(pr)
                 if login == "copilot-swe-agent":
@@ -358,6 +413,9 @@ class ApiAuditTests(unittest.TestCase):
                 ("pr-statistics-data.jsonl", lambda r: r[0].update(additions=999)),
                 ("pr-statistics-data.jsonl", lambda r: r[-1].update(additions=1000)),
                 ("pr-statistics-data.jsonl", lambda r: r[30].update(additions=999)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["comments"].update(totalCount=40)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["commits"].update(totalCount=3)),
+                ("pr-statistics-data.jsonl", lambda r: r[0]["author"].update(__typename="User")),
                 ("cca-issue-links.jsonl", lambda r: r[0]["closingIssuesReferences"].update(totalCount=3)),
                 ("community-issues-data.jsonl", lambda r: r[20].update(state="UNKNOWN")),
                 ("community-issues-data.jsonl", lambda r: r[18]["closedByPullRequestsReferences"]["nodes"][0].update(author={"login": "different"})),
@@ -397,6 +455,23 @@ class ApiAuditTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("PR additions", result.stderr)
             self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, original)
+
+    def test_recompute_comment_commit_comparison_and_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory)
+            self.fixture(raw)
+            census = raw / "census.json"
+            census.write_text(json.dumps(example()["origins"]))
+            output = raw / "computed"
+            compute_activity(raw, census, output)
+            self.assertEqual(json.loads((output / "pr-activity-summary.json").read_text()), example()["pr_activity"])
+            with Image.open(output / "pr-activity.png") as image:
+                self.assertEqual(image.size, (2560, 1180))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/compute_pr_activity.py"), "--raw-dir", str(raw),
+                 "--census", str(census), "--output-dir", str(output)],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class GitAuditTests(unittest.TestCase):
