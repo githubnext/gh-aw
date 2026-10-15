@@ -786,6 +786,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="copilot"

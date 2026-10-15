@@ -294,6 +294,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	for _, envVar := range optionalPRHeadEnvVars {
 		fmt.Fprintf(yaml, "          export %s=\"${%s:-}\"\n", envVar, envVar)
 	}
+	yaml.WriteString("          export GH_AW_TARGET_REPO_SLUG=\"${GH_AW_TARGET_REPO_SLUG:-}\"\n")
 	if enclavesEnabled(workflowData) {
 		yaml.WriteString("          AWF_ENCLAVE_MCP_CAPABILITY=$(openssl rand -hex 32)\n")
 		yaml.WriteString("          echo \"::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}\"\n")
