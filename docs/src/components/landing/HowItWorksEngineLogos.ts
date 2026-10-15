@@ -2,6 +2,7 @@
 // Copilot, Claude and OpenAI from Simple Icons (CC0, https://simpleicons.org);
 // Antigravity from https://antigravity.google/favicon.svg;
 // Kiro from https://kiro.dev/icon.svg;
+// Cursor from https://cursor.com/;
 // OpenCode from https://github.com/anomalyco/opencode/blob/dev/packages/ui/src/assets/favicon/favicon-v3.svg;
 // Pi from https://pi.dev/favicon.svg. Trademarks belong to their respective owners.
 export interface EngineLogo {
@@ -35,6 +36,12 @@ export const engineLogos: Record<string, EngineLogo> = {
     ],
   },
   pi: { viewBox: "0 0 560 560", paths: ["M420 280H280V140H0V0H420V280Z", "M560 560H420V280H560V560Z", "M140 560H0V140H140V280H280V420H140V560Z"] },
+  cursor: {
+    viewBox: "0 0 500 545",
+    paths: [
+      "m466.383 137.073-206.469-119.2034c-6.63-3.8287-14.811-3.8287-21.441 0l-206.4586 119.2034c-5.5734 3.218-9.0144 9.169-9.0144 15.615v240.375c0 6.436 3.441 12.397 9.0144 15.615l206.4686 119.203c6.63 3.829 14.811 3.829 21.441 0l206.468-119.203c5.574-3.218 9.015-9.17 9.015-15.615v-240.375c0-6.436-3.441-12.397-9.015-15.615zm-12.969 25.25-199.316 345.223c-1.347 2.326-4.904 1.376-4.904-1.319v-226.048c0-4.517-2.414-8.695-6.33-10.963l-195.7577-113.019c-2.3263-1.347-1.3764-4.905 1.3182-4.905h398.6305c5.661 0 9.199 6.136 6.368 11.041h-.009z",
+    ],
+  },
   opencode: {
     viewBox: "96 96 320 320",
     paths: ["M384 416H128V96H384V416ZM320 160H192V352H320V160Z"],
