@@ -12,7 +12,7 @@ gh-aw lets a workflow declare `tools.edit` to control an engine's native file-ed
 
 ### Decision
 
-We will model native editing as explicit engine capabilities (`NativeEdit` and `NativeEditDisable` on `AgenticEngineCapabilities`, surfaced declaratively as `engine.behaviors.capabilities.native-edit` / `native-edit-disable`) and validate explicit boolean `tools.edit` settings against them at compile time in `Compiler.validateNativeEditSupport`. An explicit `edit: true` requires `NativeEdit`; an explicit `edit: false` requires `NativeEditDisable`; otherwise compilation fails with an actionable error instead of silently dropping the policy. Validation runs before engine defaulting/fallback so a boolean policy cannot be discarded. Copilot, Claude, Gemini, and Pi declare both capabilities; Codex and Agy declare only `NativeEdit` and therefore reject `edit: false`. Gemini's editor mapping is fixed, Copilot emits an explicit write denial rather than relying on wildcards, and the Copilot SDK separates editor and shell/process catalogs. Custom (behavior-defined) engines opt in by declaring the capabilities and consuming the compiler-owned `GH_AW_TOOLS_EDIT` runtime environment variable. Omitted `edit` and the legacy `edit:` / `edit: {}` forms keep existing engine defaults, preserving compatibility for current workflows.
+We will model native editing as explicit engine capabilities (`NativeEdit` and `NativeEditDisable` on `EngineCapabilities`, surfaced declaratively as `engine.behaviors.capabilities.native-edit` / `native-edit-disable`) and validate configured `tools.edit` settings against them at compile time in `Compiler.validateNativeEditSupport`. The enable forms `edit: true`, `edit:`, and `edit: {}` are equivalent and require `NativeEdit`; `edit: false` requires `NativeEditDisable`; otherwise compilation fails with an actionable error instead of silently dropping the policy. Validation runs before engine defaulting/fallback so a configured policy cannot be discarded. Copilot, Claude, Gemini, and Pi declare both capabilities; Codex and Agy declare only `NativeEdit` and therefore reject `edit: false`. Gemini's editor mapping is fixed, Copilot emits an explicit write denial rather than relying on wildcards, and the Copilot SDK separates editor and shell/process catalogs. Custom (behavior-defined) engines retain native editing support by default for compatibility; engines without native editors must declare `native-edit: false`, and disabling editing requires an explicit `native-edit-disable: true` declaration. Configured enable forms all produce the same compiler-owned `GH_AW_TOOLS_EDIT=true` runtime policy; a denial produces `false`. Omitted `edit` retains existing defaults.
 
 ### Alternatives Considered
 
@@ -31,7 +31,7 @@ Instead of per-engine tool policy, gh-aw could block writes in the sandbox so th
 ### Consequences
 
 #### Positive
-- Explicit `tools.edit` booleans now behave consistently across Copilot, Claude, Gemini, and Pi, and a policy that cannot be enforced is reported at compile time instead of being silently dropped.
+- Configured `tools.edit` settings now behave consistently across Copilot, Claude, Gemini, and Pi, including equivalence between `edit:` and `edit: true`, and a policy that cannot be enforced is reported at compile time instead of being silently dropped.
 - Disabling native editing no longer side-affects shell/process tools: the Copilot SDK catalogs are separated and native editing never implies shell execution.
 - Third-party/custom engines have a documented, testable integration contract (`native-edit`, `native-edit-disable`, `GH_AW_TOOLS_EDIT`) instead of undefined behavior.
 
@@ -41,9 +41,9 @@ Instead of per-engine tool policy, gh-aw could block writes in the sandbox so th
 - Every engine implementation now carries additional capability state that must be kept accurate as upstream CLIs change, adding ongoing maintenance surface.
 
 #### Neutral
-- Omitted `edit` and the legacy `edit:` / `edit: {}` forms are untouched, so existing workflows and custom-engine integrations keep their current defaults.
+- Omitted `edit` preserves existing defaults. Empty and empty-object configurations are explicit enables, not exceptions to capability validation. Existing custom engines retain native editing support by default, while disabling editing remains opt-in.
 - Disabling native editors is not a filesystem write barrier; separately enabled shell or MCP tools can still write, and Claude's scoped memory and sandbox scratch grants are unchanged.
-- The change touches the workflow JSON schema, frontmatter/tools/third-party-agent reference docs, and one generated `.lock.yml`, so schema-freshness and recompile checks are part of the validation path. `tools.read` behavior is unchanged.
+- The change touches the workflow JSON schema, frontmatter/tools/third-party-agent reference docs, and generated `.lock.yml` files, so schema-freshness and recompile checks are part of the validation path. `tools.read` behavior is unchanged.
 
 ---
 
