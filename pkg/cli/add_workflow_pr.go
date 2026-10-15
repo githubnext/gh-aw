@@ -212,7 +212,6 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request "+prURL))
 	return prNumber, prURL, nil
 }
 

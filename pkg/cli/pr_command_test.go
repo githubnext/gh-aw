@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +43,127 @@ func TestCreatePRForRepoSkipsRepositoryLookup(t *testing.T) {
 	args := strings.Join(calls[0], " ")
 	if !strings.Contains(args, "pr create --repo owner/repo") {
 		t.Fatalf("gh args = %q, want explicit repository", args)
+	}
+}
+
+func TestCreatePRPrintsFullURL(t *testing.T) {
+	for _, repoSlug := range []string{"", "owner/repo"} {
+		for _, verbose := range []bool{false, true} {
+			t.Run(fmt.Sprintf("repo=%s/verbose=%t", repoSlug, verbose), func(t *testing.T) {
+				originalRunGH := createPRRunGHContextWithHost
+				t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+
+				prURL := "https://github.example.com/owner/repo/pull/42"
+				createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+					if args[0] == "repo" {
+						return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
+					}
+					return []byte(prURL + "\n"), nil
+				}
+
+				_, stderr := captureOutput(t, func() error {
+					var number int
+					var url string
+					var err error
+					if repoSlug == "" {
+						number, url, err = createPR(context.Background(), "feature", "Title", "Body", verbose)
+					} else {
+						number, url, err = createPRForRepo(context.Background(), "feature", "Title", "Body", repoSlug, verbose)
+					}
+					if number != 42 || url != prURL {
+						t.Errorf("createPR returned (%d, %q), want (42, %q)", number, url, prURL)
+					}
+					return err
+				})
+				if strings.Count(stderr, prURL) != 1 {
+					t.Fatalf("stderr = %q, want full PR URL exactly once", stderr)
+				}
+				if !strings.Contains(stderr, "Created pull request: "+prURL+"\n") {
+					t.Fatalf("stderr = %q, want unbroken full PR URL", stderr)
+				}
+			})
+		}
+	}
+}
+
+func TestCreatePRFailureDoesNotPrintSuccess(t *testing.T) {
+	originalRunGH := createPRRunGHContextWithHost
+	t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+	createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, _ ...string) ([]byte, error) {
+		return nil, errors.New("creation failed")
+	}
+
+	_, stderr := captureOutput(t, func() error {
+		_, _, err := createPRForRepo(context.Background(), "feature", "Title", "Body", "owner/repo", false)
+		if err == nil {
+			t.Error("expected PR creation error")
+		}
+		return nil
+	})
+	if strings.Contains(stderr, "Created pull request:") {
+		t.Fatalf("stderr = %q, unexpected success message", stderr)
+	}
+}
+
+func TestCreateTransferPRPrintsFullURL(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+	prependFakeGH(t, `case "$1 $2" in
+	  'api /user') echo transfer-user;;
+	  'api /repos/owner/repo/collaborators/transfer-user/permission') echo '{"permission":"write"}';;
+	  'pr create') echo 'https://github.example.com/owner/repo/pull/99';;
+	  *) echo unexpected gh "$@" >&2; exit 1;;
+	esac
+	`)
+
+	_, stderr := captureOutput(t, func() error {
+		return createTransferPR("owner", "repo", &PRInfo{Title: "Title", Number: 42, SourceRepo: "source/repo"}, "main", false)
+	})
+	if !strings.Contains(stderr, "Created pull request: https://github.example.com/owner/repo/pull/99\n") {
+		t.Fatalf("stderr = %q, want full transferred PR URL", stderr)
+	}
+}
+
+func TestCreatePRWithChangesPrintsURLBeforeCleanup(t *testing.T) {
+	for _, failCleanup := range []bool{false, true} {
+		t.Run(fmt.Sprintf("failCleanup=%t", failCleanup), func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("updated\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			originalRunGH := createPRRunGHContextWithHost
+			t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+			prURL := "https://github.example.com/owner/repo/pull/42"
+			createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+				if args[0] == "repo" {
+					return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
+				}
+				if failCleanup {
+					runGit(t, repoDir, "branch", "-D", "main")
+					runGit(t, repoDir, "config", "checkout.guess", "false")
+				}
+				return []byte(prURL + "\n"), nil
+			}
+
+			_, stderr := captureOutput(t, func() error {
+				url, err := CreatePRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false)
+				if url != prURL {
+					t.Errorf("PR URL = %q, want %q", url, prURL)
+				}
+				if failCleanup {
+					if err == nil || !strings.Contains(err.Error(), "failed to switch back") {
+						t.Errorf("error = %v, want branch cleanup error", err)
+					}
+					return nil
+				}
+				return err
+			})
+			if strings.Count(stderr, prURL) != 1 {
+				t.Fatalf("stderr = %q, want full PR URL exactly once", stderr)
+			}
+		})
 	}
 }
 

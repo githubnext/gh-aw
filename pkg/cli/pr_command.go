@@ -529,12 +529,10 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		return fmt.Errorf("could not create PR; ensure required prerequisites are configured, then retry: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR created successfully!"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request: "+strings.TrimSpace(string(output))))
 	if needsFork {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PR created from fork %s/%s to %s/%s", forkOwner, forkRepo, targetOwner, targetRepo)))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("URL: "+strings.TrimSpace(string(output))))
-
 	return nil
 }
 
@@ -820,6 +818,7 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	}
 
 	prURL := strings.TrimSpace(string(output))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request: "+prURL))
 
 	// Parse PR number from URL (e.g., https://github.com/owner/repo/pull/123)
 	prNumber := 0
