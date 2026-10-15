@@ -97,6 +97,8 @@ Analyze the repository and create a concise daily status report covering:
 
 Pi supports native MCP tools and resources, codemode, tool search, provider-prefixed models, and workflow-installed Pi packages. Native MCP connects only to the compiler-managed gateway; provider and GitHub credentials remain outside the sandbox.
 
+Safe-output instructions use native MCP by default. Workflows with `tools.bash: false` must explicitly set `tools.cli-proxy: false` and use native tools. Explicit `tools.cli-proxy: true` selects CLI-only instructions for mounted safe-output tools, just as it does for other MCP-capable engines. GitHub `gh-proxy` mode changes GitHub reads only; it does not disable native safe-output tools.
+
 Codemode batches tool calls and reduces results before they enter model context. Its classifier and image-generation APIs are available when the configured provider route supports those model types. Custom providers still need a compatible API-proxy target and credentials; enabling codemode does not grant additional credentials or network access.
 
 For Copilot models using the Responses API, gh-aw disables grammar-based custom tools (`model.compat.supportsOpenAIGrammarTools: false`) so Pi sends codemode as a JSON-schema function tool. Codemode remains enabled; the Copilot compatibility adapter does not accept its custom-tool format. Other provider routes retain their configured compatibility settings.

@@ -1166,8 +1166,8 @@ repeated anonymous text does not establish snapshot coverage.
 | `tool_execution_start` / `tool_execution_end` | Independent start/completion using `toolCallId`, tool name/arguments, `result`, and `isError`; keep orphan ends and dangling starts. |
 | `toolcall_start` / `toolcall_delta` / `toolcall_end` message updates | One `tool.execution_start`, reconciled with partial argument text and finalized arguments. An orphan argument delta remains a partial `tool.execution_update`; boundary-only updates and repeated snapshots do not introduce message wrappers. |
 | `tool_execution_update` | `tool.execution_update` with canonical `input`, partial `output`, correlation IDs, and `partial: true`, not a Pi-specific message. |
-| Distinct `turn_end.message.usage` | Sum supplied `input`/`output`; map supplied `cacheRead`/`cacheWrite` to cache-read/cache-creation fields. Preserve other usage/cost data when exposed. |
-| Finalized message `errorMessage` or top-level `error` | `session.error` and `session.result.errors`, even when content is empty; repeated message snapshots retain one diagnostic observation. |
+| Distinct `turn_end.message.usage` | Sum supplied `input`/`output`; map supplied `cacheRead`/`cacheWrite` to cache-read/cache-creation fields and `reasoning` to reasoning-output tokens. Reasoning is a subset of output, not additional total tokens. Include reported auxiliary inference usage once, preserving reported zero counts. |
+| Finalized message `errorMessage`, top-level `error`, or RPC `extension_error` | `session.error` and `session.result.errors`, even when content is empty or no session header was emitted; repeated message snapshots retain one diagnostic observation. |
 | Recognized `agent_end` or other terminal accounting | Reconcile any supplied session snapshot; do not add it again to per-turn totals. |
 | `agent_start`, `agent_settled`, retry, compaction, queue, entry, and reasoning-effort observations | Engine-independent `session.*` lifecycle extensions retaining the supplied payload. |
 
@@ -1192,7 +1192,7 @@ from model/usage metadata. Unknown `pi.*` extensions remain opaque. The session
 download command applies this normalization to published JSONL only when trusted
 run metadata identifies Pi; it does not rewrite stored Actions artifacts.
 
-The adapter can discover a reported model from a finalized turn without inventing an earlier model observation. Presentation aliases such as `bash` → `Bash` do not change canonical tool names. Sources lacking duration or cost do not supply zero duration or zero cost.
+The adapter can discover a reported model from a finalized turn without inventing an earlier model observation. When Pi reports `responseModel`, canonical message and error observations use that served model; the canonical trace retains the requested `model` and native thinking levels as message metadata. Child request observations also preserve reported reasoning-output tokens without adding them to parent usage. Presentation aliases such as `bash` → `Bash` do not change canonical tool names. Sources lacking duration or cost do not supply zero duration or zero cost.
 
 ### 7.6 Custom engines
 
