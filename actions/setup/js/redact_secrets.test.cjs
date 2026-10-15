@@ -1233,8 +1233,14 @@ Custom secret: my-secret-123456789012`;
 
           it("preserves compatibility when older AWF does not publish the artifact", () => {
             const { stageAWFResolvedConfig, AWF_RESOLVED_CONFIG_STAGING_PATH } = require("./redact_secrets.cjs");
-            expect(stageAWFResolvedConfig(undefined, [], [])).toBe(false);
-            expect(fs.existsSync(AWF_RESOLVED_CONFIG_STAGING_PATH)).toBe(false);
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation(() => {});
+            try {
+              expect(stageAWFResolvedConfig(undefined, [], [])).toBe(false);
+              expect(fs.existsSync(AWF_RESOLVED_CONFIG_STAGING_PATH)).toBe(false);
+              expect(remove).toHaveBeenCalledWith(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+            } finally {
+              remove.mockRestore();
+            }
           });
 
           it("stages only sanitized configuration after validating the protected source", () => {
@@ -1276,6 +1282,142 @@ Custom secret: my-secret-123456789012`;
               expect(rename).toHaveBeenCalledWith("/tmp/gh-aw/.awf-resolved-config-test/awf-resolved-config.json", AWF_RESOLVED_CONFIG_STAGING_PATH);
             } finally {
               for (const spy of [lstat, open, fstat, read, close, mkdtemp, write, rename, remove]) spy.mockRestore();
+            }
+          });
+
+          it.each([
+            ["wrong root ownership", root => root.uid++],
+            ["unsafe run-directory permissions", (_root, directory) => (directory.mode = 0o40777)],
+            ["wrong source ownership", (_root, _directory, source) => source.uid++],
+            ["unsafe source permissions", (_root, _directory, source) => (source.mode = 0o100644)],
+            ["symbolic link", (_root, _directory, source) => (source.isFile = () => false)],
+            ["extra hard link", (_root, _directory, source) => (source.nlink = 2)],
+            ["changed inode", (_root, _directory, _source, opened) => opened.ino++],
+            ["changed device", (_root, _directory, _source, opened) => opened.dev++],
+          ])("rejects AWF source with %s and leaves no staged output", (_description, mutate) => {
+            const { stageAWFResolvedConfig, AWF_RESOLVED_CONFIG_STAGING_PATH } = require("./redact_secrets.cjs");
+            const sourcePath = "/run/awf-config-audit/run-abcdef/awf-resolved-config.json";
+            const source = { isFile: () => true, isDirectory: () => false, uid: process.getuid(), nlink: 1, mode: 0o100600, ino: 42, dev: 7 };
+            const opened = { ...source };
+            const root = { isDirectory: () => true, uid: 0, mode: 0o40711 };
+            const directory = { isDirectory: () => true, uid: process.getuid(), mode: 0o40700 };
+            mutate(root, directory, source, opened);
+            const lstat = vi.spyOn(fs, "lstatSync").mockImplementation(file => {
+              if (file === "/run/awf-config-audit") return root;
+              if (file === path.dirname(sourcePath)) return directory;
+              if (file === sourcePath) return source;
+              throw new Error(`unexpected path: ${file}`);
+            });
+            const open = vi.spyOn(fs, "openSync").mockReturnValue(9);
+            const fstat = vi.spyOn(fs, "fstatSync").mockReturnValue(opened);
+            const read = vi.spyOn(fs, "readFileSync").mockReturnValue('{"command":"safe"}');
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation(() => {});
+            const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => {});
+            const unlink = vi.spyOn(fs, "unlinkSync").mockImplementation(() => {});
+            try {
+              expect(() => stageAWFResolvedConfig(sourcePath, [], [])).toThrow();
+              expect(read).not.toHaveBeenCalled();
+              expect(rename).not.toHaveBeenCalled();
+              expect(unlink).not.toHaveBeenCalled();
+              expect(remove).toHaveBeenCalledWith(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+            } finally {
+              for (const spy of [lstat, open, fstat, read, remove, rename, unlink]) spy.mockRestore();
+            }
+          });
+
+          it("rejects malformed AWF JSON without staging output or modifying the source", () => {
+            const { stageAWFResolvedConfig, AWF_RESOLVED_CONFIG_STAGING_PATH } = require("./redact_secrets.cjs");
+            const sourcePath = "/run/awf-config-audit/run-abcdef/awf-resolved-config.json";
+            const source = { isFile: () => true, isDirectory: () => false, uid: process.getuid(), nlink: 1, mode: 0o100600, ino: 42, dev: 7 };
+            const root = { isDirectory: () => true, uid: 0, mode: 0o40711 };
+            const directory = { isDirectory: () => true, uid: process.getuid(), mode: 0o40700 };
+            const lstat = vi.spyOn(fs, "lstatSync").mockImplementation(file => {
+              if (file === "/run/awf-config-audit") return root;
+              if (file === path.dirname(sourcePath)) return directory;
+              if (file === sourcePath) return source;
+              throw new Error(`unexpected path: ${file}`);
+            });
+            const open = vi.spyOn(fs, "openSync").mockReturnValue(9);
+            const fstat = vi.spyOn(fs, "fstatSync").mockReturnValue(source);
+            const read = vi.spyOn(fs, "readFileSync").mockReturnValue("{malformed");
+            const close = vi.spyOn(fs, "closeSync").mockImplementation(() => {});
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation(() => {});
+            const mkdtemp = vi.spyOn(fs, "mkdtempSync");
+            const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => {});
+            const unlink = vi.spyOn(fs, "unlinkSync").mockImplementation(() => {});
+            try {
+              expect(() => stageAWFResolvedConfig(sourcePath, [], [])).toThrow(/not valid JSON/);
+              expect(read).toHaveBeenCalledWith(9, "utf8");
+              expect(close).toHaveBeenCalledWith(9);
+              expect(mkdtemp).not.toHaveBeenCalled();
+              expect(rename).not.toHaveBeenCalled();
+              expect(unlink).not.toHaveBeenCalled();
+              expect(remove).toHaveBeenCalledWith(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+            } finally {
+              for (const spy of [lstat, open, fstat, read, close, remove, mkdtemp, rename, unlink]) spy.mockRestore();
+            }
+          });
+
+          it("redacts escaped known secrets from serialized configuration values", () => {
+            const { stageAWFResolvedConfig } = require("./redact_secrets.cjs");
+            const sourcePath = "/run/awf-config-audit/run-abcdef/awf-resolved-config.json";
+            const source = { isFile: () => true, isDirectory: () => false, uid: process.getuid(), nlink: 1, mode: 0o100600, ino: 42, dev: 7 };
+            const root = { isDirectory: () => true, uid: 0, mode: 0o40711 };
+            const directory = { isDirectory: () => true, uid: process.getuid(), mode: 0o40700 };
+            const secret = 'quoted"slash\\line\nnext';
+            const lstat = vi.spyOn(fs, "lstatSync").mockImplementation(file => {
+              if (file === "/run/awf-config-audit") return root;
+              if (file === path.dirname(sourcePath)) return directory;
+              if (file === sourcePath) return source;
+              throw new Error(`unexpected path: ${file}`);
+            });
+            const open = vi.spyOn(fs, "openSync").mockReturnValue(9);
+            const fstat = vi.spyOn(fs, "fstatSync").mockReturnValue(source);
+            const read = vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({ command: secret }));
+            const close = vi.spyOn(fs, "closeSync").mockImplementation(() => {});
+            const mkdtemp = vi.spyOn(fs, "mkdtempSync").mockReturnValue("/tmp/gh-aw/.awf-resolved-config-test");
+            let stagedContent;
+            const write = vi.spyOn(fs, "writeFileSync").mockImplementation((_file, content) => {
+              stagedContent = content;
+            });
+            const rename = vi.spyOn(fs, "renameSync").mockImplementation(() => {});
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation(() => {});
+            try {
+              expect(stageAWFResolvedConfig(sourcePath, [secret], [])).toBe(true);
+              expect(JSON.parse(stagedContent).command).not.toContain(secret);
+              expect(JSON.parse(stagedContent).command).toBe("***");
+            } finally {
+              for (const spy of [lstat, open, fstat, read, close, mkdtemp, write, rename, remove]) spy.mockRestore();
+            }
+          });
+
+          it.each(["invalid publication", "staging cleanup failure"])("continues redacting other artifacts after %s", async failure => {
+            const { main } = require("./redact_secrets.cjs");
+            const dir = path.join(process.env.RUNNER_TEMP, "gh-aw");
+            fs.mkdirSync(dir, { recursive: true });
+            const artifact = path.join(dir, "other.log");
+            const secret = "artifact-secret-value";
+            fs.writeFileSync(artifact, `value=${secret}`);
+            vi.stubEnv("GH_AW_SECRET_NAMES", "TEST");
+            vi.stubEnv("SECRET_TEST", secret);
+            if (failure === "invalid publication") vi.stubEnv("AWF_RESOLVED_CONFIG", "/tmp/untrusted.json");
+            const originalRemove = fs.rmSync;
+            const remove = vi.spyOn(fs, "rmSync").mockImplementation((file, options) => {
+              if (failure === "staging cleanup failure" && String(file) === "/tmp/gh-aw/awf-resolved-config.json") {
+                throw Object.assign(new Error("cleanup denied"), { code: "EACCES" });
+              }
+              if (String(file) !== "/tmp/gh-aw/awf-resolved-config.json") {
+                return originalRemove(file, options);
+              }
+            });
+            try {
+              await main();
+              expect(fs.readFileSync(artifact, "utf8")).not.toContain(secret);
+              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("AWF resolved configuration was not collected safely"));
+              expect(mockCore.info).not.toHaveBeenCalledWith("AWF did not publish an early resolved configuration artifact");
+              if (failure === "staging cleanup failure") expect(remove).toHaveBeenCalledTimes(2);
+            } finally {
+              remove.mockRestore();
             }
           });
         });

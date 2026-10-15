@@ -42,7 +42,14 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	c.stepOrderTracker.RecordArtifactUpload("Upload agent artifacts", paths)
 
 	yaml.WriteString("      - name: Upload agent artifacts\n")
-	if requireSuccessfulRedaction {
+	includesAWFResolvedConfig := false
+	for _, artifactPath := range paths {
+		if artifactPath == constants.AWFResolvedConfigFilePath.String() || artifactPath == constants.AWFResolvedConfigFilePathExpr {
+			includesAWFResolvedConfig = true
+			break
+		}
+	}
+	if requireSuccessfulRedaction || includesAWFResolvedConfig {
 		yaml.WriteString("        if: always() && steps.redact_secrets.outcome == 'success'\n")
 	} else {
 		yaml.WriteString("        if: always()\n")
@@ -118,7 +125,11 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 	yaml.WriteString("      # Small dedicated copy of the agent output so safe-output processing\n")
 	yaml.WriteString("      # survives a failed or timed-out upload of the larger agent artifact\n")
 	yaml.WriteString("      - name: Upload agent output fallback artifact\n")
-	yaml.WriteString("        if: always()\n")
+	if isFirewallEnabled(data) {
+		yaml.WriteString("        if: always() && steps.redact_secrets.outcome == 'success'\n")
+	} else {
+		yaml.WriteString("        if: always()\n")
+	}
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        uses: " + c.getActionPin("actions/upload-artifact") + "\n")
 	yaml.WriteString("        with:\n")

@@ -632,6 +632,7 @@ Body.
 	lockYAML := string(lockContent)
 
 	uploadSection := extractWorkflowStepByName(t, lockYAML, "Upload agent output fallback artifact")
+	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 	for _, expected := range []string{
 		"name: agent-output-fallback\n",
 		"/tmp/gh-aw/agent_output.json",
@@ -800,6 +801,7 @@ Body.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 	uploadSection := extractWorkflowStepByName(t, string(lockContent), "Upload agent artifacts")
+	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 
 	for _, expected := range []string{
 		constants.TmpMcpLogsDir,

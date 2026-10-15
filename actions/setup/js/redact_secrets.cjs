@@ -352,31 +352,36 @@ function readAWFResolvedConfig(sourcePath) {
  * @returns {boolean}
  */
 function stageAWFResolvedConfig(sourcePath, secretValues, maskedValues) {
-  const existing = fs.lstatSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { throwIfNoEntry: false });
-  if (existing) {
-    if (!existing.isFile()) throw new Error(`${ERR_VALIDATION}: AWF resolved configuration staging path is not a file`);
-    fs.unlinkSync(AWF_RESOLVED_CONFIG_STAGING_PATH);
-  }
-  if (!sourcePath) return false;
-  const raw = readAWFResolvedConfig(sourcePath);
-  let parsed;
   try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(`${ERR_VALIDATION}: AWF resolved configuration is not valid JSON`);
+    // Remove stale files, directories, or symlinks without following links. This
+    // keeps rejected entries out of artifact uploads when older AWF omits this file.
+    fs.rmSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+    if (!sourcePath) return false;
+    const raw = readAWFResolvedConfig(sourcePath);
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(`${ERR_VALIDATION}: AWF resolved configuration is not valid JSON`);
+    }
+    const safeConfig = redactSensitiveConfig(parsed);
+    const serialized = JSON.stringify(safeConfig, null, 2);
+    const redactionValues = [...new Set([...maskedValues, ...secretValues])];
+    const redacted = redactSecrets(redactBuiltInPatterns(redactArtifactMaskedValues(serialized, redactionValues)).content, redactionValues).content;
+    const temporary = fs.mkdtempSync("/tmp/gh-aw/.awf-resolved-config-");
+    try {
+      const temporaryFile = path.join(temporary, "awf-resolved-config.json");
+      fs.writeFileSync(temporaryFile, redacted, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      fs.renameSync(temporaryFile, AWF_RESOLVED_CONFIG_STAGING_PATH);
+    } finally {
+      fs.rmSync(temporary, { recursive: true, force: true });
+    }
+    return true;
+  } catch (error) {
+    // A failed validation or staging attempt must never leave stale output for upload.
+    fs.rmSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+    throw error;
   }
-  const safeConfig = redactSensitiveConfig(parsed);
-  const serialized = JSON.stringify(safeConfig, null, 2);
-  const redacted = redactSecrets(redactBuiltInPatterns(redactArtifactMaskedValues(serialized, maskedValues)).content, secretValues).content;
-  const temporary = fs.mkdtempSync("/tmp/gh-aw/.awf-resolved-config-");
-  try {
-    const temporaryFile = path.join(temporary, "awf-resolved-config.json");
-    fs.writeFileSync(temporaryFile, redacted, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    fs.renameSync(temporaryFile, AWF_RESOLVED_CONFIG_STAGING_PATH);
-  } finally {
-    fs.rmSync(temporary, { recursive: true, force: true });
-  }
-  return true;
 }
 
 /**
@@ -616,16 +621,18 @@ async function main({ prepareForCustomMasking = false } = {}) {
     }
     const maskedValues = [...masks].sort((a, b) => b.length - a.length);
     let stagedResolvedConfig = false;
+    let resolvedConfigCollectionFailed = false;
     try {
       stagedResolvedConfig = stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
     } catch (error) {
+      resolvedConfigCollectionFailed = true;
       core.setFailed(`${ERR_VALIDATION}: AWF resolved configuration was not collected safely`);
       core.warning(`AWF resolved configuration collection failed: ${getErrorMessage(error)}`);
       core.warning("Continuing with standard artifact redaction despite AWF resolved configuration collection failure");
     }
     if (stagedResolvedConfig) {
       core.info("Collected sanitized AWF resolved configuration");
-    } else {
+    } else if (!resolvedConfigCollectionFailed && !process.env.AWF_RESOLVED_CONFIG) {
       core.info("AWF did not publish an early resolved configuration artifact");
     }
     // Process each file
