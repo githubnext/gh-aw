@@ -78,7 +78,7 @@ const layers = [
               <div class="aw-detail" id={`safe-${l.id}`} role="region" aria-labelledby={`safe-${l.id}-btn`}>
                 <h3>{l.name}</h3>
                 <p>{l.text}</p>
-                <a href={l.href}>Learn more <Octicon name="arrow-right" size={12} /></a>
+                <a href={l.href} data-slideshow-hide>Learn more <Octicon name="arrow-right" size={12} /></a>
               </div>
             </li>
           ))}
@@ -87,10 +87,10 @@ const layers = [
       </div>
     </div>
 
-    <p class="aw-foot">
+    <p class="aw-foot" data-slideshow-hide>
       Try it safely: <a href={`${base}/reference/safe-outputs/`}><code class="aw-code">staged: true</code></a> previews every output without writing anything.
     </p>
-    <p class="aw-foot aw-foot-link">
+    <p class="aw-foot aw-foot-link" data-slideshow-hide>
       <a href={`${base}/introduction/architecture/`}>Read the security architecture →</a>
     </p>
   </div>

@@ -46,7 +46,7 @@ const options = [
             <track kind="captions" src={`${base}/videos/${o.video}.vtt`} srclang="en" label="English" default />
           </video>
         </div>
-        <p class="aw-watch-desc">{o.description} <a class="aw-link" href={o.href}>{o.linkText} →</a></p>
+        <p class="aw-watch-desc" data-slideshow-hide>{o.description} <a class="aw-link" href={o.href}>{o.linkText} →</a></p>
       </div>
     ))}
   </div>

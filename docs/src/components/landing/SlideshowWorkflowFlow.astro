@@ -1,0 +1,107 @@
+---
+import Octicon from '../Octicon.astro';
+---
+
+<figure class="aw-workflow-flow" aria-label="Agentic workflow execution" data-slideshow-entrance="rise">
+  <figcaption>
+    <Octicon name="mark-github" size={20} />
+    Runs safely on GitHub Actions
+  </figcaption>
+  <ol role="list" aria-label="Workflow execution">
+    <li>
+      <span class="aw-flow-icon aw-flow-trigger"><Octicon name="zap" size={26} /></span>
+      <span class="aw-flow-label"><strong>When</strong><span>Trigger</span></span>
+    </li>
+    <li>
+      <span class="aw-flow-icon"><Octicon name="lock" size={24} /></span>
+      <span class="aw-flow-label"><strong>Agent</strong><span>Sandboxed</span></span>
+    </li>
+    <li>
+      <span class="aw-flow-icon"><Octicon name="git-pull-request" size={20} /><Octicon name="tag" size={20} /></span>
+      <span class="aw-flow-label"><strong>Safe outputs</strong><span>Checked writes</span></span>
+    </li>
+  </ol>
+</figure>
+
+<style>
+  .aw-workflow-flow {
+    width: 100%;
+    max-width: 42rem;
+    margin: 2rem 0 0;
+    padding: 1.5rem;
+    text-align: start;
+    border: 1px solid var(--aw-color-border-strong);
+    border-radius: var(--aw-radius-lg);
+    background: var(--aw-color-surface);
+  }
+  figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--aw-color-text-muted);
+    font-size: var(--aw-step-0);
+    font-weight: 550;
+  }
+  ol {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+  }
+  li + li::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: -1.625rem;
+    width: 1.125rem;
+    border-top: 2px dashed var(--aw-color-accent-text);
+  }
+  li + li::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: -0.625rem;
+    border-block: 0.25rem solid transparent;
+    border-inline-start: 0.375rem solid var(--aw-color-accent-text);
+  }
+  .aw-flow-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    gap: 0.125rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding-inline: 0.375rem;
+    border-radius: var(--aw-radius-lg);
+    background: var(--aw-color-accent-low);
+    color: var(--aw-color-accent-text);
+  }
+  .aw-flow-trigger {
+    border-radius: 50%;
+  }
+  .aw-flow-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    line-height: 1.25;
+  }
+  strong {
+    color: var(--aw-color-text-strong);
+    font-size: var(--aw-step-1);
+    font-weight: 600;
+  }
+  .aw-flow-label > span {
+    color: var(--aw-color-text-muted);
+    font-size: var(--aw-step--1);
+  }
+</style>

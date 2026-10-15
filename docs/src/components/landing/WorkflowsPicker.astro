@@ -56,7 +56,7 @@ const tabIcon = { 'repo-assist': 'copilot', 'ci-doctor': 'pulse', 'repo-status':
       >
         <div class="wf-copy">
           <h3>{w.name}</h3>
-          <span class="wf-trigger"><Octicon name={w.triggerIcon} size={14} />{w.trigger}</span>
+          <span class="wf-trigger" data-slideshow-hide><Octicon name={w.triggerIcon} size={14} />{w.trigger}</span>
           <p class="wf-outcome">{w.outcome}</p>
           <p class="wf-detail" data-slideshow-hide>{w.detail}</p>
           {w.id === 'repo-assist' && (

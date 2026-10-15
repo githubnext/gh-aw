@@ -81,7 +81,7 @@ test("reveals items permanently after finishing, rapid navigation, exit and reop
   await expect(items.first()).toHaveAttribute("data-entrance-count", "1");
   await items.first().evaluate(element => element.getAnimations().forEach(animation => animation.finish()));
   await expect(items.first()).toHaveCSS("opacity", "1");
-  expect(await items.first().evaluate(element => element.getAnimations().length)).toBe(0);
+  await expect.poll(() => items.first().evaluate(element => element.getAnimations().length)).toBe(0);
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowLeft");
   for (const item of await items.all()) {

@@ -300,8 +300,10 @@ test("preserves interactive demos and restores the original page, focus and scro
   await expect(dialog).not.toBeVisible();
 });
 
-test("hides the desktop control and exits when resized to mobile", async ({ page }) => {
+test("keeps presenting on tablets and exits when resized to mobile", async ({ page }) => {
   await startSlideshow(page);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expect(presentation(page)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(presentation(page)).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Start slideshow" })).not.toBeVisible();
@@ -309,6 +311,30 @@ test("hides the desktop control and exits when resized to mobile", async ({ page
   await page.getByRole("button", { name: "Menu", exact: true }).click();
   await expect(page.locator("#site-menu [data-slideshow-trigger]")).toHaveCount(0);
 });
+
+for (const width of [640, 768, 799]) {
+  test(`launches the slideshow from the collapsed tablet header at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1024 });
+    const trigger = page.getByRole("button", { name: "Start slideshow" });
+    await expect(trigger).toBeVisible();
+    await expect(trigger).toHaveCSS("width", "44px");
+    await expect(trigger).toHaveCSS("height", "44px");
+    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+    const titleBounds = await page.locator(".site-header .site-title").boundingBox();
+    const controlsBounds = await page.locator(".site-header-end").boundingBox();
+    if (!titleBounds || !controlsBounds) throw new Error("Tablet header title and controls must be visible");
+    expect(titleBounds.x + titleBounds.width).toBeLessThanOrEqual(controlsBounds.x);
+    expect(controlsBounds.x + controlsBounds.width).toBeLessThanOrEqual(width);
+    await startSlideshow(page);
+    await expect(presentation(page).locator("[data-slideshow-status]")).toContainText("1 / 12");
+    await page.keyboard.press("ArrowRight");
+    await expect(presentation(page).locator("[data-slideshow-status]")).toContainText("2 / 12");
+    await page.setViewportSize({ width: 639, height: 1024 });
+    await expect(presentation(page)).not.toBeVisible();
+    await expect(trigger).not.toBeVisible();
+    await expect(page.locator("main [data-slideshow-slides] > section[hidden]")).toHaveCount(0);
+  });
+}
 
 test("floats a translucent toolbar that becomes opaque on hover and keyboard focus", async ({ page }) => {
   const trigger = page.getByRole("button", { name: "Start slideshow" });
@@ -388,6 +414,63 @@ test("hides annotated secondary content only during the presentation", async ({ 
   await expect(page.locator(".aw-hero .aw-cta-note:visible")).toHaveCount(1);
   await expect(page.locator(".wf-detail:visible")).toHaveCount(1);
   await expect(page.locator(".ma")).toBeVisible();
+});
+
+test("omits secondary captions and links from slides but restores them on the normal page", async ({ page }) => {
+  const selectors = [".wf-trigger", ".aw-watch-desc", ".aw-foot", "#cost-guardrails .aw-more", ".aw-engine-maker", ".aw-points .aw-link", ".aw-links .aw-desc"];
+  for (const selector of selectors) await expect(page.locator(selector).first()).toBeVisible();
+  await startSlideshow(page);
+  for (let index = 0; index < 12; index++) {
+    await expect(presentation(page).locator("[data-slideshow-status]")).toContainText(`${index + 1} / 12`);
+    await expect(presentation(page).locator(selectors.join(", ")).filter({ visible: true })).toHaveCount(0);
+    if (index < 11) await page.keyboard.press("PageDown");
+  }
+  await page.keyboard.press("Escape");
+  for (const selector of selectors) await expect(page.locator(selector).first()).toBeVisible();
+});
+
+test("presents the workflow diagram beneath the opening title only", async ({ page }) => {
+  const hero = page.locator('.aw-hero [data-variant="a"]');
+  const paragraph = hero.locator(".aw-hero-sub");
+  const titleSlide = page.locator(".aw-title-slide");
+  const diagram = titleSlide.getByRole("figure", { name: "Agentic workflow execution", includeHidden: true });
+  await expect(paragraph).toBeVisible();
+  await expect(paragraph).toContainText("triage issues, investigate failures");
+  await expect(diagram).not.toBeVisible();
+  await startSlideshow(page);
+  await expect(presentation(page).locator("[data-slideshow-status]")).toContainText("1 / 12");
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toContainText("Runs safely on GitHub Actions");
+  await expect(diagram.getByRole("listitem")).toHaveCount(3);
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(value => {
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    for (const size of [
+      { width: 1440, height: 900 },
+      { width: 1024, height: 600 },
+      { width: 845, height: 859 },
+      { width: 768, height: 1024 },
+      { width: 640, height: 960 },
+    ]) {
+      await page.setViewportSize(size);
+      await expect.poll(() => diagram.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await expect
+        .poll(async () => {
+          const titleBounds = await titleSlide.locator("h1").boundingBox();
+          const diagramBounds = await diagram.boundingBox();
+          if (!titleBounds || !diagramBounds || diagramBounds.y <= titleBounds.y + titleBounds.height) return Infinity;
+          return Math.abs(diagramBounds.x + diagramBounds.width / 2 - size.width / 2);
+        })
+        .toBeLessThan(1);
+    }
+  }
+  await page.keyboard.press("PageDown");
+  await expect(paragraph).toBeVisible();
+  await expect(diagram).not.toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(paragraph).toBeVisible();
+  await expect(diagram).not.toBeVisible();
 });
 
 for (const variant of ["a", "c", "d"]) {

@@ -22,7 +22,7 @@ const icon = (l: { external?: boolean; download?: boolean }) => (l.external ? 'l
         <a href={l.href} {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} {...(l.download ? { download: '' } : {})}>
           <span class="aw-text">
             <span class="aw-title aw-point-title">{l.title}{l.external && <span class="sr-only"> (opens in a new tab)</span>}</span>
-            <span class="aw-desc">{l.text}</span>
+            <span class="aw-desc" data-slideshow-hide>{l.text}</span>
           </span>
           <Octicon name={icon(l)} class="aw-icon" />
         </a>

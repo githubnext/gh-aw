@@ -38,8 +38,8 @@ All commands are run from the root of the project, from a terminal:
 
 ## Homepage slideshow
 
-On desktop, select the presentation icon in the homepage header to present the
-landing page as an eleven-slide deck. The security trifecta and its six
+On tablet or desktop, select the presentation icon in the homepage header to present the
+landing page as a twelve-slide deck. The security trifecta and its six
 defence layers, and the cost dashboard and budget guardrails, have separate
 slides. The slideshow runtime, drawing tools, and
 snippet expansion JavaScript are loaded on demand on the first click, not
@@ -47,8 +47,9 @@ when browsing the page. Slides fill the window edge to edge and retain their
 interactive examples. Use the previous/next buttons, arrow keys or Page Up/Page
 Down to navigate, Home/End to jump to the first/last slide, and Escape or the
 close button to return to the page. Keyboard controls inside demos keep their
-normal behavior. The presentation icon is hidden below the desktop menu breakpoint
-(50rem), and resizing to mobile exits the slideshow.
+normal behavior. The presentation icon stays in the header alongside the
+collapsed menu on tablets, with a 44px touch target. It is hidden below 40rem
+(640px), and resizing below that threshold exits the slideshow.
 Supported browsers slide the full frame left or right with CSS View Transitions;
 reduced-motion preferences disable these animations.
 The rounded, compact toolbar floats at the bottom center without reserving
@@ -60,6 +61,12 @@ the attribute skips that slide and updates the navigation count. The hero and
 closing call-to-action groups (Create a workflow, Copy installation prompt and
 the guided-form hint), lengthy workflow descriptions, the extra workflow
 catalog, and the custom-engine footnote already use this annotation.
+Secondary captions, provider names, repeated trigger metadata, resource
+descriptions, footnotes and supplementary links are also omitted. Essential
+diagram labels, metrics, explanatory copy and interactive controls remain;
+content is selected explicitly rather than hidden by font size.
+The opening title slide includes a compact Trigger → Agent → Safe outputs
+diagram beneath the title. Both are hidden on the normal page.
 When a demo tab is focused, Left/Right select tabs; Up/Down and Page Up/Page Down
 still navigate slides, and Tab/Shift+Tab leave the tablist.
 

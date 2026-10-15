@@ -24,7 +24,7 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
 
   const controller = new AbortController();
   const { signal } = controller;
-  const desktop = window.matchMedia("(min-width: 50rem)");
+  const presentationViewport = window.matchMedia("(min-width: 40rem)");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const placeholder = document.createComment("Landing slideshow");
   const cleanupDrawing = initializeSlideshowDrawing();
@@ -158,7 +158,7 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
   };
 
   const open = () => {
-    if (!desktop.matches || dialog.open) return;
+    if (!presentationViewport.matches || dialog.open) return;
     scrollY = window.scrollY;
     deck.replaceWith(placeholder);
     stage.prepend(deck);
@@ -214,10 +214,10 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     },
     { signal }
   );
-  desktop.addEventListener(
+  presentationViewport.addEventListener(
     "change",
     () => {
-      if (!desktop.matches && dialog.open) {
+      if (!presentationViewport.matches && dialog.open) {
         dialog.close();
         restore();
       }

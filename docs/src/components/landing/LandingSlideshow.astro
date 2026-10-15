@@ -55,11 +55,11 @@ import SlideshowSnippet from './SlideshowSnippet.astro';
     if (!trigger || !errorMessage || !deck?.querySelector(':scope > section:not([data-slideshow-hide])')) return;
     const controller = new AbortController();
     const { signal } = controller;
-    const desktop = window.matchMedia('(min-width: 50rem)');
+    const presentationViewport = window.matchMedia('(min-width: 40rem)');
     let runtime: import('../../scripts/slideshow').SlideshowController | undefined;
     trigger.hidden = false;
     trigger.addEventListener('click', async () => {
-      if (!desktop.matches || trigger.disabled) return;
+      if (!presentationViewport.matches || trigger.disabled) return;
       trigger.disabled = true;
       trigger.setAttribute('aria-busy', 'true');
       errorMessage.hidden = true;
@@ -122,8 +122,11 @@ import SlideshowSnippet from './SlideshowSnippet.astro';
     background: var(--aw-color-bg);
     color: var(--aw-color-text);
   }
-  @media (max-width: 49.99rem) {
+  @media (max-width: 39.99rem) {
     .slideshow-trigger { display: none; }
+  }
+  @media (min-width: 40rem) and (max-width: 49.99rem) {
+    .slideshow-trigger { width: 44px; height: 44px; }
   }
   :global(html:has(#landing-slideshow[open])) { overflow: hidden; }
   dialog {

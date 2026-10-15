@@ -24,7 +24,7 @@ const { points, layout = 'stack' } = Astro.props;
     <li data-slideshow-entrance="rise">
       <h3 class="aw-point-title">{p.title}</h3>
       <p set:html={p.text} />
-      <a class="aw-link" href={p.href}>{p.label}<span aria-hidden="true"> →</span></a>
+      <a class="aw-link" href={p.href} data-slideshow-hide>{p.label}<span aria-hidden="true"> →</span></a>
     </li>
   ))}
 </ul>
