@@ -538,3 +538,183 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Published**: 2026-10-13
 - **Categories**: cs.AI, cs.LG
 - **Relevant**: No
+
+### [Co-Evolving Acting and Forecasting for Language Agents](https://arxiv.org/abs/2610.20597v1)
+- **ID**: 2610.20597v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Add optional future-action forecasting checkpoints or trajectory-based evaluators for long-running agents.
+- **Area**: Agent planning and evaluation
+
+### [Price of Anarchy of First-Price Auctions in Agentic Markets](https://arxiv.org/abs/2610.20587v1)
+- **ID**: 2610.20587v1
+- **Published**: 2026-10-14
+- **Categories**: cs.GT, cs.AI, cs.LG
+- **Relevant**: No
+
+### [Player-1: Learning to Play from Synthetic Experience](https://arxiv.org/abs/2610.20584v1)
+- **ID**: 2610.20584v1
+- **Published**: 2026-10-14
+- **Categories**: cs.CV, cs.AI, cs.HC
+- **Relevant**: No
+
+### [One Task, Many Interfaces: Simple Cross-Interface Consistency Training Improves LLM Agent Robustness](https://arxiv.org/abs/2610.20576v1)
+- **ID**: 2610.20576v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add conformance tests that perturb tool names, argument ordering, aliases, and equivalent schemas while requiring identical safe-output behavior.
+- **Area**: Cross-engine tool-interface robustness
+
+### [Beyond LLM Judge: Mechanical Verification for Agentic Autoformalization](https://arxiv.org/abs/2610.20573v1)
+- **ID**: 2610.20573v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LO, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Extend safe-output validation with mechanical vacuity, consistency, and domain-specific postcondition checks.
+- **Area**: Safe-output validation
+
+### [Scaling Discovery Requires Forgetting](https://arxiv.org/abs/2610.20563v1)
+- **ID**: 2610.20563v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Support configurable fresh-context restarts that retain only selected evidence and best candidates.
+- **Area**: Context and memory management
+
+### [PhySGA: A Physics-Space Grounded Agentic Framework for Generalizable and Interactive 3D Composition](https://arxiv.org/abs/2610.20560v1)
+- **ID**: 2610.20560v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.CV
+- **Relevant**: No
+
+### [PerSo: Investigating Facets of LLMs' Social Intelligence in Real-World Persuasion Scenarios](https://arxiv.org/abs/2610.20548v1)
+- **ID**: 2610.20548v1
+- **Published**: 2026-10-14
+- **Categories**: cs.CL, cs.AI, cs.SI
+- **Relevant**: No
+
+### [ActiveEvidence: Decision-Focused Evidence Graphs with Verifiable Acquisition Gaps](https://arxiv.org/abs/2610.20532v1)
+- **ID**: 2610.20532v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.CV, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Introduce evidence-budget policies and early stopping when remaining tool observations cannot change the selected action.
+- **Area**: Tool-call optimization
+
+### [The Wealth of Agents: Scaling Agentic AI Across Developers](https://arxiv.org/abs/2610.20518v1)
+- **ID**: 2610.20518v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.MA
+- **Relevant**: Yes
+- **Opportunity**: Add capability-declared sub-agent roles plus configurable aggregation and evaluation strategies.
+- **Area**: Sub-agent orchestration
+
+### [Bayesian Learning to Select Fair Classifiers](https://arxiv.org/abs/2610.20514v1)
+- **ID**: 2610.20514v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG
+- **Relevant**: No
+
+### [Hindsight-Privileged RLVR: Single-Rollout Token Credit Without Group Sampling](https://arxiv.org/abs/2610.20497v1)
+- **ID**: 2610.20497v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG, cs.AI
+- **Relevant**: No
+
+### [Average-Reward Policy Identification from a Single Continuing Trajectory](https://arxiv.org/abs/2610.20486v1)
+- **ID**: 2610.20486v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG
+- **Relevant**: No
+
+### [From Training to Escalation: Forensic Analysis and Local Recreation of RL/RLHF-Induced Privilege Escalation in AI Agents (CVE-2026-65616)](https://arxiv.org/abs/2610.20437v1)
+- **ID**: 2610.20437v1
+- **Published**: 2026-10-14
+- **Categories**: cs.MA, cs.AI, cs.CR
+- **Relevant**: Yes
+- **Opportunity**: Add provenance-aware trust checks and boundary regression tests for authorization, safe outputs, firewall, and credentials.
+- **Area**: Security and supply-chain isolation
+
+### [SwarmRSI: Recursive Self-Improvement through Evolving Scientific Agent Swarm](https://arxiv.org/abs/2610.20431v1)
+- **ID**: 2610.20431v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Preserve scored sub-agent components and feed structured evaluator feedback into later attempts.
+- **Area**: Evaluation and iterative sub-agent workflows
+
+### [What Should a Software Team Spend on Agents? Simulation-Based Cost Optimization of Mixed AI-Human Teams](https://arxiv.org/abs/2610.20394v1)
+- **ID**: 2610.20394v1
+- **Published**: 2026-10-14
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Introduce cost-aware routing inputs and simulate routing policies before workflow execution.
+- **Area**: Cost and token optimization
+
+### [From Relevance to Validity: Zero-Shot Tool Selection via Functional and Contextual Validation](https://arxiv.org/abs/2610.20388v1)
+- **ID**: 2610.20388v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Validate tool schema, capabilities, permissions, endpoint availability, and workflow context after semantic retrieval.
+- **Area**: MCP tool selection and validation
+
+### [Doc2Harness: Benchmarking LLMs on Long-Horizon Harness Engineering of Coding Agents](https://arxiv.org/abs/2610.20344v1)
+- **ID**: 2610.20344v1
+- **Published**: 2026-10-14
+- **Categories**: cs.SE, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add a contract-driven conformance suite for engines and compiled workflows.
+- **Area**: Harness testing
+
+### [TreeFlex: Agents Navigating Their Own Search Trees](https://arxiv.org/abs/2610.20334v1)
+- **ID**: 2610.20334v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Represent long runs as resumable summarized checkpoints and restore only the selected execution path.
+- **Area**: Context and checkpoint management
+
+### [Reflect After Failure: Brain-Inspired Self-Evolving Agents for Embodied Spatial Intelligence](https://arxiv.org/abs/2610.20312v1)
+- **ID**: 2610.20312v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Classify failures by cause and admit repo-memory lessons only with supporting evidence and validation.
+- **Area**: Failure recovery and memory
+
+### [MMLA-RSI: Recursive Self-Improvement through RTT and RTMA](https://arxiv.org/abs/2610.20294v1)
+- **ID**: 2610.20294v1
+- **Published**: 2026-10-14
+- **Categories**: cs.CL, cs.LG
+- **Relevant**: No
+
+### [CASI: Credit Assignment via Set Intervention for Agentic Retrieval](https://arxiv.org/abs/2610.20293v1)
+- **ID**: 2610.20293v1
+- **Published**: 2026-10-14
+- **Categories**: cs.AI, cs.IR, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Add optional replay-based marginal contribution analysis for retrieval calls or sub-agent outputs.
+- **Area**: Evaluation and credit assignment
+
+### [TANGO: RNA Topology and Geometry Co-Design](https://arxiv.org/abs/2610.20277v1)
+- **ID**: 2610.20277v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG, cs.MA
+- **Relevant**: No
+
+### [Harness Policy Distillation: Aligning Agent Policies with Runtime Semantics](https://arxiv.org/abs/2610.20261v1)
+- **ID**: 2610.20261v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Generate and verify per-call control contracts for actions, arguments, flow, state, and termination.
+- **Area**: Runtime contract verification
+
+### [Long-Horizon RL Needs Muon](https://arxiv.org/abs/2610.20256v1)
+- **ID**: 2610.20256v1
+- **Published**: 2026-10-14
+- **Categories**: cs.LG, cs.AI
+- **Relevant**: No

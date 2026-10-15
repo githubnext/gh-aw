@@ -1364,6 +1364,181 @@
       "published": "2026-10-13",
       "relevant": false,
       "analyzed_at": "2026-10-14-08-45-15"
+    },
+    {
+      "id": "2610.20597v1",
+      "title": "Co-Evolving Acting and Forecasting for Language Agents",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20587v1",
+      "title": "Price of Anarchy of First-Price Auctions in Agentic Markets",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20584v1",
+      "title": "Player-1: Learning to Play from Synthetic Experience",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20576v1",
+      "title": "One Task, Many Interfaces: Simple Cross-Interface Consistency Training Improves LLM Agent Robustness",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20573v1",
+      "title": "Beyond LLM Judge: Mechanical Verification for Agentic Autoformalization",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20563v1",
+      "title": "Scaling Discovery Requires Forgetting",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20560v1",
+      "title": "PhySGA: A Physics-Space Grounded Agentic Framework for Generalizable and Interactive 3D Composition",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20548v1",
+      "title": "PerSo: Investigating Facets of LLMs' Social Intelligence in Real-World Persuasion Scenarios",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20532v1",
+      "title": "ActiveEvidence: Decision-Focused Evidence Graphs with Verifiable Acquisition Gaps",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20518v1",
+      "title": "The Wealth of Agents: Scaling Agentic AI Across Developers",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20514v1",
+      "title": "Bayesian Learning to Select Fair Classifiers",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20497v1",
+      "title": "Hindsight-Privileged RLVR: Single-Rollout Token Credit Without Group Sampling",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20486v1",
+      "title": "Average-Reward Policy Identification from a Single Continuing Trajectory",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20437v1",
+      "title": "From Training to Escalation: Forensic Analysis and Local Recreation of RL/RLHF-Induced Privilege Escalation in AI Agents (CVE-2026-65616)",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20431v1",
+      "title": "SwarmRSI: Recursive Self-Improvement through Evolving Scientific Agent Swarm",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20394v1",
+      "title": "What Should a Software Team Spend on Agents? Simulation-Based Cost Optimization of Mixed AI-Human Teams",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20388v1",
+      "title": "From Relevance to Validity: Zero-Shot Tool Selection via Functional and Contextual Validation",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20344v1",
+      "title": "Doc2Harness: Benchmarking LLMs on Long-Horizon Harness Engineering of Coding Agents",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20334v1",
+      "title": "TreeFlex: Agents Navigating Their Own Search Trees",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20312v1",
+      "title": "Reflect After Failure: Brain-Inspired Self-Evolving Agents for Embodied Spatial Intelligence",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20294v1",
+      "title": "MMLA-RSI: Recursive Self-Improvement through RTT and RTMA",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20293v1",
+      "title": "CASI: Credit Assignment via Set Intervention for Agentic Retrieval",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20277v1",
+      "title": "TANGO: RNA Topology and Geometry Co-Design",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20261v1",
+      "title": "Harness Policy Distillation: Aligning Agent Policies with Runtime Semantics",
+      "published": "2026-10-14",
+      "relevant": true,
+      "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.20256v1",
+      "title": "Long-Horizon RL Needs Muon",
+      "published": "2026-10-14",
+      "relevant": false,
+      "analyzed_at": "2026-10-15-08-44-46"
     }
   ]
 }
