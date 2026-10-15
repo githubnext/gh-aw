@@ -55,6 +55,10 @@
   {
    "q": "gh-aw agentic fork:false archived:false pushed:>2026-10-08",
    "last_run": "2026-10-13"
+  },
+  {
+   "q": "gh-aw agentic workflows fork:false archived:false pushed:>2026-10-12",
+   "last_run": "2026-10-15"
   }
  ]
 }
