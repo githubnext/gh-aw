@@ -28,6 +28,12 @@ packages, running lifecycle scripts, or changing npm configuration or lockfiles.
 Git, local, and private-registry dependencies are reported separately and still
 require their own network access. The command fails if a registry package
 cannot be downloaded; caching an upstream version may require feed permissions.
+For a missing package or version, it also searches for the lowest downloadable
+release satisfying all dependency ranges recorded for that pin in the lockfiles,
+including peer constraints. A suggested replacement does not make the check pass
+or change dependencies. Review overrides, engines, and the resulting dependency
+graph before updating manifests and regenerating lockfiles. If no compatible
+release exists, the command reports that rather than widening the ranges.
 
 ### 3. Build and Verify Development Environment
 
