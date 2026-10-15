@@ -41,7 +41,7 @@ engine:
         - --trust
         - --approve-mcps
         - --output-format
-        - text
+        - stream-json
       step-name: Execute Cursor Agent CLI
       model-env-var: CURSOR_MODEL
       mcp-config-env-var: GH_AW_MCP_CONFIG
@@ -101,15 +101,15 @@ engine:
       const [, ...commandArgs] = process.argv.slice(2);
       const installDir = mkdtempSync(join(tmpdir(), "cursor-agent-"));
       const archive = join(installDir, "cursor-agent.tar.gz");
-      const version = "2026.07.20-8cc9c0b";
+      const version = "2026.10.14-941492e";
       const releases = {
         x64: {
           arch: "x64",
-          checksum: "6e9f17247ffeb5f8f7e2246b4bcd6bb26cb2d5a9f9a4b0012c9a80d868ed25b4",
+          checksum: "6f6bf39dd2df29dcd38643cdfab0155ce71699953889f732deec123f6562bb2d",
         },
         arm64: {
           arch: "arm64",
-          checksum: "2986152b283c70a666b015035b2e99a96d13afd2660a587b8639417cfdd147fb",
+          checksum: "cbba40d90d7f699874e133a5c15bf3854cee006565bd3bb00a6c79b49d62b0d0",
         },
       };
       const fail = (result, action) => {
@@ -142,7 +142,7 @@ engine:
         const selectedModel = process.env.CURSOR_MODEL;
         const model = selectedModel?.includes("/") ? selectedModel.slice(selectedModel.indexOf("/") + 1) : selectedModel;
         const modelArgs = model ? ["--model", model] : [];
-        fail(spawnSync(executable, [...commandArgs, ...modelArgs, prompt], {
+        fail(spawnSync(executable, [...commandArgs, ...modelArgs, "--", prompt], {
           stdio: "inherit",
           env: process.env,
         }), "Cursor Agent execution");
@@ -154,65 +154,78 @@ engine:
       }
     log-parser: |
       function parseLog(logContent) {
-        const lines = logContent.split("\n");
+        const { normalizeAgentSession, isSessionEvent } = require("./agent_session.cjs");
         const logEntries = [];
-        const mcpFailures = [];
-        let maxTurnsHit = false;
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|cursor-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
-        let toolCallIndex = 0;
-        let turnCount = 0;
-        let currentRole = null;
-        let currentText = [];
+        const plaintext = [];
+        const emit = (type, data) => logEntries.push({ type, data });
+        let structured = false;
+        let parseErrors = 0;
 
-        function flushEntry() {
-          if (!currentRole || currentText.length === 0) { currentText = []; return; }
-          const text = currentText.join("\n").trim();
-          if (!text) { currentText = []; return; }
-          if (currentRole === "tool_use") {
-            const toolId = `cursor_tool_${toolCallIndex++}`;
-            const nameMatch = text.match(/^(?:Tool|Running|Executing|>\s*)([\w_.-]+)/i);
-            const toolName = nameMatch ? nameMatch[1] : "unknown_tool";
-            logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
-            logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: text }] } });
-          } else if (currentRole === "assistant") {
-            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
-            turnCount++;
-          }
-          currentText = [];
-        }
-
-        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          if (AWF_INFRA_RE.test(line)) continue;
-          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
-          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
-            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
-            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
-          }
-
-          if (/^(Tool|Running|Executing|>\s*[\w_.-]+)\b/i.test(line.trim())) {
-            flushEntry();
-            currentRole = "tool_use";
-            currentText.push(line);
+        for (const [index, line] of logContent.split("\n").entries()) {
+          if (!line.trim() || AWF_INFRA_RE.test(line)) continue;
+          if (!line.trimStart().startsWith("{")) {
+            plaintext.push(line);
             continue;
           }
-          if (/^(Assistant|Response|Output)\s*[>:]/i.test(line.trim())) {
-            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
-            currentText.push(line);
+          let record;
+          try {
+            record = JSON.parse(line);
+          } catch {
+            parseErrors++;
+            emit("cursor.parse_error", { sourceEngine: "cursor", lineNumber: index + 1, message: "Malformed Cursor JSON event" });
             continue;
           }
-          if (!currentRole) currentRole = "assistant";
-          currentText.push(line);
+          if (!record || typeof record !== "object" || typeof record.type !== "string") {
+            parseErrors++;
+            emit("cursor.parse_error", { sourceEngine: "cursor", lineNumber: index + 1, message: "Cursor event requires a type" });
+            continue;
+          }
+          if (record.type !== "result" || record.subtype !== undefined || record.session_id !== undefined) structured = true;
+          if (isSessionEvent(record)) {
+            logEntries.push(record);
+            continue;
+          }
+          const context = { ...record, sourceEngine: "cursor" };
+          if (typeof record.session_id === "string") context.sessionId = record.session_id;
+          if (record.type === "tool_call") {
+            const calls = record.tool_call && typeof record.tool_call === "object" ? Object.entries(record.tool_call) : [];
+            for (const [name, call] of calls) {
+              if (!call || typeof call !== "object") continue;
+              const data = { ...context, toolName: name === "function" ? call.name : name };
+              if (typeof record.call_id === "string") data.toolCallId = record.call_id;
+              if (Object.hasOwn(call, "args")) data.input = call.args;
+              else if (Object.hasOwn(call, "arguments")) data.input = call.arguments;
+              if (record.subtype === "started") {
+                emit("tool.execution_start", data);
+              } else if (record.subtype === "completed") {
+                if (Object.hasOwn(call, "result")) {
+                  data.output = call.result;
+                  if (call.result?.error != null) data.success = false;
+                  else if (call.result?.success != null) data.success = true;
+                }
+                emit("tool.execution_complete", data);
+              } else {
+                emit("cursor.tool_call", context);
+              }
+            }
+            if (calls.length === 0) emit("cursor.tool_call", context);
+          } else {
+            const normalized = normalizeAgentSession([record], { sourceEngine: "cursor" });
+            if (normalized.length === 0) emit("cursor.event", context);
+            for (const event of normalized) {
+              const data = { ...context, ...event.data };
+              for (const key of Object.keys(data)) if (data[key] === undefined) delete data[key];
+              logEntries.push({ ...event, data });
+            }
+          }
         }
-        flushEntry();
-
-        logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
-        const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
-        if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
-        if (maxTurnsHit) parts.push("**Max turns reached**");
-        return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
+        // Legacy text contains final-answer prose, not observable tool activity.
+        if (!structured && plaintext.length) emit("assistant.message", { sourceEngine: "cursor", content: plaintext.join("\n") });
+        else if (plaintext.length) emit("cursor.diagnostic", { sourceEngine: "cursor", content: plaintext.join("\n") });
+        const toolStarts = logEntries.filter(entry => entry.type === "tool.execution_start").length;
+        const markdown = `**Observed tool starts:** ${toolStarts}` + (parseErrors ? ` · **Parse errors:** ${parseErrors}` : "");
+        return { markdown, logEntries, mcpFailures: [], maxTurnsHit: false };
       }
 ---
 
@@ -233,4 +246,24 @@ imports:
 Configure the `CURSOR_API_KEY` GitHub Actions secret with an API key from the
 Cursor dashboard. Cursor serves the selected model through its own API, so this
 engine does not use universal provider routing.
+
+The Linux x64 and arm64 archives are pinned to `2026.10.14-941492e`, the
+distribution selected by the [official installer](https://cursor.com/install)
+on October 15, 2026, and verified with architecture-specific SHA-256 checksums.
+The [CLI changelog](https://cursor.com/docs/cli/changelog) currently documents
+changes through October 8, not this individual build. Recent changes include
+headless subagent completion, exact model selection, MCP tool refresh, and
+plugin hook support; the existing print, trust, MCP approval, and API-key
+interfaces remain supported.
+
+Native MCP configuration is written to `.cursor/mcp.json` with mode `0600`.
+Plugins are loaded from `~/.cursor/plugins/local`.
+
+The CLI emits [stream-json](https://cursor.com/docs/cli/reference/output-format)
+without partial text deltas. The parser preserves observed session, message,
+tool-call IDs, arguments, results, and terminal metadata as unified session
+events. It does not invent turn counts, token usage, or tool success when
+these are absent. Legacy text is retained as final-answer prose, never parsed
+as tool calls. Fixture coverage follows the published format; authenticated
+latest-build event output remains unverified until a permitted live smoke.
 -->
