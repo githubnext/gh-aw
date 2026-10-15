@@ -31,7 +31,7 @@ func loadGooseSample(t *testing.T) *EngineDefinition {
 
 func TestGooseSampleExecution(t *testing.T) {
 	def := loadGooseSample(t)
-	require.Equal(t, "1.53.0", def.Version)
+	require.Equal(t, "1.54.0", def.Version)
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 	assert.True(t, engine.GetCapabilities().MCP)
@@ -42,7 +42,7 @@ func TestGooseSampleExecution(t *testing.T) {
 		EngineConfig: &EngineConfig{ID: "goose", Version: def.Version, MaxTurns: "30"},
 	}, "/tmp/gh-aw/agent-stdio.log")
 	execution := strings.Join(steps[len(steps)-1], "\n")
-	assert.Contains(t, execution, "GH_AW_ENGINE_VERSION: 1.53.0")
+	assert.Contains(t, execution, "GH_AW_ENGINE_VERSION: 1.54.0")
 	assert.Contains(t, execution, "GH_AW_MAX_TURNS: 30")
 	assert.Contains(t, execution, "GOOSE_MODEL: copilot/auto")
 	assert.Contains(t, execution, "GH_AW_LLM_PROVIDER: github")
@@ -115,7 +115,7 @@ exports.resolveOpenAICompatibleEndpointFromReflect = () => ({provider: "github",
 	binary := filepath.Join(dir, "test-goose")
 	fixture := `#!/usr/bin/env node
 const fs = require("fs");
-if (process.argv.includes("--version")) { console.log("1.53.0"); process.exit(0); }
+if (process.argv.includes("--version")) { console.log("1.54.0"); process.exit(0); }
 const configPath = process.env.GOOSE_ADDITIONAL_CONFIG_FILES;
 fs.writeFileSync(process.env.TEST_OUTPUT, JSON.stringify({
 	args: process.argv.slice(2),

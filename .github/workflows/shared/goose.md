@@ -2,7 +2,7 @@
 engine:
   id: goose
   detection-engine: copilot
-  version: "1.53.0"
+  version: "1.54.0"
   display-name: Goose
   description: Goose CLI with headless execution and MCP support
   experimental: true
@@ -70,6 +70,7 @@ engine:
       const archive = join(installDir, "goose.tar.gz");
       const checksums = {
         "1.53.0": "deb2191a6b75acc0a20232fc5c52655ea2f9cc8fa2f5dffc8622e8d378a915dc",
+        "1.54.0": "ab396c95aebbd28b4d38c175234be8d4a3ea0c96e7ccb24c307e4618c9be57e1",
       };
       const fail = (result, action) => {
         if (result.error) throw result.error;
@@ -184,7 +185,7 @@ Shared engine definition for the [Goose](https://github.com/aaif-goose/goose)
 open-source AI agent. Import this file and set `engine: id: goose` to use it.
 
 This is an unsupported repository sample, pinned to
-[v1.53.0](https://github.com/aaif-goose/goose/releases/tag/v1.53.0).
+[v1.54.0](https://github.com/aaif-goose/goose/releases/tag/v1.54.0).
 The Linux x86-64 archive is SHA-256 verified before extraction; other versions
 require a reviewed checksum or a verified binary supplied through `engine.command`.
 
