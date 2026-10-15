@@ -144,10 +144,10 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 The agent's commits are packaged as a **git bundle** and uploaded as an Actions artifact. A separate, permission-controlled `safe_outputs` job then:
 
 1. Checks out the target repository at the base branch (shallow, depth 1). Any additional `fetch:` refs declared in `checkout:` frontmatter for the target repository are fetched so their commits are locally available.
-2. Applies the bundle via `git fetch <bundle-file>`. If prerequisite commits are missing (because the base branch advanced while the agent was running), they are fetched from origin by SHA and the bundle fetch retried automatically.
+2. Imports the local bundle offline with `git bundle unbundle`. If prerequisite commits are missing, the handler fails by default; provision the required objects during authenticated checkout or opt in to prerequisite recovery with `allow-full-history-fetch: true` on that specific PR handler. The opt-in permits potentially unbounded recovery downloads, but bundle import and validation remain offline.
 3. Pushes the branch using the GitHub GraphQL API (signed commits) and creates the pull request.
 
-If the base branch advances between agent start and `safe_outputs` apply, the PR is created slightly behind the current base — normal behavior the author can address with a rebase. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
+If the base branch advances between agent start and `safe_outputs` apply, the PR can be created slightly behind the current base and addressed with a rebase when the necessary bundle objects are available. Otherwise, missing prerequisites cause the handler to fail unless recovery is explicitly enabled as described above. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
 
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 

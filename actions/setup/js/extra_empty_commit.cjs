@@ -52,9 +52,10 @@ function isCrossRepoTarget(repoOwner, repoName) {
  *   empty commit when exactly 1 new commit was pushed, preventing accidental workflow-file
  *   modifications on multi-commit branches and reducing loop risk.
  * @param {string[]|string} [options.allowedRepos] - Allowed repository patterns for allowlist validation
+ * @param {() => void} [options.assertTransportUnchanged]
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
-async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
+async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput, assertTransportUnchanged }) {
   const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
 
   if (!token || !token.trim()) {
@@ -207,6 +208,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         try {
           core.info(`Attempting to create verified empty commit via GitHub API (createCommitOnBranch)`);
           const ciGithubClient = global.getOctokit(token.trim());
+          assertTransportUnchanged?.();
           const apiResult = await ciGithubClient.graphql(
             `mutation($input: CreateCommitOnBranchInput!) {
               createCommitOnBranch(input: $input) { commit { oid } }
@@ -236,6 +238,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
           }
           committedViaApi = true;
         } catch (apiError) {
+          assertTransportUnchanged?.();
           core.info(`GitHub API commit creation unavailable, falling back to git commit + push: ${getErrorMessage(apiError)}`);
         }
       }
@@ -252,6 +255,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
         await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
         await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: "ci-trigger", branch: branchName });
+        assertTransportUnchanged?.();
         await exec.exec("git", ["push", "ci-trigger", branchName]);
       }
 
@@ -277,6 +281,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       }
     }
   } catch (error) {
+    assertTransportUnchanged?.();
     const errorMessage = getErrorMessage(error);
     core.warning(`Failed to push extra empty commit: ${errorMessage}`);
 

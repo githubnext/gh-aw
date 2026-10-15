@@ -177,6 +177,7 @@ type MCPSlowestToolCall struct {
 // The activation artifact may or may not have been flattened to the root directory.
 func findAwInfoPath(logsPath string) string {
 	candidates := []string{
+		filepath.Join(logsPath, "runtime", "aw_info.json"),
 		filepath.Join(logsPath, "aw_info.json"),
 		filepath.Join(logsPath, "activation", "aw_info.json"),
 		filepath.Join(logsPath, "agent", "aw_info.json"),
@@ -346,11 +347,12 @@ func loadAwInfoForEngineConfig(logsPath string) *AwInfo {
 
 func clearUntrustedAgentRoutingMetadata(logsPath, awInfoPath string, awInfo *AwInfo) {
 	if awInfo != nil && filepath.Clean(awInfoPath) == filepath.Join(logsPath, "agent", "aw_info.json") {
-		if awInfo.ModelRouting != nil {
+		if awInfo.ModelRouting != nil || awInfo.ModelSelection != nil {
 			awInfo.Model = ""
 			awInfo.RequestedModel = ""
 		}
 		awInfo.ModelRouting = nil
+		awInfo.ModelSelection = nil
 	}
 }
 

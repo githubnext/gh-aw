@@ -153,6 +153,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// by the gateway from process.env at startup time.
 		envVars["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}"
 		envVars["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_TOOLS_PATH }}"
+		if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
+			envVars["GH_AW_TARGET_REPO_SLUG"] = workflowData.TrialLogicalRepo
+		}
 		// PolicyAllowCreatePullRequest is sourced from vars.* (GitHub repository/environment
 		// configuration variables, not runner env) so that org admins can disable PR creation
 		// without modifying compiled workflow YAML. The || 'true' fallback preserves

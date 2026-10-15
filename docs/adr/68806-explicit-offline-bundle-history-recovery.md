@@ -3,6 +3,7 @@
 **Date**: 2026-10-14
 **Status**: Proposed
 **Deciders**: PR #68806 maintainers (author: @pelikhan)
+**Reviewers**: Pending maintainer review
 
 ---
 
@@ -16,7 +17,9 @@ History recovery will require `allow-full-history-fetch: true` on the specific `
 
 Trusted base-tip discovery will always use a validated, exact `refs/heads/` ref and metadata-only `git ls-remote --refs --exit-code` against the trusted target origin with its own credentials, pinning the validated returned SHA; neither setting of the opt-in permits an object fetch solely to establish this optional baseline. Explicit prerequisite recovery for a fork PR will instead use the validated PR head remote and its head credentials, keeping recovery authentication separate from target-origin baseline authentication; head metadata, bundle metadata, and workflow-start SHAs do not independently establish a trusted base.
 
-Bundle import via `git bundle unbundle`, prerequisite checks, optional baseline ancestry/tree inspection, and the push handler's bundle diff/history checks will use `GIT_ALLOW_PROTOCOL=""` together with `GIT_NO_LAZY_FETCH=1`, so protocol denial also blocks implicit lazy downloads on Git versions that do not honor lazy-fetch suppression. If trusted metadata or local ancestry cannot establish the optional baseline, the push handler will conservatively retain PR-head validation without excluding unverified base history; missing objects required for validation will fail rather than bypass checks. The primary drivers are credential isolation and avoiding implicit download costs, not a byte limit or a fully network-free handler.
+Bundle import via `git bundle unbundle`, prerequisite checks, optional baseline ancestry/tree inspection, and the push handler's bundle diff/history checks will use `GIT_ALLOW_PROTOCOL=""` together with `GIT_NO_LAZY_FETCH=1`. Git 2.45.1 introduced `GIT_NO_LAZY_FETCH` support; older versions may not honor it, so protocol denial remains the compatibility safeguard against implicit transport. If trusted metadata or local ancestry cannot establish the optional baseline, the push handler will conservatively retain PR-head validation without excluding unverified base history; missing objects required for validation will fail rather than bypass checks. The primary drivers are credential isolation and avoiding implicit download costs, not a byte limit or a fully network-free handler.
+
+See the versioned [Git 2.45.1 `git-upload-pack` documentation](https://git-scm.com/docs/git-upload-pack/2.45.1) for the `GIT_NO_LAZY_FETCH` environment variable.
 
 ### Alternatives Considered
 

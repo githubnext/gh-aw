@@ -3,6 +3,7 @@
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
+const { withTransportIntegrity } = require("./transport_integrity.cjs");
 const path = require("path");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
@@ -469,7 +470,8 @@ async function main(config = {}) {
    * @param {import('./types/handler-factory').ResolvedTemporaryIds} resolvedTemporaryIds - Map of temporary IDs to resolved IDs
    * @returns {Promise<import('./types/handler-factory').HandlerResult>}
    */
-  return async function handlePushToPullRequestBranch(message, resolvedTemporaryIds) {
+  return withTransportIntegrity(async function handlePushToPullRequestBranch(message, resolvedTemporaryIds, transport) {
+    const exec = transport.guardExec(globalThis.exec);
     // Check max count
     if (maxCount > 0 && processedCount >= maxCount) {
       core.info(`Skipping message - max count (${maxCount}) reached`);
@@ -478,10 +480,19 @@ async function main(config = {}) {
 
     processedCount++;
 
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "push to PR branch");
+    if (!repoResult.success) {
+      return { success: false, error: repoResult.error };
+    }
+    const itemRepo = repoResult.repo;
+    const repoParts = repoResult.repoParts;
+
     // Determine the patch and bundle file paths. The MCP server sets these on
     // the entry it writes, but the validation step strips them as a defense
     // against agent-forged values. Recover them by re-deriving from `branch`.
-    const transportPaths = resolveTransportPaths(message, defaultTargetRepo);
+    const transportPaths = resolveTransportPaths(message, itemRepo);
+    transport.captureOptional(transportPaths.patchPath);
+    transport.captureOptional(transportPaths.bundlePath);
     const patchFilePath = transportPaths.patchPath;
     core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
 
@@ -521,7 +532,7 @@ async function main(config = {}) {
 
     let patchContent;
     try {
-      patchContent = fs.readFileSync(patchFilePath, "utf8");
+      patchContent = transport.read(patchFilePath).toString("utf8");
     } catch (err) {
       throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
     }
@@ -648,7 +659,7 @@ async function main(config = {}) {
           if (patchFilePath && fs.existsSync(patchFilePath)) {
             let patchStats;
             try {
-              patchStats = fs.readFileSync(patchFilePath, "utf8");
+              patchStats = transport.read(patchFilePath).toString("utf8");
             } catch (err) {
               throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
             }
@@ -713,15 +724,6 @@ async function main(config = {}) {
     if (!pullNumber) {
       return { success: false, error: "Pull request number is required but not found" };
     }
-
-    // Resolve and validate target repository
-    // For cross-repo scenarios, the PR may be in a different repository than the workflow
-    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "push to PR branch");
-    if (!repoResult.success) {
-      return { success: false, error: repoResult.error };
-    }
-    const itemRepo = repoResult.repo;
-    const repoParts = repoResult.repoParts;
 
     core.info(`Target repository: ${itemRepo}`);
 
@@ -902,6 +904,7 @@ async function main(config = {}) {
     }
 
     const createProtectedFilesFallbackIssue = async files => {
+      transport.assertUnchanged();
       const runUrl = buildWorkflowRunUrl(context, context.repo);
       const runId = context.runId;
       const artifactFileName = hasBundleFile ? bundleFilePath.replace("/tmp/gh-aw/", "") : patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
@@ -929,14 +932,16 @@ async function main(config = {}) {
 
       try {
         const { data: issue } = await withRetry(
-          () =>
-            githubClient.rest.issues.create({
+          () => {
+            transport.assertUnchanged();
+            return githubClient.rest.issues.create({
               owner: repoParts.owner,
               repo: repoParts.repo,
               title: issueTitle,
               body: issueBody,
               labels: ["agentic-workflows"],
-            }),
+            });
+          },
           RATE_LIMIT_RETRY_CONFIG,
           `create manifest-protection review issue in ${repoParts.owner}/${repoParts.repo}`
         );
@@ -1207,6 +1212,7 @@ async function main(config = {}) {
             // Non-fatal cleanup
           }
         } catch (bundleError) {
+          transport.assertUnchanged();
           core.error(`Failed to apply bundle: ${getErrorMessage(bundleError)}`);
           // Clean up temp ref if it exists
           try {
@@ -1224,18 +1230,18 @@ async function main(config = {}) {
             core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
 
             // Read the patch file
-            let patchContent = fs.readFileSync(patchFilePath, "utf8");
+            let patchContent = transport.read(patchFilePath).toString("utf8");
 
             // Modify Subject lines in the patch to append the suffix
             patchContent = patchContent.replace(/^Subject: (?:\[PATCH\] )?(.*)$/gm, (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`);
 
-            // Write the modified patch back
-            fs.writeFileSync(patchFilePath, patchContent, "utf8");
+            // Transform only the private snapshot; keep the original baseline.
+            transport.transform(patchFilePath, () => Buffer.from(patchContent, "utf8"));
             core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
           }
 
           // Log first 100 lines of patch for debugging
-          const finalPatchContent = fs.readFileSync(patchFilePath, "utf8");
+          const finalPatchContent = transport.read(patchFilePath).toString("utf8");
           const patchLines = finalPatchContent.split("\n");
           const previewLineCount = Math.min(100, patchLines.length);
           core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
@@ -1248,6 +1254,7 @@ async function main(config = {}) {
           await exec.exec("git", ["am", "--3way", patchFilePath], baseGitOpts);
           core.info("Patch applied successfully");
         } catch (error) {
+          transport.assertUnchanged();
           core.warning(`Initial patch apply failed, attempting add/add recovery: ${getErrorMessage(error)}`);
           let recoveredFromAddAddConflict = false;
 
@@ -1439,6 +1446,7 @@ async function main(config = {}) {
             "Please review the changes carefully before merging.",
           ].join("\n");
 
+          transport.assertUnchanged();
           const { data: reviewPR } = await githubClient.rest.pulls.create({
             owner: repoParts.owner,
             repo: repoParts.repo,
@@ -1475,6 +1483,7 @@ async function main(config = {}) {
             pr_url: reviewPR.html_url,
           };
         } catch (reviewError) {
+          transport.assertUnchanged();
           core.error(`Failed to create review PR: ${getErrorMessage(reviewError)}`);
           return { success: false, error: `Failed to create review PR: ${getErrorMessage(reviewError)}` };
         }
@@ -1523,8 +1532,10 @@ async function main(config = {}) {
         // "Unable to determine if workflow can be created or updated due to timeout; `workflows`
         // scope may be required." — a transient server-side condition, not a real scope problem.
         // Retry with exponential backoff before treating the push as failed.
-        const pushedSha = await withTransientPushRetry(() =>
-          pushSignedCommits({
+        const pushedSha = await withTransientPushRetry(() => {
+          transport.assertUnchanged();
+          return pushSignedCommits({
+            assertTransportUnchanged: transport.assertUnchanged,
             githubClient: pushGithubClient,
             owner: pushRepoParts.owner,
             repo: pushRepoParts.repo,
@@ -1538,14 +1549,15 @@ async function main(config = {}) {
             resolvedTemporaryIds,
             currentRepo: itemRepo,
             validationConfig: config,
-          })
-        );
+          });
+        });
         if (pushedSha) {
           pushedCommitSha = pushedSha;
           core.info(`pushSignedCommits returned pushed SHA: ${pushedSha}`);
         }
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
+        transport.assertUnchanged();
         const pushErrorMessage = getErrorMessage(pushError);
         core.error(`Failed to push changes: ${pushErrorMessage}`);
 
@@ -1637,6 +1649,7 @@ async function main(config = {}) {
               `Workflow run: ${buildWorkflowRunUrl(context, context.repo)}`,
             ].join("\n");
 
+            transport.assertUnchanged();
             const { data: fallbackPR } = await githubClient.rest.pulls.create({
               owner: repoParts.owner,
               repo: repoParts.repo,
@@ -1663,6 +1676,7 @@ async function main(config = {}) {
               url: fallbackPR.html_url,
             };
           } catch (fallbackError) {
+            transport.assertUnchanged();
             const fallbackErrorMessage = getErrorMessage(fallbackError);
             core.error(`Failed to create fallback pull request: ${fallbackErrorMessage}`);
             userMessage = `${userMessage} Fallback pull request creation also failed: ${fallbackErrorMessage}`;
@@ -1775,7 +1789,9 @@ async function main(config = {}) {
     // Restricting to exactly 1 new commit prevents the CI trigger token being used on
     // multi-commit branches where workflow files may have been iteratively modified.
     if (hasChanges) {
+      transport.assertUnchanged();
       const ciTriggerResult = await pushExtraEmptyCommit({
+        assertTransportUnchanged: transport.assertUnchanged,
         branchName,
         repoOwner: pushRepoParts.owner,
         repoName: pushRepoParts.repo,
@@ -1800,7 +1816,7 @@ async function main(config = {}) {
       branchStateBefore || (remoteHeadBeforePatch ? { head_sha: remoteHeadBeforePatch } : null),
       commitSha ? { head_sha: commitSha } : null
     );
-  };
+  });
 }
 
 module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip };

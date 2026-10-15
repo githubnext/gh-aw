@@ -309,6 +309,9 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string { //nol
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
 		env["GH_AW_MCP_LOG_DIR"] = constants.TmpMcpLogsSafeOutputsDir
 
+		// The gateway requires this placeholder to resolve even outside trial mode.
+		env["GH_AW_TARGET_REPO_SLUG"] = `""`
+
 		// Note: GH_AW_SAFE_OUTPUTS, GH_AW_SAFE_OUTPUTS_CONFIG_PATH, and
 		// GH_AW_SAFE_OUTPUTS_TOOLS_PATH are set via a run step (see generateSetRuntimePathsStep)
 		// because the runner context is not available in job-level env: blocks.
