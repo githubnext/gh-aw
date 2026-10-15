@@ -548,3 +548,40 @@ func TestSpec_PublicAPI_LookupStringPath(t *testing.T) {
 		})
 	}
 }
+
+// TestSpec_PublicAPI_SafeAllocationCapacity validates the documented behavior
+// of SafeAllocationCapacity as described in the package README.md.
+//
+// Specification: Returns the sum of non-negative capacity hints when it fits
+// in int, and returns zero for a negative part or an overflowing sum.
+func TestSpec_PublicAPI_SafeAllocationCapacity(t *testing.T) {
+	tests := []struct {
+		name     string
+		parts    []int
+		expected int
+	}{
+		{
+			name:     "documented capacity hints are summed",
+			parts:    []int{2, 3, 5},
+			expected: 10,
+		},
+		{
+			name:     "negative part returns zero",
+			parts:    []int{4, -1},
+			expected: 0,
+		},
+		{
+			name:     "overflowing sum returns zero",
+			parts:    []int{math.MaxInt, 1},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SafeAllocationCapacity(tt.parts...)
+			assert.Equal(t, tt.expected, result,
+				"SafeAllocationCapacity(%v) should match documented behavior", tt.parts)
+		})
+	}
+}
