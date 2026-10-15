@@ -75,6 +75,7 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
       getExecOutput: vi.fn(async (_command, args) => {
         if (args[0] === "rev-parse" && args[1] === "HEAD") return { exitCode: 0, stdout: "b".repeat(40), stderr: "" };
         if (args[0] === "diff" && args.includes("--name-only")) return { exitCode: 0, stdout: "file.txt\0", stderr: "" };
+        if (args[0] === "bundle" && args[1] === "unbundle") return { exitCode: 0, stdout: `${"b".repeat(40)} refs/heads/feature\n`, stderr: "" };
         return { exitCode: 0, stdout: "", stderr: "" };
       }),
     };
@@ -269,38 +270,50 @@ describe.each(["create_pull_request", "push_to_pull_request_branch"])("%s transp
     assertNoRemoteSideEffects();
   });
 
-  it.each(["initial import", "head discovery", "prerequisite recovery"])("freezes bundle import and refuses tampering during %s", async stage => {
+  it.each(["prerequisite verification", "bundle import", "prerequisite recovery"])("freezes bundle input and refuses tampering during %s", async stage => {
     fs.writeFileSync(bundle, "bundle original");
     const originalOutput = global.exec.getExecOutput.getMockImplementation();
+    const prerequisite = "d".repeat(40);
     let imports = 0;
     let attacked = false;
+    let recovered = false;
     const tamper = () => {
       attacked = true;
       fs.writeFileSync(bundle, "bundle tampered");
     };
     global.exec.exec.mockImplementation(async (_command, args) => {
-      if (stage === "prerequisite recovery" && args[0] === "fetch" && args.includes("d".repeat(40))) tamper();
       return 0;
     });
     global.exec.getExecOutput.mockImplementation(async (command, args) => {
-      if (args[0] === "fetch" && args.some(arg => arg.endsWith(".bundle"))) {
+      if (args[0] === "bundle" && args[1] === "verify") {
+        if (stage === "prerequisite verification") tamper();
+        return {
+          exitCode: 0,
+          stdout: stage === "prerequisite recovery" ? `The bundle requires this ref:\n  ${prerequisite}\n` : "",
+          stderr: "",
+        };
+      }
+      if (args[0] === "cat-file" && args[1] === "-e" && args[2] === `${prerequisite}^{commit}`) {
+        return { exitCode: recovered ? 0 : 1, stdout: "", stderr: "" };
+      }
+      if (args[0] === "fetch" && args.includes(prerequisite)) {
+        tamper();
+        recovered = true;
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      if (args[0] === "bundle" && args[1] === "unbundle") {
         imports++;
         const snapshot = args.find(arg => arg.endsWith(".bundle"));
         snapshots.add(snapshot);
         expect(fs.readFileSync(snapshot, "utf8")).toBe("bundle original");
-        if (stage === "initial import") tamper();
-        const stderr = stage === "head discovery" ? "couldn't find remote ref" : `Repository lacks these prerequisite commits:\n${"d".repeat(40)}\n`;
-        return { exitCode: 1, stdout: "", stderr };
-      }
-      if (stage === "head discovery" && args[0] === "bundle" && args[1] === "list-heads") {
-        tamper();
-        return { exitCode: 0, stdout: `${"e".repeat(40)} HEAD\n`, stderr: "" };
+        if (stage === "bundle import") tamper();
+        return { exitCode: 0, stdout: `${"b".repeat(40)} refs/heads/feature\n`, stderr: "" };
       }
       return originalOutput(command, args);
     });
-    const result = await run();
+    const result = await run(stage === "prerequisite recovery" ? { allow_full_history_fetch: true } : {});
     expect(attacked).toBe(true);
-    expect(imports).toBe(1);
+    expect(imports).toBe(stage === "bundle import" ? 1 : 0);
     expect(result.success).toBe(false);
     expect(result.error).toContain("SECURITY:");
     assertNoRemoteSideEffects();

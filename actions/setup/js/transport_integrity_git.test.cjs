@@ -65,12 +65,12 @@ describe("transport integrity Git cleanup", () => {
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
-  it("deletes imported temporary bundle refs after an integrity failure without publishing", async () => {
+  it("cleans up after a bundle integrity failure without publishing", async () => {
     mustGit(["branch", "feature"]);
     const bundle = path.join(directory, "aw-feature.bundle");
     mustGit(["bundle", "create", bundle, "feature"]);
     const api = execApi(args => {
-      if (args[0] === "fetch" && args[1].endsWith(".bundle")) fs.writeFileSync(bundle, "changed after import");
+      if (args[0] === "bundle" && args[1] === "unbundle") fs.writeFileSync(bundle, "changed after import");
     });
     const { applyBundleToBranch } = require("./create_pull_request.cjs");
     const handler = withTransportIntegrity(async (_message, _ids, transport) => {
@@ -81,7 +81,6 @@ describe("transport integrity Git cleanup", () => {
     await expect(handler({}, {})).resolves.toMatchObject({ success: false, error_type: "ERR_TRANSPORT_INTEGRITY" });
     expect(mustGit(["for-each-ref", "--format=%(refname)", "refs/bundles/"]).trim()).toBe("");
     expect(api.exec.mock.calls.some(([, args]) => args[0] === "push")).toBe(false);
-    expect(api.exec).toHaveBeenCalledWith("git", ["update-ref", "-d", expect.stringMatching(/^refs\/bundles\/create-pr-result-/)]);
   });
 
   it.each([false, true])("aborts a real patch conflict and restores the checkout (transport changed: %s)", async tamper => {
