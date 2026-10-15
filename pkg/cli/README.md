@@ -139,7 +139,6 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `RunHealth` | `func RunHealth(config HealthConfig) error` | Computes workflow health metrics for one workflow or all workflows. |
 | `CalculateWorkflowHealth` | `func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold float64) WorkflowHealth` | Calculates success-rate and trend metrics for one workflow. |
 | `CalculateHealthSummary` | `func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, threshold float64) HealthSummary` | Aggregates workflow health results. |
-| `GroupRunsByWorkflow` | `func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun` | Groups historical runs by workflow identifier. |
 | `NewChecksCommand` | `func NewChecksCommand() *cobra.Command` | Constructs the `gh aw checks` command. |
 | `RunChecks` | `func RunChecks(config ChecksConfig) error` | Emits normalized PR check state. |
 | `FetchChecksResult` | `func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, error)` | Returns normalized CI state for a pull request. |

@@ -206,14 +206,6 @@ func dryRunTelemetryEnvEdit(key, value *yaml.Node, lines []string) (*dryRunEnvEd
 	if !removed {
 		return nil, nil
 	}
-	rendered, err := MarshalWithFieldOrder(map[string]any{"env": env}, []string{"env"})
-	if err != nil {
-		return nil, fmt.Errorf("cannot render dry-run environment on line %d: %w", key.Line, err)
-	}
-	rendered = []byte(quoteEnvValuesContainingColonSpace(string(rendered)))
-	if value.Anchor != "" {
-		rendered = []byte(strings.Replace(string(rendered), "env:", "env: &"+value.Anchor, 1))
-	}
 	start := key.Line - 1
 	indent := key.Column - 1
 	end := start + 1
@@ -226,6 +218,17 @@ func dryRunTelemetryEnvEdit(key, value *yaml.Node, lines []string) (*dryRunEnvEd
 	}
 	for end > start+1 && strings.TrimSpace(lines[end-1]) == "" { //nolint:uncheckedsliceindex // end is bounded above.
 		end--
+	}
+	if len(env) == 0 {
+		return &dryRunEnvEdit{start: start, end: end}, nil
+	}
+	rendered, err := MarshalWithFieldOrder(map[string]any{"env": env}, []string{"env"})
+	if err != nil {
+		return nil, fmt.Errorf("cannot render dry-run environment on line %d: %w", key.Line, err)
+	}
+	rendered = []byte(quoteEnvValuesContainingColonSpace(string(rendered)))
+	if value.Anchor != "" {
+		rendered = []byte(strings.Replace(string(rendered), "env:", "env: &"+value.Anchor, 1))
 	}
 	var replacement strings.Builder
 	for i, line := range strings.SplitAfter(string(rendered), "\n") {
