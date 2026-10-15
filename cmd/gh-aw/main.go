@@ -600,6 +600,7 @@ type commandSet struct {
 	mcpCmd, logsCmd, auditCmd, sessionsCmd, viewCmd, healthCmd, outcomesCmd, mcpServerCmd, prCmd, secretsCmd      *cobra.Command
 	fixCmd, formatCmd, upgradeCmd, completionCmd, hashCmd, projectCmd, doctorCmd, checksCmd, validateCmd, lintCmd *cobra.Command
 	domainsCmd, experimentsCmd, forecastCmd, gradersCmd, modelsCmd, envCmd, jsonSchemaCmd, workCmd                *cobra.Command
+	skillCmd                                                                                                      *cobra.Command
 }
 
 func fixPathForCommand(s string) string {
@@ -782,6 +783,7 @@ func createCommandSet() commandSet {
 		workCmd:        cli.NewWorkCommand(),
 		modelsCmd:      cli.NewModelsCommand(),
 		jsonSchemaCmd:  cli.NewJSONSchemaCommand(),
+		skillCmd:       cli.NewSkillCommand(),
 	}
 	cli.RegisterEngineFlagCompletion(cmds.initCmd)
 	return cmds
@@ -905,7 +907,7 @@ func assignCommandGroups(cmds commandSet) {
 	cmds.statusCmd.GroupID, cmds.listCmd.GroupID, cmds.experimentsCmd.GroupID, cmds.forecastCmd.GroupID, cmds.modelsCmd.GroupID = "analysis", "analysis", "analysis", "analysis", "analysis"
 	cmds.gradersCmd.GroupID = "analysis"
 	cmds.mcpServerCmd.GroupID, cmds.prCmd.GroupID, cmds.completionCmd.GroupID, cmds.hashCmd.GroupID, cmds.projectCmd.GroupID = "utilities", "utilities", "utilities", "utilities", "utilities"
-	cmds.jsonSchemaCmd.GroupID = "utilities"
+	cmds.jsonSchemaCmd.GroupID, cmds.skillCmd.GroupID = "utilities", "utilities"
 	cmds.workCmd.GroupID = "utilities"
 }
 
@@ -915,7 +917,7 @@ func addCommandsToRoot(cmds commandSet) {
 		runCmd, removeCmd, cmds.statusCmd, cmds.listCmd, enableCmd, disableCmd, cmds.logsCmd, cmds.auditCmd, cmds.sessionsCmd, cmds.viewCmd,
 		cmds.healthCmd, cmds.outcomesCmd, cmds.checksCmd, cmds.mcpCmd, cmds.mcpServerCmd, cmds.prCmd, versionCmd, cmds.secretsCmd,
 		cmds.fixCmd, cmds.formatCmd, cmds.validateCmd, cmds.lintCmd, cmds.completionCmd, cmds.hashCmd, cmds.projectCmd, cmds.doctorCmd,
-		cmds.domainsCmd, cmds.experimentsCmd, cmds.forecastCmd, cmds.gradersCmd, cmds.modelsCmd, cmds.envCmd, cmds.jsonSchemaCmd, cmds.workCmd,
+		cmds.domainsCmd, cmds.experimentsCmd, cmds.forecastCmd, cmds.gradersCmd, cmds.modelsCmd, cmds.envCmd, cmds.jsonSchemaCmd, cmds.workCmd, cmds.skillCmd,
 	)
 }
 
