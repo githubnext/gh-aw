@@ -146,18 +146,28 @@ describe("privacy-preserving work queue logging", () => {
 
   it("reports only allowlisted static error codes without DEBUG or invoking getters", () => {
     const logger = createWorkQueueLogger("dispatch");
-    logger.failure("launch.preflight.blocked", new Error("work_queue_dispatch_contents_write_required"), true);
-    expect(output()).toContain("work_queue_dispatch_contents_write_required=true");
-    expect(output()).toContain("selected dispatch credential reports no repository write access");
-    expect(output()).toContain("contents: write and actions: write");
-    expect(output()).toContain("keep the agent job read-only");
+    logger.failure("launch.preflight.blocked", new Error("work_queue_dispatch_credential_client_mismatch"), true);
+    expect(output()).toContain("work_queue_dispatch_credential_client_mismatch=true");
+    expect(output()).toContain("could not be bound to the compiler-selected token");
+    expect(output()).toContain("credential validation and workflow dispatch use the same selected token");
     const getter = vi.fn(() => "private-token");
     const error = Object.defineProperties({}, { code: { get: getter }, message: { get: getter } });
     expect(queueControlErrorCode(error)).toBe("queue_control_authority_or_publication_failed");
     expect(getter).not.toHaveBeenCalled();
-    expect(queueControlErrorCode(new Error("work_queue_dispatch_contents_write_required: private-token"))).toBe("queue_control_authority_or_publication_failed");
+    expect(queueControlErrorCode(new Error("work_queue_dispatch_credential_client_mismatch: private-token"))).toBe("queue_control_authority_or_publication_failed");
     expect(queueControlErrorCode({ code: "private-token" })).toBe("queue_control_authority_or_publication_failed");
     expect(output()).not.toContain("private-token");
+  });
+
+  it.each([
+    ["work_queue_dispatch_repository_access_unavailable", "cannot check the target repository", "authenticated GitHub client"],
+    ["work_queue_dispatch_credential_client_mismatch", "could not be bound", "same selected token"],
+  ])("explains credential error %s without implying repository-role permission enforcement", (code, problem, action) => {
+    expect(queueControlErrorCode(new Error(code))).toBe(code);
+    createWorkQueueLogger("dispatch").failure("launch.preflight.blocked", new Error(code), true);
+    expect(output()).toContain(`${code}=true`);
+    expect(output()).toContain(problem);
+    expect(output()).toContain(action);
   });
 
   it.each([

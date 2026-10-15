@@ -368,9 +368,12 @@ Metadata contains only counts, flags, retry delays, and HTTP status codes.
 Blocked control and launch-processing failures are always visible, even without
 `DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
 include a fixed human-readable explanation and recovery action alongside the
-stable error category. For example, a credential reporting insufficient access
-explains that the trusted safe-output job needs `contents: write` and `actions: write`
-while the agent job remains read-only. Raw provider errors and secret values are
+stable error category. GitHub enforces API access using the trusted job's Actions
+permissions and selected credential; the ledger does not infer token permissions
+from repository-role metadata. An actual GitHub access denial explains which
+job permissions to check while the agent job remains read-only. Credential
+identity, Claim ownership, and immutable worker-revision checks remain in place.
+Raw provider errors and secret values are
 never printed.
 
 A failure after a grant retains the durable request and commit IDs in the control

@@ -18,8 +18,7 @@ const CONTROL_ERROR_CODES = new Set([
   "work_queue_dispatch_credential_principal_mismatch",
   "work_queue_dispatch_credential_proof_invalid",
   "work_queue_dispatch_credential_validator_required",
-  "work_queue_dispatch_contents_write_unavailable",
-  "work_queue_dispatch_contents_write_required",
+  "work_queue_dispatch_repository_access_unavailable",
   "work_queue_dispatch_repository_identity_mismatch",
   "work_queue_dispatch_tag_mismatch",
   "work_queue_dispatch_tag_preparation_failed",
@@ -43,9 +42,7 @@ const CONTROL_ERROR_CODES = new Set([
 /** @param {string} code */
 function queueControlErrorExplanation(code) {
   switch (code) {
-    case "work_queue_dispatch_contents_write_required":
-      return "The selected dispatch credential reports no repository write access. Grant contents: write and actions: write to the trusted safe-output job; keep the agent job read-only.";
-    case "work_queue_dispatch_contents_write_unavailable":
+    case "work_queue_dispatch_repository_access_unavailable":
       return "The dispatch client cannot check the target repository. Use the authenticated GitHub client created by the compiled safe-output job.";
     case "work_queue_dispatch_credential_binding_required":
     case "work_queue_dispatch_credential_auth_unavailable":

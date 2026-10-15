@@ -244,7 +244,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
     delete fixture.githubClient.rest.repos.get;
-    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_unavailable/);
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/repository_access_unavailable/);
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
   });
@@ -1723,7 +1723,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
-  it.each(["work_queue_dispatch_contents_write_required", "private-token-response"])("retains committed grants and reports prelaunch failure safely: %s", async message => {
+  it.each(["work_queue_dispatch_credential_client_mismatch", "private-token-response"])("retains committed grants and reports prelaunch failure safely: %s", async message => {
     const { fixture, options, post } = setup({ granted: false, count: 3, batch: 1 });
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-prelaunch-"));
     const filename = path.join(directory, "intents.jsonl");
@@ -1752,7 +1752,7 @@ describe("native queue launch fencing and conservative recovery", () => {
       }
       expect(core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(reason));
       expect(core.setFailed).toHaveBeenCalledOnce();
-      const explanation = message === "work_queue_dispatch_contents_write_required" ? "Grant contents: write and actions: write to the trusted safe-output job" : "raw exception details are withheld to protect credentials and task data";
+      const explanation = message === "work_queue_dispatch_credential_client_mismatch" ? "credential validation and workflow dispatch use the same selected token" : "raw exception details are withheld to protect credentials and task data";
       expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(explanation));
       expect(result.summary).toContain(explanation);
       expect(result.receipts[0].launches[0].explanation).toContain(explanation);
