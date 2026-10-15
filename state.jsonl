@@ -1,1 +1,1 @@
-{"run_id":"38326808714","timestamp":"2026-10-13T00:21:39.140Z","harness_version":"b62d633b700adc36015b06be5bc845700387c9b8e84c31b79784a252a05f8d61:d664c3836440fc30b80a4f840e3a0950bcfa1d92177fbd7e9659f9b533dce9a1","assignments":{"sub_agent_strategy":"single_agent"}}
+{"run_id":"38659106217","timestamp":"2026-10-15T00:17:29.027Z","harness_version":"b62d633b700adc36015b06be5bc845700387c9b8e84c31b79784a252a05f8d61:d664c3836440fc30b80a4f840e3a0950bcfa1d92177fbd7e9659f9b533dce9a1","assignments":{"sub_agent_strategy":"sub_agents"}}
