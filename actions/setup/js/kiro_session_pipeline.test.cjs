@@ -7,19 +7,22 @@ import { parseKiroLog } from "./parse_kiro_log.cjs";
 import { parseBehaviorLog } from "./engine_log_parser.cjs";
 import { runLogParser } from "./log_parser_bootstrap.cjs";
 import { writeUnifiedSession } from "./unified_session.cjs";
+import { MCP_GATEWAY_CONFIG_PATHS } from "./redact_secrets.cjs";
 
 describe("Kiro canonical session artifact pipeline", () => {
   let root;
   let originalEnv;
   let originalCore;
+  let originalGatewayPaths;
   const readEvents = file => fs.readFileSync(file, "utf8").trimEnd().split("\n").map(JSON.parse);
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-kiro-session-"));
     originalEnv = { ...process.env };
     originalCore = global.core;
-    process.env.GH_AW_AGENT_OUTPUT = path.join(root, "agent-stdio.log");
-    delete process.env.GH_AW_SAFE_OUTPUTS;
+    originalGatewayPaths = [...MCP_GATEWAY_CONFIG_PATHS];
+    MCP_GATEWAY_CONFIG_PATHS.splice(0, MCP_GATEWAY_CONFIG_PATHS.length, path.join(root, "gateway.json"));
+    process.env = { PATH: process.env.PATH, HOME: root, RUNNER_TEMP: root, GH_AW_AGENT_OUTPUT: path.join(root, "agent-stdio.log") };
     global.core = {
       info: vi.fn(),
       debug: vi.fn(),
@@ -35,7 +38,25 @@ describe("Kiro canonical session artifact pipeline", () => {
   afterEach(() => {
     process.env = originalEnv;
     global.core = originalCore;
+    MCP_GATEWAY_CONFIG_PATHS.splice(0, MCP_GATEWAY_CONFIG_PATHS.length, ...originalGatewayPaths);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("projects pinned V2 release events using the existing unified schema (synthetic)", async () => {
+    const raw = kiroCI.success.replace("kiro-cli 2.27.1", "kiro-cli 2.31.1");
+    fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, raw);
+    fs.writeFileSync(path.join(root, "agent_execution_exit_code.txt"), "0");
+    await runLogParser({ parserName: "Kiro", parseLog: content => parseBehaviorLog(content, "kiro"), rootDir: root });
+    expect(readEvents(path.join(root, "agent-session.jsonl")).find(event => event.type === "session.init").data.agentVersion).toBe("2.31.1");
+    const unified = writeUnifiedSession({ rootDir: root, engine: "kiro", warn: vi.fn() });
+    const agent = unified.filter(event => event.provenance?.component === "agent" && event.type !== "agent.execution");
+    const expected = parseKiroLog(kiroCI.success).logEntries.map(event => ({
+      ...event,
+      data: event.type === "session.init" ? { sourceEngine: "kiro" } : event.data,
+    }));
+    expect(agent.map(({ type, data }) => ({ type, data }))).toEqual(expected.map(({ type, data }) => ({ type, data })));
+    expect(agent.some(event => event.type === "session.result")).toBe(false);
+    expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 
   it.each(["success", "failure"])("persists the %s CI excerpt through the production bootstrap and authoritative merger", async fixture => {
