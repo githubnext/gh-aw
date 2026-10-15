@@ -223,6 +223,7 @@ function registerTests({ describe, it }) {
         }
         copy("work_queue_provisioning.cjs");
         assert.ok(copied.has("work_queue_yaml.cjs"));
+        assert.ok(copied.has("work_queue_host.cjs"));
         assert.ok(copied.has("work_queue_logging.cjs"));
         assert.ok(copied.has("mcp_logger.cjs"));
         const script = `

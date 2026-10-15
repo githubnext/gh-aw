@@ -96,10 +96,23 @@ func workRead(cmd *cobra.Command) (workqueue.Projection, error) {
 }
 
 func workReplayCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use: "replay", Aliases: []string{"read"}, Short: "Validate the full causal queue and display ownership and barriers",
+		Long: "Replay the live ledger, or use --run-id to download an exact Actions activation\n" +
+			"snapshot (--file accepts an already downloaded snapshot). Artifact replay is\n" +
+			"read-only; --pool predicts scheduling at capture time without launching workers.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			runID, _ := cmd.Flags().GetInt64("run-id")
+			file, _ := cmd.Flags().GetString("file")
+			if cmd.Flags().Changed("run-id") || cmd.Flags().Changed("file") {
+				return workReplayArtifact(cmd, runID, file)
+			}
+			for _, flag := range []string{"pool", "max-claims", "max-dispatches"} {
+				if cmd.Flags().Changed(flag) {
+					return errors.New("artifact_replay_invalid: scheduling predictions require --run-id or --file")
+				}
+			}
 			projection, err := workRead(cmd)
 			if err != nil {
 				return err
@@ -120,6 +133,12 @@ func workReplayCommand() *cobra.Command {
 			return workPrint(cmd, projection, strings.Join(lines, "\n"))
 		},
 	}
+	cmd.Flags().Int64("run-id", 0, "Replay the activation snapshot from this exact Actions run (read only)")
+	cmd.Flags().String("file", "", "Replay a downloaded work-queue.snapshot.json (read only)")
+	cmd.Flags().String("pool", "", "Predict a fair dispatch from the captured ledger without writes or launches")
+	cmd.Flags().Int("max-claims", 1, "Predicted logical Claim budget, bounded by captured Policy")
+	cmd.Flags().Int("max-dispatches", 1, "Predicted native dispatch budget, bounded by captured Policy")
+	return cmd
 }
 
 func workStatsCommand() *cobra.Command {

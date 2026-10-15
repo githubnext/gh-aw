@@ -244,7 +244,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
     delete fixture.githubClient.rest.repos.get;
-    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/contents_write_unavailable/);
+    await expect(launchAssignment(options, fixture.assignment)).rejects.toThrow(/repository_access_unavailable/);
     expect(canonical(fixture.transactions)).toBe(before);
     expect(post).not.toHaveBeenCalled();
   });
@@ -1720,6 +1720,116 @@ describe("native queue launch fencing and conservative recovery", () => {
       expect(fixture.state.dispatches.values().next().value).toMatchObject({ released: outcome === "rejected" });
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["work_queue_dispatch_credential_client_mismatch", "private-token-response"])("retains committed grants and reports prelaunch failure safely: %s", async message => {
+    const { fixture, options, post } = setup({ granted: false, count: 3, batch: 1 });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-prelaunch-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const core = {
+      info: vi.fn(),
+      setOutput: vi.fn(),
+      setFailed: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
+    };
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const validator = vi.fn().mockRejectedValue(new Error(message));
+    const config = { ...options.config, work_queue_dispatch_credential: { kind: "authenticated" }, work_queue_enabled: true };
+    try {
+      fs.writeFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "prelaunch-failure", kind: "dispatch_next", parameters: { pool: "default", max_claims: 3, max_dispatches: 3 } })}\n`);
+      const result = await publishQueueControls({ ...options, config, intentPath: filename, validateDispatchCredential: validator, core });
+      expect(result).toMatchObject({ status: "recovery_required", success: false, remaining_dispatches: 0 });
+      expect(result.receipts[0]).toMatchObject({ status: "durable", success: false, dispatches: 3 });
+      expect(result.receipts[0].request_id).toBeTruthy();
+      expect(result.receipts[0].commit_id).toBe(fixture.state.tip);
+      expect(result.receipts[0].launches).toHaveLength(3);
+      const reason = message.startsWith("work_queue_") ? message : "queue_control_authority_or_publication_failed";
+      for (const launch of result.receipts[0].launches) {
+        expect(launch).toMatchObject({ state: "blocked", reason, failure_stage: "launch_processing" });
+        expect(launch).not.toHaveProperty("released");
+        expect(launch).not.toHaveProperty("dispatched");
+      }
+      expect(core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(reason));
+      expect(core.setFailed).toHaveBeenCalledOnce();
+      const explanation = message === "work_queue_dispatch_credential_client_mismatch" ? "credential validation and workflow dispatch use the same selected token" : "raw exception details are withheld to protect credentials and task data";
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(explanation));
+      expect(result.summary).toContain(explanation);
+      expect(result.receipts[0].launches[0].explanation).toContain(explanation);
+      expect(validator).toHaveBeenCalledTimes(3);
+      expect(post).not.toHaveBeenCalled();
+      expect([...fixture.state.dispatches.values()].every(dispatch => dispatch.state === "reserved" && !dispatch.sender && !dispatch.run)).toBe(true);
+      const logs = stderr.mock.calls.map(call => call[0]).join("");
+      expect(logs).toContain("launch.processing.blocked");
+      expect(logs).toContain(`${reason}=true`);
+      expect(logs).toContain(explanation);
+      expect(result.summary).toContain("Blocked intents: 0");
+      expect(result.summary).toContain("Unresolved launches: 3");
+      expect(logs).toContain("controls.complete durable=1 blocked=0 rejected=0 unresolved=3 recovery_required=true");
+      expect(logs + JSON.stringify(result)).not.toContain("private-token-response");
+    } finally {
+      stderr.mockRestore();
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not misreport a post-launch publication exception as definitive nonlaunch", async () => {
+    const { fixture, options, post } = setup({ granted: false, count: 1 });
+    post.mockRejectedValue({ status: 422, response: { status: 422, headers: { "x-github-request-id": "trusted-provider-request" } } });
+    const publish = options.publishWorkQueueRequest;
+    const result = await dispatchQueueIntent({
+      ...options,
+      publishWorkQueueRequest: args => {
+        if (args.request.kind === "release") throw new Error("private-release-error");
+        return publish(args);
+      },
+      remainingDispatches: 1,
+      message: { type: "work_queue_dispatch_next", intent_id: "post-launch-failure", pool: "default", max_claims: 1, max_dispatches: 1 },
+    });
+    expect(result).toMatchObject({ success: false, status: "durable", dispatches: 1 });
+    expect(result.launches[0]).toMatchObject({ state: "blocked", failure_stage: "launch_processing" });
+    expect(result.launches[0]).not.toHaveProperty("dispatched");
+    expect(result.launches[0]).not.toHaveProperty("released");
+    expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: "rejected", released: false });
+    expect(post).toHaveBeenCalledOnce();
+    expect(JSON.stringify(result)).not.toContain("private-release-error");
+  });
+
+  it.each(["after_start", "after_post", "release"])("counts a processing exception at %s only as an unresolved launch", async stage => {
+    const { fixture, options, post } = setup({ granted: false, count: 1 });
+    const filename = path.join(process.cwd(), `.gh-aw-queue-outcome-${stage}.jsonl`);
+    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+    const config = { ...options.config, work_queue_dispatch_credential: { kind: "authenticated" } };
+    post.mockRejectedValue({ status: 422, response: { status: 422, headers: { "x-github-request-id": "trusted-provider-request" } } });
+    try {
+      fs.writeFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "unknown-outcome", kind: "dispatch_next", parameters: { pool: "default", max_claims: 1, max_dispatches: 1 } })}\n`);
+      const result = await publishQueueControls({
+        ...options,
+        config,
+        intentPath: filename,
+        core,
+        readWorkQueueLog: args => {
+          if (stage === "after_start" && [...fixture.state.dispatches.values()].some(dispatch => dispatch.state === "started")) throw new Error("private-read-error");
+          return options.readWorkQueueLog(args);
+        },
+        publishWorkQueueRequest: args => {
+          if ((stage === "after_post" && args.request.parameters.operations?.some(operation => operation.state === "rejected")) || (stage === "release" && args.request.kind === "release")) throw new Error("private-publication-error");
+          return options.publishWorkQueueRequest(args);
+        },
+      });
+      expect(result).toMatchObject({ status: "recovery_required", success: false });
+      const launch = result.receipts[0].launches[0];
+      expect(launch).toMatchObject({ state: "blocked", failure_stage: "launch_processing" });
+      expect(launch).not.toHaveProperty("dispatched");
+      expect(launch).not.toHaveProperty("released");
+      expect(result.summary).toContain("Blocked intents: 0");
+      expect(result.summary).toContain("Unresolved launches: 1");
+      expect(core.setFailed).toHaveBeenCalledOnce();
+      expect([...fixture.state.dispatches.values()][0]).toMatchObject({ state: stage === "release" ? "rejected" : "started", released: false });
+      expect(post).toHaveBeenCalledTimes(stage === "after_start" ? 0 : 1);
+      expect(JSON.stringify(result)).not.toContain("private-");
+    } finally {
+      fs.rmSync(filename, { force: true });
     }
   });
 

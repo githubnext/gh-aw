@@ -31,6 +31,34 @@ engine: claude
 name: Go Fan
 strict: true
 timeout-minutes: 30
+
+graders:
+  execution-step-count: {}
+  tool-failure-count: {}
+
+evals:
+  - id: module_review_completeness
+    question: "Did the agent produce a complete module review — covering the module's overview, current project usage, research findings, and at least one improvement opportunity — saved to scratchpad/mods/<module>.md, plus a matching issue?"
+
+experiments:
+  prompt_tightening_v1:
+    variants: [control, candidate]
+    description: "Bound Step 3 (Research the Module) to a fixed, prioritized set of research actions (README quickstart, latest 3 releases/changelog entries, up to 5 targeted usage-pattern search results) instead of open-ended repository/issue/discussion exploration, to cut the number of agent turns spent on unconstrained research."
+    hypothesis: "H0: No meaningful difference in execution-step-count between control and candidate. H1: Bounding Step 3's research scope decreases execution-step-count without lowering the module_review_completeness eval pass rate."
+    metric: "grader:execution-step-count"
+    guardrail_metrics:
+      - name: "eval:module_review_completeness"
+        threshold: ">=0.90"
+      - name: "grader:tool-failure-count"
+        threshold: "<=5"
+    min_samples: 20
+    analysis_type: mann_whitney
+    decision:
+      minimum_effect: 3
+      regression_tolerance: 3
+      confidence: 0.95
+    tags: ["harness_dimension:generation control", "harness_subtype:prompt_tightening"]
+
 tools:
   bash:
   - cat go.mod
@@ -131,6 +159,29 @@ From the sorted list (most recent first):
 
 ## Step 3: Research the Module
 
+{{#if experiments.prompt_tightening_v1 == "candidate" }}
+For the selected module, research it with a **bounded, prioritized** scope — do not open-endedly browse the repository:
+
+### 3.1 GitHub Repository (bounded)
+Use GitHub tools to fetch only:
+- The README's primary usage/quickstart section
+- The latest 3 releases (or changelog entries if no releases)
+- Up to 5 targeted search results for usage examples in issues/discussions — skip further issue/discussion browsing beyond this
+
+### 3.2 Documentation
+Note key features and API patterns:
+- Core APIs and their purposes
+- Common usage patterns
+- Performance considerations
+- Recommended configurations
+
+### 3.3 Recent Updates
+From the releases/changelog already fetched in 3.1, note:
+- New features in recent releases
+- Breaking changes
+- Deprecations
+- Security advisories
+{{#else}}
 For the selected module, research its:
 
 ### 3.1 GitHub Repository
@@ -153,6 +204,7 @@ Check for:
 - Breaking changes
 - Deprecations
 - Security advisories
+{{#endif}}
 
 ## Step 4: Analyze Project Usage with Serena
 

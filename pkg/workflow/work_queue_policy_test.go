@@ -29,6 +29,36 @@ func TestWorkQueueProposalValidationPreservesTemplatesAndNativePrincipalKeys(t *
 	require.NoError(t, workqueue.ValidatePolicy(validated))
 }
 
+func TestWorkQueuePolicyCompilationAcceptsEnterpriseProjectorIssue(t *testing.T) {
+	t.Setenv("GITHUB_SERVER_URL", "https://contoso.example")
+	data := &WorkflowData{
+		Tools: map[string]any{"work-queue": true},
+		RawFrontmatter: map[string]any{"work-queue-policy": map[string]any{
+			"producers": map[string]any{"1001": map[string]any{
+				"pools": []any{"default"}, "priorities": []any{1, 2, 3, 4, 5}, "fairness-keys": []any{""},
+			}},
+			"worker-profiles": map[string]any{"default": map[string]any{
+				"workflow": ".github/workflows/worker.lock.yml", "ref": strings.Repeat("a", 40),
+				"principal": "1001", "trust-domain": "default", "credential-scope": "repository",
+				"effect-scope": "owner/repo", "max-claims-per-dispatch": 1,
+			}},
+			"projectors": []any{map[string]any{
+				"principal": "1001", "workflow": ".github/workflows/projector.lock.yml", "ref": strings.Repeat("a", 40),
+				"pools": []any{"default"}, "repositories": []any{"owner/repo"},
+				"backing-issues": []any{map[string]any{
+					"kind": "issue", "host": "contoso.example", "repository": "owner/repo",
+					"repository_id": "1", "resource_id": "2", "number": "3",
+				}},
+			}},
+		}},
+	}
+	require.NoError(t, validateWorkQueueConfiguration(data))
+	require.NotNil(t, data.WorkQueuePolicy)
+
+	data.RawFrontmatter["work-queue-policy"].(map[string]any)["projectors"].([]any)[0].(map[string]any)["backing-issues"].([]any)[0].(map[string]any)["host"] = "github.com"
+	require.ErrorContains(t, validateWorkQueueConfiguration(data), "invalid backing Issue target")
+}
+
 func TestWorkQueueConfiguredProducerPrincipalsAreNativeDecimalIDs(t *testing.T) {
 	configuration := func(principal string) *WorkflowData {
 		return &WorkflowData{

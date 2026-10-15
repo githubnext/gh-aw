@@ -185,7 +185,7 @@ imports:
 Summarize the open pull requests.
 ```
 
-The importing workflow must either omit `engine` or use its object form, such as `engine: { id: copilot }`. If it also enables routing for the same engine, its `goal` and `mode` apply, and the imported `allowed-models` entries are added to its own. If it enables routing without `allowed-models`, the router chooses from only the imported entries.
+The importing workflow must either omit `engine` or use its object form, such as `engine: { id: copilot }`. If it also enables routing for the same engine, its `goal` and `mode` apply. Among workflows that enable routing for the same engine, if any omits `allowed-models`, the router has no shortlist; otherwise, their lists are combined.
 
 ### Keeping up with new models
 
@@ -298,8 +298,6 @@ The classifier is a language model, so the same task can get a different model o
 ### Reasoning effort with Claude and Codex
 
 The router doesn't yet account for which reasoning efforts each engine supports. If it chooses an effort the engine can't use (`none` or `minimal` with Claude, `none` or `max` with Codex), the run fails.
-
-With the Claude engine, requests to `claude-haiku-4.5` fail with HTTP 400, because Claude Code sends a reasoning effort that this model doesn't accept ([gh-aw#68834](https://github.com/github/gh-aw/issues/68834)). The router can choose it when `allowed-models` is omitted, so list Claude candidates explicitly and leave it out.
 
 ### AI Credits budget
 

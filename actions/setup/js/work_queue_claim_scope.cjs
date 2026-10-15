@@ -331,7 +331,7 @@ function createClaimResourceVerification(proof) {
   const resources = proof.authority_resources === undefined ? [proof.authority_resource] : proof.authority_resources;
   if (!Array.isArray(resources) || resources.length < 1 || resources.length > 128) throw scopeError("adapter verification requires bounded complete authority targets");
   const targets = resources.map(resource => require("./work_queue_resource_scope.cjs").validateEffectResource(require("./work_queue_effect_resource.cjs").canonicalResourceTarget(resource)));
-  if (targets.some(target => target.host !== "github.com" || !target.repository_id)) throw scopeError("adapter verification requires independently resolved native repository identities");
+  if (targets.some(target => target.host !== require("./work_queue_host.cjs").expectedGitHubHost() || !target.repository_id)) throw scopeError("adapter verification requires independently resolved native repository identities");
   if (canonical(targets[0]) !== canonical(require("./work_queue_effect_resource.cjs").canonicalResourceTarget(proof.authority_resource))) throw scopeError("adapter verification has conflicting authority targets");
   resourceVerifications.set(proof, { identity, targets: freeze(targets) });
   return freeze(proof);

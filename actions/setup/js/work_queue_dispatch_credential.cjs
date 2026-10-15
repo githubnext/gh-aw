@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { closed, canonical } = require("./work_queue_codec.cjs");
+const { closed, canonical, queueError } = require("./work_queue_codec.cjs");
 const { API_VERSION, nativeId, dispatchTag } = require("./work_queue_native.cjs");
 
 /** @type {WeakMap<object, {client: DispatchClient, profile: string}>} */
@@ -12,7 +12,7 @@ const credentialProofs = new WeakMap();
  * @typedef {{principal: string, kind: string, tag_prepared: true}} DispatchCredentialProof
  * @typedef {{status: number, data: {id: unknown, type: string, login?: string}}} IdentityResponse
  * @typedef {{headers: Record<string, string>, request: {retries: number, timeout: number}, username?: string}} IdentityRequest
- * @typedef {{status: number, data: {full_name: string, permissions?: {admin?: boolean, maintain?: boolean, push?: boolean, contents?: string}}}} RepositoryAccessResponse
+ * @typedef {{status: number, data: {full_name: string}}} RepositoryAccessResponse
  * @typedef {{rest?: {users?: {getAuthenticated?: (parameters: IdentityRequest) => Promise<IdentityResponse>, getByUsername?: (parameters: IdentityRequest & {username: string}) => Promise<IdentityResponse>}, repos?: {get?: (parameters: IdentityRequest & {owner: string, repo: string}) => Promise<RepositoryAccessResponse>}, git?: {getRef?: (parameters: Record<string, unknown>) => Promise<unknown>, createRef?: (parameters: Record<string, unknown>) => Promise<unknown>}}, auth?: (options: {type: "token"}) => Promise<unknown>}} DispatchClient
  */
 /** @param {unknown} value @returns {{readonly kind: string, readonly app_slug?: string}} */
@@ -35,7 +35,7 @@ async function resolveDispatchCredentialPrincipal(client, supplied) {
   const parameters = { headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } };
   let response;
   if (credential.kind === "authenticated") {
-    if (typeof users?.getAuthenticated !== "function") throw new Error("work_queue_dispatch_credential_identity_unavailable: an opaque token requires authenticated user metadata or compiler-minted GitHub App metadata");
+    if (typeof users?.getAuthenticated !== "function") throw queueError("work_queue_dispatch_credential_identity_unavailable", "an opaque token requires authenticated user metadata or compiler-minted GitHub App metadata");
     response = await users.getAuthenticated(parameters);
     if (response?.status !== 200 || !["User", "Bot"].includes(response.data?.type)) throw new Error("work_queue_dispatch_credential_identity_unverified");
   } else {
@@ -69,17 +69,15 @@ function createDispatchCredentialValidator(client, supplied, selectedToken) {
         throw new Error("work_queue_dispatch_credential_client_mismatch");
     }
     const [owner, repo, extra] = typeof repository === "string" ? repository.split("/") : [];
-    if (!owner || !repo || extra || typeof client?.rest?.repos?.get !== "function") throw new Error("work_queue_dispatch_contents_write_unavailable");
+    if (!owner || !repo || extra || typeof client?.rest?.repos?.get !== "function") throw new Error("work_queue_dispatch_repository_access_unavailable");
     const access = await client.rest.repos.get({ owner, repo, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } });
-    const permissions = access?.data?.permissions;
     if (access?.status !== 200 || access.data?.full_name?.toLowerCase() !== repository.toLowerCase()) {
       throw new Error("work_queue_dispatch_repository_identity_mismatch");
     }
-    if (!(permissions?.push === true || permissions?.maintain === true || permissions?.admin === true || ["write", "admin"].includes(permissions?.contents ?? ""))) throw new Error("work_queue_dispatch_contents_write_required");
     const expected = Object.hasOwn(profile, "principal") ? nativeId(profile.principal, "approved worker principal") : undefined;
     const actual = await resolveDispatchCredentialPrincipal(client, credential);
     if (expected !== undefined && actual !== expected) throw new Error("work_queue_dispatch_credential_principal_mismatch");
-    // Repository roles do not prove token scope; prepare the required ref before START.
+    // GitHub enforces token permissions on API calls; verify the required ref before START.
     await dispatchTag(client, { repository, ref: profile.ref });
     const proof = Object.freeze({ principal: actual, kind: credential.kind, tag_prepared: true });
     credentialProofs.set(proof, { client, profile: canonical(profile) });
