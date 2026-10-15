@@ -32,7 +32,7 @@ func (r *MCPConfigRendererUnified) RenderWorkQueueMCP(yaml *strings.Builder, wor
 		yaml.WriteString("          [mcp_servers." + serverName + "]\n")
 		yaml.WriteString("          container = \"" + image + "\"\n")
 		yaml.WriteString("          mounts = [\"" + strings.Join(mounts, "\", \"") + "\"]\n")
-		yaml.WriteString("          env_vars = [\"RUNNER_TEMP\"]\n")
+		yaml.WriteString("          env_vars = [\"GITHUB_SERVER_URL\", \"RUNNER_TEMP\"]\n")
 		fmt.Fprintf(yaml, "          env = { GH_AW_WORK_QUEUE_ROLE = %q }\n", role) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		yaml.WriteString("          entrypoint = \"node\"\n")
 		yaml.WriteString("          entrypointArgs = [\"" + workQueueMCPServerEntrypoint + "\"]\n")
@@ -48,6 +48,7 @@ func (r *MCPConfigRendererUnified) RenderWorkQueueMCP(yaml *strings.Builder, wor
 	yaml.WriteString("                \"mounts\": [\"" + strings.Join(mounts, "\", \"") + "\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"RUNNER_TEMP\": \"\\${RUNNER_TEMP}\",\n")
+	yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"\\${GITHUB_SERVER_URL}\",\n")
 	fmt.Fprintf(yaml, "                  \"GH_AW_WORK_QUEUE_ROLE\": %q\n", role) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	yaml.WriteString("                },\n")
 	yaml.WriteString("                \"entrypoint\": \"node\",\n")

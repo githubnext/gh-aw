@@ -97,6 +97,9 @@ describe("git_patch_utils - pure helpers", () => {
     it("uses empty fallback for empty repo slugs", () => {
       expect(sanitizeRepoSlugForPatch("")).toBe("");
     });
+    it.each(["-", "---", " --- ", "///"])("rejects branch %s instead of deriving an empty transport filename", branch => {
+      expect(() => sanitizeBranchNameForPatch(branch)).toThrow("Invalid branch name");
+    });
     it("sanitizes owner/repo slugs", () => {
       expect(sanitizeRepoSlugForPatch("github/Gh-AW")).toBe("github-gh-aw");
     });

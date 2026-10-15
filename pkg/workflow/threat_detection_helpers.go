@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var threatLog = logger.New("workflow:threat_detection")
@@ -299,6 +300,27 @@ func engineCoreSecretVarNames(engineID string) []string {
 	default:
 		return []string{}
 	}
+}
+
+// resolveThreatDetectionModel returns the model the detection job runs with:
+// safe-outputs.threat-detection.model, else the inherited main workflow model, else
+// the enterprise or engine default detection model, else the "detection" alias.
+func resolveThreatDetectionModel(data *WorkflowData, engineID string, engine CodingAgentEngine) string {
+	model := inheritedDetectionModel(data, engineID)
+	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		model = data.SafeOutputs.ThreatDetection.Model
+	}
+	if model == "" {
+		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+			model = defaultModel
+		} else if engine != nil {
+			model = engine.GetDefaultDetectionModel()
+		}
+	}
+	if model == "" {
+		model = "detection"
+	}
+	return model
 }
 
 // inheritedDetectionModel returns the main workflow model when the detection engine can

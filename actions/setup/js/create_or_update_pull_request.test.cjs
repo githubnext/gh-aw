@@ -3,6 +3,7 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { createOrUpdatePullRequest } = require("./create_or_update_pull_request.cjs");
+const { TransportIntegrityError } = require("./transport_integrity.cjs");
 
 describe("createOrUpdatePullRequest", () => {
   const options = {
@@ -27,5 +28,80 @@ describe("createOrUpdatePullRequest", () => {
 
     await createOrUpdatePullRequest({ ...options, githubClient });
     expect(githubClient.rest.pulls.create).toHaveBeenCalledWith(expect.not.objectContaining({ head_repo: expect.anything() }));
+  });
+
+  it.each(["feature", "fix-network-timeout"])("rechecks transport integrity before a retried API write for %s", async branch => {
+    vi.useFakeTimers();
+    vi.stubGlobal("core", { info: vi.fn(), debug: vi.fn(), warning: vi.fn() });
+    let tampered = false;
+    const githubClient = {
+      rest: {
+        pulls: {
+          create: vi.fn(async () => {
+            tampered = true;
+            throw Object.assign(new Error("Service unavailable"), { status: 503 });
+          }),
+        },
+      },
+    };
+    const assertTransportUnchanged = vi.fn(() => {
+      if (tampered) throw new TransportIntegrityError(`/tmp/gh-aw/aw-${branch}.patch`);
+    });
+    try {
+      const result = createOrUpdatePullRequest({ ...options, githubClient, assertTransportUnchanged });
+      const rejection = expect(result).rejects.toThrow("SECURITY:");
+      await vi.runAllTimersAsync();
+      await rejection;
+      expect(assertTransportUnchanged).toHaveBeenCalledTimes(2);
+      expect(githubClient.rest.pulls.create).toHaveBeenCalledTimes(1);
+      expect(core.info.mock.calls.filter(([message]) => message.startsWith("Retry attempt"))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each(["network", "timeout", "rate-limit"])("does not retry a pre-write integrity failure containing %s", async branch => {
+    vi.useFakeTimers();
+    vi.stubGlobal("core", { info: vi.fn(), debug: vi.fn(), warning: vi.fn() });
+    const githubClient = { rest: { pulls: { create: vi.fn() } } };
+    const assertTransportUnchanged = vi.fn(() => {
+      throw new TransportIntegrityError(`/tmp/gh-aw/aw-${branch}.patch`);
+    });
+    try {
+      await expect(createOrUpdatePullRequest({ ...options, githubClient, assertTransportUnchanged })).rejects.toThrow("SECURITY:");
+      expect(assertTransportUnchanged).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.pulls.create).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rejects a transport mutation after successful PR creation before returning", async () => {
+    vi.stubGlobal("core", { debug: vi.fn(), info: vi.fn(), warning: vi.fn() });
+    let tampered = false;
+    const githubClient = {
+      rest: {
+        pulls: {
+          create: vi.fn(async () => {
+            tampered = true;
+            return { data: { number: 42 } };
+          }),
+        },
+      },
+    };
+    const assertTransportUnchanged = vi.fn(() => {
+      if (tampered) throw new TransportIntegrityError("/tmp/aw-feature.patch");
+    });
+
+    try {
+      await expect(createOrUpdatePullRequest({ ...options, githubClient, assertTransportUnchanged })).rejects.toThrow("SECURITY:");
+      expect(githubClient.rest.pulls.create).toHaveBeenCalledTimes(1);
+      expect(assertTransportUnchanged).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

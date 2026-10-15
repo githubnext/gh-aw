@@ -51,6 +51,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		paths = append(paths, constants.TmpGhAwDirSlash+"agent/aw_info.json")
 		paths = append(paths, constants.TmpGhAwDirSlash+"agent/awf-routing-outcome.json")
 	}
+	if isModelRoutingEnabled(data) || engine.GetID() == string(constants.CopilotEngine) {
+		paths = append(paths, constants.TmpGhAwDirSlash+"runtime/aw_info.json")
+	}
 	if engine.GetID() == string(constants.CopilotEngine) {
 		paths = append(paths,
 			constants.TmpGhAwDirSlash+"agent_usage.jsonl",

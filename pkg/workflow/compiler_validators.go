@@ -481,6 +481,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 	c.emitSandboxRuntimeWarnings(workflowData, markdownPath)
 	c.emitPiThreatDetectionAuthWarning(workflowData, markdownPath)
+	c.warnClaudeCopilotDetectionSettingsOverride(workflowData, markdownPath)
 	c.emitContextWindowSupportWarning(workflowData)
 	c.emitCustomEngineThreatDetectionWarning(workflowData, markdownPath)
 	c.emitPlaywrightBrowserInstallWarning(workflowData, markdownPath)

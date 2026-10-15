@@ -117,6 +117,12 @@ const MODEL_ROUTING_FIELDS = {
   routerVersion: ["router_version", "routerVersion"],
   failureCode: ["failure_code", "failureCode"],
 };
+const MODEL_SELECTION_FIELDS = {
+  status: ["status"],
+  configuredModel: ["configured_model", "configuredModel"],
+  resolvedModel: ["resolved_model", "resolvedModel"],
+  effectiveModel: ["effective_model", "effectiveModel"],
+};
 /** @type {Fields} */
 const EPISODE_LINEAGE_FIELDS = {
   episodeId: ["episodeId", "episode_id"],
@@ -387,6 +393,7 @@ const EVENT_FIELDS = {
     model: ["model"],
     requestedModel: ["requested_model", "requestedModel", "model"],
     modelRouting: ["modelRouting", "model_routing"],
+    modelSelection: ["modelSelection", "model_selection"],
     triggerType: ["triggerType", "event_name"],
     workflow: ["workflow", "workflow_name"],
     repository: ["repository"],
@@ -541,6 +548,10 @@ function normalizeUnifiedSessionEvent(event, phase) {
     const modelRouting = source.modelRouting ?? source.model_routing;
     if (modelRouting && typeof modelRouting === "object" && !Array.isArray(modelRouting)) {
       data.modelRouting = selectFields(modelRouting, MODEL_ROUTING_FIELDS);
+    }
+    const modelSelection = source.modelSelection ?? source.model_selection;
+    if (modelSelection && typeof modelSelection === "object" && !Array.isArray(modelSelection)) {
+      data.modelSelection = selectFields(modelSelection, MODEL_SELECTION_FIELDS);
     }
     const episode = Object.hasOwn(source, "episode") ? source.episode : source.context;
     if (episode && typeof episode === "object" && !Array.isArray(episode)) {

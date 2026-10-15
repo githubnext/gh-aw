@@ -475,6 +475,7 @@ jobs:
       GH_AW_PR_HEAD_BASE_SHA: ""
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_TARGET_REPO_SLUG: ""
       GH_AW_WORKFLOW_ID_SANITIZED: dailyobservabilityreport
       GH_AW_WORK_QUEUE_ENABLED: "true"
       GH_AW_WORK_QUEUE_INTENT_ORIGIN: "${{ needs.activation.outputs.work_queue_origin }}"
@@ -877,6 +878,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="codex"
@@ -891,7 +893,7 @@ jobs:
 
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_39db8e7dd3199b95_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_5fa4347920393a2b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -962,6 +964,7 @@ jobs:
                 "mounts": ["${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro", "${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:rw"],
                 "env": {
                   "RUNNER_TEMP": "\${RUNNER_TEMP}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
                   "GH_AW_WORK_QUEUE_ROLE": "worker"
                 },
                 "entrypoint": "node",
@@ -981,7 +984,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_39db8e7dd3199b95_EOF
+          GH_AW_MCP_CONFIG_5fa4347920393a2b_EOF
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p "${CODEX_HOME}"
@@ -1934,6 +1937,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="codex"

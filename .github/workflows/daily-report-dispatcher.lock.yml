@@ -448,6 +448,7 @@ jobs:
       GH_AW_PR_HEAD_BASE_SHA: ""
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_TARGET_REPO_SLUG: ""
       GH_AW_WORKFLOW_ID_SANITIZED: dailyreportdispatcher
       GH_AW_WORK_QUEUE_ENABLED: "true"
       GH_AW_WORK_QUEUE_INTENT_ORIGIN: "${{ needs.activation.outputs.work_queue_origin }}"
@@ -790,6 +791,7 @@ jobs:
           export GH_AW_PR_HEAD_BASE_PR_NUMBER="${GH_AW_PR_HEAD_BASE_PR_NUMBER:-}"
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
+          export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
           export DEBUG="*"
 
           export GH_AW_ENGINE="copilot"
@@ -801,7 +803,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_bda54f4e4d91b04f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_22a6a0d29c3d3695_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -872,6 +874,7 @@ jobs:
                 "mounts": ["${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro", "${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:rw"],
                 "env": {
                   "RUNNER_TEMP": "\${RUNNER_TEMP}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
                   "GH_AW_WORK_QUEUE_ROLE": "dispatcher"
                 },
                 "entrypoint": "node",
@@ -891,7 +894,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_bda54f4e4d91b04f_EOF
+          GH_AW_MCP_CONFIG_22a6a0d29c3d3695_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1273,6 +1276,7 @@ jobs:
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/agent_usage.json
+            /tmp/gh-aw/runtime/aw_info.json
             /tmp/gh-aw/agent_usage.jsonl
             /tmp/gh-aw/agent/model-endpoint-mismatch.json
             /tmp/gh-aw/agent-stdio.log
@@ -1369,6 +1373,10 @@ jobs:
           if [ -f "/tmp/gh-aw/agent_output.json" ]; then
             echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
           fi
+      - name: Restore runtime model metadata
+        if: always()
+        run: |
+          if [ -f /tmp/gh-aw/runtime/aw_info.json ]; then cp /tmp/gh-aw/runtime/aw_info.json /tmp/gh-aw/aw_info.json; fi
       - name: Warn if threat detection produced no verdict
         if: always() && needs.detection.result != 'skipped' && (needs.detection.outputs.detection_reason == 'agent_failure' || needs.detection.outputs.detection_reason == 'parse_error' || needs.detection.outputs.detection_conclusion == '')
         run: echo "::warning::Threat detection produced no security verdict. Review the detection job logs before trusting the agent outputs."

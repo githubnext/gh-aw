@@ -147,6 +147,9 @@ func TestRenderWorkQueueMCPUsesSnapshotAndFinishIntentMounts(t *testing.T) {
 		if !strings.Contains(rendered, constants.WorkQueueFinishIntentMount) || !strings.Contains(rendered, `"work_queue_claim_finish"`) {
 			t.Fatalf("expected the finish tool to use the safe-output intent mount: %s", rendered)
 		}
+		if !strings.Contains(rendered, `"GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"`) {
+			t.Fatalf("expected the configured GitHub server URL in the queue MCP environment: %s", rendered)
+		}
 		if strings.Contains(rendered, "GITHUB_TOKEN") || strings.Contains(rendered, constants.DefaultWorkspaceMount) || strings.Contains(rendered, constants.DefaultTmpGhAwMount) {
 			t.Fatalf("queue MCP must not receive Git credentials or workspace mounts: %s", rendered)
 		}
@@ -165,6 +168,9 @@ func TestRenderWorkQueueMCPUsesSnapshotAndFinishIntentMounts(t *testing.T) {
 		}
 		if !strings.Contains(rendered, constants.WorkQueueFinishIntentMount) {
 			t.Fatalf("expected the safe-output intent mount: %s", rendered)
+		}
+		if !strings.Contains(rendered, `env_vars = ["GITHUB_SERVER_URL", "RUNNER_TEMP"]`) {
+			t.Fatalf("expected the configured GitHub server URL in the queue MCP environment: %s", rendered)
 		}
 		if strings.Contains(rendered, "GITHUB_TOKEN") || strings.Contains(rendered, constants.DefaultWorkspaceMount) || strings.Contains(rendered, constants.DefaultTmpGhAwMount) {
 			t.Fatalf("queue MCP must not receive Git credentials or workspace mounts: %s", rendered)
@@ -190,6 +196,93 @@ func TestRenderWorkQueueObserverMCPIsReadOnly(t *testing.T) {
 			}
 			if format == "json" && !strings.Contains(rendered, `"tools": ["work_queue_read", "work_queue_explain"]`) {
 				t.Fatalf("observer must advertise only read/explain: %s", rendered)
+			}
+		})
+	}
+}
+
+func TestRenderWorkQueueMCPEnvironmentLoadsEnterpriseSnapshot(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node required for work-queue MCP snapshot validation")
+	}
+	for _, format := range []string{"json", "toml"} {
+		t.Run(format, func(t *testing.T) {
+			var output strings.Builder
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{Format: format, IsLast: true})
+			renderer.RenderWorkQueueMCP(&output, &WorkflowData{Tools: map[string]any{"work-queue": true}})
+			source := map[string]string{
+				"GITHUB_SERVER_URL": "https://contoso.example",
+				"RUNNER_TEMP":       ".",
+			}
+			var environment map[string]string
+			if format == "json" {
+				var configuration map[string]struct {
+					Env map[string]string `json:"env"`
+				}
+				// The generated heredoc escapes expansion until the runner writes the config.
+				rendered := strings.ReplaceAll(output.String(), `\${`, `${`)
+				if err := json.Unmarshal([]byte("{"+rendered+"}"), &configuration); err != nil {
+					t.Fatal(err)
+				}
+				environment = configuration["work-queue"].Env
+				for key, value := range environment {
+					environment[key] = os.Expand(value, func(name string) string { return source[name] })
+				}
+			} else {
+				var configuration struct {
+					Servers map[string]struct {
+						EnvVars []string          `toml:"env_vars"`
+						Env     map[string]string `toml:"env"`
+					} `toml:"mcp_servers"`
+				}
+				if err := toml.Unmarshal([]byte(output.String()), &configuration); err != nil {
+					t.Fatal(err)
+				}
+				server := configuration.Servers["work-queue"]
+				environment = server.Env
+				for _, name := range server.EnvVars {
+					environment[name] = source[name]
+				}
+			}
+			directory, err := os.MkdirTemp(".", ".work-queue-enterprise-snapshot-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(directory)
+			script := `
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const helpers = require("../../actions/setup/js/work_queue_test_helpers.cjs");
+const queue = require("../../actions/setup/js/work_queue_replay.cjs");
+const { defaultPolicy } = require("../../actions/setup/js/work_queue_policy.cjs");
+const { newWork } = require("../../actions/setup/js/work_queue_graph.cjs");
+const { loadWorkQueueSnapshot, createWorkQueueTools } = require("../../actions/setup/js/work_queue_mcp_server.cjs");
+const resource = { kind: "issue", host: "contoso.example", repository: "owner/repo", repository_id: "1", resource_id: "2", number: "3" };
+const ref = "0".repeat(40);
+const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
+policy.projectors = [{ principal: "1001", workflow: helpers.dispatcher.workflow, ref, pools: ["default"], repositories: ["owner/repo"] }];
+const work = { ...newWork({}, "enterprise", "subject", "default", policy, 1), subject: resource, depends_on: [{ kind: "issue", resource, condition: "closed" }] };
+const transactions = [helpers.genesis(policy)];
+transactions.push(helpers.commit("genesis", "enterprise-submit", "submit", helpers.dispatcher, { nodes: [work] }, [work], 1));
+transactions.push(helpers.operationCommit(transactions, "enterprise-link", "issue_link", [{ kind: "IssueLink", work_id: work.work_id, resource, projector_ref: ref }], { ...helpers.dispatcher, role: "projector" }));
+fs.writeFileSync(process.argv[1], JSON.stringify({ version: 3, sha: "activation-head", captured_at: 10, origin: helpers.dispatcher, worker: null, role: "observer", transactionLog: queue.serializeTransactionLog(transactions) }));
+const snapshot = loadWorkQueueSnapshot(process.argv[1]);
+const actual = snapshot.projection.works.get(work.work_id);
+assert.deepEqual({ ...actual.subject }, resource);
+assert.deepEqual({ ...actual.depends_on[0].resource }, resource);
+assert.deepEqual({ ...actual.issue_link }, resource);
+assert.deepEqual(createWorkQueueTools(snapshot).map(tool => tool.name), ["work_queue_read", "work_queue_explain"]);
+process.env.GITHUB_SERVER_URL = "https://another.example";
+assert.throws(() => loadWorkQueueSnapshot(process.argv[1]), /resource_unauthorized/);
+`
+			command := exec.Command(node, "-e", script, filepath.Join(directory, "snapshot.json"))
+			command.Env = []string{}
+			for name, value := range environment {
+				command.Env = append(command.Env, name+"="+value)
+			}
+			if result, err := command.CombinedOutput(); err != nil {
+				t.Fatalf("enterprise snapshot failed with generated %s environment: %v\n%s", format, err, result)
 			}
 		})
 	}

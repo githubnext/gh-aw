@@ -140,6 +140,8 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 		return err
 	}
 	c.warnCodexCopilotModelCompatibility(ctx.workflowData, ctx.cleanPath)
+	c.warnCopilotIntegrationModelAvailability(ctx.workflowData, ctx.cleanPath)
+	c.warnClaudeCopilotSettingsOverride(ctx.workflowData, ctx.cleanPath)
 	c.warnUnknownConfiguredModels(ctx.workflowData, ctx.cleanPath)
 	c.warnRoutedSubAgentModels(ctx.workflowData)
 	if err := validateModelRouting(ctx.workflowData, ctx.engineSetup.agenticEngine.GetID()); err != nil {
