@@ -185,7 +185,7 @@ imports:
 Summarize the open pull requests.
 ```
 
-The importing workflow must either omit `engine` or use its object form, such as `engine: { id: copilot }`. If it also enables routing for the same engine, its `goal` and `mode` apply, and the imported `allowed-models` entries are added to its own. If it enables routing without `allowed-models`, the router chooses from only the imported entries.
+The importing workflow must either omit `engine` or use its object form, such as `engine: { id: copilot }`. If it also enables routing for the same engine, its `goal` and `mode` apply. Among workflows that enable routing for the same engine, if any omits `allowed-models`, the router has no shortlist; otherwise, their lists are combined.
 
 ### Keeping up with new models
 
