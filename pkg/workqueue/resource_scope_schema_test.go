@@ -55,4 +55,13 @@ func TestIndependentFrozenResourceScopeSchema(t *testing.T) {
 			}
 		})
 	}
+	enterprise := map[string]any{
+		"version": 1,
+		"resources": []any{map[string]any{
+			"host": "contoso.example", "repository": "owner/repo", "repository_id": "1",
+		}},
+	}
+	if err := schema.Validate(enterprise); err != nil {
+		t.Fatalf("enterprise host should satisfy the resource-scope schema: %v", err)
+	}
 }

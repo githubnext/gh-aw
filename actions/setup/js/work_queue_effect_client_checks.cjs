@@ -169,6 +169,45 @@ function registerTests({ describe, it }) {
       });
     });
 
+    it("does not authorize GraphQL identities from an API on another host", async () => {
+      const previousServerUrl = process.env.GITHUB_SERVER_URL;
+      const previousApiUrl = process.env.GITHUB_API_URL;
+      process.env.GITHUB_SERVER_URL = "https://contoso.example";
+      process.env.GITHUB_API_URL = "https://api.evil.example";
+      let mutations = 0;
+      const authorize = async request => ({
+        claim_handle: request.claim_handle,
+        authorized: request.resource.host === "contoso.example",
+      });
+      const source = {
+        graphql: async (query, variables) => {
+          if (query.startsWith("mutation")) {
+            mutations++;
+            return {};
+          }
+          return {
+            nodes: variables.ids.map(id => ({
+              id,
+              __typename: "Issue",
+              databaseId: 2,
+              number: 1,
+              repository: { nameWithOwner: "owner/repo", databaseId: 7 },
+            })),
+          };
+        },
+      };
+      try {
+        await withClaimExecution({ assignment, claim_handle: "h1", authorize }, async () => {
+          const client = wrapClaimEffectClient(source, { claim_handle: "h1", authorize });
+          await assert.rejects(client.graphql("mutation($id: ID!) { closeIssue(input: {issueId: $id}) { clientMutationId } }", { id: "issue" }), /same-Claim/);
+        });
+        assert.equal(mutations, 0);
+      } finally {
+        previousServerUrl === undefined ? delete process.env.GITHUB_SERVER_URL : (process.env.GITHUB_SERVER_URL = previousServerUrl);
+        previousApiUrl === undefined ? delete process.env.GITHUB_API_URL : (process.env.GITHUB_API_URL = previousApiUrl);
+      }
+    });
+
     it("freezes effect arguments across authorization and rejects origin and pagination escapes", async () => {
       let writes = 0;
       const parameters = { owner: "owner", repo: "repo" };

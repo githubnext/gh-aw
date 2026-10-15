@@ -38,14 +38,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup(count = 1) {
+function setup(count = 1, host = "github.com") {
   const fixture = queueFixture({
     count,
     bound: true,
     workDefaults: {
       payload: {
         effect_contract: { version: 1, outputs: [{ type: "upload_artifact", min: 0, max: 1 }] },
-        resource_scope: { version: 1, resources: [{ repository: REPOSITORY, host: "github.com", repository_id: "7", run_id: "42" }] },
+        resource_scope: { version: 1, resources: [{ repository: REPOSITORY, host, repository_id: "7", run_id: "42" }] },
       },
     },
   });
@@ -138,6 +138,17 @@ describe("upload_artifact actual disabled/single/multi-Claim entrypoints", () =>
     expect(proof).toMatchObject({ verified: true, claim_handle: "h1", resource: { target_run_id: "42", url: nativeUrl } });
     expect(read).toHaveBeenCalledWith({ owner: "owner", repo: "repo", artifact_id: 101 });
     expect((await f.execute("h1", () => runtime.verifyArtifactDelivery({ claim: f.fixture.assignment.claims[0], result: { ...result }, github: {} }))).verified).toBe(false);
+  });
+
+  it("authorizes Claim artifact uploads on the configured enterprise host", async () => {
+    process.env.GITHUB_SERVER_URL = "https://contoso.example";
+    const f = setup(1, "contoso.example");
+    await f.stage("h1");
+    await f.complete();
+    const handler = await f.execute("h1", () => runtime.main({}));
+    const result = await f.execute("h1", () => handler({ type: "upload_artifact", path: "report.txt", name: "report" }));
+    expect(result.success).toBe(true);
+    expect(f.effects.get("h1")).toMatchObject([{ outcome: "succeeded", claim_handle: "h1" }]);
   });
 
   it("isolates explicit multi-Claim file roots, resolver IDs and failures without narrowing the original assignment", async () => {

@@ -879,7 +879,7 @@ jobs:
 
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_45a42f3b1e20ff20_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_4dbaa98450e9a56e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -965,6 +965,7 @@ jobs:
                 "mounts": ["${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro", "${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:rw"],
                 "env": {
                   "RUNNER_TEMP": "\${RUNNER_TEMP}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
                   "GH_AW_WORK_QUEUE_ROLE": "worker"
                 },
                 "entrypoint": "node",
@@ -984,7 +985,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_45a42f3b1e20ff20_EOF
+          GH_AW_MCP_CONFIG_4dbaa98450e9a56e_EOF
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p "${CODEX_HOME}"

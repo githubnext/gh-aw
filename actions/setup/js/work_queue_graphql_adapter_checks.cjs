@@ -44,6 +44,10 @@ function registerTests({ describe, it }) {
     it("verifies complete independent native fields and actual graph effects without trusting copied receipts or job success", async () => {
       const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-graphql");
       const scoped = assignment();
+      const previousServerUrl = process.env.GITHUB_SERVER_URL;
+      const previousApiUrl = process.env.GITHUB_API_URL;
+      process.env.GITHUB_SERVER_URL = "https://contoso.example";
+      process.env.GITHUB_API_URL = "https://api.contoso.example";
       const effects = [];
       const message = { type: "custom", claim_handle: "h1", title: "Exact title", body: "Exact body", category: "category" };
       scoped.claims[0].work.effect_contract.outputs[0].verification = { verifier_id: "custom", expected: { title: message.title, body: message.body, categoryId: message.category } };
@@ -55,6 +59,7 @@ function registerTests({ describe, it }) {
         if (request.message.type === "work_queue_resource_verification") {
           assert.equal(request.context, trustedContext);
           assert.equal(request.github, github);
+          assert.equal(request.resource.host, "contoso.example");
         }
         return { claim_handle: request.claim_handle, authorized: !cancelled, ...(cancelled ? { suppressed: true, state: "cancelled" } : {}) };
       };
@@ -119,6 +124,8 @@ function registerTests({ describe, it }) {
         });
       } finally {
         fs.rmSync(root, { recursive: true, force: true });
+        previousServerUrl === undefined ? delete process.env.GITHUB_SERVER_URL : (process.env.GITHUB_SERVER_URL = previousServerUrl);
+        previousApiUrl === undefined ? delete process.env.GITHUB_API_URL : (process.env.GITHUB_API_URL = previousApiUrl);
       }
     });
 
