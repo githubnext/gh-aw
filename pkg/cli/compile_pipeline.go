@@ -46,8 +46,11 @@ var compileOrchestrationLog = logger.New("cli:compile_pipeline")
 // scanner in order, without short-circuiting, and without depending on the
 // underlying external tool binaries/Docker images being available.
 var (
-	runBatchActionlintOnFiles                 = RunActionlintOnFiles
-	runBatchZizmorOnFiles                     = RunZizmorOnFiles
+	runBatchActionlintOnFiles   = RunActionlintOnFiles
+	runBatchZizmorOnFiles       = RunZizmorOnFiles
+	runBatchDryRunZizmorOnFiles = func(files []string, verbose, strict bool) error {
+		return runZizmorOnFilesWithOptions(files, verbose, strict, zizmorResultOptions{dryRun: true})
+	}
 	runBatchPoutineOnDirectory                = RunPoutineOnDirectory
 	runBatchRunnerGuardOnDirectory            = RunRunnerGuardOnDirectory
 	runBatchSyftOnLockFiles                   = RunSyftOnLockFiles
@@ -68,6 +71,9 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
+	if err := prepareDryRunScannerBaseline(ctx, &config, config.MarkdownFiles, ""); err != nil {
+		return nil, err
+	}
 
 	batchMode := !config.Verbose && len(config.MarkdownFiles) > 1
 	compiler.SetBatchMode(batchMode)
@@ -301,6 +307,9 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	if len(mdFiles) == 0 {
 		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
 	}
+	if err := prepareDryRunScannerBaseline(ctx, &config, mdFiles, workflowsDir); err != nil {
+		return nil, err
+	}
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
 	if config.Verbose {
@@ -505,6 +514,8 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 
 type batchToolsOptions struct {
 	reportResult           func(string, int, error)
+	filterResult           func(string, error) error
+	dryRunZizmor           bool
 	workflowDir            string
 	lockFilesForActionlint []string
 	lockFilesForZizmor     []string
@@ -517,10 +528,14 @@ type batchToolsOptions struct {
 	shellcheckResources    []workflow.ShellScriptResource
 }
 
-func (opts batchToolsOptions) recordResult(tool string, inputs int, err error) {
+func (opts batchToolsOptions) recordResult(tool string, inputs int, err error) error {
+	if opts.filterResult != nil {
+		err = opts.filterResult(tool, err)
+	}
 	if opts.reportResult != nil {
 		opts.reportResult(tool, inputs, err)
 	}
+	return err
 }
 
 // runBatchExternalTools executes all enabled batch analysis tools sequentially without short-circuiting
@@ -533,7 +548,7 @@ func runBatchLinters(ctx context.Context, config CompileConfig, opts batchToolsO
 			return err
 		}
 		err := runBatchActionlintOnFiles(ctx, opts.lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("actionlint", len(opts.lockFilesForActionlint), err)
+		err = opts.recordResult("actionlint", len(opts.lockFilesForActionlint), err)
 		if err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
@@ -545,8 +560,13 @@ func runBatchLinters(ctx context.Context, config CompileConfig, opts batchToolsO
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		err := runBatchZizmorOnFiles(opts.lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("zizmor", len(opts.lockFilesForZizmor), err)
+		var err error
+		if opts.dryRunZizmor || config.DryRun && config.dryRunBaseline != nil {
+			err = runBatchDryRunZizmorOnFiles(opts.lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict)
+		} else {
+			err = runBatchZizmorOnFiles(opts.lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict)
+		}
+		err = opts.recordResult("zizmor", len(opts.lockFilesForZizmor), err)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -569,7 +589,7 @@ func runBatchDirScanners(ctx context.Context, config CompileConfig, opts batchTo
 			workflowDir = filepath.Dir(opts.lockFilesForDirTools[0])
 		}
 		err := runBatchDirectoryTool("poutine", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, runBatchPoutineOnDirectory)
-		opts.recordResult("poutine", len(opts.lockFilesForDirTools), err)
+		err = opts.recordResult("poutine", len(opts.lockFilesForDirTools), err)
 		if err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
@@ -586,7 +606,7 @@ func runBatchDirScanners(ctx context.Context, config CompileConfig, opts batchTo
 			workflowDir = filepath.Dir(opts.lockFilesForDirTools[0])
 		}
 		err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, runBatchRunnerGuardOnDirectory)
-		opts.recordResult("runner-guard", len(opts.lockFilesForDirTools), err)
+		err = opts.recordResult("runner-guard", len(opts.lockFilesForDirTools), err)
 		if err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
@@ -609,7 +629,7 @@ func runBatchContainerScanners(
 			return nil, err
 		}
 		err := runBatchSyftOnLockFiles(opts.lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("syft", len(opts.lockFilesForSyft), err)
+		err = opts.recordResult("syft", len(opts.lockFilesForSyft), err)
 		if err != nil {
 			if config.Strict && containerErr == nil {
 				containerErr = err
@@ -622,7 +642,7 @@ func runBatchContainerScanners(
 			return nil, err
 		}
 		err := runBatchGrypeOnLockFiles(opts.lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("grype", len(opts.lockFilesForGrype), err)
+		err = opts.recordResult("grype", len(opts.lockFilesForGrype), err)
 		if err != nil {
 			if config.Strict && containerErr == nil {
 				containerErr = err
@@ -635,7 +655,7 @@ func runBatchContainerScanners(
 			return nil, err
 		}
 		err := runBatchGrantOnLockFiles(opts.lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("grant", len(opts.lockFilesForGrant), err)
+		err = opts.recordResult("grant", len(opts.lockFilesForGrant), err)
 		if err != nil {
 			if config.Strict {
 				if !config.DryRun {
@@ -667,7 +687,7 @@ func runBatchScriptLinters(ctx context.Context, config CompileConfig, opts batch
 			return err
 		}
 		err := runBatchYamllintOnFiles(opts.lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("yamllint", len(opts.lockFilesForYamllint), err)
+		err = opts.recordResult("yamllint", len(opts.lockFilesForYamllint), err)
 		if err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
@@ -680,7 +700,7 @@ func runBatchScriptLinters(ctx context.Context, config CompileConfig, opts batch
 			return err
 		}
 		err := runBatchShellcheckOnLockFilesAndResources(ctx, opts.lockFilesForShellcheck, opts.shellcheckResources, config.Verbose && !config.JSONOutput, config.Strict)
-		opts.recordResult("shellcheck", len(opts.lockFilesForShellcheck)+len(opts.shellcheckResources), err)
+		err = opts.recordResult("shellcheck", len(opts.lockFilesForShellcheck)+len(opts.shellcheckResources), err)
 		if err != nil {
 			if config.Strict && firstErr == nil {
 				firstErr = err
@@ -699,6 +719,17 @@ func runBatchExternalTools(
 	validationResults *[]ValidationResult,
 ) (strictGrantErr error, batchToolErr error) {
 	if config.DryRun {
+		if config.dryRunBaseline != nil {
+			opts.filterResult = func(tool string, err error) error {
+				diff, filteredErr := config.dryRunBaseline.filter(tool, err)
+				if config.dryRunReport != nil && diff != nil {
+					check := config.dryRunReport.Scanners[tool]
+					check.Differential = diff
+					config.dryRunReport.Scanners[tool] = check
+				}
+				return filteredErr
+			}
+		}
 		opts.reportResult = func(tool string, inputs int, err error) {
 			recordDryRunScannerResult(config.dryRunReport, tool, inputs, err)
 			if err != nil {

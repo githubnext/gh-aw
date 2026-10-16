@@ -22,11 +22,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -84,6 +86,7 @@ const shellcheckMaxConcurrency = 8
 // runStepInfo captures the information from a single run: step in a lock file
 // that is needed to run shellcheck on the script snippet.
 type runStepInfo struct {
+	JobID string
 	// Name is the step's "name" field, used only for diagnostic messages.
 	Name string
 	// Script is the raw content of the run: field.
@@ -217,7 +220,7 @@ func extractRunStepsFromLockFile(lockFile string) ([]runStepInfo, error) {
 		return d
 	}())
 
-	for _, jobData := range jobs {
+	for jobID, jobData := range jobs {
 		job, ok := jobData.(map[string]any)
 		if !ok {
 			continue
@@ -231,7 +234,11 @@ func extractRunStepsFromLockFile(lockFile string) ([]runStepInfo, error) {
 			}
 		}
 
-		steps = append(steps, extractRunStepsFromJob(job, jobDefaultShell, lockFile)...)
+		jobSteps := extractRunStepsFromJob(job, jobDefaultShell, lockFile)
+		for i := range jobSteps {
+			jobSteps[i].JobID = jobID
+		}
+		steps = append(steps, jobSteps...)
 	}
 
 	shellcheckLog.Printf("Found %d shellcheckable run steps in %s", len(steps), lockFile)
@@ -311,7 +318,7 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 		var exitErr *exec.ExitError
 		if errors.As(cmdErr, &exitErr) && exitErr.ExitCode() == 1 {
 			// Exit code 1 means shellcheck found issues; already printed above.
-			return out.Bytes(), fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+			return out.Bytes(), withShellcheckFindings(fmt.Errorf("shellcheck found issues in %s", stepLabel(info)), info, findings)
 		}
 		return out.Bytes(), fmt.Errorf("shellcheck failed: %w", cmdErr)
 	}
@@ -393,7 +400,7 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() == 1 {
 				// Exit code 1 means shellcheck found issues; already printed above.
-				return out.Bytes(), fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+				return out.Bytes(), withShellcheckFindings(fmt.Errorf("shellcheck found issues in %s", stepLabel(info)), info, findings)
 			}
 		}
 		stderrText := strings.TrimSpace(strings.ReplaceAll(stderr.String(), "-:", "script:"))
@@ -536,6 +543,8 @@ func runShellcheckWorkers(ctx context.Context, steps []runStepInfo, verbose bool
 func reportShellcheckResults(steps []runStepInfo, results []shellcheckResult, strict bool) error {
 	var totalIssues int
 	var firstErr error
+	var diagnostics []scannerDiagnostic
+	var operationalErrors []error
 	for i, r := range results {
 		if len(r.output) > 0 {
 			os.Stderr.Write(r.output) //nolint:errcheck
@@ -546,13 +555,61 @@ func reportShellcheckResults(steps []runStepInfo, results []shellcheckResult, st
 			if firstErr == nil {
 				firstErr = r.err
 			}
+			var findings *scannerFindingsError
+			if errors.As(r.err, &findings) {
+				diagnostics = append(diagnostics, findings.diagnostics...)
+			} else {
+				operationalErrors = append(operationalErrors, r.err)
+			}
 		}
 	}
 
 	shellcheckLog.Printf("shellcheck complete: steps=%d, issues=%d", len(steps), totalIssues)
 
 	if strict && firstErr != nil {
-		return fmt.Errorf("strict mode: shellcheck found issues in run steps: %w", firstErr)
+		if len(operationalErrors) > 0 {
+			return fmt.Errorf("strict mode: shellcheck failed in run steps: %w", errors.Join(operationalErrors...))
+		}
+		return &scannerFindingsError{
+			err:         fmt.Errorf("strict mode: shellcheck found issues in run steps: %w", firstErr),
+			diagnostics: diagnostics,
+		}
 	}
 	return nil
+}
+
+var shellcheckFindingPattern = regexp.MustCompile(`(?m)^script:(\d+):(\d+): (error|warning|note): (.+) \[(SC\d+)\]$`)
+
+func withShellcheckFindings(err error, info runStepInfo, output string) error {
+	var diagnostics []scannerDiagnostic
+	lines := strings.Split(sanitizeGHAExpressions(info.Script), "\n")
+	for _, matches := range shellcheckFindingPattern.FindAllStringSubmatch(output, -1) {
+		if len(matches) != 6 {
+			return err
+		}
+		match := [6]string(matches)
+		line, lineErr := strconv.Atoi(match[1])
+		column, columnErr := strconv.Atoi(match[2])
+		lineIndex := line - 1
+		if lineErr != nil || columnErr != nil || lineIndex < 0 || lineIndex >= len(lines) {
+			return err
+		}
+		finding := scanfindings.Finding{
+			RuleID: match[5], Severity: scanfindings.ParseSeverity(match[3]), Message: match[4],
+			File: firstNonEmpty(info.LockFile, info.Source), Line: line, Column: column,
+		}
+		step := info.Name
+		if step == "" {
+			step = info.Script
+		}
+		diagnostics = append(diagnostics, scannerDiagnostic{
+			Finding: finding,
+			Identity: strings.Join([]string{finding.File, info.JobID, step, finding.RuleID,
+				finding.Severity.String(), finding.Message, strings.TrimSpace(lines[lineIndex])}, "\x00"),
+		})
+	}
+	if len(diagnostics) == 0 {
+		return err
+	}
+	return &scannerFindingsError{err: err, diagnostics: diagnostics}
 }

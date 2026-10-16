@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -80,14 +81,24 @@ func enforceDevelopmentDiagnostics(config CompileConfig, compiler *workflow.Comp
 	if !config.DryRun {
 		return nil
 	}
-	acceptedExperimentalWarnings := 0
 	if config.AllowExperimental {
-		acceptedExperimentalWarnings = compiler.GetExperimentalWarningCount()
 		if config.dryRunReport != nil {
-			config.dryRunReport.AcceptedExperimentalWarnings = acceptedExperimentalWarnings
+			config.dryRunReport.AcceptedExperimentalWarnings = compiler.GetExperimentalWarningCount()
 		}
 	}
-	appendDevelopmentCompilerDiagnostics(compiler, stats, results, acceptedExperimentalWarnings)
+	ignoredLowSeverityWarnings := compiler.GetExperimentalWarningCount()
+	ignoredWorkflowWarnings := 0
+	for _, result := range *results {
+		for _, warning := range result.Warnings {
+			if isLowSeverityWarning(warning) {
+				ignoredWorkflowWarnings++
+			}
+		}
+	}
+	if config.dryRunReport != nil {
+		config.dryRunReport.IgnoredLowSeverityWarnings = ignoredLowSeverityWarnings + ignoredWorkflowWarnings
+	}
+	appendDevelopmentCompilerDiagnostics(compiler, stats, results, ignoredLowSeverityWarnings, ignoredWorkflowWarnings)
 	if len(config.modelValidationWarnings) > 0 {
 		appendDevelopmentBatchDiagnostics("models", modelInventoryWarnings(config), stats, results)
 	}
@@ -109,17 +120,19 @@ func enforceDevelopmentDiagnostics(config CompileConfig, compiler *workflow.Comp
 			continue
 		}
 		for _, warning := range result.Warnings {
-			diagnostics = append(diagnostics, warning.Message)
+			if !isLowSeverityWarning(warning) {
+				diagnostics = append(diagnostics, warning.Message)
+			}
 		}
 		enforceDevelopmentWorkflowWarnings(result, stats)
 	}
 	if len(diagnostics) == 0 {
 		return nil
 	}
-	return errors.New("development testing checks failed; resolve all warnings and scanner failures before uploading or dispatching a live test:\n" + strings.Join(diagnostics, "\n"))
+	return errors.New("development testing checks failed; resolve added medium-or-higher warnings, unclassified diagnostics, and validation/scanner failures before uploading or dispatching a live test:\n" + strings.Join(diagnostics, "\n"))
 }
 
-func appendDevelopmentCompilerDiagnostics(compiler *workflow.Compiler, stats *CompilationStats, results *[]ValidationResult, acceptedExperimentalWarnings int) {
+func appendDevelopmentCompilerDiagnostics(compiler *workflow.Compiler, stats *CompilationStats, results *[]ValidationResult, ignoredCompilerWarnings, ignoredWorkflowWarnings int) {
 	var compilerDiagnostics []ValidationIssue
 	for _, message := range compiler.GetSafeUpdateWarnings() {
 		compilerDiagnostics = append(compilerDiagnostics, ValidationIssue{Type: "safe_update_warning", Message: message})
@@ -127,7 +140,7 @@ func appendDevelopmentCompilerDiagnostics(compiler *workflow.Compiler, stats *Co
 	for _, message := range compiler.GetScheduleWarnings() {
 		compilerDiagnostics = append(compilerDiagnostics, ValidationIssue{Type: "schedule_warning", Message: message})
 	}
-	if stats.Warnings > acceptedExperimentalWarnings || compiler.GetWarningCount() > acceptedExperimentalWarnings {
+	if stats.Warnings > ignoredCompilerWarnings+ignoredWorkflowWarnings || compiler.GetWarningCount() > ignoredCompilerWarnings {
 		compilerDiagnostics = append(compilerDiagnostics, ValidationIssue{
 			Type: "compiler_warning", Message: "compiler reported warnings; review the complete compiler diagnostics",
 		})
@@ -157,16 +170,27 @@ func enforceDevelopmentWorkflowWarnings(result *ValidationResult, stats *Compila
 	result.Valid = false
 	var messages []string
 	for _, warning := range result.Warnings {
+		if isLowSeverityWarning(warning) {
+			continue
+		}
 		result.Errors = append(result.Errors, ValidationIssue{
 			Type: "development_validation", Message: warning.Message, Line: warning.Line, File: warning.File,
 		})
 		messages = append(messages, warning.Message)
 	}
 	stats.Errors += len(messages)
+	if len(messages) == 0 {
+		result.Valid = true
+		return
+	}
 	if stats.Succeeded > 0 {
 		stats.Succeeded--
 	}
 	trackWorkflowFailure(stats, result.Workflow, len(messages), messages)
+}
+
+func isLowSeverityWarning(warning ValidationIssue) bool {
+	return warning.Severity == scanfindings.SeverityLow || warning.Severity == scanfindings.SeverityInfo
 }
 
 func appendDevelopmentBatchDiagnostics(source string, issues []ValidationIssue, stats *CompilationStats, results *[]ValidationResult) {

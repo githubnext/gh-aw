@@ -50,6 +50,7 @@ type CompileConfig struct {
 	activeModels              *activeModelInventory
 	modelValidationWarnings   []string
 	dryRunReport              *DryRunCompileReport
+	dryRunBaseline            *dryRunScannerBaseline
 
 	// ExplicitBoolFlags records user-supplied flags, including false, separately from omitted defaults.
 	ExplicitBoolFlags map[string]bool
