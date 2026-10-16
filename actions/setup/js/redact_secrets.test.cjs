@@ -185,6 +185,92 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
+      it.each(["configured", "runtime"])("redacts raw %s secrets inside recoverable strings in malformed JSON", source => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const secret = String.raw`synthetic\npassword`;
+        const file = path.join(tempDir, "malformed.json");
+        const content = `{"token":"${secret}", "other":"\\u0041", broken`;
+        fs.writeFileSync(file, content, { mode: 0o600 });
+
+        expect(processFile(file, source === "configured" ? [secret] : [], source === "runtime" ? [secret] : [])).toBeGreaterThan(0);
+
+        const output = fs.readFileSync(file, "utf8");
+        expect(output).not.toContain(secret);
+        expect(output).not.toContain("password");
+        expect(output).toContain('"other":"\\u0041"');
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(secret);
+      });
+
+      it("redacts encoded credentials across malformed multiline strings without fragmenting overlapping secrets", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const secret = "synthetic\npassword";
+        const runtime = "before" + secret;
+        const file = path.join(tempDir, "malformed.json");
+        fs.writeFileSync(file, '{"token":"before\\u0073ynthetic\npassword", broken');
+
+        expect(processFile(file, [secret], [runtime])).toBeGreaterThan(0);
+
+        const output = fs.readFileSync(file, "utf8");
+        expect(output).not.toContain("password");
+        expect(output).not.toContain("ynthetic");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("matches multiline credentials before removing embedded add-mask command lines", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const secret = "synthetic\n::add-mask::ignored\npassword";
+        const file = path.join(tempDir, "malformed.json");
+        fs.writeFileSync(file, '{"token":"' + secret + '", broken');
+
+        expect(processFile(file, [secret])).toBeGreaterThan(0);
+
+        const output = fs.readFileSync(file, "utf8");
+        expect(output).not.toContain("synthetic");
+        expect(output).not.toContain("password");
+        expect(output).not.toContain("::add-mask::");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it.each(["configured", "runtime", "built-in"])("sanitizes %s credentials across malformed JSON mutations and encodings", source => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const secret = source === "built-in" ? "ghs_" + "A".repeat(40) : 'synthetic"\\\t\npassword';
+        const unicode = Array.from(secret, char => "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0")).join("");
+        const spellings = [secret, JSON.stringify(secret).slice(1, -1), unicode];
+        const file = path.join(tempDir, "malformed.jsonl");
+        const mutations = [
+          token => `{"token":"${token}"`,
+          token => `{"token":"${token}`,
+          token => `{"token":"${token}",}`,
+          token => `{"token":"${token}", "broken":"\\q"}`,
+          token => `"bad\t" {"token":"${token}"}`,
+          token => `{"safe":true}\n{"token":"${token}", broken`,
+          token => `{"safe":true}\n"\\u0070ublic"\n{"token":"${token}", broken`,
+        ];
+        for (const spelling of spellings) {
+          for (const mutate of mutations) {
+            fs.writeFileSync(file, mutate(spelling), { mode: 0o600 });
+
+            expect(processFile(file, source === "configured" ? [secret] : [], source === "runtime" ? [secret] : [])).toBeGreaterThan(0);
+
+            const output = fs.readFileSync(file, "utf8");
+            let record = output;
+            try {
+              record = JSON.parse(output);
+            } catch {
+              // Sanitized malformed records need not become valid JSON.
+            }
+            const decoded = record.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, escape => JSON.parse('"' + escape + '"'));
+            expect(output).not.toContain(secret);
+            expect(output).not.toContain(spelling);
+            expect(decoded).not.toContain(secret);
+            expect(decoded).not.toContain(source === "built-in" ? "A".repeat(40) : "password");
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
+            expect(mockCore.warning).not.toHaveBeenCalled();
+          }
+        }
+      });
+
       it.each(['synthetic"password', "synthetic\\password", "synthetic\tpassword", "synthetic\npassword"])("redacts decoded configured secrets alongside overlapping runtime masks in JSON and mixed records (%j)", secret => {
         const { processFile } = require("./redact_secrets.cjs");
         const record = JSON.stringify({ [secret]: secret, safe: "public" });
@@ -347,10 +433,10 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
-      it("removes the artifact if decoding a validated mixed-log token unexpectedly fails", () => {
+      it.each(["mixed.log", "malformed.json"])("removes %s if decoding a validated token unexpectedly fails", filename => {
         const { processFile } = require("./redact_secrets.cjs");
-        const file = path.join(tempDir, "mixed.log");
-        fs.writeFileSync(file, 'output: "\\u006fpaque"');
+        const file = path.join(tempDir, filename);
+        fs.writeFileSync(file, filename.endsWith(".json") ? '{"token":"\\u006fpaque", broken' : 'output: "\\u006fpaque"');
         const parse = JSON.parse;
         const parseSpy = vi.spyOn(JSON, "parse").mockImplementation(text => {
           if (text === '"\\u006fpaque"') throw new Error("opaque runtime-mask");

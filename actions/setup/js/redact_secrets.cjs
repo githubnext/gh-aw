@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
@@ -360,21 +360,7 @@ function redactArtifactContent(content, secretValues, maskedValues) {
     else if (configured.has(value)) configuredCount++;
     return name || configured.has(value) ? "***REDACTED***" : "***";
   };
-  // Raw multiline values must be removed before the mixed-record parser splits
-  // lines; never pre-rewrite valid JSON syntax or its original numeric lexemes.
-  const multilineValues = values.filter(value => /[\r\n]/.test(value));
-  let prepared = content;
-  if (multilineValues.some(value => content.includes(value))) {
-    try {
-      JSON.parse(content);
-    } catch {
-      prepared = redactMaskedValues(content, multilineValues, replacement);
-    }
-  }
-  const textMode = !isValidJSONArtifact(prepared);
-  const hasEncodedEscape = /\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/.test(prepared);
-  const textRedacted = textMode && !hasEncodedEscape ? applyAddMaskRedaction(prepared, values, replacement) : prepared;
-  const redacted = redactArtifactMaskedValues(textRedacted, values, undefined, replacement);
+  const redacted = redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
   for (const [name, count] of builtInCounts) global.core?.info?.(`Redacted ${count} occurrence(s) of ${name}`);
   if (configuredCount) global.core?.info?.(`Redacted ${configuredCount} occurrence(s) of a secret`);
   return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
