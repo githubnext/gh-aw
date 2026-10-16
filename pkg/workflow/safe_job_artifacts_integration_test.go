@@ -50,6 +50,7 @@ func TestSafeJobArtifactsIntegration(t *testing.T) {
 	compiled, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
 	require.NoError(t, err)
 	agentJob := extractJobSection(string(compiled), "agent")
+	require.Equal(t, 1, strings.Count(agentJob, "id: redact_secrets\n"))
 	require.Contains(t, agentJob, "name: Upload agent artifacts")
 	for _, ext := range secretRedactionScannedExtensions {
 		require.Contains(t, agentJob, "/tmp/gh-aw/agent/review-bundles/**/*"+ext)
