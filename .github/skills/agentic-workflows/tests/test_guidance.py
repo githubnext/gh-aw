@@ -39,6 +39,9 @@ class GuidanceTests(unittest.TestCase):
 
     def test_debug_playbook_covers_diagnostic_codes(self):
         guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
+        self.assertNotRegex(guide, r"(?m)^Sources?:")
+        self.assertNotRegex(guide, r"\.\./\.\./(?:pkg|actions|specs)/")
+        self.assertNotRegex(guide, r"\.(?:go|cjs|mjs|js|ts|tsx|jsx|py)\b")
         rows = {}
         for line in guide.splitlines():
             if line.startswith("| ") and line.count("|") == 4:

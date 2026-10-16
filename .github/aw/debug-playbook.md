@@ -34,7 +34,6 @@ External engine/provider/OS/scanner codes are open-ended; use [unmapped codes](#
 
 ## Audit findings
 
-Source: [finding registry](../../pkg/cli/audit_finding_codes.go).
 Use same-run audit paths, never a baseline's artifact as evidence for this run.
 
 | Codes | Check | Remedy |
@@ -60,10 +59,6 @@ Use same-run audit paths, never a baseline's artifact as evidence for this run.
 
 ## Agent, model, and proxy classifications
 
-Sources: [engine patterns](../../actions/setup/js/agent_error_patterns.cjs),
-[execution categories](../../actions/setup/js/agent_execution.cjs),
-[proxy guards](../../actions/setup/js/harness_error_patterns.cjs),
-[routing](../../actions/setup/js/awf_model_routing.cjs).
 Inspect `agent-stdio.log`, `agent_execution.json`, native session errors, same-run
 `sandbox/firewall/awf-reflect.json`, proxy audit/events. Do not classify quoted
 assistant/tool prose as a native error.
@@ -177,8 +172,6 @@ does not test inference. Defect evidence: follow model/engine upgrade guidance.
 
 ## Completion and safe-output errors
 
-Sources: [error registry](../../actions/setup/js/error_codes.cjs),
-[completion causes](../../actions/setup/js/empty_output_outcome.cjs).
 Inspect registration, invocation, persistence, validation, publication separately.
 Registered tools or nonempty `safeoutputs.jsonl` do not prove published output.
 
@@ -214,7 +207,6 @@ Registered tools or nonempty `safeoutputs.jsonl` do not prove published output.
 
 ## Merge guard codes
 
-Source: [merge handler](../../actions/setup/js/merge_pull_request.cjs).
 Inspect exact PR head/base SHA, live checks, reviews, and configured guards.
 These declines protect policy; diagnosis does not authorize merging.
 
@@ -231,7 +223,6 @@ These declines protect policy; diagnosis does not authorize merging.
 
 ## Parser and ledger diagnostics
 
-Sources: `parse_*_log.cjs`, [ledger reader](../../actions/setup/js/ledger_store.cjs).
 Inspect producer/version, bounded record location, evidence completeness.
 
 | Codes | Check | Remedy |
@@ -244,9 +235,7 @@ Inspect producer/version, bounded record location, evidence completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md). Sources:
-[native implementation](../../pkg/workqueue),
-`actions/setup/js/work_queue_*.cjs`, [contracts](../../specs/work-queue).
+Follow [queue playbook](work-queue.md).
 Inspect queue repository/branch/tip, policy epoch, request fingerprint, Work/Claim/
 Delivery IDs, authoritative run binding and verified receipts. Use read-only status
 and existing artifacts first. Pending projection is not proof a claim failed.
