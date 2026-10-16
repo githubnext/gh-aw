@@ -103,6 +103,16 @@ class GuidanceTests(unittest.TestCase):
         ):
             with self.subTest(required=required):
                 self.assertIn(required, guide)
+        routing = DEBUG_GUIDE.read_text()
+        for required in (
+            "key_findings[].code", "playbook_url",
+            "gh aw audit RUN_ID --no-baseline --timeout 2m --output AUDIT_DIR --json",
+            "model_unavailable", "model_availability_unknown",
+            "cached `gh aw models`", "consolidated", "partial JSON",
+        ):
+            with self.subTest(routing=required):
+                self.assertIn(required, routing)
+        self.assertNotIn("debug-model-not-available.md", routing)
 
     def test_public_instruction_download_fallback(self):
         for path in (

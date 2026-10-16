@@ -220,7 +220,8 @@ telemetry-free emitted lock; no workflow was executed."
 
 ## Collect Existing Evidence
 
-Map audit findings and runtime codes through the [debug playbook](debug-playbook.md).
+Read `key_findings[].code` and follow each finding's `playbook_url`.
+For runtime codes, use the consolidated [debug playbook](debug-playbook.md).
 
 For model/endpoint errors, `model: auto` failures, or install failures after version
 pins, collect the artifacts in [Model and engine misconfiguration](#model-and-engine-misconfiguration).
@@ -230,10 +231,13 @@ accessible existing evidence, start from source and fixtures, not a new run.
 For a run URL, extract its ID and begin with a compact audit:
 
 ```bash
-gh aw audit RUN_ID --json
+gh aw audit RUN_ID --no-baseline --timeout 2m --output AUDIT_DIR --json
 gh aw logs WORKFLOW --json
 gh aw status
 ```
+
+Reuse `AUDIT_DIR` for follow-up collection. Check report completeness; a timeout
+can return partial JSON. Inspect findings before downloading additional evidence.
 
 Check recurrence across existing runs:
 
@@ -309,9 +313,13 @@ it needs `actions: read` and CLI installation before invoking `gh aw`.
 
 ## Model and engine misconfiguration
 
-For unavailable model IDs or `not advertised` startup failures, use the
-[model availability playbook](debug-playbook.md#model-availability) to inspect saved
-reflection and compare existing runs without dispatching another workflow.
+For Pi `not advertised` startup failures, audit checks same-run provider reflection:
+`model_unavailable` confirms the exact ID is absent from a complete matching
+inventory; `model_availability_unknown` preserves missing or contradictory evidence.
+Follow [Model availability](debug-playbook.md#model-availability) in the consolidated
+playbook for cached `gh aw models` inspection and comparison. An advertised
+candidate is not an automatic replacement; another run's catalog does not prove
+availability to the failing run.
 
 For AWF 400s mentioning models or endpoints, silent cross-family sub-agent
 failures, `model: auto` failures, install-step 404s after a version pin, or
