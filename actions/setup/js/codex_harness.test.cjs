@@ -490,6 +490,19 @@ process.exit(0);`,
       expect(result.stderr).toContain("trusted budget-abort evidence");
     });
 
+    it("does not let guard names in file reads mask the observed credit rejection", () => {
+      const events = [
+        { type: "item.completed", item: { type: "command_execution", aggregated_output: "GH_AW_MAX_CACHE_MISSES_EXCEEDED: max_cache_misses_exceeded" } },
+        { type: "error", message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" },
+        { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" } },
+      ];
+      const { result, calls } = runHarnessFixture(`for(const event of ${JSON.stringify(events)})process.stdout.write(JSON.stringify(event)+"\\n");process.exit(1);`);
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+      expect(result.stderr).toContain("AI credits budget enforced");
+      expect(result.stderr).not.toContain("terminal proxy guard");
+    });
+
     it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
       const tempDir = makeHarnessTempDir("soft-deadline-report-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");

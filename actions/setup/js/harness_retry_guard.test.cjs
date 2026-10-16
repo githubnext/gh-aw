@@ -109,6 +109,31 @@ describe("harness_retry_guard.cjs", () => {
     expect(parseAPIProxyGuardRejection('{"type":"model_policy_violation"}')?.guard).toBe("model_policy_violation");
   });
 
+  it.each([
+    { type: "turn.failed", error: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+    { type: "session.error", data: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+    { type: "assistant", is_api_error_message: true, message: { content: [{ type: "text", text: "403 Maximum consecutive cache misses exceeded (5 / 5)." }] } },
+  ])("preserves transport guard diagnostics in native engine envelopes: %j", record => {
+    expect(parseAPIProxyGuardRejection(JSON.stringify(record))).toEqual({ guard: "max_cache_misses_exceeded", counters: { consecutive_cache_misses: 5, max_cache_misses: 5 } });
+  });
+
+  it.each(["max_cache_misses_exceeded", "effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("ignores quoted %s guard names in model and tool content", guard => {
+    const records = [
+      { type: "item.completed", item: { type: "command_execution", aggregated_output: `GH_AW_FAILURE_CATEGORIES: ${guard}` } },
+      { type: "item.completed", item: { type: "agent_message", text: `403 ${guard}` } },
+      { type: "assistant", message: { content: [{ type: "text", text: `403 ${guard}` }] } },
+      { type: "tool_result", content: `403 ${guard}` },
+      { type: "error", message: "connection reset", metadata: { quoted: guard } },
+    ];
+    for (const record of records) {
+      expect(parseAPIProxyGuardRejection(JSON.stringify(record))).toBeNull();
+    }
+    const error = { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)." } };
+    const output = [...records, error].map(JSON.stringify).join("\n");
+    expect(parseAPIProxyGuardRejection(output)).toBeNull();
+    expect(parseAICreditsExceededProxyRejection(output)).toEqual({ aiCredits: 1.028578, maxAICredits: 1 });
+  });
+
   it("does not report a proxy guardrail for a genuine credential failure", () => {
     const output = "Authentication failed with provider at http://172.30.0.30:10002 (HTTP 403).";
     expect(parseAPIProxyGuardRejection(output)).toBeNull();
@@ -200,6 +225,15 @@ describe("harness_retry_guard.cjs", () => {
 
   it("ignores JSON lines without an engine error marker even when the usage pair is present", () => {
     expect(parseAICreditsExceededProxyRejection('{"type":"assistant","text":"API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}')).toBeNull();
+  });
+
+  it.each([
+    { type: "tool_result", error: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "assistant", error: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "error", message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "turn.failed", error: { message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.02 / 1)." } },
+  ])("does not trust a credit rejection quoted outside the transport diagnostic: %j", record => {
+    expect(parseAICreditsExceededProxyRejection(JSON.stringify(record))).toBeNull();
   });
 
   it("detects AWF API proxy blocking request markers", () => {
