@@ -296,6 +296,13 @@ const AWFConfigFilePath FilePath = "/tmp/gh-aw/awf-config.json"
 // AWFConfigFilePathExpr is the host-side AWF config path resolved by Actions expression.
 const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"
 
+// AWFResolvedConfigFilePath is the sanitized copy of AWF's early, host-only
+// resolved configuration artifact. Older AWF versions simply do not create it.
+const AWFResolvedConfigFilePath FilePath = "/tmp/gh-aw/awf-resolved-config.json"
+
+// AWFResolvedConfigFilePathExpr is the Actions-expression form of the staged path.
+const AWFResolvedConfigFilePathExpr = GhAwRootDir + "/awf-resolved-config.json"
+
 // AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted
 // by the agent harness before exiting. It is co-located with other firewall observability
 // data under /tmp/gh-aw/sandbox/firewall/ so the existing chmod and artifact-upload steps

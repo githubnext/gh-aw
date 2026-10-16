@@ -115,4 +115,29 @@ const childObservations = [
   },
 ];
 
-module.exports = { success, failure, childObservations };
+// Synthetic v1.3.0 release-contract observations, not captured workflow output.
+// https://github.com/earendil-works/pi/blob/v1.3.0/packages/ai/src/types.ts
+// https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/agent-session.ts
+const releaseMessage = {
+  role: "assistant",
+  responseId: "release-response",
+  model: "configured-model",
+  responseModel: "served-model",
+  content: [{ type: "text", text: "Release fixture complete." }],
+  thinkingLevel: "max",
+  providerThinkingLevel: "max",
+  stopReason: "stop",
+  timestamp: 1,
+  durationMs: 0,
+  usage: { input: 10, output: 5, reasoning: 3, cacheRead: 2, cacheWrite: 0, totalTokens: 17, cost: { total: 0.1 } },
+};
+const release130 = [
+  { type: "session", version: 3, id: "release-session", cwd: "/sanitized" },
+  { type: "thinking_level_changed", level: "max" },
+  { type: "message_end", message: releaseMessage },
+  { type: "turn_end", message: releaseMessage, toolResults: [] },
+  { type: "agent_end", messages: [releaseMessage], willRetry: false },
+  { type: "agent_settled", aborted: false },
+];
+
+module.exports = { success, failure, childObservations, release130 };

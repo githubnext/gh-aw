@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,34 +97,50 @@ process.stdout.write(renderPrompt(parseConfig(env.GH_AW_PROMPT_CONFIG), env, './
 }
 
 func TestPiSafeOutputsPromptUsesMCPTransportIntegration(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "pi-safeoutputs-mcp")
-	workflowPath := filepath.Join(tmpDir, "pi-safeoutputs.md")
-	workflowContent := `---
+	for _, driver := range []string{"", "pi_agent_core_driver.cjs", "pi_rpc_driver.cjs"} {
+		for _, transport := range []struct {
+			name  string
+			tools string
+		}{
+			{"default", "  bash: [\"echo\"]"},
+			{"native", "  bash: [\"echo\"]\n  cli-proxy: false"},
+			{"gh-proxy", "  bash: [\"echo\"]\n  github:\n    mode: gh-proxy"},
+			{"no-shell", "  bash: false\n  cli-proxy: false"},
+		} {
+			t.Run(driver+"/"+transport.name, func(t *testing.T) {
+				tmpDir := testutil.TempDir(t, "pi-safeoutputs-mcp")
+				workflowPath := filepath.Join(tmpDir, "pi-safeoutputs.md")
+				engine := "engine: pi"
+				if driver != "" {
+					engine = "engine:\n  id: pi\n  driver: " + driver
+				}
+				workflowContent := fmt.Sprintf(`---
 on: issues
 name: Pi Safe Outputs
-engine: pi
+%s
 tools:
-  bash: ["echo"]
-  cli-proxy: false
+%s
 safe-outputs:
   create-pull-request:
 ---
 
 Fix the bug and open a pull request.
-`
-	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0o600))
+`, engine, transport.tools)
+				require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0o600))
 
-	compiler := NewCompiler()
-	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+				compiler := NewCompiler()
+				require.NoError(t, compiler.CompileWorkflow(workflowPath))
 
-	compiledBytes, err := os.ReadFile(filepath.Join(tmpDir, "pi-safeoutputs.lock.yml"))
-	require.NoError(t, err)
-	compiled := string(compiledBytes)
+				compiledBytes, err := os.ReadFile(filepath.Join(tmpDir, "pi-safeoutputs.lock.yml"))
+				require.NoError(t, err)
+				compiled := string(compiledBytes)
 
-	assert.Contains(t, compiled, safeOutputsMCPTransportPromptFile,
-		"Pi with native MCP must load the MCP-safe-output transport prompt")
-	assert.NotContains(t, compiled, safeOutputsCLIOnlyTransportPromptFile,
-		"Pi with native MCP must not load the CLI-only safe-output transport prompt")
+				assert.Contains(t, compiled, safeOutputsMCPTransportPromptFile)
+				assert.NotContains(t, compiled, safeOutputsCLIOnlyTransportPromptFile)
+				assert.Contains(t, compiled, "export GH_AW_PI_NATIVE_MCP=1")
+			})
+		}
+	}
 }
 
 // TestCopilotSafeOutputsPromptKeepsOptionalCLITransportIntegration verifies that engines

@@ -1,12 +1,14 @@
 # ADR-63493: Make safeoutputs CLI the only transport for pi
 
 **Date**: 2026-09-25
-**Status**: Draft
+**Status**: Superseded
 **Deciders**: gh-aw maintainers
 
 ---
 
 ### Context
+
+Pi v1 now supports native MCP through the gh-aw policy gateway, so the Pi-specific CLI-only decision below no longer applies. Safe-output instructions follow the engine's MCP capability and the configured transport: native MCP by default, CLI-only for explicitly CLI-proxied servers or engines without MCP. See the [current Pi integration](../src/content/docs/engines/pi.md).
 
 The PR evidence shows that gh-aw currently injects safe-output prompt fragments with wording that treats the `safeoutputs` CLI as an optional alternative to direct tool calls. The linked issue analysis and the PR changes show this is incorrect for `engine: pi`, because pi advertises `EngineCapabilities.MCP: false` and therefore has no native MCP tool-call interface. The implementation changes span prompt fragment templates, new engine-capability-aware prompt rendering logic, wiring into prompt composition, tests, and recompiled workflow lock files. The decision is how gh-aw should describe and generate safe-output transport instructions for engines that cannot call MCP tools directly.
 
@@ -41,4 +43,4 @@ This was a plausible option because the linked issue identifies compaction and p
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Historical decision superseded by Pi native MCP support.*

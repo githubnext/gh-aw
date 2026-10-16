@@ -8,8 +8,11 @@ const engines = [
   { id: 'copilot', name: 'GitHub Copilot', maker: 'GitHub' },
   { id: 'claude', name: 'Claude Code', maker: 'Anthropic' },
   { id: 'codex', name: 'Codex', maker: 'OpenAI' },
-  { id: 'gemini', name: 'Gemini CLI', maker: 'Google' },
+  { id: 'agy', name: 'Antigravity', maker: 'Google' },
   { id: 'pi', name: 'Pi', maker: 'Multi-provider' },
+  { id: 'kiro', name: 'Kiro', maker: 'AWS (sample)', href: `${base}/reference/engines/#unsupported-engine-samples` },
+  { id: 'opencode', name: 'OpenCode', maker: 'Anomaly (sample)', href: `${base}/reference/engines/#unsupported-engine-samples` },
+  { id: 'cursor', name: 'Cursor', maker: 'Anysphere (sample)', href: `${base}/reference/engines/#unsupported-engine-samples` },
 ];
 ---
 
@@ -68,7 +71,7 @@ const engines = [
         const logo = engineLogos[e.id];
         return (
           <li>
-            <a href={`${base}/engines/${e.id}/`}>
+            <a href={e.href ?? `${base}/engines/${e.id}/`}>
               <svg class="aw-logo" viewBox={logo.viewBox} aria-hidden="true" focusable="false">
                 {logo.paths.map((d) => <path d={d} />)}
               </svg>
@@ -81,7 +84,7 @@ const engines = [
     </ul>
     <p class="aw-importable" data-slideshow-hide>
       <a class="aw-link" href={`${base}/reference/engines/#shared-imported-engines`}>Bring your own engine <span aria-hidden="true">→</span></a>
-      <span>Import OpenCode, Cursor, Kiro, Aider, Crush or your own definition.</span>
+      <span>Import Aider, Crush or your own definition.</span>
     </p>
   </div>
 </LandingSection>
@@ -231,7 +234,7 @@ const engines = [
   }
   .aw-engine-list {
     list-style: none;
-    max-width: 54rem;
+    max-width: 68rem;
     margin: 1rem auto 0;
     padding: 0;
     display: grid;
@@ -241,7 +244,7 @@ const engines = [
     margin: 0;
     padding: 0;
   }
-  .aw-engine-list li:last-child {
+  .aw-engine-list li:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
   .aw-engine-list a {
@@ -250,7 +253,7 @@ const engines = [
     align-items: center;
     gap: 0;
     height: 100%;
-    padding: 1.75rem 1rem 1.5rem;
+    padding: 1.75rem 0.5rem 1.5rem;
     color: var(--aw-color-text-secondary);
     text-align: center;
     text-decoration: none;
@@ -293,10 +296,16 @@ const engines = [
   }
   @media (min-width: 48rem) {
     .aw-engine-list {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
-    .aw-engine-list li:last-child {
+    .aw-engine-list li:last-child:nth-child(odd) {
       grid-column: auto;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .aw-engine-list {
+      grid-template-columns: repeat(8, minmax(0, 1fr));
     }
   }
 
