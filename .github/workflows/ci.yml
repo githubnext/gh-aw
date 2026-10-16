@@ -44,6 +44,35 @@ jobs:
       run: "if [ \"${{ github.event_name }}\" != \"schedule\" ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Non-scheduled run: integration tests enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n  exit 0\nfi\n\nCHANGES_IN_LAST_HOUR=$(git log --since='1 hour ago' --pretty=format:'%H' | wc -l | tr -d ' ')\nif [ \"$CHANGES_IN_LAST_HOUR\" -gt 0 ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Detected $CHANGES_IN_LAST_HOUR commit(s) in the last hour\" >> \"$GITHUB_STEP_SUMMARY\"\nelse\n  echo \"has_changes=false\" >> \"$GITHUB_OUTPUT\"\n  echo \"ℹ️ No commits in the last hour; skipping integration jobs\" >> \"$GITHUB_STEP_SUMMARY\"\nfi"
     outputs:
       has_changes: ${{ steps.detect.outputs.has_changes }}
+  validate-latest-releases:
+    name: Validate latest release alignment
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Compare latest releases
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+      with:
+        script: |
+          const { data: release } = await github.rest.repos.getLatestRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          const { data: actionsRelease } = await github.rest.repos.getLatestRelease({
+            owner: 'github',
+            repo: 'gh-aw-actions',
+          });
+          if (release.tag_name !== actionsRelease.tag_name ||
+              release.draft || release.prerelease || actionsRelease.draft || actionsRelease.prerelease) {
+            core.setFailed(
+              `Latest releases must match: gh-aw="${release.tag_name}", gh-aw-actions="${actionsRelease.tag_name}". ` +
+              'Manually publish the matching stable release as latest in github/gh-aw-actions before promoting gh-aw.'
+            );
+            return;
+          }
+          core.info(`Latest releases match: ${release.tag_name}`);
   validate-container-pins:
     name: Validate workflow container pins
     runs-on: ubuntu-latest
