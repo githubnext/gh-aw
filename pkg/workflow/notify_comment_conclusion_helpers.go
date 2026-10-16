@@ -706,7 +706,6 @@ func (c *Compiler) buildConclusionReportFailedJobsStep(data *WorkflowData, mainJ
 	var envVars []string
 	envVars = append(envVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 	envVars = append(envVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	envVars = append(envVars, "          GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}\n")
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_JOB_DISPLAY_NAMES: %q\n", displayNames))
 	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailedJobs != nil {
 		envVars = append(envVars, buildTemplatableBoolEnvVar("GH_AW_REPORT_FAILED_JOBS", templatableBoolPtrToStringPtr(data.SafeOutputs.ReportFailedJobs))...)

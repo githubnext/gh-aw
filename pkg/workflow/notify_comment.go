@@ -390,8 +390,9 @@ func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bo
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
-		"        env:\n",
-		"          GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}\n",
+	}
+	if reuseJobDurations || hasDailyAICGuardrail {
+		steps = append(steps, "        env:\n")
 	}
 	if reuseJobDurations {
 		steps = append(steps, "          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}\n")

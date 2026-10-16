@@ -15,12 +15,14 @@ import (
 
 func TestUsageActivityGenerationIncludesJobResults(t *testing.T) {
 	for _, hasGuardrail := range []bool{false, true} {
-		steps := strings.Join(buildUsageActivityGenerationStep(hasGuardrail, true, func(action string) string { return action }), "")
-		assert.Contains(t, steps, "GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}")
-		assert.Contains(t, steps, "GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}")
-		assert.Equal(t, 1, strings.Count(steps, "        env:\n"))
-		assert.Equal(t, hasGuardrail, strings.Contains(steps, "GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS:"))
-		assert.NotContains(t, steps[strings.Index(steps, "          script:"):], "${{ toJSON(needs) }}")
+		for _, reuseJobDurations := range []bool{false, true} {
+			steps := strings.Join(buildUsageActivityGenerationStep(hasGuardrail, reuseJobDurations, func(action string) string { return action }), "")
+			assert.NotContains(t, steps, "GH_AW_JOB_RESULTS:", "result-only metadata is inherited from the conclusion job environment")
+			assert.Equal(t, reuseJobDurations, strings.Contains(steps, "GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}"))
+			assert.Equal(t, hasGuardrail || reuseJobDurations, strings.Contains(steps, "        env:\n"))
+			assert.Equal(t, hasGuardrail, strings.Contains(steps, "GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS:"))
+			assert.NotContains(t, steps[strings.Index(steps, "          script:"):], "${{ toJSON(needs) }}")
+		}
 	}
 }
 
@@ -1873,6 +1875,8 @@ func TestConclusionJobNeedsPreActivationFromMessages(t *testing.T) {
 			}
 
 			preActName := string(constants.PreActivationJobName)
+			env := buildRenderedJobEnv(job)
+			assert.Equal(t, tt.expectPreActNeeds, strings.Contains(env["GH_AW_JOB_RESULTS"], "${{ needs.pre_activation.result }}"))
 			if tt.expectPreActNeeds {
 				if !slices.Contains(job.Needs, preActName) {
 					t.Errorf("Expected pre_activation in conclusion job needs, got: %v", job.Needs)
@@ -2148,9 +2152,7 @@ func TestConclusionReportFailedJobsExpression(t *testing.T) {
 	}
 
 	output := strings.Join(steps, "")
-	if !strings.Contains(output, "GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}") {
-		t.Errorf("failed-job reporting must receive needs keyed by stable job IDs: %q", output)
-	}
+	assert.NotContains(t, output, "GH_AW_JOB_RESULTS:", "failed-job reporting inherits result-only metadata from the conclusion job environment")
 	if !strings.Contains(output, `\"agent\":\"Agent\"`) {
 		t.Errorf("failed-job reporting must receive the compiler's display-name mapping: %q", output)
 	}
