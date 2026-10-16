@@ -144,14 +144,16 @@ func TestUpgradeCommandCopilotArtifacts(t *testing.T) {
 	t.Setenv("GH_AW_WORKFLOWS_DIR", ".github/workflows")
 
 	tests := []struct {
-		name      string
-		engines   []string
-		args      []string
-		existing  []string
-		wantAgent bool
-		wantSetup bool
-		wantSkill bool
-		customDir bool
+		name          string
+		engines       []string
+		args          []string
+		existing      []string
+		wantAgent     bool
+		wantSetup     bool
+		wantSkill     bool
+		customDir     bool
+		nested        bool
+		plainMarkdown bool
 	}{
 		{name: "claude", engines: []string{"engine: claude"}, wantSkill: true},
 		{name: "claude override", engines: []string{"engine: claude"}, args: []string{"--engine", "claude"}, wantSkill: true},
@@ -162,27 +164,39 @@ func TestUpgradeCommandCopilotArtifacts(t *testing.T) {
 		{name: "default engine", engines: []string{""}, wantAgent: true, wantSetup: true, wantSkill: true},
 		{name: "mixed engines", engines: []string{"engine: claude", "engine: copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
 		{name: "copilot override", engines: []string{"engine: claude"}, args: []string{"--engine", "copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "mixed case copilot override", engines: []string{"engine: claude"}, args: []string{"--engine", "COPILOT"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "copilot with no fix", engines: []string{"engine: copilot"}, args: []string{"--no-fix"}, wantAgent: true, wantSetup: true, wantSkill: true},
 		{name: "non-copilot override", engines: []string{"engine: copilot"}, args: []string{"--engine", "claude"}, wantSkill: true},
+		{name: "plain markdown is not a workflow", plainMarkdown: true, wantSkill: true},
+		{name: "inherited non-copilot engine", engines: []string{"imports:\n  - ./shared.md"}, wantSkill: true},
 		{name: "existing agent only", engines: []string{"engine: claude"}, existing: []string{"agent"}, wantAgent: true, wantSkill: true},
 		{name: "existing setup only", engines: []string{"engine: claude"}, existing: []string{"setup"}, wantSetup: true, wantSkill: true},
+		{name: "existing setup in custom workflow directory", engines: []string{"engine: claude"}, existing: []string{"setup"}, customDir: true, nested: true, wantSetup: true, wantSkill: true},
 		{name: "no agent", engines: []string{"engine: copilot"}, args: []string{"--no-agent"}, wantSetup: true, wantSkill: true},
 		{name: "no mcp", engines: []string{"engine: copilot"}, args: []string{"--no-mcp"}, wantAgent: true, wantSkill: true},
 		{name: "no skill", engines: []string{"engine: copilot"}, args: []string{"--no-skill"}, wantAgent: true, wantSetup: true},
 		{name: "skip existing files", engines: []string{"engine: copilot"}, existing: []string{"agent", "setup", "skill"}, args: []string{"--no-agent", "--no-mcp", "--no-skill"}, wantAgent: true, wantSetup: true, wantSkill: true},
 		{name: "no workflows", wantSkill: true},
 		{name: "custom workflow directory", engines: []string{"engine: copilot"}, customDir: true, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "nested working directory", engines: []string{"engine: copilot"}, nested: true, wantAgent: true, wantSetup: true, wantSkill: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, initTestGitRepo(dir))
-			chdirForTest(t, dir)
 			workflowsDir := filepath.Join(dir, ".github", "workflows")
-			args := []string{"--no-fix", "--skip-extension-upgrade"}
+			args := []string{"--no-actions", "--no-compile", "--skip-extension-upgrade"}
 			if tt.customDir {
 				workflowsDir = filepath.Join(dir, "custom", "workflows")
-				args = append(args, "--dir", workflowsDir)
+				args = append(args, "--dir", filepath.Join("custom", "workflows"))
+			}
+			if tt.nested {
+				nestedDir := filepath.Join(dir, "nested")
+				require.NoError(t, os.MkdirAll(nestedDir, 0o755))
+				chdirForTest(t, nestedDir)
+			} else {
+				chdirForTest(t, dir)
 			}
 			if len(tt.engines) > 0 {
 				require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
@@ -191,11 +205,19 @@ func TestUpgradeCommandCopilotArtifacts(t *testing.T) {
 					path := filepath.Join(workflowsDir, string(rune('a'+i))+".md")
 					require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 				}
+				if tt.name == "inherited non-copilot engine" {
+					shared := "---\nengine: claude\n---\nShared engine config.\n"
+					require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "shared.md"), []byte(shared), 0o644))
+				}
 				require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "README.md"), []byte("# Workflows\n"), 0o644))
+			}
+			if tt.plainMarkdown {
+				require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "notes.md"), []byte("# Notes\n"), 0o644))
 			}
 			paths := map[string]string{
 				"agent": filepath.Join(dir, ".github", "agents", "agentic-workflows.md"),
-				"setup": filepath.Join(dir, ".github", "workflows", "copilot-setup-steps.yml"),
+				"setup": filepath.Join(workflowsDir, "copilot-setup-steps.yml"),
 				"skill": filepath.Join(dir, ".github", "skills", "agentic-workflows", "SKILL.md"),
 			}
 			const existingContent = "existing content\n"

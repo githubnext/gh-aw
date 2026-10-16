@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -292,11 +293,16 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		}
 	}
 
+	workflowDir, err := resolveUpgradeWorkflowDir(opts.workflowDir)
+	if err != nil {
+		return err
+	}
+
 	// Step 1: Update dispatcher skill and related Copilot artifacts (like init command)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating dispatcher skill..."))
 	upgradeLog.Print("Updating dispatcher skill")
 
-	if err := updateCopilotArtifacts(opts); err != nil {
+	if err := updateCopilotArtifacts(opts, workflowDir); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
@@ -311,11 +317,12 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		upgradeLog.Print("Applying codemods to all workflows")
 
 		fixConfig := FixConfig{
-			WorkflowIDs:        nil, // nil means all workflows
-			Write:              true,
-			Verbose:            opts.verbose,
-			WorkflowDir:        opts.workflowDir,
-			DisabledCodemodIDs: opts.disabledCodemodIDs,
+			WorkflowIDs:                nil, // nil means all workflows
+			Write:                      true,
+			Verbose:                    opts.verbose,
+			WorkflowDir:                workflowDir,
+			DisabledCodemodIDs:         opts.disabledCodemodIDs,
+			SkipInstructionFileUpdates: true,
 		}
 
 		if err := RunFix(fixConfig); err != nil {
@@ -429,14 +436,14 @@ func runUpgradeCommand(opts upgradeOptions) error {
 }
 
 // updateCopilotArtifacts updates the dispatcher skill and related Copilot setup artifacts.
-func updateCopilotArtifacts(opts upgradeOptions) error {
+func updateCopilotArtifacts(opts upgradeOptions, workflowDir string) error {
 	// Update dispatcher skill
 	if err := ensureAgenticWorkflowsDispatcher(opts.verbose, opts.noSkill, true); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
 
-	usesCopilot := upgradeUsesCopilot(opts)
+	usesCopilot := upgradeUsesCopilot(opts, workflowDir)
 	if !opts.noAgent {
 		gitRoot, err := gitutil.FindGitRoot()
 		if err != nil {
@@ -457,10 +464,10 @@ func updateCopilotArtifacts(opts upgradeOptions) error {
 
 	// Upgrade copilot-setup-steps.yml version
 	if !opts.noMCP {
-		setupPath := filepath.Join(constants.GetWorkflowDir(), "copilot-setup-steps.yml")
+		setupPath := filepath.Join(workflowDir, "copilot-setup-steps.yml")
 		if _, err := os.Stat(setupPath); usesCopilot || err == nil {
 			actionMode := workflow.DetectActionMode(GetVersion())
-			if err := upgradeCopilotSetupSteps(opts.ctx, opts.verbose, actionMode, GetVersion()); err != nil {
+			if err := upgradeCopilotSetupStepsInDir(opts.ctx, opts.verbose, actionMode, GetVersion(), workflowDir); err != nil {
 				upgradeLog.Printf("Failed to upgrade copilot-setup-steps.yml: %v", err)
 				// Don't fail the upgrade if copilot-setup-steps upgrade fails - this is non-critical
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to upgrade copilot-setup-steps.yml: %v", err)))
@@ -471,17 +478,46 @@ func updateCopilotArtifacts(opts upgradeOptions) error {
 	return nil
 }
 
-func upgradeUsesCopilot(opts upgradeOptions) bool {
-	if opts.engineOverride != "" {
-		return opts.engineOverride == "copilot"
+func resolveUpgradeWorkflowDir(workflowDir string) (string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", err
 	}
-	mdFiles, err := getMarkdownWorkflowFiles(opts.workflowDir)
+	if workflowDir == "" {
+		workflowDir = constants.GetWorkflowDir()
+	}
+	if !filepath.IsAbs(workflowDir) {
+		workflowDir = filepath.Join(gitRoot, workflowDir)
+	}
+	return filepath.Clean(workflowDir), nil
+}
+
+func upgradeUsesCopilot(opts upgradeOptions, workflowDir string) bool {
+	if opts.engineOverride != "" {
+		return strings.EqualFold(opts.engineOverride, "copilot")
+	}
+	mdFiles, err := getMarkdownWorkflowFiles(workflowDir)
 	if err != nil {
 		upgradeLog.Printf("Could not scan workflow engines: %v", err)
 		return false
 	}
+	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
+	if err != nil {
+		upgradeLog.Printf("Could not filter workflow engines: %v", err)
+		return false
+	}
 	for _, file := range mdFiles {
-		if extractEngineIDFromFile(file) == "copilot" {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			upgradeLog.Printf("Could not read workflow engine from %s: %v", file, err)
+			continue
+		}
+		engineConfig, err := workflow.NewCompiler().ResolveEffectiveEngineConfig(string(content), file)
+		if err != nil {
+			upgradeLog.Printf("Could not resolve workflow engine from %s: %v", file, err)
+			continue
+		}
+		if engineConfig != nil && strings.EqualFold(engineConfig.ID, "copilot") {
 			return true
 		}
 	}
