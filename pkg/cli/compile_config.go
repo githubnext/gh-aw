@@ -9,6 +9,7 @@ type CompileConfig struct {
 	Watch                     bool     // Enable watch mode
 	WorkflowDir               string   // Custom workflow directory
 	NoEmit                    bool     // Validate without generating lock files
+	NoLogo                    bool     // Omit the ASCII logo from generated workflow headers
 	Purge                     bool     // Remove orphaned lock files
 	TrialMode                 bool     // Enable trial mode (suppress safe outputs)
 	TrialLogicalRepoSlug      string   // Target repository for trial mode

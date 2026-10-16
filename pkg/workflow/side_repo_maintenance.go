@@ -172,6 +172,7 @@ type generateAllSideRepoMaintenanceWorkflowsOptions struct {
 	hasExpires       bool
 	minExpiresDays   int
 	repoConfig       *RepoConfig
+	noLogo           bool
 }
 
 // generateAllSideRepoMaintenanceWorkflows detects SideRepoOps targets and
@@ -208,6 +209,7 @@ func generateSideRepoMaintenanceFiles(ctx context.Context, targets []SideRepoTar
 			hasExpires:     opts.hasExpires,
 			minExpiresDays: opts.minExpiresDays,
 			repoConfig:     opts.repoConfig,
+			noLogo:         opts.noLogo,
 			pinWarnings:    opts.pinWarnings,
 		})
 		if err != nil {
@@ -255,6 +257,7 @@ type generateSideRepoMaintenanceWorkflowOptions struct {
 	hasExpires     bool
 	minExpiresDays int
 	repoConfig     *RepoConfig
+	noLogo         bool
 }
 
 // generateSideRepoMaintenanceWorkflow generates a workflow_call-based maintenance
@@ -301,6 +304,7 @@ type sideRepoMaintenanceRenderContext struct {
 	cronSchedule    string
 	scheduleDesc    string
 	formattedRunsOn string
+	noLogo          bool
 }
 
 func newSideRepoMaintenanceRenderContext(ctx context.Context, opts generateSideRepoMaintenanceWorkflowOptions) sideRepoMaintenanceRenderContext {
@@ -318,6 +322,7 @@ func newSideRepoMaintenanceRenderContext(ctx context.Context, opts generateSideR
 		minExpiresDays:  opts.minExpiresDays,
 		setupActionRef:  ResolveSetupActionReference(ctx, opts.actionMode, opts.version, opts.actionTag, opts.resolver),
 		formattedRunsOn: FormatRunsOn(nil, "ubuntu-latest"),
+		noLogo:          !shouldIncludeLockFileLogo(opts.repoConfig, opts.noLogo),
 	}
 	maintenanceLog.Printf("Building side-repo workflow content: repo=%s, actionMode=%s, hasExpires=%t", renderCtx.repoSlug, renderCtx.actionMode, renderCtx.hasExpires)
 	if opts.target.GitHubApp != nil && opts.target.GitHubToken == "" {
@@ -338,7 +343,7 @@ func newSideRepoMaintenanceRenderContext(ctx context.Context, opts generateSideR
 
 func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderContext) (string, error) {
 	var yaml strings.Builder
-	yaml.WriteString(buildSideRepoMaintenanceHeader(renderCtx.repoSlug))
+	yaml.WriteString(buildSideRepoMaintenanceHeader(renderCtx.repoSlug, !renderCtx.noLogo))
 	yaml.WriteString(buildSideRepoMaintenanceOnSection(renderCtx))
 	if renderCtx.hasExpires {
 		maintenanceLog.Printf("Including close-expired-entities job for %s (cron=%s)", renderCtx.repoSlug, renderCtx.cronSchedule)
@@ -355,9 +360,9 @@ func buildSideRepoMaintenanceWorkflowYAML(renderCtx sideRepoMaintenanceRenderCon
 	return finalYAML, nil
 }
 
-func buildSideRepoMaintenanceHeader(repoSlug string) string {
+func buildSideRepoMaintenanceHeader(repoSlug string, logo bool) string {
 	customInstructions := strings.ReplaceAll(sideRepoMaintenanceHeaderTemplate, "{REPO_SLUG}", repoSlug)
-	return GenerateWorkflowHeader("", "pkg/workflow/side_repo_maintenance.go", customInstructions)
+	return GenerateWorkflowHeader("", "pkg/workflow/side_repo_maintenance.go", customInstructions, logo)
 }
 
 func buildSideRepoMaintenanceOnSection(renderCtx sideRepoMaintenanceRenderContext) string {

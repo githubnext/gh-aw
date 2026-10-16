@@ -32,6 +32,7 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	hasWorkQueue        bool
 	hasCacheMemory      bool
 	hasSteering         bool
+	noLogo              bool
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -114,7 +115,7 @@ Agentic maintenance docs:
 			scheduleBasis = "for steering issue cleanup"
 		}
 	}
-	return GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions) + `name: Agentic Maintenance
+	return GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions, !opts.noLogo) + `name: Agentic Maintenance
 
 on:
   schedule:

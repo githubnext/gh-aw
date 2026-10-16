@@ -31,7 +31,7 @@ func TestSecurityModelDetectionPolicyManifest(t *testing.T) {
 			err := compiler.generateWorkflowHeader(&header, &WorkflowData{
 				RawFrontmatter: map[string]any{"on": "workflow_dispatch"},
 				SafeOutputs:    tc.config,
-			}, "hash", "body", nil, nil)
+			}, "hash", "body", nil, nil, nil)
 			require.NoError(t, err)
 			manifest, err := ExtractGHAWManifestFromLockFile(header.String())
 			require.NoError(t, err)

@@ -570,7 +570,7 @@ Detects dangerous patterns in externally-sourced markdown files (e.g., from `gh 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `GenerateWorkflowHeader` | `func(sourceFile, generatedBy, customInstructions string) string` | Generates the standard ASCII-art + regeneration-instructions header comment for compiled lock files; `sourceFile` is the `.md` source path, `generatedBy` names the generator, and `customInstructions` is appended verbatim |
+| `GenerateWorkflowHeader` | `func(sourceFile, generatedBy, customInstructions string, logo ...bool) string` | Generates the standard header comment for compiled lock files; `sourceFile` is the `.md` source path, `generatedBy` names the generator, `customInstructions` is appended verbatim, and optional `logo` controls the ASCII art (default: true) |
 
 ### Validation Functions
 

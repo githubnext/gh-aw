@@ -51,7 +51,7 @@ type helpCommandEntry struct {
 // GenerateCentralSlashCommandWorkflow generates a single centralized slash-command trigger
 // workflow for workflows that opt into on.slash_command.strategy: centralized.
 // When no centralized slash-command workflows are found, any existing generated file is deleted.
-func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, repoConfig *RepoConfig) error {
+func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, repoConfig *RepoConfig, noLogo ...bool) error {
 	centralSlashCommandWorkflowLog.Printf("Generating centralized slash-command workflow from %d workflow(s)", len(workflowDataList))
 	slashRoutesByCommand, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(workflowDataList)
 
@@ -89,6 +89,7 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 		setupActionRef,
 		helpCommands,
 		helpCommandEnabled,
+		shouldIncludeLockFileLogo(repoConfig, noLogo...),
 	)
 	if err != nil {
 		return err
@@ -374,6 +375,7 @@ func buildCentralSlashCommandWorkflowYAML(
 	setupActionRef string,
 	helpCommands []helpCommandEntry,
 	helpCommandEnabled bool,
+	logo bool,
 ) (string, error) {
 	slashRoutesJSON, err := json.Marshal(slashRoutesByCommand)
 	if err != nil {
@@ -393,7 +395,7 @@ func buildCentralSlashCommandWorkflowYAML(
 		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
 	}
 
-	header := GenerateWorkflowHeader("", "gh-aw", "")
+	header := GenerateWorkflowHeader("", "gh-aw", "", logo)
 
 	var b strings.Builder
 	b.WriteString("# gh-aw-commands: ")
