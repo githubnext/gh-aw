@@ -14,6 +14,37 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it.each([false, true])("preserves Copilot file edits through the published projection when tool success is %s", success => {
+    const native = [
+      { type: "tool.execution_start", id: "edit-start", data: { toolCallId: "edit", toolName: "edit", arguments: { path: "/workspace/partial.txt" } } },
+      {
+        type: "tool.execution_complete",
+        id: "edit-end",
+        data: {
+          toolCallId: "edit",
+          success,
+          fileEdits: [{ kind: "edit", path: "/workspace/partial.txt" }],
+          ...(success ? {} : { error: { message: "Second edit failed" } }),
+        },
+      },
+    ];
+    const original = structuredClone(native);
+    const events = normalizeCopilotSession(native);
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "sandbox/agent/logs/copilot-session-state/release-events/events.jsonl", events }]);
+    const published = serializeSessionArtifact(unified).trim().split("\n").map(JSON.parse);
+    const completion = published.find(event => event.id === "edit-end");
+    expect(completion.data).toMatchObject({
+      toolName: "edit",
+      success,
+      fileEdits: [{ kind: "edit", path: "/workspace/partial.txt" }],
+      ...(success ? {} : { error: { message: "Second edit failed" } }),
+    });
+    const validate = createSessionValidator("unified").event;
+    for (const event of published) expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    expect(published.filter(event => event.type === "tool.execution_complete")).toHaveLength(1);
+    expect(native).toEqual(original);
+  });
+
   it("preserves top-level AWF routing metadata with endpoint-local precedence and no credentials", () => {
     const source = {
       models_fetch_complete: false,

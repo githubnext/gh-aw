@@ -13,6 +13,10 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
+const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
+
+const AWF_RESOLVED_CONFIG_PATH_PATTERN = /^\/run\/awf-config-audit\/run-[a-zA-Z0-9]{6}\/awf-resolved-config\.json$/;
+const AWF_RESOLVED_CONFIG_STAGING_PATH = "/tmp/gh-aw/awf-resolved-config.json";
 
 /**
  * @param {unknown} error
@@ -282,6 +286,7 @@ function redactSecrets(content, secretValues) {
     if (!secretValue || secretValue.length < 6) {
       continue;
     }
+
     // Count occurrences before replacement
     // Use split and join for exact string matching (not regex)
     // This is safer than regex as it doesn't interpret special characters
@@ -296,6 +301,87 @@ function redactSecrets(content, secretValues) {
     }
   }
   return { content: redacted, redactionCount };
+}
+
+/**
+ * Validate and read the host-only AWF early configuration artifact. The exact
+ * path contract and metadata checks prevent an environment variable from
+ * turning this diagnostic step into an arbitrary host-file uploader.
+ * @param {string} sourcePath
+ * @returns {string}
+ */
+function readAWFResolvedConfig(sourcePath) {
+  if (typeof sourcePath !== "string" || !AWF_RESOLVED_CONFIG_PATH_PATTERN.test(sourcePath)) {
+    throw new Error(`${ERR_VALIDATION}: Invalid AWF resolved configuration publication path`);
+  }
+  const uid = process.getuid?.();
+  const root = fs.lstatSync("/run/awf-config-audit");
+  const directory = fs.lstatSync(path.dirname(sourcePath));
+  const source = fs.lstatSync(sourcePath);
+  if (
+    !root.isDirectory() ||
+    root.uid !== 0 ||
+    (root.mode & 0o022) !== 0 ||
+    !directory.isDirectory() ||
+    directory.uid !== uid ||
+    (directory.mode & 0o777) !== 0o700 ||
+    !source.isFile() ||
+    source.uid !== uid ||
+    source.nlink !== 1 ||
+    (source.mode & 0o777) !== 0o600
+  ) {
+    throw new Error(`${ERR_VALIDATION}: AWF resolved configuration artifact failed ownership or permission validation`);
+  }
+  const fd = fs.openSync(sourcePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  try {
+    const opened = fs.fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.uid !== uid || (opened.mode & 0o777) !== 0o600 || opened.ino !== source.ino || opened.dev !== source.dev) {
+      throw new Error(`${ERR_VALIDATION}: AWF resolved configuration artifact changed during validation`);
+    }
+    return fs.readFileSync(fd, "utf8");
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Copy only sanitized AWF configuration into the normal artifact tree.
+ * @param {string | undefined} sourcePath
+ * @param {string[]} secretValues
+ * @param {string[]} maskedValues
+ * @returns {boolean}
+ */
+function stageAWFResolvedConfig(sourcePath, secretValues, maskedValues) {
+  try {
+    // Remove stale files, directories, or symlinks without following links. This
+    // keeps rejected entries out of artifact uploads when older AWF omits this file.
+    fs.rmSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+    if (!sourcePath) return false;
+    const raw = readAWFResolvedConfig(sourcePath);
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(`${ERR_VALIDATION}: AWF resolved configuration is not valid JSON`);
+    }
+    const safeConfig = redactSensitiveConfig(parsed);
+    const serialized = JSON.stringify(safeConfig, null, 2);
+    const redactionValues = [...new Set([...maskedValues, ...secretValues])];
+    const redacted = redactSecrets(redactBuiltInPatterns(redactArtifactMaskedValues(serialized, redactionValues)).content, redactionValues).content;
+    const temporary = fs.mkdtempSync("/tmp/gh-aw/.awf-resolved-config-");
+    try {
+      const temporaryFile = path.join(temporary, "awf-resolved-config.json");
+      fs.writeFileSync(temporaryFile, redacted, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      fs.renameSync(temporaryFile, AWF_RESOLVED_CONFIG_STAGING_PATH);
+    } finally {
+      fs.rmSync(temporary, { recursive: true, force: true });
+    }
+    return true;
+  } catch (error) {
+    // A failed validation or staging attempt must never leave stale output for upload.
+    fs.rmSync(AWF_RESOLVED_CONFIG_STAGING_PATH, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 /**
@@ -534,6 +620,21 @@ async function main({ prepareForCustomMasking = false } = {}) {
       }
     }
     const maskedValues = [...masks].sort((a, b) => b.length - a.length);
+    let stagedResolvedConfig = false;
+    let resolvedConfigCollectionFailed = false;
+    try {
+      stagedResolvedConfig = stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
+    } catch (error) {
+      resolvedConfigCollectionFailed = true;
+      core.setFailed(`${ERR_VALIDATION}: AWF resolved configuration was not collected safely`);
+      core.warning(`AWF resolved configuration collection failed: ${getErrorMessage(error)}`);
+      core.warning("Continuing with standard artifact redaction despite AWF resolved configuration collection failure");
+    }
+    if (stagedResolvedConfig) {
+      core.info("Collected sanitized AWF resolved configuration");
+    } else if (!resolvedConfigCollectionFailed && !process.env.AWF_RESOLVED_CONFIG) {
+      core.info("AWF did not publish an early resolved configuration artifact");
+    }
     // Process each file
     for (const file of files) {
       const redactionCount = processFile(file, secretValues, maskedValues, prepareForCustomMasking);
@@ -589,4 +690,18 @@ async function redactFilesInDir(dir) {
   }
 }
 
-module.exports = { main, redactFilesInDir, findFiles, processFile, redactSecrets, redactBuiltInPatterns, redactStepSummaryContent, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };
+module.exports = {
+  main,
+  redactFilesInDir,
+  findFiles,
+  processFile,
+  redactSecrets,
+  redactBuiltInPatterns,
+  redactStepSummaryContent,
+  extractMCPGatewayTokens,
+  readAWFResolvedConfig,
+  stageAWFResolvedConfig,
+  AWF_RESOLVED_CONFIG_STAGING_PATH,
+  BUILT_IN_PATTERNS,
+  MCP_GATEWAY_CONFIG_PATHS,
+};

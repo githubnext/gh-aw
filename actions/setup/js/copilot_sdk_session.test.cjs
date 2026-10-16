@@ -29,6 +29,7 @@ describe("copilot_sdk_session runtime configuration", () => {
     vi.stubEnv("GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON", JSON.stringify({ model: "claude-sonnet-4.6", models, providers }));
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     fs.rmSync(base, { recursive: true, force: true });
     vi.restoreAllMocks();
@@ -336,7 +337,7 @@ describe("copilot_sdk_session runtime configuration", () => {
     expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
   });
 
-  it("retains CLI 1.0.98 / SDK 1.0.22 shell, dispatch, file-edit and human-response evidence", async () => {
+  it("retains CLI 1.0.98 / SDK 1.0.22 dispatch, file-edit and human-response evidence but excludes shell chunks", async () => {
     let handler;
     // Synthetic transport fixtures follow SDK 1.0.22's generated/session-events.d.ts,
     // not a live Actions run. Shell chunks and logical dispatches are not tool or session completions.
@@ -375,14 +376,150 @@ describe("copilot_sdk_session runtime configuration", () => {
     });
     expect(result.exitCode).toBe(0);
     const captured = fs.readFileSync(path.join(base, "release-events/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
-    expect(captured.slice(0, events.length)).toEqual(original);
+    const retained = original.filter(event => event.type !== "tool.shell_output");
+    expect(captured.slice(0, retained.length)).toEqual(retained);
+    expect(captured.some(event => event.type === "tool.shell_output")).toBe(false);
     expect(captured.some(event => event.type === "vendor.transient")).toBe(false);
     const normalized = normalizeCopilotSession(captured);
-    for (const event of original.slice(1)) expect(normalized.find(entry => entry.id === event.id)).toEqual(event);
+    for (const event of retained.slice(1)) expect(normalized.find(entry => entry.id === event.id)).toEqual(event);
     expect(normalized.filter(event => event.type === "tool.execution_complete")).toHaveLength(1);
     expect(normalized.some(event => event.type === "session.result")).toBe(false);
     expect(events).toEqual(original);
     expect(normalizeCopilotSession(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
+  });
+
+  it.each([true, false])("excludes credentials split across shell chunks from JSONL and stderr (ephemeral=%s)", async ephemeral => {
+    let handler;
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const fragments = ["ghp_" + "A".repeat(18), "B".repeat(18)];
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "split-credential",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => {
+          for (const agentId of [undefined, "child"]) {
+            for (const stream of ["stdout", "stderr"]) {
+              fragments.forEach((text, sequence) => handler({ type: "tool.shell_output", ephemeral, agentId, data: { toolCallId: "shell", stream, sequence, text } }));
+            }
+          }
+          return { data: { content: "done" } };
+        },
+        disconnect: async () => {},
+      });
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const raw = fs.readFileSync(path.join(base, "split-credential/events.jsonl"), "utf8");
+    const serialized = JSON.stringify(normalizeCopilotSession(raw.trim().split("\n").map(JSON.parse)));
+    const logged = stderr.mock.calls.map(([text]) => String(text)).join("");
+    for (const text of [raw, serialized, logged]) {
+      expect(text.includes("tool.shell_output")).toBe(false);
+      for (const fragment of fragments) expect(text.includes(fragment)).toBe(false);
+    }
+  });
+
+  it("does not postpone the completion watchdog for background shell chunks", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubEnv("GH_AW_SDK_IDLE_MS", "30");
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    let handler;
+    let rejectSend;
+    let markSending;
+    const sending = new Promise(resolve => {
+      markSending = resolve;
+    });
+    const disconnect = vi.fn(async () => {
+      rejectSend(new Error("Session disconnected"));
+    });
+    const logger = vi.fn();
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "background-shell",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: () => {
+          const pending = new Promise((_resolve, reject) => {
+            rejectSend = reject;
+          });
+          handler({ type: "tool.execution_start", data: { toolCallId: "shell", toolName: "bash" } });
+          handler({ type: "assistant.message", data: { content: "done" } });
+          handler({ type: "tool.execution_complete", data: { toolCallId: "shell", success: true } });
+          markSending();
+          return pending;
+        },
+        disconnect,
+      });
+    }
+    const running = runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger,
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    await sending;
+    for (const sequence of [0, 1]) {
+      await vi.advanceTimersByTimeAsync(10);
+      handler({ type: "tool.shell_output", ephemeral: true, data: { toolCallId: "shell", stream: "stdout", sequence, text: "background output" } });
+    }
+    expect(disconnect).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(disconnect).toHaveBeenCalled();
+    expect(await running).toMatchObject({ exitCode: 0, output: "done", hasOutput: true });
+    expect(logger.mock.calls.flat().some(message => message.includes("post-completion watchdog triggered disconnect"))).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores shell and completion callbacks during shutdown and after disconnect", async () => {
+    let handler;
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const lateEvents = [
+      { type: "tool.shell_output", ephemeral: true, data: { toolCallId: "late", stream: "stdout", text: "late output" } },
+      { type: "tool.execution_complete", data: { toolCallId: "late", success: true } },
+      { type: "assistant.message", data: { content: "late answer" } },
+    ];
+    const disconnect = vi.fn(async () => {
+      lateEvents.forEach(event => handler(event));
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = async () => ({
+        sessionId: "late-callback",
+        on: callback => {
+          handler = callback;
+        },
+        sendAndWait: async () => ({ data: { content: "done" } }),
+        disconnect,
+      });
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result).toMatchObject({ exitCode: 0, output: "done" });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    lateEvents.forEach(event => handler(event));
+    await new Promise(resolve => setImmediate(resolve));
+    const captured = fs.readFileSync(path.join(base, "late-callback/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(captured).toEqual([{ type: "assistant.message", data: { content: "done" } }]);
+    expect(stderr.mock.calls.map(([text]) => String(text)).join("")).not.toContain("late");
   });
 
   it.each(["routing", "environment", "fallback", "reflect"])("qualifies the %s model before createSession", async source => {
