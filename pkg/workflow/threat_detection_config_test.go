@@ -354,13 +354,28 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 }
 
 func TestParseThreatDetectionConfigCACert(t *testing.T) {
-	for _, value := range []string{"/tmp/detection-ca.pem", " /tmp/detection-ca.pem \n", "", " \t"} {
-		t.Run(value, func(t *testing.T) {
+	tests := []struct {
+		name           string
+		value          any
+		want           string
+		disableInherit bool
+	}{
+		{name: "path", value: "/tmp/detection-ca.pem", want: "/tmp/detection-ca.pem"},
+		{name: "trimmed path", value: " /tmp/detection-ca.pem \n", want: "/tmp/detection-ca.pem"},
+		{name: "empty inherits", value: "", want: ""},
+		{name: "whitespace inherits", value: " \t", want: ""},
+		{name: "false disables inheritance", value: false, disableInherit: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			config := NewCompiler().parseThreatDetectionConfig(map[string]any{
-				"threat-detection": map[string]any{"ca-cert": value},
+				"threat-detection": map[string]any{"ca-cert": tt.value},
 			})
-			if want := strings.TrimSpace(value); config.CACert != want {
-				t.Errorf("CA certificate = %q, want %q", config.CACert, want)
+			if config.CACert != tt.want {
+				t.Errorf("CA certificate = %q, want %q", config.CACert, tt.want)
+			}
+			if config.DisableCACert != tt.disableInherit {
+				t.Errorf("DisableCACert = %v, want %v", config.DisableCACert, tt.disableInherit)
 			}
 		})
 	}

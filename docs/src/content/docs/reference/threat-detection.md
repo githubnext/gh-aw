@@ -102,7 +102,7 @@ safe-outputs:
 | `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
 | `prompt` | string | Custom instructions appended to default detection prompt |
 | `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
-| `ca-cert` | string | Host path to an additional CA certificate for the detection API proxy. Inherits `sandbox.agent.ca-cert` when unset or empty. Requires AWF v0.28.10 or later. |
+| `ca-cert` | string/false | Absolute host path to a CA certificate for the detection API proxy. Inherits `sandbox.agent.ca-cert` when unset or empty and the detection engine matches the agent engine; set to `false` to disable inheritance. Requires AWF v0.28.10 or later. |
 | `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
 | `artifact-base-url` | string | HTTPS base URL for a mirror of the pinned detector release assets. The compiler appends the pinned release tag and asset name; the embedded digest cannot be overridden. |
 | `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
@@ -113,7 +113,7 @@ safe-outputs:
 
 ### Private CA certificates
 
-The detection job inherits `sandbox.agent.ca-cert` for upstream API proxy TLS verification. A non-empty `safe-outputs.threat-detection.ca-cert` overrides the inherited path.
+The detection job inherits `sandbox.agent.ca-cert` for upstream API proxy TLS verification only when the detection and agent engines match. A non-empty `safe-outputs.threat-detection.ca-cert` overrides the inherited path; set it to `false` to opt out, or leave it unset/empty to use the matching-engine inheritance behavior.
 
 Detection runs on a fresh runner, so the certificate file must also exist there before engine execution. Use detection pre-steps to write it:
 
@@ -128,6 +128,8 @@ safe-outputs:
           CA_PEM: ${{ secrets.INTERNAL_CA_PEM }}
         run: printf '%s\n' "$CA_PEM" > /tmp/detection-ca.pem
 ```
+
+AWF versions before v0.28.10 silently omit `apiProxy.caCert` from the configuration instead of failing compilation. The custom certificate is therefore not used, and connections that require it may fail TLS verification.
 
 ### Use an artifact mirror
 

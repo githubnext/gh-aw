@@ -11,8 +11,10 @@ func TestMainWorkflowSchemaThreatDetectionCACert(t *testing.T) {
 		value any
 		valid bool
 	}{
-		{name: "certificate path", value: "/tmp/detection-ca.pem", valid: true},
+		{name: "absolute certificate path", value: "/tmp/detection-ca.pem", valid: true},
 		{name: "empty path", value: "", valid: true},
+		{name: "explicitly disable inheritance", value: false, valid: true},
+		{name: "relative path rejected", value: "tmp/detection-ca.pem"},
 		{name: "boolean rejected", value: true},
 		{name: "number rejected", value: 42},
 	} {
