@@ -221,7 +221,7 @@ The MCP gateway startup step polls the gateway `/health` endpoint with exponenti
 
 | Variable | Default | Applies to |
 | --- | --- | --- |
-| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | At least `150`, automatically sized | Total health-check attempts, including the first one. |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | At least `150`, automatically sized up to `10000` | Total health-check attempts, including the first one. |
 | `GH_AW_MCP_GATEWAY_HEALTH_INITIAL_DELAY_MS` | `250` | Delay the backoff starts from. |
 | `GH_AW_MCP_GATEWAY_HEALTH_MAX_DELAY_MS` | `1000` | Cap applied to every retry delay. |
 | `GH_AW_MCP_GATEWAY_HEALTH_BACKOFF_MULTIPLIER` | `2` | Multiplier applied to the delay before every retry. |
@@ -231,7 +231,7 @@ These values are cross-validated at startup:
 
 - A backoff multiplier below `1` is raised to `1` (constant delay).
 - A delay cap below the initial delay is raised to the initial delay.
-- Unless a valid attempt count is explicitly configured, the attempt count increases so the cumulative retry delay covers the backend startup timeout (including `tools.startup-timeout`) plus 25 seconds for backend cleanup and final server registration. Explicit attempt counts are capped at `10000`; an insufficient explicit retry budget emits a warning. Health and readiness probes share the startup deadline, so increasing attempts does not extend that deadline.
+- Unless a valid attempt count is explicitly configured, the attempt count increases so the cumulative retry delay covers the backend startup timeout (including `tools.startup-timeout`) plus 25 seconds for backend cleanup and final server registration. Explicit and automatically sized attempt counts are capped at `10000`; an insufficient retry budget emits a warning. Health and readiness probes share the startup deadline, so increasing attempts does not extend that deadline.
 
 ## CLI Configuration Variables
 

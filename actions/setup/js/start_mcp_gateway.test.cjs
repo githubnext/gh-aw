@@ -137,6 +137,13 @@ describe("start_mcp_gateway logging", () => {
     expect(source).not.toContain("/tmp/gh-aw/mcp-logs/start-gateway.log");
   });
 
+  it("stops health polling when the gateway process exits", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    const healthCheckStart = source.indexOf('core.info("=== Health Check Progress ===")');
+    const healthCheckEnd = source.indexOf("succeeded = true;", healthCheckStart);
+    expect(source.slice(healthCheckStart, healthCheckEnd)).toContain("() => isProcessAlive(gatewayPid)");
+  });
+
   it("captures the gateway child process stderr outside the artifact directory", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
@@ -272,20 +279,70 @@ describe("start_mcp_gateway health timeout", () => {
     }
   });
 
-  it.each(["1", "1.0000000000000002", "2"])("handles large startup windows without limiting automatic attempts (%s)", backoffMultiplier => {
+  it("caps automatic attempts when short delays cannot cover the startup window", () => {
+    const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "1",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs]: "1",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "1",
+    });
+
+    expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
+    expect(config.retryBudgetMs).toBe(9_999);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("health retry budget is"));
+  });
+
+  it.each(["1", "1.0000000000000002", "2"])("bounds automatically sized attempts for large startup windows (%s)", backoffMultiplier => {
+    const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
     const config = resolveGatewayHealthRetryConfig({
       [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "2147483000",
       [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "1",
       [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: backoffMultiplier,
     });
 
-    expect(config.maxTotalAttempts).toBeGreaterThan(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
-    expect(config.retryBudgetMs).toBeGreaterThanOrEqual(2147483000 + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS);
+    expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
+    expect(config.retryBudgetMs).toBeLessThan(2147483000 + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("health retry budget is"));
+  });
+
+  it("stops retrying when the gateway process is no longer alive", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const probe = vi.fn(async () => {
+      throw new Error("connection refused");
+    });
+    const isGatewayAlive = vi.fn(() => false);
+    const config = { maxTotalAttempts: 10, initialDelayMs: 1, maxDelayMs: 1, backoffMultiplier: 1 };
+
+    await expect(retryGatewayStartup(probe, config, 1000, "health", isGatewayAlive)).rejects.toThrow("connection refused");
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(isGatewayAlive).toHaveBeenCalledTimes(1);
+    expect(Date.now()).toBe(0);
+  });
+
+  it("limits retry warnings to exponentially spaced progress reports", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const warning = vi.spyOn(global.core, "warning").mockImplementation(() => {});
+    const probe = vi.fn(async () => {
+      throw new Error("backend unavailable");
+    });
+    const config = { maxTotalAttempts: 20, initialDelayMs: 1, maxDelayMs: 1, backoffMultiplier: 1 };
+    const wait = retryGatewayStartup(probe, config, 1000, "health");
+    const rejection = expect(wait).rejects.toThrow("backend unavailable");
+
+    await vi.runAllTimersAsync();
+    await rejection;
+
+    expect(probe).toHaveBeenCalledTimes(20);
+    expect(warning).toHaveBeenCalledTimes(5);
   });
 
   it.each([
     { backendStartupTimeoutMs: 300_000, readyMs: 300_000, backoffMultiplier: "2" },
-    { backendStartupTimeoutMs: 1000, readyMs: 25_000, initialDelayMs: "1", backoffMultiplier: "1.00001" },
+    { backendStartupTimeoutMs: 1000, readyMs: 25_000, initialDelayMs: "3", backoffMultiplier: "1.00001" },
   ])("keeps polling through backend startup and registration: %j", async ({ backendStartupTimeoutMs, readyMs, initialDelayMs, backoffMultiplier }) => {
     vi.useFakeTimers({ loopLimit: 50_000 });
     vi.setSystemTime(0);
